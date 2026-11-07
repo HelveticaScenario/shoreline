@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Sidebar - panel plus a vertical activity bar on the outer edge
+   Sidebar - resizable panel plus a vertical activity bar on the outer edge
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .app-sidebar {
+    position: relative;
     display: flex;
     flex-direction: row;
     height: 100%;
@@ -15,7 +16,54 @@
     display: flex;
     flex-direction: column;
     width: 32ch;
-    min-width: 0;
+    min-width: 160px;
+    /* Matches RESERVED_WIDTH in SidebarSash.tsx, so a narrowed window
+       squeezes the sidebar before the editor. */
+    max-width: max(160px, calc(100vw - 280px));
+}
+
+/* Straddles the sidebar's left border so the grab target is wider than the
+   line it highlights. */
+.app-sidebar-sash {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -3px;
+    width: 6px;
+    z-index: 20;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+.app-sidebar-sash::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    width: 2px;
+    background: transparent;
+    transition: background-color 0.1s;
+}
+
+.app-sidebar-sash:hover::after {
+    transition-delay: 0.3s;
+    background: var(--accent-primary);
+}
+
+.app-sidebar-sash.active::after,
+.app-sidebar-sash:focus-visible::after {
+    transition-delay: 0s;
+    background: var(--accent-primary);
+}
+
+.app-sidebar-sash:focus-visible {
+    outline: none;
+}
+
+body.app-sidebar-resizing {
+    cursor: col-resize;
+    user-select: none;
 }
 
 .app-sidebar-title {
