@@ -5,7 +5,7 @@ import {
     SlidersHorizontal,
 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
-import { SidebarSash, useSidebarWidth } from './SidebarSash';
+import { SidebarSash, sidebarPanelStyle, useSidebarWidth } from './SidebarSash';
 import './Sidebar.css';
 
 export type SidebarTab = 'explorer' | 'control' | 'perform';
@@ -33,16 +33,12 @@ export function Sidebar({
 
     return (
         <div className="app-sidebar">
-            <SidebarSash
-                panelId="app-sidebar-panel"
-                width={width}
-                onWidthChange={setWidth}
-            />
+            <SidebarSash panelId="app-sidebar-panel" onWidthChange={setWidth} />
             <section
                 id="app-sidebar-panel"
                 className="app-sidebar-panel"
                 aria-labelledby="app-sidebar-title"
-                style={width === null ? undefined : { width }}
+                style={sidebarPanelStyle(width)}
             >
                 <h2 id="app-sidebar-title" className="app-sidebar-title">
                     {activeLabel}
