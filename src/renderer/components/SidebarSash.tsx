@@ -1,7 +1,7 @@
 import {
+    type CSSProperties,
     type KeyboardEvent,
     type PointerEvent,
-    useCallback,
     useEffect,
     useRef,
     useState,
@@ -13,9 +13,24 @@ const MIN_WIDTH = 160;
 const RESERVED_WIDTH = 280;
 const KEYBOARD_STEP = 16;
 
+function maxWidth(): number {
+    return Math.max(MIN_WIDTH, window.innerWidth - RESERVED_WIDTH);
+}
+
 function clampWidth(width: number): number {
-    const max = Math.max(MIN_WIDTH, window.innerWidth - RESERVED_WIDTH);
-    return Math.round(Math.min(Math.max(width, MIN_WIDTH), max));
+    return Math.round(Math.min(Math.max(width, MIN_WIDTH), maxWidth()));
+}
+
+/**
+ * The sidebar panel's sizing. A narrowed window squeezes the sidebar before
+ * the editor; with no width set, the stylesheet's default applies.
+ */
+export function sidebarPanelStyle(width: number | null): CSSProperties {
+    return {
+        width: width ?? undefined,
+        minWidth: MIN_WIDTH,
+        maxWidth: `max(${MIN_WIDTH}px, calc(100vw - ${RESERVED_WIDTH}px))`,
+    };
 }
 
 /**
@@ -31,7 +46,7 @@ export function useSidebarWidth(): [
             const stored = Number(
                 window.localStorage.getItem(WIDTH_STORAGE_KEY),
             );
-            if (stored > 0) return stored;
+            if (stored > 0) return clampWidth(stored);
         } catch {}
         return null;
     });
@@ -49,7 +64,6 @@ export function useSidebarWidth(): [
 
 interface SidebarSashProps {
     panelId: string;
-    width: number | null;
     onWidthChange: (width: number | null) => void;
 }
 
@@ -57,21 +71,32 @@ interface SidebarSashProps {
  * The drag handle on the sidebar's editor-facing edge. Dragging toward the
  * editor widens the panel; double-clicking restores the default width.
  */
-export function SidebarSash({
-    panelId,
-    width,
-    onWidthChange,
-}: SidebarSashProps) {
+export function SidebarSash({ panelId, onWidthChange }: SidebarSashProps) {
     const drag = useRef<{ startX: number; startWidth: number } | null>(null);
     const [dragging, setDragging] = useState(false);
+    const [rendered, setRendered] = useState<{ now: number; max: number }>();
 
-    const currentWidth = useCallback(
-        () =>
-            width ??
-            document.getElementById(panelId)?.getBoundingClientRect().width ??
-            MIN_WIDTH,
-        [panelId, width],
-    );
+    // The drawn width, which the window's size may hold below the stored one.
+    const renderedWidth = () =>
+        document.getElementById(panelId)?.getBoundingClientRect().width ??
+        MIN_WIDTH;
+
+    useEffect(() => {
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        const measure = () =>
+            setRendered({
+                now: Math.round(panel.getBoundingClientRect().width),
+                max: maxWidth(),
+            });
+        const observer = new ResizeObserver(measure);
+        observer.observe(panel);
+        window.addEventListener('resize', measure);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', measure);
+        };
+    }, [panelId]);
 
     // The cursor and selection lock live on the body so they hold while the
     // pointer is over the editor during the drag.
@@ -85,16 +110,19 @@ export function SidebarSash({
         if (e.button !== 0) return;
         e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);
-        drag.current = { startX: e.clientX, startWidth: currentWidth() };
+        drag.current = { startX: e.clientX, startWidth: renderedWidth() };
         setDragging(true);
     };
 
     const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
         if (!drag.current) return;
         const { startX, startWidth } = drag.current;
+        if (e.clientX === startX) return;
         onWidthChange(clampWidth(startWidth + startX - e.clientX));
     };
 
+    // Fires after pointerup and pointercancel too, and when the window takes
+    // capture away without either.
     const endDrag = () => {
         drag.current = null;
         setDragging(false);
@@ -103,13 +131,13 @@ export function SidebarSash({
     const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         const step = e.shiftKey ? KEYBOARD_STEP * 4 : KEYBOARD_STEP;
         if (e.key === 'ArrowLeft') {
-            onWidthChange(clampWidth(currentWidth() + step));
+            onWidthChange(clampWidth(renderedWidth() + step));
         } else if (e.key === 'ArrowRight') {
-            onWidthChange(clampWidth(currentWidth() - step));
+            onWidthChange(clampWidth(renderedWidth() - step));
         } else if (e.key === 'Home') {
             onWidthChange(MIN_WIDTH);
-        } else if (e.key === 'Enter') {
-            onWidthChange(null);
+        } else if (e.key === 'End') {
+            onWidthChange(maxWidth());
         } else {
             return;
         }
@@ -123,13 +151,13 @@ export function SidebarSash({
             aria-controls={panelId}
             aria-label="Resize sidebar"
             aria-valuemin={MIN_WIDTH}
-            aria-valuenow={width ?? undefined}
+            aria-valuemax={rendered?.max}
+            aria-valuenow={rendered?.now}
             tabIndex={0}
             className={`app-sidebar-sash ${dragging ? 'active' : ''}`}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
+            onLostPointerCapture={endDrag}
             onDoubleClick={() => onWidthChange(null)}
             onKeyDown={onKeyDown}
         />

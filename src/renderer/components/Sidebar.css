@@ -16,20 +16,16 @@
     display: flex;
     flex-direction: column;
     width: 32ch;
-    min-width: 160px;
-    /* Matches RESERVED_WIDTH in SidebarSash.tsx, so a narrowed window
-       squeezes the sidebar before the editor. */
-    max-width: max(160px, calc(100vw - 280px));
 }
 
-/* Straddles the sidebar's left border so the grab target is wider than the
-   line it highlights. */
+/* Covers the sidebar's left border and reaches inward, leaving the editor's
+   scrollbar alone. */
 .app-sidebar-sash {
     position: absolute;
     top: 0;
     bottom: 0;
-    left: -3px;
-    width: 6px;
+    left: -1px;
+    width: 5px;
     z-index: 20;
     cursor: col-resize;
     touch-action: none;
@@ -40,7 +36,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    left: 2px;
+    left: 0;
     width: 2px;
     background: transparent;
     transition: background-color 0.1s;
