@@ -19,6 +19,8 @@
 }
 
 .app-sidebar-title {
+    margin: 0;
+    font-weight: normal;
     padding: var(--sp-half) var(--sp-1);
     font-family: var(--font-mono);
     font-size: calc(var(--font-size) - 1px);
