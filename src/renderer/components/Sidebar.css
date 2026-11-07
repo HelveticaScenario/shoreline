@@ -1,48 +1,35 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Sidebar - tabbed container for Explorer and Control panels
+   Sidebar - panel plus a vertical activity bar on the outer edge
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .app-sidebar {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     height: 100%;
     background: var(--bg-secondary);
     border-left: 1px solid var(--border-subtle);
-    width: 32ch;
     font-size: var(--font-size);
 }
 
-.app-sidebar-tabs {
+.app-sidebar-panel {
     display: flex;
-    border-bottom: 1px solid var(--border-subtle);
-    background: var(--bg-tertiary);
-    flex-shrink: 0;
+    flex-direction: column;
+    width: 32ch;
+    min-width: 0;
 }
 
-.app-sidebar-tab {
-    flex: 1;
+.app-sidebar-title {
+    margin: 0;
+    font-weight: normal;
     padding: var(--sp-half) var(--sp-1);
     font-family: var(--font-mono);
     font-size: calc(var(--font-size) - 1px);
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
     color: var(--text-muted);
-    cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    transition:
-        color 0.1s,
-        border-color 0.1s;
-}
-
-.app-sidebar-tab:hover {
-    color: var(--text-secondary);
-}
-
-.app-sidebar-tab.active {
-    color: var(--text-primary);
-    border-bottom-color: var(--text-primary);
+    text-align: center;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
 }
 
 .app-sidebar-content {
@@ -51,4 +38,44 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
+}
+
+.app-activity-bar {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 40px;
+    background: var(--bg-tertiary);
+    border-left: 1px solid var(--border-subtle);
+}
+
+.app-activity-bar-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-right: 2px solid transparent;
+    border-left: 2px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition:
+        color 0.1s,
+        border-color 0.1s;
+}
+
+.app-activity-bar-item:hover {
+    color: var(--text-secondary);
+}
+
+.app-activity-bar-item.active {
+    color: var(--text-primary);
+    border-right-color: var(--text-primary);
+}
+
+.app-activity-bar-item:focus-visible {
+    outline: 1px solid var(--text-secondary);
+    outline-offset: -1px;
 }

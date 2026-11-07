@@ -1,12 +1,18 @@
+import {
+    Activity,
+    Files,
+    type LucideIcon,
+    SlidersHorizontal,
+} from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import './Sidebar.css';
 
 export type SidebarTab = 'explorer' | 'control' | 'perform';
 
-const TABS: { id: SidebarTab; label: string }[] = [
-    { id: 'explorer', label: 'Explorer' },
-    { id: 'control', label: 'Control' },
-    { id: 'perform', label: 'Perform' },
+const TABS: { id: SidebarTab; label: string; icon: LucideIcon }[] = [
+    { id: 'explorer', label: 'Explorer', icon: Files },
+    { id: 'control', label: 'Control', icon: SlidersHorizontal },
+    { id: 'perform', label: 'Perform', icon: Activity },
 ];
 
 interface SidebarProps {
@@ -21,29 +27,41 @@ export function Sidebar({
     performContent,
 }: SidebarProps) {
     const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
+    const activeLabel = TABS.find(({ id }) => id === activeTab)?.label;
 
     return (
         <div className="app-sidebar">
-            <div className="app-sidebar-tabs">
-                {TABS.map(({ id, label }) => (
+            <section
+                className="app-sidebar-panel"
+                aria-labelledby="app-sidebar-title"
+            >
+                <h2 id="app-sidebar-title" className="app-sidebar-title">
+                    {activeLabel}
+                </h2>
+                <div className="app-sidebar-content">
+                    {
+                        {
+                            control: controlContent,
+                            explorer: explorerContent,
+                            perform: performContent,
+                        }[activeTab]
+                    }
+                </div>
+            </section>
+            <nav className="app-activity-bar" aria-label="Sidebar panels">
+                {TABS.map(({ id, label, icon: Icon }) => (
                     <button
                         key={id}
-                        className={`app-sidebar-tab ${activeTab === id ? 'active' : ''}`}
+                        aria-pressed={activeTab === id}
+                        aria-label={label}
+                        title={label}
+                        className={`app-activity-bar-item ${activeTab === id ? 'active' : ''}`}
                         onClick={() => setActiveTab(id)}
                     >
-                        {label}
+                        <Icon size={22} strokeWidth={1.5} aria-hidden />
                     </button>
                 ))}
-            </div>
-            <div className="app-sidebar-content">
-                {
-                    {
-                        control: controlContent,
-                        explorer: explorerContent,
-                        perform: performContent,
-                    }[activeTab]
-                }
-            </div>
+            </nav>
         </div>
     );
 }

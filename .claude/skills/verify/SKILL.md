@@ -19,7 +19,7 @@ The app is Electron + Vite (`@electron-forge/plugin-vite`). The built entry is `
 ## Driving the editor
 
 - Seed a `patch.js` into the E2E workspace dir before launch; the app opens with **no buffer** — `.monaco-editor` is absent until you click the file in the EXPLORER "workspace files" list (`getByText('patch.js')`).
-- Sidebar tab labels are CSS-uppercased — match `getByText(/^control$/i)`, not `'CONTROL'`.
+- Sidebar panels are switched from the vertical activity bar — icon buttons labelled by `aria-label`: `getByRole('button', { name: 'Control' })`.
 - The patch editor is the Monaco editor whose model language is `'javascript'` (`window.monaco.editor.getEditors().find(...)`); an `inmemory://` plaintext model also exists.
 - `window.__TEST_API__` (E2E_TEST=1): `executePatch()` fires the submit flow without awaiting — poll `getLastPatchResult()` until non-null. Also `setEditorValue`, `getScopeData`, `getAudioHealth`.
 - Trigger editor actions via `editor.trigger('src', 'editor.action.quickFix', null)` etc.; the action-widget rows are `.action-widget .monaco-list-row`.
