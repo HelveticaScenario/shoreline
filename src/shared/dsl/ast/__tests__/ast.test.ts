@@ -2,9 +2,9 @@ import ts from 'typescript';
 import { describe, expect, test } from 'vitest';
 
 import { findControlCalls } from '../../controlCalls';
-import { signedNumericLiteral } from '../literals';
+import { negatableNumber, signedNumericLiteral } from '../literals';
 import { dottedName, propertyName } from '../names';
-import { parseDsl } from '../parse';
+import { parseDsl, parseTransient } from '../parse';
 
 describe('parseDsl', () => {
     test('one source text parses to one shared tree', () => {
@@ -29,6 +29,17 @@ describe('parseDsl', () => {
             parseDsl(`${kept} ${i}`);
         }
         expect(parseDsl(kept)).toBe(tree);
+    });
+
+    test('a transient parse leaves the memoised tree in place', () => {
+        const buffer = `$saw('c2') // ${Math.random()}`;
+        const tree = parseDsl(buffer);
+        for (let i = 0; i < 8; i++) {
+            expect(parseTransient(`${buffer} ${i}`)).not.toBe(
+                parseTransient(`${buffer} ${i}`),
+            );
+        }
+        expect(parseDsl(buffer)).toBe(tree);
     });
 
     test('parses as JavaScript with parent pointers', () => {
@@ -68,6 +79,20 @@ describe('signedNumericLiteral', () => {
 
     test.each(['!1', '~1', '-x', "'1'", '--1'])('%s is not one', (text) => {
         expect(signedNumericLiteral(expression(text))).toBeNull();
+    });
+});
+
+describe('negatableNumber', () => {
+    test.each([
+        ['1.5', 1.5],
+        ['-2', -2],
+        ['1e-7', 1e-7],
+        ['-0x10', -16],
+        ['+1', null],
+        ["'1'", null],
+        ['-x', null],
+    ])('%s', (text, value) => {
+        expect(negatableNumber(expression(text))).toBe(value);
     });
 });
 

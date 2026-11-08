@@ -13,7 +13,7 @@
 
 import ts from 'typescript';
 
-import { signedNumericLiteral } from '../../shared/dsl/ast/literals';
+import { negatableNumber } from '../../shared/dsl/ast/literals';
 import { propertyName } from '../../shared/dsl/ast/names';
 import { parseDsl } from '../../shared/dsl/ast/parse';
 import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
@@ -95,15 +95,7 @@ function rangeOf(node: ts.Node, sourceFile: ts.SourceFile): SourceRange {
 
 /** A numeric (optionally negated) or string literal's value, else null. */
 function sliderLiteral(node: ts.Expression): number | string | null {
-    if (ts.isStringLiteral(node)) {
-        return node.text;
-    }
-    const number = signedNumericLiteral(node);
-    if (!number || number.sign === '+') {
-        return null;
-    }
-    const value = Number(number.literal.text);
-    return number.sign === '-' ? -value : value;
+    return ts.isStringLiteral(node) ? node.text : negatableNumber(node);
 }
 
 function booleanLiteral(node: ts.Expression): boolean | null {
@@ -266,7 +258,11 @@ export function extractControls(source: string): StaticControls {
     const controlKeys = new Set<string>();
     const groupKeys = new Set<string>();
 
-    for (const { kind, call, name, group } of findControlCalls(sourceFile)) {
+    for (const found of findControlCalls(sourceFile)) {
+        const { kind, call, name } = found;
+        // The scan's result is shared by every reader of this tree; the
+        // panel gets its own copy of each path.
+        const group = [...found.group];
         const label = call.arguments[0];
         if (!label || !ts.isStringLiteral(label)) {
             continue;

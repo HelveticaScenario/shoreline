@@ -4,7 +4,7 @@
  */
 import ts from 'typescript';
 
-import { parseDsl } from '../../shared/dsl/ast/parse';
+import { parseDsl, parseTransient } from '../../shared/dsl/ast/parse';
 import type { TextEdit } from './listEdits';
 
 /** Parse errors of `source` read as a JavaScript patch. */
@@ -46,8 +46,10 @@ export function introducesSyntaxErrors(
             known.add(`${d.start + delta}:${d.code}`);
         }
     }
-    const after = syntaxErrors(
-        source.slice(0, start) + edit.newText + source.slice(end),
+    const after = parseErrors(
+        parseTransient(
+            source.slice(0, start) + edit.newText + source.slice(end),
+        ),
     );
     return after.some((d) => !known.has(`${d.start}:${d.code}`));
 }

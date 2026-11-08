@@ -24,3 +24,14 @@ export function signedNumericLiteral(
     }
     return null;
 }
+
+/** The value of a numeric literal, bare or negated, or null: the numbers a
+ *  control argument may be written as. */
+export function negatableNumber(node: ts.Node): number | null {
+    const number = signedNumericLiteral(node);
+    if (!number || number.sign === '+') {
+        return null;
+    }
+    const value = Number(number.literal.text);
+    return number.sign === '-' ? -value : value;
+}
