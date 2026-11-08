@@ -53,42 +53,268 @@
       "groupCollapse": []
     },
     "eq": [],
+    "execute": {
+      "buttons": [],
+      "eqPanels": 0,
+      "sliders": [
+        {
+          "group": [],
+          "label": "pitch",
+          "max": 2,
+          "min": -2,
+          "sourceLocation": {"column":11,"line":1},
+          "unit": "note",
+          "value": -0.25
+        },
+        {
+          "group": [],
+          "label": "freq",
+          "max": 1.7500000000000002,
+          "min": -2.25,
+          "sourceLocation": {"column":7,"line":2},
+          "unit": "hz",
+          "value": 0.7500000000000001
+        },
+        {
+          "group": [],
+          "label": "neg",
+          "max": 2,
+          "min": -2,
+          "sourceLocation": {"column":17,"line":3},
+          "unit": "number",
+          "value": -1
+        }
+      ]
+    },
     "out": [
       {
         "anchor": 42,
+        "gainClear": null,
+        "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
       },
       {
         "anchor": 97,
+        "gainClear": null,
+        "gainSet": {"end":101,"start":101,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":101,"start":101,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":101,"start":101,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":101,"start":101,"text":"{ solo: true }"}
       },
       {
         "anchor": 146,
+        "gainClear": null,
+        "gainSet": {"end":150,"start":150,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":150,"start":150,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":150,"start":150,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":150,"start":150,"text":"{ solo: true }"}
       }
     ],
     "quickFixes": {
       "at": ["0-40 0","41-46 1","48-95 2","96-101 3","103-108 4","109-113 5","145-150 6"],
       "fixes": [
-        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":40,\"start\":40},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":40,\"start\":40},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":40,\"start\":40},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":46,\"start\":46},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":31,\"controlOffset\":7,\"kind\":\"add\",\"newText\":\"{ pan: $slider('pan', 0, -5, 5) }\",\"span\":{\"end\":46,\"start\":46},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":46,\"start\":46},\"title\":\"Add slider for 'width'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":95,\"start\":95},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":95,\"start\":95},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":95,\"start\":95},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":101,\"start\":101},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":101,\"start\":101},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":101,\"start\":101},\"title\":\"Add slider for 'width'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":35,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq 2', 'c4', 'c2', 'c6')\",\"preferred\":true,\"span\":{\"end\":113,\"start\":109},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":150,\"start\":150},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":150,\"start\":150},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":150,\"start\":150},\"title\":\"Add slider for 'width'\"}]"
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
+            "span": {"end":40,"start":40},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":40,"start":40},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":40,"start":40},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":46,"start":46},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":46,"start":46},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":46,"start":46},
+            "title": "Add slider for 'width'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "span": {"end":95,"start":95},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":95,"start":95},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":95,"start":95},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":101,"start":101},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":101,"start":101},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":101,"start":101},
+            "title": "Add slider for 'width'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 35,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq 2', 'c4', 'c2', 'c6')",
+            "preferred": true,
+            "span": {"end":113,"start":109},
+            "title": "Wrap 'freq' in a note $slider"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":150,"start":150},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":150,"start":150},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":150,"start":150},
+            "title": "Add slider for 'width'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":152,"start":152,"text":"$setOutputGain(0.5)\n"}
@@ -152,10 +378,13 @@
       "out": [
         {
           "anchor": 42,
+          "gainClear": null,
+          "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
         }
       ],
@@ -206,18 +435,24 @@
       "out": [
         {
           "anchor": 42,
+          "gainClear": null,
+          "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
         },
         {
           "anchor": 97,
+          "gainClear": null,
+          "gainSet": {"end":101,"start":101,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":101,"start":101,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":101,"start":101,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":101,"start":101,"text":"{ solo: true }"}
         }
       ],
@@ -265,26 +500,35 @@
       "out": [
         {
           "anchor": 42,
+          "gainClear": null,
+          "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
         },
         {
           "anchor": 97,
+          "gainClear": null,
+          "gainSet": {"end":101,"start":101,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":101,"start":101,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":101,"start":101,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":101,"start":101,"text":"{ solo: true }"}
         },
         {
           "anchor": 142,
+          "gainClear": null,
+          "gainSet": {"end":146,"start":146,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":146,"start":146,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":146,"start":146,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":146,"start":146,"text":"{ solo: true }"}
         }
       ],
@@ -335,26 +579,35 @@
       "out": [
         {
           "anchor": 42,
+          "gainClear": null,
+          "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
         },
         {
           "anchor": 97,
+          "gainClear": null,
+          "gainSet": {"end":101,"start":101,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":101,"start":101,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":101,"start":101,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":101,"start":101,"text":"{ solo: true }"}
         },
         {
           "anchor": 145,
+          "gainClear": null,
+          "gainSet": {"end":149,"start":149,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":149,"start":149,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":149,"start":149,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":149,"start":149,"text":"{ solo: true }"}
         }
       ],
@@ -405,26 +658,35 @@
       "out": [
         {
           "anchor": 42,
+          "gainClear": null,
+          "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
         },
         {
           "anchor": 97,
+          "gainClear": null,
+          "gainSet": {"end":101,"start":101,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":101,"start":101,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":101,"start":101,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":101,"start":101,"text":"{ solo: true }"}
         },
         {
           "anchor": 145,
+          "gainClear": null,
+          "gainSet": {"end":149,"start":149,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":149,"start":149,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":149,"start":149,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":149,"start":149,"text":"{ solo: true }"}
         }
       ],
@@ -475,26 +737,35 @@
       "out": [
         {
           "anchor": 42,
+          "gainClear": null,
+          "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
         },
         {
           "anchor": 97,
+          "gainClear": null,
+          "gainSet": {"end":101,"start":101,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":101,"start":101,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":101,"start":101,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":101,"start":101,"text":"{ solo: true }"}
         },
         {
           "anchor": 146,
+          "gainClear": null,
+          "gainSet": {"end":150,"start":150,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":150,"start":150,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":150,"start":150,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":150,"start":150,"text":"{ solo: true }"}
         }
       ],
@@ -542,26 +813,35 @@
       "out": [
         {
           "anchor": 42,
+          "gainClear": null,
+          "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
         },
         {
           "anchor": 92,
+          "gainClear": null,
+          "gainSet": {"end":96,"start":96,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":96,"start":96,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":96,"start":96,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":96,"start":96,"text":"{ solo: true }"}
         },
         {
           "anchor": 141,
+          "gainClear": null,
+          "gainSet": {"end":145,"start":145,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":145,"start":145,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":145,"start":145,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":145,"start":145,"text":"{ solo: true }"}
         }
       ],
@@ -612,26 +892,35 @@
       "out": [
         {
           "anchor": 42,
+          "gainClear": null,
+          "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
         },
         {
           "anchor": 91,
+          "gainClear": null,
+          "gainSet": {"end":95,"start":95,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":95,"start":95,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":95,"start":95,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":95,"start":95,"text":"{ solo: true }"}
         },
         {
           "anchor": 140,
+          "gainClear": null,
+          "gainSet": {"end":144,"start":144,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":144,"start":144,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":144,"start":144,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":144,"start":144,"text":"{ solo: true }"}
         }
       ],
@@ -682,26 +971,35 @@
       "out": [
         {
           "anchor": 42,
+          "gainClear": null,
+          "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
         },
         {
           "anchor": 92,
+          "gainClear": null,
+          "gainSet": {"end":96,"start":96,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":96,"start":96,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":96,"start":96,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":96,"start":96,"text":"{ solo: true }"}
         },
         {
           "anchor": 141,
+          "gainClear": null,
+          "gainSet": {"end":145,"start":145,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":145,"start":145,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":145,"start":145,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":145,"start":145,"text":"{ solo: true }"}
         }
       ],
@@ -752,26 +1050,35 @@
       "out": [
         {
           "anchor": 42,
+          "gainClear": null,
+          "gainSet": {"end":46,"start":46,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":46,"start":46,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":46,"start":46,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":46,"start":46,"text":"{ solo: true }"}
         },
         {
           "anchor": 91,
+          "gainClear": null,
+          "gainSet": {"end":95,"start":95,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":95,"start":95,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":95,"start":95,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":95,"start":95,"text":"{ solo: true }"}
         },
         {
           "anchor": 140,
+          "gainClear": null,
+          "gainSet": {"end":144,"start":144,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":144,"start":144,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":144,"start":144,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":144,"start":144,"text":"{ solo: true }"}
         }
       ],
@@ -819,26 +1126,35 @@
       "out": [
         {
           "anchor": 36,
+          "gainClear": null,
+          "gainSet": {"end":40,"start":40,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":40,"start":40,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":40,"start":40,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":40,"start":40,"text":"{ solo: true }"}
         },
         {
           "anchor": 91,
+          "gainClear": null,
+          "gainSet": {"end":95,"start":95,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":95,"start":95,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":95,"start":95,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":95,"start":95,"text":"{ solo: true }"}
         },
         {
           "anchor": 140,
+          "gainClear": null,
+          "gainSet": {"end":144,"start":144,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":144,"start":144,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":144,"start":144,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":144,"start":144,"text":"{ solo: true }"}
         }
       ],
@@ -889,26 +1205,35 @@
       "out": [
         {
           "anchor": 39,
+          "gainClear": null,
+          "gainSet": {"end":43,"start":43,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":43,"start":43,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":43,"start":43,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":43,"start":43,"text":"{ solo: true }"}
         },
         {
           "anchor": 94,
+          "gainClear": null,
+          "gainSet": {"end":98,"start":98,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":98,"start":98,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":98,"start":98,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":98,"start":98,"text":"{ solo: true }"}
         },
         {
           "anchor": 143,
+          "gainClear": null,
+          "gainSet": {"end":147,"start":147,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":147,"start":147,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":147,"start":147,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":147,"start":147,"text":"{ solo: true }"}
         }
       ],
@@ -959,26 +1284,35 @@
       "out": [
         {
           "anchor": 39,
+          "gainClear": null,
+          "gainSet": {"end":43,"start":43,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":43,"start":43,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":43,"start":43,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":43,"start":43,"text":"{ solo: true }"}
         },
         {
           "anchor": 94,
+          "gainClear": null,
+          "gainSet": {"end":98,"start":98,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":98,"start":98,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":98,"start":98,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":98,"start":98,"text":"{ solo: true }"}
         },
         {
           "anchor": 143,
+          "gainClear": null,
+          "gainSet": {"end":147,"start":147,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":147,"start":147,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":147,"start":147,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":147,"start":147,"text":"{ solo: true }"}
         }
       ],
@@ -1029,26 +1363,35 @@
       "out": [
         {
           "anchor": 39,
+          "gainClear": null,
+          "gainSet": {"end":43,"start":43,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":43,"start":43,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":43,"start":43,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":43,"start":43,"text":"{ solo: true }"}
         },
         {
           "anchor": 94,
+          "gainClear": null,
+          "gainSet": {"end":98,"start":98,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":98,"start":98,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":98,"start":98,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":98,"start":98,"text":"{ solo: true }"}
         },
         {
           "anchor": 143,
+          "gainClear": null,
+          "gainSet": {"end":147,"start":147,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":147,"start":147,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":147,"start":147,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":147,"start":147,"text":"{ solo: true }"}
         }
       ],

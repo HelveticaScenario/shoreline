@@ -4,13 +4,17 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 141,
+        "gainClear": null,
+        "gainSet": {"end":145,"start":145,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":145,"start":145,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":145,"start":145,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":145,"start":145,"text":"{ solo: true }"}
       }
     ],
@@ -31,16 +35,193 @@
         "121-125 9"
       ],
       "fixes": [
-        "[{\"caretOffset\":28,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('offset', 0, 0, 5)\",\"span\":{\"end\":44,\"start\":44},\"title\":\"Add slider for 'offset'\"}]",
-        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 8, 0, 8)\",\"preferred\":true,\"span\":{\"end\":35,\"start\":34},\"title\":\"Wrap 'freq' in $slider\"},{\"caretOffset\":28,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('offset', 0, 0, 5)\",\"span\":{\"end\":44,\"start\":44},\"title\":\"Add slider for 'offset'\"}]",
-        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"add\",\"newText\":\"$slider('saturation', 1, 0, 1)\",\"span\":{\"end\":52,\"start\":52},\"title\":\"Add slider for 'saturation'\"}]",
-        "[{\"caretOffset\":23,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('b', 0.2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":64,\"start\":61},\"title\":\"Wrap 'b' in $slider\"}]",
-        "[{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.01,\\n  rotate: 0.002,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.01,\\n  rotate: 0.002,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftY'\"}]",
-        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('zoom', 1.01, 0, 5)\",\"preferred\":false,\"span\":{\"end\":95,\"start\":91},\"title\":\"Wrap 'zoom' in $slider\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.01,\\n  rotate: 0.002,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.01,\\n  rotate: 0.002,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftY'\"}]",
-        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('zoom', 1.01, 0, 5)\",\"preferred\":true,\"span\":{\"end\":95,\"start\":91},\"title\":\"Wrap 'zoom' in $slider\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.01,\\n  rotate: 0.002,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.01,\\n  rotate: 0.002,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftY'\"}]",
-        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('rotate', 0.002, 0, 5)\",\"preferred\":false,\"span\":{\"end\":110,\"start\":105},\"title\":\"Wrap 'rotate' in $slider\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.01,\\n  rotate: 0.002,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.01,\\n  rotate: 0.002,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftY'\"}]",
-        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('rotate', 0.002, 0, 5)\",\"preferred\":true,\"span\":{\"end\":110,\"start\":105},\"title\":\"Wrap 'rotate' in $slider\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.01,\\n  rotate: 0.002,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.01,\\n  rotate: 0.002,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftY'\"}]",
-        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('b', 0.96, 0, 5)\",\"preferred\":true,\"span\":{\"end\":125,\"start\":121},\"title\":\"Wrap 'b' in $slider\"}]"
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('offset', 0, 0, 5)",
+            "span": {"end":44,"start":44},
+            "title": "Add slider for 'offset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 24,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 8, 0, 8)",
+            "preferred": true,
+            "span": {"end":35,"start":34},
+            "title": "Wrap 'freq' in $slider"
+          },
+          {
+            "caretOffset": 28,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('offset', 0, 0, 5)",
+            "span": {"end":44,"start":44},
+            "title": "Add slider for 'offset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "add",
+            "newText": "$slider('saturation', 1, 0, 1)",
+            "span": {"end":52,"start":52},
+            "title": "Add slider for 'saturation'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 23,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('b', 0.2, 0, 5)",
+            "preferred": true,
+            "span": {"end":64,"start":61},
+            "title": "Wrap 'b' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.01,\n  rotate: 0.002,\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.01,\n  rotate: 0.002,\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('zoom', 1.01, 0, 5)",
+            "preferred": false,
+            "span": {"end":95,"start":91},
+            "title": "Wrap 'zoom' in $slider"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.01,\n  rotate: 0.002,\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.01,\n  rotate: 0.002,\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('zoom', 1.01, 0, 5)",
+            "preferred": true,
+            "span": {"end":95,"start":91},
+            "title": "Wrap 'zoom' in $slider"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.01,\n  rotate: 0.002,\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.01,\n  rotate: 0.002,\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('rotate', 0.002, 0, 5)",
+            "preferred": false,
+            "span": {"end":110,"start":105},
+            "title": "Wrap 'rotate' in $slider"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.01,\n  rotate: 0.002,\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.01,\n  rotate: 0.002,\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('rotate', 0.002, 0, 5)",
+            "preferred": true,
+            "span": {"end":110,"start":105},
+            "title": "Wrap 'rotate' in $slider"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.01,\n  rotate: 0.002,\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.01,\n  rotate: 0.002,\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 24,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('b', 0.96, 0, 5)",
+            "preferred": true,
+            "span": {"end":125,"start":121},
+            "title": "Wrap 'b' in $slider"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":146,"start":146,"text":"\n$setOutputGain(0.5)\n"}

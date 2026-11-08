@@ -6,6 +6,10 @@
  * updates them with `vitest run dslAstGolden -u` and the diff shows exactly
  * which outputs moved.
  *
+ * The harness reads the live module schemas and generated DSL lib, so a
+ * module or doc change also moves these files. It exists to gate moving the
+ * analyzers onto the `typescript` parser, and goes once that lands.
+ *
  * `GOLDEN_EXTRA_DIR=<folder>` also records every `.js` / `.mjs` patch under
  * that folder, into `GOLDEN_EXTRA_OUT` (default `<folder>/.golden/`), for
  * checking against private patches that never enter the repo.
@@ -60,13 +64,18 @@ function docEntries(): Entry[] {
     return [...byHash.values()].sort((a, b) => (a.name < b.name ? -1 : 1));
 }
 
-function extraEntries(root: string, outDir: string): Entry[] {
+function extraEntries(dir: string, outDir: string): Entry[] {
+    const root = path.resolve(dir);
     const out: Entry[] = [];
-    const walk = (dir: string) => {
-        for (const dirent of readdirSync(dir, { withFileTypes: true })) {
-            const full = path.join(dir, dirent.name);
+    const walk = (folder: string) => {
+        for (const dirent of readdirSync(folder, { withFileTypes: true })) {
+            const full = path.join(folder, dirent.name);
             if (dirent.isDirectory()) {
-                if (full !== outDir) {
+                const skipped =
+                    full === outDir ||
+                    dirent.name.startsWith('.') ||
+                    dirent.name === 'node_modules';
+                if (!skipped) {
                     walk(full);
                 }
             } else if (/\.m?js$/.test(dirent.name)) {

@@ -12,21 +12,28 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 37,
+        "gainClear": null,
+        "gainSet": {"end":41,"start":41,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":41,"start":41,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":41,"start":41,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":41,"start":41,"text":"{ solo: true }"}
       },
       {
         "anchor": 108,
+        "gainClear": null,
+        "gainSet": {"end":112,"start":112,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":112,"start":112,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":112,"start":112,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":112,"start":112,"text":"{ solo: true }"}
       }
     ],
@@ -47,16 +54,231 @@
         "107-112 9"
       ],
       "fixes": [
-        "[{\"caretOffset\":30,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('position', 0, 0, 5)\",\"span\":{\"end\":35,\"start\":35},\"title\":\"Add slider for 'position'\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('pitch', 'c4', 'c2', 'c6')\",\"preferred\":true,\"span\":{\"end\":15,\"start\":11},\"title\":\"Wrap 'pitch' in a note $slider\"},{\"caretOffset\":30,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('position', 0, 0, 5)\",\"span\":{\"end\":35,\"start\":35},\"title\":\"Add slider for 'position'\"}]",
-        "[{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"{ gain: $slider('gain', 5, 0, 5) }\",\"span\":{\"end\":41,\"start\":41},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":31,\"controlOffset\":7,\"kind\":\"add\",\"newText\":\"{ pan: $slider('pan', 0, -5, 5) }\",\"span\":{\"end\":41,\"start\":41},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":34,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{ width: $slider('width', 0, 0, 5) }\",\"span\":{\"end\":41,\"start\":41},\"title\":\"Add slider for 'width'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('pitch', 'c2', 'c0', 'c4')\",\"preferred\":true,\"span\":{\"end\":58,\"start\":54},\"title\":\"Wrap 'pitch' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":93,\"start\":93},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":93,\"start\":93},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":93,\"start\":93},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":43,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', '0.2hz', '0.05hz', '0.8hz')\",\"preferred\":true,\"span\":{\"end\":93,\"start\":86},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":93,\"start\":93},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":93,\"start\":93},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":93,\"start\":93},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMin', 0, 0, 5)\",\"preferred\":true,\"span\":{\"end\":102,\"start\":101},\"title\":\"Wrap 'outMin' in $slider\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMax', 5, 0, 5)\",\"preferred\":true,\"span\":{\"end\":105,\"start\":104},\"title\":\"Wrap 'outMax' in $slider\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":112},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":112,\"start\":112},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":112},\"title\":\"Add slider for 'width'\"}]"
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('position', 0, 0, 5)",
+            "span": {"end":35,"start":35},
+            "title": "Add slider for 'position'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('pitch', 'c4', 'c2', 'c6')",
+            "preferred": true,
+            "span": {"end":15,"start":11},
+            "title": "Wrap 'pitch' in a note $slider"
+          },
+          {
+            "caretOffset": 30,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('position', 0, 0, 5)",
+            "span": {"end":35,"start":35},
+            "title": "Add slider for 'position'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ gain: $slider('gain', 5, 0, 5) }",
+            "span": {"end":41,"start":41},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":41,"start":41},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ width: $slider('width', 0, 0, 5) }",
+            "span": {"end":41,"start":41},
+            "title": "Add slider for 'width'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "span": {"end":106,"start":106},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":106,"start":106},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":106,"start":106},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('pitch', 'c2', 'c0', 'c4')",
+            "preferred": true,
+            "span": {"end":58,"start":54},
+            "title": "Wrap 'pitch' in a note $slider"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "span": {"end":106,"start":106},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":106,"start":106},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":106,"start":106},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "span": {"end":93,"start":93},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":93,"start":93},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":93,"start":93},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 43,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', '0.2hz', '0.05hz', '0.8hz')",
+            "preferred": true,
+            "span": {"end":93,"start":86},
+            "title": "Wrap 'freq' in an hz $slider"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "span": {"end":93,"start":93},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":93,"start":93},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":93,"start":93},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMin', 0, 0, 5)",
+            "preferred": true,
+            "span": {"end":102,"start":101},
+            "title": "Wrap 'outMin' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMax', 5, 0, 5)",
+            "preferred": true,
+            "span": {"end":105,"start":104},
+            "title": "Wrap 'outMax' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":112,"start":112},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":112,"start":112},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":112,"start":112},
+            "title": "Add slider for 'width'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":113,"start":113,"text":"\n$setOutputGain(0.5)\n"}
@@ -82,10 +304,13 @@
       "out": [
         {
           "anchor": 37,
+          "gainClear": null,
+          "gainSet": {"end":41,"start":41,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":41,"start":41,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":41,"start":41,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":41,"start":41,"text":"{ solo: true }"}
         }
       ],
@@ -103,10 +328,13 @@
       "out": [
         {
           "anchor": 37,
+          "gainClear": null,
+          "gainSet": {"end":41,"start":41,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":41,"start":41,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":41,"start":41,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":41,"start":41,"text":"{ solo: true }"}
         }
       ],

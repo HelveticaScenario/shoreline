@@ -10,6 +10,8 @@ import schemas from '@modular/core/schemas.json';
 import type { ModuleSchema } from '@modular/core';
 
 import { analyzeSourceSpans } from '../../main/dsl/analyzeSource';
+import { executePatchScript } from '../../main/dsl/executor';
+import { DOC_EXECUTION_OPTIONS } from '../../main/dsl/__tests__/docExamples';
 import { FIRST_LINE_COLUMN_OFFSET } from '../../shared/dsl/spanTypes';
 import { findControlCalls } from '../../shared/dsl/controlCalls';
 import {
@@ -39,12 +41,12 @@ const WRAPPER_LINES = 3;
 
 const CONTROL_CALLEES = new Set(['$slider', '$btn', '$toggleBtn', '$cGroup']);
 
-function parse(source: string): ts.SourceFile {
+function parse(source: string, parents = true): ts.SourceFile {
     return ts.createSourceFile(
         'patch.js',
         source,
         ts.ScriptTarget.Latest,
-        true,
+        parents,
         ts.ScriptKind.JS,
     );
 }
@@ -146,9 +148,33 @@ function analyzeRecord(source: string) {
     });
 }
 
+/** What evaluation reports about the patch's controls and EQ panels, which
+ *  rests on the static analysis lining up with V8's call sites. */
+function executeRecord(source: string) {
+    return guarded(() => {
+        const result = executePatchScript(
+            source,
+            schemas as ModuleSchema[],
+            DOC_EXECUTION_OPTIONS,
+        );
+        // Generated module ids follow creation order, so any unrelated module
+        // would shift them; the rest is what the panel shows.
+        const withoutId = <T extends { moduleId: string }>({
+            moduleId: _moduleId,
+            ...rest
+        }: T) => rest;
+        return {
+            buttons: result.buttons.map(withoutId),
+            eqPanels: result.eqPanels.length,
+            sliders: result.sliders.map(withoutId),
+        };
+    });
+}
+
 function controlCallsRecord(source: string) {
     return guarded(() => {
-        const sf = parse(source);
+        // Without parent pointers, as the executor's placement check parses.
+        const sf = parse(source, false);
         return findControlCalls(sf).map((c) => ({
             call: [c.call.getStart(sf), c.call.getEnd()],
             group: c.group,
@@ -189,6 +215,20 @@ function eqAnchors(sf: ts.SourceFile): number[] {
 const quoted = (text: string) => (quote: string) => `${quote}${text}${quote}`;
 const raw = (text: string) => () => text;
 
+/** Section edits on `target`'s first and last section. */
+function sectionEdits(source: string, anchor: number, target: EqListTarget) {
+    const fields = { freq: raw('1000'), type: quoted('peak') };
+    const indices = [...new Set([0, Math.max(target.count - 1, 0)])];
+    const edit = (op: Parameters<typeof computeEqSourceEdit>[3]) =>
+        guarded(() => computeEqSourceEdit(source, anchor, target, op, LAYOUT));
+    return {
+        add: edit({ fields, kind: 'add' }),
+        remove: indices.map((index) => edit({ index, kind: 'remove' })),
+        set: indices.map((index) => edit({ fields, index, kind: 'set' })),
+        target,
+    };
+}
+
 function eqRecord(source: string, anchor: number) {
     const found = locateSections(source, anchor);
     if (!found.ok) {
@@ -196,18 +236,20 @@ function eqRecord(source: string, anchor: number) {
     }
     const { outer } = found;
     const perChannel = outer !== null && isPerChannelLiteral(outer);
-    const first = outer?.elements[0];
-    const target: EqListTarget = perChannel
-        ? {
-              count:
-                  first && ts.isArrayLiteralExpression(first)
-                      ? first.elements.length
-                      : 0,
-              list: 0,
+    const listLength = (i: number) => {
+        const list = outer?.elements[i];
+        return list && ts.isArrayLiteralExpression(list)
+            ? list.elements.length
+            : 0;
+    };
+    const targets: EqListTarget[] = perChannel
+        ? [...new Set([0, outer.elements.length - 1])].map((list) => ({
+              count: listLength(list),
+              list,
               listCount: outer.elements.length,
-          }
-        : { count: outer?.elements.length ?? 0, list: null, listCount: 1 };
-    const fields = { freq: raw('1000'), type: quoted('peak') };
+          }))
+        : [{ count: outer?.elements.length ?? 0, list: null, listCount: 1 }];
+    const listCount = targets[0].listCount;
     return {
         anchor,
         channel: {
@@ -215,7 +257,7 @@ function eqRecord(source: string, anchor: number) {
                 computeEqChannelEdit(
                     source,
                     anchor,
-                    target.listCount,
+                    listCount,
                     { from: 0, kind: 'addChannel' },
                     LAYOUT,
                 ),
@@ -224,8 +266,8 @@ function eqRecord(source: string, anchor: number) {
                 computeEqChannelEdit(
                     source,
                     anchor,
-                    target.listCount,
-                    { index: 0, kind: 'removeChannel' },
+                    listCount,
+                    { index: listCount - 1, kind: 'removeChannel' },
                     LAYOUT,
                 ),
             ),
@@ -233,7 +275,7 @@ function eqRecord(source: string, anchor: number) {
                 computeEqChannelEdit(
                     source,
                     anchor,
-                    target.listCount,
+                    listCount,
                     { kind: 'split' },
                     LAYOUT,
                 ),
@@ -244,36 +286,7 @@ function eqRecord(source: string, anchor: number) {
             outer: outer?.elements.length ?? null,
             perChannel,
         },
-        section: {
-            add: guarded(() =>
-                computeEqSourceEdit(
-                    source,
-                    anchor,
-                    target,
-                    { fields, kind: 'add' },
-                    LAYOUT,
-                ),
-            ),
-            remove: guarded(() =>
-                computeEqSourceEdit(
-                    source,
-                    anchor,
-                    target,
-                    { index: 0, kind: 'remove' },
-                    LAYOUT,
-                ),
-            ),
-            set: guarded(() =>
-                computeEqSourceEdit(
-                    source,
-                    anchor,
-                    target,
-                    { fields, index: 0, kind: 'set' },
-                    LAYOUT,
-                ),
-            ),
-        },
-        target,
+        sections: targets.map((t) => sectionEdits(source, anchor, t)),
     };
 }
 
@@ -303,6 +316,15 @@ function outRecord(source: string, anchor: number) {
         panSet: guarded(() =>
             computeOutNumericOptionEdit(source, anchor, 'pan', 0.25),
         ),
+        gainClear: guarded(() =>
+            computeOutNumericOptionEdit(source, anchor, 'gain', null),
+        ),
+        gainSet: guarded(() =>
+            computeOutNumericOptionEdit(source, anchor, 'gain', 0.5),
+        ),
+        soloOff: guarded(() =>
+            computeOutOptionEdit(source, anchor, 'solo', false),
+        ),
         soloOn: guarded(() =>
             computeOutOptionEdit(source, anchor, 'solo', true),
         ),
@@ -331,21 +353,24 @@ function tokenOffsets(source: string): number[] {
 }
 
 /**
- * Quick fixes at every token boundary. Each distinct fix list appears once in
- * `fixes` (compact JSON, empty lists left out); `at` holds one
- * `first-last index` line per run of offsets offering the same list.
+ * Quick fixes at every token boundary. Each distinct, non-empty fix list
+ * appears once in `fixes`; `at` holds one `first-last index` line per run of
+ * offsets offering the same list.
  */
 function quickFixRecord(source: string) {
-    const fixes: string[] = [];
+    const fixes: unknown[] = [];
+    const ids = new Map<string, number>();
     const runs: [number, number, number][] = [];
     for (const offset of tokenOffsets(source)) {
-        const json = stableJson(
-            guarded(() =>
-                computeControlQuickFixes(source, offset, API, LAYOUT),
-            ),
+        const result = guarded(() =>
+            computeControlQuickFixes(source, offset, API, LAYOUT),
         );
-        const index = json === '[]' ? -1 : fixes.indexOf(json);
-        const id = index === -1 && json !== '[]' ? fixes.push(json) - 1 : index;
+        const json = stableJson(result);
+        let id = json === '[]' ? -1 : ids.get(json);
+        if (id === undefined) {
+            id = fixes.push(result) - 1;
+            ids.set(json, id);
+        }
         const last = runs.at(-1);
         if (last && last[2] === id) {
             last[1] = offset;
@@ -369,7 +394,12 @@ function sourceRecord(source: string, withQuickFixes: boolean) {
         controls: controlsRecord(source),
         eq: eqAnchors(sf).map((a) => eqRecord(source, a)),
         out: outAnchors(sf).map((a) => outRecord(source, a)),
-        ...(withQuickFixes ? { quickFixes: quickFixRecord(source) } : {}),
+        ...(withQuickFixes
+            ? {
+                  execute: executeRecord(source),
+                  quickFixes: quickFixRecord(source),
+              }
+            : {}),
         setOutputGain: guarded(() => computeSetOutputGainEdit(source, 0.5)),
     };
 }
@@ -379,13 +409,13 @@ function sourceRecord(source: string, withQuickFixes: boolean) {
  * patch passes through while it is typed: cut short mid-expression, and
  * each control argument made non-literal.
  */
-function variants(source: string): [string, string][] {
-    const out: [string, string][] = [];
+function variants(source: string): Map<string, string> {
+    const out = new Map<string, string>();
     for (const fraction of [0.25, 0.5, 0.75]) {
-        out.push([
+        out.set(
             `cut${fraction * 100}`,
             source.slice(0, Math.floor(source.length * fraction)),
-        ]);
+        );
     }
     const sf = parse(source);
     const splice = (start: number, end: number, text: string) =>
@@ -398,20 +428,20 @@ function variants(source: string): [string, string][] {
             continue;
         }
         call.arguments.forEach((arg, i) => {
-            out.push([
+            out.set(
                 `nonLiteral@${call.getStart(sf)}:${i}`,
                 splice(arg.getStart(sf), arg.getEnd(), 'x'),
-            ]);
+            );
         });
         const visit = (node: ts.Node) => {
             if (
                 node.kind === ts.SyntaxKind.TrueKeyword ||
                 node.kind === ts.SyntaxKind.FalseKeyword
             ) {
-                out.push([
+                out.set(
                     `numericBool@${node.getStart(sf)}`,
                     splice(node.getStart(sf), node.getEnd(), '1'),
-                ]);
+                );
             }
             ts.forEachChild(node, visit);
         };
@@ -425,7 +455,7 @@ export function goldenRecord(source: string): string {
     const record = {
         original: sourceRecord(source, true),
         variants: Object.fromEntries(
-            variants(source).map(([name, text]) => [
+            [...variants(source)].map(([name, text]) => [
                 name,
                 sourceRecord(text, false),
             ]),

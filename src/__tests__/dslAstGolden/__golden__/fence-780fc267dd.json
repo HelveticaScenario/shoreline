@@ -16,6 +16,7 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [],
     "quickFixes": {
       "at": [
@@ -40,19 +41,627 @@
         "194-196 0"
       ],
       "fixes": [
-        "[{\"caretOffset\":44,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\"\\n  inputGain: $slider('inputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'inputGain'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  makeup: $slider('makeup', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'makeup'\"},{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"\\n  mix: $slider('mix', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'mix'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\"\\n  outputGain: $slider('outputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'outputGain'\"},{\"caretOffset\":48,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\"\\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardRatio'\"},{\"caretOffset\":56,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\"\\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardThreshold'\"}]",
-        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c3', 'c1', 'c5')\",\"preferred\":true,\"span\":{\"end\":77,\"start\":73},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('decay', 0.2, 0, 10)\",\"preferred\":false,\"span\":{\"end\":133,\"start\":130},\"title\":\"Wrap 'decay' in $slider\"}]",
-        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('decay', 0.2, 0, 10)\",\"preferred\":true,\"span\":{\"end\":133,\"start\":130},\"title\":\"Wrap 'decay' in $slider\"}]",
-        "[{\"caretOffset\":32,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('threshold', 1.0, -5, 5)\",\"preferred\":false,\"span\":{\"end\":154,\"start\":151},\"title\":\"Wrap 'threshold' in $slider\"},{\"caretOffset\":44,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\"\\n  inputGain: $slider('inputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'inputGain'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  makeup: $slider('makeup', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'makeup'\"},{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"\\n  mix: $slider('mix', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'mix'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\"\\n  outputGain: $slider('outputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'outputGain'\"},{\"caretOffset\":48,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\"\\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardRatio'\"},{\"caretOffset\":56,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\"\\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardThreshold'\"}]",
-        "[{\"caretOffset\":32,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('threshold', 1.0, -5, 5)\",\"preferred\":true,\"span\":{\"end\":154,\"start\":151},\"title\":\"Wrap 'threshold' in $slider\"},{\"caretOffset\":44,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\"\\n  inputGain: $slider('inputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'inputGain'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  makeup: $slider('makeup', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'makeup'\"},{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"\\n  mix: $slider('mix', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'mix'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\"\\n  outputGain: $slider('outputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'outputGain'\"},{\"caretOffset\":48,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\"\\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardRatio'\"},{\"caretOffset\":56,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\"\\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardThreshold'\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('ratio', 8, -5, 8)\",\"preferred\":false,\"span\":{\"end\":164,\"start\":163},\"title\":\"Wrap 'ratio' in $slider\"},{\"caretOffset\":44,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\"\\n  inputGain: $slider('inputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'inputGain'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  makeup: $slider('makeup', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'makeup'\"},{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"\\n  mix: $slider('mix', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'mix'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\"\\n  outputGain: $slider('outputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'outputGain'\"},{\"caretOffset\":48,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\"\\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardRatio'\"},{\"caretOffset\":56,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\"\\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardThreshold'\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('ratio', 8, -5, 8)\",\"preferred\":true,\"span\":{\"end\":164,\"start\":163},\"title\":\"Wrap 'ratio' in $slider\"},{\"caretOffset\":44,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\"\\n  inputGain: $slider('inputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'inputGain'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  makeup: $slider('makeup', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'makeup'\"},{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"\\n  mix: $slider('mix', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'mix'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\"\\n  outputGain: $slider('outputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'outputGain'\"},{\"caretOffset\":48,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\"\\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardRatio'\"},{\"caretOffset\":56,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\"\\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardThreshold'\"}]",
-        "[{\"caretOffset\":31,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('attack', 0.005, -5, 5)\",\"preferred\":false,\"span\":{\"end\":179,\"start\":174},\"title\":\"Wrap 'attack' in $slider\"},{\"caretOffset\":44,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\"\\n  inputGain: $slider('inputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'inputGain'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  makeup: $slider('makeup', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'makeup'\"},{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"\\n  mix: $slider('mix', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'mix'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\"\\n  outputGain: $slider('outputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'outputGain'\"},{\"caretOffset\":48,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\"\\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardRatio'\"},{\"caretOffset\":56,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\"\\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardThreshold'\"}]",
-        "[{\"caretOffset\":31,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('attack', 0.005, -5, 5)\",\"preferred\":true,\"span\":{\"end\":179,\"start\":174},\"title\":\"Wrap 'attack' in $slider\"},{\"caretOffset\":44,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\"\\n  inputGain: $slider('inputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'inputGain'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  makeup: $slider('makeup', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'makeup'\"},{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"\\n  mix: $slider('mix', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'mix'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\"\\n  outputGain: $slider('outputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'outputGain'\"},{\"caretOffset\":48,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\"\\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardRatio'\"},{\"caretOffset\":56,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\"\\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardThreshold'\"}]",
-        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('release', 0.2, -5, 5)\",\"preferred\":false,\"span\":{\"end\":193,\"start\":190},\"title\":\"Wrap 'release' in $slider\"},{\"caretOffset\":44,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\"\\n  inputGain: $slider('inputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'inputGain'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  makeup: $slider('makeup', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'makeup'\"},{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"\\n  mix: $slider('mix', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'mix'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\"\\n  outputGain: $slider('outputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'outputGain'\"},{\"caretOffset\":48,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\"\\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardRatio'\"},{\"caretOffset\":56,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\"\\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardThreshold'\"}]",
-        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('release', 0.2, -5, 5)\",\"preferred\":true,\"span\":{\"end\":193,\"start\":190},\"title\":\"Wrap 'release' in $slider\"},{\"caretOffset\":44,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\"\\n  inputGain: $slider('inputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'inputGain'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  makeup: $slider('makeup', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'makeup'\"},{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"\\n  mix: $slider('mix', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'mix'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\"\\n  outputGain: $slider('outputGain', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'outputGain'\"},{\"caretOffset\":48,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\"\\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardRatio'\"},{\"caretOffset\":56,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\"\\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),\",\"span\":{\"end\":194,\"start\":194},\"title\":\"Add slider for 'upwardThreshold'\"}]"
+        [
+          {
+            "caretOffset": 44,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": "\n  inputGain: $slider('inputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'inputGain'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  makeup: $slider('makeup', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'makeup'"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "\n  mix: $slider('mix', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'mix'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": "\n  outputGain: $slider('outputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'outputGain'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": "\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": "\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardThreshold'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
+            "span": {"end":77,"start":77},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":77,"start":77},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { shape: $slider('shape', 0, 0, 5) }",
+            "span": {"end":77,"start":77},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "span": {"end":77,"start":77},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'c3', 'c1', 'c5')",
+            "preferred": true,
+            "span": {"end":77,"start":73},
+            "title": "Wrap 'freq' in a note $slider"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
+            "span": {"end":77,"start":77},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":77,"start":77},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { shape: $slider('shape', 0, 0, 5) }",
+            "span": {"end":77,"start":77},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "span": {"end":77,"start":77},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 0.2, 0, 10)",
+            "preferred": false,
+            "span": {"end":133,"start":130},
+            "title": "Wrap 'decay' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 0.2, 0, 10)",
+            "preferred": true,
+            "span": {"end":133,"start":130},
+            "title": "Wrap 'decay' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('threshold', 1.0, -5, 5)",
+            "preferred": false,
+            "span": {"end":154,"start":151},
+            "title": "Wrap 'threshold' in $slider"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": "\n  inputGain: $slider('inputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'inputGain'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  makeup: $slider('makeup', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'makeup'"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "\n  mix: $slider('mix', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'mix'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": "\n  outputGain: $slider('outputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'outputGain'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": "\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": "\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardThreshold'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('threshold', 1.0, -5, 5)",
+            "preferred": true,
+            "span": {"end":154,"start":151},
+            "title": "Wrap 'threshold' in $slider"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": "\n  inputGain: $slider('inputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'inputGain'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  makeup: $slider('makeup', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'makeup'"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "\n  mix: $slider('mix', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'mix'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": "\n  outputGain: $slider('outputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'outputGain'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": "\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": "\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardThreshold'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('ratio', 8, -5, 8)",
+            "preferred": false,
+            "span": {"end":164,"start":163},
+            "title": "Wrap 'ratio' in $slider"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": "\n  inputGain: $slider('inputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'inputGain'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  makeup: $slider('makeup', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'makeup'"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "\n  mix: $slider('mix', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'mix'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": "\n  outputGain: $slider('outputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'outputGain'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": "\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": "\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardThreshold'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('ratio', 8, -5, 8)",
+            "preferred": true,
+            "span": {"end":164,"start":163},
+            "title": "Wrap 'ratio' in $slider"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": "\n  inputGain: $slider('inputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'inputGain'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  makeup: $slider('makeup', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'makeup'"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "\n  mix: $slider('mix', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'mix'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": "\n  outputGain: $slider('outputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'outputGain'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": "\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": "\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardThreshold'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('attack', 0.005, -5, 5)",
+            "preferred": false,
+            "span": {"end":179,"start":174},
+            "title": "Wrap 'attack' in $slider"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": "\n  inputGain: $slider('inputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'inputGain'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  makeup: $slider('makeup', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'makeup'"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "\n  mix: $slider('mix', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'mix'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": "\n  outputGain: $slider('outputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'outputGain'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": "\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": "\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardThreshold'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('attack', 0.005, -5, 5)",
+            "preferred": true,
+            "span": {"end":179,"start":174},
+            "title": "Wrap 'attack' in $slider"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": "\n  inputGain: $slider('inputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'inputGain'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  makeup: $slider('makeup', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'makeup'"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "\n  mix: $slider('mix', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'mix'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": "\n  outputGain: $slider('outputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'outputGain'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": "\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": "\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardThreshold'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('release', 0.2, -5, 5)",
+            "preferred": false,
+            "span": {"end":193,"start":190},
+            "title": "Wrap 'release' in $slider"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": "\n  inputGain: $slider('inputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'inputGain'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  makeup: $slider('makeup', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'makeup'"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "\n  mix: $slider('mix', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'mix'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": "\n  outputGain: $slider('outputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'outputGain'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": "\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": "\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardThreshold'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('release', 0.2, -5, 5)",
+            "preferred": true,
+            "span": {"end":193,"start":190},
+            "title": "Wrap 'release' in $slider"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": "\n  inputGain: $slider('inputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'inputGain'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  makeup: $slider('makeup', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'makeup'"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "\n  mix: $slider('mix', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'mix'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": "\n  outputGain: $slider('outputGain', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'outputGain'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": "\n  upwardRatio: $slider('upwardRatio', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": "\n  upwardThreshold: $slider('upwardThreshold', 0, -5, 5),",
+            "span": {"end":194,"start":194},
+            "title": "Add slider for 'upwardThreshold'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":197,"start":197,"text":"\n$setOutputGain(0.5)\n"}

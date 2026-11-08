@@ -8,23 +8,81 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 93,
+        "gainClear": null,
+        "gainSet": {"end":97,"start":97,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":97,"start":97,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":97,"start":97,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":97,"start":97,"text":"{ solo: true }"}
       }
     ],
     "quickFixes": {
       "at": ["24-38 0","78-84 1","85-88 2","92-97 3"],
       "fixes": [
-        "[{\"caretOffset\":45,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  rate: $slider('rate', 'c4', 'c2', 'c6'),\\n}\",\"span\":{\"end\":38,\"start\":38},\"title\":\"Add note slider for 'rate'\"}]",
-        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('decay', 0.1, 0, 10)\",\"preferred\":false,\"span\":{\"end\":88,\"start\":85},\"title\":\"Wrap 'decay' in $slider\"}]",
-        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('decay', 0.1, 0, 10)\",\"preferred\":true,\"span\":{\"end\":88,\"start\":85},\"title\":\"Wrap 'decay' in $slider\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":97,\"start\":97},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":97,\"start\":97},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":97,\"start\":97},\"title\":\"Add slider for 'width'\"}]"
+        [
+          {
+            "caretOffset": 45,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  rate: $slider('rate', 'c4', 'c2', 'c6'),\n}",
+            "span": {"end":38,"start":38},
+            "title": "Add note slider for 'rate'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 0.1, 0, 10)",
+            "preferred": false,
+            "span": {"end":88,"start":85},
+            "title": "Wrap 'decay' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 0.1, 0, 10)",
+            "preferred": true,
+            "span": {"end":88,"start":85},
+            "title": "Wrap 'decay' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":97,"start":97},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":97,"start":97},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":97,"start":97},
+            "title": "Add slider for 'width'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":98,"start":98,"text":"\n$setOutputGain(0.5)\n"}

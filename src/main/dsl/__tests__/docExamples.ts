@@ -3,6 +3,7 @@
  * JSDoc tags and ```js fenced blocks carried from each module's Rust doc
  * comment. Shared by the tests that run every documented example.
  */
+import type { DSLExecutionOptions, WavsFolderNode } from '../executor';
 
 export interface DocExample {
     /** Where the example came from: an `@example` tag or a ```js fence. */
@@ -101,3 +102,38 @@ export function extractDocExamples(generated: string): DocExample[] {
 export function isTypeLevelExample(code: string): boolean {
     return /^\s*(export\s+)?(type|interface|declare)\b/.test(code);
 }
+
+// A stub wavs folder so examples that read samples via `$wavs()` can build a
+// graph without real audio files on disk. Covers every wav path referenced by
+// the examples (`pad`, `strings`, `kick`, `tables/pad`).
+
+const STUB_WAVS_TREE: WavsFolderNode = {
+    pad: 'file',
+    strings: 'file',
+    kick: 'file',
+    tables: { pad: 'file' },
+};
+
+const stubLoadWav: NonNullable<DSLExecutionOptions['loadWav']> = (path) => ({
+    channels: 2,
+    frameCount: 96_000,
+    path,
+    sampleRate: 48_000,
+    duration: 2,
+    bitDepth: 16,
+    loops: [],
+    cuePoints: [],
+    mtime: 0,
+});
+
+const stubLoadMediaAudio: NonNullable<DSLExecutionOptions['loadMediaAudio']> = (
+    path,
+) => ({ ...stubLoadWav(`media:${path}`), bitDepth: 32 });
+
+export const DOC_EXECUTION_OPTIONS: DSLExecutionOptions = {
+    loadMediaAudio: stubLoadMediaAudio,
+    sampleRate: 48_000,
+    workspaceRoot: '/workspace',
+    wavsFolderTree: STUB_WAVS_TREE,
+    loadWav: stubLoadWav,
+};

@@ -4,13 +4,82 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [],
     "quickFixes": {
       "at": ["54-59 0","69-74 1","75-80 2","82-82 0"],
       "fixes": [
-        "[{\"caretOffset\":39,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { decay: $slider('decay', 0.1, 0, 10) }\",\"span\":{\"end\":82,\"start\":82},\"title\":\"Add slider for 'decay'\"}]",
-        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":80,\"start\":80},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":80,\"start\":80},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":80,\"start\":80},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":38,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', '2hz', '0.5hz', '8hz')\",\"preferred\":true,\"span\":{\"end\":80,\"start\":75},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":80,\"start\":80},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":80,\"start\":80},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":80,\"start\":80},\"title\":\"Add slider for 'sync'\"}]"
+        [
+          {
+            "caretOffset": 39,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { decay: $slider('decay', 0.1, 0, 10) }",
+            "span": {"end":82,"start":82},
+            "title": "Add slider for 'decay'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
+            "span": {"end":80,"start":80},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":80,"start":80},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "span": {"end":80,"start":80},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 38,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', '2hz', '0.5hz', '8hz')",
+            "preferred": true,
+            "span": {"end":80,"start":75},
+            "title": "Wrap 'freq' in an hz $slider"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
+            "span": {"end":80,"start":80},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":80,"start":80},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "span": {"end":80,"start":80},
+            "title": "Add slider for 'sync'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":83,"start":83,"text":"\n$setOutputGain(0.5)\n"}

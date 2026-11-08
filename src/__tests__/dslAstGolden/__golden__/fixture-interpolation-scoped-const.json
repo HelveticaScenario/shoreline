@@ -8,21 +8,75 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 121,
+        "gainClear": null,
+        "gainSet": {"end":125,"start":125,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":125,"start":125,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":125,"start":125,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":125,"start":125,"text":"{ solo: true }"}
       }
     ],
     "quickFixes": {
       "at": ["72-77 0","78-106 1"],
       "fixes": [
-        "[{\"caretOffset\":37,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n      fm: $slider('fm', 0, -5, 5),\\n    }\",\"span\":{\"end\":109,\"start\":109},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":54,\"controlOffset\":23,\"kind\":\"add\",\"newText\":\", {\\n      phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n    }\",\"span\":{\"end\":109,\"start\":109},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":41,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n      sync: $slider('sync', 0, -5, 5),\\n    }\",\"span\":{\"end\":109,\"start\":109},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":45,\"controlOffset\":18,\"kind\":\"add\",\"newText\":\", {\\n      groove: $slider('groove', 0, -5, 5),\\n    }\",\"span\":{\"end\":108,\"start\":108},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":48,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\", {\\n      playhead: $slider('playhead', 0, 0, 1),\\n    }\",\"span\":{\"end\":108,\"start\":108},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":48,\"controlOffset\":20,\"kind\":\"add\",\"newText\":\", {\\n      velocity: $slider('velocity', 0, 0, 5),\\n    }\",\"span\":{\"end\":108,\"start\":108},\"title\":\"Add slider for 'velocity'\"}]"
+        [
+          {
+            "caretOffset": 37,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n      fm: $slider('fm', 0, -5, 5),\n    }",
+            "span": {"end":109,"start":109},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 54,
+            "controlOffset": 23,
+            "kind": "add",
+            "newText": ", {\n      phaseOffset: $slider('phaseOffset', 0, 0, 1),\n    }",
+            "span": {"end":109,"start":109},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 41,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": ", {\n      sync: $slider('sync', 0, -5, 5),\n    }",
+            "span": {"end":109,"start":109},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 45,
+            "controlOffset": 18,
+            "kind": "add",
+            "newText": ", {\n      groove: $slider('groove', 0, -5, 5),\n    }",
+            "span": {"end":108,"start":108},
+            "title": "Add slider for 'groove'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": ", {\n      playhead: $slider('playhead', 0, 0, 1),\n    }",
+            "span": {"end":108,"start":108},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 20,
+            "kind": "add",
+            "newText": ", {\n      velocity: $slider('velocity', 0, 0, 5),\n    }",
+            "span": {"end":108,"start":108},
+            "title": "Add slider for 'velocity'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":127,"start":127,"text":"$setOutputGain(0.5)\n"}

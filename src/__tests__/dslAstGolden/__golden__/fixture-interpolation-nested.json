@@ -46,28 +46,60 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 82,
+        "gainClear": null,
+        "gainSet": {"end":86,"start":86,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":86,"start":86,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":86,"start":86,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":86,"start":86,"text":"{ solo: true }"}
       },
       {
         "anchor": 116,
+        "gainClear": null,
+        "gainSet": {"end":120,"start":120,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":120,"start":120,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":120,"start":120,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":120,"start":120,"text":"{ solo: true }"}
       }
     ],
     "quickFixes": {
       "at": ["104-111 0"],
       "fixes": [
-        "[{\"caretOffset\":39,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", { groove: $slider('groove', 0, -5, 5) }\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":42,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", { playhead: $slider('playhead', 0, 0, 1) }\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":42,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", { velocity: $slider('velocity', 0, 0, 5) }\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'velocity'\"}]"
+        [
+          {
+            "caretOffset": 39,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", { groove: $slider('groove', 0, -5, 5) }",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'groove'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", { playhead: $slider('playhead', 0, 0, 1) }",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", { velocity: $slider('velocity', 0, 0, 5) }",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'velocity'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":122,"start":122,"text":"$setOutputGain(0.5)\n"}
@@ -114,10 +146,13 @@
       "out": [
         {
           "anchor": 82,
+          "gainClear": null,
+          "gainSet": {"end":86,"start":86,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":86,"start":86,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":86,"start":86,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":86,"start":86,"text":"{ solo: true }"}
         }
       ],
