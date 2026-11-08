@@ -201,7 +201,7 @@ impl Default for ChannelState {
 /// const env = $adsr($pPulse($clock[0]), { attack: 0.01, decay: 0.2, sustain: 3, release: 0.5 })
 /// $sine('c4').amplitude(env).out()
 /// ```
-#[module(name = "$adsr", args(gate))]
+#[module(name = "$adsr", categories(envelope), args(gate))]
 pub struct Adsr {
     outputs: AdsrOutputs,
     channel_state: Box<[ChannelState]>,

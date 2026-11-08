@@ -163,7 +163,7 @@ struct BufferWriteState {}
 /// Writes an input signal into a circular buffer each sample tick.
 /// The buffer is owned by this module and exposed as a buffer output.
 /// Readers ($delayRead, $bufRead) connect to it via buffer params.
-#[module(name = "$buffer", has_init, args(input, length))]
+#[module(name = "$buffer", categories(utility), has_init, args(input, length))]
 pub struct BufferWrite {
     params: BufferWriteParams,
     outputs: BufferWriteOutputs,
@@ -271,7 +271,7 @@ struct BufReadOutputs {
 }
 
 /// Reads a sample frame from a buffer and outputs its channels as a poly signal.
-#[module(name = "$bufRead", channels_derive = buf_read_derive_channel_count, args(buffer, frame))]
+#[module(name = "$bufRead", categories(utility), channels_derive = buf_read_derive_channel_count, args(buffer, frame))]
 pub struct BufRead {
     outputs: BufReadOutputs,
     params: BufReadParams,

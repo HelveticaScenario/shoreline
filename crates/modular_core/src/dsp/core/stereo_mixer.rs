@@ -36,7 +36,13 @@ struct ChannelState {
 }
 
 /// Pan and spread a signal into stereo.
-#[module(name = "$stereoMix", channels = 2, args(input), has_init)]
+#[module(
+    name = "$stereoMix",
+    categories(mixer),
+    channels = 2,
+    args(input),
+    has_init
+)]
 pub struct StereoMixer {
     outputs: StereoMixerOutputs,
     params: StereoMixerParams,

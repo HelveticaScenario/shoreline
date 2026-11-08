@@ -59,6 +59,7 @@ struct MixDownOutputs {
 /// ```
 #[module(
     name = "$mixDown",
+    categories(mixer),
     channels_param = "channels",
     args(input, channels),
     has_init,

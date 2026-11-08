@@ -49,7 +49,7 @@ struct ChannelState {
 /// `pwm` is added to `width` for modulation.
 ///
 /// Output range is **±5V**.
-#[module(name = "$pPulse", args(phase))]
+#[module(name = "$pPulse", categories(oscillator, phase), args(phase))]
 pub struct PPulseOscillator {
     outputs: PPulseOscillatorOutputs,
     channel_state: Box<[ChannelState]>,

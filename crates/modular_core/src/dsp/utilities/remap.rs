@@ -52,7 +52,11 @@ struct RemapOutputs {
 /// // convert a -5–5 V signal to 0–1 V
 /// $remap($sine('1hz'), 0, 1, -5, 5)
 /// ```
-#[module(name = "$remap", args(input, outMin, outMax, inMin, inMax))]
+#[module(
+    name = "$remap",
+    categories(math),
+    args(input, outMin, outMax, inMin, inMax)
+)]
 pub struct Remap {
     outputs: RemapOutputs,
     channel_state: Box<[ChannelState]>,

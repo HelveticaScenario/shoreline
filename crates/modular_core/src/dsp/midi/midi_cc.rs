@@ -68,7 +68,7 @@ struct MidiCcState {
 /// const breath = $midiCC({ cc: 2, highResolution: true, smoothingMs: 10 });
 /// $sine('c4').amplitude(breath).out();
 /// ```
-#[module(name = "$midiCC", args())]
+#[module(name = "$midiCC", categories(midi), args())]
 pub struct MidiCc {
     outputs: MidiCcOutputs,
     params: MidiCcParams,

@@ -70,7 +70,14 @@ struct Bd808Outputs {
 /// ```js
 /// $tr808.kick($clock.beatTrigger, { decay: 4 }).out()
 /// ```
-#[module(name = "$tr808.kick", has_init, patch_update, args(trigger), block)]
+#[module(
+    name = "$tr808.kick",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Bd808 {
     outputs: Bd808Outputs,
     params: Bd808Params,

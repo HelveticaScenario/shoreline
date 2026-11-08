@@ -150,7 +150,7 @@ struct ChannelState {
 /// let high = $comp(bands.high, { threshold: 2,   ratio: 6 })
 /// $mix([low, mid, high]).out()
 /// ```
-#[module(name = "$xover", args(input))]
+#[module(name = "$xover", categories(filter), args(input))]
 pub struct Crossover {
     outputs: CrossoverOutputs,
     channel_state: Box<[ChannelState]>,

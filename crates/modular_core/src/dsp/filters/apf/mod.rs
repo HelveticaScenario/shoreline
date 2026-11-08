@@ -95,7 +95,13 @@ struct AllpassOutputs {
 /// // four-stage phaser: swept allpass mixed equally with the dry saw
 /// $saw('c2').$m.apf(2.5, $sine('0.2hz').range(-1, 3), { stages: 4, resonance: 2, feedback: 3 }).out()
 /// ```
-#[module(name = "$apf", args(input, cutoff), has_init, block)]
+#[module(
+    name = "$apf",
+    categories(filter, effect),
+    args(input, cutoff),
+    has_init,
+    block
+)]
 pub struct Allpass {
     outputs: AllpassOutputs,
     state: AllpassState,

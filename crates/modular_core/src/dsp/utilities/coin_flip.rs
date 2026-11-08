@@ -75,7 +75,12 @@ impl CoinFlipChannelState {
 /// $tr808.kick(flip).out()
 /// $tr808.snare(flip.tails).out()
 /// ```
-#[module(name = "$coinFlip", patch_update, args(input, probability))]
+#[module(
+    name = "$coinFlip",
+    categories(gate, random),
+    patch_update,
+    args(input, probability)
+)]
 pub struct CoinFlip {
     outputs: CoinFlipOutputs,
     params: CoinFlipParams,

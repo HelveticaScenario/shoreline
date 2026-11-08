@@ -38,7 +38,7 @@ struct CurveOutputs {
 /// $curve($sine('1hz'), 2)   // quadratic curve
 /// $curve($saw('c3'), 3)     // cubic curve (audio taper)
 /// ```
-#[module(name = "$curve", args(input, exp), block)]
+#[module(name = "$curve", categories(math), args(input, exp), block)]
 pub struct Curve {
     outputs: CurveOutputs,
     params: CurveParams,

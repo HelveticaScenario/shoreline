@@ -151,7 +151,7 @@ struct LorenzState {
 /// // Modulate rho — nudges the attractor without resetting it
 /// $lorenz({ rho: $sine('1hz').range(0, 5), rate: 0.5 }).out()
 /// ```
-#[module(name = "$lorenz", has_init)]
+#[module(name = "$lorenz", categories(modulation, random), has_init)]
 pub struct Lorenz {
     outputs: LorenzOutputs,
     params: LorenzParams,

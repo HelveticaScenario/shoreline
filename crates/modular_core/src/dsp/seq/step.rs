@@ -48,7 +48,7 @@ fn step_derive_channel_count(params: &StepParams) -> usize {
 }
 
 /// Step sequencer
-#[module(name = "$step", channels_derive = step_derive_channel_count, args(steps, next))]
+#[module(name = "$step", categories(sequencer), channels_derive = step_derive_channel_count, args(steps, next))]
 pub struct Step {
     outputs: StepOutputs,
     params: StepParams,

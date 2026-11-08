@@ -25,7 +25,7 @@ struct DelayReadOutputs {
 }
 
 /// Reads a signal from a buffer at a specified delay time relative to the write position.
-#[module(name = "$delayRead", channels_derive = delay_read_derive_channel_count, args(buffer, time))]
+#[module(name = "$delayRead", categories(effect, utility), channels_derive = delay_read_derive_channel_count, args(buffer, time))]
 pub struct DelayRead {
     outputs: DelayReadOutputs,
     params: DelayReadParams,

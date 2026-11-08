@@ -51,7 +51,12 @@ struct SpreadOutputs {
 /// // 8 channels biased toward the minimum
 /// $spread(0, 5, 8, { bias: -3 })
 /// ```
-#[module(name = "$spread", channels_param = "count", args(min, max, count))]
+#[module(
+    name = "$spread",
+    categories(math),
+    channels_param = "count",
+    args(min, max, count)
+)]
 pub struct Spread {
     outputs: SpreadOutputs,
     params: SpreadParams,

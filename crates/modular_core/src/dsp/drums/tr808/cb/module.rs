@@ -52,7 +52,14 @@ struct Cb808Outputs {
 /// ```js
 /// $tr808.cowbell($clock.beatTrigger).out()
 /// ```
-#[module(name = "$tr808.cowbell", has_init, patch_update, args(trigger), block)]
+#[module(
+    name = "$tr808.cowbell",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Cb808 {
     outputs: Cb808Outputs,
     params: Cb808Params,

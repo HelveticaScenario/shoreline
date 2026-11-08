@@ -62,7 +62,7 @@ struct ChordOutputs {
 /// // quantize a slow LFO to the notes of a minor 9th chord
 /// $sine($quantizer($sine("0.1hz").range(-1, 1), $chord("A[m9]"))).out()
 /// ```
-#[module(name = "$chord", channels_derive = chord_derive_channel_count, args(chord))]
+#[module(name = "$chord", categories(pitch), channels_derive = chord_derive_channel_count, args(chord))]
 pub struct Chord {
     outputs: ChordOutputs,
     params: ChordParams,

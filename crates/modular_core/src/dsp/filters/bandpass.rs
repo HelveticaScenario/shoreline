@@ -42,7 +42,12 @@ struct BandpassFilterOutputs {
 /// // resonant bandpass sweep on noise
 /// $bpf($noise("white"), $sine('0.5hz').range('440hz', '1200hz'), 3)
 /// ```
-#[module(name = "$bpf", patch_update, args(input, center, resonance))]
+#[module(
+    name = "$bpf",
+    categories(filter),
+    patch_update,
+    args(input, center, resonance)
+)]
 pub struct BandpassFilter {
     outputs: BandpassFilterOutputs,
     state: SvfFilterState,

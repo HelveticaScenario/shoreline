@@ -2675,6 +2675,8 @@ pub struct PositionalArg {
     pub name: String,
 }
 
+pub use crate::module_category::ModuleCategory;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[napi(object)]
@@ -2682,6 +2684,11 @@ pub struct ModuleSchema {
     pub name: String,
     /// Documentation extracted from `///` doc comments on the module struct.
     pub documentation: String,
+    /// The module's reference categories, in declaration order; never empty.
+    /// Typed as strings in TypeScript so `schemas.json` imports, whose string
+    /// literals widen, still satisfy this interface.
+    #[napi(ts_type = "Array<string>")]
+    pub categories: Vec<ModuleCategory>,
     #[napi(ts_type = "Record<string, unknown>")]
     pub params_schema: SchemaContainer,
     pub outputs: Vec<OutputSchema>,

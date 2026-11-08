@@ -64,7 +64,14 @@ struct Rs909Outputs {
 /// ```js
 /// $tr909.rimShot($clock.beatTrigger).out()
 /// ```
-#[module(name = "$tr909.rimShot", has_init, patch_update, args(trigger), block)]
+#[module(
+    name = "$tr909.rimShot",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Rs909 {
     outputs: Rs909Outputs,
     params: Rs909Params,

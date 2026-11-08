@@ -124,7 +124,7 @@ impl Default for ParametricEqState {
 /// // Start empty and build the EQ in the editor
 /// $eq($saw('c2'), { ui: true })
 /// ```
-#[module(name = "$eq", channels_derive = eq_derive_channel_count, patch_update, stateful, args(input))]
+#[module(name = "$eq", categories(filter), channels_derive = eq_derive_channel_count, patch_update, stateful, args(input))]
 pub struct ParametricEq {
     outputs: ParametricEqOutputs,
     state: ParametricEqState,

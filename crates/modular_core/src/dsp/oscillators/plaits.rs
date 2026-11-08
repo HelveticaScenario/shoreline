@@ -275,7 +275,12 @@ impl Default for PlaitsChannelState {
 /// - Analog bass drum
 /// - Analog snare drum
 /// - Analog hi-hat
-#[module(name = "$macro", args(freq, engine), has_init)]
+#[module(
+    name = "$macro",
+    categories(oscillator, drum),
+    args(freq, engine),
+    has_init
+)]
 pub struct Plaits {
     outputs: PlaitsOutputs,
     params: PlaitsParams,

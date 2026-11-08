@@ -38,7 +38,7 @@ struct MulHzOutputs {
 /// // up a just fifth
 /// $mulHz($saw('C4'), 1.5)
 /// ```
-#[module(name = "$mulHz", args(input, factor), block)]
+#[module(name = "$mulHz", categories(pitch), args(input, factor), block)]
 pub struct MulHz {
     outputs: MulHzOutputs,
     params: MulHzParams,
