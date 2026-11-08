@@ -25,6 +25,21 @@ describe('formatSignalMeta', () => {
         ).toBe('0–5, default 2.5');
     });
 
+    test('a default in words replaces the number', () => {
+        expect(
+            formatSignalMeta(
+                {
+                    defaultDoc: '0 if decay is set, otherwise 5',
+                    defaultValue: 5,
+                    maxValue: 5,
+                    minValue: 0,
+                    signalType: 'control',
+                },
+                false,
+            ),
+        ).toBe('0–5, default 0 if decay is set, otherwise 5');
+    });
+
     test('open and symmetric ranges', () => {
         const meta = { defaultValue: 0, signalType: 'control' };
         expect(formatSignalMeta({ ...meta, minValue: 0 }, true)).toBe('≥ 0');

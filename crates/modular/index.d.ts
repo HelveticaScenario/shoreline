@@ -653,6 +653,11 @@ export interface SignalParamSchema {
   signalType: string
   /** What a disconnected input reads, when it reads a fixed value. */
   defaultValue?: number
+  /**
+   * The default in words, for one that depends on other params; the docs
+   * show it in place of `default_value`.
+   */
+  defaultDoc?: string
   /** Lower bound of the usable range; `None` when unbounded below. */
   minValue?: number
   /** Upper bound of the usable range; `None` when unbounded above. */

@@ -134,3 +134,30 @@ fn defaults_live_in_the_metadata() {
         in_prose.join("\n")
     );
 }
+
+/// The docs list params in declaration order beside the call signature, so a
+/// module's positional params are its first fields, in call order.
+#[test]
+fn positional_args_lead_the_params_struct() {
+    let mut problems = Vec::new();
+    for module in schema() {
+        let params = serde_json::to_value(&module.params_schema).unwrap();
+        let declared: Vec<&str> = params["properties"]
+            .as_object()
+            .map(|p| p.keys().map(String::as_str).collect())
+            .unwrap_or_default();
+        let positional: Vec<&str> = module
+            .positional_args
+            .iter()
+            .map(|a| a.name.as_str())
+            .filter(|name| declared.contains(name))
+            .collect();
+        if !declared.starts_with(&positional) {
+            problems.push(format!(
+                "{}: call order {positional:?}, struct order {declared:?}",
+                module.name
+            ));
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}

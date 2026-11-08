@@ -13,12 +13,12 @@ use crate::{MonoSignal, PolyOutput};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct TrackParams {
+    #[input("[value, position] pairs, positions from 0 to 1 in ascending order")]
+    keyframes: Vec<(PolySignal, f32)>,
     #[input("position along the keyframes", type = control, range = (0.0, 1.0))]
     #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
-    #[input("[value, position] pairs, positions from 0 to 1 in ascending order")]
-    keyframes: Vec<(PolySignal, f32)>,
     #[input("curve shape between neighbouring keyframes")]
     #[serde(default)]
     #[deserr(default)]

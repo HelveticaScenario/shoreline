@@ -90,17 +90,10 @@ function moduleSignature(module: Schema): string {
 /** A union with more literals than this shows its first few and `…`. */
 const MAX_UNION_LITERALS = 4;
 
-/** A module schema as a reference entry. Params list in call order:
- *  positionals first, then the config keys. */
+/** A module schema as a reference entry. Params and outputs list in the
+ *  order their Rust structs declare them. */
 export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
-    const positional = module.positionalArgs.map((a) => a.name);
-    const properties = Object.entries(module.paramsSchema.properties).sort(
-        ([a], [b]) => {
-            const ia = positional.indexOf(a);
-            const ib = positional.indexOf(b);
-            return (ia < 0 ? Infinity : ia) - (ib < 0 ? Infinity : ib);
-        },
-    );
+    const properties = Object.entries(module.paramsSchema.properties);
     const params = properties.map(([name, schema]): ParamDoc => {
         let type: string | undefined;
         let variants: EnumVariantInfo[] | null = null;

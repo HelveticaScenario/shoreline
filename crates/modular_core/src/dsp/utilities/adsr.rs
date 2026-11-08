@@ -111,9 +111,10 @@ struct AdsrParams {
     #[deserr(default)]
     decay: Option<PolySignal>,
     #[input(
-        "level held while the gate stays high, in volts; if you set `decay` but leave this out, it is 0, giving a plucky attack-decay shape",
+        "level held while the gate stays high, in volts",
         type = control,
         default = 5.0,
+        default_doc = "0 if decay is set, otherwise 5",
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
