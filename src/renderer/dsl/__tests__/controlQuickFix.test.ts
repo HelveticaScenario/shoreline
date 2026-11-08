@@ -4,6 +4,7 @@ import {
     addTitles,
     apply,
     fixesAt,
+    LAYOUT,
     sliderBeforeCaret,
     wrapFix,
 } from './controlQuickFixHarness';
@@ -375,7 +376,7 @@ describe('computeControlQuickFixes — controls by signal type', () => {
     });
 
     test('double-quote style applies to every generated string', () => {
-        const dq = '"';
+        const dq = { ...LAYOUT, quote: '"' as const };
         const wrap = fixesAt(`$saw('a|3').out();`, dq);
         expect(apply(wrap.source, wrapFix(wrap.fixes))).toBe(
             `$saw($slider("freq", 'a3', "a1", "a5")).out();`,

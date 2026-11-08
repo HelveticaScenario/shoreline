@@ -7,6 +7,7 @@ import { buildLibSource } from '../../../main/dsl/typescriptLibGen';
 import { indexApiSignatures } from '../apiSignatures';
 import { computeControlQuickFixes } from '../controlQuickFix';
 import type { ControlApi, ControlQuickFix } from '../controlQuickFix';
+import type { CodeStyle } from '../listEdits';
 
 export const API: ControlApi = {
     index: indexApiSignatures(buildLibSource(schemas)),
@@ -20,13 +21,23 @@ function fixture(text: string): { source: string; offset: number } {
     return { offset, source: text.slice(0, offset) + text.slice(offset + 1) };
 }
 
+/** Prettier's defaults, with single quotes. */
+export const LAYOUT: CodeStyle = {
+    bracketSpacing: true,
+    printWidth: 80,
+    quote: "'",
+    tabWidth: 2,
+    trailingComma: true,
+    useTabs: false,
+};
+
 export function fixesAt(
     text: string,
-    quote = "'",
+    layout: CodeStyle = LAYOUT,
 ): { source: string; fixes: ControlQuickFix[] } {
     const { source, offset } = fixture(text);
     return {
-        fixes: computeControlQuickFixes(source, offset, API, quote),
+        fixes: computeControlQuickFixes(source, offset, API, layout),
         source,
     };
 }

@@ -11,7 +11,8 @@ import type { editor, languages } from 'monaco-editor';
 import type { ControlApi, ControlQuickFix } from '../../dsl/controlQuickFix';
 import { computeControlQuickFixes } from '../../dsl/controlQuickFix';
 import { formatControlQuickFix } from '../../dsl/controlFixFormat';
-import type { FormatOptions } from '../../dsl/controlFixFormat';
+import { codeStyleFromPrettier } from '../../dsl/listEdits';
+import type { PrettierConfig } from '../../../shared/ipcTypes';
 
 const CURSOR_CMD = 'modular.placeCursorAfterControl';
 
@@ -39,7 +40,7 @@ interface ControlCodeAction extends languages.CodeAction {
 export function registerControlQuickFixProvider(
     monaco: Monaco,
     getApi: () => ControlApi,
-    getFormatOptions: () => FormatOptions,
+    getFormatOptions: () => PrettierConfig,
 ): { dispose: () => void } {
     // Runs after Monaco applies a code action's edit: put the caret just
     // past the inserted control call.
@@ -110,8 +111,8 @@ export function registerControlQuickFixProvider(
 
             const source = model.getValue();
             const offset = model.getOffsetAt(range.getStartPosition());
-            const quote = getFormatOptions().singleQuote === true ? "'" : '"';
-            const fixes = computeControlQuickFixes(source, offset, api, quote);
+            const layout = codeStyleFromPrettier(getFormatOptions());
+            const fixes = computeControlQuickFixes(source, offset, api, layout);
             if (token.isCancellationRequested) {
                 return empty;
             }
