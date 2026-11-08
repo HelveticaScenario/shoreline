@@ -10,6 +10,13 @@
         [
           "124:141",
           [{"constLiteralSpan":{"end":20,"start":13},"evaluatedLength":5,"evaluatedStart":3}]
+        ],
+        [
+          "167:181",
+          [
+            {"constLiteralSpan":{"end":52,"start":51},"evaluatedLength":1,"evaluatedStart":0},
+            {"constLiteralSpan":{"end":20,"start":13},"evaluatedLength":5,"evaluatedStart":2}
+          ]
         ]
       ],
       "registry": [
