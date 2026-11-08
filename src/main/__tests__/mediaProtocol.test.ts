@@ -61,6 +61,12 @@ describe('media files', () => {
         ).toBeNull();
         expect(resolveMediaFile(root, 'https://example.com/a.png')).toBeNull();
         expect(
+            resolveMediaFile(
+                root,
+                'shoreline-media://remote/pictures/photo.png',
+            ),
+        ).toBeNull();
+        expect(
             resolveMediaFile(null, mediaUrl('pictures/photo.png')),
         ).toBeNull();
     });
