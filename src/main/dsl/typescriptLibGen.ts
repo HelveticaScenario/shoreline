@@ -2577,7 +2577,7 @@ function buildConfigArg(moduleSchema: Schema): {
         const options = optionsText(propSchema, paramsSchema);
         if (doc || options) {
             paramDocs.push(
-                `  - ${key} - ${[doc, options].filter(Boolean).join(' ')}`,
+                `  - ${key} - ${[doc, options].filter(Boolean).join(' · ')}`,
             );
         }
     }
