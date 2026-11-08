@@ -217,9 +217,6 @@ export interface ElectronAPI {
     onMenuOpenSettings: (callback: () => void) => () => void;
     onMenuOpenEngineHealth: (callback: () => void) => () => void;
     onMenuOpenModuleProfile: (callback: () => void) => () => void;
-    onMenuMigrateBuffer: (callback: () => void) => () => void;
-    onMenuMigrateWavetable: (callback: () => void) => () => void;
-    onMenuMigrateChebyBlockDC: (callback: () => void) => () => void;
     // UI operations
     showContextMenu: (options: ContextMenuOptions) => Promise<void>;
     onContextMenuCommand: (
@@ -483,11 +480,6 @@ const electronAPI: ElectronAPI = {
     onMenuOpenEngineHealth: menuEventHandler(MENU_CHANNELS.OPEN_ENGINE_HEALTH),
     onMenuOpenModuleProfile: menuEventHandler(
         MENU_CHANNELS.OPEN_MODULE_PROFILE,
-    ),
-    onMenuMigrateBuffer: menuEventHandler(MENU_CHANNELS.MIGRATE_BUFFER),
-    onMenuMigrateWavetable: menuEventHandler(MENU_CHANNELS.MIGRATE_WAVETABLE),
-    onMenuMigrateChebyBlockDC: menuEventHandler(
-        MENU_CHANNELS.MIGRATE_CHEBY_BLOCK_DC,
     ),
 
     // UI operations

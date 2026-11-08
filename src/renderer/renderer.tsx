@@ -134,7 +134,7 @@ window.addEventListener(
 (window as any).monaco = monaco;
 
 // Pin monaco's process-global hover-delegate factory to an immortal anchor
-// editor so transient editors (the migration DiffEditor) can't dangle it on
+// editor so transient editors (the save-conflict DiffEditor) can't dangle it on
 // dispose, which otherwise throws "InstantiationService has been disposed" on
 // the next suggest/hover. monaco-editor#4612.
 installHoverDelegateAnchor(monaco);

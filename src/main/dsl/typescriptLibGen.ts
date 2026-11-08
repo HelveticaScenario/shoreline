@@ -2244,10 +2244,15 @@ interface VideoBuffer {
      * shift and edge mode, as for \`$v.feedback\`.
      */
     read(config?: {
+        /** Magnification about the center; above 1 zooms in (default 1) */
         zoom?: VideoValue;
+        /** Turns; positive turns the picture clockwise (default 0) */
         rotate?: VideoValue;
+        /** Horizontal move as a fraction of the width; positive moves right (default 0) */
         shiftX?: VideoValue;
+        /** Vertical move as a fraction of the height; positive moves up (default 0) */
         shiftY?: VideoValue;
+        /** What lies beyond the frame border (default \`'clamp'\`) */
         edge?: 'clamp' | 'repeat' | 'mirror';
     }): VideoSignal;
     /** Stores a signal for the next frame to read, and returns it. */
