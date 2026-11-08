@@ -48,6 +48,12 @@ describe('argument span registry', () => {
         expect(kick909).toMatch(/^2:\d+ \$tr909\.kick /);
     });
 
+    test('array elements are recorded up to the first spread', () => {
+        expect(entries("$sine(['c4', , 'e4', ...more, 'g4']).out()")).toEqual([
+            "1:5 $sine freq.0='c4' freq.2='e4'",
+        ]);
+    });
+
     test('only a bare $p call is the pattern builder', () => {
         expect(entries("$p('a b')\nobj.$p('c d')")).toEqual([
             "1:5 $p source='a b'",

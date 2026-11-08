@@ -199,9 +199,14 @@ export function analyzeArgumentSpans(
             const { name } = positionalArgs[i];
             const arg = args[i];
             if (ts.isArrayLiteralExpression(arg)) {
-                arg.elements.forEach((element, j) =>
-                    record(argsMap, `${name}.${j}`, element),
-                );
+                // A spread puts every later element at an index the source
+                // cannot tell.
+                for (const [j, element] of arg.elements.entries()) {
+                    if (ts.isSpreadElement(element)) {
+                        break;
+                    }
+                    record(argsMap, `${name}.${j}`, element);
+                }
             } else {
                 record(argsMap, name, arg);
             }
