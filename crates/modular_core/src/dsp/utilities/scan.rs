@@ -54,7 +54,7 @@ struct ChannelState {
 /// // Pitch steps of a quarter octave, wrapping within an octave:
 /// $sine($scan(1, 0.25, $pulse('4hz'))).out()
 /// ```
-#[module(name = "$scan", args(length, distance, trigger))]
+#[module(name = "$scan", categories(sequencer), args(length, distance, trigger))]
 pub struct Scan {
     params: ScanParams,
     outputs: ScanOutputs,

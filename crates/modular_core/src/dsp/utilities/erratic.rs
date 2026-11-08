@@ -241,7 +241,13 @@ impl ErraticChannelState {
 ///
 /// Backs the DSL's `.erratic()` signal method, which fills **min**/**max**
 /// from a ranged signal's range.
-#[module(name = "_erratic", patch_update, args(input, amount), block)]
+#[module(
+    name = "_erratic",
+    categories(random, modulation),
+    patch_update,
+    args(input, amount),
+    block
+)]
 pub struct Erratic {
     outputs: ErraticOutputs,
     params: ErraticParams,

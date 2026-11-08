@@ -38,7 +38,7 @@ struct AddHzOutputs {
 /// // detune a saw by +0.5 Hz for slow beating
 /// $addHz($saw('C4'), 0.5)
 /// ```
-#[module(name = "$addHz", args(input, offset), block)]
+#[module(name = "$addHz", categories(pitch), args(input, offset), block)]
 pub struct AddHz {
     outputs: AddHzOutputs,
     params: AddHzParams,

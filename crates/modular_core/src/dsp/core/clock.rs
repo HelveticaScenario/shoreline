@@ -87,6 +87,7 @@ impl Default for ClockState {
 /// Tempo-synced transport clock for driving sequencers, envelopes, and synced modulation.
 #[module(
     name = "_clock",
+    categories(sequencer),
     channels = 2,
     args(tempo, numerator, denominator),
     clock_sync,

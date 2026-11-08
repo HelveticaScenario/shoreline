@@ -223,7 +223,7 @@ fn snap_with_hysteresis(x: f64, prev: Option<f64>, snap: impl Fn(f64) -> f64) ->
 /// const midi = $midiCV({ channels: 4 })
 /// $sine($quantizer($sine("0.1hz").range(-1, 1), midi, { gate: midi.gate })).out()
 /// ```
-#[module(name = "$quantizer", channels_derive = quantizer_derive_channel_count, args(input, scale))]
+#[module(name = "$quantizer", categories(pitch), channels_derive = quantizer_derive_channel_count, args(input, scale))]
 pub struct Quantizer {
     outputs: QuantizerOutputs,
     params: QuantizerParams,

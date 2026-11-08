@@ -39,7 +39,12 @@ struct ScaleAndShiftOutputs {
 /// // invert a slow sine and shift it into 0–5 V range
 /// $scaleAndShift($sine('1hz'), -2.5, 2.5)
 /// ```
-#[module(name = "$scaleAndShift", args(input, scale, shift), block)]
+#[module(
+    name = "$scaleAndShift",
+    categories(math),
+    args(input, scale, shift),
+    block
+)]
 pub struct ScaleAndShift {
     outputs: ScaleAndShiftOutputs,
     params: ScaleAndShiftParams,

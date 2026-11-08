@@ -35,7 +35,7 @@ struct ChannelState {
 /// Produces a rising sawtooth phase signal from 0 to 1 at the given frequency.
 /// Reshape it with `$pWarp` and a `$phase.*` warp, then feed it into a
 /// waveshaper (e.g. `$pSine`) to produce audio.
-#[module(name = "$ramp", args(freq))]
+#[module(name = "$ramp", categories(phase, modulation), args(freq))]
 pub struct Ramp {
     outputs: RampOutputs,
     channel_state: Box<[ChannelState]>,

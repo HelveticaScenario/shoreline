@@ -57,7 +57,7 @@ impl Default for EdgeChannelState {
 /// // trigger a percussion envelope on every rising edge of a slow oscillator
 /// $perc($rising($sine('4hz')))
 /// ```
-#[module(name = "$rising", args(input))]
+#[module(name = "$rising", categories(gate), args(input))]
 pub struct RisingEdgeDetector {
     outputs: EdgeDetectorOutputs,
     params: RisingEdgeDetectorParams,
@@ -97,7 +97,7 @@ message_handlers!(impl RisingEdgeDetector {});
 /// // trigger on every falling edge of a slow oscillator
 /// $perc($falling($sine('2hz')))
 /// ```
-#[module(name = "$falling", args(input))]
+#[module(name = "$falling", categories(gate), args(input))]
 pub struct FallingEdgeDetector {
     outputs: EdgeDetectorOutputs,
     params: FallingEdgeDetectorParams,

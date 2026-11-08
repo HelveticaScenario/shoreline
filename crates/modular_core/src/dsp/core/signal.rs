@@ -23,7 +23,7 @@ struct SignalOutputs {
 }
 
 /// Utility module for routing, naming, and exposing signals in a patch.
-#[module(name = "$signal", args(value), block)]
+#[module(name = "$signal", categories(utility), args(value), block)]
 pub struct Signal {
     outputs: SignalOutputs,
     params: SignalParams,

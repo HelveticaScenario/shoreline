@@ -105,7 +105,7 @@ struct MediaAudioState {
 /// Plays the audio track of a media file in a loop, at a fixed speed, from
 /// the loop start when the patch starts. The DSL creates one for each
 /// `$v.video(...).audio`.
-#[module(name = "_mediaAudio", channels_derive = media_audio_derive_channel_count, args(wav), has_init, patch_update)]
+#[module(name = "_mediaAudio", categories(sampler), channels_derive = media_audio_derive_channel_count, args(wav), has_init, patch_update)]
 pub struct MediaAudio {
     params: MediaAudioParams,
     outputs: MediaAudioOutputs,

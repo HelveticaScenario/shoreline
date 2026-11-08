@@ -66,7 +66,7 @@ struct ArithmeticOutputs {
 ///
 /// Backs the DSL's `.add()`, `.sub()`, `.mul()`, `.div()` and `.exp()` signal
 /// methods.
-#[module(name = "_arithmetic", args(input, operand), block)]
+#[module(name = "_arithmetic", categories(math), args(input, operand), block)]
 pub struct Arithmetic {
     outputs: ArithmeticOutputs,
     params: ArithmeticParams,
@@ -157,7 +157,7 @@ struct RoundOutputs {
 /// Rounds a signal to a whole number of volts.
 ///
 /// Backs the DSL's `.round()`, `.floor()` and `.ceil()` signal methods.
-#[module(name = "_round", args(input), block)]
+#[module(name = "_round", categories(math), args(input), block)]
 pub struct Round {
     outputs: RoundOutputs,
     params: RoundParams,

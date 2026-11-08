@@ -138,7 +138,13 @@ struct GranularState {
 ///   mix: 4,
 /// }).out()
 /// ```
-#[module(name = "$granular", has_init, patch_update, args(input, trigger))]
+#[module(
+    name = "$granular",
+    categories(effect),
+    has_init,
+    patch_update,
+    args(input, trigger)
+)]
 pub struct Granular {
     outputs: GranularOutputs,
     state: GranularState,

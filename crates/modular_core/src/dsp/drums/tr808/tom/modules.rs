@@ -134,7 +134,7 @@ macro_rules! tom_module {
             }
 
             $(#[$doc])*
-            #[module(name = $name, has_init, patch_update, args(trigger), block)]
+            #[module(name = $name, categories(drum), has_init, patch_update, args(trigger), block)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 params: [<$Struct Params>],

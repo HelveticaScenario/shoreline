@@ -157,7 +157,7 @@ pub fn wavetable_derive_channel_count(params: &WavetableOscParams) -> usize {
 /// $wavetable('c2', $wavs().tables.pad, $sine('0.2hz').range(0, 5)).out()
 /// ```
 #[module(
-    name = "$wavetable",
+    name = "$wavetable", categories(oscillator),
     channels_derive = wavetable_derive_channel_count,
     args(pitch, wav, position),
     has_prepare_resources,

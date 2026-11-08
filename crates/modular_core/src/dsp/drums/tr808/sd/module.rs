@@ -74,7 +74,14 @@ struct Channel {
 /// ```js
 /// $tr808.snare($clock.beatTrigger, { snappy: 4 }).out()
 /// ```
-#[module(name = "$tr808.snare", has_init, patch_update, args(trigger), block)]
+#[module(
+    name = "$tr808.snare",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Sd808 {
     outputs: Sd808Outputs,
     params: Sd808Params,

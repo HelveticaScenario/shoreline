@@ -134,7 +134,12 @@ struct LpgState {
 /// // plucked saw pinged on every beat
 /// $lpg($saw('c3'), $clock.beatTrigger, { color: 1.5, decay: 2 }).out()
 /// ```
-#[module(name = "$lpg", args(input, trigger), has_init)]
+#[module(
+    name = "$lpg",
+    categories(filter, dynamics),
+    args(input, trigger),
+    has_init
+)]
 pub struct Lpg {
     outputs: LpgOutputs,
     state: LpgState,

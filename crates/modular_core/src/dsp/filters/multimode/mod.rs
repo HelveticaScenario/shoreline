@@ -121,6 +121,7 @@ struct MultimodeOutputs {
 /// ```
 #[module(
     name = "$multimode",
+    categories(filter, distortion),
     args(input, cutoff, resonance, mode),
     has_init,
     patch_update,

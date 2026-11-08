@@ -53,7 +53,7 @@ macro_rules! shape_module {
             }
 
             $(#[$doc])*
-            #[module(name = $name, args(input, mode, drive), has_init)]
+            #[module(name = $name, categories(distortion), args(input, mode, drive), has_init)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::shape::shape_core::ShapeModuleState,
@@ -112,7 +112,7 @@ macro_rules! shape_module {
             }
 
             $(#[$doc])*
-            #[module(name = $name, args(input, drive), has_init)]
+            #[module(name = $name, categories(distortion), args(input, drive), has_init)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::shape::shape_core::ShapeModuleState,

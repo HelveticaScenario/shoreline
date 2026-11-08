@@ -49,7 +49,7 @@ struct SlewChannelState {
 /// // portamento: glide between notes (0.1 s per volt of pitch change)
 /// $sine($slew($cycle($p('c3 e3 g3')), { rise: 0.1, fall: 0.1 }))
 /// ```
-#[module(name = "$slew", args(input))]
+#[module(name = "$slew", categories(modulation), args(input))]
 pub struct LagProcessor {
     outputs: LagProcessorOutputs,
     params: LagProcessorParams,

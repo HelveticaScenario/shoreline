@@ -61,7 +61,14 @@ struct Cy808Outputs {
 /// ```js
 /// $tr808.cymbal($clock.barTrigger).out()
 /// ```
-#[module(name = "$tr808.cymbal", has_init, patch_update, args(trigger), block)]
+#[module(
+    name = "$tr808.cymbal",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Cy808 {
     outputs: Cy808Outputs,
     params: Cy808Params,

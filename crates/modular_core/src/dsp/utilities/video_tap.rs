@@ -102,7 +102,7 @@ struct VideoTapOutputs {
 /// Publishes its input to the video renderer, which polls the latest value
 /// and the recent samples of each tap slot. The DSL inserts one per audio
 /// signal a `$v` input reads.
-#[module(name = "_videoTap", args(input, slot))]
+#[module(name = "_videoTap", categories(utility), args(input, slot))]
 pub struct VideoTap {
     outputs: VideoTapOutputs,
     params: VideoTapParams,

@@ -19,6 +19,7 @@ extern crate simple_easing;
 pub mod block_input;
 pub mod block_port;
 pub mod dsp;
+pub mod module_category;
 pub mod module_state;
 pub mod param_errors;
 pub mod params;

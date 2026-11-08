@@ -85,7 +85,12 @@ struct QuantNoiseState {
 /// ```js
 /// $quantNoise($sine('c'), 2).out() // grainy, fizzy sine
 /// ```
-#[module(name = "$quantNoise", args(input, amount), patch_update)]
+#[module(
+    name = "$quantNoise",
+    categories(distortion),
+    args(input, amount),
+    patch_update
+)]
 pub struct QuantNoise {
     outputs: QuantNoiseOutputs,
     state: QuantNoiseState,

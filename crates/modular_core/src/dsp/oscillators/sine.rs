@@ -59,7 +59,7 @@ struct ChannelState {
 /// ```js
 /// $sine('c4').out()
 /// ```
-#[module(name = "$sine", args(freq))]
+#[module(name = "$sine", categories(oscillator), args(freq))]
 pub struct SineOscillator {
     outputs: SineOscillatorOutputs,
     channel_state: Box<[ChannelState]>,

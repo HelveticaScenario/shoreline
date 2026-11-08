@@ -88,7 +88,12 @@ const TONE_RANGE: f32 = 3.0;
 /// or asymmetric shaper, with a tone control applying pre-emphasis before
 /// distortion and matching de-emphasis after. Internally oversampled 2× to
 /// reduce aliasing.
-#[module(name = "$overdrive", args(input, drive), has_init)]
+#[module(
+    name = "$overdrive",
+    categories(distortion),
+    args(input, drive),
+    has_init
+)]
 pub struct Overdrive {
     outputs: OverdriveOutputs,
     state: OverdriveState,

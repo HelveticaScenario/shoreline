@@ -71,7 +71,12 @@ struct LadderState {
 /// let env = $adsr($pPulse($clock[0]), { attack: 0.4, decay: 0.6, sustain: 0.3, release: 1.0 })
 /// $jup6f($saw('c2'), env.range('200hz', '4000hz'), 2.5)
 /// ```
-#[module(name = "$jup6f", patch_update, args(input, cutoff, resonance))]
+#[module(
+    name = "$jup6f",
+    categories(filter),
+    patch_update,
+    args(input, cutoff, resonance)
+)]
 pub struct Jup6f {
     outputs: Jup6fOutputs,
     state: Jup6fState,
