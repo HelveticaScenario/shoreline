@@ -1,5 +1,4 @@
 import type { Collection } from '../GraphBuilder';
-import { isRemoteMedia } from '../../../shared/video/mediaUrl';
 import type { VideoSourceDef } from '../../../shared/video/videoGraph';
 import {
     describe,
@@ -17,50 +16,29 @@ const FITS = ['cover', 'contain', 'stretch'];
 /** The fastest playback rate the browser engine's media element supports. */
 const MAX_SPEED = 16;
 
-/** A network URL, normalized, or an error naming `fn` if it cannot be one. */
-function networkUrl(fn: string, url: string): string {
-    try {
-        return new URL(url).href;
-    } catch {
-        throw new Error(`${fn}: "${url}" is not a valid URL`);
-    }
-}
-
-/** Throws an error naming `fn` when `path` is a `scheme://` address the app cannot load. */
-function rejectScheme(fn: string, path: string, remote: boolean): void {
+/** Throws an error naming `fn` when `path` is a `scheme://` address, not a workspace path. */
+function rejectScheme(fn: string, path: string): void {
     const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(path);
     if (scheme !== null) {
         throw new Error(
-            `${fn}: ${scheme[1]}:// addresses cannot be loaded; ${remote ? 'use an http or https URL' : 'use a file in the workspace folder'}`,
+            `${fn}: ${scheme[1]}:// addresses cannot be loaded; use a file in the workspace folder`,
         );
     }
 }
 
-/**
- * A path inside the workspace folder, with `/` separators, or, when `remote`
- * allows it, an http(s) URL as given, or an error naming `fn`.
- */
+/** A path inside the workspace folder, with `/` separators, or an error naming `fn`. */
 function mediaPath(
     core: VideoCore,
     fn: string,
     path: unknown,
     extensions: string[],
-    remote: boolean,
 ): string {
     if (typeof path !== 'string' || path === '') {
         throw new Error(
-            `${fn}: path must be a string naming a file in the workspace folder${remote ? ' or an http(s) URL' : ''}, got ${describe(path)}`,
+            `${fn}: path must be a string naming a file in the workspace folder, got ${describe(path)}`,
         );
     }
-    if (isRemoteMedia(path)) {
-        if (!remote) {
-            throw new Error(
-                `${fn}: plays files in the workspace folder, got the network address "${path}"`,
-            );
-        }
-        return networkUrl(fn, path);
-    }
-    rejectScheme(fn, path, remote);
+    rejectScheme(fn, path);
     const normalized = path.replaceAll('\\', '/');
     if (
         normalized.startsWith('/') ||
@@ -175,13 +153,7 @@ export function sourceMethods(core: VideoCore) {
             ) {
                 throw new Error(`${fn}: speed and loop apply only to video`);
             }
-            const normalized = mediaPath(
-                core,
-                fn,
-                path,
-                extensions,
-                kind === 'image',
-            );
+            const normalized = mediaPath(core, fn, path, extensions);
             const timing = kind === 'video' ? playback(config) : {};
             const output = source({ kind, path: normalized, ...timing }, fit);
             return kind === 'video'

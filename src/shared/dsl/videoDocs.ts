@@ -413,12 +413,11 @@ export const VIDEO_DOCS: VideoDoc[] = [
         name: 'image',
         group: 'Generators',
         description:
-            'A picture from the workspace folder (`.png`, `.jpg`, `.gif`, `.webp`, `.bmp` or `.avif`) as a color. It is read at the coordinate being drawn, so warps, kaleidoscopes and feedback move it like any other pattern. Paths are relative to the workspace folder and cannot leave it. An `http://` or `https://` URL works too: the app fetches it itself, so the server needs no special headers.',
+            'A picture from the workspace folder (`.png`, `.jpg`, `.gif`, `.webp`, `.bmp` or `.avif`) as a color. It is read at the coordinate being drawn, so warps, kaleidoscopes and feedback move it like any other pattern. Paths are relative to the workspace folder and cannot leave it.',
         params: [
             {
                 name: 'path',
-                description:
-                    'File to draw, relative to the workspace folder, or an http(s) URL',
+                description: 'File to draw, relative to the workspace folder',
             },
             {
                 name: 'config.fit',
@@ -428,7 +427,6 @@ export const VIDEO_DOCS: VideoDoc[] = [
         ],
         examples: [
             "$v.out($v.image('pictures/photo.png'))",
-            "$v.out($v.image('https://example.com/photo.jpg'))",
             "$v.image('pictures/photo.png', { fit: 'contain' }).$.kaleid(6).$.hue($v.time.$.osc(0.05)).out()",
         ],
         declarations: [

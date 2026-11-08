@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-    isRemoteMedia,
-    mediaUrl,
-    parseMediaUrl,
-    parseRemoteMediaUrl,
-} from './mediaUrl';
+import { mediaUrl, parseMediaUrl } from './mediaUrl';
 
 describe('mediaUrl', () => {
     it('round-trips a path, including characters that need escaping', () => {
@@ -43,39 +38,5 @@ describe('mediaUrl', () => {
             parseMediaUrl('shoreline-media://workspace/a/%2e%2e/b.png'),
         ).toBe('b.png');
         expect(parseMediaUrl(mediaUrl('../../x.png'))).toBe('x.png');
-    });
-
-    describe('network URLs', () => {
-        const address =
-            'https://cdn.example.com/pictures/photo.jpg?token=a b&x=1#t';
-
-        it('tells a network URL from a workspace path', () => {
-            expect(isRemoteMedia('http://a/b.mp4')).toBe(true);
-            expect(isRemoteMedia('HTTPS://a/b.mp4')).toBe(true);
-            expect(isRemoteMedia('clips/a.mp4')).toBe(false);
-            expect(isRemoteMedia('rtsp://a/b')).toBe(false);
-            expect(isRemoteMedia('file:///a.mp4')).toBe(false);
-        });
-
-        it('round-trips a network URL with a query and a fragment', () => {
-            expect(parseRemoteMediaUrl(mediaUrl(address))).toBe(address);
-        });
-
-        it('keeps a network URL out of the workspace', () => {
-            expect(parseMediaUrl(mediaUrl(address))).toBeNull();
-            expect(parseRemoteMediaUrl(mediaUrl('clips/a.mp4'))).toBeNull();
-        });
-
-        it('rejects what is not a network URL', () => {
-            expect(parseRemoteMediaUrl('https://cdn.example.com/a')).toBeNull();
-            expect(
-                parseRemoteMediaUrl(
-                    `shoreline-media://remote/${encodeURIComponent('file:///etc/passwd')}`,
-                ),
-            ).toBeNull();
-            expect(
-                parseRemoteMediaUrl('shoreline-media://remote/%E0%A4%A'),
-            ).toBeNull();
-        });
     });
 });
