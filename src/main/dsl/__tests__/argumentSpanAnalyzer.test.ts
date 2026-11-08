@@ -39,4 +39,12 @@ describe('argument span registry', () => {
             ),
         ).toEqual(['1:5 $sine freq=-1', '2:1 $sine freq=+2']);
     });
+
+    test('a dotted callee resolves to the module it names', () => {
+        const [kick808, kick909] = entries(
+            "$tr808.kick('c1').out()\n$tr909.kick('c1').out()",
+        );
+        expect(kick808).toMatch(/^1:\d+ \$tr808\.kick /);
+        expect(kick909).toMatch(/^2:\d+ \$tr909\.kick /);
+    });
 });

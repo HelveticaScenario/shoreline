@@ -19,7 +19,7 @@ import type {
     SourceSpan,
     SpanRegistry,
 } from './sourceAnalysisTypes';
-import { propertyName } from '../../shared/dsl/ast/names';
+import { dottedName, propertyName } from '../../shared/dsl/ast/names';
 import { callSiteKey, v8CallAnchor } from '../../shared/dsl/ast/position';
 import { forEachDescendant } from '../../shared/dsl/ast/walk';
 import { findControlCalls } from '../../shared/dsl/controlCalls';
@@ -184,7 +184,12 @@ export function analyzeArgumentSpans(
             return;
         }
 
-        const schema = funcName ? schemaMap.get(funcName) : undefined;
+        // A dotted callee names its module in full (`$tr808.kick`); a method
+        // on a value (`.kick(...)`) only by its last segment.
+        const fullName = dottedName(call.expression);
+        const schema =
+            (fullName !== null ? schemaMap.get(fullName) : undefined) ??
+            (funcName ? schemaMap.get(funcName) : undefined);
         if (!schema) {
             return;
         }
