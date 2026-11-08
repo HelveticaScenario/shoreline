@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::filters::resonant_svf::{self, Response, SvfChannel, SvfFilterState},
     poly::{PolyOutput, PolySignal},
@@ -37,23 +39,27 @@ struct HighpassFilterOutputs {
     sample: PolyOutput,
 }
 
-/// Highpass filter that attenuates frequencies below the cutoff point.
-///
-/// Use it to remove low-end rumble, thin out a sound, or create rising
-/// filter effects. Pairs well with lowpass filters for isolating a
-/// frequency band.
-///
-/// - **cutoff** — set in V/Oct (0 V = C4). Accepts modulation for filter sweeps.
-/// - **resonance** — boosts frequencies near the cutoff (0–5). High values
-///   produce a ringing peak.
-///
-/// ```js
-/// // remove low end from a noise source
-/// $hpf($noise("white"), 'a3', 1)
-/// ```
+const HPF_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Resonant highpass filter",
+    description: "Removes the lows below the cutoff: clears rumble, thins a part so it sits \
+                  in a mix, or builds a rising sweep. Resonance adds a ringing peak at the cutoff.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Noise hi-hats",
+            code: "$noise('white').$.hpf('c8', 1).amp($perc($cycle($p('c4*8')).trig, { decay: 0.05 })).out()",
+        },
+        DocExample {
+            title: "Riser across each bar",
+            code: "$noise('white').$.hpf($clock.ramp.range('c2', 'c9'), 2).out()",
+        },
+    ],
+};
+
 #[module(
     name = "$hpf",
-    categories(filter),
+    docs = HPF_DOCS,
     patch_update,
     args(input, cutoff, resonance)
 )]

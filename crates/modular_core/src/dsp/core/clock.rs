@@ -5,6 +5,8 @@ use schemars::JsonSchema;
 use crate::PolyOutput;
 use crate::dsp::seq::groove::{GrooveFollower, GrooveTemplate};
 use crate::dsp::utils::{SchmittTrigger, TempGate, TempGateState, min_gate_samples};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::ModuleDocs;
 use crate::param_errors::ModuleParamErrors;
 use crate::types::{ClockMessages, ExternalClockState};
 
@@ -85,10 +87,19 @@ impl Default for ClockState {
     }
 }
 
-/// Tempo-synced transport clock for driving sequencers, envelopes, and synced modulation.
+const CLOCK_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Transport clock",
+    description: "The patch's tempo and bar clock, which sequencers, envelopes and synced \
+                  modulation follow. Read it through the global `$clock` rather than \
+                  creating one.",
+    categories: &[ModuleCategory::Sequencer],
+    sections: &[],
+    examples: &[],
+};
+
 #[module(
     name = "_clock",
-    categories(sequencer),
+    docs = CLOCK_DOCS,
     channels = 2,
     args(tempo, numerator, denominator),
     clock_sync,

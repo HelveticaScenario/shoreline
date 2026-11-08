@@ -4,6 +4,8 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use crate::block_input;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
@@ -34,19 +36,21 @@ struct ScaleAndShiftOutputs {
     sample: PolyOutput,
 }
 
-/// Scales and offsets a signal — the classic attenuverter + DC offset.
-///
-/// - **scale** — gain factor (0–10 V; 5 V = unity, 0 V = silence,
-///   values above 5 V amplify, negative values invert).
-/// - **shift** — DC offset added after scaling (in volts).
-///
-/// ```js
-/// // invert a slow sine and shift it into 0–5 V range
-/// $scaleAndShift($sine('1hz'), -2.5, 2.5)
-/// ```
+const SCALE_AND_SHIFT_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Attenuverter and offset",
+    description: "Turns a signal up, down or upside down, then adds an offset: the \
+                  attenuverter-and-offset found on most modular utility panels.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Filter wobble set by depth and centre",
+        code: "$saw('c2').$.lpf($scaleAndShift($sine('0.5hz'), 1.5, 1), 2).out()",
+    }],
+};
+
 #[module(
     name = "$scaleAndShift",
-    categories(math),
+    docs = SCALE_AND_SHIFT_DOCS,
     args(input, scale, shift),
     block
 )]

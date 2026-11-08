@@ -17,6 +17,8 @@ use super::resample::Resampler;
 use super::voice::VoiceControls;
 use super::wav_load::silent_buffer;
 use super::{FULL_SCALE_VOLTS, GranularQuality, grain_params, input_value, unit};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
@@ -143,33 +145,33 @@ struct GranularState {
     pending: TriggerQueue,
 }
 
-/// Granular processor from Mutable Instruments Beads: it records `input` and
-/// plays it back as grains, starting one on each rising edge at `trigger`.
-///
-/// Each grain takes `time`, `size`, `shape`, `freq` and `spread` when it
-/// starts, so for grain-to-grain variation modulate them with something
-/// sampled on the same trigger, such as `$sah`. Set `rootFreq` to the
-/// pitch of the input and `freq` plays notes. `freeze` holds the recording
-/// so the grains keep replaying it.
-///
-/// Each input channel gets its own voice. `output` is a stereo mix of every
-/// voice, and `voices` gives each voice its own channel. Follow it with
-/// `$wowFlutter` and `$reverb` for the rest of Beads' sound.
-///
-/// ```js
-/// const grains = $pulse('8hz')
-/// $granular($saw('a3'), grains, {
-///   time: $sah($noise('white').range(0, 2), grains),
-///   freq: $cycle($p('[c4, e4, g4] [b3, d4, g4]')),
-///   rootFreq: 'a3',
-///   width: 4,
-///   spread: 2,
-///   mix: 4,
-/// }).out()
-/// ```
+const GRANULAR_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Live granular processor",
+    description: "The granular processor from Mutable Instruments Beads: it records its input \
+                  and plays it back as grains, one per trigger, for clouds, smears and stutters \
+                  of live sound. Each grain keeps the settings it started with, so for \
+                  grain-to-grain variation modulate them with something sampled on the same \
+                  trigger, such as `$sah`. Follow it with `$wowFlutter` and `$reverb` for the \
+                  rest of Beads' sound.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Chord cloud from a single saw",
+        code: "const grains = $pulse('8hz')\n\
+                   $granular($saw('a3'), grains, {\n\
+                   \x20\x20time: $sah($noise('white').range(0, 2), grains),\n\
+                   \x20\x20freq: $cycle($p('[c4, e4, g4] [b3, d4, g4]')),\n\
+                   \x20\x20rootFreq: 'a3',\n\
+                   \x20\x20width: 4,\n\
+                   \x20\x20spread: 2,\n\
+                   \x20\x20mix: 4,\n\
+                   }).out()",
+    }],
+};
+
 #[module(
     name = "$granular",
-    categories(effect),
+    docs = GRANULAR_DOCS,
     has_init,
     patch_update,
     args(input, trigger)

@@ -8,6 +8,8 @@ use schemars::JsonSchema;
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
 use crate::dsp::utils::adaa::Adaa;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Wavefolding algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
@@ -69,16 +71,23 @@ impl Shaper for FoldShaper {
     }
 }
 
+const FOLD_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Wavefolder",
+    description: "Folds peaks back on themselves, adding harmonics that grow \
+                  with level: the west-coast sound when an envelope sweeps the \
+                  drive. Modelled on the Surge XT wavefolder shapes.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "West-coast pluck",
+        code: "const seq = $cycle($p('c3 eb3 g3 bb2'))\n\
+                   const env = $perc(seq.trig, { decay: 0.4 })\n\
+                   $sine(seq).$.unstable.shape.fold('westcoast', env.range(-2, 4)).amp(env).out()",
+    }],
+};
+
 shape_module! {
-    /// Wavefolding, from Surge XT's Wavefolder waveshapers — folds peaks back on
-    /// themselves to add rich harmonics that grow with level. `mode` selects the
-    /// fold shape (soft, single, dual, westcoast, linear, sine); `drive` pushes
-    /// harder into the folds as it rises (−5..5, 0 = unity).
-    ///
-    /// ## Example
-    /// ```js
-    /// $unstable.shape.fold($sine('c3'), 'westcoast', 3).out()
-    /// ```
+    docs = FOLD_DOCS,
     name = "$unstable.shape.fold", ident = Fold, mode = FoldMode, shaper = FoldShaper
 }
 

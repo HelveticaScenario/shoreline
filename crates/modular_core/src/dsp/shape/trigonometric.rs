@@ -7,6 +7,8 @@ use schemars::JsonSchema;
 
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Trigonometric shaping algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
@@ -72,15 +74,21 @@ impl Shaper for TrigonometricShaper {
     }
 }
 
+const TRIGONOMETRIC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Sine-curve shaper",
+    description: "Runs the signal through sine curves for dense, ringing, \
+                  metallic harmonics that change sharply with level, so a \
+                  slowly swept drive makes one oscillator glitter. Modelled on \
+                  the Surge XT trigonometric shapes.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Ringing sweep",
+        code: "$sine('c3').$.unstable.shape.trigonometric('cyc7', $sine('0.2hz').range(-3, 2)).out()",
+    }],
+};
+
 shape_module! {
-    /// Sine-based shaping, from Surge XT's Trigonometric waveshapers — reshapes
-    /// the signal through sine curves for dense, ringing harmonics. `mode`
-    /// selects the pattern (sinPlusX, sin2x…sin10x, cyc2…cyc10, and edge-tapered
-    /// variants); `drive` sets the level going in (−5..5, 0 = unity).
-    ///
-    /// ## Example
-    /// ```js
-    /// $unstable.shape.trigonometric($sine('c3'), 'cyc7', 2).out()
-    /// ```
+    docs = TRIGONOMETRIC_DOCS,
     name = "$unstable.shape.trigonometric", ident = Trigonometric, mode = TrigonometricMode, shaper = TrigonometricShaper
 }

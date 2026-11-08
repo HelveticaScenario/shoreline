@@ -9,6 +9,8 @@ use schemars::JsonSchema;
 use crate::dsp::fx::enosc_tables::{aa_fold, lookup_fold};
 use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
 use crate::dsp::utils::voct_to_hz;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
@@ -61,10 +63,27 @@ struct FoldState {
     fade_inc: f32,
 }
 
-/// Wavefolder that reflects the signal back when it exceeds a threshold,
-/// producing dense, harmonically rich tones. Higher amounts create more
-/// complex, metallic timbres.
-#[module(name = "$fold", categories(distortion), args(input, amount), has_init)]
+const FOLD_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Wavefolder",
+    description: "Folds the signal back on itself as it grows, turning a plain sine or triangle \
+                  into dense, metallic west-coast tones. Sweep or envelope it for that classic \
+                  animated timbre.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Slow fold sweep",
+            code: "$sine('c2').$.fold($sine('0.2hz').range(0, 5)).out()",
+        },
+        DocExample {
+            title: "Folded plucks",
+            code: "const notes = $cycle($p('c3 g3 eb3 bb2'))\n\
+                   $sine(notes).$.fold($perc(notes.trig, { decay: 0.4 }), { freq: notes }).out()",
+        },
+    ],
+};
+
+#[module(name = "$fold", docs = FOLD_DOCS, args(input, amount), has_init)]
 pub struct Fold {
     outputs: FoldOutputs,
     state: FoldState,

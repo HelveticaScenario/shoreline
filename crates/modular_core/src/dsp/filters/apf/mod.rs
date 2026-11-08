@@ -7,6 +7,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::{C4_HZ_F32, rng::seed_base},
     param_errors::ModuleParamErrors,
@@ -89,35 +91,32 @@ struct AllpassOutputs {
     sample: PolyOutput,
 }
 
-/// Stacked allpass filter: 1 to 50 two-pole stages, with resonance and
-/// feedback. Smears transients into chirps around the cutoff; mixed with the
-/// dry signal, it notches like a phaser.
-///
-/// - **cutoff** — V/Oct, the frequency delayed most.
-/// - **stages** — 1–50. More stages, longer smear. A fractional count fades
-///   the next stage in smoothly.
-/// - **resonance** — 0–5. Makes the smear ring at the cutoff's pitch.
-/// - **feedback** — −5 to 5. Repeats the smear; rings get longer toward ±5,
-///   where they never fade. Up to ±6 the filter self-oscillates. Negative
-///   values flip the sign of every other repeat.
-/// - **fadeStep** — 0–49. Above 0, `stages` crossfades between chains this
-///   many stages apart instead, giving notches.
-///
-/// ```js
-/// // smear a click on every beat into a chirp around C3
-/// $pPulse($clock[0]).$.apf('c3', { stages: 50 }).out()
-/// // ringing, pitched smear with repeats
-/// $pPulse($clock[0]).$.apf('g3', { stages: 32, resonance: 3, feedback: 3 }).out()
-/// // self-oscillating: no input, just the loop
-/// $apf(0, 'c3', { stages: 20, resonance: 2, feedback: 5.5 }).out()
-/// // notches: crossfading between chains 8 stages apart
-/// $noise('white').$.apf('c4', { stages: $sine('0.05hz').range(9, 25), resonance: 2, fadeStep: 8 }).out()
-/// // four-stage phaser: swept allpass mixed equally with the dry saw
-/// $saw('c2').$m.apf(2.5, $sine('0.2hz').range(-1, 3), { stages: 4, resonance: 2, feedback: 3 }).out()
-/// ```
+const APF_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stacked allpass smear",
+    description: "Up to 50 allpass stages that smear transients into chirps around the cutoff. \
+                  Resonance and feedback make the smear ring at a pitch, and mixed with the dry \
+                  signal it notches like a phaser.",
+    categories: &[ModuleCategory::Filter, ModuleCategory::Effect],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "A click smeared into a chirp",
+            code: "$pPulse($clock[0]).$.apf('c3', { stages: 50 }).out()",
+        },
+        DocExample {
+            title: "Ringing, pitched smear with repeats",
+            code: "$pPulse($clock[0]).$.apf('g3', { stages: 32, resonance: 3, feedback: 3 }).out()",
+        },
+        DocExample {
+            title: "Four-stage phaser",
+            code: "$saw('c2').$m.apf(2.5, $sine('0.2hz').range(-1, 3), { stages: 4, resonance: 2, feedback: 3 }).out()",
+        },
+    ],
+};
+
 #[module(
     name = "$apf",
-    categories(filter, effect),
+    docs = APF_DOCS,
     args(input, cutoff),
     has_init,
     block

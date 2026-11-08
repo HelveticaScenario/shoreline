@@ -9,6 +9,8 @@ use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
 
 use super::wow_flutter::{WowModulation, write_read};
 use super::{FULL_SCALE_VOLTS, input_value};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Rate the hardware runs its wow and flutter at.
 const HARDWARE_RATE: f32 = 24000.0;
@@ -75,19 +77,28 @@ struct WowFlutterState {
     block_pos: usize,
 }
 
-/// Tape wow and flutter from Mutable Instruments Beads' dirty tape setting:
-/// slow, drifting pitch wobble with a slight softening of the highs. Every
-/// channel wobbles together, like one tape carrying them all.
-///
-/// `speed` and `intensity` set how fast and how deep the wobble is; their
-/// defaults are Beads'. Faster and deeper both bend the pitch further.
-///
-/// ```js
-/// const grains = $pulse('8hz')
-/// const cloud = $granular($saw('a3'), grains, { mix: 4, quality: 'dirtyTape' })
-/// $reverb($wowFlutter(cloud), 3, { size: 5, tone: 2 }).out()
-/// ```
-#[module(name = "$wowFlutter", categories(effect), has_init, args(input))]
+const WOW_FLUTTER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Tape wow and flutter",
+    description: "The drifting pitch wobble and softened highs of worn tape, from Mutable \
+                  Instruments Beads' dirty tape setting. Every channel wobbles together, as if \
+                  one tape carried them all.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Warbly tape chords",
+            code: "$saw($chord('F3[maj9]')).$.lpf('f5', 1).$.wowFlutter().out()",
+        },
+        DocExample {
+            title: "The full Beads chain",
+            code: "const grains = $pulse('8hz')\n\
+                   const cloud = $granular($saw('a3'), grains, { mix: 4, quality: 'dirtyTape' })\n\
+                   $reverb($wowFlutter(cloud), 3, { size: 5, tone: 2 }).out()",
+        },
+    ],
+};
+
+#[module(name = "$wowFlutter", docs = WOW_FLUTTER_DOCS, has_init, args(input))]
 pub struct WowFlutter {
     outputs: WowFlutterOutputs,
     state: WowFlutterState,

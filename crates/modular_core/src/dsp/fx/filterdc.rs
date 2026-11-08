@@ -4,6 +4,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 
 #[params]
@@ -34,9 +36,21 @@ struct FilterDcState {
     dc_block_coeff: f32,
 }
 
-/// One-pole high-pass that removes DC offset and sub-audio rumble from a
-/// signal while passing audio-rate content. The cutoff sits at ~20 Hz.
-#[module(name = "$filterDC", categories(filter), args(input), has_init)]
+const FILTER_DC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "DC offset remover",
+    description: "Recentres a signal on 0 V by removing DC offset and sub-audio rumble below \
+                  about 20 Hz, leaving everything audible untouched. Put it after asymmetric \
+                  distortion or offset modulation so the signal sits centred and keeps its \
+                  headroom.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Recentring tube-style drive",
+        code: "$saw('c2').$.overdrive(4, { mode: 'asym' }).$.filterDC().out()",
+    }],
+};
+
+#[module(name = "$filterDC", docs = FILTER_DC_DOCS, args(input), has_init)]
 pub struct FilterDc {
     outputs: FilterDcOutputs,
     state: FilterDcState,

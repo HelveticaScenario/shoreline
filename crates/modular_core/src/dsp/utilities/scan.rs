@@ -2,6 +2,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::SchmittTrigger;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
 #[params]
@@ -44,21 +46,20 @@ struct ChannelState {
     reset_schmitt: SchmittTrigger,
 }
 
-/// Steps a counter by `distance` on each trigger, wrapping it within 0 to
-/// `length`.
-///
-/// A step past `length` wraps around by the overshoot, as many times as it
-/// takes, and so does a step below 0. With `snapOnWrap`, a step past
-/// `length` lands on 0 and a step below 0 lands on `length`. A counter
-/// exactly at `length` stays there. `reset` sets the counter to 0, and wins
-/// over a trigger in the same sample. Lengths are read at each trigger, so a
-/// shorter `length` takes effect on the next step.
-///
-/// ```js
-/// // Pitch steps of a quarter octave, wrapping within an octave:
-/// $sine($scan(1, 0.25, $pulse('4hz'))).out()
-/// ```
-#[module(name = "$scan", categories(sequencer), args(length, distance, trigger))]
+const SCAN_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stepping wrap-around counter",
+    description: "Moves a value by a fixed step on each trigger and wraps it around \
+                  within a length: a simple way to climb through pitches, positions or \
+                  table frames in a loop.",
+    categories: &[ModuleCategory::Sequencer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Every note, climbing in fifths",
+        code: "$sine($scan(1, 7 / 12, $clock.beatTrigger)).out()",
+    }],
+};
+
+#[module(name = "$scan", docs = SCAN_DOCS, args(length, distance, trigger))]
 pub struct Scan {
     params: ScanParams,
     outputs: ScanOutputs,

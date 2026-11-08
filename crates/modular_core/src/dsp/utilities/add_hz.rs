@@ -5,6 +5,8 @@ use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
 use crate::dsp::utils::{hz_to_voct, voct_to_hz};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -33,16 +35,22 @@ struct AddHzOutputs {
     sample: PolyOutput,
 }
 
-/// Offsets a pitch by an absolute frequency amount, in Hz.
-///
-/// The input V/Oct pitch is converted to Hz, **offset** Hz is added, then the
-/// result is converted back to V/Oct. Useful for audible beating detune.
-///
-/// ```js
-/// // detune a saw by +0.5 Hz for slow beating
-/// $addHz($saw('C4'), 0.5)
-/// ```
-#[module(name = "$addHz", categories(pitch), args(input, offset), block)]
+const ADD_HZ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Detune a pitch by Hz",
+    description: "Shifts a pitch by a fixed number of Hz rather than by cents, so a \
+                  detuned copy beats at the same steady rate whatever note plays. \
+                  Layer it against the original for slow, even chorusing.",
+    categories: &[ModuleCategory::Pitch],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Slow, even beating",
+        code: "const pitch = $cycle($p('c3 eb3 g3 bb2'))\n\
+               $saw(pitch).out()\n\
+               $saw($addHz(pitch, 0.7)).out()",
+    }],
+};
+
+#[module(name = "$addHz", docs = ADD_HZ_DOCS, args(input, offset), block)]
 pub struct AddHz {
     outputs: AddHzOutputs,
     params: AddHzParams,

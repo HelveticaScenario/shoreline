@@ -4,6 +4,8 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -31,20 +33,20 @@ struct CurveOutputs {
     sample: PolyOutput,
 }
 
-/// Applies a power curve to a signal, normalised at ±5 V.
-///
-/// Formula: `sign(x) × 5 × (|x| / 5) ^ exp`
-///
-/// - **exp = 1** — linear pass-through
-/// - **exp > 1** — pushes midrange toward zero (audio taper)
-/// - **0 < exp < 1** — pushes midrange toward ±5 V
-/// - **exp = 0** — step function (any nonzero → ±5 V)
-///
-/// ```js
-/// $curve($sine('1hz'), 2)   // quadratic curve
-/// $curve($saw('c3'), 3)     // cubic curve (audio taper)
-/// ```
-#[module(name = "$curve", categories(math), args(input, exp), block)]
+const CURVE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Bend a signal's response",
+    description: "Raises a signal to a power while keeping its sign and its ±5 V \
+                  extremes, so straight ramps become curves. Use it to give an \
+                  envelope or LFO a snappier or lazier shape.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Snappy filter envelope",
+        code: "$saw('c2').$.lpf($curve($adsr($clock.beatTrigger, { decay: 0.3 }), 3).range('c3', 'c7', 0, 5), 2).out()",
+    }],
+};
+
+#[module(name = "$curve", docs = CURVE_DOCS, args(input, exp), block)]
 pub struct Curve {
     outputs: CurveOutputs,
     params: CurveParams,

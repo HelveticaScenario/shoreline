@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt};
 
 fn default_count() -> usize {
@@ -55,32 +57,26 @@ struct UnisonOutputs {
     sample: PolyOutput,
 }
 
-/// Expands each input channel into multiple detuned copies for unison effects.
-///
-/// Takes a signal (typically V/Oct pitch) and multiplies channels by the
-/// unison count, applying symmetric detuning controlled by the spread parameter.
-///
-/// - **count** — number of detuned copies per input channel (1–64)
-/// - **spread** — detune amount with exponential curve (0–10V → 0–1 octave V/Oct)
-///
-/// Output channels = `max(input_channels, spread_channels) × count`, clamped to
-/// 64. **input** and **spread** cycle against each other, so a spread wider than
-/// the input repeats the input across the extra channels, and vice versa.
-///
-/// Voices are interleaved: each voice is a full copy of the input channels, so a
-/// 3-channel input with count 3 outputs channels `1 2 3 1 2 3 1 2 3`. When the
-/// 64-channel cap truncates, the highest voices are the ones dropped.
-///
-/// ## Example
-///
-/// ```js
-/// // 7-voice unison saw with moderate spread
-/// $saw($unison('c4', 7, 5)).out()
-///
-/// // With modulated spread
-/// $saw($unison($midiCV(), 5, $sine('0.2hz'))).out()
-/// ```
-#[module(name = "$unison", categories(pitch), channels_derive = unison_derive_channel_count, args(input, count, spread))]
+const UNISON_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Detuned unison copies",
+    description: "Turns each pitch into a stack of detuned copies for thick unison \
+                  leads and supersaw-style pads. Each copy is a full set of the \
+                  input's channels, up to 64 channels in all.",
+    categories: &[ModuleCategory::Pitch],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Thick seven-voice saw",
+            code: "$saw($unison('c3', 7, 3)).$.lpf('c6', 1).out()",
+        },
+        DocExample {
+            title: "Chord with breathing detune",
+            code: "$saw($unison($chord('C3[m9]'), 3, $sine('0.1hz').range(0, 4))).out()",
+        },
+    ],
+};
+
+#[module(name = "$unison", docs = UNISON_DOCS, channels_derive = unison_derive_channel_count, args(input, count, spread))]
 pub struct Unison {
     outputs: UnisonOutputs,
     params: UnisonParams,

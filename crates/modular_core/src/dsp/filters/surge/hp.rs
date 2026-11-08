@@ -11,6 +11,8 @@ use super::coeffs::{
     map_4pole_resonance, note_to_omega, resoscale, to_coupled_form, to_normalized_lattice,
 };
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Highpass biquad kernel.
 #[derive(Clone, Copy, Default)]
@@ -103,17 +105,20 @@ fn coeff_hp24(freq_semi: f32, reso: f32, subtype: i32, rate: f32) -> [f32; N_COE
     }
 }
 
+const HP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Surge highpass filter",
+    description: "Surge's resonant highpass in 12 or 24 dB slopes, for thinning a sound or a \
+                  whistling rising sweep.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Resonant highpass sweep",
+        code: "$unstable.filter.hp($saw('c2'), $sine('0.1hz').range('c2', 'c6'), 3).out()",
+    }],
+};
+
 filter_module! {
-    /// Surge multimode highpass (the "12 dB" / "24 dB" vember filter).
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; near the top the filter rings and self-oscillates.
-    /// - **slope** — `'db12'` or `'db24'`.
-    /// - **drive** — `'standard'`, `'driven'`, or `'clean'`.
-    ///
-    /// ```js
-    /// $unstable.filter.hp($saw('c2'), 'c4', 2, { slope: 'db12', drive: 'clean' })
-    /// ```
+    docs = HP_DOCS,
     name = "$unstable.filter.hp", ident = HpFilter, kernel = HpBiquad,
     output_doc = "highpass output",
     params = {

@@ -355,3 +355,80 @@
     font-size: 0.9em;
     font-variant-numeric: tabular-nums;
 }
+
+.docs-panel .module-card {
+    container-type: inline-size;
+}
+
+.docs-panel .doc-summary {
+    margin: 2px 0 8px;
+    color: var(--text-secondary);
+}
+
+.docs-panel .doc-section h4 {
+    margin-top: 14px;
+}
+
+.docs-panel .doc-example {
+    margin: 8px 0;
+}
+
+.docs-panel .doc-example figcaption {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    margin-bottom: 4px;
+}
+
+.docs-panel .doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 0.95em;
+}
+
+.docs-panel .doc-table th,
+.docs-panel .doc-table td {
+    text-align: left;
+    vertical-align: top;
+    padding: 4px 8px 4px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.docs-panel .doc-table th {
+    color: var(--text-secondary);
+    font-weight: normal;
+}
+
+/* A narrow card stacks each row: its key as a heading, then `column: value`. */
+@container (max-width: 36ch) {
+    .docs-panel .doc-table thead {
+        display: none;
+    }
+
+    .docs-panel .doc-table,
+    .docs-panel .doc-table tbody,
+    .docs-panel .doc-table tr,
+    .docs-panel .doc-table td {
+        display: block;
+        width: auto;
+    }
+
+    .docs-panel .doc-table tr {
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .docs-panel .doc-table td {
+        border: none;
+        padding: 1px 0;
+    }
+
+    .docs-panel .doc-table td:first-child {
+        font-weight: bold;
+    }
+
+    .docs-panel .doc-table td:not(:first-child)::before {
+        content: attr(data-label) ': ';
+        color: var(--text-secondary);
+    }
+}

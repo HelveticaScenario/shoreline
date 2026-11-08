@@ -4,6 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
@@ -31,25 +33,26 @@ struct Cp808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Cp808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 hand clap.
-///
-/// A circuit model of the 808's hand clap: bursts of filtered noise in quick
-/// succession, like several hands clapping at once, over a softer noise tail.
-/// **accent** makes it louder and its tail longer.
-///
-/// An unaccented clap peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.clap($clock.beatTrigger).out()
-/// ```
+const CP808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 hand clap",
+    description: "The 808's hand clap: bursts of filtered noise in quick succession, \
+                  like several hands clapping at once, over a softer noise tail.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Clap on two and four",
+        code: "$tr808.kick($cycle($p('c*4')).trig).out()\n\
+               $tr808.clap($cycle($p('~ c ~ c')).trig).out()",
+    }],
+};
+
 #[module(
     name = "$tr808.clap",
-    categories(drum),
+    docs = CP808_DOCS,
     has_init,
     patch_update,
     args(trigger),

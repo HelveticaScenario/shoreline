@@ -32,6 +32,7 @@ import {
     paramMeta,
     withMeta,
 } from '../../shared/dsl/paramRange';
+import { renderDocContentJsDoc } from '../../shared/dsl/referenceDocs';
 export type { WavsFolderNode } from './executor';
 
 const BASE_LIB_SOURCE = `
@@ -2608,9 +2609,9 @@ function buildSignature(
 
     const args: string[] = [];
     const docLines: string[] = [...(opts.leadDocLines ?? [])];
-    if (moduleSchema.documentation) {
-        docLines.push(...moduleSchema.documentation.split(/\r?\n/));
-    }
+    docLines.push(
+        ...renderDocContentJsDoc(moduleSchema.docs, moduleSchema.name),
+    );
 
     for (const lead of opts.leadParams ?? []) {
         args.push(lead.decl);

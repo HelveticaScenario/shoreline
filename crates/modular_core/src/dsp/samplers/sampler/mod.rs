@@ -3,6 +3,8 @@ use schemars::JsonSchema;
 
 use self::voice::{RELEASE_SLOTS, Ramp, Release, Voice, push_release};
 use super::slice::SliceParam;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     Wav,
     dsp::utils::SchmittTrigger,
@@ -145,23 +147,27 @@ struct SamplerState {
     playing_out: bool,
 }
 
-/// Sample player. Each gate rising edge starts playback of the whole file,
-/// or of one slice when `slice` is set. The slice signal is sampled at the
-/// edge: integer part picks the slice point (wrapping), fraction offsets the
-/// start into it. `mode` sets what the gate does next: `'once'` plays the
-/// window through, `'gate'` plays it while the gate is high, and `'loop'`
-/// repeats it while the gate is high, picking the slice again for each
-/// repeat. Speed control allows pitch-shifting and reverse playback (a slice
-/// plays the same region backwards). A short `fade` (milliseconds) declicks
-/// onsets, slice ends, releases, and retriggers.
-///
-/// ```js
-/// $sampler($wavs().kick, $clock.beatTrigger)
-/// $sampler($wavs().pad, $pulse('1hz'), { speed: 0.5, mode: 'gate' })
-/// $sampler($wavs().pad, $pulse('2hz'), { slice: [[0, 0.25, 0.5, 0.75], $cycle($p('0 1 2 3')).cv], fade: 2 })
-/// $sampler($wavs().pad, $pulse('0.5hz'), { mode: 'loop', fade: 10 })
-/// ```
-#[module(name = "$sampler", categories(sampler), channels_derive = sampler_derive_channel_count, args(wav, gate), has_init, patch_update)]
+const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Gate-triggered sample player",
+    description: "Plays a WAV file, or one slice of it, each time the gate rises: one-shots, \
+                  held notes or loops depending on `mode`. Change `speed` to pitch it up, down \
+                  or into reverse, and step `slice` through a pattern to chop a break.",
+    categories: &[ModuleCategory::Sampler],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Kick on every beat",
+            code: "$sampler($wavs().kick, $clock.beatTrigger).out()",
+        },
+        DocExample {
+            title: "Chopped and rearranged loop",
+            code: "const order = $cycle($p('0 2 1 3 0 0 3 2'))\n\
+                   $sampler($wavs().pad, order.trig, { slice: [[0, 0.25, 0.5, 0.75], order], fade: 2 }).out()",
+        },
+    ],
+};
+
+#[module(name = "$sampler", docs = SAMPLER_DOCS, channels_derive = sampler_derive_channel_count, args(wav, gate), has_init, patch_update)]
 pub struct Sampler {
     params: SamplerParams,
     outputs: SamplerOutputs,

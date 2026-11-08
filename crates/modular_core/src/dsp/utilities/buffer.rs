@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     Buffer, BufferData, MonoSignal,
     poly::{PolyOutput, PolySignal},
@@ -161,12 +163,24 @@ impl BufferWriteBlockOutputs {
 #[derive(Default)]
 struct BufferWriteState {}
 
-/// Writes an input signal into a circular buffer each sample tick.
-/// The buffer is owned by this module and exposed as a buffer output.
-/// Readers ($delayRead, $bufRead) connect to it via buffer params.
+const BUFFER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Recording loop for delays",
+    description: "Continuously records a signal into a loop the given number of \
+                  seconds long, for `$delayRead` and `$bufRead` to play back. On its \
+                  own it makes no sound.",
+    categories: &[ModuleCategory::Effect, ModuleCategory::Utility],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Echo tap",
+        code: "const voice = $saw($cycle($p('c3 eb3 g3 ~'))).amp($perc($clock.beatTrigger, { decay: 0.15 }))\n\
+               voice.out()\n\
+               $delayRead($buffer(voice, 1), 0.375).amp(2.5).out()",
+    }],
+};
+
 #[module(
     name = "$buffer",
-    categories(effect, utility),
+    docs = BUFFER_DOCS,
     has_init,
     args(input, length)
 )]
@@ -286,8 +300,21 @@ struct BufReadOutputs {
     sample: PolyOutput,
 }
 
-/// Reads a sample frame from a buffer and outputs its channels as a poly signal.
-#[module(name = "$bufRead", categories(utility), channels_derive = buf_read_derive_channel_count, args(buffer, frame))]
+const BUF_READ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Read a buffer by position",
+    description: "Plays a `$buffer` from a position you choose rather than a fixed \
+                  time behind the recording. Sweep the position to scrub through what \
+                  was recorded, like moving a tape by hand.",
+    categories: &[ModuleCategory::Utility],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Scrubbing a recorded phrase",
+        code: "const phrase = $buffer($saw($cycle($p('c3 e3 g3 b3'))), 2)\n\
+               $bufRead(phrase, $sine('0.1hz').range(0, 5)).out()",
+    }],
+};
+
+#[module(name = "$bufRead", docs = BUF_READ_DOCS, channels_derive = buf_read_derive_channel_count, args(buffer, frame))]
 pub struct BufRead {
     outputs: BufReadOutputs,
     params: BufReadParams,

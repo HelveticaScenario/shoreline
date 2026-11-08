@@ -14,6 +14,8 @@ pub use template::{GrooveTemplate, fill_groove_inputs};
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{MonoSignal, param_errors::ModuleParamErrors};
 
 #[params]
@@ -61,24 +63,23 @@ struct GrooveOutputs {
     trigger: f32,
 }
 
-/// Groove a playhead with a timing and velocity template.
-///
-/// The template moves each grid step by its timing offset. A `$cycle` given
-/// this module's offset starts grid-aligned notes at the shifted times, slides
-/// notes between grid steps proportionally, and keeps every note's length.
-/// Every `$cycle` follows the global groove (see `$setGroove`) by default;
-/// pass this module's offset and velocity to give one its own groove.
-///
-/// Timing offsets are in grid steps: with `grid: 16`, an offset of `0.2` delays
-/// that sixteenth by a fifth of a sixteenth. The template repeats every
-/// `timing.length` steps.
-///
-/// ```js
-/// const g = $groove({ timing: [0, 0.3], velocity: [1, 0.6] })
-/// const seq = $cycle($p('c4*8'), { groove: g, velocity: g.velocity })
-/// $sine(seq).amp($adsr(seq.gate)).amp(seq.velocity).out()
-/// ```
-#[module(name = "$groove", categories(sequencer), args(template))]
+const GROOVE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Timing and velocity groove",
+    description: "Pushes steps of the grid early or late and gives each a velocity, for swing \
+                  and shuffle on a single sequencer. Every sequencer follows the global groove \
+                  from `$setGroove` by default; pass this module and its `velocity` to one to \
+                  give it a feel of its own. Notes keep their written lengths.",
+    categories: &[ModuleCategory::Sequencer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Shuffled eighths with soft offbeats",
+        code: "const g = $groove({ timing: [0, 0.3], velocity: [1, 0.6], grid: 8 })\n\
+               const seq = $cycle($p('c4 e4 g4 c5 g4 e4 c4 g3'), { groove: g, velocity: g.velocity })\n\
+               $sine(seq).amp($adsr(seq.gate)).amp(seq.velocity).out()",
+    }],
+};
+
+#[module(name = "$groove", docs = GROOVE_DOCS, args(template))]
 pub struct Groove {
     outputs: GrooveOutputs,
     params: GrooveParams,

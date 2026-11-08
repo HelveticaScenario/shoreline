@@ -12,6 +12,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::fastexp;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 const RES_GAIN: f32 = 1.5;
 const IN_GAIN: f32 = 4.0;
@@ -307,19 +309,22 @@ impl Filter for TriPole {
     }
 }
 
+const TRIPOLE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Tri-pole Threeler filter",
+    description: "Ian Fritz's Threeler: three saturating stages under global feedback, a wild, \
+                  organic filter that self-oscillates readily. Mixing lowpass and highpass \
+                  stages gives unusual band shapes.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Wild resonant bass",
+        code: "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n\
+              $unstable.filter.tripole($saw(seq), $sine('0.3hz').range('c3', 'c6'), 3, { mode: 'lhl' }).out()",
+    }],
+};
+
 filter_module! {
-    /// Surge XT's Tri-pole — Ian Fritz's Threeler filter: three saturating one-pole
-    /// stages, a resonance waveshaper, and global feedback. Wild and organic;
-    /// self-oscillates readily. Runs 2× oversampled.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; the feedback coefficient grows exponentially.
-    /// - **mode** — stage topology: `'lll'`, `'lhl'`, `'hlh'`, or `'hhh'`.
-    /// - **outputStage** — 1, 2, or 3 (3 = the full feedback output).
-    ///
-    /// ```js
-    /// $unstable.filter.tripole($saw('c2'), 'c4', 2, { mode: 'lhl', outputStage: 3 })
-    /// ```
+    docs = TRIPOLE_DOCS,
     name = "$unstable.filter.tripole", ident = TriPoleFilter, kernel = TriPole,
     output_doc = "filter output",
     params = {

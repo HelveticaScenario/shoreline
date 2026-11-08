@@ -14,6 +14,8 @@ use super::fresh::FreshBuffers;
 use super::resample::Resampler;
 use super::wav_load::silent_buffer;
 use super::{FULL_SCALE_VOLTS, GranularQuality, input_value, unit};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Engine samples over which the playhead's speed is measured.
 const TEMPO_WINDOW: u32 = 256;
@@ -225,30 +227,32 @@ struct ClockedDelayState {
     tempo: TempoTracker,
 }
 
-/// Tempo-synced delay from Mutable Instruments Beads' delay mode. Its repeats
-/// come from feedback inside the module, so it needs no feedback loop in the
-/// patch.
-///
-/// The delay time is `bars` of the playhead, which follows the transport,
-/// times a multiplier set by `time`. When the time or the tempo changes, the
-/// old repeats crossfade into the new ones at an unchanged pitch.
-/// `shape` windows each repeat with an envelope one delay time long, locked
-/// to the playhead, so the repeats come back as rhythmic slices;
-/// `grooveAmount` swings the windows with the global groove. `freq`
-/// shifts their pitch against `rootFreq`, and `tone` filters them. While
-/// `freeze` is high the delay stops recording and loops slices of what it
-/// holds, one base delay time long; `time` then picks the slice.
-///
-/// Each input channel gets its own delay. Follow it with `$wowFlutter` and
-/// `$reverb` for the rest of Beads' sound.
-///
-/// ```js
-/// const pluck = $saw('c3').amplitude($perc($clock.beatTrigger, { decay: 0.1 }))
-/// $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()
-/// ```
+const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Tempo-synced delay",
+    description: "The delay mode of Mutable Instruments Beads, locked to the transport. Its \
+                  repeats come from feedback inside the module, so it needs no loop in the \
+                  patch, and changing the time or the tempo crossfades to the new repeats \
+                  without a pitch warble. The repeats can also come back as rhythmic slices, or \
+                  loop what the delay holds while frozen. Each input channel gets its own delay.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Dotted-eighth echoes",
+            code: "const pluck = $saw('c3').amp($perc($clock.beatTrigger, { decay: 0.1 }))\n\
+                   $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()",
+        },
+        DocExample {
+            title: "Sliced sixteenth repeats",
+            code: "const pluck = $saw($cycle($p('c3 eb3 g3 bb3'))).amp($perc($clock.beatTrigger, { decay: 0.3 }))\n\
+                   $clockedDelay(pluck, { bars: 1 / 16, shape: 1, feedback: 2, mix: 3 }).out()",
+        },
+    ],
+};
+
 #[module(
     name = "$clockedDelay",
-    categories(effect),
+    docs = CLOCKED_DELAY_DOCS,
     has_init,
     patch_update,
     args(input)

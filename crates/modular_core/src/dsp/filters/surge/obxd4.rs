@@ -10,6 +10,8 @@ use schemars::JsonSchema;
 
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
 use super::obxd2::obxd_cutoff;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// OB-Xd 4-pole coefficient slots (Surge `Obxd24dBCoeff`, minus the morph mixes).
 const G24: usize = 0;
@@ -223,17 +225,20 @@ impl XpanderMode {
     }
 }
 
+const OBXD4_DOCS: ModuleDocs = ModuleDocs {
+    summary: "OB-Xd 4-pole lowpass",
+    description: "The Oberheim 4-pole lowpass: darker and steeper than its 2-pole sibling, \
+                  with a resonance that stays smooth rather than piercing.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Dark brass swell",
+        code: "$unstable.filter.obxd4($saw($chord('F2[maj7]')), $sine('0.1hz').range('c3', 'c6'), 2.5).out()",
+    }],
+};
+
 filter_module! {
-    /// Surge XT's OB-Xd 4-pole lowpass — four cascaded zero-delay poles with an `atan`
-    /// damper (from Filatov's OB-Xd, via Odin 2). Runs 2× oversampled.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; self-oscillates near the top.
-    /// - **slope** — `'db6'`, `'db12'`, `'db18'`, `'db24'`, or `'db24Legacy'`.
-    ///
-    /// ```js
-    /// $unstable.filter.obxd4($saw('c2'), 'c4', 3, { slope: 'db24Legacy' })
-    /// ```
+    docs = OBXD4_DOCS,
     name = "$unstable.filter.obxd4", ident = Obxd4Filter, kernel = Obxd4Pole,
     output_doc = "lowpass output",
     params = {
@@ -243,19 +248,21 @@ filter_module! {
     mode = |p| p.slope.pole_mix(),
 }
 
+const XPANDER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Xpander pole-mixing filter",
+    description: "The Oberheim Xpander's trick: one 4-pole core mixed into fifteen responses, \
+                  from lowpasses and highpasses to bandpass, notch and phaser shapes, all with \
+                  the same character.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "4-pole bandpass sweep",
+        code: "$unstable.filter.xpander($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 3, { mode: 'bp4' }).out()",
+    }],
+};
+
 filter_module! {
-    /// The Oberheim Xpander pole-mixing filter (Surge XT's OB-Xd cascade with the
-    /// Xpander mode matrix): one 4-pole lowpass core re-mixed into lowpass,
-    /// highpass, bandpass, notch, and phaser responses. Runs 2× oversampled.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5.
-    /// - **mode** — `'lp1'`–`'lp4'`, `'hp1'`–`'hp3'`, `'bp2'`, `'bp4'`, `'n2'`,
-    ///   `'ph3'`, `'hp2Lp1'`, `'hp3Lp1'`, `'n2Lp1'`, `'ph3Lp1'`.
-    ///
-    /// ```js
-    /// $unstable.filter.xpander($saw('c2'), 'c4', 3, { mode: 'bp4' })
-    /// ```
+    docs = XPANDER_DOCS,
     name = "$unstable.filter.xpander", ident = XpanderFilter, kernel = Obxd4Pole,
     output_doc = "filter output",
     params = {

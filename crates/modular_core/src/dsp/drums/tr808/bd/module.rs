@@ -4,6 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
@@ -60,31 +62,35 @@ struct Bd808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Bd808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 bass drum.
-///
-/// A circuit model of the 808's deep, booming kick: a low, round ring at ≈49.5
-/// Hz with a click at the attack and a pitch that sighs down as it rings.
-/// **decay** sets how long it booms, **tone** how much click comes through,
-/// **freq** its pitch, and **accent** how hard it hits.
-///
-/// As on the 808, a hit that lands on a still-ringing one builds on it, so long
-/// decays at fast tempos swing in level from hit to hit; **restart** starts
-/// every hit from rest instead.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**. Near the top of the **freq** range the drum overdrives, so accent adds
-/// less there.
-///
-/// ```js
-/// $tr808.kick($clock.beatTrigger, { decay: 4 }).out()
-/// ```
+const BD808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 bass drum",
+    description: "The 808's deep, booming kick: a round, low ring with a click at the \
+                  attack and a pitch that sighs down as it fades. Long decays turn it \
+                  into a tuned sub bass. As on the 808, a hit that lands on a \
+                  still-ringing one builds on it, so long decays at fast tempos swing in \
+                  level from hit to hit.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Booming four on the floor",
+            code: "$tr808.kick($cycle($p('c*4')).trig, { decay: 4 }).out()",
+        },
+        DocExample {
+            title: "Tuned 808 bassline",
+            code: "const bass = $cycle($p('g1 ~ ~ g1 ~ ~ bb1 c2'))\n\
+                   $tr808.kick(bass.trig, { freq: bass, decay: 4.5 }).out()",
+        },
+    ],
+};
+
 #[module(
     name = "$tr808.kick",
-    categories(drum),
+    docs = BD808_DOCS,
     has_init,
     patch_update,
     args(trigger),

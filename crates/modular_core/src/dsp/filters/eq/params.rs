@@ -56,7 +56,7 @@ pub struct EqSection {
     #[deserr(default)]
     pub gain: Option<MonoSignal>,
     #[input(
-        "how narrow the band is; above 0.707 shelves, lowpass and highpass get a resonant bump",
+        "how narrow the band is; on shelves, lower is a gentler slope; above 0.707 shelves, lowpass and highpass get a resonant bump",
         type = control,
         default = 0.707107,
         range = (0.1, 20.0),

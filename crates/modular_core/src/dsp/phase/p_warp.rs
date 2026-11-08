@@ -5,6 +5,8 @@ use schemars::JsonSchema;
 
 use crate::dsp::phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState};
 use crate::dsp::utils::voct_to_hz;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt};
 
 #[params]
@@ -48,20 +50,28 @@ pub fn p_warp_derive_channel_count(params: &PWarpParams) -> usize {
         .clamp(1, PORT_MAX_CHANNELS)
 }
 
-/// Phase effect: reshapes a 0–1 phase signal with a `$phase.*` warp.
-///
-/// Feed the output into a phase oscillator (`$pSine`, `$pSaw`, `$pPulse`) to
-/// hear the result. Warps compose with `.pipe()` or their optional second
-/// argument; `$phase.feedback` stages keep their own state per channel.
-///
-/// # Example
-///
-/// ```js
-/// // Ensemble Oscillator-style pulsar and crush on a ramp
-/// $pSine($pWarp($ramp('c3'), $phase.pulsar(3))).out()
-/// $pSine($pWarp($ramp('c3'), $phase.crush(2, $phase.feedback(1)))).out()
-/// ```
-#[module(name = "$pWarp", categories(phase), channels_derive = p_warp_derive_channel_count, args(input, phase))]
+const P_WARP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Phase warp",
+    description: "Reshapes a phase ramp with a `$phase.*` warp (mirror, bend, \
+                  sync, fold, pwm, pulsar, crush or feedback) so the phase \
+                  oscillator after it plays a new timbre. Chain warps for more \
+                  complex shapes, and modulate their amounts for sweeping, \
+                  vocal motion.",
+    categories: &[ModuleCategory::Phase],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Pulsar sweep",
+            code: "$pSine($pWarp($ramp('c3'), $phase.pulsar($sine('0.1hz').range(0, 4)), { freq: 'c3' })).out()",
+        },
+        DocExample {
+            title: "Crushed feedback tone",
+            code: "$pSine($pWarp($ramp('c3'), $phase.crush(2, $phase.feedback(1)))).out()",
+        },
+    ],
+};
+
+#[module(name = "$pWarp", docs = P_WARP_DOCS, channels_derive = p_warp_derive_channel_count, args(input, phase))]
 pub struct PWarp {
     outputs: PWarpOutputs,
     channel_state: Box<[ChannelState]>,

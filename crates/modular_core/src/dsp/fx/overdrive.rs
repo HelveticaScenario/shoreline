@@ -12,6 +12,8 @@ use std::f32::consts::PI;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::halfband::{Halfband2xDown, Halfband2xUp};
 use crate::dsp::utils::one_pole::OnePole;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
@@ -95,13 +97,28 @@ const MAX_DRIVE_GAIN: f32 = 32.0;
 /// 3:1 boost/cut ratio. Larger values = more aggressive tone shift.
 const TONE_RANGE: f32 = 3.0;
 
-/// Multi-mode overdrive saturator. Drive boosts the input into a soft, hard,
-/// or asymmetric shaper, with a tone control applying pre-emphasis before
-/// distortion and matching de-emphasis after. Internally oversampled 2× to
-/// reduce aliasing.
+const OVERDRIVE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Overdrive and clipping",
+    description: "Pushes a signal into saturation, from warm rounding to hard clipping or \
+                  tube-style grit. `tone` chooses whether the lows or the highs break up first \
+                  without changing the overall brightness.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Driven acid bass",
+            code: "$saw('a1').$.lpf($sine('0.25hz').range('a2', 'a5'), 4).$.overdrive(3).out()",
+        },
+        DocExample {
+            title: "Gritty tube chords",
+            code: "$saw($chord('C3[m7]')).$.overdrive(2, { mode: 'asym', tone: -2 }).out()",
+        },
+    ],
+};
+
 #[module(
     name = "$overdrive",
-    categories(distortion),
+    docs = OVERDRIVE_DOCS,
     args(input, drive),
     has_init
 )]

@@ -7,6 +7,8 @@ use schemars::JsonSchema;
 
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Saturation algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
@@ -45,14 +47,19 @@ impl Shaper for SaturateShaper {
     }
 }
 
+const SATURATE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Saturation and clipping",
+    description: "Warms, thickens or squares off a signal, from gentle rounding \
+                  to hard clipping. Modelled on the Surge XT saturator shapes.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Driven bass",
+        code: "$saw('c2').$.unstable.shape.saturate('soft', 3).$.lpf('c5').out()",
+    }],
+};
+
 shape_module! {
-    /// Saturation and clipping, from Surge XT's Saturator waveshapers. `mode`
-    /// sets the character — soft, hard, asymmetric, medium, or ojd — and `drive`
-    /// sets how hard the signal is pushed in (−5..5, 0 = unity).
-    ///
-    /// ## Example
-    /// ```js
-    /// $unstable.shape.saturate($saw('c3'), 'hard', 3).out()
-    /// ```
+    docs = SATURATE_DOCS,
     name = "$unstable.shape.saturate", ident = Saturate, mode = SaturateMode, shaper = SaturateShaper
 }

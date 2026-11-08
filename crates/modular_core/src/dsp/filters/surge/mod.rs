@@ -20,7 +20,7 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 /// only writes the parts that differ — its enums and the `mode` they select.
 macro_rules! filter_module {
     (
-        $(#[$doc:meta])*
+        docs = $docs:path,
         name = $name:literal, ident = $Struct:ident, kernel = $Kernel:ty,
         output_doc = $output_doc:literal,
         params = { $( $(#[$fdoc:meta])* $field:ident : $ftype:ty ),* $(,)? },
@@ -59,8 +59,7 @@ macro_rules! filter_module {
                 sample: crate::poly::PolyOutput,
             }
 
-            $(#[$doc])*
-            #[module(name = $name, categories(filter), args(input, cutoff, resonance), patch_update)]
+            #[module(name = $name, docs = $docs, args(input, cutoff, resonance), patch_update)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::filters::surge::filter_core::FilterModuleState<

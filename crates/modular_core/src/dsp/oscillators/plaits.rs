@@ -13,6 +13,8 @@ use deserr::Deserr;
 use mi_plaits_dsp::voice::{Modulations, Patch, Voice};
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::{SchmittTrigger, voct_to_midi},
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -295,37 +297,33 @@ impl Default for PlaitsChannelState {
     }
 }
 
-/// Full-featured Plaits macro-oscillator with all 24 engines, LPG, and modulation routing.
-///
-/// For detailed engine descriptions and parameter behavior, see the
-/// [Mutable Instruments Plaits documentation](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/).
-///
-/// Engines (selected via `engine` param):
-/// - Virtual analog VCF (classic subtractive)
-/// - Phase distortion
-/// - Six-op FM (3 banks)
-/// - Wave terrain
-/// - String machine
-/// - Chiptune
-/// - Virtual analog (dual oscillator)
-/// - Waveshaping
-/// - Two-operator FM
-/// - Granular formant
-/// - Harmonic/additive
-/// - Wavetable
-/// - Chords
-/// - Vowel/speech synthesis
-/// - Swarm
-/// - Filtered noise
-/// - Particle noise
-/// - Inharmonic strings
-/// - Modal resonator
-/// - Analog bass drum
-/// - Analog snare drum
-/// - Analog hi-hat
+const MACRO_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Macro oscillator (Plaits)",
+    description: "Mutable Instruments Plaits: 24 engines, from analog and FM to \
+                  chords, speech, strings and drums, each played with the same \
+                  three knobs, `harmonics`, `timbre` and `morph`. Triggers \
+                  strike its built-in envelope and lowpass gate; with no \
+                  trigger it drones. The [Plaits \
+                  manual](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/) \
+                  describes what the knobs do on each engine.",
+    categories: &[ModuleCategory::Oscillator, ModuleCategory::Drum],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Struck modal melody",
+            code: "const seq = $cycle($p('c4 g4 eb4 <bb4 f4>'))\n\
+                   $macro(seq, 'modalResonator', { trigger: seq.trig, timbre: 1, lpgDecay: 3 }).out()",
+        },
+        DocExample {
+            title: "Chord stabs",
+            code: "$macro('c3', 'chords', { trigger: $clock.beatTrigger, harmonics: 1 }).out()",
+        },
+    ],
+};
+
 #[module(
     name = "$macro",
-    categories(oscillator, drum),
+    docs = MACRO_DOCS,
     args(freq, engine),
     has_init
 )]

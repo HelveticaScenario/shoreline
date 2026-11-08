@@ -9,6 +9,8 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::DcBlocker;
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -203,20 +205,23 @@ struct DattorroState {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-/// Stereo plate reverb based on the Dattorro algorithm.
-///
-/// Implements Jon Dattorro's plate reverberator with input diffusion,
-/// a cross-coupled stereo tank, and multi-tap output. Even input
-/// channels are summed to the left input, odd channels to the right;
-/// with an odd channel count the last channel feeds both sides.
-/// Output is always 100% wet.
-///
-/// ```js
-/// $dattorro($saw('c3'), { decay: 3, damping: 1, size: 2 }).out()
-/// ```
+const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Classic plate reverb",
+    description: "The classic Dattorro plate: a bright, smooth stereo tail that suits vocals, \
+                  plucks and drums. Output is fully wet, so blend it with `.$m.dattorro(mix)` or \
+                  send to it from a bus.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Plucks in a big plate",
+        code: "const notes = $cycle($p('c4 eb4 g4 bb4'))\n\
+                   $sine(notes).amp($perc(notes.trig, { decay: 0.2 })).$m.dattorro(2, { decay: 3 }).out()",
+    }],
+};
+
 #[module(
     name = "$dattorro",
-    categories(effect),
+    docs = DATTORRO_DOCS,
     channels = 2,
     has_init,
     args(input)

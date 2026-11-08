@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::filters::resonant_svf::{self, Response, SvfChannel, SvfFilterState},
     poly::{PolyOutput, PolySignal},
@@ -38,25 +40,30 @@ struct LowpassFilterOutputs {
     sample: PolyOutput,
 }
 
-/// Lowpass filter that attenuates frequencies above the cutoff point.
-///
-/// Use it to tame bright timbres, create bass-heavy sounds, or build classic
-/// subtractive synth patches. Sweeping the cutoff with an envelope or LFO
-/// produces the familiar filter-sweep effect.
-///
-/// - **cutoff** — set in V/Oct (0 V = C4). Accepts modulation for filter sweeps.
-/// - **resonance** — boosts frequencies near the cutoff (0–5). High values
-///   produce a ringing peak, but the filter never self-oscillates; use
-///   `$jup6f` for a filter that does.
-///
-/// ```js
-/// // subtractive bass: saw through a lowpass with envelope on cutoff
-/// let env = $adsr($pPulse($clock[0]), { attack: 0.01, decay: 0.3, sustain: 1, release: 0.4 })
-/// $lpf($saw('c2'), env.range('200hz', '2000hz'))
-/// ```
+const LPF_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Resonant lowpass filter",
+    description: "Removes the highs above the cutoff: the everyday filter for taming bright \
+                  oscillators and for envelope-swept basses and pads. Resonance adds a ringing \
+                  peak at the cutoff but never self-oscillates; reach for `$jup6f` when you \
+                  want the filter to sing.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Plucky acid bass",
+            code: "const seq = $cycle($p('c2 c2 [eb2 c3] g1'))\n\
+                   $saw(seq).$.lpf($perc(seq.trig, { decay: 0.2 }).range('c3', 'c7'), 4).out()",
+        },
+        DocExample {
+            title: "Slow pad sweep",
+            code: "$saw($chord('C3[m7]')).$.lpf($sine('0.05hz').range('c4', 'c7'), 1).out()",
+        },
+    ],
+};
+
 #[module(
     name = "$lpf",
-    categories(filter),
+    docs = LPF_DOCS,
     patch_update,
     args(input, cutoff, resonance)
 )]

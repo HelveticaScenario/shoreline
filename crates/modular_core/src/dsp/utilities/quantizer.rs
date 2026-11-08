@@ -4,6 +4,8 @@ use arrayvec::ArrayVec;
 use deserr::{DeserializeError, Deserr, IntoValue, ValuePointerRef};
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     Patch,
     dsp::utils::{SchmittTrigger, TempGate, TempGateState, min_gate_samples},
@@ -198,33 +200,28 @@ fn snap_with_hysteresis(x: f64, prev: Option<f64>, snap: impl Fn(f64) -> f64) ->
     }
 }
 
-/// Snaps a V/Oct signal to the nearest note of a scale.
-///
-/// **scale** is a polyphonic signal: each channel is one V/Oct note, and the
-/// output snaps to the nearest of those notes in any octave. Feed it from
-/// `$chord`, a `$cycle`, or `$midiCV` — or pass a spec string such as
-/// `"C(major)"` or `"C[maj7]"`, which is shorthand for `$chord(spec)` (see
-/// `$chord` for the full grammar). Without a scale, the output snaps to
-/// semitones.
-///
-/// **gate** selects which scale notes are active: scale channel N is used only
-/// while gate channel N is high. While every gate channel is low, the output
-/// holds its last note.
-///
-/// A **trig** pulse fires whenever the quantized note changes, useful for
-/// re-triggering envelopes.
-///
-/// ```js
-/// // quantize a slow sine to C major
-/// $sine($quantizer($sine("0.1hz").range(0, 3), "C(major)")).out()
-/// ```
-///
-/// ```js
-/// // quantize to whichever MIDI keys are held; holds when all are released
-/// const midi = $midiCV({ channels: 4 })
-/// $sine($quantizer($sine("0.1hz").range(-1, 1), midi, { gate: midi.gate })).out()
-/// ```
-#[module(name = "$quantizer", categories(pitch), channels_derive = quantizer_derive_channel_count, args(input, scale))]
+const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Snap pitch to a scale",
+    description: "Snaps a pitch to the nearest note of a scale or chord, so an LFO, a \
+                  random source or a MIDI input plays in key. `.trig` fires on every \
+                  note change, ready to retrigger an envelope.",
+    categories: &[ModuleCategory::Pitch],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "LFO melody in C major",
+            code: "const melody = $quantizer($sine('0.13hz').range('c3', 'c5'), 'C(major)')\n\
+                   $sine(melody).amp($perc(melody.trig, { decay: 0.3 })).out()",
+        },
+        DocExample {
+            title: "Playing only the keys you hold",
+            code: "const midi = $midiCV({ channels: 4 })\n\
+                   $sine($quantizer($sine('0.1hz').range('c3', 'c5'), midi, { gate: midi.gate })).out()",
+        },
+    ],
+};
+
+#[module(name = "$quantizer", docs = QUANTIZER_DOCS, channels_derive = quantizer_derive_channel_count, args(input, scale))]
 pub struct Quantizer {
     outputs: QuantizerOutputs,
     params: QuantizerParams,

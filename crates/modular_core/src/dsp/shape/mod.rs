@@ -27,7 +27,7 @@ pub mod shapers;
 macro_rules! shape_module {
     // Modules with a `mode` enum selecting the algorithm.
     (
-        $(#[$doc:meta])*
+        docs = $docs:path,
         name = $name:literal, ident = $Struct:ident, mode = $Mode:ty, shaper = $Shaper:ty $(,)?
     ) => {
         paste::paste! {
@@ -57,8 +57,7 @@ macro_rules! shape_module {
                 sample: crate::poly::PolyOutput,
             }
 
-            $(#[$doc])*
-            #[module(name = $name, categories(distortion), args(input, mode, drive), has_init)]
+            #[module(name = $name, docs = $docs, args(input, mode, drive), has_init)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::shape::shape_core::ShapeModuleState,
@@ -93,7 +92,7 @@ macro_rules! shape_module {
 
     // Single-algorithm modules (`digital`, `sine`): no `mode`, drive is positional 2.
     (
-        $(#[$doc:meta])*
+        docs = $docs:path,
         name = $name:literal, ident = $Struct:ident, shaper = $Shaper:ty $(,)?
     ) => {
         paste::paste! {
@@ -121,8 +120,7 @@ macro_rules! shape_module {
                 sample: crate::poly::PolyOutput,
             }
 
-            $(#[$doc])*
-            #[module(name = $name, categories(distortion), args(input, drive), has_init)]
+            #[module(name = $name, docs = $docs, args(input, drive), has_init)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::shape::shape_core::ShapeModuleState,

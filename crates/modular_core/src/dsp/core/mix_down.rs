@@ -2,6 +2,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::core::mix::MixMode;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal};
 
 fn default_channels() -> usize {
@@ -22,7 +24,10 @@ pub struct MixDownParams {
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
     pub channels: usize,
-    #[input("how channels landing on the same output combine", default = "sum")]
+    #[input(
+        "how channels landing on the same output combine when folding down",
+        default = "sum"
+    )]
     #[serde(default)]
     #[deserr(default)]
     mode: MixMode,
@@ -39,29 +44,22 @@ struct MixDownOutputs {
     sample: PolyOutput,
 }
 
-/// Folds a polyphonic input down to an arbitrary target channel count.
-///
-/// Unlike `$mix` (which mixes channel `n` of every input into output channel
-/// `n`), `$mixDown` takes a single poly signal and distributes its `N` channels
-/// across `M` output channels by panning them evenly over the output field with
-/// an equal-power crossfade. With the default `channels = 1` it is a plain mono
-/// sum; `channels = 2` produces an equal-power stereo fold-down. When the target
-/// exceeds the input channel count, the input is instead spread to fill every
-/// output channel (equal-power interpolation) so no channel is left silent.
-///
-/// - **channels** — target output channel count (1–64, default 1)
-/// - **mode** — how channels landing on the same output combine (sum / average /
-///   max / min); applies only when folding down (target ≤ input channels)
-///
-/// ## Example
-///
-/// ```js
-/// // Fold a 3-voice spread down to stereo
-/// $saw($spread(0, 5, 3)).mix(2).out()
-/// ```
+const MIX_DOWN_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Fold channels to fewer outputs",
+    description: "Folds a polyphonic signal down to a set number of channels, panning the \
+                  voices evenly across them: 1 for a mono sum, 2 for a stereo spread. With more \
+                  outputs than inputs it spreads the input to fill every output instead.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Detuned saws spread across stereo",
+        code: "$mixDown($saw($spread(-0.02, 0.02, 5)), 2).out()",
+    }],
+};
+
 #[module(
     name = "$mixDown",
-    categories(mixer),
+    docs = MIX_DOWN_DOCS,
     channels_param = "channels",
     args(input, channels),
     has_init,
