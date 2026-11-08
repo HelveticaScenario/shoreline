@@ -133,19 +133,16 @@ export function analyzeArgumentSpans(
 
         // `$p(source)` and `$p.s(source, scale)`: the source literal's span
         // rides on the returned pattern to whichever factory receives it.
-        // The scale is configuration, not highlighted. V8 places `$p.s` at
-        // its `s`, and a bare `$p` call at its start.
+        // The scale is configuration, not highlighted.
         const funcName = calledName(call);
         const isPs = isPsCall(call);
-        if (funcName === '$p' || isPs) {
+        const isP = ts.isIdentifier(call.expression) && funcName === '$p';
+        if (isP || isPs) {
             const argsMap = new Map<string, SourceSpan>();
             if (args.length < 1 || !record(argsMap, 'source', args[0])) {
                 return;
             }
-            const anchor = isPs
-                ? v8CallAnchor(call, file)
-                : call.getStart(file);
-            registry.set(callSiteKey(file, anchor), {
+            registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
                 args: argsMap,
                 moduleType: isPs ? '$p.s' : '$p',
             });
