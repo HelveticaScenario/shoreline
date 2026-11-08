@@ -1,41 +1,43 @@
 /**
- * Quick-fix analysis for turning module params into Control panel controls.
+ * Quick-fix analysis for turning DSL params into Control panel controls.
  *
  * Given a patch source and a cursor offset, produces the actions the editor
- * can offer there: replacing an existing literal param value with a control,
- * or adding a control for a signal param the call doesn't set yet. Which
- * control, and its label, range, and initial value, come from the param's
- * schema metadata (see paramControls.ts).
+ * can offer there: replacing an existing literal argument with a control, or
+ * adding a control for a signal param the call doesn't set yet. Every API
+ * call resolves — module factories and chains, functions, and signal methods
+ * (paramCallResolver.ts) — and which control, and its label, range, and
+ * initial value, come from the param's metadata (paramControls.ts).
+ *
+ * Every fix is checked to add no parse error to the source; formatting the
+ * edited statement happens separately (controlFixFormat.ts), only for the
+ * fix the user picks.
  *
  * Pure and renderer-safe: no Monaco or Electron imports, so the analysis is
  * unit-testable against plain source strings.
  */
-import { Node, Project, ts } from 'ts-morph';
-import type { CallExpression, SourceFile } from 'ts-morph';
+import ts from 'typescript';
 
 import { findControlCalls } from '../../shared/dsl/controlCalls';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
+import type { ParamRef } from './apiParamControls';
+import type { ApiIndex } from './apiSignatures';
 import {
-    appendObjectArgument,
-    insertObjectProperty,
-} from './objectPropertyInsert';
-import type { CodeStyle } from './objectPropertyInsert';
-import {
-    asLiteral,
-    createCallResolver,
-    MIX_SPEC,
-    paramSpec,
-} from './paramCallResolver';
+    appendCallArgument,
+    appendObjectProperty,
+    introducesSyntaxErrors,
+    syntaxErrors,
+} from './controlFixEdits';
+import type { ListEdit, TextEdit } from './controlFixEdits';
+import { asLiteral, createCallResolver } from './paramCallResolver';
 import type { ResolvedCall } from './paramCallResolver';
 import { addChoices, wrapChoices } from './paramControls';
-import type { ParamLiteral, ParamSpec } from './paramControls';
+import type { ParamLiteral } from './paramControls';
 
-export interface ControlQuickFix {
+export interface ControlQuickFix extends TextEdit {
     title: string;
     kind: 'wrap' | 'add';
-    /** Half-open [start, end) replacement span in the source; zero-length for pure inserts. */
-    span: { start: number; end: number };
-    newText: string;
+    /** Offset within newText where the inserted control call begins. */
+    controlOffset: number;
     /** Offset within newText just past the inserted control call. */
     caretOffset: number;
     /** The default choice with the cursor on the replaced literal — surfaces
@@ -43,28 +45,34 @@ export interface ControlQuickFix {
     preferred?: boolean;
 }
 
+/** What resolves a call: the module schemas and the DSL lib's index. */
+export interface ControlApi {
+    schemas: Schemas;
+    index: ApiIndex;
+}
+
 export function computeControlQuickFixes(
     source: string,
     cursorOffset: number,
-    schemas: Schemas,
-    layout: CodeStyle,
+    { schemas, index }: ControlApi,
+    quote: string,
 ): ControlQuickFix[] {
-    let sourceFile: SourceFile;
-    try {
-        const project = new Project({
-            compilerOptions: { allowJs: true, checkJs: false, noEmit: true },
-            useInMemoryFileSystem: true,
-        });
-        sourceFile = project.createSourceFile('quickfix.ts', source);
-    } catch {
-        return [];
-    }
-    const chainAt = (pos: number): Node[] => {
-        const node = pos >= 0 ? sourceFile.getDescendantAtPos(pos) : undefined;
-        return node ? [node, ...node.getAncestors()] : [];
+    const file = ts.createSourceFile(
+        'quickfix.js',
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.JS,
+    );
+    const chainAt = (pos: number): ts.Node[] => {
+        const chain: ts.Node[] = [];
+        for (let n = tokenAt(file, pos); n; n = n.parent) {
+            chain.push(n);
+        }
+        return chain;
     };
-    // A caret sits between characters, and getDescendantAtPos returns the
-    // token starting at an offset, so a caret just past a literal (`2.5|`)
+    // A caret sits between characters, and tokenAt returns the token
+    // starting at an offset, so a caret just past a literal (`2.5|`)
     // resolves to the following token. Literals are searched from the
     // character left of the caret too, so a caret at either edge is on one.
     const atCursor = chainAt(cursorOffset);
@@ -74,248 +82,262 @@ export function computeControlQuickFixes(
     if (literalsAtCursor.length === 0) {
         return [];
     }
-    // getDescendantAtPos also resolves trivia positions to the following
-    // token. Candidates must contain the cursor by their non-trivia range to
-    // count as "at the cursor".
-    const containsCursor = (n: Node) =>
-        cursorOffset >= n.getStart() && cursorOffset <= n.getEnd();
+    // tokenAt also resolves trivia positions to the following token.
+    // Candidates must contain the cursor by their non-trivia range to count
+    // as "at the cursor".
+    const containsCursor = (n: ts.Node) =>
+        cursorOffset >= n.getStart(file) && cursorOffset <= n.getEnd();
 
-    const resolveCall = createCallResolver(schemas);
-    const existingLabels = collectRootLabels(sourceFile);
+    const resolveCall = createCallResolver(file, schemas, index);
+    const existingLabels = collectRootLabels(file);
     const label = (base: string) => dedupeLabel(base, existingLabels);
 
-    /** Fixes replacing the literal `node` as the value of param `name`. */
+    /** Fixes replacing the literal `node` as the value of `param`. */
     const wrapFixes = (
-        node: Node,
+        node: ts.Node,
         literal: ParamLiteral,
-        name: string,
-        spec: ParamSpec,
+        param: ParamRef,
     ): ControlQuickFix[] => {
         const onLiteral = containsCursor(node);
-        return wrapChoices(name, literal, spec, label, layout.quote).map(
+        return wrapChoices(param.label, literal, param.spec, label, quote).map(
             (choice) => ({
                 caretOffset: choice.text.length,
+                controlOffset: 0,
                 kind: 'wrap',
                 newText: choice.text,
                 preferred: onLiteral && choice.preferred,
-                span: { end: node.getEnd(), start: node.getStart() },
+                span: { end: node.getEnd(), start: node.getStart(file) },
                 title: choice.title,
             }),
         );
     };
 
-    // Replace a literal call argument (positional, chained, sugar, or mix).
     const argWraps = ((): ControlQuickFix[] => {
         for (const node of literalsAtCursor) {
-            const literal = asLiteral(node);
-            const parent = node.getParent();
+            const literal = asLiteral(node, file);
+            const parent = node.parent;
             if (
                 !literal ||
                 !containsCursor(node) ||
                 !parent ||
-                !Node.isCallExpression(parent)
+                !ts.isCallExpression(parent)
             ) {
                 continue;
             }
-            const argIndex = parent.getArguments().indexOf(node);
+            const argIndex = parent.arguments.indexOf(node as ts.Expression);
             const resolved = argIndex >= 0 ? resolveCall(parent) : null;
-            if (!resolved) {
-                continue;
-            }
-            if (resolved.kind === 'sugar') {
-                if (argIndex === 0) {
-                    return wrapFixes(
-                        node,
-                        literal,
-                        resolved.name,
-                        resolved.spec,
-                    );
-                }
-                continue;
-            }
-            if (resolved.kind === 'chainMix' && argIndex === 0) {
-                return wrapFixes(node, literal, 'mix', MIX_SPEC);
-            }
-            const pi = resolved.argToPositional(argIndex);
-            const name =
-                pi === null
-                    ? undefined
-                    : resolved.schema.positionalArgs[pi].name;
-            const spec = name && paramSpec(resolved.schema, name);
-            if (name && spec) {
-                return wrapFixes(node, literal, name, spec);
+            const param = resolved?.argParam(argIndex);
+            if (param) {
+                return wrapFixes(node, literal, param);
             }
         }
         return [];
     })();
 
-    // Replace a literal in the call's config object.
-    const configWraps = ((): ControlQuickFix[] => {
+    const optionWraps = ((): ControlQuickFix[] => {
         for (const node of literalsAtCursor) {
-            if (!Node.isPropertyAssignment(node) || !containsCursor(node)) {
+            if (!ts.isPropertyAssignment(node) || !containsCursor(node)) {
                 continue;
             }
-            const obj = node.getParent();
-            const call = obj.getParent();
-            if (!call || !Node.isCallExpression(call)) {
+            const obj = node.parent;
+            const call = obj.parent;
+            if (!call || !ts.isCallExpression(call)) {
                 continue;
             }
-            const resolved = resolveCall(call);
-            if (
-                !resolved ||
-                resolved.kind === 'sugar' ||
-                call.getArguments().indexOf(obj) !== resolved.configSlot
-            ) {
+            const members = resolveCall(call)?.options(
+                call.arguments.indexOf(obj),
+            );
+            if (!members) {
                 continue;
             }
-            const key = propertyKeyName(node);
-            const spec = key && paramSpec(resolved.schema, key);
-            const init = node.getInitializer();
-            const literal = init && asLiteral(init);
-            if (key && spec && init && literal) {
-                return wrapFixes(init, literal, key, spec);
+            const key = propertyKeyName(node, file);
+            const param = key ? members.get(key) : null;
+            const init = node.initializer;
+            const literal = asLiteral(init, file);
+            if (param && literal) {
+                return wrapFixes(init, literal, param);
             }
             return [];
         }
         return [];
     })();
 
-    const fixes = argWraps.length > 0 ? argWraps : configWraps;
+    const fixes = argWraps.length > 0 ? argWraps : optionWraps;
 
-    // "Add … for <param>" — signal params the innermost resolvable module
-    // call doesn't set yet.
+    // "Add … for <param>" — signal params the innermost resolvable call
+    // doesn't set yet.
     for (const node of atCursor) {
-        if (!Node.isCallExpression(node) || !containsCursor(node)) {
+        if (!ts.isCallExpression(node) || !containsCursor(node)) {
             continue;
         }
         const resolved = resolveCall(node);
-        if (resolved && resolved.kind !== 'sugar') {
-            fixes.push(...addFixes(node, resolved, label, layout));
+        if (resolved) {
+            fixes.push(...addFixes(file, node, resolved, label, quote));
             break;
         }
     }
 
+    const errors = syntaxErrors(source);
+    return fixes.filter((fix) => !introducesSyntaxErrors(source, fix, errors));
+}
+
+/**
+ * The "add" actions for one resolved call: every unset signal param with a
+ * known default that can be set without disturbing the call's positional
+ * shape — through its option object, or as the very next argument.
+ */
+function addFixes(
+    file: ts.SourceFile,
+    call: ts.CallExpression,
+    resolved: ResolvedCall,
+    label: (base: string) => string,
+    quote: string,
+): ControlQuickFix[] {
+    const args = call.arguments;
+    const fixes: ControlQuickFix[] = [];
+    /** `edit` appends an element whose control call `control` starts
+     *  `controlAt` into it. */
+    const push = (
+        title: string,
+        control: string,
+        edit: ListEdit | null,
+        controlAt: number,
+    ) => {
+        if (edit) {
+            const start = edit.elementOffset + controlAt;
+            fixes.push({
+                caretOffset: start + control.length,
+                controlOffset: start,
+                kind: 'add',
+                newText: edit.newText,
+                span: edit.span,
+                title,
+            });
+        }
+    };
+
+    // Option members: into the option object the call already passes, or
+    // as a new trailing object argument. An option argument that is some
+    // other expression (a variable, a call) may already set any member, so
+    // none is offered.
+    const optionsIndex = args.findIndex(
+        (a, i) => ts.isObjectLiteralExpression(a) && resolved.options(i),
+    );
+    const found = optionsIndex >= 0 ? args[optionsIndex] : undefined;
+    const obj = found && ts.isObjectLiteralExpression(found) ? found : null;
+    const opaque = args.some(
+        (a, i) =>
+            resolved.options(i) &&
+            !ts.isObjectLiteralExpression(a) &&
+            !asLiteral(a, file) &&
+            !isKeywordLiteral(a),
+    );
+    const members = opaque
+        ? null
+        : resolved.options(obj ? optionsIndex : args.length);
+    if (members) {
+        const supplied = new Set(resolved.positionalNames(args.length));
+        for (const prop of obj?.properties ?? []) {
+            const key = propertyKeyName(prop, file);
+            if (key) {
+                supplied.add(key);
+            }
+        }
+        for (const [key, param] of members) {
+            if (!param?.knownDefault || supplied.has(key)) {
+                continue;
+            }
+            const prefix = `${propertyKey(key, quote)}: `;
+            for (const choice of addChoices(
+                param.label,
+                param.spec,
+                label,
+                quote,
+            )) {
+                const prop = prefix + choice.text;
+                if (obj) {
+                    const edit = appendObjectProperty(file, obj, prop);
+                    push(choice.title, choice.text, edit, prefix.length);
+                } else {
+                    const edit = appendCallArgument(file, call, `{ ${prop} }`);
+                    push(choice.title, choice.text, edit, 2 + prefix.length);
+                }
+            }
+        }
+    }
+
+    // The next positional argument, when no option object comes first.
+    if (!obj) {
+        const next = resolved.argParam(args.length);
+        if (next?.knownDefault && !resolved.options(args.length)) {
+            for (const choice of addChoices(
+                next.label,
+                next.spec,
+                label,
+                quote,
+            )) {
+                const edit = appendCallArgument(file, call, choice.text);
+                push(choice.title, choice.text, edit, 0);
+            }
+        }
+    }
     return fixes;
 }
 
 /**
- * Build the "add" actions for one resolved module call: every unset signal
- * param that can be inserted without disturbing the call's positional shape.
+ * The deepest node or token whose full range, leading trivia included,
+ * holds `pos`: the token starting at `pos`, or the one following trivia
+ * there.
  */
-function addFixes(
-    call: CallExpression,
-    resolved: Exclude<ResolvedCall, { kind: 'sugar' }>,
-    label: (base: string) => string,
-    layout: CodeStyle,
-): ControlQuickFix[] {
-    const { schema } = resolved;
-    const positionals = schema.positionalArgs ?? [];
-    const args = call.getArguments();
-
-    const supplied = new Set<string>();
-    for (let i = 0; i < args.length; i++) {
-        const pi = resolved.argToPositional(i);
-        if (pi !== null && positionals[pi]) {
-            supplied.add(positionals[pi].name);
+function tokenAt(file: ts.SourceFile, pos: number): ts.Node | undefined {
+    if (pos < 0) {
+        return undefined;
+    }
+    let node: ts.Node | undefined;
+    for (;;) {
+        const next: ts.Node | undefined = (node ?? file)
+            .getChildren(file)
+            .find((c) => c.pos <= pos && pos < c.end);
+        if (!next) {
+            return node;
         }
+        node = next;
     }
-    // For chains, the injected first positional is always supplied.
-    if (resolved.kind !== 'direct' && positionals[0]) {
-        supplied.add(positionals[0].name);
-    }
-
-    const configArg =
-        resolved.configSlot < args.length ? args[resolved.configSlot] : null;
-    // A non-object expression in the config slot may set anything.
-    if (configArg && !Node.isObjectLiteralExpression(configArg)) {
-        return [];
-    }
-    const configObj = configArg;
-    for (const prop of configObj?.getProperties() ?? []) {
-        const key = propertyKeyName(prop);
-        if (key) {
-            supplied.add(key);
-        }
-    }
-
-    const sourceFile = call.getSourceFile().compilerNode;
-    const closeParen = call.getEnd() - 1;
-    const fixes: ControlQuickFix[] = [];
-    for (const p of schema.signalParams) {
-        if (supplied.has(p.name)) {
-            continue;
-        }
-        for (const choice of addChoices(p.name, p, label, layout.quote)) {
-            // The control call ends `prop`, so the caret lands at its end.
-            const prop = `${p.name}: ${choice.text}`;
-            let span: { start: number; end: number };
-            let newText: string;
-            let caretOffset: number;
-            if (configObj || args.length === resolved.configSlot) {
-                const edit = configObj
-                    ? insertObjectProperty(
-                          sourceFile,
-                          configObj.compilerNode,
-                          prop,
-                          layout,
-                      )
-                    : appendObjectArgument(
-                          sourceFile,
-                          call.compilerNode,
-                          prop,
-                          layout,
-                      );
-                ({ span, newText } = edit);
-                caretOffset = edit.propOffset + prop.length;
-            } else {
-                // Positional slots are still open: only the very next slot
-                // can be filled without leaving a gap.
-                const nextPi = resolved.argToPositional(args.length);
-                if (nextPi === null || positionals[nextPi]?.name !== p.name) {
-                    continue;
-                }
-                span = { end: closeParen, start: closeParen };
-                newText = args.length === 0 ? choice.text : `, ${choice.text}`;
-                caretOffset = newText.length;
-            }
-            fixes.push({
-                caretOffset,
-                kind: 'add',
-                newText,
-                span,
-                title: choice.title,
-            });
-        }
-    }
-    return fixes;
 }
 
-function propertyKeyName(node: Node): string | null {
-    if (Node.isShorthandPropertyAssignment(node)) {
-        return node.getName();
+function isKeywordLiteral(node: ts.Node): boolean {
+    return (
+        node.kind === ts.SyntaxKind.TrueKeyword ||
+        node.kind === ts.SyntaxKind.FalseKeyword ||
+        node.kind === ts.SyntaxKind.NullKeyword
+    );
+}
+
+function propertyKey(key: string, quote: string): string {
+    return /^[A-Za-z_$][\w$]*$/.test(key) ? key : `${quote}${key}${quote}`;
+}
+
+function propertyKeyName(node: ts.Node, file: ts.SourceFile): string | null {
+    if (ts.isShorthandPropertyAssignment(node)) {
+        return node.name.text;
     }
-    if (!Node.isPropertyAssignment(node)) {
+    if (!ts.isPropertyAssignment(node)) {
         return null;
     }
-    const nameNode = node.getNameNode();
-    if (
-        Node.isStringLiteral(nameNode) ||
-        Node.isNoSubstitutionTemplateLiteral(nameNode)
-    ) {
-        return nameNode.getLiteralText();
+    const name = node.name;
+    if (ts.isStringLiteral(name) || ts.isNoSubstitutionTemplateLiteral(name)) {
+        return name.text;
     }
-    return nameNode.getText();
+    return name.getText(file);
 }
 
 /**
  * Labels of every ungrouped control in the source. Sliders and buttons share
  * one label namespace per group, and the generated controls are ungrouped.
  */
-function collectRootLabels(sourceFile: SourceFile): Set<string> {
+function collectRootLabels(file: ts.SourceFile): Set<string> {
     const labels = new Set<string>();
-    for (const { kind, call, group } of findControlCalls(
-        sourceFile.compilerNode,
-    )) {
+    for (const { kind, call, group } of findControlCalls(file)) {
         const first = call.arguments[0];
         if (
             kind !== '$cGroup' &&
