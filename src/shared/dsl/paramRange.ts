@@ -55,7 +55,7 @@ function formatBounds(
 
 /**
  * Range and default of a signal param, e.g. `0–5, default 2.5`, `≥ 0`,
- * `note, default C4`, `gate`. A `required` param has no default to show.
+ * `note, default c4`, `gate`. A `required` param has no default to show.
  * `undefined` when there is nothing to add (an unbounded audio input).
  */
 export function formatSignalMeta(
