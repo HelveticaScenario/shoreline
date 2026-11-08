@@ -1,7 +1,14 @@
 import type { RefObject } from 'react';
-import React, { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, {
+    memo,
+    useCallback,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import Markdown from 'react-markdown';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
 import { LinkifyTypes } from './DocsTypeLinks';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type {
@@ -183,25 +190,51 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
         if (!scrollElement || !list) {
             return;
         }
-        const measure = () =>
+        const measure = () => {
+            // A hidden pane has no layout; keep the margin it had while shown.
+            if (scrollElement.clientHeight === 0) {
+                return;
+            }
             setScrollMargin(
                 list.getBoundingClientRect().top -
                     scrollElement.getBoundingClientRect().top +
                     scrollElement.scrollTop,
             );
+        };
         measure();
-        // The pane reports zero size while the sidebar hides it, so re-measure when it reappears.
+        // The heading and search box above the list can change height without the pane resizing.
         const observer = new ResizeObserver(measure);
         observer.observe(scrollElement);
+        for (const sibling of list.parentElement?.children ?? []) {
+            if (sibling !== list) {
+                observer.observe(sibling);
+            }
+        }
         return () => observer.disconnect();
     }, [scrollRef]);
+
+    const getItemKey = useCallback(
+        (index: number) => filteredModules[index].name,
+        [filteredModules],
+    );
 
     const virtualizer = useVirtualizer({
         count: filteredModules.length,
         estimateSize: () => ESTIMATED_CARD_HEIGHT_PX,
         gap: CARD_GAP_PX,
-        getItemKey: (index) => filteredModules[index].name,
+        getItemKey,
         getScrollElement: () => scrollRef.current,
+        // A hidden pane measures every card as zero; keep the sizes they had while shown.
+        measureElement: (element, entry, instance) => {
+            const size = measureElement(element, entry, instance);
+            if (size > 0) {
+                return size;
+            }
+            const key = instance.options.getItemKey(
+                instance.indexFromElement(element),
+            );
+            return instance.itemSizeCache.get(key) ?? size;
+        },
         overscan: 3,
         scrollMargin,
         useFlushSync: false,
