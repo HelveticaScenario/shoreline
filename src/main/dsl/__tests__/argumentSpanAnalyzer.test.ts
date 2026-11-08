@@ -31,4 +31,12 @@ describe('argument span registry', () => {
             ["1:5 $sine freq='c4' phase=0.25"],
         );
     });
+
+    test('a signed number is a literal; any other prefix expression is not', () => {
+        expect(
+            entries(
+                '$sine(-1).out()\n$sine(+2).out()\n$sine(-x).out()\n$sine(!1).out()',
+            ),
+        ).toEqual(['1:5 $sine freq=-1', '2:1 $sine freq=+2']);
+    });
 });

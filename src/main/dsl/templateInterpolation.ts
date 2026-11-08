@@ -8,6 +8,7 @@
  */
 import ts from 'typescript';
 
+import { signedNumericLiteral } from '../../shared/dsl/ast/literals';
 import type {
     ResolvedInterpolation,
     SourceSpan,
@@ -22,18 +23,16 @@ export interface ConstTable {
     literals: Map<string, ts.Expression>;
 }
 
-/** String, numeric, template, array and object literals, and a literal
- *  under a prefix operator (`-5`): the argument forms whose spans are
- *  recorded. */
+/** String, numeric (signed or not), template, array and object literals:
+ *  the argument forms whose spans are recorded. */
 export function isTrackableLiteral(node: ts.Node): boolean {
     return (
         ts.isStringLiteral(node) ||
-        ts.isNumericLiteral(node) ||
+        signedNumericLiteral(node) !== null ||
         ts.isNoSubstitutionTemplateLiteral(node) ||
         ts.isTemplateExpression(node) ||
         ts.isArrayLiteralExpression(node) ||
-        ts.isObjectLiteralExpression(node) ||
-        ts.isPrefixUnaryExpression(node)
+        ts.isObjectLiteralExpression(node)
     );
 }
 
