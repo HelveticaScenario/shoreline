@@ -86,7 +86,7 @@ impl Bounds {
 
 /// A documented default: a number for a signal, or any literal for a plain
 /// param, where it is the value serde fills in.
-enum Default {
+enum DocumentedDefault {
     Number(Number),
     Literal(syn::Lit),
 }
@@ -94,7 +94,7 @@ enum Default {
 struct InputAttr {
     description: String,
     signal_type: Option<(SignalType, Span)>,
-    default: Option<(Default, Span)>,
+    default: Option<(DocumentedDefault, Span)>,
     range: Option<Bounds>,
     control_range: Option<Bounds>,
 }
@@ -196,9 +196,9 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
                         return Err(duplicate());
                     }
                     let value = if input.peek(LitStr) || input.peek(syn::LitBool) {
-                        Default::Literal(input.parse()?)
+                        DocumentedDefault::Literal(input.parse()?)
                     } else {
-                        Default::Number(parse_number(input)?)
+                        DocumentedDefault::Number(parse_number(input)?)
                     };
                     parsed.default = Some((value, key.span()));
                 }
@@ -336,6 +336,11 @@ fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
         {
             return Err(syn::Error::new(range.span, "`range` needs a numeric field"));
         }
+        if let (Some(range), Some((DocumentedDefault::Number(default), span))) =
+            (&attr.range, &attr.default)
+        {
+            check_within(range, default.value, *span, "`default`")?;
+        }
         return Ok(());
     }
     let Some((signal_type, type_span)) = attr.signal_type else {
@@ -379,13 +384,13 @@ fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
         }
     }
     match &attr.default {
-        Some((Default::Literal(_), span)) => {
+        Some((DocumentedDefault::Literal(_), span)) => {
             return Err(syn::Error::new(
                 *span,
                 "a signal input's `default` is a number",
             ));
         }
-        Some((Default::Number(default), span)) => {
+        Some((DocumentedDefault::Number(default), span)) => {
             if let Some(range) = &attr.range {
                 check_within(range, default.value, *span, "`default`")?;
             }
@@ -482,8 +487,8 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             }
             if let Some((default, _)) = &parsed.default {
                 let value = match default {
-                    Default::Number(n) => n.tokens.clone(),
-                    Default::Literal(lit) => quote! { #lit },
+                    DocumentedDefault::Number(n) => n.tokens.clone(),
+                    DocumentedDefault::Literal(lit) => quote! { #lit },
                 };
                 // schemars would also write `#[serde(default)]`'s value
                 // (`null` for an `Option`); the skip stops that, leaving the
@@ -503,7 +508,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         let field_name = ident.to_string().to_case(Case::Camel);
         let type_str = signal_type.as_str();
         let declared_default = match &parsed.default {
-            Some((Default::Number(n), _)) => Some(n.value),
+            Some((DocumentedDefault::Number(n), _)) => Some(n.value),
             _ => None,
         };
         let default_value = declared_default.unwrap_or(0.0);
@@ -663,6 +668,12 @@ mod tests {
         assert!(
             err("#[derive(Clone)] struct P { #[input(\"a\", type = control, default = 6.0, range = (0.0, 5.0))] a: PolySignal }")
                 .contains("outside")
+        );
+        assert!(
+            err(
+                "#[derive(Clone)] struct P { #[input(\"a\", default = 0, range = (1, 4))] a: u32 }"
+            )
+            .contains("outside")
         );
     }
 
