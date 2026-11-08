@@ -43,7 +43,6 @@ import { AppliedPatchState } from './appliedPatchState';
 import { isBufferSwitch } from './bufferSwitch';
 import { createConfigStore, type AppConfig } from './appConfig';
 import { createFallbackWarningChannel } from './fallbackWarning';
-import { sendNavigateToSymbol } from './helpNavigation';
 import {
     handleMediaProtocol,
     mediaFileExists,
@@ -1883,61 +1882,6 @@ registerIPCHandler('SHOW_UNSAVED_CHANGES_DIALOG', async (fileName: string) => {
 
     return result.response; // Returns the button index: 0=Save, 1=Don't Save, 2=Cancel
 });
-
-let helpWindow: BrowserWindow | null = null;
-
-const createHelpWindow = () => {
-    if (helpWindow) {
-        if (!BACKGROUND_LAUNCH) helpWindow.focus();
-        return;
-    }
-
-    helpWindow = new BrowserWindow({
-        height: 1000,
-        show: !BACKGROUND_LAUNCH,
-        title: `${app.name} Help`,
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-        },
-        width: 1500,
-    });
-    if (BACKGROUND_LAUNCH) showInBackground(helpWindow);
-
-    // Load the index.html of the app with #help hash
-    if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-        void helpWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL + '#help');
-    } else {
-        void helpWindow.loadFile(
-            path.join(
-                __dirname,
-                `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
-            ),
-            { hash: 'help' },
-        );
-    }
-
-    helpWindow.on('closed', () => {
-        helpWindow = null;
-    });
-};
-
-registerIPCHandler('OPEN_HELP_WINDOW', async () => {
-    createHelpWindow();
-});
-
-registerIPCHandler(
-    'OPEN_HELP_FOR_SYMBOL',
-    async (symbolType: 'type' | 'module' | 'namespace', symbolName: string) => {
-        createHelpWindow();
-        if (helpWindow) {
-            sendNavigateToSymbol(
-                helpWindow.webContents,
-                symbolType,
-                symbolName,
-            );
-        }
-    },
-);
 
 // Config IPC handlers
 registerIPCHandler('CONFIG_GET_PATH', () => {

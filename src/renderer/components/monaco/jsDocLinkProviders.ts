@@ -14,7 +14,8 @@ import { ICommandService } from 'monaco-editor/esm/vs/platform/commands/common/c
 import type { SignatureHelpItem, SymbolDisplayPart } from 'typescript';
 import type { ModuleSchema } from '@modular/core';
 import type { Monaco } from '../../hooks/useCustomMonaco';
-import electronAPI from '../../electronAPI';
+import { type DocsTarget, SHOW_DOCS_COMMAND } from '../docsCommand';
+import { executeCommand } from '../../keybindings/commands';
 import { isDslType } from '../../../shared/dsl/typeDocs';
 import {
     type JsDocLinkRef,
@@ -33,11 +34,7 @@ const OPEN_LINK_COMMAND = 'shoreline.openJsDocLink';
 const LINK_TRUST = { enabledCommands: [OPEN_LINK_COMMAND] };
 
 type LinkAction =
-    | {
-          kind: 'help';
-          symbolType: 'type' | 'module' | 'namespace';
-          name: string;
-      }
+    | ({ kind: 'docs' } & DocsTarget)
     | {
           kind: 'peek';
           from: string;
@@ -49,7 +46,7 @@ type LinkAction =
 
 /**
  * Resolves links shown at `position` in `model`: DSL types and modules open
- * in the help window, any other declaration opens in a peek at `position`.
+ * in the Docs panel, any other declaration opens in a peek at `position`.
  */
 function linkResolver(
     moduleNames: ReadonlySet<string>,
@@ -60,11 +57,11 @@ function linkResolver(
     return ({ name, target }: JsDocLinkRef) => {
         let action: LinkAction | undefined;
         if (isDslType(name)) {
-            action = { kind: 'help', name, symbolType: 'type' };
+            action = { kind: 'docs', name, symbolType: 'type' };
         } else if (moduleNames.has(name)) {
-            action = { kind: 'help', name, symbolType: 'module' };
+            action = { kind: 'docs', name, symbolType: 'module' };
         } else if (namespaces.has(name)) {
-            action = { kind: 'help', name, symbolType: 'namespace' };
+            action = { kind: 'docs', name, symbolType: 'namespace' };
         } else if (target) {
             action = {
                 file: target.fileName,
@@ -90,8 +87,9 @@ function openLink(
     commands: ICommandService,
     action: LinkAction,
 ) {
-    if (action.kind === 'help') {
-        void electronAPI.openHelpForSymbol(action.symbolType, action.name);
+    if (action.kind === 'docs') {
+        const { name, symbolType } = action;
+        executeCommand(SHOW_DOCS_COMMAND, { name, symbolType });
         return;
     }
     const target = monaco.editor.getModel(monaco.Uri.parse(action.file));

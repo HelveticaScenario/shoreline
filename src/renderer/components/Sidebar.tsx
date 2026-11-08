@@ -1,19 +1,28 @@
 import {
     Activity,
+    BookOpen,
     Files,
     type LucideIcon,
     SlidersHorizontal,
 } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { registerCommand, unregisterCommand } from '../keybindings/commands';
+import { DocsPanel } from './DocsPanel';
+import {
+    type DocsTarget,
+    SHOW_DOCS_COMMAND,
+    toDocsTarget,
+} from './docsCommand';
 import { SidebarSash, sidebarPanelStyle, useSidebarWidth } from './SidebarSash';
 import './Sidebar.css';
 
-export type SidebarTab = 'explorer' | 'control' | 'perform';
+export type SidebarTab = 'explorer' | 'control' | 'perform' | 'docs';
 
 const TABS: { id: SidebarTab; label: string; icon: LucideIcon }[] = [
     { id: 'explorer', label: 'Explorer', icon: Files },
     { id: 'control', label: 'Control', icon: SlidersHorizontal },
     { id: 'perform', label: 'Perform', icon: Activity },
+    { id: 'docs', label: 'Docs', icon: BookOpen },
 ];
 
 interface SidebarProps {
@@ -30,6 +39,21 @@ export function Sidebar({
     const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
     const activeLabel = TABS.find(({ id }) => id === activeTab)?.label;
     const [width, setWidth] = useSidebarWidth();
+    const [docsTarget, setDocsTarget] = useState<DocsTarget | null>(null);
+
+    useEffect(() => {
+        registerCommand(
+            SHOW_DOCS_COMMAND,
+            (target) => {
+                setActiveTab('docs');
+                setDocsTarget(toDocsTarget(target));
+            },
+            { label: 'Show Docs', category: 'View' },
+        );
+        return () => {
+            unregisterCommand(SHOW_DOCS_COMMAND);
+        };
+    }, []);
 
     return (
         <div className="app-sidebar">
@@ -44,13 +68,17 @@ export function Sidebar({
                     {activeLabel}
                 </h2>
                 <div className="app-sidebar-content">
-                    {
+                    {activeTab !== 'docs' &&
                         {
                             control: controlContent,
                             explorer: explorerContent,
                             perform: performContent,
-                        }[activeTab]
-                    }
+                        }[activeTab]}
+                    {/* Stays mounted so its page, search and expanded types survive tab switches. */}
+                    <DocsPanel
+                        target={docsTarget}
+                        hidden={activeTab !== 'docs'}
+                    />
                 </div>
             </section>
             <nav className="app-activity-bar" aria-label="Sidebar panels">
