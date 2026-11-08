@@ -5,19 +5,21 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RisingEdgeDetectorParams {
-    /// signal to detect rising edges in
+    #[input("signal watched for any rise from one sample to the next", type = audio)]
     input: PolySignal,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FallingEdgeDetectorParams {
-    /// signal to detect falling edges in
+    #[input("signal watched for any fall from one sample to the next", type = audio)]
     input: PolySignal,
 }
 
@@ -26,8 +28,9 @@ struct FallingEdgeDetectorParams {
 struct EdgeDetectorOutputs {
     #[output(
         "output",
-        "edge detection pulse (5V when edge detected, 0V otherwise)",
-        default
+        "high while the input keeps rising for `$rising`, or falling for `$falling`, and for a trigger's length after",
+        default,
+        range = (0.0, 5.0)
     )]
     output: PolyOutput,
 }

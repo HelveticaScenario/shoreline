@@ -20,28 +20,48 @@ const MAX_STAGES: usize = 50;
 /// Largest `fadeStep`: one crossfade spanning the 1- and 50-stage chains.
 const MAX_FADE_STEP: u32 = MAX_STAGES as u32 - 1;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_allpass_params -> ModuleParamErrors)]
 struct AllpassParams {
-    /// signal input
+    #[input("the sound to smear", type = audio)]
     input: PolySignal,
-    /// frequency in V/Oct (0V = C4) the stages delay most
-    #[signal(type = frequency, default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "the frequency the stages delay most",
+        type = frequency,
+        default = 0.0,
+    )]
     cutoff: PolySignal,
-    /// number of two-pole stages (1-50): how much smear
-    #[signal(default = 1.0, range = (1.0, 50.0))]
+    #[input(
+        "number of stages: more stages, longer smear; fractions fade the next stage in",
+        type = control,
+        default = 1.0,
+        range = (1.0, 50.0),
+    )]
     #[deserr(default)]
     stages: Option<PolySignal>,
-    /// how sharply the stages ring at the cutoff (0-5)
-    #[signal(type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how sharply the smear rings at the cutoff's pitch",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
-    /// output fed back into the input (-5 to 5, up to ±6 to self-oscillate)
-    #[signal(type = control, default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "repeats of the smear: rings never fade at ±5 and self-oscillate beyond; negative flips every other repeat",
+        type = control,
+        default = 0.0,
+        range = (-6.0, 6.0),
+        control_range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     feedback: Option<PolySignal>,
-    /// stages between crossfaded chains (0-49); 0 glides instead
+    #[input(
+        "0 for a plain smear; above 0, `stages` crossfades between chains this many stages apart, giving notches",
+        range = (0, 49)
+    )]
     #[serde(default)]
     #[deserr(default)]
     fade_step: u32,

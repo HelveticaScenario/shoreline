@@ -21,16 +21,16 @@ use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum BpDrive {
-    /// State-variable form (cleanest, mildest resonance).
+    /// Smooth, with the mildest resonance.
     #[default]
     Standard,
-    /// Coupled state-space form with a heavier resonance/clip character.
+    /// Heavier resonance that clips harder.
     Driven,
-    /// Normalized-lattice form (high numerical precision).
+    /// Clean and precise, even at very low cutoffs.
     Clean,
-    /// Surge XT's "Driven (Legacy)" — the darker pre-fix driven bandpass.
+    /// A darker take on `driven`, as Surge XT's "Driven (Legacy)".
     DrivenLegacy,
-    /// Surge XT's "Clean (Legacy)" — the darker pre-fix clean bandpass.
+    /// A darker take on `clean`, as Surge XT's "Clean (Legacy)".
     CleanLegacy,
 }
 
@@ -175,9 +175,9 @@ filter_module! {
     name = "$unstable.filter.bp", ident = BpFilter, kernel = BpBiquad,
     output_doc = "bandpass output",
     params = {
-        /// slope: 12 or 24 dB/oct (default 24)
+        #[input("how steeply it cuts", default = "db24")]
         slope: FilterSlope,
-        /// drive character (default standard); legacy variants apply at 12 dB only
+        #[input("how hard the resonance pushes and clips; the legacy variants apply at 12 dB only", default = "standard")]
         drive: BpDrive,
     },
     mode = |p| {

@@ -6,32 +6,37 @@ use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::tr808::levels;
 use crate::dsp::drums::voice::{Timing, rails};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Rs808Params {
-    /// rising edges strike the drum
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// pitch of the upper tone in V/Oct, the lower one following; stock is
-    /// ≈1.79 kHz (default 2.771)
-    #[signal(type = pitch, default = 2.771, range = (1.5, 4.0))]
+    #[input(
+        "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, and the hit gets louder or quieter far from it",
+        type = pitch,
+        default = 2.771,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 808 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike and hold them until the next, as
-    /// accent always is, so changes reach only the hits after them (default
-    /// false)
+    #[input(
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,
@@ -221,36 +226,45 @@ fn rim_tick<I: Input>(
 
 message_handlers!(impl Rs808 {});
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cl808Params {
-    /// rising edges strike the drum
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// pitch in V/Oct; stock is ≈2.53 kHz (default 3.273)
-    #[signal(type = pitch, default = 3.273, range = (1.5, 4.5))]
+    #[input(
+        "pitch; stock is ≈2.53 kHz, and the hit gets louder or quieter far from it",
+        type = pitch,
+        default = 3.273,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// decay control, 0–5 V: how long the claves ring, from ≈0.025 s to
-    /// ≈0.23 s (default 2.5, ≈0.075 s as on the 808)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how long the claves ring, from ≈0.025 s to ≈0.23 s; ≈0.075 s at 2.5, as on the 808",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 808 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike and hold them until the next, as
-    /// accent always is, so changes reach only the hits after them (default
-    /// false)
+    #[input(
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,

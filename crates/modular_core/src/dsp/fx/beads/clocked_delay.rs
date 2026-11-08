@@ -24,11 +24,12 @@ const DEFAULT_BAR_LENGTH: f32 = 4.0;
 /// Shortest `bars`, keeping the window period positive.
 const MIN_BARS: f32 = 1e-3;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ClockedDelayParams {
-    /// audio to delay; each channel gets its own delay
+    #[input("signal to delay; each channel gets its own delay", type = audio)]
     input: PolySignal,
     /// Transport playhead in bars, setting the tempo and the phase of the
     /// repeats' windows.
@@ -53,55 +54,82 @@ struct ClockedDelayParams {
     #[deserr(skip)]
     #[schemars(skip)]
     groove: Option<MonoSignal>,
-    /// base delay time in bars (default 0.25)
-    #[signal(default = 0.25, range = (0.0, 4.0))]
+    #[input(
+        "base delay time in bars; the longest time depends on the tempo and how much audio `quality` holds",
+        type = control,
+        default = 0.25,
+        range = (0.0, ..),
+        control_range = (0.0, 4.0),
+    )]
     #[deserr(default)]
     bars: Option<PolySignal>,
-    /// multiplies the base delay time from ×1 at 0 to ×16 at 5; while
-    /// frozen, picks the slice of the held audio to loop instead (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "multiplies the base delay time from ×1 at 0 to ×16 at 5; while frozen, picks which slice of the held audio loops",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     time: Option<PolySignal>,
-    /// window over each repeat: 0 = none, 1 = sharp attack, 2.5 = triangle,
-    /// 5 = ramp up (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "envelope over each repeat: 0 none, 1 sharp attack, 2.5 triangle, 5 ramp up",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     shape: Option<PolySignal>,
-    /// how far the `shape` windows follow the global groove: 0 = straight,
-    /// 5 = fully grooved; the repeats themselves stay straight (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how far the `shape` envelopes swing with the global groove: 0 straight, 5 fully grooved; the repeats themselves stay straight",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     groove_amount: Option<PolySignal>,
-    /// while high, recording stops and the delay loops slices of the audio
-    /// it holds
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input(
+        "while high, recording stops and the delay loops slices of the audio it holds",
+        type = gate,
+    )]
     #[deserr(default)]
     freeze: Option<PolySignal>,
-    /// pitch of the repeats; they play at the input's own pitch when `freq`
-    /// equals `rootFreq` (default C4)
-    #[signal(type = pitch)]
+    #[input(
+        "pitch of the repeats; they keep the input's pitch when `freq` equals `rootFreq`",
+        type = pitch,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// pitch of the input, so `freq` shifts the repeats in tune (default C4)
-    #[signal(type = pitch)]
+    #[input("pitch of the input, so `freq` shifts the repeats in tune", type = pitch)]
     #[deserr(default)]
     root_freq: Option<PolySignal>,
-    /// filters the repeats: below 2.5 low-passes, above 2.5 high-passes
-    /// (default 2.5, unfiltered)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "filters the repeats: below 2.5 low-pass, 2.5 unfiltered, above 2.5 high-pass",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     tone: Option<PolySignal>,
-    /// feeds the repeats back into the delay, for more of them (0–5,
-    /// default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how much of the repeats feed back into the delay, for more of them",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     feedback: Option<PolySignal>,
-    /// dry/wet: 0 = input only, 5 = repeats only (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "dry/wet blend: 0 dry, 5 repeats only",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     mix: Option<PolySignal>,
-    /// recording character: digital, vintage, cleanTape or dirtyTape
-    /// (default digital)
+    #[input(
+        "recording character: how clean it sounds and how much audio it holds",
+        default = "digital"
+    )]
     #[serde(default)]
     #[deserr(default)]
     quality: GranularQuality,
@@ -115,7 +143,7 @@ struct ClockedDelayParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ClockedDelayOutputs {
-    #[output("output", "delayed signal, one channel per delay", default, range = (-5.0, 5.0))]
+    #[output("output", "the input mixed with its repeats, one channel per delay", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

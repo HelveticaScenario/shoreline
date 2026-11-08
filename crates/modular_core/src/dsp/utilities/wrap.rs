@@ -6,19 +6,18 @@ use crate::{
     poly::{PolyOutput, PolySignal, PolySignalExt},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct WrapParams {
-    /// signal to wrap
+    #[input("signal to wrap", type = audio)]
     input: PolySignal,
-    /// lower bound of the wrap range
-    #[signal(default = 0.0)]
+    #[input("bottom of the range; swaps with max when above it", type = control, default = 0.0, control_range = (-5.0, 5.0))]
     min: PolySignal,
-    /// upper bound of the wrap range
-    #[signal(default = 5.0)]
+    #[input("top of the range", type = control, default = 5.0, control_range = (-5.0, 5.0))]
     max: PolySignal,
-    /// when true, shifts by whole integers to preserve the fractional part (pitch class in V/Oct)
+    #[input("shift by whole volts (octaves) instead, keeping the note and moving only its octave")]
     #[serde(default)]
     #[deserr(default)]
     octave: bool,
@@ -27,7 +26,7 @@ struct WrapParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WrapOutputs {
-    #[output("output", "wrapped signal output", default)]
+    #[output("output", "the wrapped signal", default)]
     sample: PolyOutput,
 }
 

@@ -5,21 +5,24 @@ use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Ma808Params {
-    /// rising edges shake the maracas
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges shake the maracas", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the shake: up to
-    /// twice as loud, and drawn out (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the shake lands, read at each strike: up to twice as loud at 5 V, and drawn out",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// fade out a shake still sounding over 2 ms as the next one strikes, so
-    /// every shake starts from rest; otherwise each shake runs into the last,
-    /// as on the 808 (default false)
+    #[input(
+        "start every shake from rest, fading out one still sounding over 2 ms; off, each shake runs into the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,

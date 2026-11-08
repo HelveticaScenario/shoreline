@@ -92,45 +92,50 @@ fn advance_ramp(state: &mut ChannelState, start: f32, target: f32, c: f32, dphas
     false
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct AdsrParams {
-    /// gate input — rising edge starts the envelope, falling edge triggers release
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input(
+        "rising edge starts the envelope, falling edge starts the release",
+        type = gate,
+    )]
     gate: PolySignal,
-    /// attack time in seconds
-    #[signal(default = 0.001, range = (0.0, 10.0))]
+    #[input("how long the envelope takes to rise to full level, in seconds", type = control, default = 0.001, range = (0.0, ..), control_range = (0.0, 10.0))]
     #[deserr(default)]
     attack: Option<PolySignal>,
-    /// decay time in seconds
-    #[signal(default = 0.05, range = (0.0, 10.0))]
+    #[input("how long the envelope takes to fall from full level to the sustain level, in seconds", type = control, default = 0.05, range = (0.0, ..), control_range = (0.0, 10.0))]
     #[deserr(default)]
     decay: Option<PolySignal>,
-    /// sustain level in volts (0-5). Defaults to 5; if decay is set but sustain is
-    /// omitted, sustain defaults to 0 (a plucky AD shape).
-    #[signal(default = 5.0, range = (0.0, 5.0))]
+    #[input(
+        "level held while the gate stays high, in volts; left out while decay is set, it is 0 for a plucky attack-decay shape",
+        type = control,
+        default = 5.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     sustain: Option<PolySignal>,
-    /// release time in seconds
-    #[signal(default = 0.01, range = (0.0, 10.0))]
+    #[input("how long the envelope takes to fall to 0 after the gate closes, in seconds", type = control, default = 0.01, range = (0.0, ..), control_range = (0.0, 10.0))]
     #[deserr(default)]
     release: Option<PolySignal>,
-    /// shape of the attack, decay, and release ramps. 0 is linear; +5 is
-    /// logarithmic attack with exponential decay/release; -5 is exponential
-    /// attack with logarithmic decay/release.
-    /// Defaults to 5.
-    #[signal(default = 5.0, range = (-5.0, 5.0))]
+    #[input(
+        "shape of the ramps: 0 linear, +5 logarithmic attack with exponential decay and release, -5 the reverse",
+        type = control,
+        default = 5.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     curve: Option<PolySignal>,
-    /// retrigger input — a rising edge restarts the attack phase. The current
-    /// output level is preserved: the envelope resumes along the attack curve
-    /// from wherever it currently is. Defaults to the gate input when omitted.
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input(
+        "rising edge restarts the attack from the current level, without a jump; follows the gate when not patched",
+        type = gate,
+    )]
     #[deserr(default)]
     retrigger: Option<PolySignal>,
-    /// when true, a retrigger jumps back to the very start of the attack
-    /// instead of resuming from the current level.
+    #[input(
+        "a retrigger fades quickly to 0 and restarts the attack from the bottom instead of resuming from the current level"
+    )]
     #[serde(default)]
     #[deserr(default)]
     reset_on_retrig: bool,
@@ -211,7 +216,7 @@ pub struct Adsr {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct AdsrOutputs {
-    #[output("output", "envelope output", default, range = (0.0, 5.0))]
+    #[output("output", "the envelope", default, range = (0.0, 5.0))]
     sample: PolyOutput,
 }
 

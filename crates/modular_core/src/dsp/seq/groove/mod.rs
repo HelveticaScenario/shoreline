@@ -16,15 +16,20 @@ use schemars::JsonSchema;
 
 use crate::{MonoSignal, param_errors::ModuleParamErrors};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_groove_params -> ModuleParamErrors)]
 struct GrooveParams {
-    /// groove template: timing offsets, velocities and grid
+    #[input("timing offsets, velocities and step grid of the groove")]
     template: GrooveTemplate,
-    /// straight playhead to groove (defaults to the global clock, ignoring the global groove)
+    #[input(
+        "straight playhead to groove, in cycles; follows the global clock (without its groove) by default",
+        type = control,
+        range = (0.0, ..),
+        control_range = (0.0, 1.0),
+    )]
     #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
-    #[signal(range = (0.0, 1.0))]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
 }
@@ -46,13 +51,13 @@ fn validate_groove_params(
 struct GrooveOutputs {
     #[output(
         "offset",
-        "grooved minus straight playhead position, in cycles",
+        "how far the groove shifts the playhead, in cycles; pass to a sequencer's `groove`",
         default
     )]
     offset: f32,
-    #[output("velocity", "velocity of the current groove step (0-5V)", range = (0.0, 5.0))]
+    #[output("velocity", "velocity of the current groove step; pass to a sequencer's `velocity`", range = (0.0, 5.0))]
     velocity: f32,
-    #[output("trigger", "5V trigger at the start of each grooved step", range = (0.0, 5.0))]
+    #[output("trigger", "fires at the start of each grooved step", range = (0.0, 5.0))]
     trigger: f32,
 }
 

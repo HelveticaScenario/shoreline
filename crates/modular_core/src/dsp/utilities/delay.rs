@@ -7,20 +7,27 @@ fn delay_read_derive_channel_count(params: &DelayReadParams) -> usize {
     params.buffer.channel_count().max(params.time.channels())
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct DelayReadParams {
+    #[input("buffer to read, from a `$buffer`")]
     buffer: Buffer,
-    /// Delay time in seconds (e.g. 0.5 for 500ms)
-    #[signal(default = 0.1, range = (0.0, 5.0))]
+    #[input(
+        "how far behind the newest recorded sample to read, in seconds; capped at the buffer's length",
+        type = control,
+        default = 0.1,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     time: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct DelayReadOutputs {
-    #[output("output", "delayed signal", default)]
+    #[output("output", "the delayed signal", default)]
     sample: PolyOutput,
 }
 

@@ -10,33 +10,46 @@ use crate::{
     types::SwapGlide,
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PulseOscillatorParams {
-    /// pitch in V/Oct (0V = C4)
-    #[signal(type = pitch)]
+    #[input("oscillator pitch", type = pitch)]
     freq: PolySignal,
-    /// pulse width (0-5, 2.5 is square)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "pulse width: 0 a thin high spike, 2.5 square, 5 a thin low notch",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<PolySignal>,
-    /// pulse width modulation CV — added to the width parameter
+    #[input(
+        "pulse width modulation, added to `width`",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pwm: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user)
+    #[input("frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)", type = audio)]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    /// hard sync source — rising edges reset the oscillator phase
+    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
     #[deserr(default)]
     sync: Option<PolySignal>,
-    /// phase offset in [0, 1) added to the internal phase before sampling
-    #[signal(default = 0.0, range = (0.0, 1.0))]
+    #[input(
+        "shifts where in the cycle the wave is read, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
     #[deserr(default)]
     phase_offset: Option<PolySignal>,
 }
@@ -44,7 +57,7 @@ struct PulseOscillatorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PulseOscillatorOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the pulse wave", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

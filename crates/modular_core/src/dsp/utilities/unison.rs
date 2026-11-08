@@ -7,17 +7,22 @@ fn default_count() -> usize {
     1
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct UnisonParams {
-    /// input signal to expand (typically V/Oct pitch)
+    #[input("pitch to fan out into detuned copies", type = pitch)]
     input: PolySignal,
-    /// number of unison voices per input channel (1–64)
+    #[input("number of detuned copies per input channel", range = (1, 64))]
     #[serde(default = "default_count")]
     #[deserr(default = default_count())]
     count: usize,
-    /// detune spread amount (0–10V, exponential: 0V = none, 10V = 1 octave)
+    #[input(
+        "detune width, finer near 0: 0 none, 10 puts the outer copies an octave above and below",
+        type = control,
+        range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     spread: Option<PolySignal>,
 }
@@ -42,8 +47,11 @@ pub fn unison_derive_channel_count(params: &UnisonParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct UnisonOutputs {
-    /// expanded polyphonic output with detuned copies
-    #[output("output", "signal output with unison-expanded channels", default)]
+    #[output(
+        "output",
+        "the detuned copies, each a full set of the input channels",
+        default
+    )]
     sample: PolyOutput,
 }
 

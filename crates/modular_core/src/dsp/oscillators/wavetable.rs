@@ -29,36 +29,46 @@ use crate::{
     types::{Wav, WavData},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 pub(crate) struct WavetableOscParams {
-    /// Loaded WAV reference containing the wavetable data.
+    #[input("WAV file holding the wavetable frames")]
     pub(crate) wav: Wav,
-    /// Pitch in V/Oct (0V = C4).
-    #[signal(type = pitch)]
+    #[input("oscillator pitch", type = pitch)]
     pub(crate) pitch: PolySignal,
-    /// Frame position as a signal. 0V maps to the first frame, 5V maps to
-    /// the last frame. Values are clamped to [0, 5] before being normalized.
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "which frame plays: 0 the first, 5 the last, blending between neighbours",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     pub(crate) position: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user).
+    #[input(
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
+        type = audio,
+    )]
     #[deserr(default)]
     pub(crate) fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp.
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     pub(crate) fm_mode: FmMode,
-    /// hard sync source — rising edges reset the oscillator phase.
+    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
     #[deserr(default)]
     pub(crate) sync: Option<PolySignal>,
-    /// Optional phase warp applied before sampling, built with `$phase.*`.
+    #[input("reshapes the cycle before the table is read, built with `$phase.*`")]
     #[deserr(default)]
     pub(crate) phase: Option<PhaseWarp>,
-    /// phase offset in [0, 1) added to the internal phase before warping/sampling
-    #[signal(default = 0.0, range = (0.0, 1.0))]
+    #[input(
+        "shifts where in the cycle the table is read, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
     #[deserr(default)]
     pub(crate) phase_offset: Option<PolySignal>,
     /// Pre-computed mipmap pyramid, populated by `prepare_resources` on the
@@ -72,7 +82,7 @@ pub(crate) struct WavetableOscParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WavetableOscOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the wavetable oscillator", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

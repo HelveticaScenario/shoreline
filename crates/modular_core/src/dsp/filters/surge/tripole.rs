@@ -323,9 +323,9 @@ filter_module! {
     name = "$unstable.filter.tripole", ident = TriPoleFilter, kernel = TriPole,
     output_doc = "filter output",
     params = {
-        /// stage topology: lll, lhl, hlh, or hhh (default lll)
+        #[input("which stages are lowpass and which highpass", default = "lll")]
         mode: TriPoleShape,
-        /// which stage to tap: 1, 2, or 3 (default 3, the full output)
+        #[input("which stage to tap; 3 is the full output", default = 3, range = (1, 3))]
         output_stage: Option<usize>,
     },
     mode = |p| TriPoleMode {

@@ -144,39 +144,44 @@ macro_rules! tom_module {
         ident = $Struct:ident,
         parts = $parts:ident,
         freq = $freq:literal,
-        freq_range = ($freq_min:literal, $freq_max:literal),
         freq_doc = $freq_doc:literal $(,)?
     ) => {
         paste::paste! {
-            #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+            #[params]
+            #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                /// rising edges strike the drum
-                #[signal(type = trig, range = (0.0, 5.0))]
+                #[input("rising edges strike the drum", type = trig)]
                 trigger: PolySignal,
-                /// accent, 0–5 V, sampled at each strike and held for the hit:
-                /// up to twice as loud (default 0)
-                #[signal(default = 0.0, range = (0.0, 5.0))]
+                #[input(
+                    "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
+                    type = control,
+                    default = 0.0,
+                    range = (0.0, 5.0),
+                )]
                 #[deserr(default)]
                 accent: Option<PolySignal>,
-                #[doc = $freq_doc]
-                #[signal(type = pitch, default = $freq, range = ($freq_min, $freq_max))]
+                #[input($freq_doc, type = pitch, default = $freq)]
                 #[deserr(default)]
                 freq: Option<PolySignal>,
-                /// decay control, 0–5 V: how long the drum rings (default 2.5)
-                #[signal(default = 2.5, range = (0.0, 5.0))]
+                #[input(
+                    "how long the drum rings",
+                    type = control,
+                    default = 2.5,
+                    range = (0.0, 5.0),
+                )]
                 #[deserr(default)]
                 decay: Option<PolySignal>,
-                /// fade out a hit still sounding over 2 ms as the next one
-                /// strikes, so every hit starts from rest; otherwise each hit
-                /// builds on the last, as on the 909 (default false)
+                #[input(
+                    "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 909",
+                )]
                 #[serde(default)]
                 #[deserr(default)]
                 restart: bool,
-                /// sample the controls on each strike and hold them until the
-                /// next, as accent always is, so changes reach only the hits
-                /// after them (default false)
+                #[input(
+                    "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them",
+                )]
                 #[serde(default)]
                 #[deserr(default)]
                 hold: bool,
@@ -294,8 +299,7 @@ tom_module! {
     ident = Lt909,
     parts = LOW,
     freq = -2.0993,
-    freq_range = (-3.6, -0.6),
-    freq_doc = "pitch in V/Oct; stock is ≈61 Hz (default -2.0993)",
+    freq_doc = "pitch; stock is ≈61 Hz",
 }
 
 tom_module! {
@@ -315,8 +319,7 @@ tom_module! {
     ident = Mt909,
     parts = MID,
     freq = -1.8098,
-    freq_range = (-3.3, -0.3),
-    freq_doc = "pitch in V/Oct; stock is ≈75 Hz (default -1.8098)",
+    freq_doc = "pitch; stock is ≈75 Hz",
 }
 
 tom_module! {
@@ -336,6 +339,5 @@ tom_module! {
     ident = Ht909,
     parts = HIGH,
     freq = -1.5143,
-    freq_range = (-3.0, 0.0),
-    freq_doc = "pitch in V/Oct; stock is ≈92 Hz (default -1.5143)",
+    freq_doc = "pitch; stock is ≈92 Hz",
 }

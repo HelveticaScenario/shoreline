@@ -107,7 +107,7 @@ filter_module! {
     name = "$unstable.filter.legacyLadder", ident = LegacyLadderFilter, kernel = LegacyLadder,
     output_doc = "lowpass output",
     params = {
-        /// slope: output tap at 6, 12, 18, or 24 dB/oct (default 24)
+        #[input("how steeply it cuts", default = "db24")]
         slope: LadderSlope,
     },
     mode = |p| p.slope,
@@ -309,7 +309,7 @@ filter_module! {
     name = "$unstable.filter.diodeLadder", ident = DiodeLadderFilter, kernel = DiodeLadder,
     output_doc = "lowpass output",
     params = {
-        /// slope: output tap at 6, 12, 18, or 24 dB/oct (default 24)
+        #[input("how steeply it cuts", default = "db24")]
         slope: LadderSlope,
     },
     mode = |p| p.slope,

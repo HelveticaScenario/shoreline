@@ -6,18 +6,18 @@ use crate::poly::{MonoSignalExt, PolySignal};
 use crate::types::InterpolationType;
 use crate::{MonoSignal, PolyOutput};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct TrackParams {
-    /// playhead position (wraps from 0 to 1)
+    #[input("position along the keyframes", type = control, range = (0.0, 1.0))]
     #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
-    #[signal(range = (0.0, 1.0))]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
-    /// keyframe values and their positions (0–1)
+    #[input("[value, position] pairs, positions from 0 to 1 in ascending order")]
     keyframes: Vec<(PolySignal, f32)>,
-    /// interpolation curve between keyframes
+    #[input("curve shape between neighbouring keyframes")]
     #[serde(default)]
     #[deserr(default)]
     interpolation_type: InterpolationType,
@@ -37,7 +37,7 @@ fn derive_track_channel_count(params: &TrackParams) -> usize {
 struct TrackOutputs {
     #[output(
         "output",
-        "interpolated value at the current playhead position",
+        "the value at the current position, curved between keyframes",
         default
     )]
     sample: PolyOutput,

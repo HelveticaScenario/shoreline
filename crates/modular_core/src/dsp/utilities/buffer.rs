@@ -8,15 +8,16 @@ use crate::{
 
 // ─── $buffer (BufferWrite) ────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BufferWriteParams {
+    #[input("signal recorded into the buffer", type = audio)]
     input: PolySignal,
     #[serde(default = "default_buffer_length")]
     #[deserr(default = default_buffer_length())]
     #[schemars(skip)]
-    #[signal(skip)]
     length: f64,
 }
 
@@ -61,7 +62,7 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
     fn schemas() -> Vec<crate::types::OutputSchema> {
         vec![crate::types::OutputSchema {
             name: "output".to_string(),
-            description: "input signal passthrough".to_string(),
+            description: "the input, passed through".to_string(),
             polyphonic: true,
             default: true,
             min_value: None,
@@ -258,20 +259,30 @@ fn read_interpolated(buffer: &Buffer, channel: usize, frame: f32) -> f32 {
     ((c3 * frac + c2) * frac + c1) * frac + c0
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BufReadParams {
+    #[input("buffer to read, from a `$buffer`")]
     buffer: Buffer,
-    /// read position (0 to 5V scales to 0 to buffer length)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "read position: 0 the start of the buffer, 5 the end; wraps past either end",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     frame: MonoSignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BufReadOutputs {
-    #[output("output", "buffer sample output", default)]
+    #[output(
+        "output",
+        "one channel per buffer channel, read at the position",
+        default
+    )]
     sample: PolyOutput,
 }
 

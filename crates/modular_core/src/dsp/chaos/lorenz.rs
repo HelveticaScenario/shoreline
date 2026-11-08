@@ -41,34 +41,49 @@ const MAX_SUBSTEPS: u32 = 16;
 // a diverging trajectory (e.g. extreme params). The channel is reseeded.
 const STATE_CLAMP: f32 = 500.0;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct LorenzParams {
-    /// Sigma (σ) — rate of divergence between the x and y variables.
-    /// Input 0–5 maps to σ 0–30; default 1.667 → σ=10.
-    #[signal(type = control, default = 1.6667, range = (0, 5))]
+    #[input(
+        "σ, how fast x chases y: 5 is σ = 30, and the default is σ = 10; stays chaotic above 0",
+        type = control,
+        default = 1.6667,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     sigma: Option<PolySignal>,
 
-    /// Rho (ρ) — distance from the origin to the critical points.
-    /// Input 0–5 maps to ρ 0–60; default 2.333 → ρ=28.
-    /// Chaos requires ρ > 24.74 (→ CV > ~2.06V); below that the system spirals to a fixed point.
-    #[signal(type = control, default = 2.3333, range = (0, 5))]
+    #[input(
+        "ρ, how far the attractor's two lobes sit from the centre: 5 is ρ = 60, and the default is ρ = 28; below about 2.06 (ρ ≈ 24.74) the motion settles to a still point",
+        type = control,
+        default = 2.3333,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     rho: Option<PolySignal>,
 
-    /// Beta (β) — geometry of the attractor.
-    /// Input 0–5 maps to β 0–10; default 1.333 → β=8/3 ≈ 2.667.
-    #[signal(type = control, default = 1.3333, range = (0, 5))]
+    #[input(
+        "β, the attractor's shape: 5 is β = 10, and the default is the classic β = 8/3",
+        type = control,
+        default = 1.3333,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     beta: Option<PolySignal>,
 
-    /// Simulation speed — Lorenz time-units advanced per second of audio.
-    /// Input 0–5 maps to 0–200 t/s; default 0.1 → 4 t/s (slow LFO-rate butterfly).
-    /// Higher values push outputs toward audio-rate chaos.
-    #[signal(type = control, default = 0.1, range = (0, 5))]
+    #[input(
+        "simulation speed: 0 freezes and 5 is fastest; the default traces a slow butterfly, and from about 1.25 the chaos runs at audio rate",
+        type = control,
+        default = 0.1,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     rate: Option<PolySignal>,
 }
@@ -76,14 +91,11 @@ struct LorenzParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LorenzOutputs {
-    /// X coordinate of the Lorenz attractor, normalized to ±5V.
-    #[output("x", "X coordinate, normalized to ±5V", default, range = (-5.0, 5.0))]
+    #[output("x", "x coordinate of the attractor, swinging between its two lobes", default, range = (-5.0, 5.0))]
     x: PolyOutput,
-    /// Y coordinate of the Lorenz attractor, normalized to ±5V.
-    #[output("y", "Y coordinate, normalized to ±5V", range = (-5.0, 5.0))]
+    #[output("y", "y coordinate, which x chases, so it leads x slightly", range = (-5.0, 5.0))]
     y: PolyOutput,
-    /// Z coordinate of the Lorenz attractor, normalized to 0–5V (Z is always positive).
-    #[output("z", "Z coordinate, normalized to 0–5V", range = (0.0, 5.0))]
+    #[output("z", "z coordinate, the attractor's height, pulsing once per loop", range = (0.0, 5.0))]
     z: PolyOutput,
 }
 

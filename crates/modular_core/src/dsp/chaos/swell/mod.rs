@@ -39,7 +39,8 @@ fn default_waves() -> usize {
     6
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(
     rename_all = camelCase,
@@ -47,31 +48,45 @@ fn default_waves() -> usize {
     validate = validate_swell_params -> ModuleParamErrors
 )]
 struct SwellParams {
-    /// dominant swell frequency in V/Oct (use `$hz()` or a value like `'0.1hz'`)
-    #[signal(type = pitch)]
+    #[input(
+        "rate of the main swell, e.g. `'0.1hz'`",
+        type = frequency,
+    )]
     freq: PolySignal,
-    /// crest sharpness: 0 rolls as a sine, 5 peaks into sharp crests over wide, flat troughs
-    #[signal(type = control, default = 3.0, range = (0, 5))]
+    #[input(
+        "crest sharpness: 0 rolls as a sine, 5 peaks into sharp crests over wide, flat troughs",
+        type = control,
+        default = 3.0,
+        range = (0, 5),
+    )]
     #[deserr(default)]
     steepness: Option<PolySignal>,
-    /// spectral width: the other waves sit up to `chop / 2` octaves above `freq`.
-    /// 0 is one clean, periodic swell; higher values roll in sets and add chop
-    #[signal(type = control, default = 1.0, range = (0, 5))]
+    #[input(
+        "spectral width: the other waves sit up to `chop / 2` octaves above `freq`; 0 is one clean, periodic swell, higher rolls in sets and adds chop",
+        type = control,
+        default = 1.0,
+        range = (0, 5),
+    )]
     #[deserr(default)]
     chop: Option<PolySignal>,
-    /// directional spread: 0 sends every wave the same way, 5 brings them from
-    /// every direction (a confused sea)
-    #[signal(type = control, default = 1.5, range = (0, 5))]
+    #[input(
+        "directional spread: 0 sends every wave the same way, 5 brings them from every direction, a confused sea",
+        type = control,
+        default = 1.5,
+        range = (0, 5),
+    )]
     #[deserr(default)]
     spread: Option<PolySignal>,
-    /// number of wave components (1–16); waves added or removed by a patch
-    /// update fade over one swell period
+    #[input(
+        "number of waves in the sea; waves added or removed by a patch update fade over one swell period",
+        range = (1, 16),
+    )]
     #[serde(default = "default_waves")]
     #[deserr(default = default_waves())]
-    #[schemars(range(min = 1, max = 16))]
     waves: usize,
-    /// picks the sea: each seed, and each channel, places the waves at
-    /// different frequencies and directions
+    #[input(
+        "picks the sea: each seed, and each channel, places the waves at different frequencies and directions"
+    )]
     #[serde(default)]
     #[deserr(default)]
     seed: u32,
@@ -95,17 +110,17 @@ fn validate_swell_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SwellOutputs {
-    #[output("height", "surface height at a fixed point, ±5V", default, range = (-5.0, 5.0))]
+    #[output("height", "water height at a fixed point", default, range = (-5.0, 5.0))]
     height: PolyOutput,
     #[output(
         "tilt",
-        "lean along the swell: positive while the water rises, ±5V",
+        "lean along the swell: positive while the water rises",
         range = (-5.0, 5.0)
     )]
     tilt: PolyOutput,
     #[output(
         "roll",
-        "lean across the swell from waves arriving off-axis, ±5V",
+        "lean across the swell, from waves arriving off-axis",
         range = (-5.0, 5.0)
     )]
     roll: PolyOutput,

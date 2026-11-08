@@ -932,8 +932,15 @@ pub trait PolySignalFields {
     }
 }
 
+/// `skip_serializing_if` predicate `#[params]` puts on a param with a
+/// documented default, so the JSON schema shows that value instead of the
+/// field type's own default.
+pub fn documented_schema_default<T>(_: &T) -> bool {
+    true
+}
+
 /// Trait for params structs to expose signal parameter metadata.
-/// Auto-derived by the `SignalParams` derive macro.
+/// Emitted by the `#[params]` attribute.
 pub trait SignalParamMeta {
     fn signal_param_schemas() -> Vec<SignalParamSchema>
     where
@@ -2570,10 +2577,23 @@ pub enum Seq {
 pub struct SignalParamSchema {
     pub name: String,
     pub description: String,
+    /// `audio`, `control`, `pitch`, `frequency`, `gate` or `trig`.
     pub signal_type: String,
-    pub default_value: f64,
-    pub min_value: f64,
-    pub max_value: f64,
+    /// What a disconnected input reads, when it reads a fixed value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<f64>,
+    /// Lower bound of the usable range; `None` when unbounded below.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_value: Option<f64>,
+    /// Upper bound of the usable range; `None` when unbounded above.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_value: Option<f64>,
+    /// Slider span of a `control` input; set for every control, `None`
+    /// otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control_min: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control_max: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

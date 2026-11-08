@@ -11,21 +11,25 @@ use crate::types::SwapGlide;
 /// Lower bound for the post-offset frequency, keeping `hz_to_voct` away from log2(≤0).
 const MIN_HZ: f32 = 1e-4;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct AddHzParams {
-    /// V/Oct pitch signal to detune
-    #[signal(type = pitch)]
+    #[input("pitch to detune", type = pitch)]
     input: PolySignal,
-    /// frequency offset added to the input pitch, in Hz
+    #[input(
+        "frequency added to the pitch, in Hz; small amounts give slow beating",
+        type = control,
+        control_range = (-5.0, 5.0),
+    )]
     offset: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct AddHzOutputs {
-    #[output("output", "V/Oct pitch output", default)]
+    #[output("output", "the detuned pitch", default)]
     sample: PolyOutput,
 }
 
