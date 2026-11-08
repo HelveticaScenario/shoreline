@@ -4,7 +4,7 @@
       "callSiteSpans": [["4:6",4,4],["5:19",5,5],["6:25",6,6],["7:39",7,7],["8:35",8,8]],
       "interpolations": [],
       "registry": [
-        ["3:6","$tr909.kick",[["trigger",34,38]]],
+        ["3:6","$tr808.kick",[["trigger",34,38]]],
         ["5:8","$tr909.kick",[["trigger",63,67]]],
         ["6:1","$sine",[["freq",93,97]]],
         ["7:18","$unstable.filter.lp",[["cutoff",137,141]]],
@@ -601,7 +601,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["3:6","$tr909.kick",[["trigger",34,38]]]]
+        "registry": [["3:6","$tr808.kick",[["trigger",34,38]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -614,7 +614,7 @@
         "callSiteSpans": [["4:6",4,4],["5:19",5,5]],
         "interpolations": [],
         "registry": [
-          ["3:6","$tr909.kick",[["trigger",34,38]]],
+          ["3:6","$tr808.kick",[["trigger",34,38]]],
           ["5:8","$tr909.kick",[["trigger",63,67]]],
           ["6:1","$sine",[["freq",93,94]]]
         ]
@@ -653,7 +653,7 @@
         "callSiteSpans": [["4:6",4,4],["5:19",5,5],["6:25",6,6]],
         "interpolations": [],
         "registry": [
-          ["3:6","$tr909.kick",[["trigger",34,38]]],
+          ["3:6","$tr808.kick",[["trigger",34,38]]],
           ["5:8","$tr909.kick",[["trigger",63,67]]],
           ["6:1","$sine",[["freq",93,97]]],
           ["7:18","$unstable.filter.lp",[["cutoff",137,141]]],

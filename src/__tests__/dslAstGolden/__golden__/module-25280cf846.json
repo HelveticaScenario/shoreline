@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["3:4",3,3]],
       "interpolations": [],
-      "registry": [["2:4","$tr909.lowTom",[["decay",62,63]]],["2:18","$p",[["source",27,44]]]]
+      "registry": [["2:4","$tr808.lowTom",[["decay",62,63]]],["2:18","$p",[["source",27,44]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
