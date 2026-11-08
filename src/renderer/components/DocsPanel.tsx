@@ -1,7 +1,14 @@
 import type { ReactNode } from 'react';
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, {
+    useState,
+    useMemo,
+    useEffect,
+    useCallback,
+    useRef,
+} from 'react';
 import Markdown from 'react-markdown';
-import { VideoHelp } from './VideoHelp';
+import { VideoDocs } from './VideoDocs';
+import type { DocsTarget } from './docsCommand';
 import electronAPI from '../electronAPI';
 import type {
     DslTypeName,
@@ -23,15 +30,21 @@ import {
     schemaToTypeExpr,
     getEnumVariants,
 } from '../../shared/dsl/schemaTypeResolver';
-import './HelpWindow.css';
+import './DocsPanel.css';
 
-type Page =
-    | 'getting-started'
-    | 'hotkeys'
-    | 'globals'
-    | 'types'
-    | 'reference'
-    | 'video';
+type Page = 'types' | 'globals' | 'reference' | 'video';
+
+const PAGES: { id: Page; label: string }[] = [
+    { id: 'types', label: 'Types' },
+    { id: 'globals', label: 'Globals' },
+    { id: 'reference', label: 'Reference' },
+    { id: 'video', label: 'Video' },
+];
+
+interface DocsPanelProps {
+    target: DocsTarget | null;
+    hidden: boolean;
+}
 
 /**
  * Regex pattern matching all DSL type names for linkification.
@@ -197,11 +210,15 @@ const TypeCard: React.FC<TypeCardProps> = ({
     </div>
 );
 
-export const HelpWindow: React.FC = () => {
-    const [activePage, setActivePage] = useState<Page>('hotkeys');
+export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
+    const [activePage, setActivePage] = useState<Page>('types');
     const [searchQuery, setSearchQuery] = useState('');
     const [schemas, setSchemas] = useState<Schemas>();
-    const [selectedType, setSelectedType] = useState<DslTypeName | null>(null);
+    // A fresh object per reveal, so revealing the same type again scrolls back to it.
+    const [revealedType, setRevealedType] = useState<{
+        name: DslTypeName;
+    } | null>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
     const [expandedTypes, setExpandedTypes] = useState(new Set<DslTypeName>());
 
     // Fetch schemas once at mount
@@ -215,30 +232,25 @@ export const HelpWindow: React.FC = () => {
             .catch(console.error);
     }, []);
 
-    // Listen for navigation events from main process (definition provider)
     useEffect(() => {
-        const unsubscribe = electronAPI.onNavigateToSymbol?.((data) => {
-            const { symbolType, symbolName } = data;
-
-            if (symbolType === 'type' && isDslType(symbolName)) {
-                // Navigate to types page and expand the type
-                setActivePage('types');
-                setSelectedType(symbolName);
-                setExpandedTypes((prev) => new Set(prev).add(symbolName));
-            } else if (symbolType === 'module' || symbolType === 'namespace') {
-                // Navigate to reference page and search for the module
-                setActivePage('reference');
-                setSearchQuery(symbolName);
-            }
-        });
-
-        return () => unsubscribe?.();
-    }, []);
+        if (!target) {
+            return;
+        }
+        const { symbolType, name } = target;
+        if (symbolType === 'type' && isDslType(name)) {
+            setActivePage('types');
+            setRevealedType({ name });
+            setExpandedTypes((prev) => new Set(prev).add(name));
+        } else if (symbolType === 'module' || symbolType === 'namespace') {
+            setActivePage('reference');
+            setSearchQuery(name);
+        }
+    }, [target]);
 
     // Handle type link clicks - navigate to types page and expand the type
     const handleTypeClick = useCallback((typeName: DslTypeName) => {
         setActivePage('types');
-        setSelectedType(typeName);
+        setRevealedType({ name: typeName });
         setExpandedTypes((prev) => new Set(prev).add(typeName));
     }, []);
 
@@ -257,13 +269,22 @@ export const HelpWindow: React.FC = () => {
 
     // Scroll to selected type when it changes
     useEffect(() => {
-        if (selectedType && activePage === 'types') {
-            const element = document.getElementById(`type-${selectedType}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+        const container = contentRef.current;
+        if (!container || !revealedType || activePage !== 'types') {
+            return;
         }
-    }, [selectedType, activePage]);
+        const element = document.getElementById(`type-${revealedType.name}`);
+        if (element) {
+            // Scroll the docs pane alone; the app containers around the sidebar must not move.
+            const offset =
+                element.getBoundingClientRect().top -
+                container.getBoundingClientRect().top;
+            container.scrollTo({
+                behavior: 'smooth',
+                top: container.scrollTop + offset,
+            });
+        }
+    }, [revealedType, activePage]);
 
     const filteredModules = useMemo(() => {
         if (!schemas) {
@@ -389,51 +410,7 @@ export const HelpWindow: React.FC = () => {
                 );
             }
             case 'video':
-                return <VideoHelp />;
-            case 'hotkeys':
-                return (
-                    <div>
-                        <h2>Hotkeys</h2>
-                        <h3>Patch Execution</h3>
-                        <ul>
-                            <li>
-                                <b>Ctrl + Enter</b>: Update Patch (queued for
-                                next bar)
-                            </li>
-                            <li>
-                                <b>Ctrl + Shift + Enter</b>: Update Patch
-                                (queued for next beat)
-                            </li>
-                            <li>
-                                <b>Ctrl + .</b>: Stop Sound
-                            </li>
-                            <li>
-                                <b>Ctrl + \</b>: Cancel Queued Update (the
-                                playing patch keeps running)
-                            </li>
-                        </ul>
-                        <p style={{ fontSize: '0.9em', opacity: 0.7 }}>
-                            Pressing Ctrl+Enter again while an update is already
-                            queued will discard the old update and apply the new
-                            one immediately.
-                        </p>
-                        <h3>Files</h3>
-                        <ul>
-                            <li>
-                                <b>Cmd/Ctrl + S</b>: Save
-                            </li>
-                            <li>
-                                <b>Cmd/Ctrl + O</b>: Open Workspace
-                            </li>
-                            <li>
-                                <b>Cmd/Ctrl + N</b>: New File
-                            </li>
-                            <li>
-                                <b>Cmd/Ctrl + W</b>: Close Buffer
-                            </li>
-                        </ul>
-                    </div>
-                );
+                return <VideoDocs />;
             case 'types':
                 return (
                     <div>
@@ -468,7 +445,7 @@ export const HelpWindow: React.FC = () => {
             case 'reference':
                 return (
                     <div>
-                        <h2 className="help-title">Module Reference</h2>
+                        <h2>Module Reference</h2>
                         <div className="search-container">
                             <input
                                 type="text"
@@ -479,7 +456,6 @@ export const HelpWindow: React.FC = () => {
                             />
                         </div>
                         {filteredModules.map((module) => {
-                            // Console.log(module);
                             const params = getParams(module);
                             return (
                                 <div key={module.name} className="module-card">
@@ -624,40 +600,22 @@ export const HelpWindow: React.FC = () => {
     };
 
     return (
-        <div className="help-window">
-            <div className="sidebar">
-                <button
-                    className={activePage === 'hotkeys' ? 'active' : ''}
-                    onClick={() => setActivePage('hotkeys')}
-                >
-                    Hotkeys
-                </button>
-                <button
-                    className={activePage === 'globals' ? 'active' : ''}
-                    onClick={() => setActivePage('globals')}
-                >
-                    Globals
-                </button>
-                <button
-                    className={activePage === 'types' ? 'active' : ''}
-                    onClick={() => setActivePage('types')}
-                >
-                    Types
-                </button>
-                <button
-                    className={activePage === 'reference' ? 'active' : ''}
-                    onClick={() => setActivePage('reference')}
-                >
-                    Reference
-                </button>
-                <button
-                    className={activePage === 'video' ? 'active' : ''}
-                    onClick={() => setActivePage('video')}
-                >
-                    Video
-                </button>
+        <div className="docs-panel" hidden={hidden}>
+            <nav className="docs-pages" aria-label="Docs pages">
+                {PAGES.map(({ id, label }) => (
+                    <button
+                        key={id}
+                        aria-pressed={activePage === id}
+                        className={activePage === id ? 'active' : ''}
+                        onClick={() => setActivePage(id)}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </nav>
+            <div ref={contentRef} className="docs-content">
+                {renderContent()}
             </div>
-            <div className="content">{renderContent()}</div>
         </div>
     );
 };

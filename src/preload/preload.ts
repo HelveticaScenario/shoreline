@@ -227,19 +227,6 @@ export interface ElectronAPI {
     ) => () => void;
     showUnsavedChangesDialog: (fileName: string) => Promise<number>;
 
-    // Window operations
-    openHelpWindow: () => Promise<void>;
-    openHelpForSymbol: (
-        symbolType: 'type' | 'module' | 'namespace',
-        symbolName: string,
-    ) => Promise<void>;
-    onNavigateToSymbol: (
-        callback: (data: {
-            symbolType: 'type' | 'module' | 'namespace';
-            symbolName: string;
-        }) => void,
-    ) => () => void;
-
     // Performance window
     performanceWindow: {
         /** Tells the main process whether the performance window is open, so it keeps this window painting. */
@@ -329,29 +316,6 @@ const electronAPI: ElectronAPI = {
     executeDSL: (source, sourceId, trigger) =>
         invokeIPC('DSL_EXECUTE', source, sourceId, trigger),
     getDslLibSource: () => invokeIPC('GET_DSL_LIB_SOURCE'),
-
-    // Window operations
-    openHelpWindow: () => invokeIPC('OPEN_HELP_WINDOW'),
-    openHelpForSymbol: (
-        symbolType: 'type' | 'module' | 'namespace',
-        symbolName: string,
-    ) => invokeIPC('OPEN_HELP_FOR_SYMBOL', symbolType, symbolName),
-    onNavigateToSymbol: (
-        callback: (data: {
-            symbolType: 'type' | 'module' | 'namespace';
-            symbolName: string;
-        }) => void,
-    ) => {
-        const listener = (
-            _event: Electron.IpcRendererEvent,
-            data: {
-                symbolType: 'type' | 'module' | 'namespace';
-                symbolName: string;
-            },
-        ) => callback(data);
-        ipcRenderer.on('navigate-to-symbol', listener);
-        return () => ipcRenderer.removeListener('navigate-to-symbol', listener);
-    },
 
     // Synthesizer operations
     synthesizer: {
