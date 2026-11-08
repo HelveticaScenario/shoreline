@@ -183,6 +183,12 @@ describe('computeControlQuickFixes — add sliders for missing params', () => {
         expect(titles).not.toContain(`Add note slider for 'freq'`);
     });
 
+    test('a param with no fixed default is not added at a guessed value', () => {
+        // `rise` follows `fall` while unset, so a control at 0 would change it.
+        const { fixes } = fixesAt(`$slew($sine('1hz'), { fall: 0.5| }).out();`);
+        expect(addTitles(fixes)).not.toContain(`Add slider for 'rise'`);
+    });
+
     test('creates the config object when absent', () => {
         const { source, fixes } = fixesAt(`$pulse('a3'|).out();`);
         const width = fixes.find((f) => f.title === `Add slider for 'width'`)!;

@@ -135,12 +135,35 @@ export const API_CONTROLS: Record<
     },
 };
 
+/** A control for `name` as a `ParamRef`. Its default is known for a
+ *  required param (no unset value to keep), a gate or trigger (unset reads
+ *  low) and a declared default; an optional input without one (a `rise`
+ *  that follows `fall`) does not read 0 while unset. */
+export function schemaParamRef(
+    schema: SchemaEntry,
+    name: string,
+    label: string,
+): ParamRef | null {
+    const spec = paramSpec(schema, name);
+    if (!spec) {
+        return null;
+    }
+    const signal: { signalType: string; defaultValue?: number } | undefined =
+        schema.signalParams.find((s) => s.name === name);
+    const knownDefault =
+        (schema.paramsSchema.required ?? []).includes(name) ||
+        signal?.signalType === 'gate' ||
+        signal?.signalType === 'trig' ||
+        signal?.defaultValue !== undefined;
+    return { knownDefault, label, spec };
+}
+
 export function paramSpec(
     schema: SchemaEntry,
     name: string,
 ): ParamSpec | undefined {
     const p = schema.signalParams.find((s) => s.name === name);
-    // A param without a declared default reads 0 while disconnected.
+    // A param without a declared default starts its control at 0.
     if (!p) {
         return undefined;
     }
@@ -161,13 +184,14 @@ export function controlRef(
         };
     }
     const module = byName.get(source.module);
-    const spec = module && paramSpec(module, source.param);
-    if (!spec) {
+    const ref =
+        module && schemaParamRef(module, source.param, source.label ?? name);
+    if (!ref) {
         return null;
     }
+    const { spec } = ref;
     return {
-        knownDefault: true,
-        label: source.label ?? name,
+        ...ref,
         spec: {
             ...spec,
             controlMax: source.range?.max ?? spec.controlMax,
