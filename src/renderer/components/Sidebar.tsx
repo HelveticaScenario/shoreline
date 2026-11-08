@@ -7,7 +7,12 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { registerCommand, unregisterCommand } from '../keybindings/commands';
-import { DocsPanel, type DocsTarget, SHOW_DOCS_COMMAND } from './DocsPanel';
+import { DocsPanel } from './DocsPanel';
+import {
+    type DocsTarget,
+    SHOW_DOCS_COMMAND,
+    toDocsTarget,
+} from './docsCommand';
 import { SidebarSash, sidebarPanelStyle, useSidebarWidth } from './SidebarSash';
 import './Sidebar.css';
 
@@ -41,7 +46,7 @@ export function Sidebar({
             SHOW_DOCS_COMMAND,
             (target) => {
                 setActiveTab('docs');
-                setDocsTarget((target as DocsTarget | undefined) ?? null);
+                setDocsTarget(toDocsTarget(target));
             },
             { label: 'Show Docs', category: 'View' },
         );
@@ -63,14 +68,17 @@ export function Sidebar({
                     {activeLabel}
                 </h2>
                 <div className="app-sidebar-content">
-                    {
+                    {activeTab !== 'docs' &&
                         {
                             control: controlContent,
-                            docs: <DocsPanel target={docsTarget} />,
                             explorer: explorerContent,
                             perform: performContent,
-                        }[activeTab]
-                    }
+                        }[activeTab]}
+                    {/* Stays mounted so its page, search and expanded types survive tab switches. */}
+                    <DocsPanel
+                        target={docsTarget}
+                        hidden={activeTab !== 'docs'}
+                    />
                 </div>
             </section>
             <nav className="app-activity-bar" aria-label="Sidebar panels">
@@ -81,10 +89,7 @@ export function Sidebar({
                         aria-label={label}
                         title={label}
                         className={`app-activity-bar-item ${activeTab === id ? 'active' : ''}`}
-                        onClick={() => {
-                            setActiveTab(id);
-                            setDocsTarget(null);
-                        }}
+                        onClick={() => setActiveTab(id)}
                     >
                         <Icon size={22} strokeWidth={1.5} aria-hidden />
                     </button>

@@ -14,7 +14,7 @@ import { ICommandService } from 'monaco-editor/esm/vs/platform/commands/common/c
 import type { SignatureHelpItem, SymbolDisplayPart } from 'typescript';
 import type { ModuleSchema } from '@modular/core';
 import type { Monaco } from '../../hooks/useCustomMonaco';
-import { type DocsTarget, SHOW_DOCS_COMMAND } from '../DocsPanel';
+import { type DocsTarget, SHOW_DOCS_COMMAND } from '../docsCommand';
 import { executeCommand } from '../../keybindings/commands';
 import { isDslType } from '../../../shared/dsl/typeDocs';
 import {

@@ -7,6 +7,10 @@
     user-select: text;
 }
 
+.docs-panel[hidden] {
+    display: none;
+}
+
 .docs-pages {
     display: flex;
     flex-wrap: wrap;
@@ -42,7 +46,7 @@
 
 .docs-content {
     flex: 1;
-    font-size: calc(var(--font-size) - 4px);
+    font-size: max(11px, calc(var(--font-size) - 4px));
     min-height: 0;
     padding: var(--sp-1);
     overflow-y: auto;

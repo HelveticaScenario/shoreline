@@ -1,7 +1,14 @@
 import type { ReactNode } from 'react';
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, {
+    useState,
+    useMemo,
+    useEffect,
+    useCallback,
+    useRef,
+} from 'react';
 import Markdown from 'react-markdown';
 import { VideoDocs } from './VideoDocs';
+import type { DocsTarget } from './docsCommand';
 import electronAPI from '../electronAPI';
 import type {
     DslTypeName,
@@ -34,17 +41,9 @@ const PAGES: { id: Page; label: string }[] = [
     { id: 'video', label: 'Video' },
 ];
 
-/** A symbol to reveal, such as the target of a ctrl-clicked editor link. */
-export interface DocsTarget {
-    symbolType: 'type' | 'module' | 'namespace';
-    name: string;
-}
-
-/** Opens the Docs sidebar tab, revealing a {@link DocsTarget} when given one. */
-export const SHOW_DOCS_COMMAND = 'shoreline.showDocs';
-
 interface DocsPanelProps {
-    target?: DocsTarget | null;
+    target: DocsTarget | null;
+    hidden: boolean;
 }
 
 /**
@@ -211,11 +210,15 @@ const TypeCard: React.FC<TypeCardProps> = ({
     </div>
 );
 
-export const DocsPanel: React.FC<DocsPanelProps> = ({ target }) => {
+export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
     const [activePage, setActivePage] = useState<Page>('types');
     const [searchQuery, setSearchQuery] = useState('');
     const [schemas, setSchemas] = useState<Schemas>();
-    const [selectedType, setSelectedType] = useState<DslTypeName | null>(null);
+    // A fresh object per reveal, so revealing the same type again scrolls back to it.
+    const [revealedType, setRevealedType] = useState<{
+        name: DslTypeName;
+    } | null>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
     const [expandedTypes, setExpandedTypes] = useState(new Set<DslTypeName>());
 
     // Fetch schemas once at mount
@@ -236,7 +239,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target }) => {
         const { symbolType, name } = target;
         if (symbolType === 'type' && isDslType(name)) {
             setActivePage('types');
-            setSelectedType(name);
+            setRevealedType({ name });
             setExpandedTypes((prev) => new Set(prev).add(name));
         } else if (symbolType === 'module' || symbolType === 'namespace') {
             setActivePage('reference');
@@ -247,7 +250,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target }) => {
     // Handle type link clicks - navigate to types page and expand the type
     const handleTypeClick = useCallback((typeName: DslTypeName) => {
         setActivePage('types');
-        setSelectedType(typeName);
+        setRevealedType({ name: typeName });
         setExpandedTypes((prev) => new Set(prev).add(typeName));
     }, []);
 
@@ -266,13 +269,22 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target }) => {
 
     // Scroll to selected type when it changes
     useEffect(() => {
-        if (selectedType && activePage === 'types') {
-            const element = document.getElementById(`type-${selectedType}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+        const container = contentRef.current;
+        if (!container || !revealedType || activePage !== 'types') {
+            return;
         }
-    }, [selectedType, activePage]);
+        const element = document.getElementById(`type-${revealedType.name}`);
+        if (element) {
+            // Scroll the docs pane alone; the app containers around the sidebar must not move.
+            const offset =
+                element.getBoundingClientRect().top -
+                container.getBoundingClientRect().top;
+            container.scrollTo({
+                behavior: 'smooth',
+                top: container.scrollTop + offset,
+            });
+        }
+    }, [revealedType, activePage]);
 
     const filteredModules = useMemo(() => {
         if (!schemas) {
@@ -588,7 +600,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target }) => {
     };
 
     return (
-        <div className="docs-panel">
+        <div className="docs-panel" hidden={hidden}>
             <nav className="docs-pages" aria-label="Docs pages">
                 {PAGES.map(({ id, label }) => (
                     <button
@@ -601,7 +613,9 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target }) => {
                     </button>
                 ))}
             </nav>
-            <div className="docs-content">{renderContent()}</div>
+            <div ref={contentRef} className="docs-content">
+                {renderContent()}
+            </div>
         </div>
     );
 };
