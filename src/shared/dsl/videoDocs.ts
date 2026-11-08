@@ -104,7 +104,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
         name: 'osc',
         group: 'Generators',
         description:
-            'A wave: `freq` cycles across the frame, offset by `phase` cycles. `config.input` runs it along another signal instead, `freq` cycles per unit of that signal, such as a radial ramp for rings or `$v.time` for a pulse that changes over time. The wave is gray unless `offset` splits it into color: as in Hydra, red runs that far behind green and blue that far ahead, though here the offset is in cycles rather than radians.',
+            'A wave: `freq` cycles across the frame, offset by `phase` cycles. `config.input` runs it along another signal instead, `freq` cycles per unit of that signal, such as a radial ramp for rings or `$v.time` for a pulse that changes over time. The wave is gray unless `offset` splits it into color: as in Hydra, red runs that far behind green and blue that far ahead, though here the offset is in cycles rather than radians. Where a number is wanted, a split wave gives its brightness, as any color does.',
         params: [
             {
                 name: 'freq',

@@ -19,28 +19,41 @@ function gpuDevice(): Promise<GPUDevice> {
         const adapter = await dawn.requestAdapter();
         if (!adapter)
             throw new Error('no WebGPU adapter: install a Vulkan driver');
-        return requestVideoDevice(adapter);
+        const created = await requestVideoDevice(adapter);
+        void created.lost.then(() => {
+            device = undefined;
+        });
+        return created;
     })();
     return device;
 }
 
 /**
  * The errors WebGPU reports building `compiled` the way the renderer does:
- * the WGSL compiler's messages or, when the WGSL compiles, those from the
- * bind group layout and the pipelines. Empty when the renderer would accept
+ * the WGSL compiler's messages or, when the WGSL compiles, any validation,
+ * internal or out-of-memory error from the bind group layout and the
+ * pipelines. Empty when the renderer would accept
  * the shader.
  */
 export async function shaderErrors(
     compiled: CompiledVideoShader,
 ): Promise<string[]> {
     const gpu = await gpuDevice();
-    gpu.pushErrorScope('validation');
+    const scopes: GPUErrorFilter[] = [
+        'validation',
+        'internal',
+        'out-of-memory',
+    ];
+    for (const filter of scopes) gpu.pushErrorScope(filter);
     const built = await ShaderProgram.build(gpu, 'bgra8unorm', compiled).then(
         () => null,
         (error: unknown) =>
             error instanceof Error ? error.message : String(error),
     );
-    const scoped = await gpu.popErrorScope();
-    if (built !== null) return [built];
-    return scoped ? [scoped.message] : [];
+    const scoped = [];
+    for (let k = scopes.length; k > 0; k--) {
+        const error = await gpu.popErrorScope();
+        if (error) scoped.push(error.message);
+    }
+    return built !== null ? [built] : scoped;
 }
