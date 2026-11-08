@@ -169,7 +169,7 @@ fn sampler_channel_count(params: &GranularSamplerParams) -> usize {
 /// }).out()
 /// ```
 #[module(
-    name = "$granularSampler",
+    name = "$granularSampler", categories(sampler),
     channels_derive = sampler_channel_count,
     has_init,
     patch_update,

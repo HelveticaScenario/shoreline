@@ -60,7 +60,7 @@ pub fn p_warp_derive_channel_count(params: &PWarpParams) -> usize {
 /// $pSine($pWarp($ramp('c3'), $phase.pulsar(3))).out()
 /// $pSine($pWarp($ramp('c3'), $phase.crush(2, $phase.feedback(1)))).out()
 /// ```
-#[module(name = "$pWarp", channels_derive = p_warp_derive_channel_count, args(input, phase))]
+#[module(name = "$pWarp", categories(phase), channels_derive = p_warp_derive_channel_count, args(input, phase))]
 pub struct PWarp {
     outputs: PWarpOutputs,
     channel_state: Box<[ChannelState]>,

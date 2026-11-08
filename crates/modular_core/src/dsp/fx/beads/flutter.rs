@@ -80,7 +80,7 @@ struct WowFlutterState {
 /// const cloud = $granular($saw('a3'), grains, { mix: 4, quality: 'dirtyTape' })
 /// $reverb($wowFlutter(cloud), 3, { size: 5, tone: 2 }).out()
 /// ```
-#[module(name = "$wowFlutter", has_init, args(input))]
+#[module(name = "$wowFlutter", categories(effect), has_init, args(input))]
 pub struct WowFlutter {
     outputs: WowFlutterOutputs,
     state: WowFlutterState,

@@ -226,7 +226,7 @@ struct ChannelState {
 /// $sine('c1').amplitude($perc(drums, { decay: 0.3 })).out()
 /// $noise('white').amplitude($perc(drums.hh, { decay: 0.05 })).out()
 /// ```
-#[module(name = "$drumMap", args(), patch_update)]
+#[module(name = "$drumMap", categories(sequencer, drum), args(), patch_update)]
 pub struct DrumMap {
     outputs: DrumMapOutputs,
     params: DrumMapParams,

@@ -230,7 +230,13 @@ struct ReverbState {
 /// $unstable.reverb($saw('c3'), { decay: 3, damping: 1.5, size: 2 }).out()
 /// $unstable.reverb($saw('c3'), { decay: 4, width: 4, modulation: 3 }).out()
 /// ```
-#[module(name = "$unstable.reverb", channels = 2, has_init, args(input))]
+#[module(
+    name = "$unstable.reverb",
+    categories(effect),
+    channels = 2,
+    has_init,
+    args(input)
+)]
 pub struct Reverb {
     outputs: ReverbOutputs,
     state: ReverbState,

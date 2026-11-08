@@ -377,7 +377,7 @@ struct SeqOutputs {
 /// $sine(bass).amp($adsr(bass.gate)).out()
 /// ```
 #[module(
-    name = "$cycle",
+    name = "$cycle", categories(sequencer),
     channels_derive = seq_derive_channel_count,
     args(pattern),
     stateful,

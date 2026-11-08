@@ -152,7 +152,7 @@ impl Default for MathState {
 /// // crossfade between two oscillators
 /// $math("x * sin(t) + y * cos(t)", { x: $saw('c3'), y: $pulse('c3') })
 /// ```
-#[module(name = "$math", args(expression))]
+#[module(name = "$math", categories(math), args(expression))]
 pub struct Math {
     outputs: MathOutputs,
     params: MathParams,

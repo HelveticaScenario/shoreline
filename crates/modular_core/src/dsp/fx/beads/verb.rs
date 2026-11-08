@@ -148,7 +148,13 @@ struct BeadsReverbState {
 /// ```js
 /// $reverb($saw('c3'), 4, { size: 5, tone: 2 }).out()
 /// ```
-#[module(name = "$reverb", channels = 2, has_init, args(input, amount))]
+#[module(
+    name = "$reverb",
+    categories(effect),
+    channels = 2,
+    has_init,
+    args(input, amount)
+)]
 pub struct BeadsReverb {
     outputs: BeadsReverbOutputs,
     state: BeadsReverbState,

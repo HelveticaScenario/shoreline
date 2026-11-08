@@ -345,7 +345,7 @@ impl ChannelState {
 /// const sea = $swell('0.2hz', { chop: 4, spread: 5, waves: 12 })
 /// $sine('c3').amp(sea.tilt.range(0, 5)).out()
 /// ```
-#[module(name = "$swell", patch_update, args(freq))]
+#[module(name = "$swell", categories(modulation), patch_update, args(freq))]
 pub struct Swell {
     outputs: SwellOutputs,
     params: SwellParams,

@@ -36,7 +36,7 @@ struct ClampOutputs {
 /// // one-sided: floor at 0 V, no ceiling
 /// $clamp($sine('1hz'), { min: 0 })
 /// ```
-#[module(name = "$clamp", args(input))]
+#[module(name = "$clamp", categories(math), args(input))]
 pub struct Clamp {
     outputs: ClampOutputs,
     params: ClampParams,

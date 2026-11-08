@@ -63,7 +63,14 @@ struct Sd909Outputs {
 /// ```js
 /// $tr909.snare($clock.beatTrigger).out()
 /// ```
-#[module(name = "$tr909.snare", has_init, patch_update, args(trigger), block)]
+#[module(
+    name = "$tr909.snare",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Sd909 {
     outputs: Sd909Outputs,
     params: Sd909Params,

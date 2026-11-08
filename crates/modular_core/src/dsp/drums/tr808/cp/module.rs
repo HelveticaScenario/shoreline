@@ -44,7 +44,14 @@ struct Cp808Outputs {
 /// ```js
 /// $tr808.clap($clock.beatTrigger).out()
 /// ```
-#[module(name = "$tr808.clap", has_init, patch_update, args(trigger), block)]
+#[module(
+    name = "$tr808.clap",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Cp808 {
     outputs: Cp808Outputs,
     params: Cp808Params,

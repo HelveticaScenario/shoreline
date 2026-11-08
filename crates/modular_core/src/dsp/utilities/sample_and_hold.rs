@@ -42,7 +42,7 @@ struct SampleAndHoldChannelState {
 ///  ),
 /// )
 /// ```
-#[module(name = "$sah", args(input, trigger))]
+#[module(name = "$sah", categories(gate), args(input, trigger))]
 pub struct SampleAndHold {
     outputs: SampleAndHoldOutputs,
     params: SampleAndHoldParams,
@@ -110,7 +110,7 @@ struct TrackAndHoldChannelState {
 /// // hold a slow sine value while the gate is high
 /// $tah($sine('2hz'), $pulse('2hz'))
 /// ```
-#[module(name = "$tah", args(input, gate))]
+#[module(name = "$tah", categories(gate), args(input, gate))]
 pub struct TrackAndHold {
     outputs: TrackAndHoldOutputs,
     params: TrackAndHoldParams,

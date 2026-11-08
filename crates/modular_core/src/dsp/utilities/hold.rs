@@ -51,7 +51,7 @@ struct HoldChannelState {
 /// const env = $adsr($hold($clock.beatTrigger, 0.1))
 /// $sine('c4').amplitude(env).out()
 /// ```
-#[module(name = "$hold", args(input, time))]
+#[module(name = "$hold", categories(gate), args(input, time))]
 pub struct Hold {
     outputs: HoldOutputs,
     params: HoldParams,

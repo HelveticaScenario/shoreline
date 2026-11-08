@@ -43,7 +43,14 @@ struct Ma808Outputs {
 /// ```js
 /// $tr808.maracas($clock.beatTrigger).out()
 /// ```
-#[module(name = "$tr808.maracas", has_init, patch_update, args(trigger), block)]
+#[module(
+    name = "$tr808.maracas",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Ma808 {
     outputs: Ma808Outputs,
     params: Ma808Params,

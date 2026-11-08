@@ -2,6 +2,10 @@
   {
     "name": "$lorenz",
     "documentation": "Chaotic signal source based on the Lorenz strange attractor.\n\nSimulates the Lorenz system continuously — changing any parameter pulls the\ntrajectory in a new direction rather than restarting from scratch. Outputs x\n(default) and y coordinates normalized to **±5V**, and z normalized to **0–5V**\n(z is always positive in the Lorenz system).\n\n## Parameters (all 0–5 CV)\n\n| param | mapped range | default | chaotic butterfly |\n|-------|-------------|---------|-------------------|\n| sigma | σ 0–30      | 1.667 → σ=10   | stays chaotic for σ > 0 |\n| rho   | ρ 0–60      | 2.333 → ρ=28   | chaos requires ρ > ~24.74 (CV > ~2.06V) |\n| beta  | β 0–10      | 1.333 → β=8/3  | classic shape near 2.667 |\n| rate  | 0–200 t/s   | 0.1   → 4 t/s  | audio-rate at ≥ ~50 t/s |\n\n## Example\n\n```js\n// Classic Lorenz butterfly at default params\n$lorenz()\n\n// Access all three outputs\nconst l = $lorenz()\nl    // x coordinate (±5V)\nl.y  // y coordinate (±5V)\nl.z  // z coordinate (0–5V)\n\n// Modulate rho — nudges the attractor without resetting it\n$lorenz({ rho: $sine('1hz').range(0, 5), rate: 0.5 }).out()\n```",
+    "categories": [
+      "modulation",
+      "random"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "LorenzParams",
@@ -178,6 +182,9 @@
   {
     "name": "$swell",
     "documentation": "Ocean swell as CV: the surface of a simulated sea, read at a fixed point.\n\nThe sea sums `waves` Gerstner waves. Each moves the water in circles rather\nthan just up and down, which bunches the surface into sharp crests between\nwide, flat troughs — the shape of real swell, set by `steepness`. The first\nwave rolls at `freq`; `chop` spreads the others above it, so their crests\ndrift in and out of line and the sea arrives in sets, with the occasional\nwave far bigger than the rest. `spread` scatters their directions.\n\n- **height** (default) — surface height, ±5V. It reaches ±5V only when\n  every wave lines up, so a sea with `chop` above 0 usually stays inside it.\n- **tilt** — how the surface leans along the swell, the way a moored boat\n  pitches: positive while the water rises, negative while it falls. A sine\n  at `steepness` 0; when steep, a sawtooth that snaps down at each crest.\n- **roll** — the sideways lean from waves arriving off-axis. Silent at\n  `spread` 0, and busier as `spread` and `chop` rise.\n\nEvery input can be modulated live: the waves bend to the new values without\nrestarting. Each channel is its own sea.\n\n## Example\n\n```js\n// A slow, steep swell sweeping a filter\n$lpf($saw('a1'), $swell('0.1hz', { steepness: 4 }).range('200hz', '2000hz')).out()\n\n// A choppy, confused sea: the swell's lean swaying a sine's level\nconst sea = $swell('0.2hz', { chop: 4, spread: 5, waves: 12 })\n$sine('c3').amp(sea.tilt.range(0, 5)).out()\n```",
+    "categories": [
+      "modulation"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SwellParams",
@@ -369,6 +376,9 @@
   {
     "name": "$signal",
     "documentation": "Utility module for routing, naming, and exposing signals in a patch.",
+    "categories": [
+      "utility"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SignalParams",
@@ -470,6 +480,9 @@
   {
     "name": "$mix",
     "documentation": "Mix module for combining multiple signals into a single mix bus.\n\nUse this when you want to blend several multichannel modulation/audio sources.\nIt mixes channel `n` across all inputs into output channel `n`, rather than\nfolding all channels into a single mono channel.",
+    "categories": [
+      "mixer"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "MixParams",
@@ -614,6 +627,9 @@
   {
     "name": "$mixDown",
     "documentation": "Folds a polyphonic input down to an arbitrary target channel count.\n\nUnlike `$mix` (which mixes channel `n` of every input into output channel\n`n`), `$mixDown` takes a single poly signal and distributes its `N` channels\nacross `M` output channels by panning them evenly over the output field with\nan equal-power crossfade. With the default `channels = 1` it is a plain mono\nsum; `channels = 2` produces an equal-power stereo fold-down. When the target\nexceeds the input channel count, the input is instead spread to fill every\noutput channel (equal-power interpolation) so no channel is left silent.\n\n- **channels** — target output channel count (1–64, default 1)\n- **mode** — how channels landing on the same output combine (sum / average /\n  max / min); applies only when folding down (target ≤ input channels)\n\n## Example\n\n```js\n// Fold a 3-voice spread down to stereo\n$saw($spread(0, 5, 3)).mix(2).out()\n```",
+    "categories": [
+      "mixer"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "MixDownParams",
@@ -755,6 +771,9 @@
   {
     "name": "$stereoMix",
     "documentation": "Pan and spread a signal into stereo.",
+    "categories": [
+      "mixer"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "StereoMixerParams",
@@ -908,6 +927,9 @@
   {
     "name": "_clock",
     "documentation": "Tempo-synced transport clock for driving sequencers, envelopes, and synced modulation.",
+    "categories": [
+      "sequencer"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ClockParams",
@@ -1098,6 +1120,9 @@
   {
     "name": "$tr808.kick",
     "documentation": "TR-808 bass drum.\n\nA circuit model of the 808's deep, booming kick: a low, round ring at ≈49.5\nHz with a click at the attack and a pitch that sighs down as it rings.\n**decay** sets how long it booms, **tone** how much click comes through,\n**freq** its pitch, and **accent** how hard it hits.\n\nAs on the 808, a hit that lands on a still-ringing one builds on it, so long\ndecays at fast tempos swing in level from hit to hit; **restart** starts\nevery hit from rest instead.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near **±10\nV**. Near the top of the **freq** range the drum overdrives, so accent adds\nless there.\n\n```js\n$tr808.kick($clock.beatTrigger, { decay: 4 }).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Bd808Params",
@@ -1287,6 +1312,9 @@
   {
     "name": "$tr808.snare",
     "documentation": "TR-808 snare drum.\n\nA circuit model of the 808's snare: two drum tones near 250 and 500 Hz under\na burst of bright noise. **tone** blends from the low tone to the high one,\n**snappy** sets how much noise, **freq** the pitch, and **accent** how hard\nit hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr808.snare($clock.beatTrigger, { snappy: 4 }).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Sd808Params",
@@ -1476,6 +1504,9 @@
   {
     "name": "$tr808.rimShot",
     "documentation": "TR-808 rim shot.\n\nA circuit model of the 808's rim shot: a bright, woody crack, over in about\n10 ms, built from two tones near 1.8 kHz and 450 Hz. **freq** sets its pitch\nand **accent** how hard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr808.rimShot($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Rs808Params",
@@ -1627,6 +1658,9 @@
   {
     "name": "$tr808.claves",
     "documentation": "TR-808 claves.\n\nA circuit model of the 808's claves: a short, pure wooden click ringing at\n≈2.5 kHz. **decay** sets how long it rings, **freq** its pitch, and\n**accent** how hard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr808.claves($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Cl808Params",
@@ -1797,6 +1831,9 @@
   {
     "name": "$tr808.cowbell",
     "documentation": "TR-808 cowbell.\n\nA circuit model of the 808's cowbell: two square waves near 540 and 800 Hz\nthrough a band-pass filter, for its clanking, slightly sour clang. **freq**\nsets the pitch and **accent** how hard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr808.cowbell($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Cb808Params",
@@ -1948,6 +1985,9 @@
   {
     "name": "$tr808.clap",
     "documentation": "TR-808 hand clap.\n\nA circuit model of the 808's hand clap: bursts of filtered noise in quick\nsuccession, like several hands clapping at once, over a softer noise tail.\n**accent** makes it louder and its tail longer.\n\nAn unaccented clap peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr808.clap($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Cp808Params",
@@ -2075,6 +2115,9 @@
   {
     "name": "$tr808.maracas",
     "documentation": "TR-808 maracas.\n\nA circuit model of the 808's maracas: a short shake of high, hissing noise.\n**accent** makes it louder and draws it out.\n\nAn unaccented shake peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr808.maracas($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Ma808Params",
@@ -2202,6 +2245,9 @@
   {
     "name": "$tr808.cymbal",
     "documentation": "TR-808 cymbal.\n\nA circuit model of the 808's cymbal: six detuned square waves filtered into\na shimmering high band and a ringing lower one. **decay** sets how long the\nlower band rings, **tone** the balance from dark to bright, and **accent**\nhow hard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr808.cymbal($clock.barTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Cy808Params",
@@ -2372,6 +2418,9 @@
   {
     "name": "$tr808.hiHat",
     "documentation": "TR-808 hi-hats, closed and open.\n\nA circuit model of the 808's hi-hats: the cymbal's six square waves filtered\nto a thin, bright band. **closed** strikes a short, tight hat and **open** a\nlonger one that rings for as long as **decay** sets; **accent** makes either\nhit harder.\n\nAs on the 808, a closed hit cuts off a ringing open hat. **cut** sets how\nhard: below 0 the open hat only ducks, and above 0 it stops dead.\n\nAn unaccented hit of either hat peaks near **±5 V** and a fully accented one\nnear **±10 V**.\n\n```js\n$tr808.hiHat($clock.beatTrigger, { open: $clock.barTrigger, cut: -2 }).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Hh808Params",
@@ -2577,6 +2626,9 @@
   {
     "name": "$tr808.lowTom",
     "documentation": "TR-808 low tom.\n\nA circuit model of the 808's low tom: a round, low ring at ≈87 Hz that\nstarts sharp and settles in pitch, over a soft puff of noise. **decay**\nsets how long it rings, **freq** its pitch, and **accent** how hard it\nhits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near\n**±10 V**.\n\n```js\n$tr808.lowTom($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Lt808Params",
@@ -2747,6 +2799,9 @@
   {
     "name": "$tr808.midTom",
     "documentation": "TR-808 mid tom.\n\nA circuit model of the 808's mid tom: a round ring at ≈134 Hz that\nstarts sharp and settles in pitch, over a soft puff of noise. **decay**\nsets how long it rings, **freq** its pitch, and **accent** how hard it\nhits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near\n**±10 V**.\n\n```js\n$tr808.midTom($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Mt808Params",
@@ -2917,6 +2972,9 @@
   {
     "name": "$tr808.highTom",
     "documentation": "TR-808 high tom.\n\nA circuit model of the 808's high tom: a round ring at ≈182 Hz that\nstarts sharp and settles in pitch, over a soft puff of noise. **decay**\nsets how long it rings, **freq** its pitch, and **accent** how hard it\nhits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near\n**±10 V**.\n\n```js\n$tr808.highTom($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Ht808Params",
@@ -3087,6 +3145,9 @@
   {
     "name": "$tr808.lowConga",
     "documentation": "TR-808 low conga.\n\nA circuit model of the 808's low conga: a bright, hollow ring at ≈192 Hz\nthat starts sharp and settles in pitch. **decay** sets how long it\nrings, **freq** its pitch, and **accent** how hard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near\n**±10 V**.\n\n```js\n$tr808.lowConga($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Lc808Params",
@@ -3257,6 +3318,9 @@
   {
     "name": "$tr808.midConga",
     "documentation": "TR-808 mid conga.\n\nA circuit model of the 808's mid conga: a bright, hollow ring at ≈276 Hz\nthat starts sharp and settles in pitch. **decay** sets how long it\nrings, **freq** its pitch, and **accent** how hard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near\n**±10 V**.\n\n```js\n$tr808.midConga($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Mc808Params",
@@ -3427,6 +3491,9 @@
   {
     "name": "$tr808.highConga",
     "documentation": "TR-808 high conga.\n\nA circuit model of the 808's high conga: a bright, hollow ring at ≈405\nHz that starts sharp and settles in pitch. **decay** sets how long it\nrings, **freq** its pitch, and **accent** how hard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near\n**±10 V**.\n\n```js\n$tr808.highConga($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Hc808Params",
@@ -3597,6 +3664,9 @@
   {
     "name": "$tr909.kick",
     "documentation": "TR-909 bass drum.\n\nA circuit model of the 909's punchy kick: a rounded tone that sweeps down\nfrom about 300 Hz to rest near 56 Hz, with a click and a puff of noise at\nthe attack. **freq** sets the resting pitch, **sweep** how long the fall\ntakes, **attack** how loud the click is, **decay** how long it booms, and\n**accent** how hard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr909.kick($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Bd909Params",
@@ -3805,6 +3875,9 @@
   {
     "name": "$tr909.snare",
     "documentation": "TR-909 snare drum.\n\nA circuit model of the 909's snare: a drum tone that bends up at the strike,\nunder a burst of noise. **freq** sets the pitch, **snappy** how loud the\nnoise is, **tone** how long it rings on, and **accent** how hard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr909.snare($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Sd909Params",
@@ -3994,6 +4067,9 @@
   {
     "name": "$tr909.rimShot",
     "documentation": "TR-909 rim shot.\n\nA circuit model of the 909's rim shot: a short, sharp, metallic click from\nthree tones rung together and clipped. **accent** makes it hit harder.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr909.rimShot($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Rs909Params",
@@ -4121,6 +4197,9 @@
   {
     "name": "$tr909.clap",
     "documentation": "TR-909 hand clap.\n\nA circuit model of the 909's hand clap: bursts of filtered noise in quick\nsuccession, like several hands clapping at once, over a swelling noise tail.\n**accent** makes it louder and swells the tail.\n\nAn unaccented clap peaks near **±5 V** and a fully accented one near **±10\nV**.\n\n```js\n$tr909.clap($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Cp909Params",
@@ -4248,6 +4327,9 @@
   {
     "name": "$tr909.lowTom",
     "documentation": "TR-909 low tom.\n\nA circuit model of the 909's low tom: a deep tone that bends down from\nthe strike and grows gritty as it fades, over a puff of noise. **freq**\nsets the pitch, **decay** how long it rings, and **accent** how hard it\nhits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near\n**±10 V**.\n\n```js\n$tr909.lowTom($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Lt909Params",
@@ -4418,6 +4500,9 @@
   {
     "name": "$tr909.midTom",
     "documentation": "TR-909 mid tom.\n\nThe 909's mid tom: the low tom's sound, pitched higher and shorter.\n**freq** sets the pitch, **decay** how long it rings, and **accent** how\nhard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near\n**±10 V**.\n\n```js\n$tr909.midTom($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Mt909Params",
@@ -4588,6 +4673,9 @@
   {
     "name": "$tr909.highTom",
     "documentation": "TR-909 high tom.\n\nThe 909's high tom: the low tom's sound, the highest and shortest of the\nthree. **freq** sets the pitch, **decay** how long it rings, and\n**accent** how hard it hits.\n\nAn unaccented hit peaks near **±5 V** and a fully accented one near\n**±10 V**.\n\n```js\n$tr909.highTom($clock.beatTrigger).out()\n```",
+    "categories": [
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Ht909Params",
@@ -4758,6 +4846,9 @@
   {
     "name": "$comp",
     "documentation": "EXPERIMENTAL\n\nSingle-band feed-forward dynamics processor with peak envelope follower.\n\nTwo stages run in parallel:\n\n- **downward stage** acts on signal above `threshold`. `ratio > 1` =\n  compression, `ratio < 1` = upward expansion (boost loud), `ratio = 1` =\n  passthrough.\n- **upward stage** acts on signal below `upwardThreshold`. `upwardRatio > 1`\n  = upward compression (boost quiet), `upwardRatio < 1` = downward\n  expansion / gate-like attenuation of quiet signal, `upwardRatio = 1` =\n  passthrough.\n\nBoth ratios use textbook `X:1` notation (X = Δinput dB / Δoutput dB) and\nare lower-bounded at 1e-3 (≈ Ableton's 1:1000 display). The detected\nlevel is clamped to ±60 dB so expansion stays bounded at signal extremes.\n\nAn optional **side-chain** input lets the envelope follower track an\nexternal signal while the gain is applied to `input` — useful for\nducking, kick-triggered pumping, or building multiband effects like OTT.\n\n**Signal flow:** input → input gain → (detector: side-chain or input)\n  → up + down compression → output gain → dry/wet mix → output\n\n- **threshold** — downward stage threshold in volts (0–5, default 2.5).\n- **ratio** — downward stage ratio in textbook X:1 form. > 1 compresses,\n  < 1 expands (boosts loud signal), 1 = passthrough. Lower-bounded at\n  1e-3 (≈ 1:1000 expansion); upper bound is `f32::INFINITY` =\n  brick-wall limiter. Default 4.0 (= Ableton display 1:0.25).\n- **upwardThreshold** — upward stage threshold in volts (0–5, default 0).\n- **upwardRatio** — upward stage ratio in textbook X:1 form. > 1 boosts\n  quiet signal, < 1 gates quiet signal, 1 = passthrough. Same bounds as\n  `ratio`. Default 1 (passthrough).\n- **sidechain** — optional external detector signal.\n- **attack** / **release** — envelope follower time constants in seconds.\n- **makeup** — post-compression makeup gain as a dB-domain voltage\n  (-5V = -24dB, 0V = unity, +5V = +24dB, default 0).\n- **inputGain** — gain before the compressor (-5V = -24dB, 0V = unity,\n  5V = +24dB). Raising input gain drives more signal into the compressor.\n- **outputGain** — gain after compression (-5V = -24dB, 0V = unity,\n  5V = +24dB). Trims the final output level.\n- **mix** — dry/wet blend (0 = fully dry, 5 = fully wet, default 5.0).\n  The dry signal is the original input before any gain staging.\n\n```js\n// simple bus compressor\n$comp($saw('c2'), { threshold: 2.5, ratio: 4, attack: 0.01, release: 0.1 })\n```\n\n```js\n// side-chain ducking — a kick envelope ducks a sustained pad\n$comp($saw('c3'), {\n  sidechain: $perc($clock.beatTrigger, { decay: 0.2 }),\n  threshold: 1.0, ratio: 8, attack: 0.005, release: 0.2,\n})\n```\n\n```js\n// multiband compression using $xover + $comp\nlet bands = $xover($saw('c2'), { lowMidFreq: '200hz', midHighFreq: '2000hz' })\nlet low  = $comp(bands.low,  { threshold: 2.5, ratio: 4 })\nlet mid  = $comp(bands.mid,  { threshold: 3,   ratio: 3 })\nlet high = $comp(bands.high, { threshold: 2,   ratio: 6 })\n$mix([low, mid, high]).out()\n```",
+    "categories": [
+      "dynamics"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CompressorParams",
@@ -5068,6 +5159,9 @@
   {
     "name": "$xover",
     "documentation": "EXPERIMENTAL\n\nThree-band crossover / band splitter.\n\nSplits an input signal into three frequency bands (low, mid, high).\nThe default `sample` output passes the input through unchanged,\nso the module is a no-op unless you explicitly tap the\n`.low`, `.mid`, or `.high` outputs.\n\nTwo crossover frequencies define the band boundaries:\n- **lowMidFreq** — boundary between the low and mid bands (V/Oct, default ~200 Hz).\n- **midHighFreq** — boundary between the mid and high bands (V/Oct, default ~2000 Hz).\n\n```js\n// Split into 3 bands and process each independently\nlet bands = $xover($saw('c2'), { lowMidFreq: '200hz', midHighFreq: '2000hz' })\nlet low  = $comp(bands.low,  { threshold: 2.5, ratio: 4 })\nlet mid  = $comp(bands.mid,  { threshold: 3,   ratio: 3 })\nlet high = $comp(bands.high, { threshold: 2,   ratio: 6 })\n$mix([low, mid, high]).out()\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CrossoverParams",
@@ -5225,6 +5319,9 @@
   {
     "name": "$fold",
     "documentation": "Wavefolder that reflects the signal back when it exceeds a threshold,\nproducing dense, harmonically rich tones. Higher amounts create more\ncomplex, metallic timbres.",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "FoldParams",
@@ -5363,6 +5460,9 @@
   {
     "name": "$cheby",
     "documentation": "Harmonic waveshaping effect that adds controlled overtone content.\n\nAt low amounts the signal passes through cleanly; turning it up\nprogressively emphasizes higher harmonics (2nd, 3rd, … up to 16th),\nthickening and brightening the tone.",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ChebyParams",
@@ -5506,6 +5606,9 @@
   {
     "name": "$dattorro",
     "documentation": "Stereo plate reverb based on the Dattorro algorithm.\n\nImplements Jon Dattorro's plate reverberator with input diffusion,\na cross-coupled stereo tank, and multi-tap output. Even input\nchannels are summed to the left input, odd channels to the right;\nwith an odd channel count the last channel feeds both sides.\nOutput is always 100% wet.\n\n```js\n$dattorro($saw('c3'), { decay: 3, damping: 1, size: 2 }).out()\n```",
+    "categories": [
+      "effect"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "DattorroParams",
@@ -5735,6 +5838,9 @@
   {
     "name": "$overdrive",
     "documentation": "Multi-mode overdrive saturator. Drive boosts the input into a soft, hard,\nor asymmetric shaper, with a tone control applying pre-emphasis before\ndistortion and matching de-emphasis after. Internally oversampled 2× to\nreduce aliasing.",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "OverdriveParams",
@@ -5902,6 +6008,9 @@
   {
     "name": "$filterDC",
     "documentation": "One-pole high-pass that removes DC offset and sub-audio rumble from a\nsignal while passing audio-rate content. The cutoff sits at ~20 Hz.",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "FilterDcParams",
@@ -6003,6 +6112,9 @@
   {
     "name": "$plate",
     "documentation": "Stereo plate reverb with a dense Glicol-inspired feedback network.\n\nUses a longer feedback path with distributed damping and more allpass\nstages than the standard Dattorro algorithm, producing a thicker,\nwarmer reverb tail. Always 100% wet — use `.send()` or `$mix` for\ndry/wet blending.\n\n```js\n$plate($saw('c3')).out()\n$plate($saw('c3'), { decay: 2, bandwidth: 3 }).out()\n$plate($saw('c3'), { modulation: $sine('0.1hz') }).out()\n```",
+    "categories": [
+      "effect"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "PlateParams",
@@ -6194,6 +6306,9 @@
   {
     "name": "$quantNoise",
     "documentation": "Adds bright, granular quantization noise to a signal.\n\nThe signal is snapped to a coarse voltage grid (`step`), dithered so the\nresult is broadband noise instead of a tonal buzz, then the quantized value\nis differentiated and scaled by `amount` and summed back onto the dry signal.\nBecause the grit is the signal's own (dithered) quantization residual, it\ntracks the signal's level and motion — feed it a slow LFO for a fizz that\nswells with the modulator, or audio for a crunchy digital edge.\n\n## Example\n\n```js\n$quantNoise($sine('c'), 2).out() // grainy, fizzy sine\n```",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "QuantNoiseParams",
@@ -6349,6 +6464,9 @@
   {
     "name": "$unstable.reverb",
     "documentation": "Stereo Feedback Delay Network reverb.\n\nThe eight modulated delay lines are split into a left and a right\nsub-network. Even input channels feed the left half, odd channels the right,\nso the wet field tracks the dry stereo image; a `width` control sets how\nstrongly the two halves cross-couple, from held-apart to collapsed to mono.\nEach line has a decay gain tuned so the network reaches −60 dB at the\nrequested `decay`, plus a one-pole damping filter for a natural\nhigh-frequency rolloff. Per-channel predelay and diffusion sit ahead of the\nnetwork. Output is always 100% wet — use `.send()` or `$mix` for a dry/wet\nblend.\n\n```js\n$unstable.reverb($saw('c3')).out()\n$unstable.reverb($saw('c3'), { decay: 3, damping: 1.5, size: 2 }).out()\n$unstable.reverb($saw('c3'), { decay: 4, width: 4, modulation: 3 }).out()\n```",
+    "categories": [
+      "effect"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ReverbParams",
@@ -6578,6 +6696,9 @@
   {
     "name": "$unstable.reverb2",
     "documentation": "Stereo Jot-style Feedback Delay Network reverb with a scattering matrix.\n\nThe eight modulated delay lines split into a left and a right sub-network,\neach recirculating through its own paraunitary scattering matrix — a\nHadamard mix, short per-line delays, then a Householder mix — so energy\ndiffuses densely without a fixed metallic structure. Even input channels\nfeed the left half, odd the right, so the wet field tracks the dry stereo\nimage; a `width` control sets how strongly the halves cross-couple. Each\nline's feedback runs through a first-order absorption filter that sets a\ntwo-band decay time (`decay` for the low band, `damping` for how much faster\nthe high band decays), and a matching tonal-correction shelf flattens the\noutput timbre. Per-channel predelay and diffusion sit ahead of the network.\nOutput is always 100% wet — use `.send()` or `$mix` for a dry/wet blend.\n\n```js\n$unstable.reverb2($saw('c3')).out()\n$unstable.reverb2($saw('c3'), { decay: 3, damping: 2, size: 2 }).out()\n$unstable.reverb2($saw('c3'), { decay: 4, width: 4, modulation: 3 }).out()\n```",
+    "categories": [
+      "effect"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Reverb2Params",
@@ -6807,6 +6928,9 @@
   {
     "name": "$segment",
     "documentation": "Waveshaper that morphs through 8 distinct tonal shapes as you sweep the\namount control. Low settings pass the signal cleanly; mid settings compress\nand square it off; high settings introduce stepped, ripple-like overtone\npatterns. Works best on simple waveforms like sines or triangles.",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SegmentParams",
@@ -6945,6 +7069,9 @@
   {
     "name": "$reverb",
     "documentation": "Reverb from Mutable Instruments Beads, with a stereo output.\n\n`amount` sets both how much reverb you hear and how long it rings; at 0\nthe input passes through untouched. `size` makes the space bigger and\n`tone` makes the tail darken faster as it fades. Beads' own settings are\n`size` 0 and `tone` 1 for digital, 0 and 2 for clean tape, 2.5 and 2 for\nvintage, and 5 and 2 for dirty tape. The input passes through clean, so\nput `$granular` or `$wowFlutter` before it for their colour. Peaks above\n±5 V are limited.\n\n```js\n$reverb($saw('c3'), 4, { size: 5, tone: 2 }).out()\n```",
+    "categories": [
+      "effect"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "BeadsReverbParams",
@@ -7122,6 +7249,9 @@
   {
     "name": "$granular",
     "documentation": "Granular processor from Mutable Instruments Beads: it records `input` and\nplays it back as grains, starting one on each rising edge at `trigger`.\n\nEach grain takes `time`, `size`, `shape`, `freq` and `spread` when it\nstarts, so for grain-to-grain variation modulate them with something\nsampled on the same trigger, such as `$sah`. Set `rootFreq` to the\npitch of the input and `freq` plays notes. `freeze` holds the recording\nso the grains keep replaying it.\n\nEach input channel gets its own voice. `output` is a stereo mix of every\nvoice, and `voices` gives each voice its own channel. Follow it with\n`$wowFlutter` and `$reverb` for the rest of Beads' sound.\n\n```js\nconst grains = $pulse('8hz')\n$granular($saw('a3'), grains, {\n  time: $sah($noise('white').range(0, 2), grains),\n  freq: $cycle($p('[c4, e4, g4] [b3, d4, g4]')),\n  rootFreq: 'a3',\n  width: 4,\n  spread: 2,\n  mix: 4,\n}).out()\n```",
+    "categories": [
+      "effect"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "GranularParams",
@@ -7488,6 +7618,9 @@
   {
     "name": "$granularSampler",
     "documentation": "`$granular` playing a WAV file instead of a live input: it plays grains\nfrom `wav`, starting one on each rising edge at `trigger`.\n\nEach grain takes `time`, `size`, `shape`, `freq` and `spread` when it\nstarts, so for grain-to-grain variation modulate them with something\nsampled on the same trigger, such as `$sah`. Set `rootFreq` to the pitch\nof the file and `freq` plays notes.\n\nEach channel of the file gets its own voice. `output` is a stereo mix of\nevery voice, and `voices` gives each voice its own channel. `quality`\ncolours the file as `$granular` colours its recording.\n\n```js\nconst grains = $pulse('8hz')\n$granularSampler($wavs().pad, grains, {\n  time: $sah($noise('white').range(0, 5), grains),\n  width: 4,\n  spread: 2,\n}).out()\n```",
+    "categories": [
+      "sampler"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "GranularSamplerParams",
@@ -7813,6 +7946,9 @@
   {
     "name": "$wowFlutter",
     "documentation": "Tape wow and flutter from Mutable Instruments Beads' dirty tape setting:\nslow, drifting pitch wobble with a slight softening of the highs. Every\nchannel wobbles together, like one tape carrying them all.\n\n`speed` and `intensity` set how fast and how deep the wobble is; their\ndefaults are Beads'. Faster and deeper both bend the pitch further.\n\n```js\nconst grains = $pulse('8hz')\nconst cloud = $granular($saw('a3'), grains, { mix: 4, quality: 'dirtyTape' })\n$reverb($wowFlutter(cloud), 3, { size: 5, tone: 2 }).out()\n```",
+    "categories": [
+      "effect"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "WowFlutterParams",
@@ -7967,6 +8103,9 @@
   {
     "name": "$clockedDelay",
     "documentation": "Tempo-synced delay from Mutable Instruments Beads' delay mode. Its repeats\ncome from feedback inside the module, so it needs no feedback loop in the\npatch.\n\nThe delay time is `bars` of the playhead, which follows the transport,\ntimes a multiplier set by `time`. When the time or the tempo changes, the\nold repeats crossfade into the new ones at an unchanged pitch.\n`shape` windows each repeat with an envelope one delay time long, locked\nto the playhead, so the repeats come back as rhythmic slices;\n`grooveAmount` swings the windows with the global groove. `freq`\nshifts their pitch against `rootFreq`, and `tone` filters them. While\n`freeze` is high the delay stops recording and loops slices of what it\nholds, one base delay time long; `time` then picks the slice.\n\nEach input channel gets its own delay. Follow it with `$wowFlutter` and\n`$reverb` for the rest of Beads' sound.\n\n```js\nconst pluck = $saw('c3').amplitude($perc($clock.beatTrigger, { decay: 0.1 }))\n$clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()\n```",
+    "categories": [
+      "effect"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ClockedDelayParams",
@@ -8289,6 +8428,9 @@
   {
     "name": "$sine",
     "documentation": "A sine wave oscillator.\n\n## Example\n\n```js\n$sine('c4').out()\n```",
+    "categories": [
+      "oscillator"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SineOscillatorParams",
@@ -8474,6 +8616,9 @@
   {
     "name": "$saw",
     "documentation": "A variable-symmetry triangle oscillator that morphs between saw, triangle, and ramp.\n\nThe `shape` parameter shifts the peak position of a triangle wave,\nsmoothly morphing between waveforms by adjusting attack/release time:\n- **0** — Saw (all rise, instant drop)\n- **2.5** — Triangle (symmetric)\n- **5** — Ramp (instant rise, all fall)\n\nThe `freq` input follows the **V/Oct** standard (0V = C4).\nOutput range is **±5V**.\n\n## Example\n\n```js\n$saw('a3', { shape: 2.5 }).out() // triangle wave\n```",
+    "categories": [
+      "oscillator"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SawOscillatorParams",
@@ -8683,6 +8828,9 @@
   {
     "name": "$pulse",
     "documentation": "Pulse/square wave oscillator with pulse width modulation.\n\nThe `freq` input follows the **V/Oct** standard (0V = C4).\nThe `width` parameter sets the duty cycle: 0 = narrow pulse,\n2.5 = square wave, 5 = inverted narrow pulse.\n`pwm` is added to `width` for modulation.\n\nOutput range is **±5V**.\n\n## Example\n\n```js\n$pulse('c3', { width: 2.5 }).out()\n```",
+    "categories": [
+      "oscillator"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "PulseOscillatorParams",
@@ -8906,6 +9054,10 @@
   {
     "name": "$pSine",
     "documentation": "Phase-driven sine wave oscillator.\n\nInstead of a frequency input, this oscillator is driven by an external\nphasor signal (0–1). Connect a `ramp` or other phase source to `phase`\nand use phase-distortion modules between them for complex timbres.\n\nOutput range is **±5V**.",
+    "categories": [
+      "oscillator",
+      "phase"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "PSineOscillatorParams",
@@ -9009,6 +9161,10 @@
   {
     "name": "$pSaw",
     "documentation": "Phase-driven variable-symmetry triangle oscillator.\n\nInstead of a frequency input, this oscillator is driven by an external\nphasor signal (0–1). Connect a `ramp` or other phase source to `phase`\nand use phase-distortion modules between them for complex timbres.\n\nThe `shape` parameter shifts the peak position of a triangle wave,\nsmoothly morphing between waveforms by adjusting attack/release time:\n- **0** — Saw (all rise, instant drop)\n- **2.5** — Triangle (symmetric)\n- **5** — Ramp (instant rise, all fall)\n\nOutput range is **±5V**.",
+    "categories": [
+      "oscillator",
+      "phase"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "PSawOscillatorParams",
@@ -9131,6 +9287,10 @@
   {
     "name": "$pPulse",
     "documentation": "Phase-driven pulse/square oscillator with pulse width modulation.\n\nInstead of a frequency input, this oscillator is driven by an external\nphasor signal (0–1). Connect a `ramp` or other phase source to `phase`\nand use phase-distortion modules between them for complex timbres.\n\nThe `width` parameter sets the duty cycle: 0 = narrow pulse,\n2.5 = square wave, 5 = inverted narrow pulse.\n`pwm` is added to `width` for modulation.\n\nOutput range is **±5V**.",
+    "categories": [
+      "oscillator",
+      "phase"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "PPulseOscillatorParams",
@@ -9272,6 +9432,10 @@
   {
     "name": "$noise",
     "documentation": "Polyphonic noise generator with selectable color and clock rate.\n\nSpectral colors:\n- **white**: equal energy across all frequencies (bright, hissy)\n- **pink**: equal energy per octave (warm, balanced — good for \"ocean\" textures)\n- **brown**: steep low-frequency emphasis (deep, rumbling)\n- **blue** / **violet**: high-frequency emphasis (+3 / +6 dB/octave), for hats and air\n\nDistributions and digital noise:\n- **binary**: only −5V or +5V — at the same peak it is louder than white\n- **gaussian**: values cluster near 0V with occasional large excursions\n- **lfsr** / **lfsrShort**: NES-style shift-register noise; lfsr repeats every 32767 ticks,\n  lfsrShort every 93, which sounds pitched and metallic — its `rate` sets that pitch\n\nImpulse and switching noise:\n- **velvet**: exactly one ±5V trigger per tick, at a random moment within it, resting at 0V\n- **telegraph**: ±5V that flips at random moments, on average `rate` times per second\n- **dust**: rests at −5V with +5V triggers, on average `rate` per second; like\n  Mutable Instruments Beads' random grain triggers, each gap is 0.12–2.36× the average, so\n  triggers are loosely irregular with no long silences\n\nVelvet and dust triggers last the standard trigger length (about 0.33 ms),\nshortened toward a single sample when the next trigger comes sooner, so\nevery trigger stays distinct.\n\n`rate` clocks the generator: the color is computed at that rate, so slow\nrates give random CV (a slow brown is a drunk walk) and audio rates give\nlo-fi, band-limited noise. `interp` shapes the output between ticks;\n`linear` and `smooth` turn any color into a smooth random LFO. Unconnected,\nthe generator draws a new value every sample, telegraph flips on half of all\nsamples, and dust triggers every two samples on average.\n\nThe `channels` parameter sets how many independent channels are generated;\neach channel runs its own RNG seeded distinctly, so every channel is a\ndifferent random sequence.\n\nOutput range is **±5V**.\n\n## Example\n\n```js\n$noise(\"pink\").out()\n$noise(\"white\", { channels: 4 }).out()\n$noise(\"lfsrShort\", { rate: \"c3\" }).out()\n$sine($noise(\"brown\", { rate: $hz(4), interp: \"smooth\" })).out()\n```",
+    "categories": [
+      "oscillator",
+      "random"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "NoiseParams",
@@ -9477,6 +9641,10 @@
   {
     "name": "$macro",
     "documentation": "Full-featured Plaits macro-oscillator with all 24 engines, LPG, and modulation routing.\n\nFor detailed engine descriptions and parameter behavior, see the\n[Mutable Instruments Plaits documentation](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/).\n\nEngines (selected via `engine` param):\n- Virtual analog VCF (classic subtractive)\n- Phase distortion\n- Six-op FM (3 banks)\n- Wave terrain\n- String machine\n- Chiptune\n- Virtual analog (dual oscillator)\n- Waveshaping\n- Two-operator FM\n- Granular formant\n- Harmonic/additive\n- Wavetable\n- Chords\n- Vowel/speech synthesis\n- Swarm\n- Filtered noise\n- Particle noise\n- Inharmonic strings\n- Modal resonator\n- Analog bass drum\n- Analog snare drum\n- Analog hi-hat",
+    "categories": [
+      "oscillator",
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "PlaitsParams",
@@ -9957,6 +10125,9 @@
   {
     "name": "$supersaw",
     "documentation": "Supersaw oscillator with multiple detuned sawtooth voices and PolyBLEP anti-aliasing.\n\nGenerates a classic supersaw sound by stacking multiple sawtooth oscillators\nwith symmetric detuning. Each input channel is processed by all voices,\ncreating a rich, full sound.\n\n- **freq** — pitch in V/Oct (0V = C4)\n- **voices** — number of detuned saw voices (1–64, default 5)\n- **detune** — detune spread in semitones (default 0.18)\n\nOutput range is **±5V** with gain compensation for input channel count.\n\n## Example\n\n```js\n$supersaw('c3').out()\n$supersaw('c3', { voices: 7, detune: 0.3 }).out()\n```",
+    "categories": [
+      "oscillator"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SupersawParams",
@@ -10154,6 +10325,9 @@
   {
     "name": "$wavetable",
     "documentation": "A band-limited wavetable oscillator.\n\nReads a pre-built mipmap pyramid (FFT-filtered frame copies) and\nselects a level appropriate for the playback frequency to suppress\naliasing. Frame position can be swept across multi-frame tables for\nclassic wavetable timbral sweeps, and an optional `PhaseWarp`\nreshapes the read phase before sampling.\n\n## Example\n\n```js\n$wavetable('c4', $wavs().tables.pad).out()\n$wavetable('c2', $wavs().tables.pad, $sine('0.2hz').range(0, 5)).out()\n```",
+    "categories": [
+      "oscillator"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "WavetableOscParams",
@@ -10568,6 +10742,9 @@
   {
     "name": "$lpf",
     "documentation": "Lowpass filter that attenuates frequencies above the cutoff point.\n\nUse it to tame bright timbres, create bass-heavy sounds, or build classic\nsubtractive synth patches. Sweeping the cutoff with an envelope or LFO\nproduces the familiar filter-sweep effect.\n\n- **cutoff** — set in V/Oct (0 V = C4). Accepts modulation for filter sweeps.\n- **resonance** — boosts frequencies near the cutoff (0–5). High values\n  produce a ringing peak, but the filter never self-oscillates; use\n  `$jup6f` for a filter that does.\n\n```js\n// subtractive bass: saw through a lowpass with envelope on cutoff\nlet env = $adsr($pPulse($clock[0]), { attack: 0.01, decay: 0.3, sustain: 1, release: 0.4 })\n$lpf($saw('c2'), env.range('200hz', '2000hz'))\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "LowpassFilterParams",
@@ -10707,6 +10884,10 @@
   {
     "name": "$apf",
     "documentation": "Stacked allpass filter: 1 to 50 two-pole stages, with resonance and\nfeedback. Smears transients into chirps around the cutoff; mixed with the\ndry signal, it notches like a phaser.\n\n- **cutoff** — V/Oct, the frequency delayed most.\n- **stages** — 1–50. More stages, longer smear. A fractional count fades\n  the next stage in smoothly.\n- **resonance** — 0–5. Makes the smear ring at the cutoff's pitch.\n- **feedback** — −5 to 5. Repeats the smear; rings get longer toward ±5,\n  where they never fade. Up to ±6 the filter self-oscillates. Negative\n  values flip the sign of every other repeat.\n- **fadeStep** — 0–49. Above 0, `stages` crossfades between chains this\n  many stages apart instead, giving notches.\n\n```js\n// smear a click on every beat into a chirp around C3\n$pPulse($clock[0]).$.apf('c3', { stages: 50 }).out()\n// ringing, pitched smear with repeats\n$pPulse($clock[0]).$.apf('g3', { stages: 32, resonance: 3, feedback: 3 }).out()\n// self-oscillating: no input, just the loop\n$apf(0, 'c3', { stages: 20, resonance: 2, feedback: 5.5 }).out()\n// notches: crossfading between chains 8 stages apart\n$noise('white').$.apf('c4', { stages: $sine('0.05hz').range(9, 25), resonance: 2, fadeStep: 8 }).out()\n// four-stage phaser: swept allpass mixed equally with the dry saw\n$saw('c2').$m.apf(2.5, $sine('0.2hz').range(-1, 3), { stages: 4, resonance: 2, feedback: 3 }).out()\n```",
+    "categories": [
+      "filter",
+      "effect"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "AllpassParams",
@@ -10888,6 +11069,9 @@
   {
     "name": "$hpf",
     "documentation": "Highpass filter that attenuates frequencies below the cutoff point.\n\nUse it to remove low-end rumble, thin out a sound, or create rising\nfilter effects. Pairs well with lowpass filters for isolating a\nfrequency band.\n\n- **cutoff** — set in V/Oct (0 V = C4). Accepts modulation for filter sweeps.\n- **resonance** — boosts frequencies near the cutoff (0–5). High values\n  produce a ringing peak.\n\n```js\n// remove low end from a noise source\n$hpf($noise(\"white\"), 'a3', 1)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "HighpassFilterParams",
@@ -11027,6 +11211,9 @@
   {
     "name": "$bpf",
     "documentation": "Bandpass filter that passes frequencies near the center frequency and\nattenuates everything else.\n\nUse it to isolate a frequency region, create vowel-like tones, or\nbuild resonant \"wah\" effects by sweeping the center frequency.\n\n- **center** — center frequency in V/Oct (0 V = C4).\n- **resonance** — controls bandwidth (0–5). Higher values narrow the\n  passband for a more pronounced, ringing sound.\n\n```js\n// resonant bandpass sweep on noise\n$bpf($noise(\"white\"), $sine('0.5hz').range('440hz', '1200hz'), 3)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "BandpassFilterParams",
@@ -11166,6 +11353,9 @@
   {
     "name": "$jup6f",
     "documentation": "Jupiter-6–style multimode ladder filter.\n\nModels the IR3109 4-pole OTA cascade found in the Roland Jupiter-6.\nEach stage applies `tanh` saturation for the warm, harmonically rich\ncharacter of the original analog circuit. Resonance drives the feedback\npath and self-oscillates at high values.\n\nThe default output is a 24 dB/oct lowpass. Additional taps provide\n12 dB/oct lowpass, bandpass, and highpass responses derived from the\nsame ladder core.\n\n- **cutoff** — set in V/Oct (0 V = C4). Accepts modulation for filter sweeps.\n- **resonance** — feedback amount (0–5). Above ~4 the filter self-oscillates,\n  producing a clean sine at the cutoff frequency.\n\n```js\n// classic Jupiter pad: saw through the ladder with slow envelope\nlet env = $adsr($pPulse($clock[0]), { attack: 0.4, decay: 0.6, sustain: 0.3, release: 1.0 })\n$jup6f($saw('c2'), env.range('200hz', '4000hz'), 2.5)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Jup6fParams",
@@ -11331,6 +11521,10 @@
   {
     "name": "$lpg",
     "documentation": "Vactrol low pass gate modeled on the one built into Mutable Instruments Plaits.\n\nThe gate is a filter and VCA driven together by a simulated vactrol: as it\nopens, the signal gets both louder and brighter, and it closes with the\nslow, non-linear tail that gives plucked and struck sounds their bounce.\n\n- **trigger** — each rising edge pings the vactrol fully open, then it\n  decays back to **level**.\n- **level** — the floor the vactrol rests at, 0–5 V on Plaits' compressing\n  curve: about 0.9 V opens it halfway, 2.5 V about 80%, 5 V fully. With no\n  trigger it works as a CV-controlled gate; with a trigger, each ping\n  swings the gate from the floor to fully open and back.\n- **color** — low values close the filter as the gate closes (mellow,\n  woody); high values let highs through, approaching a plain VCA.\n- **decay** — length of the vactrol's release.\n\nWith neither **trigger** nor **level** patched the gate is bypassed and\nthe input passes through unchanged; patching or unpatching them\ncrossfades over 5 ms.\n\n```js\n// plucked saw pinged on every beat\n$lpg($saw('c3'), $clock.beatTrigger, { color: 1.5, decay: 2 }).out()\n```",
+    "categories": [
+      "filter",
+      "dynamics"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "LpgParams",
@@ -11511,6 +11705,10 @@
   {
     "name": "$multimode",
     "documentation": "Mutable Instruments Blades–style multimode filter with drive and wavefolder.\n\nA circuit model of one channel of Blades: a 2164 VCA state-variable filter\nthat morphs continuously from lowpass through bandpass to highpass, preceded\nby a drive VCA into a zener soft clipper and a two-stage diode wavefolder.\nThe signal path is DC-coupled, so it can process CVs too.\n\n- **cutoff** — V/Oct. Tracks exactly at low cutoffs and runs progressively\n  flat in the top octaves (−15 cents at 1 kHz, about half a semitone at\n  5 kHz), topping out near 21 kHz, as the circuit does. Responds at audio\n  rate, so an oscillator patched in gives exponential FM.\n- **resonance** — 0–5. Self-oscillates above ~4.3; the bandpass is then\n  held near ±4 V by the soft knee of the integrator's zeners. With no input,\n  `mode` shifts the phase of the sine.\n- **mode** — 0 lowpass, 2.5 bandpass, 5 highpass; values between crossfade.\n- **drive** — input gain ahead of everything else: 0 is unity, 5 is about\n  +18 dB. The zeners' soft knee already rounds a ±5 V input at 0.\n- **fold** — 0 soft clipping only, 5 the two-stage wavefolder.\n- **highRes** — on by default. Off runs the circuit at the engine rate for\n  less CPU, with more aliasing from hot drive, folding and self-oscillation,\n  and a highpass that attenuates more below the cutoff once the cutoff is\n  above ~8 kHz (about 2 dB more at 15 kHz).\n\nPassband gain in lowpass mode is about +2.8 dB at unity drive, rolling off\nabove ~20 kHz at the output amp, whose zeners compress the output softly\nabove about 6 V.\n\n```js\n// resonant sweep that morphs from lowpass to highpass\n$multimode($saw('c2'), $sine('0.1hz').range(-1, 2), 3.8, $sine('0.07hz').range(0, 5)).out()\n// wavefolded sine through a gentle lowpass\n$multimode($sine('c3'), 'c6', 1, 0, { drive: 3, fold: 3 }).out()\n// no input: a self-oscillating sine at A3\n$multimode(0, 'a3', 5).out()\n// without oversampling, for less CPU\n$multimode($saw('c2'), 'c5', 2, 0, { highRes: false }).out()\n```",
+    "categories": [
+      "filter",
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "MultimodeParams",
@@ -11741,6 +11939,9 @@
   {
     "name": "$eq",
     "documentation": "Parametric EQ: shape the tone of a sound with up to 8 bands.\n\nEach band in **sections** has a **type**:\n\n- `'peak'` (default): boost or cut around a frequency.\n- `'lowShelf'` / `'highShelf'`: boost or cut everything below / above a\n  frequency.\n- `'lowpass'` / `'highpass'`: remove everything above / below a frequency.\n- `'notch'`: remove a narrow band around a frequency.\n\nand sets:\n\n- **freq**: where the band sits, like `'1000hz'` or `'c4'`.\n- **gain**: how much to boost or cut, in dB (-24 to 24). Peaks and shelves\n  only.\n- **q**: how narrow the band is (0.1 to 20, default 0.707). On shelves and\n  lowpass/highpass, values above 0.707 add a resonant bump at the\n  frequency; on shelves, lower values make a gentler slope.\n\nAny of them can be modulated. With no sections, the sound passes through\nunchanged.\n\nTo EQ channels differently, give **sections** one list of bands per\nchannel, like one for left and one for right.\n\n**adaptiveQ** makes peaks narrower the more you boost or cut them, like\nmany classic analog EQs.\n\n**ui: true** shows an editor under the call. Drag a band's dot to move it,\nscroll over it or drag its handles to change q, and double-click to add a\nband. Changes play right away and are written into your code. Hold\nCtrl/Cmd to change only the code, and right-click a control to reset it.\n\n```js\n// Warm up the lows, sweep a dip through the mids, clear out rumble\n$eq($saw('c2'), {\n  sections: [\n    { type: 'lowShelf', freq: '150hz', gain: 3 },\n    { type: 'peak', freq: $sine('0.5hz').range('400hz', '2000hz'), gain: -6, q: 2 },\n    { type: 'highpass', freq: '40hz' },\n  ],\n  adaptiveQ: true,\n})\n\n// A darker left channel, a brighter right one\n$eq($saw(['c2', 'g2']), {\n  sections: [\n    [{ type: 'highShelf', freq: '3000hz', gain: -6 }],\n    [{ type: 'highShelf', freq: '3000hz', gain: 4 }],\n  ],\n})\n\n// Start empty and build the EQ in the editor\n$eq($saw('c2'), { ui: true })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ParametricEqParams",
@@ -11962,6 +12163,9 @@
   {
     "name": "$unstable.filter.lp",
     "documentation": "Surge multimode lowpass (the \"12 dB\" / \"24 dB\" vember filter).\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; near the top the filter rings and self-oscillates.\n- **slope** — `'db12'` or `'db24'`.\n- **drive** — `'standard'`, `'driven'`, or `'clean'`.\n\n```js\n$unstable.filter.lp($saw('c2'), 'c4', 2, { slope: 'db24', drive: 'driven' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "LpFilterParams",
@@ -12146,6 +12350,9 @@
   {
     "name": "$unstable.filter.hp",
     "documentation": "Surge multimode highpass (the \"12 dB\" / \"24 dB\" vember filter).\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; near the top the filter rings and self-oscillates.\n- **slope** — `'db12'` or `'db24'`.\n- **drive** — `'standard'`, `'driven'`, or `'clean'`.\n\n```js\n$unstable.filter.hp($saw('c2'), 'c4', 2, { slope: 'db12', drive: 'clean' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "HpFilterParams",
@@ -12330,6 +12537,9 @@
   {
     "name": "$unstable.filter.bp",
     "documentation": "Surge multimode bandpass (the \"12 dB\" / \"24 dB\" vember filter).\n\n- **cutoff** — center frequency in V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; higher narrows the band and pushes toward ringing.\n- **slope** — `'db12'` or `'db24'`.\n- **drive** — `'standard'`, `'driven'`, `'clean'`, or the 12 dB-only\n  `'drivenLegacy'` / `'cleanLegacy'`.\n\n```js\n$unstable.filter.bp($saw('c2'), 'c4', 3, { slope: 'db12', drive: 'drivenLegacy' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "BpFilterParams",
@@ -12524,6 +12734,9 @@
   {
     "name": "$unstable.filter.notch",
     "documentation": "Surge notch filter (the \"12 dB\" / \"24 dB\" vember notch).\n\n- **cutoff** — notch center in V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; shapes the notch width per `style`.\n- **slope** — `'db12'` or `'db24'`.\n- **style** — `'standard'` (wide) or `'mild'` (gentle).\n\n```js\n$unstable.filter.notch($saw('c2'), 'c4', 1, { slope: 'db12', style: 'mild' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "NotchFilterParams",
@@ -12703,6 +12916,9 @@
   {
     "name": "$unstable.filter.ap",
     "documentation": "Surge allpass filter — flat magnitude, frequency-dependent phase shift.\nUseful for phaser-style effects when mixed against the dry signal.\n\n- **cutoff** — phase-transition center in V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; sharpens the phase transition around the center.\n\n```js\n$unstable.filter.ap($saw('c2'), 'c4', 2)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ApFilterParams",
@@ -12844,6 +13060,9 @@
   {
     "name": "$unstable.filter.legacyLadder",
     "documentation": "Surge XT's Legacy Ladder — the classic 4-pole transistor-ladder lowpass.\nSelf-oscillates at high resonance; runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; past ~4 the ladder rings and self-oscillates.\n- **slope** — output tap: `'db6'`, `'db12'`, `'db18'`, or `'db24'`.\n\n```js\n$unstable.filter.legacyLadder($saw('c2'), 'c4', 3, { slope: 'db24' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "LegacyLadderFilterParams",
@@ -13014,6 +13233,9 @@
   {
     "name": "$unstable.filter.diodeLadder",
     "documentation": "Surge XT's Diode Ladder — an EMS-style diode-cascade lowpass (zero-delay\nfeedback, adapted from Odin 2). Screams at high resonance.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; high values self-oscillate.\n- **slope** — output tap: `'db6'`, `'db12'`, `'db18'`, or `'db24'`.\n\n```js\n$unstable.filter.diodeLadder($saw('c2'), 'c4', 3, { slope: 'db24' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "DiodeLadderFilterParams",
@@ -13184,6 +13406,9 @@
   {
     "name": "$unstable.filter.vintageLadder",
     "documentation": "Surge XT's Vintage Ladder — three Moog-ladder simulations. `type` picks the\nmodel: `'rk'` (Runge-Kutta circuit integration), `'huov'` (Huovilainen,\nper-stage saturation), or `'huov2010'` (Huovilainen's 2010 revision).\nRuns 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; the top of the range self-oscillates.\n- **compensated** — bass compensation: keeps low end at high resonance.\n\n```js\n$unstable.filter.vintageLadder($saw('c2'), 'c4', 2, { type: 'huov', compensated: true })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "VintageLadderFilterParams",
@@ -13354,6 +13579,9 @@
   {
     "name": "$unstable.filter.k35Lp",
     "documentation": "Surge XT's K35 lowpass — the Korg 35 sallen-key filter (from Odin 2), with a\nsaturator in the resonance feedback path. Oversampled 2× when saturating.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; screams near the top.\n- **saturation** — `'none'`, `'mild'`, `'moderate'`, `'heavy'`, `'extreme'`.\n\n```js\n$unstable.filter.k35Lp($saw('c2'), 'c4', 3, { saturation: 'moderate' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "K35LpFilterParams",
@@ -13529,6 +13757,9 @@
   {
     "name": "$unstable.filter.k35Hp",
     "documentation": "Surge XT's K35 highpass — the Korg 35 sallen-key filter (from Odin 2), with a\nsaturator in the resonance feedback path. Oversampled 2× when saturating.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; screams near the top.\n- **saturation** — `'none'`, `'mild'`, `'moderate'`, `'heavy'`, `'extreme'`.\n\n```js\n$unstable.filter.k35Hp($saw('c2'), 'c4', 3, { saturation: 'mild' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "K35HpFilterParams",
@@ -13704,6 +13935,9 @@
   {
     "name": "$unstable.filter.obxd2Lp",
     "documentation": "Surge XT's OB-Xd 2-pole filter — a zero-delay state-variable design with\na diode-pair feedback nonlinearity (from Filatov's OB-Xd, via Odin 2).\nRuns 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5.\n- **drive** — `'standard'`, or `'pushed'` for easy self-oscillation.\n\n```js\n$unstable.filter.obxd2Lp($saw('c2'), 'c4', 3, { drive: 'pushed' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Obxd2LpFilterParams",
@@ -13864,6 +14098,9 @@
   {
     "name": "$unstable.filter.obxd2Bp",
     "documentation": "Surge XT's OB-Xd 2-pole filter — a zero-delay state-variable design with\na diode-pair feedback nonlinearity (from Filatov's OB-Xd, via Odin 2).\nRuns 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5.\n- **drive** — `'standard'`, or `'pushed'` for easy self-oscillation.\n\n```js\n$unstable.filter.obxd2Bp($saw('c2'), 'c4', 3)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Obxd2BpFilterParams",
@@ -14024,6 +14261,9 @@
   {
     "name": "$unstable.filter.obxd2Hp",
     "documentation": "Surge XT's OB-Xd 2-pole filter — a zero-delay state-variable design with\na diode-pair feedback nonlinearity (from Filatov's OB-Xd, via Odin 2).\nRuns 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5.\n- **drive** — `'standard'`, or `'pushed'` for easy self-oscillation.\n\n```js\n$unstable.filter.obxd2Hp($saw('c2'), 'c4', 3)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Obxd2HpFilterParams",
@@ -14184,6 +14424,9 @@
   {
     "name": "$unstable.filter.obxd2Notch",
     "documentation": "Surge XT's OB-Xd 2-pole filter — a zero-delay state-variable design with\na diode-pair feedback nonlinearity (from Filatov's OB-Xd, via Odin 2).\nRuns 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5.\n- **drive** — `'standard'`, or `'pushed'` for easy self-oscillation.\n\n```js\n$unstable.filter.obxd2Notch($saw('c2'), 'c4', 3)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Obxd2NotchFilterParams",
@@ -14344,6 +14587,9 @@
   {
     "name": "$unstable.filter.obxd4",
     "documentation": "Surge XT's OB-Xd 4-pole lowpass — four cascaded zero-delay poles with an `atan`\ndamper (from Filatov's OB-Xd, via Odin 2). Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; self-oscillates near the top.\n- **slope** — `'db6'`, `'db12'`, `'db18'`, `'db24'`, or `'db24Legacy'`.\n\n```js\n$unstable.filter.obxd4($saw('c2'), 'c4', 3, { slope: 'db24Legacy' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Obxd4FilterParams",
@@ -14519,6 +14765,9 @@
   {
     "name": "$unstable.filter.xpander",
     "documentation": "The Oberheim Xpander pole-mixing filter (Surge XT's OB-Xd cascade with the\nXpander mode matrix): one 4-pole lowpass core re-mixed into lowpass,\nhighpass, bandpass, notch, and phaser responses. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5.\n- **mode** — `'lp1'`–`'lp4'`, `'hp1'`–`'hp3'`, `'bp2'`, `'bp4'`, `'n2'`,\n  `'ph3'`, `'hp2Lp1'`, `'hp3Lp1'`, `'n2Lp1'`, `'ph3Lp1'`.\n\n```js\n$unstable.filter.xpander($saw('c2'), 'c4', 3, { mode: 'bp4' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "XpanderFilterParams",
@@ -14744,6 +14993,9 @@
   {
     "name": "$unstable.filter.cutoffWarpLp",
     "documentation": "Surge XT's Cutoff Warp filter — an RBJ biquad with a saturator in the\nfeedback path (a nonlinear-feedback design by Jatin Chowdhury), up to\nfour cascaded stages. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 (biquad Q up to ~18).\n- **drive** — `'tanh'`, `'softClip'`, or `'ojd'`.\n- **stages** — 1–4 cascaded sections.\n\n```js\n$unstable.filter.cutoffWarpLp($saw('c2'), 'c4', 2, { drive: 'ojd', stages: 2 })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CutoffWarpLpFilterParams",
@@ -14919,6 +15171,9 @@
   {
     "name": "$unstable.filter.cutoffWarpHp",
     "documentation": "Surge XT's Cutoff Warp filter — an RBJ biquad with a saturator in the\nfeedback path (a nonlinear-feedback design by Jatin Chowdhury), up to\nfour cascaded stages. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 (biquad Q up to ~18).\n- **drive** — `'tanh'`, `'softClip'`, or `'ojd'`.\n- **stages** — 1–4 cascaded sections.\n\n```js\n$unstable.filter.cutoffWarpHp($saw('c2'), 'c4', 2, { stages: 2 })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CutoffWarpHpFilterParams",
@@ -15094,6 +15349,9 @@
   {
     "name": "$unstable.filter.cutoffWarpBp",
     "documentation": "Surge XT's Cutoff Warp filter — an RBJ biquad with a saturator in the\nfeedback path (a nonlinear-feedback design by Jatin Chowdhury), up to\nfour cascaded stages. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 (biquad Q up to ~18).\n- **drive** — `'tanh'`, `'softClip'`, or `'ojd'`.\n- **stages** — 1–4 cascaded sections.\n\n```js\n$unstable.filter.cutoffWarpBp($saw('c2'), 'c4', 2)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CutoffWarpBpFilterParams",
@@ -15269,6 +15527,9 @@
   {
     "name": "$unstable.filter.cutoffWarpNotch",
     "documentation": "Surge XT's Cutoff Warp filter — an RBJ biquad with a saturator in the\nfeedback path (a nonlinear-feedback design by Jatin Chowdhury), up to\nfour cascaded stages. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 (biquad Q up to ~18).\n- **drive** — `'tanh'`, `'softClip'`, or `'ojd'`.\n- **stages** — 1–4 cascaded sections.\n\n```js\n$unstable.filter.cutoffWarpNotch($saw('c2'), 'c4', 2)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CutoffWarpNotchFilterParams",
@@ -15444,6 +15705,9 @@
   {
     "name": "$unstable.filter.cutoffWarpAp",
     "documentation": "Surge XT's Cutoff Warp filter — an RBJ biquad with a saturator in the\nfeedback path (a nonlinear-feedback design by Jatin Chowdhury), up to\nfour cascaded stages. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 (biquad Q up to ~18).\n- **drive** — `'tanh'`, `'softClip'`, or `'ojd'`.\n- **stages** — 1–4 cascaded sections.\n\n```js\n$unstable.filter.cutoffWarpAp($saw('c2'), 'c4', 2, { drive: 'softClip' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CutoffWarpApFilterParams",
@@ -15619,6 +15883,9 @@
   {
     "name": "$unstable.filter.resWarpLp",
     "documentation": "Surge XT's Resonance Warp filter — an RBJ biquad with saturators on the\nstate variables (a nonlinear-biquad design by Jatin Chowdhury), up to\nfour cascaded stages. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 (biquad Q up to ~18).\n- **drive** — `'tanh'` or `'softClip'`.\n- **stages** — 1–4 cascaded sections.\n\n```js\n$unstable.filter.resWarpLp($saw('c2'), 'c4', 2, { drive: 'softClip', stages: 2 })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ResWarpLpFilterParams",
@@ -15789,6 +16056,9 @@
   {
     "name": "$unstable.filter.resWarpHp",
     "documentation": "Surge XT's Resonance Warp filter — an RBJ biquad with saturators on the\nstate variables (a nonlinear-biquad design by Jatin Chowdhury), up to\nfour cascaded stages. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 (biquad Q up to ~18).\n- **drive** — `'tanh'` or `'softClip'`.\n- **stages** — 1–4 cascaded sections.\n\n```js\n$unstable.filter.resWarpHp($saw('c2'), 'c4', 2)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ResWarpHpFilterParams",
@@ -15959,6 +16229,9 @@
   {
     "name": "$unstable.filter.resWarpBp",
     "documentation": "Surge XT's Resonance Warp filter — an RBJ biquad with saturators on the\nstate variables (a nonlinear-biquad design by Jatin Chowdhury), up to\nfour cascaded stages. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 (biquad Q up to ~18).\n- **drive** — `'tanh'` or `'softClip'`.\n- **stages** — 1–4 cascaded sections.\n\n```js\n$unstable.filter.resWarpBp($saw('c2'), 'c4', 2)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ResWarpBpFilterParams",
@@ -16129,6 +16402,9 @@
   {
     "name": "$unstable.filter.resWarpNotch",
     "documentation": "Surge XT's Resonance Warp filter — an RBJ biquad with saturators on the\nstate variables (a nonlinear-biquad design by Jatin Chowdhury), up to\nfour cascaded stages. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 (biquad Q up to ~18).\n- **drive** — `'tanh'` or `'softClip'`.\n- **stages** — 1–4 cascaded sections.\n\n```js\n$unstable.filter.resWarpNotch($saw('c2'), 'c4', 2)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ResWarpNotchFilterParams",
@@ -16299,6 +16575,9 @@
   {
     "name": "$unstable.filter.resWarpAp",
     "documentation": "Surge XT's Resonance Warp filter — an RBJ biquad with saturators on the\nstate variables (a nonlinear-biquad design by Jatin Chowdhury), up to\nfour cascaded stages. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 (biquad Q up to ~18).\n- **drive** — `'tanh'` or `'softClip'`.\n- **stages** — 1–4 cascaded sections.\n\n```js\n$unstable.filter.resWarpAp($saw('c2'), 'c4', 2, { stages: 3 })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ResWarpApFilterParams",
@@ -16469,6 +16748,9 @@
   {
     "name": "$unstable.filter.tripole",
     "documentation": "Surge XT's Tri-pole — Ian Fritz's Threeler filter: three saturating one-pole\nstages, a resonance waveshaper, and global feedback. Wild and organic;\nself-oscillates readily. Runs 2× oversampled.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; the feedback coefficient grows exponentially.\n- **mode** — stage topology: `'lll'`, `'lhl'`, `'hlh'`, or `'hhh'`.\n- **outputStage** — 1, 2, or 3 (3 = the full feedback output).\n\n```js\n$unstable.filter.tripole($saw('c2'), 'c4', 2, { mode: 'lhl', outputStage: 3 })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "TriPoleFilterParams",
@@ -16649,6 +16931,9 @@
   {
     "name": "$unstable.filter.fastSvf",
     "documentation": "Surge XT's Fast SVF — Andy Simper's (Cytomic) trapezoidal state-variable filter.\nClean and linear, stable with cutoff modulation right up to Nyquist.\n\n- **cutoff** — V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5.\n- **mode** — `'lp'`, `'hp'`, `'bp'`, `'notch'`, `'peak'`, or `'allpass'`.\n\n```js\n$unstable.filter.fastSvf($saw('c2'), 'c4', 3, { mode: 'peak' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "FastSvfFilterParams",
@@ -16829,6 +17114,9 @@
   {
     "name": "$unstable.filter.sah",
     "documentation": "Surge XT's Sample & Hold — samples the input at the cutoff frequency, holding\neach value until the next tick (a pitched decimation/downsampling effect).\nResonance feeds the held value back through a soft clip.\n\n- **cutoff** — sample clock in V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5; feedback into the sampler.\n\n```js\n$unstable.filter.sah($saw('c2'), 'c1', 0)\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SahFilterParams",
@@ -16970,6 +17258,9 @@
   {
     "name": "$unstable.filter.comb",
     "documentation": "Surge XT's comb filter — a sinc-interpolated feedback delay line, one period of\nthe cutoff pitch long. Positive feedback resonates at the cutoff's harmonics;\nnegative at the half-shifted series. Runs 2× oversampled.\n\n- **cutoff** — comb pitch in V/Oct (0 V = C4). Accepts modulation.\n- **resonance** — 0–5 feedback amount; high values ring strongly.\n- **polarity** — `'pos'` or `'neg'`.\n- **mix** — `'half'` (50% wet) or `'full'` (100% wet).\n\n```js\n$unstable.filter.comb($saw('c2'), 'c3', 4, { polarity: 'neg', mix: 'full' })\n```",
+    "categories": [
+      "filter"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CombFilterParams",
@@ -17149,6 +17440,9 @@
   {
     "name": "$pWarp",
     "documentation": "Phase effect: reshapes a 0–1 phase signal with a `$phase.*` warp.\n\nFeed the output into a phase oscillator (`$pSine`, `$pSaw`, `$pPulse`) to\nhear the result. Warps compose with `.pipe()` or their optional second\nargument; `$phase.feedback` stages keep their own state per channel.\n\n# Example\n\n```js\n// Ensemble Oscillator-style pulsar and crush on a ramp\n$pSine($pWarp($ramp('c3'), $phase.pulsar(3))).out()\n$pSine($pWarp($ramp('c3'), $phase.crush(2, $phase.feedback(1)))).out()\n```",
+    "categories": [
+      "phase"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "PWarpParams",
@@ -17443,6 +17737,10 @@
   {
     "name": "$ramp",
     "documentation": "Phase ramp generator.\n\nProduces a rising sawtooth phase signal from 0 to 1 at the given frequency.\nReshape it with `$pWarp` and a `$phase.*` warp, then feed it into a\nwaveshaper (e.g. `$pSine`) to produce audio.",
+    "categories": [
+      "phase",
+      "modulation"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "RampParams",
@@ -17546,6 +17844,9 @@
   {
     "name": "$addHz",
     "documentation": "Offsets a pitch by an absolute frequency amount, in Hz.\n\nThe input V/Oct pitch is converted to Hz, **offset** Hz is added, then the\nresult is converted back to V/Oct. Useful for audible beating detune.\n\n```js\n// detune a saw by +0.5 Hz for slow beating\n$addHz($saw('C4'), 0.5)\n```",
+    "categories": [
+      "pitch"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "AddHzParams",
@@ -17663,6 +17964,9 @@
   {
     "name": "$adsr",
     "documentation": "An Attack-Decay-Sustain-Release envelope generator.\n\nGenerates a control voltage envelope driven by a **gate** input.\nWhen the gate goes high (>1V) the envelope enters the attack phase;\nwhen the gate goes low it enters release.\n\n- **attack** / **decay** / **release** — time in seconds\n- **sustain** — level in volts (0–5V). Defaults to 5V, but if **decay** is set\n  without **sustain**, sustain defaults to 0V for a plucky attack-decay shape.\n- **curve** — ramp shape from -5 to 5. 0 is linear; +5 gives a logarithmic\n  attack and exponential decay/release; -5 is the inverse.\n  Defaults to 5.\n- **retrigger** — a rising edge restarts the attack from the current level\n  (no jump). Defaults to the gate input. Set **resetOnRetrig** to true to\n  instead snap back to the start of the attack on every retrigger.\n\nOutput range is **0–5V**.\n\n## Example\n\n```js\nconst env = $adsr($pPulse($clock[0]), { attack: 0.01, decay: 0.2, sustain: 3, release: 0.5 })\n$sine('c4').amplitude(env).out()\n```",
+    "categories": [
+      "envelope"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "AdsrParams",
@@ -17885,6 +18189,9 @@
   {
     "name": "_arithmetic",
     "documentation": "Adds, subtracts, multiplies, divides or raises one signal to the power of\nanother, sample by sample. Division by zero outputs 0 V.\n\nBacks the DSL's `.add()`, `.sub()`, `.mul()`, `.div()` and `.exp()` signal\nmethods.",
+    "categories": [
+      "math"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ArithmeticParams",
@@ -18025,6 +18332,9 @@
   {
     "name": "_round",
     "documentation": "Rounds a signal to a whole number of volts.\n\nBacks the DSL's `.round()`, `.floor()` and `.ceil()` signal methods.",
+    "categories": [
+      "math"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "RoundParams",
@@ -18150,6 +18460,9 @@
   {
     "name": "$bufRead",
     "documentation": "Reads a sample frame from a buffer and outputs its channels as a poly signal.",
+    "categories": [
+      "utility"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "BufReadParams",
@@ -18284,6 +18597,10 @@
   {
     "name": "$buffer",
     "documentation": "Writes an input signal into a circular buffer each sample tick.\nThe buffer is owned by this module and exposed as a buffer output.\nReaders ($delayRead, $bufRead) connect to it via buffer params.",
+    "categories": [
+      "effect",
+      "utility"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "BufferWriteParams",
@@ -18389,6 +18706,9 @@
   {
     "name": "$chord",
     "documentation": "Outputs the notes of a scale or chord as a polyphonic V/Oct signal, one\nchannel per note in ascending pitch.\n\nThe spec is a root note (optional octave, default 4) followed by a scale in\n`()` or a chord in `[]`:\n\n| Form | Example | Notes |\n|------|---------|-------|\n| `root(scale)` | `\"C(major)\"`, `\"D3(dorian)\"` | Named scale, one octave |\n| `root(intervals)` | `\"C(0 3 7 10)\"` | Semitones from the root, reduced to one octave |\n| `root(tuning)` | `\"C(just)\"`, `\"A(pythag)\"` | All 12 steps in a non-equal tuning |\n| `root[chord]` | `\"C[maj7]\"`, `\"F#2[m9]\"` | Chord shorthand; extensions keep their register |\n| `root[intervals]` | `\"C[0 7 16]\"` | Custom voicing; intervals keep their register |\n| `root[tuning chord]` | `\"C[just maj]\"` | Tuning prefix (`just`, `pythag`, `pythagorean`) |\n| `root[chord invN]` | `\"C[maj7 inv1]\"` | Raises the lowest N notes an octave |\n| `chromatic` | `\"chromatic\"` | All 12 semitones from C4 |\n\nScale names: major/maj/ionian/M, minor/min/aeolian/m, dorian, phrygian,\nlydian, mixolydian, locrian, harmonic minor, melodic minor, pentatonic\nmajor/minor, blues, whole tone, chromatic.\n\nChord names (case-sensitive): maj/M/major, min/m/minor, dim/°, aug/+,\nsus2, sus4/sus, 5, 6, m6, 69, 7/dom7, maj7/M7/Δ/Δ7, m7/min7, mMaj7/mM7,\ndim7/°7, m7b5/ø/ø7, aug7/7#5/+7, maj7#5, 7sus4, 7sus2, 7b5, 9, maj9, m9,\n11, maj11, m11, 13, maj13, m13, 7b9, 7#9, 7#11, add9/add2, madd9,\nadd11/add4.\n\n```js\n// a C major 7th chord on four saw voices\n$saw($chord(\"C3[maj7]\")).out()\n```\n\n```js\n// quantize a slow LFO to the notes of a minor 9th chord\n$sine($quantizer($sine(\"0.1hz\").range(-1, 1), $chord(\"A[m9]\"))).out()\n```",
+    "categories": [
+      "pitch"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ChordParams",
@@ -18427,6 +18747,9 @@
   {
     "name": "$clamp",
     "documentation": "Constrains a signal between a minimum and maximum value.\n\nBounds are independently optional — omit **min** or **max** to leave\nthat side unclamped.\n\n```js\n// clamp a sine into the 0–5 V range\n$clamp($sine('440hz'), 0, 5)\n\n// one-sided: floor at 0 V, no ceiling\n$clamp($sine('1hz'), { min: 0 })\n```",
+    "categories": [
+      "math"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ClampParams",
@@ -18566,6 +18889,10 @@
   {
     "name": "$clockDivider",
     "documentation": "Divides an incoming clock signal so it fires less often.\n\nFeed it a clock and set **division** to an integer — the output will\ntick once every *n* input ticks. Useful for creating slower rhythmic\nsubdivisions from a master clock.\n\n```js\n// Pulses every other bar of the root clock:\n$clockDivider($clock.barTrigger, 2)\n```",
+    "categories": [
+      "gate",
+      "sequencer"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ClockDividerParams",
@@ -18696,6 +19023,10 @@
   {
     "name": "$coinFlip",
     "documentation": "Sends each trigger to heads or tails at random.\n\nEach trigger on **input** flips a weighted coin, and **probability** sets\nthe chance of heads. The module itself is the heads output; `.tails`\ncarries the rest. Gates keep their length, and each channel flips on its\nown.\n\nPlace it after `$clockDivider` to turn a steady clock into a loose rhythm,\nor use both outputs to split one stream between two sounds.\n\n```js\n// Each beat lands on the kick or the snare, 75/25:\nconst flip = $coinFlip($clock.beatTrigger, 3.75)\n$tr808.kick(flip).out()\n$tr808.snare(flip.tails).out()\n```",
+    "categories": [
+      "gate",
+      "random"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CoinFlipParams",
@@ -18825,6 +19156,9 @@
   {
     "name": "$scan",
     "documentation": "Steps a counter by `distance` on each trigger, wrapping it within 0 to\n`length`.\n\nA step past `length` wraps around by the overshoot, as many times as it\ntakes, and so does a step below 0. With `snapOnWrap`, a step past\n`length` lands on 0 and a step below 0 lands on `length`. A counter\nexactly at `length` stays there. `reset` sets the counter to 0, and wins\nover a trigger in the same sample. Lengths are read at each trigger, so a\nshorter `length` takes effect on the next step.\n\n```js\n// Pitch steps of a quarter octave, wrapping within an octave:\n$sine($scan(1, 0.25, $pulse('4hz'))).out()\n```",
+    "categories": [
+      "sequencer"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ScanParams",
@@ -18982,6 +19316,9 @@
   {
     "name": "$curve",
     "documentation": "Applies a power curve to a signal, normalised at ±5 V.\n\nFormula: `sign(x) × 5 × (|x| / 5) ^ exp`\n\n- **exp = 1** — linear pass-through\n- **exp > 1** — pushes midrange toward zero (audio taper)\n- **0 < exp < 1** — pushes midrange toward ±5 V\n- **exp = 0** — step function (any nonzero → ±5 V)\n\n```js\n$curve($sine('1hz'), 2)   // quadratic curve\n$curve($saw('c3'), 3)     // cubic curve (audio taper)\n```",
+    "categories": [
+      "math"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CurveParams",
@@ -19099,6 +19436,10 @@
   {
     "name": "$delayRead",
     "documentation": "Reads a signal from a buffer at a specified delay time relative to the write position.",
+    "categories": [
+      "effect",
+      "utility"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "DelayReadParams",
@@ -19233,6 +19574,10 @@
   {
     "name": "_erratic",
     "documentation": "Applies a wandering random variation to a signal.\n\n**shift** mode adds an offset of up to ±**amount**, scaled to the width of\n[**min**, **max**]: 5 moves up to half the range either way. **clamp** mode\nshifts the same way, then clamps to the range. **blend** mode moves toward a\nrandom value in [**min**, **max**] by **amount** / 5 and stays in the range.\n**bias** makes the variation lean upward (+)\nor downward (−); ±5 makes it one-sided. **sparse** draws a random depth per\nvalue: low amounts mostly stay near the input with rare big jumps, high\namounts mostly jump. **speed** runs from frozen at 0 to a\nfresh random value every sample at 5. A **trigger** holds the variation\nbetween rising edges.\n\nBacks the DSL's `.erratic()` signal method, which fills **min**/**max**\nfrom a ranged signal's range.",
+    "categories": [
+      "random",
+      "modulation"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ErraticParams",
@@ -19474,6 +19819,9 @@
   {
     "name": "$hold",
     "documentation": "Stretches a trigger into a fixed-length gate.\n\nA rising edge on the input opens the output at 5V for `time` seconds,\nregardless of when the input falls; the output closes after `time` even if\nthe input is still high. A rising edge while the output is high\nretriggers it: the output drops low for a brief retrigger gap, so\ndownstream envelopes see a new rising edge, and the gate closes `time`\nafter the new edge.\n\n## Example\n\n```js\n// stretch short clock pulses into 100 ms gates\nconst env = $adsr($hold($clock.beatTrigger, 0.1))\n$sine('c4').amplitude(env).out()\n```",
+    "categories": [
+      "gate"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "HoldParams",
@@ -19599,6 +19947,9 @@
   {
     "name": "$slew",
     "documentation": "Slew limiter that smooths abrupt voltage changes.\n\nSeparate **rise** and **fall** times control how quickly the output can\nincrease or decrease. Times are specified in **seconds per volt** — the\ntime the output takes to slew by 1 V. For example, a rise time of `0.1`\nmeans the output climbs 1 V in 0.1 s; a 5 V gate signal would therefore\ntake 0.5 s to reach full height.\n\nUse `$slew` to add portamento to pitch signals, smooth noisy control\nvoltages, or create envelope-like shapes from gate signals.\n\n```js\n// portamento: glide between notes (0.1 s per volt of pitch change)\n$sine($slew($cycle($p('c3 e3 g3')), { rise: 0.1, fall: 0.1 }))\n```",
+    "categories": [
+      "utility"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "LagProcessorParams",
@@ -19738,6 +20089,9 @@
   {
     "name": "$rising",
     "documentation": "Detects rising edges in a signal and emits a short pulse.\n\nOutputs 5 V for a single sample whenever the input increases.\nUseful for converting ramps, envelopes, or continuous signals into\ngate/trigger events.\n\n```js\n// trigger a percussion envelope on every rising edge of a slow oscillator\n$perc($rising($sine('4hz')))\n```",
+    "categories": [
+      "gate"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "RisingEdgeDetectorParams",
@@ -19839,6 +20193,9 @@
   {
     "name": "$falling",
     "documentation": "Detects falling edges in a signal and emits a short pulse.\n\nOutputs 5 V for a single sample whenever the input decreases.\nUseful for triggering events on the \"off\" transition of a gate or\non the downward slope of an LFO.\n\n```js\n// trigger on every falling edge of a slow oscillator\n$perc($falling($sine('2hz')))\n```",
+    "categories": [
+      "gate"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "FallingEdgeDetectorParams",
@@ -19940,6 +20297,9 @@
   {
     "name": "$math",
     "documentation": "Evaluates a math expression every sample, giving you arbitrary control\nvoltage transformations.\n\nWrite an expression string using `x`, `y`, `z` as input variables.\nThe built-in variable `t` (time in seconds) is also available.\n\nThe inputs are polyphonic: the module is as wide as its widest input, the\nexpression is evaluated once per channel, and narrower inputs cycle. A\nnon-finite result (e.g. `0/0`) is emitted as 0.\n\n**Functions:** `sin`, `cos`, `tan`, `asin`, `acos`, `atan`,\n`sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`,\n`log(base?, val)`, `abs`, `sign`, `int`, `ceil`, `floor`,\n`round(modulus?, val)`, `min(val, ...)`, `max(val, ...)`,\n`e()`, `pi()`, `vToHz(volts)`, `hzToV(hz)`\n\n**Operators** (highest to lowest precedence):\n`^`, `%`, `/`, `*`, `-`, `+`,\n`== != < <= >= >`,\n`&& and`, `|| or`\n\n```js\n// crossfade between two oscillators\n$math(\"x * sin(t) + y * cos(t)\", { x: $saw('c3'), y: $pulse('c3') })\n```",
+    "categories": [
+      "math"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "MathParams",
@@ -20090,6 +20450,9 @@
   {
     "name": "$motionFollower",
     "documentation": "Turns controller movement into a level, like bowing a string: moving the\ninput in either direction swells the output, holding it still lets it fade.\n\nThe input's speed (volts per second, direction ignored) is averaged over\n**smooth** seconds, then followed with separate **attack** and **release**\ntimes. **gain** converts speed to volts and a soft clip keeps the output\nbelow **ceiling**.\n\n**pos** and **neg** are the same level driven only by rising or only by\nfalling input, so pushing and releasing a controller can steer different\ndestinations. Both are positive voltages.\n\nStepped controllers such as 7-bit MIDI CC jump in small increments, so\ntheir raw speed is a train of spikes; a **smooth** time several times longer\nthan the gap between updates averages them into a steady level.\n\n```js\n// a slowly swinging LFO bows a filter open on every sweep\n$lpf($saw('c3'), $motionFollower($sine('0.5hz'), { release: 0.5 }).range('c3', 'c7')).out()\n```",
+    "categories": [
+      "envelope"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "MotionFollowerParams",
@@ -20304,6 +20667,9 @@
   {
     "name": "$mulHz",
     "documentation": "Multiplies a pitch's frequency by a factor.\n\nThe input V/Oct pitch is converted to Hz, multiplied by **factor**, then the\nresult is converted back to V/Oct. A factor of 1.5 is a just perfect fifth.\n\n```js\n// up a just fifth\n$mulHz($saw('C4'), 1.5)\n```",
+    "categories": [
+      "pitch"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "MulHzParams",
@@ -20421,6 +20787,9 @@
   {
     "name": "_hz",
     "documentation": "Converts a frequency in Hz to a V/Oct pitch.\n\nBacks the DSL's `$hz()` when its argument is a signal.",
+    "categories": [
+      "pitch"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "HzParams",
@@ -20522,6 +20891,9 @@
   {
     "name": "$remap",
     "documentation": "Linearly rescales a signal from one voltage range to another.\n\nMaps **input** from \\[inMin, inMax\\] to \\[outMin, outMax\\]. Useful for\nconverting between different voltage standards or reshaping control\nsignals.\n\n```js\n// convert a 0–5 V envelope to a -5–5 V bipolar signal\n$remap($adsr($clock.beatTrigger, {attack: 0.3, decay: 0.2, sustain: 4, release: 0.5}), -5, 5, 0, 5)\n\n// convert a -5–5 V signal to 0–1 V\n$remap($sine('1hz'), 0, 1, -5, 5)\n```",
+    "categories": [
+      "math"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "RemapParams",
@@ -20687,6 +21059,9 @@
   {
     "name": "$sah",
     "documentation": "Captures and holds a voltage on each trigger.\n\nWhen **trigger** receives a rising edge, the current value of **input**\nis sampled and held at the output until the next trigger. Classic\nuse: sample random noise to generate stepped random melodies.\n\n```js\n// stepped random melody\n$sine(\n $quantizer(\n   $sah($noise('white').range(0, 1), $pulse('2hz')),\n   'c(maj)',\n ),\n)\n```",
+    "categories": [
+      "gate"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SampleAndHoldParams",
@@ -20804,6 +21179,9 @@
   {
     "name": "$tah",
     "documentation": "Follows the input while the gate is low, and holds the value when the\ngate goes high.\n\nThe complement of Sample and Hold: the output continuously tracks\n**input** until **gate** rises, then freezes until the gate falls again.\n\n```js\n// hold a slow sine value while the gate is high\n$tah($sine('2hz'), $pulse('2hz'))\n```",
+    "categories": [
+      "gate"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "TrackAndHoldParams",
@@ -20921,6 +21299,9 @@
   {
     "name": "$perc",
     "documentation": "Simple envelope for percussive sounds.\n\nA rising edge on **trigger** starts the envelope at 5 V, which then\ndecays exponentially to 0 V over the **decay** time. Perfect for\nhi-hats, kicks, and other transient sounds.\n\nOutput range is **0–5 V**.\n\n```js\n// short percussive hit\n$noise(\"white\").amplitude($perc($clock.beatTrigger, { decay: 0.1 })).out()\n```",
+    "categories": [
+      "envelope"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "PercussionEnvelopeParams",
@@ -21043,6 +21424,9 @@
   {
     "name": "$quantizer",
     "documentation": "Snaps a V/Oct signal to the nearest note of a scale.\n\n**scale** is a polyphonic signal: each channel is one V/Oct note, and the\noutput snaps to the nearest of those notes in any octave. Feed it from\n`$chord`, a `$cycle`, or `$midiCV` — or pass a spec string such as\n`\"C(major)\"` or `\"C[maj7]\"`, which is shorthand for `$chord(spec)` (see\n`$chord` for the full grammar). Without a scale, the output snaps to\nsemitones.\n\n**gate** selects which scale notes are active: scale channel N is used only\nwhile gate channel N is high. While every gate channel is low, the output\nholds its last note.\n\nA **trig** pulse fires whenever the quantized note changes, useful for\nre-triggering envelopes.\n\n```js\n// quantize a slow sine to C major\n$sine($quantizer($sine(\"0.1hz\").range(0, 3), \"C(major)\")).out()\n```\n\n```js\n// quantize to whichever MIDI keys are held; holds when all are released\nconst midi = $midiCV({ channels: 4 })\n$sine($quantizer($sine(\"0.1hz\").range(-1, 1), midi, { gate: midi.gate })).out()\n```",
+    "categories": [
+      "pitch"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "QuantizerParams",
@@ -21217,6 +21601,9 @@
   {
     "name": "$scaleAndShift",
     "documentation": "Scales and offsets a signal — the classic attenuverter + DC offset.\n\n- **scale** — gain factor (0–10 V; 5 V = unity, 0 V = silence,\n  values above 5 V amplify, negative values invert).\n- **shift** — DC offset added after scaling (in volts).\n\n```js\n// invert a slow sine and shift it into 0–5 V range\n$scaleAndShift($sine('1hz'), -2.5, 2.5)\n```",
+    "categories": [
+      "math"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ScaleAndShiftParams",
@@ -21362,6 +21749,9 @@
   {
     "name": "_smoothControl",
     "documentation": "A UI-driven constant: the editor sets `value` through the single-module\nupdate path, and the output ramps linearly to it over [`RAMP_SECONDS`] so\na drag's stepped values move without zipper noise. A freshly built control\nstarts at its value; one that replaces another continues from the old\noutput. Backs `$slider`, the out gain/pan faders, and the mute/solo gate.",
+    "categories": [
+      "utility"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SmoothControlParams",
@@ -21396,6 +21786,9 @@
   {
     "name": "$spread",
     "documentation": "Produces a multi-channel output by linearly interpolating between a\nminimum and maximum value, with an optional bias to skew the\ndistribution.\n\nEach output channel gets an evenly spaced value between **min** and\n**max**. The **bias** control reshapes the distribution: positive\nvalues push channels toward **max**, negative values toward **min**.\n\n| count | behaviour |\n|-------|-----------|\n| 1     | single value between min and max, positioned by bias |\n| 2     | channel 0 = min, channel 1 = max (with bias = 0) |\n| N     | N evenly spaced values from min to max (with bias = 0) |\n\n```js\n// spread 4 oscillators across a frequency range\n$sine($spread(0, 5, 4))\n\n// 8 channels biased toward the minimum\n$spread(0, 5, 8, { bias: -3 })\n```",
+    "categories": [
+      "math"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SpreadParams",
@@ -21543,6 +21936,9 @@
   {
     "name": "$unison",
     "documentation": "Expands each input channel into multiple detuned copies for unison effects.\n\nTakes a signal (typically V/Oct pitch) and multiplies channels by the\nunison count, applying symmetric detuning controlled by the spread parameter.\n\n- **count** — number of detuned copies per input channel (1–64)\n- **spread** — detune amount with exponential curve (0–10V → 0–1 octave V/Oct)\n\nOutput channels = `max(input_channels, spread_channels) × count`, clamped to\n64. **input** and **spread** cycle against each other, so a spread wider than\nthe input repeats the input across the extra channels, and vice versa.\n\nVoices are interleaved: each voice is a full copy of the input channels, so a\n3-channel input with count 3 outputs channels `1 2 3 1 2 3 1 2 3`. When the\n64-channel cap truncates, the highest voices are the ones dropped.\n\n## Example\n\n```js\n// 7-voice unison saw with moderate spread\n$saw($unison('c4', 7, 5)).out()\n\n// With modulated spread\n$saw($unison($midiCV(), 5, $sine('0.2hz'))).out()\n```",
+    "categories": [
+      "pitch"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "UnisonParams",
@@ -21676,6 +22072,9 @@
   {
     "name": "_videoTap",
     "documentation": "Publishes its input to the video renderer, which polls the latest value\nand the recent samples of each tap slot. The DSL inserts one per audio\nsignal a `$v` input reads.",
+    "categories": [
+      "utility"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "VideoTapParams",
@@ -21787,6 +22186,9 @@
   {
     "name": "$wrap",
     "documentation": "Folds a signal into a range by wrapping values that exceed the boundaries\nback from the opposite side — like a phase accumulator.\n\nBoth **min** and **max** accept polyphonic signals. If **max** < **min**\nthe bounds are swapped automatically.\n\nSet **octave** to `true` to shift by whole integers instead, preserving the\nfractional part (pitch class in V/Oct signals). Always exact when\n`max − min ≥ 1`; makes the closest-octave attempt otherwise.\n\n```js\n// wrap a saw into 0–5 V\n$wrap($saw('c3'), 0, 5)\n// keep pitch class, clamp to octave range 0–2 V\n$wrap($cycle($p('c2 c5 c3')), 0, 2, { octave: true })\n```",
+    "categories": [
+      "math"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "WrapParams",
@@ -21925,6 +22327,9 @@
   {
     "name": "$cycle",
     "documentation": "Pattern sequencer using mini-notation strings.\n\nWrite rhythmic and melodic patterns using a compact text syntax ported\nfrom TidalCycles/Strudel. The pattern loops each **cycle** and supports\npolyphony — overlapping notes are automatically allocated to separate\noutput channels.\n\n## Cycles\n\nA **cycle** is one full traversal of the pattern. The playhead position\ndetermines timing: its integer part selects the current cycle number and\nthe fractional part selects the position within that cycle. Space-separated\nvalues divide the cycle into equal time slots.\n\n## Values\n\n| Syntax | Meaning | Example |\n|--------|---------|---------|\n| Note name | Pitch (octave defaults to 3) | `'c4'`, `'a#3'`, `'db5'` |\n| Bare number | MIDI note number | `60`, `72` |\n| `Xhz` | Frequency | `'440hz'` |\n| `Xv` | Explicit voltage | `'0v'`, `'1v'`, `'-0.5v'` |\n| `~` | Rest (gate low, no change in CV) | `'c4 ~ e4 ~'` |\n\nBare numbers are MIDI note numbers (A0 = MIDI 33 = 0 V).\n\n## Grouping\n\n- **`[a b c]`** — fast subsequence: subdivides the parent time slot so all\n  elements play within it.\n- **`<a b c>`** — slow / alternating: plays one element per cycle,\n  advancing each time the pattern loops.\n\n```js\n$cycle($p(\"c4 [d4 e4]\"))   // c4 for half the cycle, d4 & e4 share the other half\n$cycle($p(\"<c4 g4> e4\"))   // cycle 1: c4 e4, cycle 2: g4 e4, …\n```\n\n## Stacks\n\n**`a b, c d`** — comma-separated patterns play **simultaneously** (layered).\nEach sub-pattern has its own independent timing.\n\n```js\n$cycle($p(\"c4 e4, g4 b4\"))   // two patterns layered on top of each other\n$cycle($p(\"c4 d4 e4, g3\"))   // three-note melody over a pedal tone\n```\n\n## Random choice\n\n**`a|b|c`** — randomly selects one option each time the slot is reached.\n\n```js\n$cycle($p(\"c4|d4|e4 g4\"))  // first slot is a random pick each cycle\n```\n\n## Nesting\n\nGrouping, stacks, and random choice nest arbitrarily:\n\n```js\n$cycle($p(\"<c4 [d4 e4]> [f4|g4 a4]\"))  // slow + fast + random combined\n$cycle($p(\"[c4 e4, g4] a4\"))           // stack inside a fast subsequence\n```\n\n## Per-element modifiers\n\nModifiers attach directly to an element (no spaces). Multiple modifiers\ncan be chained in any order.\n\n| Modifier | Syntax | Meaning |\n|----------|--------|---------|\n| Weight | `@n` | Relative duration within a sequence (default 1). `c4@2 e4` gives c4 twice the time. |\n| Speed up | `*n` | Repeat/subdivide `n` times within the slot. `c4*3` plays c4 three times. |\n| Slow down | `/n` | Stretch over `n` cycles. `c4/2` plays every other cycle. |\n| Replicate | `!n` | Duplicate the element `n` times (default 2). `c4!3` is equivalent to `c4 c4 c4`. |\n| Degrade | `?` or `?n` | Randomly drop the element. `c4?` drops ~50 % of the time; `c4?0.8` drops 80 %. |\n| Euclidean | `(k,n)` or `(k,n,offset)` | Distribute `k` pulses over `n` steps using the Bjorklund algorithm. Optional `offset` rotates the pattern. |\n\n```js\n$cycle($p(\"c4*2 e4 g4\"))        // c4 plays twice in its slot\n$cycle($p(\"c4@3 e4 g4\"))        // c4 gets 3/5 of the cycle, e4 and g4 get 1/5 each\n$cycle($p(\"c4? e4 g4\"))         // c4 randomly drops out ~50 % of the time\n$cycle($p(\"c4(3,8) e4\"))        // Euclidean: 3 hits spread over 8 steps\n$cycle($p(\"[c4 d4 e4 f4](3,8)\")) // Euclidean applied to a subpattern\n```\n\nModifier operands can also be subpatterns: `c4*[2 3]` alternates between\ndoubling and tripling each slot.\n\n## Outputs\n\n- **cv** — V/Oct pitch (C4 = 0 V).\n- **gate** — 5 V while a note is active, 0 V otherwise.\n- **trig** — single-sample 5 V pulse at each note onset.\n- **velocity** — groove velocity (0–5 V) sampled at each note onset.\n\n## Groove\n\nBy default notes start on the global groove set with `$setGroove`, and\n`velocity` reports that groove's step velocity. The groove moves when each\nnote starts; every note keeps its written length. Pass a `$groove` as\n`groove` (with its `velocity`) to use a different groove, or `groove: 0` to\nplay straight.\n\n```js\n$setGroove($swing(0.6))\nconst hats = $cycle($p('c5*8'))\nconst bass = $cycle($p('c2*4'), { groove: 0 })\n$sine(hats).amp($adsr(hats.gate)).amp(hats.velocity).out()\n$sine(bass).amp($adsr(bass.gate)).out()\n```",
+    "categories": [
+      "sequencer"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SeqParams",
@@ -24212,6 +24617,10 @@
   {
     "name": "$track",
     "documentation": "Automation track that interpolates between keyframed values.\n\nPlace keyframes at positions within a cycle (0–1) and the track\nsmoothly interpolates between them at the current playhead position according to the chosen\n**interpolationType** (linear, ease-in, ease-out, etc.).\n\n```js\n// automate filter cutoff over one cycle\n$lpf($saw('c2'), $track([['c2', 0], ['c5', 0.5], ['c3', 1]]))\n```",
+    "categories": [
+      "sequencer",
+      "modulation"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "TrackParams",
@@ -24387,6 +24796,9 @@
   {
     "name": "$step",
     "documentation": "Step sequencer",
+    "categories": [
+      "sequencer"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "StepParams",
@@ -24531,6 +24943,10 @@
   {
     "name": "$drumMap",
     "documentation": "Topographic drum sequencer: a port of Mutable Instruments Grids.\n\nThree trigger streams — bass drum, snare and hi-hat — are read from a\n5×5 map of drum patterns. **x** and **y** (0–5 V) move smoothly through\nthe map, interpolating between neighbouring patterns. Each part's\n**density** sets how many of its possible hits play, from silence at 0 V\nto every hit at 5 V. **chaos** adds random variation, re-rolled each\ncycle. Strong hits also fire the matching accent output.\n\nOne cycle of the **playhead** plays the 32-step pattern once.\n\nSteps follow the global groove set with `$setGroove`, and the groove's\nstep **velocity** decides how readily each hit accents: at full velocity\naccents are as in Grids, and quieter steps accent only their strongest\nhits. Pass a `$groove` as `groove` (with its `velocity`) to use a\ndifferent groove, or `groove: 0` to play straight.\n\n```js\nconst drums = $drumMap({ x: 1, y: 3, chaos: 0.5 })\n// the bass drum is the default output\n$sine('c1').amplitude($perc(drums, { decay: 0.3 })).out()\n$noise('white').amplitude($perc(drums.hh, { decay: 0.05 })).out()\n```",
+    "categories": [
+      "sequencer",
+      "drum"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "DrumMapParams",
@@ -24855,6 +25271,9 @@
   {
     "name": "$groove",
     "documentation": "Groove a playhead with a timing and velocity template.\n\nThe template moves each grid step by its timing offset. A `$cycle` given\nthis module's offset starts grid-aligned notes at the shifted times, slides\nnotes between grid steps proportionally, and keeps every note's length.\nEvery `$cycle` follows the global groove (see `$setGroove`) by default;\npass this module's offset and velocity to give one its own groove.\n\nTiming offsets are in grid steps: with `grid: 16`, an offset of `0.2` delays\nthat sixteenth by a fifth of a sixteenth. The template repeats every\n`timing.length` steps.\n\n```js\nconst g = $groove({ timing: [0, 0.3], velocity: [1, 0.6] })\nconst seq = $cycle($p('c4*8'), { groove: g, velocity: g.velocity })\n$sine(seq).amp($adsr(seq.gate)).amp(seq.velocity).out()\n```",
+    "categories": [
+      "sequencer"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "GrooveParams",
@@ -25040,6 +25459,9 @@
   {
     "name": "$midiCV",
     "documentation": "Converts MIDI note input into control voltages for driving synthesizer modules.\nSupports polyphonic voice allocation with up to 64 voices.\n\n## Outputs\n\n| Output | Signal | Range |\n|---|---|---|\n| `pitch` | V/Oct pitch (0V = C4), includes pitch bend | — |\n| `gate` | High while a note is held | 0–5V |\n| `velocity` | Note-on velocity | 0–5V |\n| `aftertouch` | Channel or polyphonic aftertouch | 0–5V |\n| `retrigger` | 5V pulse for 1ms on each new note | 0–5V |\n| `pitchWheel` | Pitch bend wheel position | -5V–+5V |\n| `modWheel` | Mod wheel (CC 1) | 0–5V |\n\n## Polyphonic modes (`polyMode`)\n\n- `\"rotate\"` — cycles through voices round-robin\n- `\"reuse\"` — reuses the voice that last played the same note\n- `\"reset\"` — always starts allocation from voice 1\n- `\"mpe\"` — one voice per MIDI channel (for MPE controllers)\n\n## Monophonic modes (`monoMode`, when `channels: 1`)\n\n- `\"last\"` — most recently pressed note wins\n- `\"first\"` — first pressed note wins\n- `\"lowest\"` — lowest held note wins\n- `\"highest\"` — highest held note wins\n\n## Example\n\n```js\n// 4-voice polyphonic MIDI synth\nconst midi = $midiCV({ channels: 4 });\n$sine(midi).amplitude($adsr(midi.gate,{attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5})).out();\n\n// Mono lead with pitch bend\nconst lead = $midiCV({ channels: 1, pitchBendRange: 12 });\n$saw(lead).amplitude($adsr(lead.gate,{attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5})).out();\n```",
+    "categories": [
+      "midi"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "MidiCvParams",
@@ -25205,6 +25627,9 @@
   {
     "name": "$midiCC",
     "documentation": "Converts a MIDI continuous controller (CC) message into a smooth control voltage (0–5V).\n\nUse the `cc` parameter to select which CC number to listen to (0–127).\nOptional `smoothingMs` applies a slew filter to reduce stepping artifacts.\nEnable `highResolution` for 14-bit CC precision (pairs CC 0–31 with 32–63).\n\n## Example\n\n```js\n// Use mod wheel (CC 1) to sweep a filter cutoff\nconst mod = $midiCC({ cc: 1 });\n$lpf($saw('c3'), mod.range('c2', 'c6')).out();\n\n// High-resolution breath controller with smoothing\nconst breath = $midiCC({ cc: 2, highResolution: true, smoothingMs: 10 });\n$sine('c4').amplitude(breath).out();\n```",
+    "categories": [
+      "midi"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "MidiCcParams",
@@ -25267,6 +25692,9 @@
   {
     "name": "$grains",
     "documentation": "Granular sampler. Continuously spawns short, windowed grains from a WAV\nfile, enabling time-stretching, pitch-shifting independent of time, and\ncloud textures.\n\nEach polyphonic channel maintains up to 64 concurrent grains. Spawned grains\ncapture their pitch, start position, and length at spawn time, so live\nparameter changes only affect new grains.\n\nAmplitude is normalised using the Mutable Instruments Clouds formula:\n`gain = 1/√(max(1, smoothed_active_grains − 1))`.\n\n```js\n$grains('c4', $wavs().pad, $pulse('2hz'))\nconst seq = $cycle($p('c3 e3'))\n$grains(seq, $wavs().strings, seq.gate, { density: 3, shape: 'bell', length: 2 })\n```",
+    "categories": [
+      "sampler"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "GrainsParams",
@@ -25546,6 +25974,9 @@
   {
     "name": "_mediaAudio",
     "documentation": "Plays the audio track of a media file in a loop, at a fixed speed, from\nthe loop start when the patch starts. The DSL creates one for each\n`$v.video(...).audio`.",
+    "categories": [
+      "sampler"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "MediaAudioParams",
@@ -25625,6 +26056,9 @@
   {
     "name": "$sampler",
     "documentation": "Sample player. Each gate rising edge starts playback of the whole file,\nor of one slice when `slice` is set. The slice signal is sampled at the\nedge: integer part picks the slice point (wrapping), fraction offsets the\nstart into it. `mode` sets what the gate does next: `'once'` plays the\nwindow through, `'gate'` plays it while the gate is high, and `'loop'`\nrepeats it while the gate is high, picking the slice again for each\nrepeat. Speed control allows pitch-shifting and reverse playback (a slice\nplays the same region backwards). A short `fade` (milliseconds) declicks\nonsets, slice ends, releases, and retriggers.\n\n```js\n$sampler($wavs().kick, $clock.beatTrigger)\n$sampler($wavs().pad, $pulse('1hz'), { speed: 0.5, mode: 'gate' })\n$sampler($wavs().pad, $pulse('2hz'), { slice: [[0, 0.25, 0.5, 0.75], $cycle($p('0 1 2 3')).cv], fade: 2 })\n$sampler($wavs().pad, $pulse('0.5hz'), { mode: 'loop', fade: 10 })\n```",
+    "categories": [
+      "sampler"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SamplerParams",
@@ -25838,6 +26272,9 @@
   {
     "name": "$unstable.shape.saturate",
     "documentation": "Saturation and clipping, from Surge XT's Saturator waveshapers. `mode`\nsets the character — soft, hard, asymmetric, medium, or ojd — and `drive`\nsets how hard the signal is pushed in (−5..5, 0 = unity).\n\n## Example\n```js\n$unstable.shape.saturate($saw('c3'), 'hard', 3).out()\n```",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SaturateParams",
@@ -26001,6 +26438,9 @@
   {
     "name": "$unstable.shape.harmonic",
     "documentation": "Adds extra harmonics to brighten or thicken a tone, from Surge XT's\nHarmonic waveshapers. `mode` picks which harmonics (a single 2nd–5th, or\nan additive blend) and `drive` sets the intensity (−5..5, 0 = unity).\n\n## Example\n```js\n$unstable.shape.harmonic($sine('c3'), 'cheby3', 2).out()\n```",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "HarmonicParams",
@@ -26194,6 +26634,9 @@
   {
     "name": "$unstable.shape.rectify",
     "documentation": "Rectification, from Surge XT's Rectifier waveshapers — folds or gates the\nwaveform for a harder, buzzier tone. `mode` selects full-wave,\npositive/negative half-wave, or a softer rectifier; `drive` sets the level\ngoing in (−5..5, 0 = unity).\n\n## Example\n```js\n$unstable.shape.rectify($sine('c3'), 'full', 1).out()\n```",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "RectifyParams",
@@ -26352,6 +26795,9 @@
   {
     "name": "$unstable.shape.fold",
     "documentation": "Wavefolding, from Surge XT's Wavefolder waveshapers — folds peaks back on\nthemselves to add rich harmonics that grow with level. `mode` selects the\nfold shape (soft, single, dual, westcoast, linear, sine); `drive` pushes\nharder into the folds as it rises (−5..5, 0 = unity).\n\n## Example\n```js\n$unstable.shape.fold($sine('c3'), 'westcoast', 3).out()\n```",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "FoldParams",
@@ -26520,6 +26966,9 @@
   {
     "name": "$unstable.shape.fuzz",
     "documentation": "Fuzz, from Surge XT's Fuzz waveshapers — a gritty, broken-up distortion.\n`mode` selects the flavour (fuzz, soft, heavy, center, softEdge); `drive`\nsets the level going in (−5..5, 0 = unity).\n\n## Example\n```js\n$unstable.shape.fuzz($saw('c3'), 'heavy', 2).out()\n```",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "FuzzParams",
@@ -26683,6 +27132,9 @@
   {
     "name": "$unstable.shape.trigonometric",
     "documentation": "Sine-based shaping, from Surge XT's Trigonometric waveshapers — reshapes\nthe signal through sine curves for dense, ringing harmonics. `mode`\nselects the pattern (sinPlusX, sin2x…sin10x, cyc2…cyc10, and edge-tapered\nvariants); `drive` sets the level going in (−5..5, 0 = unity).\n\n## Example\n```js\n$unstable.shape.trigonometric($sine('c3'), 'cyc7', 2).out()\n```",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "TrigonometricParams",
@@ -26876,6 +27328,9 @@
   {
     "name": "$unstable.shape.digital",
     "documentation": "Bit-crusher, from Surge XT's Effect waveshaper — steps the signal down to\ncoarse levels for a lo-fi, digital edge. `drive` sets how coarse the steps\nare: higher is crunchier (−5..5, 0 = unity).\n\n## Example\n```js\n$unstable.shape.digital($saw('c3'), 2).out()\n```",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "DigitalParams",
@@ -27001,6 +27456,9 @@
   {
     "name": "$unstable.shape.sine",
     "documentation": "Sine shaper, from Surge XT's Effect waveshaper — reshapes the signal\nthrough a sine curve for smooth added harmonics. Higher `drive` pushes\nfurther through the curve for more harmonics (−5..5, 0 = unity).\n\n## Example\n```js\n$unstable.shape.sine($sine('c3'), 3).out()\n```",
+    "categories": [
+      "distortion"
+    ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "SineParams",

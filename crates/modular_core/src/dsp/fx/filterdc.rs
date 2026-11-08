@@ -35,7 +35,7 @@ struct FilterDcState {
 
 /// One-pole high-pass that removes DC offset and sub-audio rumble from a
 /// signal while passing audio-rate content. The cutoff sits at ~20 Hz.
-#[module(name = "$filterDC", args(input), has_init)]
+#[module(name = "$filterDC", categories(filter), args(input), has_init)]
 pub struct FilterDc {
     outputs: FilterDcOutputs,
     state: FilterDcState,

@@ -38,7 +38,13 @@ struct SmoothControlState {
 /// a drag's stepped values move without zipper noise. A freshly built control
 /// starts at its value; one that replaces another continues from the old
 /// output. Backs `$slider`, the out gain/pan faders, and the mute/solo gate.
-#[module(name = "_smoothControl", has_init, patch_update, args(value))]
+#[module(
+    name = "_smoothControl",
+    categories(utility),
+    has_init,
+    patch_update,
+    args(value)
+)]
 pub struct SmoothControl {
     outputs: SmoothControlOutputs,
     params: SmoothControlParams,

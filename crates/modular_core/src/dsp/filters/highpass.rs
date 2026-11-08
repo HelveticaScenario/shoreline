@@ -42,7 +42,12 @@ struct HighpassFilterOutputs {
 /// // remove low end from a noise source
 /// $hpf($noise("white"), 'a3', 1)
 /// ```
-#[module(name = "$hpf", patch_update, args(input, cutoff, resonance))]
+#[module(
+    name = "$hpf",
+    categories(filter),
+    patch_update,
+    args(input, cutoff, resonance)
+)]
 pub struct HighpassFilter {
     outputs: HighpassFilterOutputs,
     state: SvfFilterState,

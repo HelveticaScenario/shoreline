@@ -83,7 +83,7 @@ pub fn mix_derive_channel_count(params: &MixParams) -> usize {
 /// Use this when you want to blend several multichannel modulation/audio sources.
 /// It mixes channel `n` across all inputs into output channel `n`, rather than
 /// folding all channels into a single mono channel.
-#[module(name = "$mix", channels_derive = mix_derive_channel_count, args(inputs))]
+#[module(name = "$mix", categories(mixer), channels_derive = mix_derive_channel_count, args(inputs))]
 pub struct Mix {
     outputs: MixOutputs,
     params: MixParams,

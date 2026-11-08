@@ -42,7 +42,7 @@ struct ChannelState {
 /// amount control. Low settings pass the signal cleanly; mid settings compress
 /// and square it off; high settings introduce stepped, ripple-like overtone
 /// patterns. Works best on simple waveforms like sines or triangles.
-#[module(name = "$segment", args(input, amount))]
+#[module(name = "$segment", categories(distortion), args(input, amount))]
 pub struct Segment {
     outputs: SegmentOutputs,
     channel_state: Box<[ChannelState]>,

@@ -218,7 +218,13 @@ struct ClockedDelayState {
 /// const pluck = $saw('c3').amplitude($perc($clock.beatTrigger, { decay: 0.1 }))
 /// $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()
 /// ```
-#[module(name = "$clockedDelay", has_init, patch_update, args(input))]
+#[module(
+    name = "$clockedDelay",
+    categories(effect),
+    has_init,
+    patch_update,
+    args(input)
+)]
 pub struct ClockedDelay {
     outputs: ClockedDelayOutputs,
     state: ClockedDelayState,

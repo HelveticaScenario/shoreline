@@ -458,6 +458,48 @@ export interface WavTimeSignature {
   num: number
   den: number
 }
+/**
+ * A grouping for the module reference. Every module declares at least one
+ * with `categories(...)` in its `#[module(...)]` attribute, and may belong
+ * to several.
+ */
+export type ModuleCategory = /** Oscillators and other sound sources. */
+'oscillator'|
+/** Phase ramps and warps plus the oscillators they drive. */
+'phase'|
+/** Filters and EQs that shape a signal's spectrum. */
+'filter'|
+/** Waveshapers and saturators. */
+'distortion'|
+/** Audio effects such as reverb and delay. */
+'effect'|
+/** Compressors and other level control. */
+'dynamics'|
+/** Envelope generators and followers. */
+'envelope'|
+/** Slowly moving control sources. */
+'modulation'|
+/** Random and chaotic sources. */
+'random'|
+/** Patterns and clocks for transport-synced sequencing. */
+'sequencer'|
+/** Gate and trigger processing. */
+'gate'|
+/** V/Oct pitch conversion plus scales and chords. */
+'pitch'|
+/** Drum voices and drum pattern generators. */
+'drum'|
+/** Playback of recorded audio and media files. */
+'sampler'|
+/** Combining and panning channels. */
+'mixer'|
+/** Arithmetic and range transforms on signals. */
+'math'|
+/** MIDI input. */
+'midi'|
+/** General signal plumbing such as routing and smoothing. */
+'utility';
+
 export interface ModuleIdRemap {
   from: string
   to: string
@@ -467,6 +509,12 @@ export interface ModuleSchema {
   name: string
   /** Documentation extracted from `///` doc comments on the module struct. */
   documentation: string
+  /**
+   * The module's reference categories, in declaration order; never empty.
+   * Typed as strings in TypeScript so `schemas.json` imports, whose string
+   * literals widen, still satisfy this interface.
+   */
+  categories: Array<string>
   paramsSchema: Record<string, unknown>
   outputs: Array<OutputSchema>
   /**

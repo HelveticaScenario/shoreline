@@ -100,7 +100,7 @@ struct ChannelState {
 /// ```js
 /// $saw('a3', { shape: 2.5 }).out() // triangle wave
 /// ```
-#[module(name = "$saw", args(freq))]
+#[module(name = "$saw", categories(oscillator), args(freq))]
 pub struct SawOscillator {
     outputs: SawOscillatorOutputs,
     channel_state: Box<[ChannelState]>,
