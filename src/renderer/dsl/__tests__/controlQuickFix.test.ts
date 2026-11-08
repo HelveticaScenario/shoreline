@@ -2,7 +2,6 @@ import { describe, expect, test } from 'vitest';
 
 import schemas from '@modular/core/schemas.json';
 
-import { applyEdits } from '../migrationEdits';
 import type { CodeStyle } from '../objectPropertyInsert';
 import { computeControlQuickFixes } from '../controlQuickFix';
 import type { ControlQuickFix } from '../controlQuickFix';
@@ -48,11 +47,11 @@ function sliderBeforeCaret(source: string, fix: ControlQuickFix): string {
 }
 
 function apply(source: string, fix: ControlQuickFix): string {
-    const { source: out, conflict } = applyEdits(source, [
-        { end: fix.span.end, replacement: fix.newText, start: fix.span.start },
-    ]);
-    expect(conflict).toBe(false);
-    return out;
+    return (
+        source.slice(0, fix.span.start) +
+        fix.newText +
+        source.slice(fix.span.end)
+    );
 }
 
 function wrapFix(fixes: ControlQuickFix[]): ControlQuickFix {
