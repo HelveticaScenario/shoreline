@@ -15,7 +15,7 @@ struct Jup6fParams {
     #[input("the sound to filter", type = audio)]
     input: PolySignal,
     #[input(
-        "cutoff frequency; held between 20 Hz and just under half the sample rate",
+        "cutoff frequency; tops out just under half the sample rate",
         type = frequency,
         range = (-3.71, ..),
     )]

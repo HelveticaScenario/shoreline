@@ -31,16 +31,16 @@ const K35_2Z: usize = 2;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum K35Saturation {
-    /// Linear — no saturation.
+    /// Clean and linear.
     #[default]
     None,
-    /// ×1 drive into the saturator.
+    /// A touch of grit in the resonance.
     Mild,
-    /// ×2 drive.
+    /// Audible growl.
     Moderate,
-    /// ×3 drive.
+    /// Thick, distorted resonance.
     Heavy,
-    /// ×4 drive.
+    /// Fully driven, screaming resonance.
     Extreme,
 }
 
@@ -207,7 +207,7 @@ filter_module! {
     name = "$unstable.filter.k35Lp", ident = K35LpFilter, kernel = K35Lp,
     output_doc = "lowpass output",
     params = {
-        #[input("feedback saturation: none, mild, moderate, heavy, extreme (default none)")]
+        #[input("how hard the resonance feedback saturates", default = "none")]
         saturation: K35Saturation,
     },
     mode = |p| p.saturation,
@@ -227,7 +227,7 @@ filter_module! {
     name = "$unstable.filter.k35Hp", ident = K35HpFilter, kernel = K35Hp,
     output_doc = "highpass output",
     params = {
-        #[input("feedback saturation: none, mild, moderate, heavy, extreme (default none)")]
+        #[input("how hard the resonance feedback saturates", default = "none")]
         saturation: K35Saturation,
     },
     mode = |p| p.saturation,

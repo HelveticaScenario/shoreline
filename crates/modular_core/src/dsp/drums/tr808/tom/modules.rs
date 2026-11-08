@@ -237,7 +237,7 @@ tom_module! {
     ident = Lt808,
     parts = LT,
     freq = -1.5959,
-    freq_doc = "pitch; stock is ≈87 Hz, level held steady from -3.1 to -0.1 V",
+    freq_doc = "pitch; stock is ≈87 Hz, and the hit gets louder or quieter far from it",
     decay_doc = "how long the drum rings, from ≈0.21 s to ≈1.9 s; ≈0.63 s at 2.5, as on the 808",
 }
 
@@ -259,7 +259,7 @@ tom_module! {
     ident = Mt808,
     parts = MT,
     freq = -0.9623,
-    freq_doc = "pitch; stock is ≈134 Hz, level held steady from -2.46 to 0.54 V",
+    freq_doc = "pitch; stock is ≈134 Hz, and the hit gets louder or quieter far from it",
     decay_doc = "how long the drum rings, from ≈0.13 s to ≈1.2 s; ≈0.4 s at 2.5, as on the 808",
 }
 
@@ -281,7 +281,7 @@ tom_module! {
     ident = Ht808,
     parts = HT,
     freq = -0.5216,
-    freq_doc = "pitch; stock is ≈182 Hz, level held steady from -2.02 to 0.98 V",
+    freq_doc = "pitch; stock is ≈182 Hz, and the hit gets louder or quieter far from it",
     decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }
 
@@ -302,7 +302,7 @@ tom_module! {
     ident = Lc808,
     parts = LC,
     freq = -0.4471,
-    freq_doc = "pitch; stock is ≈192 Hz, level held steady from -1.95 to 1.05 V",
+    freq_doc = "pitch; stock is ≈192 Hz, and the hit gets louder or quieter far from it",
     decay_doc = "how long the drum rings, from ≈0.21 s to ≈1.9 s; ≈0.63 s at 2.5, as on the 808",
 }
 
@@ -323,7 +323,7 @@ tom_module! {
     ident = Mc808,
     parts = MC,
     freq = 0.0792,
-    freq_doc = "pitch; stock is ≈276 Hz, level held steady from -1.42 to 1.58 V",
+    freq_doc = "pitch; stock is ≈276 Hz, and the hit gets louder or quieter far from it",
     decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }
 
@@ -344,6 +344,6 @@ tom_module! {
     ident = Hc808,
     parts = HC,
     freq = 0.629,
-    freq_doc = "pitch; stock is ≈405 Hz, level held steady from -0.87 to 2.13 V",
+    freq_doc = "pitch; stock is ≈405 Hz, and the hit gets louder or quieter far from it",
     decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }

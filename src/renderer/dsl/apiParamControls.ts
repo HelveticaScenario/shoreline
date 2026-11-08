@@ -139,7 +139,13 @@ export function paramSpec(
     schema: SchemaEntry,
     name: string,
 ): ParamSpec | undefined {
-    return schema.signalParams.find((p) => p.name === name);
+    const p = schema.signalParams.find((s) => s.name === name);
+    // A param without a declared default reads 0 while disconnected.
+    if (!p) {
+        return undefined;
+    }
+    const meta: Omit<ParamSpec, 'defaultValue'> & { defaultValue?: number } = p;
+    return { ...meta, defaultValue: meta.defaultValue ?? 0 };
 }
 
 export function controlRef(

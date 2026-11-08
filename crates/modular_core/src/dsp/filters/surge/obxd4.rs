@@ -145,7 +145,7 @@ pub enum Obxd4Slope {
     /// 24 dB/oct (full cascade).
     #[default]
     Db24,
-    /// Surge XT's "24 dB (Legacy)" — the brighter `y3 + y4` mix.
+    /// A brighter 24 dB/oct, as Surge XT's "24 dB (Legacy)".
     Db24Legacy,
 }
 
@@ -237,7 +237,7 @@ filter_module! {
     name = "$unstable.filter.obxd4", ident = Obxd4Filter, kernel = Obxd4Pole,
     output_doc = "lowpass output",
     params = {
-        #[input("how steeply it cuts: 6, 12, 18, 24 dB/oct, or the brighter 24 dB legacy mix (default 24)")]
+        #[input("how steeply it cuts", default = "db24")]
         slope: Obxd4Slope,
     },
     mode = |p| p.slope.pole_mix(),
@@ -259,7 +259,7 @@ filter_module! {
     name = "$unstable.filter.xpander", ident = XpanderFilter, kernel = Obxd4Pole,
     output_doc = "filter output",
     params = {
-        #[input("pole-mix mode (default lp4)")]
+        #[input("which response the four poles are mixed into", default = "lp4")]
         mode: XpanderMode,
     },
     mode = |p| p.mode.pole_mix(),

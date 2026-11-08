@@ -109,7 +109,6 @@ struct DrumMapParams {
     #[input(
         "how readily each step accents: lower accents less, 0 never; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
         type = control,
-        default = 5.0,
         range = (0.0, ..),
         control_range = (0.0, 5.0),
     )]
@@ -149,7 +148,7 @@ struct DrumMapParams {
     #[input("how many hi-hat hits play: none at 0, all at 5", type = control, default = 2.5, range = (0.0, 5.0))]
     #[deserr(default)]
     hh_density: Option<PolySignal>,
-    #[input("steps per cycle: 16, or 32 to include ghost notes (default 16)")]
+    #[input("steps per cycle; 32 adds ghost notes", default = 16)]
     #[serde(default)]
     #[deserr(default)]
     resolution: DrumMapResolution,

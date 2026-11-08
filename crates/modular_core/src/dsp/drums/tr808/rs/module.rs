@@ -22,7 +22,7 @@ struct Rs808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, level held steady from 1.5 to 4 V",
+        "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, and the hit gets louder or quieter far from it",
         type = pitch,
         default = 2.771,
     )]
@@ -242,7 +242,7 @@ struct Cl808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "pitch; stock is ≈2.53 kHz, level held steady from 1.5 to 4.5 V",
+        "pitch; stock is ≈2.53 kHz, and the hit gets louder or quieter far from it",
         type = pitch,
         default = 3.273,
     )]

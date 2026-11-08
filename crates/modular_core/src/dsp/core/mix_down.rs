@@ -22,7 +22,7 @@ pub struct MixDownParams {
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
     pub channels: usize,
-    #[input("how channels landing on the same output combine (default `'sum'`)")]
+    #[input("how channels landing on the same output combine", default = "sum")]
     #[serde(default)]
     #[deserr(default)]
     mode: MixMode,

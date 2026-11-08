@@ -58,7 +58,7 @@ struct SamplerParams {
     #[serde(default = "default_fade")]
     #[deserr(default = default_fade())]
     fade: f64,
-    #[input("what the gate does once playback starts (default `'once'`)")]
+    #[input("what the gate does once playback starts", default = "once")]
     #[serde(default)]
     #[deserr(default)]
     mode: SamplerMode,

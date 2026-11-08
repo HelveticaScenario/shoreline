@@ -54,7 +54,7 @@ pub struct OverdriveParams {
     )]
     #[deserr(default)]
     pub tone: Option<PolySignal>,
-    #[input("saturation character (default soft)")]
+    #[input("saturation character", default = "soft")]
     #[serde(default)]
     #[deserr(default)]
     pub mode: Option<OverdriveMode>,

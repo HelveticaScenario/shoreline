@@ -932,6 +932,13 @@ pub trait PolySignalFields {
     }
 }
 
+/// `skip_serializing_if` predicate `#[params]` puts on a param with a
+/// documented default, so the JSON schema shows that value instead of the
+/// field type's own default.
+pub fn documented_schema_default<T>(_: &T) -> bool {
+    true
+}
+
 /// Trait for params structs to expose signal parameter metadata.
 /// Emitted by the `#[params]` attribute.
 pub trait SignalParamMeta {
@@ -2572,7 +2579,9 @@ pub struct SignalParamSchema {
     pub description: String,
     /// `audio`, `control`, `pitch`, `frequency`, `gate` or `trig`.
     pub signal_type: String,
-    pub default_value: f64,
+    /// What a disconnected input reads, when it reads a fixed value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<f64>,
     /// Lower bound of the usable range; `None` when unbounded below.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_value: Option<f64>,

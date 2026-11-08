@@ -48,7 +48,7 @@ const STATE_CLAMP: f32 = 500.0;
 #[deserr(deny_unknown_fields)]
 struct LorenzParams {
     #[input(
-        "σ, how fast x chases y: 5 is σ = 30, the default σ = 10; stays chaotic above 0",
+        "σ, how fast x chases y: 5 is σ = 30, and the default is σ = 10; stays chaotic above 0",
         type = control,
         default = 1.6667,
         range = (0.0, ..),
@@ -58,7 +58,7 @@ struct LorenzParams {
     sigma: Option<PolySignal>,
 
     #[input(
-        "ρ, how far the attractor's two lobes sit from the centre: 5 is ρ = 60, the default ρ = 28; below about 2.06 (ρ ≈ 24.74) the motion settles to a still point",
+        "ρ, how far the attractor's two lobes sit from the centre: 5 is ρ = 60, and the default is ρ = 28; below about 2.06 (ρ ≈ 24.74) the motion settles to a still point",
         type = control,
         default = 2.3333,
         range = (0.0, ..),
@@ -68,7 +68,7 @@ struct LorenzParams {
     rho: Option<PolySignal>,
 
     #[input(
-        "β, the attractor's shape: 5 is β = 10, the default the classic β = 8/3",
+        "β, the attractor's shape: 5 is β = 10, and the default is the classic β = 8/3",
         type = control,
         default = 1.3333,
         range = (0.0, ..),
@@ -78,7 +78,7 @@ struct LorenzParams {
     beta: Option<PolySignal>,
 
     #[input(
-        "simulation speed: 0 freezes, 5 runs 200 time units a second, the default 4 a slow butterfly; audio-rate chaos from about 1.25 (50 units a second)",
+        "simulation speed: 0 freezes and 5 is fastest; the default traces a slow butterfly, and from about 1.25 the chaos runs at audio rate",
         type = control,
         default = 0.1,
         range = (0.0, ..),

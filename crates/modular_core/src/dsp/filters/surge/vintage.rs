@@ -18,12 +18,12 @@ use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum VintageType {
-    /// Runge-Kutta integration of the ladder circuit's differential equations.
+    /// The closest simulation of the ladder circuit.
     #[default]
     Rk,
-    /// Huovilainen model — a tanh saturator inside each of the four pole stages.
+    /// Saturation in every stage, for a thicker, grittier ladder.
     Huov,
-    /// Huovilainen's 2010 revision — one input saturator driving four linear poles.
+    /// Saturation at the input only, for a cleaner ladder.
     Huov2010,
 }
 
@@ -335,7 +335,7 @@ filter_module! {
     name = "$unstable.filter.vintageLadder", ident = VintageLadderFilter, kernel = VintageLadder,
     output_doc = "lowpass output",
     params = {
-        #[input("ladder model: rk, huov, or huov2010 (default rk)")]
+        #[input("which ladder model to simulate", default = "rk")]
         #[serde(rename = "type")]
         #[deserr(rename = "type")]
         r#type: VintageType,

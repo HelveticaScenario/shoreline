@@ -198,7 +198,11 @@ struct Reverb2Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Reverb2Outputs {
-    #[output("output", "stereo reverb, fully wet (left, right)", default)]
+    #[output(
+        "output",
+        "stereo reverb, fully wet, as left and right channels",
+        default
+    )]
     sample: PolyOutput,
 }
 

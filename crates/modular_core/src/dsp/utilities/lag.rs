@@ -15,7 +15,6 @@ struct LagProcessorParams {
     #[input(
         "seconds the output takes to climb 1 V; follows fall when not patched",
         type = control,
-        default = 0.01,
         range = (0.001, ..),
         control_range = (0.001, 10.0),
     )]

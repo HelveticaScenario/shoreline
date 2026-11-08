@@ -100,9 +100,9 @@ filter_module! {
     name = "$unstable.filter.notch", ident = NotchFilter, kernel = NotchBiquad,
     output_doc = "notch output",
     params = {
-        #[input("how steeply it cuts: 12 or 24 dB/oct (default 24)")]
+        #[input("how steeply it cuts", default = "db24")]
         slope: FilterSlope,
-        #[input("notch width: standard or mild (default standard)")]
+        #[input("how wide and strong the notch is", default = "standard")]
         style: NotchStyle,
     },
     mode = |p| NotchMode {

@@ -108,6 +108,28 @@ async function widgetText(page: Page, selector: string): Promise<string> {
     });
 }
 
+/**
+ * Run `action` until `selector` shows: the TS worker can miss a request made
+ * while it is still processing the previous edit.
+ */
+async function triggerUntilVisible(
+    page: Page,
+    action: string,
+    selector: string,
+) {
+    const widget = page.locator(selector).first();
+    for (let attempt = 0; attempt < 8; attempt++) {
+        await trigger(page, action);
+        try {
+            await expect(widget).toBeVisible({ timeout: 2_500 });
+            return;
+        } catch {
+            // Retry below.
+        }
+    }
+    await expect(widget).toBeVisible();
+}
+
 async function captureWidget(
     page: Page,
     selector: string,
@@ -118,6 +140,8 @@ async function captureWidget(
     await expect(widget).toBeVisible({ timeout: 20_000 });
     await expect(widget).toContainText(expectText, { timeout: 20_000 });
     if (shot) {
+        // Let the widget finish fading in.
+        await page.waitForTimeout(300);
         await widget.screenshot({ path: shot });
     }
     return widgetText(page, selector);
@@ -143,6 +167,14 @@ test.describe('docs render', () => {
 
     test('editor hover, completion and signature help', async ({ window }) => {
         await openUntitledBuffer(window);
+        if (SHOTS) {
+            // Screenshots show each widget's whole content, not its
+            // scrolled first screen.
+            await window.addStyleTag({
+                content:
+                    '.monaco-hover, .monaco-hover-content, .monaco-hover .monaco-scrollable-element, .suggest-details, .suggest-details .monaco-scrollable-element, .parameter-hints-widget, .parameter-hints-widget .monaco-scrollable-element { max-height: none !important; height: auto !important; }',
+            });
+        }
         const failures: string[] = [];
         const check = (where: string, text: string) => {
             const found = leaks(text);
@@ -159,7 +191,7 @@ test.describe('docs render', () => {
 
             // Hover on the factory.
             await setCode(window, `${name}()`, name.length);
-            await trigger(window, 'editor.action.showHover');
+            await triggerUntilVisible(window, 'editor.action.showHover', HOVER);
             const hover = await captureWidget(
                 window,
                 HOVER,
@@ -185,7 +217,11 @@ test.describe('docs render', () => {
                 for (const via of ['$', '$m']) {
                     const code = `$saw('c3').${via}.${chainPath(name)}()`;
                     await setCode(window, code, code.length - 2);
-                    await trigger(window, 'editor.action.showHover');
+                    await triggerUntilVisible(
+                        window,
+                        'editor.action.showHover',
+                        HOVER,
+                    );
                     const text = await captureWidget(
                         window,
                         HOVER,
@@ -199,10 +235,11 @@ test.describe('docs render', () => {
 
             // Completion details.
             await setCode(window, name, name.length + 1);
-            await trigger(window, 'editor.action.triggerSuggest');
-            await expect(
-                window.locator('.suggest-widget.visible'),
-            ).toBeVisible({ timeout: 20_000 });
+            await triggerUntilVisible(
+                window,
+                'editor.action.triggerSuggest',
+                '.suggest-widget.visible',
+            );
             const detailsVisible = await window
                 .locator(SUGGEST_DETAILS)
                 .isVisible();
@@ -221,9 +258,15 @@ test.describe('docs render', () => {
             // Signature help for each positional, then the config object.
             const positionals = module.positionalArgs.length;
             for (let i = 0; i <= positionals; i++) {
-                const code = `${name}(${', '.repeat(i)}`;
+                // Placeholder arguments: a run of empty ones stops TS
+                // offering signature help.
+                const code = `${name}(${'0, '.repeat(i)}`;
                 await setCode(window, code, code.length + 1);
-                await trigger(window, 'editor.action.triggerParameterHints');
+                await triggerUntilVisible(
+                    window,
+                    'editor.action.triggerParameterHints',
+                    SIGNATURE,
+                );
                 const param =
                     i < positionals ? module.positionalArgs[i].name : 'config';
                 const text = await captureWidget(
@@ -268,6 +311,7 @@ test.describe('docs render', () => {
 
             const failures: string[] = [];
             for (const module of MODULES) {
+                await search.fill('');
                 await search.fill(module.name);
                 const card = docs
                     .locator('.module-card')
@@ -277,10 +321,24 @@ test.describe('docs render', () => {
                         }),
                     })
                     .first();
-                await expect(card).toBeVisible({ timeout: 10_000 });
+                // Exact name matches lead the results; bring the list to its
+                // top so the virtualizer mounts that card.
+                await expect(async () => {
+                    await docs.evaluate((el) => {
+                        el.scrollTop = 0;
+                        el.querySelectorAll('*').forEach((n) => {
+                            if (n.scrollTop > 0) n.scrollTop = 0;
+                        });
+                    });
+                    await expect(card).toBeVisible({ timeout: 1_000 });
+                }).toPass({ timeout: 15_000 });
+                // The module's own prose is free markdown; its params,
+                // outputs and signature are checked here.
                 const text = await card.evaluate((el) => {
                     const clone = el.cloneNode(true) as HTMLElement;
-                    clone.querySelectorAll('pre').forEach((n) => n.remove());
+                    clone
+                        .querySelectorAll('pre, .module-documentation')
+                        .forEach((n) => n.remove());
                     return clone.innerText;
                 });
                 const found = leaks(text);

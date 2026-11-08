@@ -71,6 +71,17 @@ const getParams = (module: Schema) => {
     });
 };
 
+/** A number stays on the line of its unit, e.g. `5 V`. */
+const keepUnits = (text: string): string =>
+    text.replace(/(\d) (V|Hz|kHz|dB|s|ms)\b/g, '$1\u00a0$2');
+
+/** One-line param, output, or value doc: inline markdown only. */
+const InlineDoc: React.FC<{ text: string }> = ({ text }) => (
+    <Markdown allowedElements={['code', 'em', 'strong']} unwrapDisallowed>
+        {keepUnits(text)}
+    </Markdown>
+);
+
 const VariantItems: React.FC<{ variants: EnumVariantInfo[] }> = ({
     variants,
 }) => (
@@ -78,7 +89,12 @@ const VariantItems: React.FC<{ variants: EnumVariantInfo[] }> = ({
         {variants.map((v) => (
             <li key={v.value}>
                 <code>{v.rawValue as string}</code>
-                {v.description && <> &mdash; {v.description}</>}
+                {v.description && (
+                    <>
+                        {' '}
+                        &mdash; <InlineDoc text={v.description} />
+                    </>
+                )}
             </li>
         ))}
     </>
@@ -115,7 +131,12 @@ const ModuleCard = memo<ModuleCardProps>(({ module, onTypeClick }) => {
                                 </>
                             )}
                         </strong>
-                        {description && <> &mdash; {description}</>}
+                        {description && (
+                            <>
+                                {' '}
+                                &mdash; <InlineDoc text={description} />
+                            </>
+                        )}
                         {meta && <span className="param-meta">{meta}</span>}
                         {variants &&
                             variants.some((v) => v.description) &&
@@ -144,10 +165,7 @@ const ModuleCard = memo<ModuleCardProps>(({ module, onTypeClick }) => {
                     return (
                         <li key={out.name}>
                             <strong>{out.default ? 'main' : out.name}</strong>:{' '}
-                            <LinkifyTypes
-                                text={out.description}
-                                onTypeClick={onTypeClick}
-                            />
+                            <InlineDoc text={out.description} />
                             {meta && <span className="param-meta">{meta}</span>}
                         </li>
                     );
@@ -184,11 +202,20 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
 
     const filteredModules = useMemo(() => {
         const query = searchQuery.toLowerCase();
-        return modules.filter(
-            (schema) =>
-                schema.name.toLowerCase().includes(query) ||
-                schema.documentation.toLowerCase().includes(query),
-        );
+        // Name matches lead, best first; modules that only mention the query
+        // in their docs follow, each group keeping the display order.
+        const rankOf = (schema: Schema): number => {
+            const name = schema.name.toLowerCase();
+            if (name === query) return 0;
+            if (name.startsWith(query)) return 1;
+            if (name.includes(query)) return 2;
+            return schema.documentation.toLowerCase().includes(query) ? 3 : -1;
+        };
+        return modules
+            .map((schema) => ({ rank: rankOf(schema), schema }))
+            .filter(({ rank }) => rank >= 0)
+            .sort((a, b) => a.rank - b.rank)
+            .map(({ schema }) => schema);
     }, [modules, searchQuery]);
 
     useLayoutEffect(() => {

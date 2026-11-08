@@ -84,10 +84,17 @@ impl Bounds {
     }
 }
 
+/// A documented default: a number for a signal, or any literal for a plain
+/// param, where it is the value serde fills in.
+enum Default {
+    Number(Number),
+    Literal(syn::Lit),
+}
+
 struct InputAttr {
     description: String,
     signal_type: Option<(SignalType, Span)>,
-    default: Option<(Number, Span)>,
+    default: Option<(Default, Span)>,
     range: Option<Bounds>,
     control_range: Option<Bounds>,
 }
@@ -188,7 +195,12 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
                     if parsed.default.is_some() {
                         return Err(duplicate());
                     }
-                    parsed.default = Some((parse_number(input)?, key.span()));
+                    let value = if input.peek(LitStr) || input.peek(syn::LitBool) {
+                        Default::Literal(input.parse()?)
+                    } else {
+                        Default::Number(parse_number(input)?)
+                    };
+                    parsed.default = Some((value, key.span()));
                 }
                 "range" => {
                     if parsed.range.is_some() {
@@ -313,12 +325,6 @@ fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
                 "`type` applies to signal inputs only",
             ));
         }
-        if let Some((_, span)) = attr.default {
-            return Err(syn::Error::new(
-                span,
-                "`default` applies to signal inputs only; give the field a serde/deserr default",
-            ));
-        }
         if let Some(cr) = &attr.control_range {
             return Err(syn::Error::new(
                 cr.span,
@@ -372,8 +378,19 @@ fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
             }
         }
     }
-    if let (Some(range), Some((default, span))) = (&attr.range, &attr.default) {
-        check_within(range, default.value, *span, "`default`")?;
+    match &attr.default {
+        Some((Default::Literal(_), span)) => {
+            return Err(syn::Error::new(
+                *span,
+                "a signal input's `default` is a number",
+            ));
+        }
+        Some((Default::Number(default), span)) => {
+            if let Some(range) = &attr.range {
+                check_within(range, default.value, *span, "`default`")?;
+            }
+        }
+        None => {}
     }
     Ok(())
 }
@@ -463,12 +480,37 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                     .attrs
                     .push(syn::parse_quote! { #[schemars(range(#(#parts),*))] });
             }
+            if let Some((default, _)) = &parsed.default {
+                let value = match default {
+                    Default::Number(n) => n.tokens.clone(),
+                    Default::Literal(lit) => quote! { #lit },
+                };
+                // schemars would also write `#[serde(default)]`'s value
+                // (`null` for an `Option`); the skip stops that, leaving the
+                // documented value.
+                field.attrs.push(syn::parse_quote! {
+                    #[serde(skip_serializing_if = "crate::types::documented_schema_default")]
+                });
+                field.attrs.push(syn::parse_quote! {
+                    #[schemars(transform = |schema: &mut schemars::Schema| {
+                        schema.insert("default".into(), ::serde_json::json!(#value));
+                    })]
+                });
+            }
             continue;
         };
 
         let field_name = ident.to_string().to_case(Case::Camel);
         let type_str = signal_type.as_str();
-        let default_value = parsed.default.as_ref().map_or(0.0, |(n, _)| n.value);
+        let declared_default = match &parsed.default {
+            Some((Default::Number(n), _)) => Some(n.value),
+            _ => None,
+        };
+        let default_value = declared_default.unwrap_or(0.0);
+        let default_schema = match declared_default {
+            Some(v) => quote! { Some(#v) },
+            None => quote! { None },
+        };
         let (min_value, max_value) = match &parsed.range {
             Some(r) => (option_f64(&r.min), option_f64(&r.max)),
             None => (quote! { None }, quote! { None }),
@@ -486,7 +528,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                 name: #field_name.to_string(),
                 description: #description.to_string(),
                 signal_type: #type_str.to_string(),
-                default_value: #default_value,
+                default_value: #default_schema,
                 min_value: #min_value,
                 max_value: #max_value,
                 control_min: #control_min,
@@ -621,6 +663,19 @@ mod tests {
         assert!(
             err("#[derive(Clone)] struct P { #[input(\"a\", type = control, default = 6.0, range = (0.0, 5.0))] a: PolySignal }")
                 .contains("outside")
+        );
+    }
+
+    #[test]
+    fn plain_default_reaches_the_schema() {
+        let out = expand(
+            "#[derive(Clone)] struct P { #[input(\"mode\", default = \"tanh\")] mode: Drive }",
+        )
+        .unwrap();
+        assert!(out.contains("json ! (\"tanh\")"), "{out}");
+        assert!(
+            err("#[derive(Clone)] struct P { #[input(\"a\", type = control, range = (0.0, 5.0), default = \"x\")] a: PolySignal }")
+                .contains("is a number")
         );
     }
 

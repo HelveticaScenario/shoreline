@@ -37,12 +37,12 @@ pub enum EqSectionType {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct EqSection {
-    #[input("kind of band (default peak)")]
+    #[input("kind of band", default = "peak")]
     #[serde(rename = "type", default)]
     #[deserr(rename = "type", default)]
     pub r#type: EqSectionType,
     #[input(
-        "where the band sits, like '1000hz' or 'c4'; held between 20 Hz and just under half the sample rate",
+        "where the band sits, like '1000hz' or 'c4'; tops out just under half the sample rate",
         type = frequency,
         range = (-3.71, ..),
     )]

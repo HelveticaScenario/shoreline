@@ -34,6 +34,30 @@ describe('formatSignalMeta', () => {
         ).toBe('±5');
     });
 
+    test('an undeclared default is not shown', () => {
+        expect(
+            formatSignalMeta(
+                { maxValue: 5, minValue: -5, signalType: 'control' },
+                false,
+            ),
+        ).toBe('±5');
+    });
+
+    test('negative bounds and kilohertz read naturally', () => {
+        expect(
+            formatSignalMeta(
+                { maxValue: 5.7, minValue: -5, signalType: 'control' },
+                true,
+            ),
+        ).toBe('−5–5.7');
+        expect(
+            formatSignalMeta(
+                { defaultValue: 3, minValue: -3.71, signalType: 'frequency' },
+                false,
+            ),
+        ).toBe('≥ 20 Hz, default 2.09 kHz');
+    });
+
     test('a required param shows no default', () => {
         expect(
             formatSignalMeta(
@@ -51,7 +75,7 @@ describe('formatSignalMeta', () => {
     test('pitch reads in notes, frequency in hz', () => {
         expect(
             formatSignalMeta({ defaultValue: 0, signalType: 'pitch' }, false),
-        ).toBe('note, default c4');
+        ).toBe('note, default C4');
         expect(
             formatSignalMeta(
                 {
@@ -62,7 +86,7 @@ describe('formatSignalMeta', () => {
                 },
                 false,
             ),
-        ).toBe('131hz–523hz, default 262hz');
+        ).toBe('131 Hz–523 Hz, default 262 Hz');
     });
 
     test('gate and trig name their convention; audio adds nothing', () => {
@@ -123,6 +147,11 @@ describe('every declared range reaches the generated docs', () => {
                 }
             }
         }
+    });
+
+    test('config options nest one level under their key', () => {
+        expect(lib).not.toMatch(/-\s{2,}- /);
+        expect(lib).toContain("*     - `\"throughZero\"`");
     });
 
     test('main outputs as @returns', () => {

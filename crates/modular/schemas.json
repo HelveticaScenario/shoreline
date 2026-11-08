@@ -12,7 +12,7 @@
       "type": "object",
       "properties": {
         "beta": {
-          "description": "β, the attractor's shape: 5 is β = 10, the default the classic β = 8/3",
+          "description": "β, the attractor's shape: 5 is β = 10, and the default is the classic β = 8/3",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -23,7 +23,7 @@
           ]
         },
         "rate": {
-          "description": "simulation speed: 0 freezes, 5 runs 200 time units a second, the default 4 a slow butterfly; audio-rate chaos from about 1.25 (50 units a second)",
+          "description": "simulation speed: 0 freezes and 5 is fastest; the default traces a slow butterfly, and from about 1.25 the chaos runs at audio rate",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -34,7 +34,7 @@
           ]
         },
         "rho": {
-          "description": "ρ, how far the attractor's two lobes sit from the centre: 5 is ρ = 60, the default ρ = 28; below about 2.06 (ρ ≈ 24.74) the motion settles to a still point",
+          "description": "ρ, how far the attractor's two lobes sit from the centre: 5 is ρ = 60, and the default is ρ = 28; below about 2.06 (ρ ≈ 24.74) the motion settles to a still point",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -45,7 +45,7 @@
           ]
         },
         "sigma": {
-          "description": "σ, how fast x chases y: 5 is σ = 30, the default σ = 10; stays chaotic above 0",
+          "description": "σ, how fast x chases y: 5 is σ = 30, and the default is σ = 10; stays chaotic above 0",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -146,7 +146,7 @@
     "signalParams": [
       {
         "name": "sigma",
-        "description": "σ, how fast x chases y: 5 is σ = 30, the default σ = 10; stays chaotic above 0",
+        "description": "σ, how fast x chases y: 5 is σ = 30, and the default is σ = 10; stays chaotic above 0",
         "signalType": "control",
         "defaultValue": 1.6667,
         "minValue": 0.0,
@@ -155,7 +155,7 @@
       },
       {
         "name": "rho",
-        "description": "ρ, how far the attractor's two lobes sit from the centre: 5 is ρ = 60, the default ρ = 28; below about 2.06 (ρ ≈ 24.74) the motion settles to a still point",
+        "description": "ρ, how far the attractor's two lobes sit from the centre: 5 is ρ = 60, and the default is ρ = 28; below about 2.06 (ρ ≈ 24.74) the motion settles to a still point",
         "signalType": "control",
         "defaultValue": 2.3333,
         "minValue": 0.0,
@@ -164,7 +164,7 @@
       },
       {
         "name": "beta",
-        "description": "β, the attractor's shape: 5 is β = 10, the default the classic β = 8/3",
+        "description": "β, the attractor's shape: 5 is β = 10, and the default is the classic β = 8/3",
         "signalType": "control",
         "defaultValue": 1.3333,
         "minValue": 0.0,
@@ -173,7 +173,7 @@
       },
       {
         "name": "rate",
-        "description": "simulation speed: 0 freezes, 5 runs 200 time units a second, the default 4 a slow butterfly; audio-rate chaos from about 1.25 (50 units a second)",
+        "description": "simulation speed: 0 freezes and 5 is fastest; the default traces a slow butterfly, and from about 1.25 the chaos runs at audio rate",
         "signalType": "control",
         "defaultValue": 0.1,
         "minValue": 0.0,
@@ -217,7 +217,7 @@
           "minimum": 0
         },
         "spread": {
-          "description": "directional spread: 0 sends every wave the same way, 5 brings them from every direction (a confused sea)",
+          "description": "directional spread: 0 sends every wave the same way, 5 brings them from every direction, a confused sea",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -341,8 +341,7 @@
       {
         "name": "freq",
         "description": "rate of the main swell, e.g. `'0.1hz'`",
-        "signalType": "frequency",
-        "defaultValue": 0.0
+        "signalType": "frequency"
       },
       {
         "name": "steepness",
@@ -366,7 +365,7 @@
       },
       {
         "name": "spread",
-        "description": "directional spread: 0 sends every wave the same way, 5 brings them from every direction (a confused sea)",
+        "description": "directional spread: 0 sends every wave the same way, 5 brings them from every direction, a confused sea",
         "signalType": "control",
         "defaultValue": 1.5,
         "minValue": 0.0,
@@ -473,8 +472,7 @@
       {
         "name": "value",
         "description": "the signal or value to pass on",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       }
     ],
     "positionalArgs": [
@@ -513,8 +511,9 @@
           }
         },
         "mode": {
-          "description": "how the inputs combine (default `'sum'`)",
-          "$ref": "#/$defs/MixMode"
+          "description": "how the inputs combine",
+          "$ref": "#/$defs/MixMode",
+          "default": "sum"
         }
       },
       "required": [
@@ -608,7 +607,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the mix, keeping each channel separate (not a mono fold-down)",
+        "description": "the mix, keeping each channel separate rather than folding to mono",
         "polyphonic": true,
         "default": true
       }
@@ -654,8 +653,9 @@
           "$ref": "#/$defs/PolySignal"
         },
         "mode": {
-          "description": "how channels landing on the same output combine (default `'sum'`)",
-          "$ref": "#/$defs/MixMode"
+          "description": "how channels landing on the same output combine",
+          "$ref": "#/$defs/MixMode",
+          "default": "sum"
         }
       },
       "required": [
@@ -759,8 +759,7 @@
       {
         "name": "input",
         "description": "the polyphonic signal to fold down",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       }
     ],
     "positionalArgs": [
@@ -900,14 +899,12 @@
       {
         "name": "input",
         "description": "the signal to place in the stereo field",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "pan",
         "description": "pan position of each channel: -5 left, 0 centre, +5 right",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
         "controlMin": -5.0,
@@ -1159,7 +1156,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈49.5 Hz, level held steady from -3.5 to -1 V",
+          "description": "pitch; stock is ≈49.5 Hz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -1273,8 +1270,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -1308,7 +1304,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈49.5 Hz, level held steady from -3.5 to -1 V",
+        "description": "pitch; stock is ≈49.5 Hz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": -2.4035
       }
@@ -1342,7 +1338,7 @@
           ]
         },
         "freq": {
-          "description": "pitch of the low tone, the high one following; stock is ≈250 Hz, level held steady from -1.5 to 1.5 V",
+          "description": "pitch of the low tone, the high one following; stock is ≈250 Hz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -1467,8 +1463,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -1502,7 +1497,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch of the low tone, the high one following; stock is ≈250 Hz, level held steady from -1.5 to 1.5 V",
+        "description": "pitch of the low tone, the high one following; stock is ≈250 Hz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": -0.0678
       }
@@ -1536,7 +1531,7 @@
           ]
         },
         "freq": {
-          "description": "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, level held steady from 1.5 to 4 V",
+          "description": "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -1639,8 +1634,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -1654,7 +1648,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, level held steady from 1.5 to 4 V",
+        "description": "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": 2.771
       }
@@ -1699,7 +1693,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈2.53 kHz, level held steady from 1.5 to 4.5 V",
+          "description": "pitch; stock is ≈2.53 kHz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -1802,8 +1796,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -1817,7 +1810,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈2.53 kHz, level held steady from 1.5 to 4.5 V",
+        "description": "pitch; stock is ≈2.53 kHz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": 3.273
       },
@@ -1861,7 +1854,7 @@
           ]
         },
         "freq": {
-          "description": "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz, level held steady from -0.5 to 2.5 V",
+          "description": "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -1964,8 +1957,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the bell",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -1979,7 +1971,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz, level held steady from -0.5 to 2.5 V",
+        "description": "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": 1.0454
       }
@@ -2100,8 +2092,7 @@
       {
         "name": "trigger",
         "description": "rising edges clap",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -2230,8 +2221,7 @@
       {
         "name": "trigger",
         "description": "rising edges shake the maracas",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -2387,8 +2377,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the cymbal",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -2591,14 +2580,12 @@
       {
         "name": "closed",
         "description": "rising edges strike the closed hat, which also cuts off a ringing open hat",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "open",
         "description": "rising edges strike the open hat",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -2671,7 +2658,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈87 Hz, level held steady from -3.1 to -0.1 V",
+          "description": "pitch; stock is ≈87 Hz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -2774,8 +2761,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -2789,7 +2775,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈87 Hz, level held steady from -3.1 to -0.1 V",
+        "description": "pitch; stock is ≈87 Hz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": -1.5959
       },
@@ -2844,7 +2830,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈134 Hz, level held steady from -2.46 to 0.54 V",
+          "description": "pitch; stock is ≈134 Hz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -2947,8 +2933,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -2962,7 +2947,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈134 Hz, level held steady from -2.46 to 0.54 V",
+        "description": "pitch; stock is ≈134 Hz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": -0.9623
       },
@@ -3017,7 +3002,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈182 Hz, level held steady from -2.02 to 0.98 V",
+          "description": "pitch; stock is ≈182 Hz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -3120,8 +3105,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -3135,7 +3119,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈182 Hz, level held steady from -2.02 to 0.98 V",
+        "description": "pitch; stock is ≈182 Hz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": -0.5216
       },
@@ -3190,7 +3174,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈192 Hz, level held steady from -1.95 to 1.05 V",
+          "description": "pitch; stock is ≈192 Hz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -3293,8 +3277,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -3308,7 +3291,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈192 Hz, level held steady from -1.95 to 1.05 V",
+        "description": "pitch; stock is ≈192 Hz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": -0.4471
       },
@@ -3363,7 +3346,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈276 Hz, level held steady from -1.42 to 1.58 V",
+          "description": "pitch; stock is ≈276 Hz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -3466,8 +3449,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -3481,7 +3463,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈276 Hz, level held steady from -1.42 to 1.58 V",
+        "description": "pitch; stock is ≈276 Hz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": 0.0792
       },
@@ -3536,7 +3518,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈405 Hz, level held steady from -0.87 to 2.13 V",
+          "description": "pitch; stock is ≈405 Hz, and the hit gets louder or quieter far from it",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -3639,8 +3621,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -3654,7 +3635,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈405 Hz, level held steady from -0.87 to 2.13 V",
+        "description": "pitch; stock is ≈405 Hz, and the hit gets louder or quieter far from it",
         "signalType": "pitch",
         "defaultValue": 0.629
       },
@@ -3741,7 +3722,7 @@
           "default": false
         },
         "sweep": {
-          "description": "how long the pitch takes to fall to rest (the 909's tune knob)",
+          "description": "how long the pitch takes to fall to rest; the 909's tune knob",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -3834,8 +3815,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -3855,7 +3835,7 @@
       },
       {
         "name": "sweep",
-        "description": "how long the pitch takes to fall to rest (the 909's tune knob)",
+        "description": "how long the pitch takes to fall to rest; the 909's tune knob",
         "signalType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
@@ -4038,8 +4018,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -4194,8 +4173,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the rim",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -4324,8 +4302,7 @@
       {
         "name": "trigger",
         "description": "rising edges clap",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -4481,8 +4458,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -4654,8 +4630,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -4827,8 +4802,7 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "accent",
@@ -5076,14 +5050,12 @@
       {
         "name": "input",
         "description": "the sound to compress",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "sidechain",
         "description": "when patched, the compressor listens to this instead of the input, but still turns the input down; for ducking and pumping",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "threshold",
@@ -5318,8 +5290,7 @@
       {
         "name": "input",
         "description": "the sound to split",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "lowMidFreq",
@@ -5453,7 +5424,6 @@
         "name": "input",
         "description": "signal to fold",
         "signalType": "audio",
-        "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0
       },
@@ -5470,8 +5440,7 @@
       {
         "name": "freq",
         "description": "pitch of the incoming signal; patch it to reduce aliasing on high notes",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       }
     ],
     "positionalArgs": [
@@ -5599,7 +5568,6 @@
         "name": "input",
         "description": "signal to shape",
         "signalType": "audio",
-        "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0
       },
@@ -5607,7 +5575,6 @@
         "name": "amount",
         "description": "harmonic richness: 0 clean, 5 dominated by the highest harmonics",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -5616,8 +5583,7 @@
       {
         "name": "freq",
         "description": "pitch of the incoming signal; patch it to reduce aliasing on high notes",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       }
     ],
     "positionalArgs": [
@@ -5678,7 +5644,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "modulation": {
-          "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here (±5 V sways about ±0.5 ms)",
+          "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.5 ms",
           "anyOf": [
             {
               "$ref": "#/$defs/MonoSignal"
@@ -5790,7 +5756,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet (left, right)",
+        "description": "stereo reverb, fully wet, as left and right channels",
         "polyphonic": true,
         "default": true
       }
@@ -5800,8 +5766,7 @@
       {
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "decay",
@@ -5855,7 +5820,7 @@
       },
       {
         "name": "modulation",
-        "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here (±5 V sways about ±0.5 ms)",
+        "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.5 ms",
         "signalType": "control",
         "defaultValue": 0.0,
         "controlMin": -5.0,
@@ -5889,7 +5854,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "mode": {
-          "description": "saturation character (default soft)",
+          "description": "saturation character",
           "anyOf": [
             {
               "$ref": "#/$defs/OverdriveMode"
@@ -5897,7 +5862,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "default": "soft"
         },
         "tone": {
           "description": "which frequencies distort most: -5 dark, 0 neutral, +5 bright; the overall balance stays flat",
@@ -6008,8 +5974,7 @@
       {
         "name": "input",
         "description": "signal to overdrive",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "drive",
@@ -6133,8 +6098,7 @@
       {
         "name": "input",
         "description": "signal to strip of DC offset and sub-audio rumble",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       }
     ],
     "positionalArgs": [
@@ -6192,7 +6156,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "modulation": {
-          "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here (±5 V sways about ±0.1 ms)",
+          "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.1 ms",
           "anyOf": [
             {
               "$ref": "#/$defs/MonoSignal"
@@ -6282,7 +6246,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet (left, right)",
+        "description": "stereo reverb, fully wet, as left and right channels",
         "polyphonic": true,
         "default": true
       }
@@ -6292,8 +6256,7 @@
       {
         "name": "input",
         "description": "signal to reverberate; all channels are mixed to mono",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "bandwidth",
@@ -6327,7 +6290,7 @@
       },
       {
         "name": "modulation",
-        "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here (±5 V sways about ±0.1 ms)",
+        "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.1 ms",
         "signalType": "control",
         "defaultValue": 0.0,
         "controlMin": -5.0,
@@ -6460,8 +6423,7 @@
       {
         "name": "input",
         "description": "signal to grit up",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "amount",
@@ -6662,7 +6624,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet (left, right)",
+        "description": "stereo reverb, fully wet, as left and right channels",
         "polyphonic": true,
         "default": true
       }
@@ -6672,8 +6634,7 @@
       {
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "decay",
@@ -6904,7 +6865,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet (left, right)",
+        "description": "stereo reverb, fully wet, as left and right channels",
         "polyphonic": true,
         "default": true
       }
@@ -6914,8 +6875,7 @@
       {
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "decay",
@@ -7096,7 +7056,6 @@
         "name": "input",
         "description": "signal to shape",
         "signalType": "audio",
-        "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0
       },
@@ -7104,7 +7063,6 @@
         "name": "amount",
         "description": "morphs through 8 shapes: 0 clean, higher squares off and then ripples",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -7113,8 +7071,7 @@
       {
         "name": "freq",
         "description": "pitch of the incoming signal; patch it to reduce aliasing on high notes",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       }
     ],
     "positionalArgs": [
@@ -7254,7 +7211,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the input plus reverb, in stereo (left, right)",
+        "description": "the input plus reverb, as left and right channels",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -7266,8 +7223,7 @@
       {
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "amount",
@@ -7370,8 +7326,9 @@
           ]
         },
         "quality": {
-          "description": "recording character: digital, vintage, cleanTape or dirtyTape (default digital)",
-          "$ref": "#/$defs/GranularQuality"
+          "description": "recording character: how clean it sounds and how much audio it holds",
+          "$ref": "#/$defs/GranularQuality",
+          "default": "digital"
         },
         "rootFreq": {
           "description": "pitch of the input, so `freq` plays in tune",
@@ -7555,7 +7512,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo mix of every voice (left, right)",
+        "description": "stereo mix of every voice, as left and right channels",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -7576,20 +7533,17 @@
       {
         "name": "input",
         "description": "signal to record; each channel gets its own voice",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "trigger",
         "description": "starts a grain",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "freeze",
         "description": "while high, recording stops and grains keep playing the audio already held",
-        "signalType": "gate",
-        "defaultValue": 0.0
+        "signalType": "gate"
       },
       {
         "name": "time",
@@ -7624,14 +7578,12 @@
       {
         "name": "freq",
         "description": "grain pitch; grains keep the input's pitch when `freq` equals `rootFreq`",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "rootFreq",
         "description": "pitch of the input, so `freq` plays in tune",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "spread",
@@ -7706,8 +7658,9 @@
           ]
         },
         "quality": {
-          "description": "sound character: digital, vintage, cleanTape or dirtyTape (default digital)",
-          "$ref": "#/$defs/GranularQuality"
+          "description": "sound character: how clean it sounds",
+          "$ref": "#/$defs/GranularQuality",
+          "default": "digital"
         },
         "rootFreq": {
           "description": "pitch of the file, so `freq` plays in tune",
@@ -7919,7 +7872,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo mix of every voice (left, right)",
+        "description": "stereo mix of every voice, as left and right channels",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -7940,8 +7893,7 @@
       {
         "name": "trigger",
         "description": "starts a grain",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "time",
@@ -7976,14 +7928,12 @@
       {
         "name": "freq",
         "description": "grain pitch; grains keep the file's pitch when `freq` equals `rootFreq`",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "rootFreq",
         "description": "pitch of the file, so `freq` plays in tune",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "spread",
@@ -8144,8 +8094,7 @@
       {
         "name": "input",
         "description": "signal to run through the tape; each channel wobbles in step",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "speed",
@@ -8256,8 +8205,9 @@
           ]
         },
         "quality": {
-          "description": "recording character: digital, vintage, cleanTape or dirtyTape (default digital)",
-          "$ref": "#/$defs/GranularQuality"
+          "description": "recording character: how clean it sounds and how much audio it holds",
+          "$ref": "#/$defs/GranularQuality",
+          "default": "digital"
         },
         "rootFreq": {
           "description": "pitch of the input, so `freq` shifts the repeats in tune",
@@ -8407,8 +8357,7 @@
       {
         "name": "input",
         "description": "signal to delay; each channel gets its own delay",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "bars",
@@ -8452,20 +8401,17 @@
       {
         "name": "freeze",
         "description": "while high, recording stops and the delay loops slices of the audio it holds",
-        "signalType": "gate",
-        "defaultValue": 0.0
+        "signalType": "gate"
       },
       {
         "name": "freq",
         "description": "pitch of the repeats; they keep the input's pitch when `freq` equals `rootFreq`",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "rootFreq",
         "description": "pitch of the input, so `freq` shifts the repeats in tune",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "tone",
@@ -8656,20 +8602,17 @@
       {
         "name": "freq",
         "description": "oscillator pitch",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "phaseOffset",
@@ -8856,8 +8799,7 @@
       {
         "name": "freq",
         "description": "oscillator pitch",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "shape",
@@ -8872,14 +8814,12 @@
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "phaseOffset",
@@ -9072,8 +9012,7 @@
       {
         "name": "freq",
         "description": "oscillator pitch",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "width",
@@ -9098,14 +9037,12 @@
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "phaseOffset",
@@ -9220,7 +9157,6 @@
         "name": "phase",
         "description": "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
         "signalType": "audio",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 1.0
       }
@@ -9338,7 +9274,6 @@
         "name": "phase",
         "description": "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
         "signalType": "audio",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 1.0
       },
@@ -9477,7 +9412,6 @@
         "name": "phase",
         "description": "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
         "signalType": "audio",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 1.0
       },
@@ -9529,12 +9463,14 @@
           "minimum": 1
         },
         "color": {
-          "description": "kind of noise (default white)",
-          "$ref": "#/$defs/NoiseKind"
+          "description": "kind of noise",
+          "$ref": "#/$defs/NoiseKind",
+          "default": "white"
         },
         "interp": {
-          "description": "how the output moves between draws while `rate` is patched (default step)",
-          "$ref": "#/$defs/NoiseInterp"
+          "description": "how the output moves between draws while `rate` is patched",
+          "$ref": "#/$defs/NoiseInterp",
+          "default": "step"
         },
         "rate": {
           "description": "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop. Unpatched, a new value every sample",
@@ -9706,8 +9642,7 @@
       {
         "name": "rate",
         "description": "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop. Unpatched, a new value every sample",
-        "signalType": "frequency",
-        "defaultValue": 0.0
+        "signalType": "frequency"
       }
     ],
     "positionalArgs": [
@@ -10089,8 +10024,7 @@
       {
         "name": "freq",
         "description": "note pitch",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "harmonics",
@@ -10125,8 +10059,7 @@
       {
         "name": "fm",
         "description": "frequency modulation, scaled by `fmAmt`",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "timbreAmt",
@@ -10161,14 +10094,12 @@
       {
         "name": "trigger",
         "description": "strikes the internal envelope and lowpass gate; unpatched, the voice drones",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "level",
         "description": "loudness and brightness through the lowpass gate; patching it opens the gate by this level instead of the trigger's ping",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 8.0,
         "controlMin": 0.0,
@@ -10379,8 +10310,7 @@
       {
         "name": "freq",
         "description": "oscillator pitch",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "detune",
@@ -10394,14 +10324,12 @@
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts every saw of that note",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       }
     ],
     "positionalArgs": [
@@ -10777,8 +10705,7 @@
       {
         "name": "pitch",
         "description": "oscillator pitch",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "position",
@@ -10793,14 +10720,12 @@
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "phaseOffset",
@@ -10837,7 +10762,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; held between 20 Hz and just under half the sample rate",
+          "description": "cutoff frequency; tops out just under half the sample rate",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -10933,12 +10858,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; held between 20 Hz and just under half the sample rate",
+        "description": "cutoff frequency; tops out just under half the sample rate",
         "signalType": "frequency",
         "defaultValue": 0.0,
         "minValue": -3.71
@@ -10982,7 +10906,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "fadeStep": {
-          "description": "above 0, stages crossfades between chains this many stages apart, giving notches",
+          "description": "0 for a plain smear; above 0, `stages` crossfades between chains this many stages apart, giving notches",
           "type": "integer",
           "format": "uint32",
           "default": 0,
@@ -11104,8 +11028,7 @@
       {
         "name": "input",
         "description": "the sound to smear",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
@@ -11165,7 +11088,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; held between 20 Hz and just under half the sample rate",
+          "description": "cutoff frequency; tops out just under half the sample rate",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -11261,14 +11184,12 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; held between 20 Hz and just under half the sample rate",
+        "description": "cutoff frequency; tops out just under half the sample rate",
         "signalType": "frequency",
-        "defaultValue": 0.0,
         "minValue": -3.71
       },
       {
@@ -11305,7 +11226,7 @@
       "type": "object",
       "properties": {
         "center": {
-          "description": "center frequency; held between 20 Hz and just under half the sample rate",
+          "description": "center frequency; tops out just under half the sample rate",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -11401,14 +11322,12 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "center",
-        "description": "center frequency; held between 20 Hz and just under half the sample rate",
+        "description": "center frequency; tops out just under half the sample rate",
         "signalType": "frequency",
-        "defaultValue": 0.0,
         "minValue": -3.71
       },
       {
@@ -11445,7 +11364,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; held between 20 Hz and just under half the sample rate",
+          "description": "cutoff frequency; tops out just under half the sample rate",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -11567,14 +11486,12 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; held between 20 Hz and just under half the sample rate",
+        "description": "cutoff frequency; tops out just under half the sample rate",
         "signalType": "frequency",
-        "defaultValue": 0.0,
         "minValue": -3.71
       },
       {
@@ -11737,14 +11654,12 @@
       {
         "name": "input",
         "description": "the sound to gate",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "trigger",
         "description": "each trigger pings the gate fully open",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "level",
@@ -11799,7 +11714,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; tops out near 21 kHz",
+          "description": "cutoff frequency; the top octaves track flat, so the top of the range sounds near 21 kHz",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -11959,12 +11874,11 @@
       {
         "name": "input",
         "description": "the sound to filter; DC-coupled, so CV passes too",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; tops out near 21 kHz",
+        "description": "cutoff frequency; the top octaves track flat, so the top of the range sounds near 21 kHz",
         "signalType": "frequency",
         "defaultValue": 0.0,
         "minValue": -10.08,
@@ -12064,7 +11978,7 @@
           "type": "object",
           "properties": {
             "freq": {
-              "description": "where the band sits, like '1000hz' or 'c4'; held between 20 Hz and just under half the sample rate",
+              "description": "where the band sits, like '1000hz' or 'c4'; tops out just under half the sample rate",
               "$ref": "#/$defs/MonoSignal"
             },
             "gain": {
@@ -12090,8 +12004,9 @@
               ]
             },
             "type": {
-              "description": "kind of band (default peak)",
-              "$ref": "#/$defs/EqSectionType"
+              "description": "kind of band",
+              "$ref": "#/$defs/EqSectionType",
+              "default": "peak"
             }
           },
           "required": [
@@ -12237,8 +12152,7 @@
       {
         "name": "input",
         "description": "the sound to EQ",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       }
     ],
     "positionalArgs": [
@@ -12259,12 +12173,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "drive character: standard, driven, or clean (default standard)",
-          "$ref": "#/$defs/BiquadDrive"
+          "description": "how hard the resonance pushes and clips",
+          "$ref": "#/$defs/BiquadDrive",
+          "default": "standard"
         },
         "input": {
           "description": "the sound to filter",
@@ -12282,8 +12197,9 @@
           ]
         },
         "slope": {
-          "description": "how steeply it cuts: 12 or 24 dB/oct (default 24)",
-          "$ref": "#/$defs/FilterSlope"
+          "description": "how steeply it cuts",
+          "$ref": "#/$defs/FilterSlope",
+          "default": "db24"
         }
       },
       "required": [
@@ -12295,17 +12211,17 @@
           "description": "Drive character for the LP/HP biquads.",
           "oneOf": [
             {
-              "description": "State-variable form (cleanest, mildest resonance).",
+              "description": "Smooth, with the mildest resonance.",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Coupled state-space form with a heavier resonance/clip character.",
+              "description": "Heavier resonance that clips harder.",
               "type": "string",
               "const": "driven"
             },
             {
-              "description": "Normalized-lattice form (high numerical precision).",
+              "description": "Clean and precise, even at very low cutoffs.",
               "type": "string",
               "const": "clean"
             }
@@ -12400,12 +12316,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -12444,12 +12359,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "drive character: standard, driven, or clean (default standard)",
-          "$ref": "#/$defs/BiquadDrive"
+          "description": "how hard the resonance pushes and clips",
+          "$ref": "#/$defs/BiquadDrive",
+          "default": "standard"
         },
         "input": {
           "description": "the sound to filter",
@@ -12467,8 +12383,9 @@
           ]
         },
         "slope": {
-          "description": "how steeply it cuts: 12 or 24 dB/oct (default 24)",
-          "$ref": "#/$defs/FilterSlope"
+          "description": "how steeply it cuts",
+          "$ref": "#/$defs/FilterSlope",
+          "default": "db24"
         }
       },
       "required": [
@@ -12480,17 +12397,17 @@
           "description": "Drive character for the LP/HP biquads.",
           "oneOf": [
             {
-              "description": "State-variable form (cleanest, mildest resonance).",
+              "description": "Smooth, with the mildest resonance.",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Coupled state-space form with a heavier resonance/clip character.",
+              "description": "Heavier resonance that clips harder.",
               "type": "string",
               "const": "driven"
             },
             {
-              "description": "Normalized-lattice form (high numerical precision).",
+              "description": "Clean and precise, even at very low cutoffs.",
               "type": "string",
               "const": "clean"
             }
@@ -12585,12 +12502,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -12629,12 +12545,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "drive character (default standard); legacy variants apply at 12 dB only",
-          "$ref": "#/$defs/BpDrive"
+          "description": "how hard the resonance pushes and clips; the legacy variants apply at 12 dB only",
+          "$ref": "#/$defs/BpDrive",
+          "default": "standard"
         },
         "input": {
           "description": "the sound to filter",
@@ -12652,8 +12569,9 @@
           ]
         },
         "slope": {
-          "description": "how steeply it cuts: 12 or 24 dB/oct (default 24)",
-          "$ref": "#/$defs/FilterSlope"
+          "description": "how steeply it cuts",
+          "$ref": "#/$defs/FilterSlope",
+          "default": "db24"
         }
       },
       "required": [
@@ -12665,27 +12583,27 @@
           "description": "Drive character for the bandpass biquad. The legacy variants exist only at the\n12 dB slope (matching Surge XT's menu); at 24 dB they select their modern counterparts.",
           "oneOf": [
             {
-              "description": "State-variable form (cleanest, mildest resonance).",
+              "description": "Smooth, with the mildest resonance.",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Coupled state-space form with a heavier resonance/clip character.",
+              "description": "Heavier resonance that clips harder.",
               "type": "string",
               "const": "driven"
             },
             {
-              "description": "Normalized-lattice form (high numerical precision).",
+              "description": "Clean and precise, even at very low cutoffs.",
               "type": "string",
               "const": "clean"
             },
             {
-              "description": "Surge XT's \"Driven (Legacy)\" — the darker pre-fix driven bandpass.",
+              "description": "A darker take on `driven`, as Surge XT's \"Driven (Legacy)\".",
               "type": "string",
               "const": "drivenLegacy"
             },
             {
-              "description": "Surge XT's \"Clean (Legacy)\" — the darker pre-fix clean bandpass.",
+              "description": "A darker take on `clean`, as Surge XT's \"Clean (Legacy)\".",
               "type": "string",
               "const": "cleanLegacy"
             }
@@ -12780,12 +12698,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -12824,7 +12741,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -12843,12 +12760,14 @@
           ]
         },
         "slope": {
-          "description": "how steeply it cuts: 12 or 24 dB/oct (default 24)",
-          "$ref": "#/$defs/FilterSlope"
+          "description": "how steeply it cuts",
+          "$ref": "#/$defs/FilterSlope",
+          "default": "db24"
         },
         "style": {
-          "description": "notch width: standard or mild (default standard)",
-          "$ref": "#/$defs/NotchStyle"
+          "description": "how wide and strong the notch is",
+          "$ref": "#/$defs/NotchStyle",
+          "default": "standard"
         }
       },
       "required": [
@@ -12960,12 +12879,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13004,7 +12922,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -13102,12 +13020,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13146,7 +13063,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -13165,8 +13082,9 @@
           ]
         },
         "slope": {
-          "description": "how steeply it cuts: output tap at 6, 12, 18, or 24 dB/oct (default 24)",
-          "$ref": "#/$defs/LadderSlope"
+          "description": "how steeply it cuts",
+          "$ref": "#/$defs/LadderSlope",
+          "default": "db24"
         }
       },
       "required": [
@@ -13273,12 +13191,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13317,7 +13234,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -13336,8 +13253,9 @@
           ]
         },
         "slope": {
-          "description": "how steeply it cuts: output tap at 6, 12, 18, or 24 dB/oct (default 24)",
-          "$ref": "#/$defs/LadderSlope"
+          "description": "how steeply it cuts",
+          "$ref": "#/$defs/LadderSlope",
+          "default": "db24"
         }
       },
       "required": [
@@ -13444,12 +13362,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13493,7 +13410,7 @@
           "default": false
         },
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -13512,8 +13429,9 @@
           ]
         },
         "type": {
-          "description": "ladder model: rk, huov, or huov2010 (default rk)",
-          "$ref": "#/$defs/VintageType"
+          "description": "which ladder model to simulate",
+          "$ref": "#/$defs/VintageType",
+          "default": "rk"
         }
       },
       "required": [
@@ -13582,17 +13500,17 @@
           "description": "Ladder simulation model.",
           "oneOf": [
             {
-              "description": "Runge-Kutta integration of the ladder circuit's differential equations.",
+              "description": "The closest simulation of the ladder circuit.",
               "type": "string",
               "const": "rk"
             },
             {
-              "description": "Huovilainen model — a tanh saturator inside each of the four pole stages.",
+              "description": "Saturation in every stage, for a thicker, grittier ladder.",
               "type": "string",
               "const": "huov"
             },
             {
-              "description": "Huovilainen's 2010 revision — one input saturator driving four linear poles.",
+              "description": "Saturation at the input only, for a cleaner ladder.",
               "type": "string",
               "const": "huov2010"
             }
@@ -13615,12 +13533,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13659,7 +13576,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -13678,8 +13595,9 @@
           ]
         },
         "saturation": {
-          "description": "feedback saturation: none, mild, moderate, heavy, extreme (default none)",
-          "$ref": "#/$defs/K35Saturation"
+          "description": "how hard the resonance feedback saturates",
+          "$ref": "#/$defs/K35Saturation",
+          "default": "none"
         }
       },
       "required": [
@@ -13691,27 +13609,27 @@
           "description": "Saturation drive applied inside the feedback path. `none` bypasses the\nsaturator entirely (a fully linear filter).",
           "oneOf": [
             {
-              "description": "Linear — no saturation.",
+              "description": "Clean and linear.",
               "type": "string",
               "const": "none"
             },
             {
-              "description": "×1 drive into the saturator.",
+              "description": "A touch of grit in the resonance.",
               "type": "string",
               "const": "mild"
             },
             {
-              "description": "×2 drive.",
+              "description": "Audible growl.",
               "type": "string",
               "const": "moderate"
             },
             {
-              "description": "×3 drive.",
+              "description": "Thick, distorted resonance.",
               "type": "string",
               "const": "heavy"
             },
             {
-              "description": "×4 drive.",
+              "description": "Fully driven, screaming resonance.",
               "type": "string",
               "const": "extreme"
             }
@@ -13791,12 +13709,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13835,7 +13752,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -13854,8 +13771,9 @@
           ]
         },
         "saturation": {
-          "description": "feedback saturation: none, mild, moderate, heavy, extreme (default none)",
-          "$ref": "#/$defs/K35Saturation"
+          "description": "how hard the resonance feedback saturates",
+          "$ref": "#/$defs/K35Saturation",
+          "default": "none"
         }
       },
       "required": [
@@ -13867,27 +13785,27 @@
           "description": "Saturation drive applied inside the feedback path. `none` bypasses the\nsaturator entirely (a fully linear filter).",
           "oneOf": [
             {
-              "description": "Linear — no saturation.",
+              "description": "Clean and linear.",
               "type": "string",
               "const": "none"
             },
             {
-              "description": "×1 drive into the saturator.",
+              "description": "A touch of grit in the resonance.",
               "type": "string",
               "const": "mild"
             },
             {
-              "description": "×2 drive.",
+              "description": "Audible growl.",
               "type": "string",
               "const": "moderate"
             },
             {
-              "description": "×3 drive.",
+              "description": "Thick, distorted resonance.",
               "type": "string",
               "const": "heavy"
             },
             {
-              "description": "×4 drive.",
+              "description": "Fully driven, screaming resonance.",
               "type": "string",
               "const": "extreme"
             }
@@ -13967,12 +13885,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14011,12 +13928,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "standard, or pushed toward self-oscillation (default standard)",
-          "$ref": "#/$defs/ObxdDrive"
+          "description": "how readily the filter self-oscillates",
+          "$ref": "#/$defs/ObxdDrive",
+          "default": "standard"
         },
         "input": {
           "description": "the sound to filter",
@@ -14128,12 +14046,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14172,12 +14089,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "standard, or pushed toward self-oscillation (default standard)",
-          "$ref": "#/$defs/ObxdDrive"
+          "description": "how readily the filter self-oscillates",
+          "$ref": "#/$defs/ObxdDrive",
+          "default": "standard"
         },
         "input": {
           "description": "the sound to filter",
@@ -14289,12 +14207,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14333,12 +14250,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "standard, or pushed toward self-oscillation (default standard)",
-          "$ref": "#/$defs/ObxdDrive"
+          "description": "how readily the filter self-oscillates",
+          "$ref": "#/$defs/ObxdDrive",
+          "default": "standard"
         },
         "input": {
           "description": "the sound to filter",
@@ -14450,12 +14368,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14494,12 +14411,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "standard, or pushed toward self-oscillation (default standard)",
-          "$ref": "#/$defs/ObxdDrive"
+          "description": "how readily the filter self-oscillates",
+          "$ref": "#/$defs/ObxdDrive",
+          "default": "standard"
         },
         "input": {
           "description": "the sound to filter",
@@ -14611,12 +14529,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14655,7 +14572,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -14674,8 +14591,9 @@
           ]
         },
         "slope": {
-          "description": "how steeply it cuts: 6, 12, 18, 24 dB/oct, or the brighter 24 dB legacy mix (default 24)",
-          "$ref": "#/$defs/Obxd4Slope"
+          "description": "how steeply it cuts",
+          "$ref": "#/$defs/Obxd4Slope",
+          "default": "db24"
         }
       },
       "required": [
@@ -14707,7 +14625,7 @@
               "const": "db24"
             },
             {
-              "description": "Surge XT's \"24 dB (Legacy)\" — the brighter `y3 + y4` mix.",
+              "description": "A brighter 24 dB/oct, as Surge XT's \"24 dB (Legacy)\".",
               "type": "string",
               "const": "db24Legacy"
             }
@@ -14787,12 +14705,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14831,7 +14748,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -14839,8 +14756,9 @@
           "$ref": "#/$defs/PolySignal"
         },
         "mode": {
-          "description": "pole-mix mode (default lp4)",
-          "$ref": "#/$defs/XpanderMode"
+          "description": "which response the four poles are mixed into",
+          "$ref": "#/$defs/XpanderMode",
+          "default": "lp4"
         },
         "resonance": {
           "description": "filter resonance; high values approach self-oscillation",
@@ -15013,12 +14931,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15057,12 +14974,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "saturation in the feedback path: tanh, softClip, or ojd (default tanh)",
-          "$ref": "#/$defs/WarpDrive"
+          "description": "saturation in the feedback path",
+          "$ref": "#/$defs/WarpDrive",
+          "default": "tanh"
         },
         "input": {
           "description": "the sound to filter",
@@ -15080,13 +14998,13 @@
           ]
         },
         "stages": {
-          "description": "number of cascaded filter stages (default 1)",
+          "description": "number of cascaded filter stages",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 1,
           "maximum": 4,
           "minimum": 1
         }
@@ -15190,12 +15108,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15234,12 +15151,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "saturation in the feedback path: tanh, softClip, or ojd (default tanh)",
-          "$ref": "#/$defs/WarpDrive"
+          "description": "saturation in the feedback path",
+          "$ref": "#/$defs/WarpDrive",
+          "default": "tanh"
         },
         "input": {
           "description": "the sound to filter",
@@ -15257,13 +15175,13 @@
           ]
         },
         "stages": {
-          "description": "number of cascaded filter stages (default 1)",
+          "description": "number of cascaded filter stages",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 1,
           "maximum": 4,
           "minimum": 1
         }
@@ -15367,12 +15285,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15411,12 +15328,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "saturation in the feedback path: tanh, softClip, or ojd (default tanh)",
-          "$ref": "#/$defs/WarpDrive"
+          "description": "saturation in the feedback path",
+          "$ref": "#/$defs/WarpDrive",
+          "default": "tanh"
         },
         "input": {
           "description": "the sound to filter",
@@ -15434,13 +15352,13 @@
           ]
         },
         "stages": {
-          "description": "number of cascaded filter stages (default 1)",
+          "description": "number of cascaded filter stages",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 1,
           "maximum": 4,
           "minimum": 1
         }
@@ -15544,12 +15462,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15588,12 +15505,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "saturation in the feedback path: tanh, softClip, or ojd (default tanh)",
-          "$ref": "#/$defs/WarpDrive"
+          "description": "saturation in the feedback path",
+          "$ref": "#/$defs/WarpDrive",
+          "default": "tanh"
         },
         "input": {
           "description": "the sound to filter",
@@ -15611,13 +15529,13 @@
           ]
         },
         "stages": {
-          "description": "number of cascaded filter stages (default 1)",
+          "description": "number of cascaded filter stages",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 1,
           "maximum": 4,
           "minimum": 1
         }
@@ -15721,12 +15639,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15765,12 +15682,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "saturation in the feedback path: tanh, softClip, or ojd (default tanh)",
-          "$ref": "#/$defs/WarpDrive"
+          "description": "saturation in the feedback path",
+          "$ref": "#/$defs/WarpDrive",
+          "default": "tanh"
         },
         "input": {
           "description": "the sound to filter",
@@ -15788,13 +15706,13 @@
           ]
         },
         "stages": {
-          "description": "number of cascaded filter stages (default 1)",
+          "description": "number of cascaded filter stages",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 1,
           "maximum": 4,
           "minimum": 1
         }
@@ -15898,12 +15816,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15942,12 +15859,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "saturation inside the filter: tanh or softClip (default tanh)",
-          "$ref": "#/$defs/ResWarpDrive"
+          "description": "saturation inside the filter",
+          "$ref": "#/$defs/ResWarpDrive",
+          "default": "tanh"
         },
         "input": {
           "description": "the sound to filter",
@@ -15965,13 +15883,13 @@
           ]
         },
         "stages": {
-          "description": "number of cascaded filter stages (default 1)",
+          "description": "number of cascaded filter stages",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 1,
           "maximum": 4,
           "minimum": 1
         }
@@ -16070,12 +15988,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16114,12 +16031,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "saturation inside the filter: tanh or softClip (default tanh)",
-          "$ref": "#/$defs/ResWarpDrive"
+          "description": "saturation inside the filter",
+          "$ref": "#/$defs/ResWarpDrive",
+          "default": "tanh"
         },
         "input": {
           "description": "the sound to filter",
@@ -16137,13 +16055,13 @@
           ]
         },
         "stages": {
-          "description": "number of cascaded filter stages (default 1)",
+          "description": "number of cascaded filter stages",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 1,
           "maximum": 4,
           "minimum": 1
         }
@@ -16242,12 +16160,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16286,12 +16203,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "saturation inside the filter: tanh or softClip (default tanh)",
-          "$ref": "#/$defs/ResWarpDrive"
+          "description": "saturation inside the filter",
+          "$ref": "#/$defs/ResWarpDrive",
+          "default": "tanh"
         },
         "input": {
           "description": "the sound to filter",
@@ -16309,13 +16227,13 @@
           ]
         },
         "stages": {
-          "description": "number of cascaded filter stages (default 1)",
+          "description": "number of cascaded filter stages",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 1,
           "maximum": 4,
           "minimum": 1
         }
@@ -16414,12 +16332,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16458,12 +16375,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "saturation inside the filter: tanh or softClip (default tanh)",
-          "$ref": "#/$defs/ResWarpDrive"
+          "description": "saturation inside the filter",
+          "$ref": "#/$defs/ResWarpDrive",
+          "default": "tanh"
         },
         "input": {
           "description": "the sound to filter",
@@ -16481,13 +16399,13 @@
           ]
         },
         "stages": {
-          "description": "number of cascaded filter stages (default 1)",
+          "description": "number of cascaded filter stages",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 1,
           "maximum": 4,
           "minimum": 1
         }
@@ -16586,12 +16504,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16630,12 +16547,13 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
-          "description": "saturation inside the filter: tanh or softClip (default tanh)",
-          "$ref": "#/$defs/ResWarpDrive"
+          "description": "saturation inside the filter",
+          "$ref": "#/$defs/ResWarpDrive",
+          "default": "tanh"
         },
         "input": {
           "description": "the sound to filter",
@@ -16653,13 +16571,13 @@
           ]
         },
         "stages": {
-          "description": "number of cascaded filter stages (default 1)",
+          "description": "number of cascaded filter stages",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 1,
           "maximum": 4,
           "minimum": 1
         }
@@ -16758,12 +16676,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16802,7 +16719,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -16810,17 +16727,18 @@
           "$ref": "#/$defs/PolySignal"
         },
         "mode": {
-          "description": "stage topology: lll, lhl, hlh, or hhh (default lll)",
-          "$ref": "#/$defs/TriPoleShape"
+          "description": "which stages are lowpass and which highpass",
+          "$ref": "#/$defs/TriPoleShape",
+          "default": "lll"
         },
         "outputStage": {
-          "description": "which stage to tap (default 3, the full output)",
+          "description": "which stage to tap; 3 is the full output",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint",
-          "default": null,
+          "default": 3,
           "maximum": 3,
           "minimum": 1
         },
@@ -16940,12 +16858,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16984,7 +16901,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -16992,8 +16909,9 @@
           "$ref": "#/$defs/PolySignal"
         },
         "mode": {
-          "description": "output mix: lp, hp, bp, notch, peak, or allpass (default lp)",
-          "$ref": "#/$defs/FastSvfMode"
+          "description": "which response the filter outputs",
+          "$ref": "#/$defs/FastSvfMode",
+          "default": "lp"
         },
         "resonance": {
           "description": "filter resonance; high values approach self-oscillation",
@@ -17121,12 +17039,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -17165,7 +17082,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -17263,12 +17180,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -17307,7 +17223,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency",
+          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -17315,12 +17231,14 @@
           "$ref": "#/$defs/PolySignal"
         },
         "mix": {
-          "description": "wet mix: half (50%) or full (100%; default half)",
-          "$ref": "#/$defs/CombMix"
+          "description": "how much of the comb is heard against the dry signal",
+          "$ref": "#/$defs/CombMix",
+          "default": "half"
         },
         "polarity": {
-          "description": "feedback polarity: pos or neg (default pos)",
-          "$ref": "#/$defs/CombPolarity"
+          "description": "feedback polarity: which harmonic series rings",
+          "$ref": "#/$defs/CombPolarity",
+          "default": "pos"
         },
         "resonance": {
           "description": "filter resonance; high values approach self-oscillation",
@@ -17443,12 +17361,11 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency",
+        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -17750,15 +17667,13 @@
         "name": "input",
         "description": "phase to reshape, usually from `$ramp`",
         "signalType": "audio",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 1.0
       },
       {
         "name": "freq",
         "description": "pitch of the incoming phase; patch it to cut aliasing from pulsar and feedback warps at high notes",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       }
     ],
     "positionalArgs": [
@@ -17865,8 +17780,7 @@
       {
         "name": "freq",
         "description": "how fast the ramp cycles",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       }
     ],
     "positionalArgs": [
@@ -17972,14 +17886,12 @@
       {
         "name": "input",
         "description": "pitch to detune",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "offset",
         "description": "frequency added to the pitch, in Hz; small amounts give slow beating",
         "signalType": "control",
-        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -18158,8 +18070,7 @@
       {
         "name": "gate",
         "description": "rising edge starts the envelope, falling edge starts the release",
-        "signalType": "gate",
-        "defaultValue": 0.0
+        "signalType": "gate"
       },
       {
         "name": "attack",
@@ -18211,8 +18122,7 @@
       {
         "name": "retrigger",
         "description": "rising edge restarts the attack from the current level, without a jump; follows the gate when not patched",
-        "signalType": "gate",
-        "defaultValue": 0.0
+        "signalType": "gate"
       }
     ],
     "positionalArgs": [
@@ -18237,8 +18147,9 @@
           "$ref": "#/$defs/PolySignal"
         },
         "op": {
-          "description": "operation applied as `input op operand` (default add)",
-          "$ref": "#/$defs/ArithmeticOp"
+          "description": "operation applied as `input op operand`",
+          "$ref": "#/$defs/ArithmeticOp",
+          "default": "add"
         },
         "operand": {
           "description": "signal or amount on the right of the operation",
@@ -18341,14 +18252,12 @@
       {
         "name": "input",
         "description": "signal on the left of the operation",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "operand",
         "description": "signal or amount on the right of the operation",
         "signalType": "control",
-        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -18378,8 +18287,9 @@
           "$ref": "#/$defs/PolySignal"
         },
         "mode": {
-          "description": "which way to round to a whole volt (default round)",
-          "$ref": "#/$defs/RoundMode"
+          "description": "which way to round to a whole volt",
+          "$ref": "#/$defs/RoundMode",
+          "default": "round"
         }
       },
       "required": [
@@ -18478,8 +18388,7 @@
       {
         "name": "input",
         "description": "signal to round",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       }
     ],
     "positionalArgs": [
@@ -18723,8 +18632,7 @@
       {
         "name": "input",
         "description": "signal recorded into the buffer",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       }
     ],
     "positionalArgs": [
@@ -18891,14 +18799,12 @@
       {
         "name": "input",
         "description": "signal to clamp",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "min",
         "description": "lowest value let through; leave out to keep the bottom unclamped",
         "signalType": "control",
-        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       },
@@ -18906,7 +18812,6 @@
         "name": "max",
         "description": "highest value let through; leave out to keep the top unclamped",
         "signalType": "control",
-        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -19030,14 +18935,12 @@
       {
         "name": "input",
         "description": "clock to divide",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "reset",
         "description": "rising edge restarts the count, so the next tick fires",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       }
     ],
     "positionalArgs": [
@@ -19163,8 +19066,7 @@
       {
         "name": "input",
         "description": "triggers or gates to flip",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "probability",
@@ -19314,21 +19216,18 @@
         "name": "distance",
         "description": "amount added to the counter on each trigger; negative steps backwards",
         "signalType": "control",
-        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       },
       {
         "name": "trigger",
         "description": "rising edges step the counter by `distance`",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "reset",
         "description": "rising edge sets the counter to 0, winning over a trigger in the same sample",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       }
     ],
     "positionalArgs": [
@@ -19440,8 +19339,7 @@
       {
         "name": "input",
         "description": "signal to bend",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "exp",
@@ -19656,8 +19554,9 @@
           ]
         },
         "mode": {
-          "description": "shift adds a random offset; clamp also clamps it to [min, max]; blend moves toward a random value in [min, max] (default shift)",
-          "$ref": "#/$defs/ErraticMode"
+          "description": "how the random value moves the input",
+          "$ref": "#/$defs/ErraticMode",
+          "default": "shift"
         },
         "sparse": {
           "description": "draw a random depth per value: low amounts mostly stay near the input with rare big jumps, high amounts mostly jump",
@@ -19784,14 +19683,12 @@
       {
         "name": "input",
         "description": "signal to vary",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "amount",
         "description": "how far the variation reaches: at 5, shift moves up to half the range either way and blend jumps all the way to the random value; blend stops deepening past 5",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0
@@ -19799,8 +19696,7 @@
       {
         "name": "trigger",
         "description": "rising edge samples and holds the current random value",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "speed",
@@ -19953,8 +19849,7 @@
       {
         "name": "input",
         "description": "rising edge opens the output gate",
-        "signalType": "gate",
-        "defaultValue": 0.0
+        "signalType": "gate"
       },
       {
         "name": "time",
@@ -20089,14 +19984,12 @@
       {
         "name": "input",
         "description": "signal to smooth",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "rise",
         "description": "seconds the output takes to climb 1 V; follows fall when not patched",
         "signalType": "control",
-        "defaultValue": 0.01,
         "minValue": 0.001,
         "controlMin": 0.001,
         "controlMax": 10.0
@@ -20199,7 +20092,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "a short trigger each time the input moves in the watched direction",
+        "description": "high while the input keeps rising for `$rising`, or falling for `$falling`, and for a trigger's length after",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -20211,8 +20104,7 @@
       {
         "name": "input",
         "description": "signal watched for any rise from one sample to the next",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       }
     ],
     "positionalArgs": [
@@ -20303,7 +20195,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "a short trigger each time the input moves in the watched direction",
+        "description": "high while the input keeps rising for `$rising`, or falling for `$falling`, and for a trigger's length after",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -20315,8 +20207,7 @@
       {
         "name": "input",
         "description": "signal watched for any fall from one sample to the next",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       }
     ],
     "positionalArgs": [
@@ -20450,20 +20341,17 @@
       {
         "name": "x",
         "description": "signal read as `x` in the expression; 0 when not patched",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "y",
         "description": "signal read as `y` in the expression; 0 when not patched",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "z",
         "description": "signal read as `z` in the expression; 0 when not patched",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       }
     ],
     "positionalArgs": [
@@ -20637,8 +20525,7 @@
       {
         "name": "input",
         "description": "controller signal whose movement drives the output",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "attack",
@@ -20788,8 +20675,7 @@
       {
         "name": "input",
         "description": "pitch to scale",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "factor",
@@ -20903,7 +20789,6 @@
         "name": "input",
         "description": "frequency in Hz",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1000.0
@@ -21027,8 +20912,7 @@
       {
         "name": "input",
         "description": "signal to rescale",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "inMin",
@@ -21178,14 +21062,12 @@
       {
         "name": "input",
         "description": "signal to sample",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "trigger",
         "description": "rising edge captures the current input value",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       }
     ],
     "positionalArgs": [
@@ -21294,14 +21176,12 @@
       {
         "name": "input",
         "description": "signal to track",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "gate",
         "description": "output follows the input while low and holds its last value while high",
-        "signalType": "gate",
-        "defaultValue": 0.0
+        "signalType": "gate"
       }
     ],
     "positionalArgs": [
@@ -21418,8 +21298,7 @@
       {
         "name": "trigger",
         "description": "rising edge restarts the envelope from its current level",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "decay",
@@ -21583,20 +21462,17 @@
       {
         "name": "input",
         "description": "pitch to quantize",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "offset",
         "description": "transposition added to the pitch before it snaps",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "gate",
         "description": "turns notes of the scale on and off: scale channel N is used only while gate channel N is high; with every gate low the output holds",
-        "signalType": "gate",
-        "defaultValue": 0.0
+        "signalType": "gate"
       }
     ],
     "positionalArgs": [
@@ -21722,8 +21598,7 @@
       {
         "name": "input",
         "description": "signal to scale and shift",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "scale",
@@ -21737,7 +21612,6 @@
         "name": "shift",
         "description": "offset added after scaling, in volts",
         "signalType": "control",
-        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -21908,7 +21782,6 @@
         "name": "min",
         "description": "value of the first channel",
         "signalType": "control",
-        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       },
@@ -21916,7 +21789,6 @@
         "name": "max",
         "description": "value of the last channel",
         "signalType": "control",
-        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       },
@@ -22053,14 +21925,12 @@
       {
         "name": "input",
         "description": "pitch to fan out into detuned copies",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "spread",
         "description": "detune width, finer near 0: 0 none, 10 puts the outer copies an octave above and below",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 10.0,
         "controlMin": 0.0,
@@ -22179,8 +22049,7 @@
       {
         "name": "input",
         "description": "signal published to the video renderer",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       }
     ],
     "positionalArgs": [
@@ -22299,8 +22168,7 @@
       {
         "name": "input",
         "description": "signal to wrap",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "min",
@@ -22379,7 +22247,7 @@
           ]
         },
         "ribbon": {
-          "description": "[offset, length] of the looped stretch of the pattern, in cycles (fractions allowed)",
+          "description": "[offset, length] of the looped stretch of the pattern, in cycles; fractions are allowed",
           "type": "array",
           "default": [
             0.0,
@@ -24595,7 +24463,6 @@
         "name": "playhead",
         "description": "playhead position in cycles; follows the global clock by default",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1.0
@@ -24604,7 +24471,6 @@
         "name": "groove",
         "description": "groove shift of note starts, in cycles; follows the global groove by default, and is 0 when `playhead` is set without it",
         "signalType": "control",
-        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       },
@@ -24612,7 +24478,6 @@
         "name": "velocity",
         "description": "velocity held from each note start onto the `velocity` output; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
         "signalType": "control",
-        "defaultValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0
       }
@@ -24791,7 +24656,6 @@
         "name": "playhead",
         "description": "position along the keyframes",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 1.0,
         "controlMin": 0.0,
@@ -24928,14 +24792,12 @@
       {
         "name": "next",
         "description": "advances to the next step, wrapping after the last",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       },
       {
         "name": "reset",
         "description": "jumps back to the first step",
-        "signalType": "trig",
-        "defaultValue": 0.0
+        "signalType": "trig"
       }
     ],
     "positionalArgs": [
@@ -25015,8 +24877,9 @@
           ]
         },
         "resolution": {
-          "description": "steps per cycle: 16, or 32 to include ghost notes (default 16)",
-          "$ref": "#/$defs/DrumMapResolution"
+          "description": "steps per cycle; 32 adds ghost notes",
+          "$ref": "#/$defs/DrumMapResolution",
+          "default": 16
         },
         "sdDensity": {
           "description": "how many snare drum hits play: none at 0, all at 5",
@@ -25204,7 +25067,6 @@
         "name": "playhead",
         "description": "playhead position in cycles; one cycle plays the 32-step pattern once; follows the global clock by default",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1.0
@@ -25213,7 +25075,6 @@
         "name": "groove",
         "description": "groove shift of each step, in cycles; follows the global groove by default, and is 0 when `playhead` is set without it",
         "signalType": "control",
-        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       },
@@ -25221,7 +25082,6 @@
         "name": "velocity",
         "description": "how readily each step accents: lower accents less, 0 never; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
         "signalType": "control",
-        "defaultValue": 5.0,
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0
@@ -25466,7 +25326,6 @@
         "name": "playhead",
         "description": "straight playhead to groove, in cycles; follows the global clock (without its groove) by default",
         "signalType": "control",
-        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1.0
@@ -25937,14 +25796,12 @@
       {
         "name": "pitch",
         "description": "pitch of new grains: 0 plays at the file's own speed, each volt an octave",
-        "signalType": "pitch",
-        "defaultValue": 0.0
+        "signalType": "pitch"
       },
       {
         "name": "gate",
         "description": "grains spawn while high; each new gate restarts the `loopCount` tally",
-        "signalType": "gate",
-        "defaultValue": 0.0
+        "signalType": "gate"
       },
       {
         "name": "start",
@@ -26108,8 +25965,9 @@
           "$ref": "#/$defs/MonoSignal"
         },
         "mode": {
-          "description": "what the gate does once playback starts (default `'once'`)",
-          "$ref": "#/$defs/SamplerMode"
+          "description": "what the gate does once playback starts",
+          "$ref": "#/$defs/SamplerMode",
+          "default": "once"
         },
         "slice": {
           "description": "which slice plays: a signal (the whole file is one slice) or `[points, signal]`, points marking slice starts as fractions of the file from 0 to 1; read at each gate and each loop repeat, its whole part picks the slice (wrapping) and its fraction starts partway in",
@@ -26280,8 +26138,7 @@
       {
         "name": "gate",
         "description": "starts the selected slice playing; `mode` sets what the gate does after that",
-        "signalType": "gate",
-        "defaultValue": 0.0
+        "signalType": "gate"
       },
       {
         "name": "speed",
@@ -26441,8 +26298,7 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "drive",
@@ -26637,8 +26493,7 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "drive",
@@ -26798,8 +26653,7 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "drive",
@@ -26969,8 +26823,7 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "drive",
@@ -27135,8 +26988,7 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "drive",
@@ -27331,8 +27183,7 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "drive",
@@ -27462,8 +27313,7 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "drive",
@@ -27590,8 +27440,7 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio",
-        "defaultValue": 0.0
+        "signalType": "audio"
       },
       {
         "name": "drive",

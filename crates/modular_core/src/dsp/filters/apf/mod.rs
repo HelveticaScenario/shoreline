@@ -59,7 +59,7 @@ struct AllpassParams {
     #[deserr(default)]
     feedback: Option<PolySignal>,
     #[input(
-        "above 0, stages crossfades between chains this many stages apart, giving notches",
+        "0 for a plain smear; above 0, `stages` crossfades between chains this many stages apart, giving notches",
         range = (0, 49)
     )]
     #[serde(default)]

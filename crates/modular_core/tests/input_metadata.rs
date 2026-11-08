@@ -53,14 +53,16 @@ fn ranges_are_ordered_and_hold_their_default() {
             if let (Some(lo), Some(hi)) = (p.min_value, p.max_value) {
                 assert!(lo < hi, "{}.{}: range {lo}..{hi}", module.name, p.name);
             }
-            let below = p.min_value.is_some_and(|lo| p.default_value < lo);
-            let above = p.max_value.is_some_and(|hi| p.default_value > hi);
+            let Some(default) = p.default_value else {
+                continue;
+            };
+            let below = p.min_value.is_some_and(|lo| default < lo);
+            let above = p.max_value.is_some_and(|hi| default > hi);
             assert!(
                 !below && !above,
-                "{}.{}: default {} outside its range",
+                "{}.{}: default {default} outside its range",
                 module.name,
-                p.name,
-                p.default_value
+                p.name
             );
         }
         for o in &module.outputs {
@@ -108,5 +110,27 @@ fn descriptions_leave_the_range_to_the_metadata() {
         restated.is_empty(),
         "ranges restated in prose:\n{}",
         restated.join("\n")
+    );
+}
+
+#[test]
+fn defaults_live_in_the_metadata() {
+    let mut in_prose = Vec::new();
+    for module in schema() {
+        let params = serde_json::to_value(&module.params_schema).unwrap();
+        let Some(props) = params.pointer("/properties").and_then(|p| p.as_object()) else {
+            continue;
+        };
+        for (name, prop) in props {
+            let description = prop.get("description").and_then(|d| d.as_str());
+            if description.is_some_and(|d| d.contains("(default")) {
+                in_prose.push(format!("{}.{name}", module.name));
+            }
+        }
+    }
+    assert!(
+        in_prose.is_empty(),
+        "declare these defaults with `#[input(default = …)]`:\n{}",
+        in_prose.join("\n")
     );
 }

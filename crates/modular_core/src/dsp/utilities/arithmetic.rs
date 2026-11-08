@@ -49,7 +49,7 @@ struct ArithmeticParams {
     input: PolySignal,
     #[input("signal or amount on the right of the operation", type = control, control_range = (-5.0, 5.0))]
     operand: PolySignal,
-    #[input("operation applied as `input op operand` (default add)")]
+    #[input("operation applied as `input op operand`", default = "add")]
     #[serde(default)]
     #[deserr(default)]
     op: ArithmeticOp,
@@ -143,7 +143,7 @@ impl RoundMode {
 struct RoundParams {
     #[input("signal to round", type = audio)]
     input: PolySignal,
-    #[input("which way to round to a whole volt (default round)")]
+    #[input("which way to round to a whole volt", default = "round")]
     #[serde(default)]
     #[deserr(default)]
     mode: RoundMode,

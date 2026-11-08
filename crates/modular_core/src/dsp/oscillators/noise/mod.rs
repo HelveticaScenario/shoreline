@@ -32,7 +32,7 @@ fn noise_derive_channel_count(params: &NoiseParams) -> usize {
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct NoiseParams {
-    #[input("kind of noise (default white)")]
+    #[input("kind of noise", default = "white")]
     #[serde(default)]
     #[deserr(default)]
     color: NoiseKind,
@@ -42,7 +42,10 @@ struct NoiseParams {
     )]
     #[deserr(default)]
     rate: Option<PolySignal>,
-    #[input("how the output moves between draws while `rate` is patched (default step)")]
+    #[input(
+        "how the output moves between draws while `rate` is patched",
+        default = "step"
+    )]
     #[serde(default)]
     #[deserr(default)]
     interp: NoiseInterp,

@@ -37,7 +37,7 @@ struct Sd808Params {
     #[deserr(default)]
     snappy: Option<PolySignal>,
     #[input(
-        "pitch of the low tone, the high one following; stock is ≈250 Hz, level held steady from -1.5 to 1.5 V",
+        "pitch of the low tone, the high one following; stock is ≈250 Hz, and the hit gets louder or quieter far from it",
         type = pitch,
         default = -0.0678,
     )]
