@@ -190,9 +190,9 @@ describe('getEnumVariants', () => {
                 PhaseWarp: { title: 'PhaseWarp' },
             },
         };
-        expect(
-            schemaToTypeExpr({ $ref: '#/$defs/PhaseWarp' }, rootSchema),
-        ).toBe('PhaseWarp');
+        expect(schemaToTypeExpr({ $ref: '#/$defs/PhaseWarp' }, rootSchema)).toBe(
+            'PhaseWarp',
+        );
     });
 
     test('schemaToTypeExpr keeps a signal-or-tuple union (sampler slice shape)', () => {
