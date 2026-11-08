@@ -128,7 +128,7 @@ export function patternMethodCallName(
         return null;
     }
     const name = callee.name.text;
-    if (!(name in PATTERN_METHOD_ARGS)) {
+    if (!Object.hasOwn(PATTERN_METHOD_ARGS, name)) {
         return null;
     }
     return chainRoot(callee.expression, consts) !== null
