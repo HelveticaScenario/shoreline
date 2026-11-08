@@ -53,7 +53,7 @@ export function createCallResolver(
         byName.set(s.name, s);
         byChainPath.set(s.name.startsWith('$') ? s.name.slice(1) : s.name, s);
     }
-    const familyOf = createFamilyReader(file, api);
+    const familyOf = createFamilyReader(api);
     let declared: Set<string> | undefined;
     /**
      * Whether a property chain starts at a DSL value: a call, a `$` global,
