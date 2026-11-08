@@ -214,6 +214,14 @@ export function asTextEdit(edit: ListEdit): TextEdit {
     return { end: edit.span.end, start: edit.span.start, text: edit.newText };
 }
 
+/** The result of an op that appends to a list: unsupported when the list
+ *  has no closing bracket to append before. */
+export function appendResult(edit: ListEdit | null): EqSourceEditResult {
+    return edit
+        ? { edit: asTextEdit(edit), ok: true, skipped: [] }
+        : { ok: false, reason: 'unsupported' };
+}
+
 /**
  * Removes element `index` with its separator. A middle or first element is
  * cut up to the next element's start, so the next element takes over its

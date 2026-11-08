@@ -190,3 +190,14 @@ describe('appendArrayElement', () => {
         expect(add(`[1 2]`)).toBe(`[1, 2, x]`);
     });
 });
+
+describe('a literal without its closing bracket', () => {
+    test('takes no appended property or element', () => {
+        const objFile = parse('f({ a: 1\nconst x = 2');
+        const obj = first(objFile, ts.isObjectLiteralExpression);
+        expect(appendObjectProperty(objFile, obj, 'b: 2', LAYOUT)).toBeNull();
+        const arrFile = parse('f([1, 2\nconst x = 2');
+        const arr = first(arrFile, ts.isArrayLiteralExpression);
+        expect(appendArrayElement(arrFile, arr, '3')).toBeNull();
+    });
+});

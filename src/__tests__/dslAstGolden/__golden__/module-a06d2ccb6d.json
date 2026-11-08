@@ -178,11 +178,7 @@
           "located": {"ok":true,"outer":null,"perChannel":false},
           "sections": [
             {
-              "add": {
-                "edit": {"end":26,"start":26,"text":", sections: [{ type: 'peak', freq: 1000 }]"},
-                "ok": true,
-                "skipped": []
-              },
+              "add": {"ok":false,"reason":"unsupported"},
               "remove": [{"edit":null,"ok":true,"skipped":[]}],
               "set": [{"ok":false,"reason":"stale"}],
               "target": {"count":0,"list":null,"listCount":1}
