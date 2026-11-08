@@ -2485,57 +2485,20 @@ const createMenu = (): void => {
         {
             role: 'windowMenu',
         },
-        // Help menu — Migrate is cross-platform; Check for Updates is
-        // already in the App menu on macOS, so only add it elsewhere.
+        // Check for Updates is already in the App menu on macOS, so only add
+        // it to Help elsewhere.
         {
             role: 'help',
-            submenu: [
-                {
-                    click: (_item, focusedWindow) => {
-                        if (focusedWindow) {
-                            BrowserWindow.fromId(
-                                focusedWindow.id,
-                            )?.webContents.send(MENU_CHANNELS.MIGRATE_BUFFER);
-                        }
-                    },
-                    label: 'Migrate $cycle / $iCycle to $p / $p.s...',
-                },
-                {
-                    click: (_item, focusedWindow) => {
-                        if (focusedWindow) {
-                            BrowserWindow.fromId(
-                                focusedWindow.id,
-                            )?.webContents.send(
-                                MENU_CHANNELS.MIGRATE_WAVETABLE,
-                            );
-                        }
-                    },
-                    label: 'Migrate $wavetable to pitch-first order...',
-                },
-                {
-                    click: (_item, focusedWindow) => {
-                        if (focusedWindow) {
-                            BrowserWindow.fromId(
-                                focusedWindow.id,
-                            )?.webContents.send(
-                                MENU_CHANNELS.MIGRATE_CHEBY_BLOCK_DC,
-                            );
-                        }
-                    },
-                    label: 'Migrate $cheby to preserve pre-DC-blocker output...',
-                },
-                ...(!isMac
-                    ? ([
-                          { type: 'separator' },
-                          {
-                              click: async () => {
-                                  await checkForUpdateAvailability();
-                              },
-                              label: 'Check for Updates...',
+            submenu: isMac
+                ? []
+                : [
+                      {
+                          click: async () => {
+                              await checkForUpdateAvailability();
                           },
-                      ] satisfies Electron.MenuItemConstructorOptions[])
-                    : []),
-            ],
+                          label: 'Check for Updates...',
+                      },
+                  ],
         },
     ];
 
