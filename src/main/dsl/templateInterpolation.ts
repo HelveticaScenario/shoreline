@@ -115,7 +115,8 @@ function interpolatedLength(
         return expr.text.length;
     }
     if (ts.isNumericLiteral(expr)) {
-        return expr.getText(table.file).length;
+        // The number as a template prints it: `0x10` interpolates as `16`.
+        return String(Number(expr.text)).length;
     }
     return null;
 }
