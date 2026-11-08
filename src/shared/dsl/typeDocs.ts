@@ -1,6 +1,6 @@
 /**
  * Shared type documentation for DSL types.
- * Used by both TypeScript lib generator (JSDoc) and HelpWindow (rendered docs).
+ * Used by both TypeScript lib generator (JSDoc) and the Docs panel (rendered docs).
  */
 
 import {

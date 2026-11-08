@@ -1,6 +1,6 @@
 /**
  * Documentation for the `$v` video namespace. One table feeds both the
- * generated Monaco typings (JSDoc plus declarations) and the Help window's
+ * generated Monaco typings (JSDoc plus declarations) and the Docs panel's
  * Video page, so the two cannot drift.
  */
 

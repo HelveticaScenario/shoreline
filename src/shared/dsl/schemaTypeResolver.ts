@@ -2,7 +2,7 @@
  * Shared JSON Schema → TypeScript type expression resolver.
  *
  * Used by both the main-process type generation (typescriptLibGen)
- * and the renderer help window to display human-readable param types.
+ * and the renderer Docs panel to display human-readable param types.
  */
 
 import type schemas from '@modular/core/schemas.json';
