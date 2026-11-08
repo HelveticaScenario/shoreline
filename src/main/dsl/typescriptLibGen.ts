@@ -2684,7 +2684,8 @@ function buildSignature(
 
     if (opts.returnsDoc ?? true) {
         const outputs = moduleSchema.outputs ?? [];
-        const main = outputs.find((o) => o.default) ?? outputs[0];
+        // A module without a default output returns all its outputs.
+        const main = outputs.find((o) => o.default);
         const doc = main && withMeta(main.description, formatOutputMeta(main));
         if (doc) {
             docLines.push(`@returns ${doc}`);
