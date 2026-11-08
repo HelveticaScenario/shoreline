@@ -1,0 +1,50 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [],
+      "interpolations": [],
+      "registry": [["4:21",".beat",[["t",21,29],["div",31,33]]],["4:12","$p",[["source",10,14]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [],
+    "quickFixes": {
+      "at": ["0-34 0"],
+      "fixes": [
+        "[{\"caretOffset\":39,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", { groove: $slider('groove', 0, -5, 5) }\",\"span\":{\"end\":34,\"start\":34},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":42,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", { playhead: $slider('playhead', 0, 0, 1) }\",\"span\":{\"end\":34,\"start\":34},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":42,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", { velocity: $slider('velocity', 0, 0, 5) }\",\"span\":{\"end\":34,\"start\":34},\"title\":\"Add slider for 'velocity'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":35,"start":35,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":8,"start":8,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:12","$p",[["source",10,14]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":17,"start":17,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:21",".beat",[["t",21,26]]],["4:12","$p",[["source",10,14]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":26,"start":26,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

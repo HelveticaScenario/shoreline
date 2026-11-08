@@ -1,0 +1,53 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:95",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [
+      {
+        "anchor": 90,
+        "muteOff": null,
+        "muteOn": {"end":94,"start":94,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":94,"start":94,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":94,"start":94,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["60-61 0","69-82 1","83-87 2"],
+      "fixes": [
+        "[{\"caretOffset\":25,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('sides', 6, 0, 6)\",\"preferred\":true,\"span\":{\"end\":61,\"start\":60},\"title\":\"Wrap 'sides' in $slider\"}]",
+        "[{\"caretOffset\":27,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('phase', 0, 0, 5)\",\"span\":{\"end\":87,\"start\":87},\"title\":\"Add slider for 'phase'\"}]",
+        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 0.05, 0, 5)\",\"preferred\":true,\"span\":{\"end\":87,\"start\":83},\"title\":\"Wrap 'freq' in $slider\"},{\"caretOffset\":27,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('phase', 0, 0, 5)\",\"span\":{\"end\":87,\"start\":87},\"title\":\"Add slider for 'phase'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":95,"start":95,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":23,"start":23,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":47,"start":47,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":71,"start":71,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

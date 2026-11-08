@@ -1,0 +1,98 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["2:47",2,2],["3:66",3,3]],
+      "interpolations": [],
+      "registry": [["5:15","$ramp",[["freq",76,80]]],["6:15","$ramp",[["freq",128,132]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [
+      {
+        "anchor": 102,
+        "muteOff": null,
+        "muteOn": {"end":106,"start":106,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":106,"start":106,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":106,"start":106,"text":"{ solo: true }"}
+      },
+      {
+        "anchor": 173,
+        "muteOff": null,
+        "muteOn": {"end":177,"start":177,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":177,"start":177,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":177,"start":177,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": [
+        "63-69 0",
+        "76-80 1",
+        "81-82 0",
+        "97-98 2",
+        "99-99 0",
+        "101-106 3",
+        "115-121 4",
+        "128-132 5",
+        "133-134 4",
+        "148-149 6",
+        "167-168 7",
+        "170-170 4",
+        "172-177 8"
+      ],
+      "fixes": [
+        "[{\"caretOffset\":45,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  freq: $slider('freq', 'c4', 'c2', 'c6'),\\n}\",\"span\":{\"end\":99,\"start\":99},\"title\":\"Add note slider for 'freq'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c3', 'c1', 'c5')\",\"preferred\":true,\"span\":{\"end\":80,\"start\":76},\"title\":\"Wrap 'freq' in a note $slider\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('amount', 3, 0, 5)\",\"preferred\":true,\"span\":{\"end\":98,\"start\":97},\"title\":\"Wrap 'amount' in $slider\"}]",
+        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":45,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  freq: $slider('freq', 'c4', 'c2', 'c6'),\\n}\",\"span\":{\"end\":170,\"start\":170},\"title\":\"Add note slider for 'freq'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c3', 'c1', 'c5')\",\"preferred\":true,\"span\":{\"end\":132,\"start\":128},\"title\":\"Wrap 'freq' in a note $slider\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('amount', 2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":149,\"start\":148},\"title\":\"Wrap 'amount' in $slider\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('amount', 1, 0, 5)\",\"preferred\":true,\"span\":{\"end\":168,\"start\":167},\"title\":\"Wrap 'amount' in $slider\"}]",
+        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":177,\"start\":177},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":177,\"start\":177},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":177,\"start\":177},\"title\":\"Add slider for 'width'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":178,"start":178,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":44,"start":44,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["5:15","$ramp",[["freq",76,80]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":89,"start":89,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [["2:47",2,2]],
+        "interpolations": [],
+        "registry": [["5:15","$ramp",[["freq",76,80]]],["6:15","$ramp",[["freq",128,132]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 102,
+          "muteOff": null,
+          "muteOn": {"end":106,"start":106,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":106,"start":106,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":106,"start":106,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":133,"start":133,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

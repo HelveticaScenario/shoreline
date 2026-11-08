@@ -1,0 +1,63 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [],
+      "interpolations": [],
+      "registry": [
+        [
+          "4:22",
+          "$unstable.filter.diodeLadder",
+          [["cutoff",41,45],["resonance",47,48],["slope",59,65]]
+        ],
+        ["4:34","$saw",[["freq",34,38]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [],
+    "quickFixes": {
+      "at": ["29-33 0","34-38 1","41-45 2","47-48 3"],
+      "fixes": [
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":38,\"start\":38},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":38,\"start\":38},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":38,\"start\":38},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":38,\"start\":38},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c2', 'c0', 'c4')\",\"preferred\":true,\"span\":{\"end\":38,\"start\":34},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":38,\"start\":38},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":38,\"start\":38},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":38,\"start\":38},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":38,\"start\":38},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":35,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('cutoff', 'c4', 'c2', 'c6')\",\"preferred\":true,\"span\":{\"end\":45,\"start\":41},\"title\":\"Wrap 'cutoff' in a note $slider\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('resonance', 3, 0, 5)\",\"preferred\":true,\"span\":{\"end\":48,\"start\":47},\"title\":\"Wrap 'resonance' in $slider\"}]"
+      ]
+    },
+    "setOutputGain": {"end":68,"start":68,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":17,"start":17,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":34,"start":34,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [
+          ["4:22","$unstable.filter.diodeLadder",[["cutoff",41,45],["resonance",47,48]]],
+          ["4:34","$saw",[["freq",34,38]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":51,"start":51,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

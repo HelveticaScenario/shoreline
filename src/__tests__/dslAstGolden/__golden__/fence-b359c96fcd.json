@@ -1,0 +1,99 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [],
+      "interpolations": [],
+      "registry": [
+        ["5:1","$sampler",[["speed",89,92],["mode",100,106]]],
+        ["5:23","$pulse",[["freq",72,77]]],
+        ["6:1","$sampler",[["slice",156,204],["fade",212,213]]],
+        ["6:23","$pulse",[["freq",139,144]]],
+        ["6:77","$p",[["source",189,198]]],
+        ["7:1","$sampler",[["mode",264,270],["fade",278,280]]],
+        ["7:23","$pulse",[["freq",246,253]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [],
+    "quickFixes": {
+      "at": [
+        "0-41 0",
+        "65-71 1",
+        "72-77 2",
+        "82-88 3",
+        "89-92 4",
+        "110-131 5",
+        "132-138 6",
+        "139-144 7",
+        "145-178 5",
+        "179-199 8",
+        "200-215 5",
+        "217-238 9",
+        "239-245 10",
+        "246-253 11",
+        "254-282 9"
+      ],
+      "fixes": [
+        "[{\"caretOffset\":39,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  speed: $slider('speed', 1, -4, 4),\\n}\",\"span\":{\"end\":41,\"start\":41},\"title\":\"Add slider for 'speed'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", {\\n  pwm: $slider('pwm', 0, -5, 5),\\n}\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'pwm'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'sync'\"},{\"caretOffset\":40,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  width: $slider('width', 2.5, 0, 5),\\n}\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":39,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', '1hz', '0.25hz', '4hz')\",\"preferred\":true,\"span\":{\"end\":77,\"start\":72},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", {\\n  pwm: $slider('pwm', 0, -5, 5),\\n}\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'pwm'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'sync'\"},{\"caretOffset\":40,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  width: $slider('width', 2.5, 0, 5),\\n}\",\"span\":{\"end\":77,\"start\":77},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('speed', 0.5, -4, 4)\",\"preferred\":false,\"span\":{\"end\":92,\"start\":89},\"title\":\"Wrap 'speed' in $slider\"}]",
+        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('speed', 0.5, -4, 4)\",\"preferred\":true,\"span\":{\"end\":92,\"start\":89},\"title\":\"Wrap 'speed' in $slider\"}]",
+        "[{\"caretOffset\":107,\"controlOffset\":81,\"kind\":\"add\",\"newText\":\"{\\n  slice: [[0, 0.25, 0.5, 0.75], $cycle($p('0 1 2 3')).cv],\\n  fade: 2,\\n  speed: $slider('speed', 1, -4, 4),\\n}\",\"span\":{\"end\":215,\"start\":147},\"title\":\"Add slider for 'speed'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":144,\"start\":144},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":144,\"start\":144},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", {\\n  pwm: $slider('pwm', 0, -5, 5),\\n}\",\"span\":{\"end\":144,\"start\":144},\"title\":\"Add slider for 'pwm'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":144,\"start\":144},\"title\":\"Add slider for 'sync'\"},{\"caretOffset\":40,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  width: $slider('width', 2.5, 0, 5),\\n}\",\"span\":{\"end\":144,\"start\":144},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":38,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', '2hz', '0.5hz', '8hz')\",\"preferred\":true,\"span\":{\"end\":144,\"start\":139},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":144,\"start\":144},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":144,\"start\":144},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", {\\n  pwm: $slider('pwm', 0, -5, 5),\\n}\",\"span\":{\"end\":144,\"start\":144},\"title\":\"Add slider for 'pwm'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":144,\"start\":144},\"title\":\"Add slider for 'sync'\"},{\"caretOffset\":40,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  width: $slider('width', 2.5, 0, 5),\\n}\",\"span\":{\"end\":144,\"start\":144},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":41,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":199,\"start\":199},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":199,\"start\":199},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":199,\"start\":199},\"title\":\"Add slider for 'velocity'\"}]",
+        "[{\"caretOffset\":65,\"controlOffset\":39,\"kind\":\"add\",\"newText\":\"{\\n  mode: 'loop',\\n  fade: 10,\\n  speed: $slider('speed', 1, -4, 4),\\n}\",\"span\":{\"end\":282,\"start\":256},\"title\":\"Add slider for 'speed'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":253,\"start\":253},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":253,\"start\":253},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", {\\n  pwm: $slider('pwm', 0, -5, 5),\\n}\",\"span\":{\"end\":253,\"start\":253},\"title\":\"Add slider for 'pwm'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":253,\"start\":253},\"title\":\"Add slider for 'sync'\"},{\"caretOffset\":40,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  width: $slider('width', 2.5, 0, 5),\\n}\",\"span\":{\"end\":253,\"start\":253},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":42,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', '0.5hz', '0.125hz', '2hz')\",\"preferred\":true,\"span\":{\"end\":253,\"start\":246},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":253,\"start\":253},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":253,\"start\":253},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", {\\n  pwm: $slider('pwm', 0, -5, 5),\\n}\",\"span\":{\"end\":253,\"start\":253},\"title\":\"Add slider for 'pwm'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":253,\"start\":253},\"title\":\"Add slider for 'sync'\"},{\"caretOffset\":40,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  width: $slider('width', 2.5, 0, 5),\\n}\",\"span\":{\"end\":253,\"start\":253},\"title\":\"Add slider for 'width'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":283,"start":283,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":70,"start":70,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [
+          ["5:1","$sampler",[["speed",89,92],["mode",100,106]]],
+          ["5:23","$pulse",[["freq",72,77]]],
+          ["6:23","$pulse",[["freq",139,141]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":141,"start":141,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [
+          ["5:1","$sampler",[["speed",89,92],["mode",100,106]]],
+          ["5:23","$pulse",[["freq",72,77]]],
+          ["6:1","$sampler",[["slice",156,204]]],
+          ["6:23","$pulse",[["freq",139,144]]],
+          ["6:77","$p",[["source",189,198]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":212,"start":212,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [],
+      "interpolations": [],
+      "registry": [["4:8","$sine",[["freq",9,13]]],["4:21","$sine",[["freq",22,26]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [],
+    "quickFixes": {
+      "at": ["3-8 0","9-13 1","16-21 2","22-26 3","28-34 4","35-42 5"],
+      "fixes": [
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":13,\"start\":13},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":13,\"start\":13},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":13,\"start\":13},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c3', 'c1', 'c5')\",\"preferred\":true,\"span\":{\"end\":13,\"start\":9},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":13,\"start\":13},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":13,\"start\":13},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":13,\"start\":13},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":26,\"start\":26},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":26,\"start\":26},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":26,\"start\":26},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'e3', 'e1', 'e5')\",\"preferred\":true,\"span\":{\"end\":26,\"start\":22},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":26,\"start\":26},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":26,\"start\":26},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":26,\"start\":26},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":31,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('resonance', 0, 0, 5)\",\"span\":{\"end\":42,\"start\":42},\"title\":\"Add slider for 'resonance'\"}]",
+        "[{\"caretOffset\":43,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('cutoff', '100hz', '25hz', '400hz')\",\"preferred\":true,\"span\":{\"end\":42,\"start\":35},\"title\":\"Wrap 'cutoff' in an hz $slider\"},{\"caretOffset\":31,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('resonance', 0, 0, 5)\",\"span\":{\"end\":42,\"start\":42},\"title\":\"Add slider for 'resonance'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":93,"start":93,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:8","$sine",[["freq",9,13]]],["4:21","$sine",[["freq",22,23]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":23,"start":23,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:8","$sine",[["freq",9,13]]],["4:21","$sine",[["freq",22,26]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":46,"start":46,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:8","$sine",[["freq",9,13]]],["4:21","$sine",[["freq",22,26]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":69,"start":69,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

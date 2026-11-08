@@ -1,0 +1,118 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["2:1",2,9],["12:1",12,17],["20:1",20,20]],
+      "interpolations": [],
+      "registry": [
+        ["5:1","$eq",[["sections",98,278]]],
+        ["5:5","$saw",[["freq",77,81]]],
+        ["8:27","$sine",[["freq",182,189]]],
+        ["15:1","$eq",[["sections",388,502]]],
+        ["15:5","$saw",[["freq.0",360,364],["freq.1",366,370]]],
+        ["23:5","$saw",[["freq",563,567]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [
+      {"anchor":68,"located":{"ok":false,"reason":"unsupported"}},
+      {"anchor":350,"located":{"ok":false,"reason":"unsupported"}},
+      {
+        "anchor": 554,
+        "channel": {
+          "addChannel": {"ok":false,"reason":"stale"},
+          "removeChannel": {"ok":false,"reason":"stale"},
+          "split": {"ok":false,"reason":"stale"}
+        },
+        "located": {"ok":true,"outer":null,"perChannel":false},
+        "section": {
+          "add": {
+            "edit": {"end":580,"start":580,"text":", sections: [{ type: 'peak', freq: 1000 }]"},
+            "ok": true,
+            "skipped": []
+          },
+          "remove": {"edit":null,"ok":true,"skipped":[]},
+          "set": {"ok":false,"reason":"stale"}
+        },
+        "target": {"count":0,"list":null,"listCount":1}
+      }
+    ],
+    "out": [],
+    "quickFixes": {
+      "at": [
+        "72-76 0",
+        "77-81 1",
+        "176-181 2",
+        "182-189 3",
+        "197-204 4",
+        "206-214 5",
+        "354-371 6",
+        "558-562 7",
+        "563-567 8"
+      ],
+      "fixes": [
+        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":81,\"start\":81},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":81,\"start\":81},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":81,\"start\":81},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":81,\"start\":81},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c2', 'c0', 'c4')\",\"preferred\":true,\"span\":{\"end\":81,\"start\":77},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":81,\"start\":81},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":81,\"start\":81},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":81,\"start\":81},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":81,\"start\":81},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":37,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n      fm: $slider('fm', 0, -5, 5),\\n    }\",\"span\":{\"end\":189,\"start\":189},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":54,\"controlOffset\":23,\"kind\":\"add\",\"newText\":\", {\\n      phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n    }\",\"span\":{\"end\":189,\"start\":189},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":41,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n      sync: $slider('sync', 0, -5, 5),\\n    }\",\"span\":{\"end\":189,\"start\":189},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":42,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', '0.5hz', '0.125hz', '2hz')\",\"preferred\":true,\"span\":{\"end\":189,\"start\":182},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":37,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n      fm: $slider('fm', 0, -5, 5),\\n    }\",\"span\":{\"end\":189,\"start\":189},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":54,\"controlOffset\":23,\"kind\":\"add\",\"newText\":\", {\\n      phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n    }\",\"span\":{\"end\":189,\"start\":189},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":41,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n      sync: $slider('sync', 0, -5, 5),\\n    }\",\"span\":{\"end\":189,\"start\":189},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":45,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMin', '400hz', '100hz', '1600hz')\",\"preferred\":true,\"span\":{\"end\":204,\"start\":197},\"title\":\"Wrap 'outMin' in an hz $slider\"}]",
+        "[{\"caretOffset\":46,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMax', '2000hz', '500hz', '8000hz')\",\"preferred\":true,\"span\":{\"end\":214,\"start\":206},\"title\":\"Wrap 'outMax' in an hz $slider\"}]",
+        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":371,\"start\":371},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":371,\"start\":371},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":371,\"start\":371},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":371,\"start\":371},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":567,\"start\":567},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":567,\"start\":567},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":567,\"start\":567},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":567,\"start\":567},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c2', 'c0', 'c4')\",\"preferred\":true,\"span\":{\"end\":567,\"start\":563},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":567,\"start\":567},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":567,\"start\":567},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":567,\"start\":567},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":567,\"start\":567},\"title\":\"Add slider for 'sync'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":583,"start":583,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {
+        "callSiteSpans": [["2:1",2,4]],
+        "interpolations": [],
+        "registry": [["5:1","$eq",[["sections",98,144]]],["5:5","$saw",[["freq",77,81]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [{"anchor":68,"located":{"ok":false,"reason":"unsupported"}}],
+      "out": [],
+      "setOutputGain": {"end":145,"start":145,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [["2:1",2,8]],
+        "interpolations": [],
+        "registry": [
+          ["5:1","$eq",[["sections",98,278]]],
+          ["5:5","$saw",[["freq",77,81]]],
+          ["8:27","$sine",[["freq",182,189]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [{"anchor":68,"located":{"ok":false,"reason":"unsupported"}}],
+      "out": [],
+      "setOutputGain": {"end":291,"start":291,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [["2:1",2,9],["12:1",12,14]],
+        "interpolations": [],
+        "registry": [
+          ["5:1","$eq",[["sections",98,278]]],
+          ["5:5","$saw",[["freq",77,81]]],
+          ["8:27","$sine",[["freq",182,189]]],
+          ["15:1","$eq",[["sections",388,437]]],
+          ["15:5","$saw",[["freq.0",360,364],["freq.1",366,370]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [
+        {"anchor":68,"located":{"ok":false,"reason":"unsupported"}},
+        {"anchor":350,"located":{"ok":false,"reason":"unsupported"}}
+      ],
+      "out": [],
+      "setOutputGain": {"end":437,"start":437,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

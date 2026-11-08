@@ -1,0 +1,76 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [],
+      "interpolations": [],
+      "registry": [
+        ["5:7","$spread",[["min",63,64],["max",66,67],["count",69,70]]],
+        ["8:1","$spread",[["min",122,123],["max",125,126],["count",128,129],["bias",139,141]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [],
+    "quickFixes": {
+      "at": [
+        "49-54 0",
+        "55-62 1",
+        "63-64 2",
+        "65-65 1",
+        "66-67 3",
+        "68-70 1",
+        "71-71 0",
+        "122-123 4",
+        "125-126 5",
+        "133-138 6",
+        "139-141 7"
+      ],
+      "fixes": [
+        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":71,\"start\":71},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":71,\"start\":71},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":71,\"start\":71},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { bias: $slider('bias', 0, -5, 5) }\",\"span\":{\"end\":70,\"start\":70},\"title\":\"Add slider for 'bias'\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('min', 0, -5, 5)\",\"preferred\":true,\"span\":{\"end\":64,\"start\":63},\"title\":\"Wrap 'min' in $slider\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { bias: $slider('bias', 0, -5, 5) }\",\"span\":{\"end\":70,\"start\":70},\"title\":\"Add slider for 'bias'\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('max', 5, -5, 5)\",\"preferred\":true,\"span\":{\"end\":67,\"start\":66},\"title\":\"Wrap 'max' in $slider\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { bias: $slider('bias', 0, -5, 5) }\",\"span\":{\"end\":70,\"start\":70},\"title\":\"Add slider for 'bias'\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('min', 0, -5, 5)\",\"preferred\":true,\"span\":{\"end\":123,\"start\":122},\"title\":\"Wrap 'min' in $slider\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('max', 5, -5, 5)\",\"preferred\":true,\"span\":{\"end\":126,\"start\":125},\"title\":\"Wrap 'max' in $slider\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('bias', -3, -5, 5)\",\"preferred\":false,\"span\":{\"end\":141,\"start\":139},\"title\":\"Wrap 'bias' in $slider\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('bias', -3, -5, 5)\",\"preferred\":true,\"span\":{\"end\":141,\"start\":139},\"title\":\"Wrap 'bias' in $slider\"}]"
+      ]
+    },
+    "setOutputGain": {"end":144,"start":144,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":36,"start":36,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["5:7","$spread",[["min",63,64],["max",66,67],["count",69,70]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":72,"start":72,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["5:7","$spread",[["min",63,64],["max",66,67],["count",69,70]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":108,"start":108,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+    "quickFixes": {
+      "at": ["7-13 0","33-34 1","35-35 0"],
+      "fixes": [
+        "[{\"caretOffset\":32,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('saturation', 1, 0, 1)\",\"span\":{\"end\":35,\"start\":35},\"title\":\"Add slider for 'saturation'\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('gain', 4, 0, 5)\",\"preferred\":true,\"span\":{\"end\":34,\"start\":33},\"title\":\"Wrap 'gain' in $slider\"}]"
+      ]
+    },
+    "setOutputGain": {"end":37,"start":37,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "setOutputGain": {"end":9,"start":9,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "setOutputGain": {"end":18,"start":18,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "setOutputGain": {"end":27,"start":27,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

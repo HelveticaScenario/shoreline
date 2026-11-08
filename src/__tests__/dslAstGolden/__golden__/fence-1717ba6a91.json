@@ -1,0 +1,63 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [],
+      "interpolations": [],
+      "registry": [
+        [
+          "4:22",
+          "$unstable.filter.cutoffWarpAp",
+          [["cutoff",42,46],["resonance",48,49],["drive",60,70]]
+        ],
+        ["4:35","$saw",[["freq",35,39]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [],
+    "quickFixes": {
+      "at": ["30-34 0","35-39 1","42-46 2","48-49 3"],
+      "fixes": [
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":39,\"start\":39},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":39,\"start\":39},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":39,\"start\":39},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":39,\"start\":39},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c2', 'c0', 'c4')\",\"preferred\":true,\"span\":{\"end\":39,\"start\":35},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":39,\"start\":39},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":39,\"start\":39},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":39,\"start\":39},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":39,\"start\":39},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":35,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('cutoff', 'c4', 'c2', 'c6')\",\"preferred\":true,\"span\":{\"end\":46,\"start\":42},\"title\":\"Wrap 'cutoff' in a note $slider\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('resonance', 2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":49,\"start\":48},\"title\":\"Wrap 'resonance' in $slider\"}]"
+      ]
+    },
+    "setOutputGain": {"end":73,"start":73,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":18,"start":18,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:35","$saw",[["freq",35,36]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":36,"start":36,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [
+          ["4:22","$unstable.filter.cutoffWarpAp",[["cutoff",42,46],["resonance",48,49]]],
+          ["4:35","$saw",[["freq",35,39]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":54,"start":54,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

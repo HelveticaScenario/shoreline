@@ -1,0 +1,43 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+    "quickFixes": {
+      "at": ["16-19 0","21-24 1"],
+      "fixes": [
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('size', 0.3, 0, 5)\",\"preferred\":true,\"span\":{\"end\":19,\"start\":16},\"title\":\"Wrap 'size' in $slider\"}]",
+        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('softness', 0.3, 0, 5)\",\"preferred\":true,\"span\":{\"end\":24,\"start\":21},\"title\":\"Wrap 'softness' in $slider\"}]"
+      ]
+    },
+    "setOutputGain": {"end":49,"start":49,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "setOutputGain": {"end":12,"start":12,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "setOutputGain": {"end":24,"start":24,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "setOutputGain": {"end":36,"start":36,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

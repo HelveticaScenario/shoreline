@@ -1,0 +1,2459 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["3:16",3,3],["4:15",4,4],["5:15",5,5],["6:1",6,6],["7:23",7,7]],
+      "interpolations": [],
+      "registry": [["10:1","$saw",[["freq",276,280]]]]
+    },
+    "controlCalls": [
+      {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+      {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+      {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+      {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+      {"call":[209,242],"group":["Synth"],"kind":"$toggleBtn","name":209},
+      {"call":[243,270],"group":["Fx"],"kind":"$btn","name":243},
+      {"call":[256,269],"group":[],"kind":"$cGroup","name":256}
+    ],
+    "controls": {
+      "controls": {
+        "buttons": [
+          {
+            "argsStart": 220,
+            "callStart": 209,
+            "group": ["Synth"],
+            "label": "drone",
+            "mode": "toggle",
+            "stateRange": {"end":234,"start":229},
+            "value": false
+          },
+          {
+            "argsStart": 248,
+            "callStart": 243,
+            "group": ["Fx"],
+            "label": "kick",
+            "mode": "gate",
+            "stateRange": null,
+            "value": false
+          }
+        ],
+        "groups": [
+          {
+            "argsStart": 22,
+            "callStart": 14,
+            "collapsed": false,
+            "collapsible": true,
+            "group": [],
+            "label": "Synth"
+          },
+          {
+            "argsStart": 51,
+            "callStart": 43,
+            "collapsed": true,
+            "collapsible": true,
+            "group": ["Synth"],
+            "label": "Amp"
+          },
+          {
+            "argsStart": 264,
+            "callStart": 256,
+            "collapsed": false,
+            "collapsible": true,
+            "group": [],
+            "label": "Fx"
+          }
+        ],
+        "sliders": [
+          {
+            "argsStart": 116,
+            "callStart": 108,
+            "group": ["Synth"],
+            "label": "cutoff",
+            "max": 8000,
+            "min": 20,
+            "unit": "number",
+            "value": 800,
+            "valueRange": {"end":129,"start":126}
+          },
+          {
+            "argsStart": 170,
+            "callStart": 162,
+            "group": ["Synth","Amp"],
+            "label": "level",
+            "max": 1,
+            "min": 0,
+            "unit": "number",
+            "value": 0.5,
+            "valueRange": {"end":182,"start":179}
+          }
+        ]
+      },
+      "groupCollapse": [
+        [
+          14,
+          {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+          {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+        ],
+        [
+          43,
+          {"span":{"end":75,"start":71},"text":"true"},
+          {"span":{"end":75,"start":71},"text":"false"}
+        ],
+        [
+          256,
+          {"span":{"end":268,"start":268},"text":", { collapsed: true }"},
+          {"span":{"end":268,"start":268},"text":", { collapsed: false }"}
+        ]
+      ]
+    },
+    "eq": [],
+    "out": [
+      {
+        "anchor": 293,
+        "muteOff": null,
+        "muteOn": {"end":297,"start":297,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":297,"start":297,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":297,"start":297,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["271-275 0","276-280 1","292-297 2"],
+      "fixes": [
+        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":280,\"start\":280},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":280,\"start\":280},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":280,\"start\":280},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":280,\"start\":280},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c2', 'c0', 'c4')\",\"preferred\":true,\"span\":{\"end\":280,\"start\":276},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":280,\"start\":280},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":280,\"start\":280},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":280,\"start\":280},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":280,\"start\":280},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"{ gain: $slider('gain', 5, 0, 5) }\",\"span\":{\"end\":297,\"start\":297},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":31,\"controlOffset\":7,\"kind\":\"add\",\"newText\":\"{ pan: $slider('pan', 0, -5, 5) }\",\"span\":{\"end\":297,\"start\":297},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":34,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{ width: $slider('width', 0, 0, 5) }\",\"span\":{\"end\":297,\"start\":297},\"title\":\"Add slider for 'width'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":299,"start":299,"text":"$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"error":"$cGroup() collapsed must be a true or false literal at line 2, column 30"},
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,74],"group":[],"kind":"$cGroup","name":43}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": false,
+              "collapsible": false,
+              "group": [],
+              "label": "Amp"
+            }
+          ],
+          "sliders": []
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [43,null,null]
+        ]
+      },
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":74,"start":74,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[["3:16",3,3]],"interpolations":[],"registry":[]},
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":149,"start":149,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[["3:16",3,3],["4:15",4,4],["5:15",5,5]],"interpolations":[],"registry":[]},
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[209,224],"group":[],"kind":"$toggleBtn","name":209}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [{"argsStart":220,"callStart":209,"group":[],"incomplete":true,"label":"dro"}],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":182,"start":179}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":224,"start":224,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@108:0": {
+      "analyze": {"error":"$slider() label (argument 1) must be a string literal at line 3, column 24"},
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,140],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[155,187],"group":["Synth","Amp"],"kind":"$slider","name":155},
+        {"call":[202,235],"group":["Synth"],"kind":"$toggleBtn","name":202},
+        {"call":[236,263],"group":["Fx"],"kind":"$btn","name":236},
+        {"call":[249,262],"group":[],"kind":"$cGroup","name":249}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 213,
+              "callStart": 202,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":227,"start":222},
+              "value": false
+            },
+            {
+              "argsStart": 241,
+              "callStart": 236,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 257,
+              "callStart": 249,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 163,
+              "callStart": 155,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":175,"start":172}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            249,
+            {"span":{"end":261,"start":261},"text":", { collapsed: true }"},
+            {"span":{"end":261,"start":261},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 286,
+          "muteOff": null,
+          "muteOn": {"end":290,"start":290,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":290,"start":290,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":290,"start":290,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":292,"start":292,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@108:1": {
+      "analyze": {
+        "error": "$slider() value (argument 2) must be a numeric or string literal at line 3, column 34"
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,145],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[160,192],"group":["Synth","Amp"],"kind":"$slider","name":160},
+        {"call":[207,240],"group":["Synth"],"kind":"$toggleBtn","name":207},
+        {"call":[241,268],"group":["Fx"],"kind":"$btn","name":241},
+        {"call":[254,267],"group":[],"kind":"$cGroup","name":254}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 218,
+              "callStart": 207,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":232,"start":227},
+              "value": false
+            },
+            {
+              "argsStart": 246,
+              "callStart": 241,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 262,
+              "callStart": 254,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {"argsStart":116,"callStart":108,"group":["Synth"],"incomplete":true,"label":"cutoff"},
+            {
+              "argsStart": 168,
+              "callStart": 160,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":180,"start":177}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            254,
+            {"span":{"end":266,"start":266},"text":", { collapsed: true }"},
+            {"span":{"end":266,"start":266},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 291,
+          "muteOff": null,
+          "muteOn": {"end":295,"start":295,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":295,"start":295,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":295,"start":295,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":297,"start":297,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@108:2": {
+      "analyze": {
+        "error": "$slider() min (argument 3) must be a numeric or string literal at line 3, column 39"
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,146],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[161,193],"group":["Synth","Amp"],"kind":"$slider","name":161},
+        {"call":[208,241],"group":["Synth"],"kind":"$toggleBtn","name":208},
+        {"call":[242,269],"group":["Fx"],"kind":"$btn","name":242},
+        {"call":[255,268],"group":[],"kind":"$cGroup","name":255}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 219,
+              "callStart": 208,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":233,"start":228},
+              "value": false
+            },
+            {
+              "argsStart": 247,
+              "callStart": 242,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 263,
+              "callStart": 255,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {"argsStart":116,"callStart":108,"group":["Synth"],"incomplete":true,"label":"cutoff"},
+            {
+              "argsStart": 169,
+              "callStart": 161,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":181,"start":178}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            255,
+            {"span":{"end":267,"start":267},"text":", { collapsed: true }"},
+            {"span":{"end":267,"start":267},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 292,
+          "muteOff": null,
+          "muteOn": {"end":296,"start":296,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":296,"start":296,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":296,"start":296,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":298,"start":298,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@108:3": {
+      "analyze": {
+        "error": "$slider() max (argument 4) must be a numeric or string literal at line 3, column 43"
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,144],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[159,191],"group":["Synth","Amp"],"kind":"$slider","name":159},
+        {"call":[206,239],"group":["Synth"],"kind":"$toggleBtn","name":206},
+        {"call":[240,267],"group":["Fx"],"kind":"$btn","name":240},
+        {"call":[253,266],"group":[],"kind":"$cGroup","name":253}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 217,
+              "callStart": 206,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":231,"start":226},
+              "value": false
+            },
+            {
+              "argsStart": 245,
+              "callStart": 240,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 261,
+              "callStart": 253,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {"argsStart":116,"callStart":108,"group":["Synth"],"incomplete":true,"label":"cutoff"},
+            {
+              "argsStart": 167,
+              "callStart": 159,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":179,"start":176}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            253,
+            {"span":{"end":265,"start":265},"text":", { collapsed: true }"},
+            {"span":{"end":265,"start":265},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 290,
+          "muteOff": null,
+          "muteOn": {"end":294,"start":294,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":294,"start":294,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":294,"start":294,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":296,"start":296,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@108:4": {
+      "analyze": {
+        "callSiteSpans": [["3:16",3,3],["4:15",4,4],["5:15",5,5],["6:1",6,6],["7:23",7,7]],
+        "interpolations": [],
+        "registry": [["10:1","$saw",[["freq",272,276]]]]
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[158,190],"group":["Synth","Amp"],"kind":"$slider","name":158},
+        {"call":[205,238],"group":["Synth"],"kind":"$toggleBtn","name":205},
+        {"call":[239,266],"group":["Fx"],"kind":"$btn","name":239},
+        {"call":[252,265],"group":[],"kind":"$cGroup","name":252}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 216,
+              "callStart": 205,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":230,"start":225},
+              "value": false
+            },
+            {
+              "argsStart": 244,
+              "callStart": 239,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 260,
+              "callStart": 252,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 166,
+              "callStart": 158,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":178,"start":175}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            252,
+            {"span":{"end":264,"start":264},"text":", { collapsed: true }"},
+            {"span":{"end":264,"start":264},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 289,
+          "muteOff": null,
+          "muteOn": {"end":293,"start":293,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":293,"start":293,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":293,"start":293,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":295,"start":295,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@14:0": {
+      "analyze": {"error":"$cGroup() label (argument 1) must be a string literal at line 1, column 23"},
+      "controlCalls": [
+        {"call":[14,24],"group":[],"kind":"$cGroup","name":14},
+        {"call":[237,264],"group":["Fx"],"kind":"$btn","name":237},
+        {"call":[250,263],"group":[],"kind":"$cGroup","name":250}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 242,
+              "callStart": 237,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 258,
+              "callStart": 250,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": []
+        },
+        "groupCollapse": [
+          [
+            250,
+            {"span":{"end":262,"start":262},"text":", { collapsed: true }"},
+            {"span":{"end":262,"start":262},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 287,
+          "muteOff": null,
+          "muteOn": {"end":291,"start":291,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":291,"start":291,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":291,"start":291,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":293,"start":293,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@162:0": {
+      "analyze": {"error":"$slider() label (argument 1) must be a string literal at line 4, column 23"},
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,188],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[203,236],"group":["Synth"],"kind":"$toggleBtn","name":203},
+        {"call":[237,264],"group":["Fx"],"kind":"$btn","name":237},
+        {"call":[250,263],"group":[],"kind":"$cGroup","name":250}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 214,
+              "callStart": 203,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":228,"start":223},
+              "value": false
+            },
+            {
+              "argsStart": 242,
+              "callStart": 237,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 258,
+              "callStart": 250,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            250,
+            {"span":{"end":262,"start":262},"text":", { collapsed: true }"},
+            {"span":{"end":262,"start":262},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 287,
+          "muteOff": null,
+          "muteOn": {"end":291,"start":291,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":291,"start":291,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":291,"start":291,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":293,"start":293,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@162:1": {
+      "analyze": {
+        "error": "$slider() value (argument 2) must be a numeric or string literal at line 4, column 32"
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,192],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[207,240],"group":["Synth"],"kind":"$toggleBtn","name":207},
+        {"call":[241,268],"group":["Fx"],"kind":"$btn","name":241},
+        {"call":[254,267],"group":[],"kind":"$cGroup","name":254}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 218,
+              "callStart": 207,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":232,"start":227},
+              "value": false
+            },
+            {
+              "argsStart": 246,
+              "callStart": 241,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 262,
+              "callStart": 254,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "incomplete": true,
+              "label": "level"
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            254,
+            {"span":{"end":266,"start":266},"text":", { collapsed: true }"},
+            {"span":{"end":266,"start":266},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 291,
+          "muteOff": null,
+          "muteOn": {"end":295,"start":295,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":295,"start":295,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":295,"start":295,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":297,"start":297,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@162:2": {
+      "analyze": {
+        "error": "$slider() min (argument 3) must be a numeric or string literal at line 4, column 37"
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[209,242],"group":["Synth"],"kind":"$toggleBtn","name":209},
+        {"call":[243,270],"group":["Fx"],"kind":"$btn","name":243},
+        {"call":[256,269],"group":[],"kind":"$cGroup","name":256}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 220,
+              "callStart": 209,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":234,"start":229},
+              "value": false
+            },
+            {
+              "argsStart": 248,
+              "callStart": 243,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 264,
+              "callStart": 256,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "incomplete": true,
+              "label": "level"
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            256,
+            {"span":{"end":268,"start":268},"text":", { collapsed: true }"},
+            {"span":{"end":268,"start":268},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 293,
+          "muteOff": null,
+          "muteOn": {"end":297,"start":297,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":297,"start":297,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":297,"start":297,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":299,"start":299,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@162:3": {
+      "analyze": {
+        "error": "$slider() max (argument 4) must be a numeric or string literal at line 4, column 40"
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[209,242],"group":["Synth"],"kind":"$toggleBtn","name":209},
+        {"call":[243,270],"group":["Fx"],"kind":"$btn","name":243},
+        {"call":[256,269],"group":[],"kind":"$cGroup","name":256}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 220,
+              "callStart": 209,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":234,"start":229},
+              "value": false
+            },
+            {
+              "argsStart": 248,
+              "callStart": 243,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 264,
+              "callStart": 256,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "incomplete": true,
+              "label": "level"
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            256,
+            {"span":{"end":268,"start":268},"text":", { collapsed: true }"},
+            {"span":{"end":268,"start":268},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 293,
+          "muteOff": null,
+          "muteOn": {"end":297,"start":297,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":297,"start":297,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":297,"start":297,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":299,"start":299,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@162:4": {
+      "analyze": {
+        "callSiteSpans": [["3:16",3,3],["4:15",4,4],["5:15",5,5],["6:1",6,6],["7:23",7,7]],
+        "interpolations": [],
+        "registry": [["10:1","$saw",[["freq",274,278]]]]
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[207,240],"group":["Synth"],"kind":"$toggleBtn","name":207},
+        {"call":[241,268],"group":["Fx"],"kind":"$btn","name":241},
+        {"call":[254,267],"group":[],"kind":"$cGroup","name":254}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 218,
+              "callStart": 207,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":232,"start":227},
+              "value": false
+            },
+            {
+              "argsStart": 246,
+              "callStart": 241,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 262,
+              "callStart": 254,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            254,
+            {"span":{"end":266,"start":266},"text":", { collapsed: true }"},
+            {"span":{"end":266,"start":266},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 291,
+          "muteOff": null,
+          "muteOn": {"end":295,"start":295,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":295,"start":295,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":295,"start":295,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":297,"start":297,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@209:0": {
+      "analyze": {"error":"$toggleBtn() label (argument 1) must be a string literal at line 5, column 26"},
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[209,236],"group":["Synth"],"kind":"$toggleBtn","name":209},
+        {"call":[237,264],"group":["Fx"],"kind":"$btn","name":237},
+        {"call":[250,263],"group":[],"kind":"$cGroup","name":250}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 242,
+              "callStart": 237,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 258,
+              "callStart": 250,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":182,"start":179}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            250,
+            {"span":{"end":262,"start":262},"text":", { collapsed: true }"},
+            {"span":{"end":262,"start":262},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 287,
+          "muteOff": null,
+          "muteOn": {"end":291,"start":291,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":291,"start":291,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":291,"start":291,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":293,"start":293,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@209:1": {
+      "analyze": {
+        "error": "$toggleBtn() initial state (argument 2) must be a true or false literal at line 5, column 35"
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[209,238],"group":["Synth"],"kind":"$toggleBtn","name":209},
+        {"call":[239,266],"group":["Fx"],"kind":"$btn","name":239},
+        {"call":[252,265],"group":[],"kind":"$cGroup","name":252}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {"argsStart":220,"callStart":209,"group":["Synth"],"incomplete":true,"label":"drone"},
+            {
+              "argsStart": 244,
+              "callStart": 239,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 260,
+              "callStart": 252,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":182,"start":179}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            252,
+            {"span":{"end":264,"start":264},"text":", { collapsed: true }"},
+            {"span":{"end":264,"start":264},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 289,
+          "muteOff": null,
+          "muteOn": {"end":293,"start":293,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":293,"start":293,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":293,"start":293,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":295,"start":295,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@209:2": {
+      "analyze": {
+        "callSiteSpans": [["3:16",3,3],["4:15",4,4],["5:15",5,5],["6:1",6,6],["7:23",7,7]],
+        "interpolations": [],
+        "registry": [["10:1","$saw",[["freq",272,276]]]]
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[239,266],"group":["Fx"],"kind":"$btn","name":239},
+        {"call":[252,265],"group":[],"kind":"$cGroup","name":252}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 244,
+              "callStart": 239,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 260,
+              "callStart": 252,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":182,"start":179}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            252,
+            {"span":{"end":264,"start":264},"text":", { collapsed: true }"},
+            {"span":{"end":264,"start":264},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 289,
+          "muteOff": null,
+          "muteOn": {"end":293,"start":293,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":293,"start":293,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":293,"start":293,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":295,"start":295,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@243:0": {
+      "analyze": {"error":"$btn() label (argument 1) must be a string literal at line 6, column 6"},
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[209,242],"group":["Synth"],"kind":"$toggleBtn","name":209},
+        {"call":[243,265],"group":["Fx"],"kind":"$btn","name":243},
+        {"call":[251,264],"group":[],"kind":"$cGroup","name":251}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 220,
+              "callStart": 209,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":234,"start":229},
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 259,
+              "callStart": 251,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":182,"start":179}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            251,
+            {"span":{"end":263,"start":263},"text":", { collapsed: true }"},
+            {"span":{"end":263,"start":263},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 288,
+          "muteOff": null,
+          "muteOn": {"end":292,"start":292,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":292,"start":292,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":292,"start":292,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":294,"start":294,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@243:1": {
+      "analyze": {
+        "callSiteSpans": [["3:16",3,3],["4:15",4,4],["5:15",5,5],["6:1",6,6],["7:23",7,7]],
+        "interpolations": [],
+        "registry": [["10:1","$saw",[["freq",264,268]]]]
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[209,242],"group":["Synth"],"kind":"$toggleBtn","name":209}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 220,
+              "callStart": 209,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":234,"start":229},
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":182,"start":179}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 281,
+          "muteOff": null,
+          "muteOn": {"end":285,"start":285,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":285,"start":285,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":285,"start":285,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":287,"start":287,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@256:0": {
+      "analyze": {"error":"$cGroup() label (argument 1) must be a string literal at line 6, column 22"},
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[209,242],"group":["Synth"],"kind":"$toggleBtn","name":209},
+        {"call":[256,266],"group":[],"kind":"$cGroup","name":256}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 220,
+              "callStart": 209,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":234,"start":229},
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":182,"start":179}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 290,
+          "muteOff": null,
+          "muteOn": {"end":294,"start":294,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":294,"start":294,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":294,"start":294,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":296,"start":296,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@43:0": {
+      "analyze": {"error":"$cGroup() label (argument 1) must be a string literal at line 2, column 21"},
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,88],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[104,143],"group":["Synth"],"kind":"$slider","name":104},
+        {"call":[205,238],"group":["Synth"],"kind":"$toggleBtn","name":205},
+        {"call":[239,266],"group":["Fx"],"kind":"$btn","name":239},
+        {"call":[252,265],"group":[],"kind":"$cGroup","name":252}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 216,
+              "callStart": 205,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":230,"start":225},
+              "value": false
+            },
+            {
+              "argsStart": 244,
+              "callStart": 239,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 260,
+              "callStart": 252,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 112,
+              "callStart": 104,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":125,"start":122}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            252,
+            {"span":{"end":264,"start":264},"text":", { collapsed: true }"},
+            {"span":{"end":264,"start":264},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 289,
+          "muteOff": null,
+          "muteOn": {"end":293,"start":293,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":293,"start":293,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":293,"start":293,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":295,"start":295,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@43:1": {
+      "analyze": {
+        "callSiteSpans": [["3:16",3,3],["4:15",4,4],["5:15",5,5],["6:1",6,6],["7:23",7,7]],
+        "interpolations": [],
+        "registry": [["10:1","$saw",[["freq",244,248]]]]
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[76,115],"group":["Synth"],"kind":"$slider","name":76},
+        {"call":[177,210],"group":["Synth"],"kind":"$toggleBtn","name":177},
+        {"call":[211,238],"group":["Fx"],"kind":"$btn","name":211},
+        {"call":[224,237],"group":[],"kind":"$cGroup","name":224}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 188,
+              "callStart": 177,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":202,"start":197},
+              "value": false
+            },
+            {
+              "argsStart": 216,
+              "callStart": 211,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 232,
+              "callStart": 224,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 84,
+              "callStart": 76,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":97,"start":94}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            224,
+            {"span":{"end":236,"start":236},"text":", { collapsed: true }"},
+            {"span":{"end":236,"start":236},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 261,
+          "muteOff": null,
+          "muteOn": {"end":265,"start":265,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":265,"start":265,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":265,"start":265,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":267,"start":267,"text":"$setOutputGain(0.5)\n"}
+    },
+    "numericBool@229": {
+      "analyze": {
+        "error": "$toggleBtn() initial state (argument 2) must be a true or false literal at line 5, column 35"
+      },
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,92],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[108,147],"group":["Synth"],"kind":"$slider","name":108},
+        {"call":[162,194],"group":["Synth","Amp"],"kind":"$slider","name":162},
+        {"call":[209,238],"group":["Synth"],"kind":"$toggleBtn","name":209},
+        {"call":[239,266],"group":["Fx"],"kind":"$btn","name":239},
+        {"call":[252,265],"group":[],"kind":"$cGroup","name":252}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {"argsStart":220,"callStart":209,"group":["Synth"],"incomplete":true,"label":"drone"},
+            {
+              "argsStart": 244,
+              "callStart": 239,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": true,
+              "collapsible": true,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 260,
+              "callStart": 252,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 116,
+              "callStart": 108,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":129,"start":126}
+            },
+            {
+              "argsStart": 170,
+              "callStart": 162,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":182,"start":179}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [
+            43,
+            {"span":{"end":75,"start":71},"text":"true"},
+            {"span":{"end":75,"start":71},"text":"false"}
+          ],
+          [
+            252,
+            {"span":{"end":264,"start":264},"text":", { collapsed: true }"},
+            {"span":{"end":264,"start":264},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 289,
+          "muteOff": null,
+          "muteOn": {"end":293,"start":293,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":293,"start":293,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":293,"start":293,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":295,"start":295,"text":"$setOutputGain(0.5)\n"}
+    },
+    "numericBool@71": {
+      "analyze": {"error":"$cGroup() collapsed must be a true or false literal at line 2, column 30"},
+      "controlCalls": [
+        {"call":[14,30],"group":[],"kind":"$cGroup","name":14},
+        {"call":[43,89],"group":["Synth"],"kind":"$cGroup","name":43},
+        {"call":[105,144],"group":["Synth"],"kind":"$slider","name":105},
+        {"call":[159,191],"group":["Synth","Amp"],"kind":"$slider","name":159},
+        {"call":[206,239],"group":["Synth"],"kind":"$toggleBtn","name":206},
+        {"call":[240,267],"group":["Fx"],"kind":"$btn","name":240},
+        {"call":[253,266],"group":[],"kind":"$cGroup","name":253}
+      ],
+      "controls": {
+        "controls": {
+          "buttons": [
+            {
+              "argsStart": 217,
+              "callStart": 206,
+              "group": ["Synth"],
+              "label": "drone",
+              "mode": "toggle",
+              "stateRange": {"end":231,"start":226},
+              "value": false
+            },
+            {
+              "argsStart": 245,
+              "callStart": 240,
+              "group": ["Fx"],
+              "label": "kick",
+              "mode": "gate",
+              "stateRange": null,
+              "value": false
+            }
+          ],
+          "groups": [
+            {
+              "argsStart": 22,
+              "callStart": 14,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Synth"
+            },
+            {
+              "argsStart": 51,
+              "callStart": 43,
+              "collapsed": false,
+              "collapsible": false,
+              "group": ["Synth"],
+              "label": "Amp"
+            },
+            {
+              "argsStart": 261,
+              "callStart": 253,
+              "collapsed": false,
+              "collapsible": true,
+              "group": [],
+              "label": "Fx"
+            }
+          ],
+          "sliders": [
+            {
+              "argsStart": 113,
+              "callStart": 105,
+              "group": ["Synth"],
+              "label": "cutoff",
+              "max": 8000,
+              "min": 20,
+              "unit": "number",
+              "value": 800,
+              "valueRange": {"end":126,"start":123}
+            },
+            {
+              "argsStart": 167,
+              "callStart": 159,
+              "group": ["Synth","Amp"],
+              "label": "level",
+              "max": 1,
+              "min": 0,
+              "unit": "number",
+              "value": 0.5,
+              "valueRange": {"end":179,"start":176}
+            }
+          ]
+        },
+        "groupCollapse": [
+          [
+            14,
+            {"span":{"end":29,"start":29},"text":", { collapsed: true }"},
+            {"span":{"end":29,"start":29},"text":", { collapsed: false }"}
+          ],
+          [43,null,null],
+          [
+            253,
+            {"span":{"end":265,"start":265},"text":", { collapsed: true }"},
+            {"span":{"end":265,"start":265},"text":", { collapsed: false }"}
+          ]
+        ]
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 290,
+          "muteOff": null,
+          "muteOn": {"end":294,"start":294,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":294,"start":294,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":294,"start":294,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":296,"start":296,"text":"$setOutputGain(0.5)\n"}
+    }
+  }
+}

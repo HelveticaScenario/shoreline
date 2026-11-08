@@ -1,0 +1,133 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["3:53",3,3],["4:61",4,4]],
+      "interpolations": [],
+      "registry": [
+        ["4:19","$drumMap",[["x",28,29],["y",34,35],["chaos",44,47]]],
+        ["6:1","$sine",[["freq",96,100]]],
+        ["6:23","$perc",[["decay",134,137]]],
+        ["7:1","$noise",[["color",155,162]]],
+        ["7:27","$perc",[["decay",199,203]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [
+      {
+        "anchor": 142,
+        "muteOff": null,
+        "muteOn": {"end":146,"start":146,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":146,"start":146,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":146,"start":146,"text":"{ solo: true }"}
+      },
+      {
+        "anchor": 208,
+        "muteOff": null,
+        "muteOn": {"end":212,"start":212,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":212,"start":212,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":212,"start":212,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": [
+        "14-24 0",
+        "25-27 1",
+        "28-29 2",
+        "30-30 0",
+        "31-33 3",
+        "34-35 4",
+        "36-36 0",
+        "37-43 5",
+        "44-47 6",
+        "48-49 0",
+        "90-95 7",
+        "96-100 8",
+        "127-133 9",
+        "134-137 10",
+        "141-146 11",
+        "148-162 12",
+        "192-198 13",
+        "199-203 14",
+        "207-212 15"
+      ],
+      "fixes": [
+        "[{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  bdDensity: $slider('bdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'bdDensity'\"},{\"caretOffset\":69,\"controlOffset\":42,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  hhDensity: $slider('hhDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'hhDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  sdDensity: $slider('sdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'sdDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'velocity'\"}]",
+        "[{\"caretOffset\":21,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('x', 1, 0, 5)\",\"preferred\":false,\"span\":{\"end\":29,\"start\":28},\"title\":\"Wrap 'x' in $slider\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  bdDensity: $slider('bdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'bdDensity'\"},{\"caretOffset\":69,\"controlOffset\":42,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  hhDensity: $slider('hhDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'hhDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  sdDensity: $slider('sdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'sdDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'velocity'\"}]",
+        "[{\"caretOffset\":21,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('x', 1, 0, 5)\",\"preferred\":true,\"span\":{\"end\":29,\"start\":28},\"title\":\"Wrap 'x' in $slider\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  bdDensity: $slider('bdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'bdDensity'\"},{\"caretOffset\":69,\"controlOffset\":42,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  hhDensity: $slider('hhDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'hhDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  sdDensity: $slider('sdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'sdDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'velocity'\"}]",
+        "[{\"caretOffset\":21,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('y', 3, 0, 5)\",\"preferred\":false,\"span\":{\"end\":35,\"start\":34},\"title\":\"Wrap 'y' in $slider\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  bdDensity: $slider('bdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'bdDensity'\"},{\"caretOffset\":69,\"controlOffset\":42,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  hhDensity: $slider('hhDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'hhDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  sdDensity: $slider('sdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'sdDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'velocity'\"}]",
+        "[{\"caretOffset\":21,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('y', 3, 0, 5)\",\"preferred\":true,\"span\":{\"end\":35,\"start\":34},\"title\":\"Wrap 'y' in $slider\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  bdDensity: $slider('bdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'bdDensity'\"},{\"caretOffset\":69,\"controlOffset\":42,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  hhDensity: $slider('hhDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'hhDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  sdDensity: $slider('sdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'sdDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'velocity'\"}]",
+        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('chaos', 0.5, 0, 5)\",\"preferred\":false,\"span\":{\"end\":47,\"start\":44},\"title\":\"Wrap 'chaos' in $slider\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  bdDensity: $slider('bdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'bdDensity'\"},{\"caretOffset\":69,\"controlOffset\":42,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  hhDensity: $slider('hhDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'hhDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  sdDensity: $slider('sdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'sdDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'velocity'\"}]",
+        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('chaos', 0.5, 0, 5)\",\"preferred\":true,\"span\":{\"end\":47,\"start\":44},\"title\":\"Wrap 'chaos' in $slider\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  bdDensity: $slider('bdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'bdDensity'\"},{\"caretOffset\":69,\"controlOffset\":42,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  hhDensity: $slider('hhDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'hhDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":76,\"controlOffset\":45,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  sdDensity: $slider('sdDensity', 2.5, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'sdDensity'\"},{\"caretOffset\":72,\"controlOffset\":44,\"kind\":\"add\",\"newText\":\"{\\n  x: 1,\\n  y: 3,\\n  chaos: 0.5,\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":49,\"start\":23},\"title\":\"Add slider for 'velocity'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":100,\"start\":100},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":100,\"start\":100},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":100,\"start\":100},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":34,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c1', 'c-1', 'c3')\",\"preferred\":true,\"span\":{\"end\":100,\"start\":96},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":100,\"start\":100},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":100,\"start\":100},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":100,\"start\":100},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('decay', 0.3, 0, 10)\",\"preferred\":false,\"span\":{\"end\":137,\"start\":134},\"title\":\"Wrap 'decay' in $slider\"}]",
+        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('decay', 0.3, 0, 10)\",\"preferred\":true,\"span\":{\"end\":137,\"start\":134},\"title\":\"Wrap 'decay' in $slider\"}]",
+        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":146,\"start\":146},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":146,\"start\":146},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":146,\"start\":146},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":45,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  rate: $slider('rate', 'c4', 'c2', 'c6'),\\n}\",\"span\":{\"end\":162,\"start\":162},\"title\":\"Add note slider for 'rate'\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('decay', 0.05, 0, 10)\",\"preferred\":false,\"span\":{\"end\":203,\"start\":199},\"title\":\"Wrap 'decay' in $slider\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('decay', 0.05, 0, 10)\",\"preferred\":true,\"span\":{\"end\":203,\"start\":199},\"title\":\"Wrap 'decay' in $slider\"}]",
+        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":212,\"start\":212},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":212,\"start\":212},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":212,\"start\":212},\"title\":\"Add slider for 'width'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":213,"start":213,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:19","$drumMap",[["x",28,29],["y",34,35],["chaos",44,47]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":53,"start":53,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [
+          ["4:19","$drumMap",[["x",28,29],["y",34,35],["chaos",44,47]]],
+          ["6:1","$sine",[["freq",96,100]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":106,"start":106,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [["3:53",3,3]],
+        "interpolations": [],
+        "registry": [
+          ["4:19","$drumMap",[["x",28,29],["y",34,35],["chaos",44,47]]],
+          ["6:1","$sine",[["freq",96,100]]],
+          ["6:23","$perc",[["decay",134,137]]],
+          ["7:1","$noise",[["color",155,159]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 142,
+          "muteOff": null,
+          "muteOn": {"end":146,"start":146,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":146,"start":146,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":146,"start":146,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":159,"start":159,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

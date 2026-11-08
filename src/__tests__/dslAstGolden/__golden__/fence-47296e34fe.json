@@ -1,0 +1,51 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [],
+      "interpolations": [],
+      "registry": [["4:12","$p",[["source",10,35]]],["5:8","$p",[["source",82,98]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [],
+    "quickFixes": {
+      "at": ["0-36 0","72-99 1"],
+      "fixes": [
+        "[{\"caretOffset\":41,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":36,\"start\":36},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":36,\"start\":36},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":36,\"start\":36},\"title\":\"Add slider for 'velocity'\"}]",
+        "[{\"caretOffset\":41,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":99,\"start\":99},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":99,\"start\":99},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":99,\"start\":99},\"title\":\"Add slider for 'velocity'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":145,"start":145,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:12","$p",[["source",10,35]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":36,"start":36,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:12","$p",[["source",10,35]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":72,"start":72,"text":"$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:12","$p",[["source",10,35]]],["5:8","$p",[["source",82,98]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":108,"start":108,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

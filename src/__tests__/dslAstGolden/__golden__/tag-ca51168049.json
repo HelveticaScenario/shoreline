@@ -1,0 +1,54 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [],
+      "interpolations": [],
+      "registry": [["4:5","$stereoMix",[["width",32,35]]],["4:16","$saw",[["freq",16,20]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [],
+    "quickFixes": {
+      "at": ["0-10 0","11-15 1","16-20 2","21-24 0","25-31 3","32-35 4","36-37 0"],
+      "fixes": [
+        "[{\"caretOffset\":47,\"controlOffset\":23,\"kind\":\"add\",\"newText\":\"{\\n  width: 0.8,\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":37,\"start\":23},\"title\":\"Add slider for 'pan'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":20,\"start\":20},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":20,\"start\":20},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":20,\"start\":20},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":20,\"start\":20},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', \\\"c3\\\", 'c1', 'c5')\",\"preferred\":true,\"span\":{\"end\":20,\"start\":16},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":20,\"start\":20},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":20,\"start\":20},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":20,\"start\":20},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":20,\"start\":20},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('width', 0.8, 0, 5)\",\"preferred\":false,\"span\":{\"end\":35,\"start\":32},\"title\":\"Wrap 'width' in $slider\"},{\"caretOffset\":47,\"controlOffset\":23,\"kind\":\"add\",\"newText\":\"{\\n  width: 0.8,\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":37,\"start\":23},\"title\":\"Add slider for 'pan'\"}]",
+        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('width', 0.8, 0, 5)\",\"preferred\":true,\"span\":{\"end\":35,\"start\":32},\"title\":\"Wrap 'width' in $slider\"},{\"caretOffset\":47,\"controlOffset\":23,\"kind\":\"add\",\"newText\":\"{\\n  width: 0.8,\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":37,\"start\":23},\"title\":\"Add slider for 'pan'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":65,"start":65,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":16,"start":16,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:16","$saw",[["freq",16,20]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":32,"start":32,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:5","$stereoMix",[["width",32,35]]],["4:16","$saw",[["freq",16,20]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":48,"start":48,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

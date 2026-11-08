@@ -1,0 +1,61 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["2:59",2,2]],
+      "interpolations": [],
+      "registry": [["5:7","$quantizer",[["scale",80,90]]],["5:18","$sine",[["freq",58,65]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [
+      {
+        "anchor": 93,
+        "muteOff": null,
+        "muteOn": {"end":97,"start":97,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":97,"start":97,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":97,"start":97,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["35-40 0","41-51 1","52-57 2","58-65 3","73-74 4","76-77 5","78-90 1","91-91 0","92-97 6"],
+      "fixes": [
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":91,\"start\":91},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":91,\"start\":91},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":91,\"start\":91},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  gate: $btn('gate'),\\n}\",\"span\":{\"end\":90,\"start\":90},\"title\":\"Add button for 'gate'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  gate: $toggleBtn('gate', false),\\n}\",\"span\":{\"end\":90,\"start\":90},\"title\":\"Add toggle for 'gate'\"},{\"caretOffset\":49,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n  offset: $slider('offset', 'c4', 'c2', 'c6'),\\n}\",\"span\":{\"end\":90,\"start\":90},\"title\":\"Add note slider for 'offset'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":65,\"start\":65},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":65,\"start\":65},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":65,\"start\":65},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":44,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', \\\"0.1hz\\\", '0.025hz', '0.4hz')\",\"preferred\":true,\"span\":{\"end\":65,\"start\":58},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":65,\"start\":65},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":65,\"start\":65},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":65,\"start\":65},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMin', 0, 0, 5)\",\"preferred\":true,\"span\":{\"end\":74,\"start\":73},\"title\":\"Wrap 'outMin' in $slider\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMax', 3, 0, 5)\",\"preferred\":true,\"span\":{\"end\":77,\"start\":76},\"title\":\"Wrap 'outMax' in $slider\"}]",
+        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":97,\"start\":97},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":97,\"start\":97},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":97,\"start\":97},\"title\":\"Add slider for 'width'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":98,"start":98,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":24,"start":24,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":49,"start":49,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["5:18","$sine",[["freq",58,65]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":73,"start":73,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["5:3",5,5]],
+      "interpolations": [],
+      "registry": [["5:1","$sine",[["freq.0",20,24],["freq.1",26,30],["freq.2",32,36]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [
+      {
+        "anchor": 97,
+        "muteOff": null,
+        "muteOn": {"end":101,"start":101,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":101,"start":101,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":101,"start":101,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["13-37 0","38-58 1","59-70 2","71-101 1"],
+      "fixes": [
+        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":37,\"start\":37},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":37,\"start\":37},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":37,\"start\":37},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"{ gain: $slider('gain', 5, 0, 5) }\",\"span\":{\"end\":101,\"start\":101},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":31,\"controlOffset\":7,\"kind\":\"add\",\"newText\":\"{ pan: $slider('pan', 0, -5, 5) }\",\"span\":{\"end\":101,\"start\":101},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":34,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{ width: $slider('width', 0, 0, 5) }\",\"span\":{\"end\":101,\"start\":101},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":31,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('resonance', 0, 0, 5)\",\"span\":{\"end\":70,\"start\":70},\"title\":\"Add slider for 'resonance'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":102,"start":102,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["5:1","$sine",[["freq.0",20,24]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":25,"start":25,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["5:1","$sine",[["freq.0",20,24],["freq.1",26,30],["freq.2",32,36]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":51,"start":51,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["5:1","$sine",[["freq.0",20,24],["freq.1",26,30],["freq.2",32,36]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":76,"start":76,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

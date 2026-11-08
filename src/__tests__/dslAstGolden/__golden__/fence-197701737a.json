@@ -1,0 +1,241 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["2:87",2,2],["4:60",4,4],["6:24",6,6],["8:56",8,8]],
+      "interpolations": [],
+      "registry": [
+        ["5:1","$multimode",[["resonance",107,110]]],
+        ["5:12","$saw",[["freq",71,75]]],
+        ["5:24","$sine",[["freq",84,91]]],
+        ["5:58","$sine",[["freq",118,126]]],
+        [
+          "7:1",
+          "$multimode",
+          [
+            ["cutoff",215,219],
+            ["resonance",221,222],
+            ["mode",224,225],
+            ["drive",236,237],
+            ["fold",245,246]
+          ]
+        ],
+        ["7:12","$sine",[["freq",208,212]]],
+        ["9:1","$multimode",[["input",310,311],["cutoff",313,317],["resonance",319,320]]],
+        ["11:1","$multimode",[["cutoff",389,393],["resonance",395,396],["mode",398,399]]],
+        ["11:12","$saw",[["freq",382,386]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [
+      {
+        "anchor": 141,
+        "muteOff": null,
+        "muteOn": {"end":145,"start":145,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":145,"start":145,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":145,"start":145,"text":"{ solo: true }"}
+      },
+      {
+        "anchor": 250,
+        "muteOff": null,
+        "muteOn": {"end":254,"start":254,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":254,"start":254,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":254,"start":254,"text":"{ solo: true }"}
+      },
+      {
+        "anchor": 322,
+        "muteOff": null,
+        "muteOn": {"end":326,"start":326,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":326,"start":326,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":326,"start":326,"text":"{ solo: true }"}
+      },
+      {
+        "anchor": 421,
+        "muteOff": null,
+        "muteOn": {"end":425,"start":425,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":425,"start":425,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":425,"start":425,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": [
+        "55-65 0",
+        "66-70 1",
+        "71-75 2",
+        "76-77 0",
+        "78-83 3",
+        "84-91 4",
+        "99-101 5",
+        "103-104 6",
+        "105-106 0",
+        "107-110 7",
+        "111-111 0",
+        "112-117 8",
+        "118-126 9",
+        "134-135 10",
+        "137-138 11",
+        "139-139 0",
+        "140-145 12",
+        "202-207 13",
+        "208-212 14",
+        "215-219 15",
+        "221-222 16",
+        "224-225 17",
+        "229-235 18",
+        "236-237 19",
+        "239-244 20",
+        "245-246 21",
+        "249-254 22",
+        "299-309 23",
+        "310-311 24",
+        "312-312 23",
+        "313-317 25",
+        "318-318 23",
+        "319-320 26",
+        "321-326 27",
+        "366-376 28",
+        "377-381 29",
+        "382-386 30",
+        "387-388 28",
+        "389-393 31",
+        "394-394 28",
+        "395-396 32",
+        "397-397 28",
+        "398-399 33",
+        "400-419 28",
+        "420-425 34"
+      ],
+      "fixes": [
+        "[{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  drive: $slider('drive', 0, 0, 5),\\n}\",\"span\":{\"end\":139,\"start\":139},\"title\":\"Add slider for 'drive'\"},{\"caretOffset\":36,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  fold: $slider('fold', 0, 0, 5),\\n}\",\"span\":{\"end\":139,\"start\":139},\"title\":\"Add slider for 'fold'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":75,\"start\":75},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":75,\"start\":75},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":75,\"start\":75},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":75,\"start\":75},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c2', 'c0', 'c4')\",\"preferred\":true,\"span\":{\"end\":75,\"start\":71},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":75,\"start\":75},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":75,\"start\":75},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":75,\"start\":75},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":75,\"start\":75},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":91,\"start\":91},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":91,\"start\":91},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":91,\"start\":91},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":44,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', '0.1hz', '0.025hz', '0.4hz')\",\"preferred\":true,\"span\":{\"end\":91,\"start\":84},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":91,\"start\":91},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":91,\"start\":91},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":91,\"start\":91},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMin', -1, -1, 5)\",\"preferred\":true,\"span\":{\"end\":101,\"start\":99},\"title\":\"Wrap 'outMin' in $slider\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMax', 2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":104,\"start\":103},\"title\":\"Wrap 'outMax' in $slider\"}]",
+        "[{\"caretOffset\":31,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('resonance', 3.8, 0, 5)\",\"preferred\":true,\"span\":{\"end\":110,\"start\":107},\"title\":\"Wrap 'resonance' in $slider\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  drive: $slider('drive', 0, 0, 5),\\n}\",\"span\":{\"end\":139,\"start\":139},\"title\":\"Add slider for 'drive'\"},{\"caretOffset\":36,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  fold: $slider('fold', 0, 0, 5),\\n}\",\"span\":{\"end\":139,\"start\":139},\"title\":\"Add slider for 'fold'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":126,\"start\":126},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":126,\"start\":126},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":126,\"start\":126},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":47,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', '0.07hz', '0.0175hz', '0.28hz')\",\"preferred\":true,\"span\":{\"end\":126,\"start\":118},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":126,\"start\":126},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":126,\"start\":126},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":126,\"start\":126},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMin', 0, 0, 5)\",\"preferred\":true,\"span\":{\"end\":135,\"start\":134},\"title\":\"Wrap 'outMin' in $slider\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMax', 5, 0, 5)\",\"preferred\":true,\"span\":{\"end\":138,\"start\":137},\"title\":\"Wrap 'outMax' in $slider\"}]",
+        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":145,\"start\":145},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":145,\"start\":145},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":145,\"start\":145},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":212,\"start\":212},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":212,\"start\":212},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":212,\"start\":212},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c3', 'c1', 'c5')\",\"preferred\":true,\"span\":{\"end\":212,\"start\":208},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":212,\"start\":212},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":212,\"start\":212},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":212,\"start\":212},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":35,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('cutoff', 'c6', 'c4', 'c8')\",\"preferred\":true,\"span\":{\"end\":219,\"start\":215},\"title\":\"Wrap 'cutoff' in a note $slider\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('resonance', 1, 0, 5)\",\"preferred\":true,\"span\":{\"end\":222,\"start\":221},\"title\":\"Wrap 'resonance' in $slider\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('mode', 0, 0, 5)\",\"preferred\":true,\"span\":{\"end\":225,\"start\":224},\"title\":\"Wrap 'mode' in $slider\"}]",
+        "[{\"caretOffset\":25,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('drive', 3, 0, 5)\",\"preferred\":false,\"span\":{\"end\":237,\"start\":236},\"title\":\"Wrap 'drive' in $slider\"}]",
+        "[{\"caretOffset\":25,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('drive', 3, 0, 5)\",\"preferred\":true,\"span\":{\"end\":237,\"start\":236},\"title\":\"Wrap 'drive' in $slider\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('fold', 3, 0, 5)\",\"preferred\":false,\"span\":{\"end\":246,\"start\":245},\"title\":\"Wrap 'fold' in $slider\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('fold', 3, 0, 5)\",\"preferred\":true,\"span\":{\"end\":246,\"start\":245},\"title\":\"Wrap 'fold' in $slider\"}]",
+        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":254,\"start\":254},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":254,\"start\":254},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":254,\"start\":254},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('mode', 0, 0, 5)\",\"span\":{\"end\":320,\"start\":320},\"title\":\"Add slider for 'mode'\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('input', 0, -5, 5)\",\"preferred\":true,\"span\":{\"end\":311,\"start\":310},\"title\":\"Wrap 'input' in $slider\"},{\"caretOffset\":26,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('mode', 0, 0, 5)\",\"span\":{\"end\":320,\"start\":320},\"title\":\"Add slider for 'mode'\"}]",
+        "[{\"caretOffset\":35,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('cutoff', 'a3', 'a1', 'a5')\",\"preferred\":true,\"span\":{\"end\":317,\"start\":313},\"title\":\"Wrap 'cutoff' in a note $slider\"},{\"caretOffset\":26,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('mode', 0, 0, 5)\",\"span\":{\"end\":320,\"start\":320},\"title\":\"Add slider for 'mode'\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('resonance', 5, 0, 5)\",\"preferred\":true,\"span\":{\"end\":320,\"start\":319},\"title\":\"Wrap 'resonance' in $slider\"},{\"caretOffset\":26,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('mode', 0, 0, 5)\",\"span\":{\"end\":320,\"start\":320},\"title\":\"Add slider for 'mode'\"}]",
+        "[{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"{ gain: $slider('gain', 5, 0, 5) }\",\"span\":{\"end\":326,\"start\":326},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":31,\"controlOffset\":7,\"kind\":\"add\",\"newText\":\"{ pan: $slider('pan', 0, -5, 5) }\",\"span\":{\"end\":326,\"start\":326},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":34,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{ width: $slider('width', 0, 0, 5) }\",\"span\":{\"end\":326,\"start\":326},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":54,\"controlOffset\":29,\"kind\":\"add\",\"newText\":\"{\\n  highRes: false,\\n  drive: $slider('drive', 0, 0, 5),\\n}\",\"span\":{\"end\":419,\"start\":401},\"title\":\"Add slider for 'drive'\"},{\"caretOffset\":52,\"controlOffset\":28,\"kind\":\"add\",\"newText\":\"{\\n  highRes: false,\\n  fold: $slider('fold', 0, 0, 5),\\n}\",\"span\":{\"end\":419,\"start\":401},\"title\":\"Add slider for 'fold'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":386,\"start\":386},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":386,\"start\":386},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":386,\"start\":386},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":386,\"start\":386},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c2', 'c0', 'c4')\",\"preferred\":true,\"span\":{\"end\":386,\"start\":382},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":386,\"start\":386},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":386,\"start\":386},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":386,\"start\":386},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":386,\"start\":386},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":35,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('cutoff', 'c5', 'c3', 'c7')\",\"preferred\":true,\"span\":{\"end\":393,\"start\":389},\"title\":\"Wrap 'cutoff' in a note $slider\"},{\"caretOffset\":54,\"controlOffset\":29,\"kind\":\"add\",\"newText\":\"{\\n  highRes: false,\\n  drive: $slider('drive', 0, 0, 5),\\n}\",\"span\":{\"end\":419,\"start\":401},\"title\":\"Add slider for 'drive'\"},{\"caretOffset\":52,\"controlOffset\":28,\"kind\":\"add\",\"newText\":\"{\\n  highRes: false,\\n  fold: $slider('fold', 0, 0, 5),\\n}\",\"span\":{\"end\":419,\"start\":401},\"title\":\"Add slider for 'fold'\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('resonance', 2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":396,\"start\":395},\"title\":\"Wrap 'resonance' in $slider\"},{\"caretOffset\":54,\"controlOffset\":29,\"kind\":\"add\",\"newText\":\"{\\n  highRes: false,\\n  drive: $slider('drive', 0, 0, 5),\\n}\",\"span\":{\"end\":419,\"start\":401},\"title\":\"Add slider for 'drive'\"},{\"caretOffset\":52,\"controlOffset\":28,\"kind\":\"add\",\"newText\":\"{\\n  highRes: false,\\n  fold: $slider('fold', 0, 0, 5),\\n}\",\"span\":{\"end\":419,\"start\":401},\"title\":\"Add slider for 'fold'\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('mode', 0, 0, 5)\",\"preferred\":true,\"span\":{\"end\":399,\"start\":398},\"title\":\"Wrap 'mode' in $slider\"},{\"caretOffset\":54,\"controlOffset\":29,\"kind\":\"add\",\"newText\":\"{\\n  highRes: false,\\n  drive: $slider('drive', 0, 0, 5),\\n}\",\"span\":{\"end\":419,\"start\":401},\"title\":\"Add slider for 'drive'\"},{\"caretOffset\":52,\"controlOffset\":28,\"kind\":\"add\",\"newText\":\"{\\n  highRes: false,\\n  fold: $slider('fold', 0, 0, 5),\\n}\",\"span\":{\"end\":419,\"start\":401},\"title\":\"Add slider for 'fold'\"}]",
+        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":425,\"start\":425},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":425,\"start\":425},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":425,\"start\":425},\"title\":\"Add slider for 'width'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":426,"start":426,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["5:12","$saw",[["freq",71,75]]],["5:24","$sine",[["freq",84,91]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":106,"start":106,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [["2:87",2,2]],
+        "interpolations": [],
+        "registry": [
+          ["5:1","$multimode",[["resonance",107,110]]],
+          ["5:12","$saw",[["freq",71,75]]],
+          ["5:24","$sine",[["freq",84,91]]],
+          ["5:58","$sine",[["freq",118,126]]],
+          ["7:12","$sine",[["freq",208,212]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 141,
+          "muteOff": null,
+          "muteOn": {"end":145,"start":145,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":145,"start":145,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":145,"start":145,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":213,"start":213,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [["2:87",2,2],["4:60",4,4]],
+        "interpolations": [],
+        "registry": [
+          ["5:1","$multimode",[["resonance",107,110]]],
+          ["5:12","$saw",[["freq",71,75]]],
+          ["5:24","$sine",[["freq",84,91]]],
+          ["5:58","$sine",[["freq",118,126]]],
+          [
+            "7:1",
+            "$multimode",
+            [
+              ["cutoff",215,219],
+              ["resonance",221,222],
+              ["mode",224,225],
+              ["drive",236,237],
+              ["fold",245,246]
+            ]
+          ],
+          ["7:12","$sine",[["freq",208,212]]],
+          ["9:1","$multimode",[["input",310,311],["cutoff",313,317]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 141,
+          "muteOff": null,
+          "muteOn": {"end":145,"start":145,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":145,"start":145,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":145,"start":145,"text":"{ solo: true }"}
+        },
+        {
+          "anchor": 250,
+          "muteOff": null,
+          "muteOn": {"end":254,"start":254,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":254,"start":254,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":254,"start":254,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":319,"start":319,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}
