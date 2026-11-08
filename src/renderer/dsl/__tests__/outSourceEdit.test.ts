@@ -369,3 +369,60 @@ describe('computeOutOptionEdit — robustness', () => {
         expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBeNull();
     });
 });
+
+describe('reading the call from the syntax tree', () => {
+    test('a template interpolation does not end the call early', () => {
+        const source = '$sine(`${`c4`}`).out({ mute: false, pan: 0 })';
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
+            '$sine(`${`c4`}`).out({ mute: true, pan: 0 })',
+        );
+    });
+
+    test('a regex literal holding a bracket does not unbalance the call', () => {
+        const source = "$sine('c4').out({ pan: /[)]/.test('x') ? 0 : 1 })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
+            "$sine('c4').out({ pan: /[)]/.test('x') ? 0 : 1, mute: true })",
+        );
+    });
+
+    test('a name inside a value is not a property', () => {
+        const source = "$sine('c4').out({ pan: wide ? mute : 1 })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
+            "$sine('c4').out({ pan: wide ? mute : 1, mute: true })",
+        );
+    });
+
+    test('a shorthand property is not rewritten or duplicated', () => {
+        const source = "$sine('c4').out({ mute })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBeNull();
+        expect(
+            apply(source, anchorOf(source, 'out'), 'mute', false),
+        ).toBeNull();
+    });
+
+    test('a quoted key is the property it names', () => {
+        const source = "$sine('c4').out({ 'mute': true })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', false)).toBe(
+            "$sine('c4').out()",
+        );
+    });
+
+    test('a comment before the options object leaves it an object', () => {
+        const source = "$sine('c4').out(/* fx */ { solo: true })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
+            "$sine('c4').out(/* fx */ { solo: true, mute: true })",
+        );
+    });
+
+    test('any numeric literal is a value the knobs can rewrite', () => {
+        const source = "$sine('c4').outMono(0, 1e-1)";
+        expect(
+            applyNumeric(source, anchorOf(source, 'outMono'), 'gain', 0.5),
+        ).toBe("$sine('c4').outMono(0, 0.5)");
+        const gain = '$setOutputGain(0x1)';
+        const edit = computeSetOutputGainEdit(gain, 0.25);
+        expect(edit && gain.slice(0, edit.start) + edit.text).toBe(
+            '$setOutputGain(0.25',
+        );
+    });
+});
