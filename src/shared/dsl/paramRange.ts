@@ -10,6 +10,8 @@ export interface SignalMeta {
     signalType: string;
     /** Absent when a disconnected input has no fixed value. */
     defaultValue?: number;
+    /** The default in words, shown in place of `defaultValue`. */
+    defaultDoc?: string;
     minValue?: number;
     maxValue?: number;
 }
@@ -87,7 +89,7 @@ export function formatSignalMeta(
                 parts.push(range);
             }
             if (!required && meta.defaultValue !== undefined) {
-                parts.push(`default ${note(meta.defaultValue)}`);
+                parts.push(`default ${meta.defaultDoc ?? note(meta.defaultValue)}`);
             }
             break;
         }
@@ -97,7 +99,7 @@ export function formatSignalMeta(
                 parts.push(range);
             }
             if (!required && meta.defaultValue !== undefined) {
-                parts.push(`default ${hz(meta.defaultValue)}`);
+                parts.push(`default ${meta.defaultDoc ?? hz(meta.defaultValue)}`);
             }
             break;
         }
@@ -111,7 +113,7 @@ export function formatSignalMeta(
                 meta.signalType !== 'audio' &&
                 meta.defaultValue !== undefined
             ) {
-                parts.push(`default ${num(meta.defaultValue)}`);
+                parts.push(`default ${meta.defaultDoc ?? num(meta.defaultValue)}`);
             }
         }
     }

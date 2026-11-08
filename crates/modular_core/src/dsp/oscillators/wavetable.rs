@@ -37,10 +37,10 @@ use crate::{
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 pub(crate) struct WavetableOscParams {
-    #[input("WAV file holding the wavetable frames")]
-    pub(crate) wav: Wav,
     #[input("oscillator pitch", type = pitch)]
     pub(crate) pitch: PolySignal,
+    #[input("WAV file holding the wavetable frames")]
+    pub(crate) wav: Wav,
     #[input(
         "which frame plays: 0 the first, 5 the last, blending between neighbours",
         type = control,

@@ -85,14 +85,14 @@ impl<E: DeserializeError> deserr::Deserr<E> for ScaleSignal {
 struct QuantizerParams {
     #[input("pitch to quantize", type = pitch)]
     input: PolySignal,
-    #[input("transposition added to the pitch before it snaps", type = pitch)]
-    #[deserr(default)]
-    offset: Option<PolySignal>,
     #[input(
         "notes to snap to, one pitch per channel in any octave, or a spec like \"C(major)\" or \"C[maj7]\"; snaps to semitones when left out"
     )]
     #[deserr(default)]
     scale: Option<ScaleSignal>,
+    #[input("transposition added to the pitch before it snaps", type = pitch)]
+    #[deserr(default)]
+    offset: Option<PolySignal>,
     #[input(
         "turns notes of the scale on and off: scale channel N is used only while gate channel N is high; with every gate low the output holds",
         type = gate,

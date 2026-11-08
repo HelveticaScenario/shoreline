@@ -13,14 +13,14 @@ use crate::types::SwapGlide;
 struct RemapParams {
     #[input("signal to rescale", type = audio)]
     input: PolySignal,
-    #[input("input value that maps to outMin", type = control, default = -5.0, control_range = (-5.0, 5.0))]
-    in_min: PolySignal,
-    #[input("input value that maps to outMax", type = control, default = 5.0, control_range = (-5.0, 5.0))]
-    in_max: PolySignal,
     #[input("output value for an input at inMin", type = control, default = -5.0, control_range = (-5.0, 5.0))]
     out_min: PolySignal,
     #[input("output value for an input at inMax", type = control, default = 5.0, control_range = (-5.0, 5.0))]
     out_max: PolySignal,
+    #[input("input value that maps to outMin", type = control, default = -5.0, control_range = (-5.0, 5.0))]
+    in_min: PolySignal,
+    #[input("input value that maps to outMax", type = control, default = 5.0, control_range = (-5.0, 5.0))]
+    in_max: PolySignal,
 }
 
 #[derive(Default, Clone, Copy)]

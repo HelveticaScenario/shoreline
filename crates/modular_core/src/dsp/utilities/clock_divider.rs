@@ -17,10 +17,10 @@ fn default_division() -> u32 {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ClockDividerParams {
-    #[input("how many input ticks per output tick: 2 fires every other tick", range = (1, ..))]
-    pub division: u32,
     #[input("clock to divide", type = trig)]
     pub input: PolySignal,
+    #[input("how many input ticks per output tick: 2 fires every other tick", range = (1, ..))]
+    pub division: u32,
     #[input("rising edge restarts the count, so the next tick fires", type = trig)]
     #[deserr(default)]
     pub reset: Option<PolySignal>,
