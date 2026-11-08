@@ -10,7 +10,7 @@ const MAX_PENDING = 32;
  * as the EditContext `textupdate` that delivers typed characters) renders at
  * default priority, so its effects run in a later task. A value matching an
  * emitted text is the parent catching up and is never written; only a value
- * the editor did not produce (a disk reload, a migration) replaces the model.
+ * the editor did not produce (a disk reload) replaces the model.
  */
 export interface ModelValueSync {
     /** Records text the editor emitted to the parent. */
