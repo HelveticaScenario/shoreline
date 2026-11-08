@@ -7,8 +7,7 @@
  * which outputs moved.
  *
  * The harness reads the live module schemas and generated DSL lib, so a
- * module or doc change also moves these files. It exists to gate moving the
- * analyzers onto the `typescript` parser, and goes once that lands.
+ * module or doc change also moves these files.
  *
  * `GOLDEN_EXTRA_DIR=<folder>` also records every `.js` / `.mjs` patch under
  * that folder, into `GOLDEN_EXTRA_OUT` (default `<folder>/.golden/`), for
