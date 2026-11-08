@@ -1139,10 +1139,8 @@ describe('sequencing', () => {
     });
 
     test('$p.s accepts a reassigned string variable as source', () => {
-        // The inline migration form `$cycle($p.s(pat, key))` (used when an
-        // $iCycle source variable feeds calls with conflicting scales) keeps
-        // `pat` a raw string, so $p.s must consume the variable's runtime
-        // (last-assigned) value.
+        // `$cycle($p.s(pat, key))` with a reassigned `pat` must consume the
+        // variable's runtime (last-assigned) value.
         const source =
             "const key = 'c(maj)'\n" +
             "let pat = '<0 2 4>*16'\n" +
