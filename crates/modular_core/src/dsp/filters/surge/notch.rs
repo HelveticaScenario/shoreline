@@ -16,10 +16,10 @@ use crate::module_docs::{DocExample, ModuleDocs};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum NotchStyle {
-    /// Wide notch with a strong resonance response.
+    /// wide notch with a strong resonance response
     #[default]
     Standard,
-    /// Narrower, gentler notch.
+    /// narrower, gentler notch
     Mild,
 }
 
@@ -104,6 +104,7 @@ filter_module! {
     docs = NOTCH_DOCS,
     name = "$unstable.filter.notch", ident = NotchFilter, kernel = NotchBiquad,
     output_doc = "notch output",
+    cutoff_doc = "centre frequency of the notch",
     params = {
         #[input("how steeply it cuts", default = "db24")]
         slope: FilterSlope,

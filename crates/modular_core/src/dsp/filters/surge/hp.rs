@@ -121,6 +121,7 @@ filter_module! {
     docs = HP_DOCS,
     name = "$unstable.filter.hp", ident = HpFilter, kernel = HpBiquad,
     output_doc = "highpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
         #[input("how steeply it cuts", default = "db24")]
         slope: FilterSlope,

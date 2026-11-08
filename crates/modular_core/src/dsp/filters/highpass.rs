@@ -47,8 +47,8 @@ const HPF_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[
         DocExample {
-            title: "Noise hi-hats",
-            code: "$noise('white').$.hpf('c8', 1).amp($perc($cycle($p('c4*8')).trig, { decay: 0.05 })).out()",
+            title: "Pad thinning out and back",
+            code: "$saw($chord('C3[maj7]')).$.hpf($sine('0.1hz').range('c3', 'c6'), 2).out()",
         },
         DocExample {
             title: "Riser across each bar",

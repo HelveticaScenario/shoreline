@@ -23,7 +23,7 @@ struct Bd909Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "resting pitch, the sweep following; stock is ≈56 Hz",
+        "settled pitch, the sweep following; stock is ≈56 Hz",
         type = pitch,
         default = -2.2235,
     )]
@@ -76,7 +76,7 @@ struct Bd909Outputs {
 
 const BD909_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-909 bass drum",
-    description: "The 909's punchy kick: a rounded tone that sweeps down to a low rest, \
+    description: "The 909's punchy kick: a rounded tone that sweeps down to a settled pitch, \
                   with a click and a puff of noise at the attack. The backbone of house \
                   and techno.",
     categories: &[ModuleCategory::Drum],

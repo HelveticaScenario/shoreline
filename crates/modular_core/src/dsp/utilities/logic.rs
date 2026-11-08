@@ -27,10 +27,22 @@ struct FallingEdgeDetectorParams {
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct EdgeDetectorOutputs {
+struct RisingEdgeDetectorOutputs {
     #[output(
         "output",
-        "high while the input keeps rising for `$rising`, or falling for `$falling`, and for a trigger's length after",
+        "high while the input keeps rising, and for a trigger's length after",
+        default,
+        range = (0.0, 5.0)
+    )]
+    output: PolyOutput,
+}
+
+#[derive(Outputs, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct FallingEdgeDetectorOutputs {
+    #[output(
+        "output",
+        "high while the input keeps falling, and for a trigger's length after",
         default,
         range = (0.0, 5.0)
     )]
@@ -68,7 +80,7 @@ const RISING_DOCS: ModuleDocs = ModuleDocs {
 
 #[module(name = "$rising", docs = RISING_DOCS, args(input))]
 pub struct RisingEdgeDetector {
-    outputs: EdgeDetectorOutputs,
+    outputs: RisingEdgeDetectorOutputs,
     params: RisingEdgeDetectorParams,
     channel_state: Box<[EdgeChannelState]>,
 }
@@ -112,7 +124,7 @@ const FALLING_DOCS: ModuleDocs = ModuleDocs {
 
 #[module(name = "$falling", docs = FALLING_DOCS, args(input))]
 pub struct FallingEdgeDetector {
-    outputs: EdgeDetectorOutputs,
+    outputs: FallingEdgeDetectorOutputs,
     params: FallingEdgeDetectorParams,
     channel_state: Box<[EdgeChannelState]>,
 }

@@ -23,7 +23,7 @@ impl Shaper for DigitalShaper {
 const DIGITAL_DOCS: ModuleDocs = ModuleDocs {
     summary: "Bit-crusher",
     description: "Steps the signal down to coarse levels for a lo-fi, digital \
-                  crunch; higher drive makes the steps coarser.",
+                  crunch; raise `drive` for coarser steps.",
     categories: &[ModuleCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
@@ -34,5 +34,6 @@ const DIGITAL_DOCS: ModuleDocs = ModuleDocs {
 
 shape_module! {
     docs = DIGITAL_DOCS,
-    name = "$unstable.shape.digital", ident = Digital, shaper = DigitalShaper
+    name = "$unstable.shape.digital", ident = Digital, shaper = DigitalShaper,
+    drive_doc = "step size: -5 fine, about 128 levels across ±5 V; 0 about 32; +5 coarse, about 8",
 }

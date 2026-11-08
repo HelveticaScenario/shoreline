@@ -26,7 +26,7 @@
       "type": "object",
       "properties": {
         "beta": {
-          "description": "β, the attractor's shape: 5 is β = 10, and the default is the classic β = 8/3",
+          "description": "the shape of the loops the voltages trace; the default is the classic butterfly (β = 8/3; 5 is β = 10)",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -48,7 +48,7 @@
           ]
         },
         "rho": {
-          "description": "ρ, how far the attractor's two lobes sit from the centre: 5 is ρ = 60, and the default is ρ = 28; below about 2.06 (ρ ≈ 24.74) the motion settles to a still point",
+          "description": "how wide and wild the swings are: higher roams further; below about 2.06 the motion settles to still voltages (ρ; the default is ρ = 28, 5 is ρ = 60)",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -59,7 +59,7 @@
           ]
         },
         "sigma": {
-          "description": "σ, how fast x chases y: 5 is σ = 30, and the default is σ = 10; stays chaotic above 0",
+          "description": "how tightly the voltages chase each other: higher makes the swings snappier and more jittery, chaotic at any value above 0 (σ; the default is σ = 10, 5 is σ = 30)",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -160,7 +160,7 @@
     "signalParams": [
       {
         "name": "sigma",
-        "description": "σ, how fast x chases y: 5 is σ = 30, and the default is σ = 10; stays chaotic above 0",
+        "description": "how tightly the voltages chase each other: higher makes the swings snappier and more jittery, chaotic at any value above 0 (σ; the default is σ = 10, 5 is σ = 30)",
         "signalType": "control",
         "defaultValue": 1.6667,
         "minValue": 0.0,
@@ -169,7 +169,7 @@
       },
       {
         "name": "rho",
-        "description": "ρ, how far the attractor's two lobes sit from the centre: 5 is ρ = 60, and the default is ρ = 28; below about 2.06 (ρ ≈ 24.74) the motion settles to a still point",
+        "description": "how wide and wild the swings are: higher roams further; below about 2.06 the motion settles to still voltages (ρ; the default is ρ = 28, 5 is ρ = 60)",
         "signalType": "control",
         "defaultValue": 2.3333,
         "minValue": 0.0,
@@ -178,7 +178,7 @@
       },
       {
         "name": "beta",
-        "description": "β, the attractor's shape: 5 is β = 10, and the default is the classic β = 8/3",
+        "description": "the shape of the loops the voltages trace; the default is the classic butterfly (β = 8/3; 5 is β = 10)",
         "signalType": "control",
         "defaultValue": 1.3333,
         "minValue": 0.0,
@@ -201,7 +201,7 @@
     "name": "$swell",
     "docs": {
       "summary": "Ocean swell modulation",
-      "description": "The surface of a simulated sea as CV: slow rolls that bunch into sharp crests and arrive in sets, with the occasional wave far bigger than the rest. Use it for tidal filter sweeps and levels that breathe irregularly; `tilt` and `roll` are the matching lean of a boat on the water. Changing a param bends the waves rather than restarting them, and each channel is its own sea.",
+      "description": "The surface of a simulated sea as CV: slow rolls that bunch into sharp crests and arrive in sets, with the occasional wave far bigger than the rest. Use it for tidal filter sweeps and levels that breathe irregularly; `tilt` and `roll` are the matching lean of a boat on the water. Changing a param bends the waves rather than restarting them.",
       "categories": [
         "modulation"
       ],
@@ -223,7 +223,7 @@
       "type": "object",
       "properties": {
         "chop": {
-          "description": "spectral width: the other waves sit up to `chop / 2` octaves above `freq`; 0 is one clean, periodic swell, higher rolls in sets and adds chop",
+          "description": "how rough the sea is: 0 is one clean, repeating swell; higher mixes in faster waves, up to `chop / 2` octaves above `freq`, so the swell rolls in sets with choppy ripples",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -383,7 +383,7 @@
       },
       {
         "name": "chop",
-        "description": "spectral width: the other waves sit up to `chop / 2` octaves above `freq`; 0 is one clean, periodic swell, higher rolls in sets and adds chop",
+        "description": "how rough the sea is: 0 is one clean, repeating swell; higher mixes in faster waves, up to `chop / 2` octaves above `freq`, so the swell rolls in sets with choppy ripples",
         "signalType": "control",
         "defaultValue": 1.0,
         "minValue": 0.0,
@@ -572,22 +572,22 @@
           "description": "Mixing mode for combining input signals.",
           "oneOf": [
             {
-              "description": "Sum all inputs.",
+              "description": "every signal added together, getting louder as more stack up",
               "type": "string",
               "const": "sum"
             },
             {
-              "description": "Average all inputs.",
+              "description": "the average of the signals, staying at one signal's level however many stack up",
               "type": "string",
               "const": "average"
             },
             {
-              "description": "Keep the strongest input.",
+              "description": "only the loudest signal at each moment",
               "type": "string",
               "const": "max"
             },
             {
-              "description": "Keep the weakest non-zero input.",
+              "description": "only the quietest signal that isn't silent at each moment",
               "type": "string",
               "const": "min"
             }
@@ -724,22 +724,22 @@
           "description": "Mixing mode for combining input signals.",
           "oneOf": [
             {
-              "description": "Sum all inputs.",
+              "description": "every signal added together, getting louder as more stack up",
               "type": "string",
               "const": "sum"
             },
             {
-              "description": "Average all inputs.",
+              "description": "the average of the signals, staying at one signal's level however many stack up",
               "type": "string",
               "const": "average"
             },
             {
-              "description": "Keep the strongest input.",
+              "description": "only the loudest signal at each moment",
               "type": "string",
               "const": "max"
             },
             {
-              "description": "Keep the weakest non-zero input.",
+              "description": "only the quietest signal that isn't silent at each moment",
               "type": "string",
               "const": "min"
             }
@@ -1221,7 +1221,7 @@
       "type": "object",
       "properties": {
         "accent": {
-          "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, with more pitch sigh",
+          "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, with a deeper pitch drop",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -1243,7 +1243,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈49.5 Hz, and the hit gets louder or quieter far from it",
+          "description": "pitch; stock is ≈49.5 Hz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -1361,7 +1361,7 @@
       },
       {
         "name": "accent",
-        "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, with more pitch sigh",
+        "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, with a deeper pitch drop",
         "signalType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -1391,7 +1391,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈49.5 Hz, and the hit gets louder or quieter far from it",
+        "description": "pitch; stock is ≈49.5 Hz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": -2.4035
       }
@@ -1406,7 +1406,7 @@
     "name": "$tr808.snare",
     "docs": {
       "summary": "TR-808 snare drum",
-      "description": "The 808's snare: two drum tones under a burst of bright noise, from a dull thump to a crisp, rattling snap.",
+      "description": "The 808's snare: two drum tones under a burst of bright noise, which `snappy` takes from a dull thump to a crisp, rattling snap.",
       "categories": [
         "drum"
       ],
@@ -1435,7 +1435,7 @@
           ]
         },
         "freq": {
-          "description": "pitch of the low tone, the high one following; stock is ≈250 Hz, and the hit gets louder or quieter far from it",
+          "description": "pitch of the low tone, the high one following; stock is ≈250 Hz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -1594,7 +1594,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch of the low tone, the high one following; stock is ≈250 Hz, and the hit gets louder or quieter far from it",
+        "description": "pitch of the low tone, the high one following; stock is ≈250 Hz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": -0.0678
       }
@@ -1638,7 +1638,7 @@
           ]
         },
         "freq": {
-          "description": "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, and the hit gets louder or quieter far from it",
+          "description": "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -1755,7 +1755,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, and the hit gets louder or quieter far from it",
+        "description": "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": 2.771
       }
@@ -1810,7 +1810,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈2.53 kHz, and the hit gets louder or quieter far from it",
+          "description": "pitch; stock is ≈2.53 kHz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -1927,7 +1927,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈2.53 kHz, and the hit gets louder or quieter far from it",
+        "description": "pitch; stock is ≈2.53 kHz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": 3.273
       },
@@ -1952,7 +1952,7 @@
     "name": "$tr808.cowbell",
     "docs": {
       "summary": "TR-808 cowbell",
-      "description": "The 808's cowbell: two square waves through a band-pass filter, for its clanking, slightly sour clang.",
+      "description": "The 808's cowbell: two square waves through a band-pass filter, for its clanking, slightly sour tone.",
       "categories": [
         "drum"
       ],
@@ -1985,7 +1985,7 @@
           ]
         },
         "freq": {
-          "description": "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz, and the hit gets louder or quieter far from it",
+          "description": "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -2102,7 +2102,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz, and the hit gets louder or quieter far from it",
+        "description": "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": 1.0454
       }
@@ -2589,7 +2589,7 @@
       "examples": [
         {
           "title": "Hats with open offbeats",
-          "code": "$tr808.kick($cycle($p('c*4')).trig).out()\nconst open = $cycle($p('~ ~ c ~ ~ ~ c ~')).trig\n$tr808.hiHat($cycle($p('c c ~ c c c ~ c')).trig, { open }).out()"
+          "code": "$tr808.kick($cycle($p('c*4')).trig).out()\nconst open = $cycle($p('~ c ~ c ~ c ~ c')).trig\n$tr808.hiHat($cycle($p('c ~ c ~ c ~ c ~')).trig, { open }).out()"
         }
       ]
     },
@@ -2839,7 +2839,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈87 Hz, and the hit gets louder or quieter far from it",
+          "description": "pitch; stock is ≈87 Hz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -2956,7 +2956,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈87 Hz, and the hit gets louder or quieter far from it",
+        "description": "pitch; stock is ≈87 Hz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": -1.5959
       },
@@ -3021,7 +3021,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈134 Hz, and the hit gets louder or quieter far from it",
+          "description": "pitch; stock is ≈134 Hz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -3138,7 +3138,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈134 Hz, and the hit gets louder or quieter far from it",
+        "description": "pitch; stock is ≈134 Hz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": -0.9623
       },
@@ -3203,7 +3203,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈182 Hz, and the hit gets louder or quieter far from it",
+          "description": "pitch; stock is ≈182 Hz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -3320,7 +3320,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈182 Hz, and the hit gets louder or quieter far from it",
+        "description": "pitch; stock is ≈182 Hz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": -0.5216
       },
@@ -3345,7 +3345,7 @@
     "name": "$tr808.lowConga",
     "docs": {
       "summary": "TR-808 low conga",
-      "description": "The 808's low conga: a bright, hollow ring that starts sharp and settles in pitch.",
+      "description": "The 808's low conga, the lowest of the three: a warm, hollow ring that starts sharp and settles in pitch.",
       "categories": [
         "drum"
       ],
@@ -3385,7 +3385,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈192 Hz, and the hit gets louder or quieter far from it",
+          "description": "pitch; stock is ≈192 Hz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -3502,7 +3502,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈192 Hz, and the hit gets louder or quieter far from it",
+        "description": "pitch; stock is ≈192 Hz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": -0.4471
       },
@@ -3527,7 +3527,7 @@
     "name": "$tr808.midConga",
     "docs": {
       "summary": "TR-808 mid conga",
-      "description": "The 808's mid conga: a bright, hollow ring that starts sharp and settles in pitch.",
+      "description": "The 808's mid conga, the middle of the three: a hollow, woody ring that starts sharp and settles in pitch.",
       "categories": [
         "drum"
       ],
@@ -3567,7 +3567,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈276 Hz, and the hit gets louder or quieter far from it",
+          "description": "pitch; stock is ≈276 Hz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -3684,7 +3684,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈276 Hz, and the hit gets louder or quieter far from it",
+        "description": "pitch; stock is ≈276 Hz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": 0.0792
       },
@@ -3709,7 +3709,7 @@
     "name": "$tr808.highConga",
     "docs": {
       "summary": "TR-808 high conga",
-      "description": "The 808's high conga: a bright, hollow ring, the highest of the three, that starts sharp and settles in pitch.",
+      "description": "The 808's high conga, the highest of the three: a bright, hollow ring that starts sharp and settles in pitch.",
       "categories": [
         "drum"
       ],
@@ -3749,7 +3749,7 @@
           ]
         },
         "freq": {
-          "description": "pitch; stock is ≈405 Hz, and the hit gets louder or quieter far from it",
+          "description": "pitch; stock is ≈405 Hz; its level shifts as you tune far from stock",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -3866,7 +3866,7 @@
       },
       {
         "name": "freq",
-        "description": "pitch; stock is ≈405 Hz, and the hit gets louder or quieter far from it",
+        "description": "pitch; stock is ≈405 Hz; its level shifts as you tune far from stock",
         "signalType": "pitch",
         "defaultValue": 0.629
       },
@@ -3891,7 +3891,7 @@
     "name": "$tr909.kick",
     "docs": {
       "summary": "TR-909 bass drum",
-      "description": "The 909's punchy kick: a rounded tone that sweeps down to a low rest, with a click and a puff of noise at the attack. The backbone of house and techno.",
+      "description": "The 909's punchy kick: a rounded tone that sweeps down to a settled pitch, with a click and a puff of noise at the attack. The backbone of house and techno.",
       "categories": [
         "drum"
       ],
@@ -3942,7 +3942,7 @@
           ]
         },
         "freq": {
-          "description": "resting pitch, the sweep following; stock is ≈56 Hz",
+          "description": "settled pitch, the sweep following; stock is ≈56 Hz",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -4070,7 +4070,7 @@
       },
       {
         "name": "freq",
-        "description": "resting pitch, the sweep following; stock is ≈56 Hz",
+        "description": "settled pitch, the sweep following; stock is ≈56 Hz",
         "signalType": "pitch",
         "defaultValue": -2.2235
       },
@@ -4115,14 +4115,14 @@
     "name": "$tr909.snare",
     "docs": {
       "summary": "TR-909 snare drum",
-      "description": "The 909's snare: a drum tone that bends up at the strike under a burst of noise, from a tight crack to a long hiss.",
+      "description": "The 909's snare: a drum tone that bends up at the strike under a burst of noise, which `tone` stretches from a tight crack to a long hiss.",
       "categories": [
         "drum"
       ],
       "sections": [],
       "examples": [
         {
-          "title": "Backbeat with a flam",
+          "title": "Backbeat doubled on four",
           "code": "$tr909.kick($cycle($p('c*4')).trig).out()\n$tr909.snare($cycle($p('~ c ~ [c c]')).trig, { snappy: 4 }).out()"
         }
       ]
@@ -4604,7 +4604,7 @@
       "examples": [
         {
           "title": "Tom fill",
-          "code": "$tr909.kick($cycle($p('c*4')).trig).out()\n$tr909.highTom($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()\n$tr909.midTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [~ c]')).trig).out()\n$tr909.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [c ~]')).trig).out()"
+          "code": "$tr909.kick($cycle($p('c*4')).trig).out()\n$tr909.highTom($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()\n$tr909.midTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [c ~]')).trig).out()\n$tr909.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [~ c]')).trig).out()"
         }
       ]
     },
@@ -4778,7 +4778,7 @@
     "name": "$tr909.midTom",
     "docs": {
       "summary": "TR-909 mid tom",
-      "description": "The 909's mid tom: the low tom's bending, gritty tone, pitched higher and shorter.",
+      "description": "The 909's mid tom: a tone that bends down from the strike and grows gritty as it fades, pitched between the low and high toms.",
       "categories": [
         "drum"
       ],
@@ -4960,7 +4960,7 @@
     "name": "$tr909.highTom",
     "docs": {
       "summary": "TR-909 high tom",
-      "description": "The 909's high tom: the low tom's bending, gritty tone, the highest and shortest of the three.",
+      "description": "The 909's high tom: a tone that bends down from the strike and grows gritty as it fades, the highest and shortest of the three.",
       "categories": [
         "drum"
       ],
@@ -6264,12 +6264,12 @@
               "const": "soft"
             },
             {
-              "description": "hard clipping",
+              "description": "hard clipping, buzzy and aggressive",
               "type": "string",
               "const": "hard"
             },
             {
-              "description": "asymmetric tube-style saturation with even harmonics",
+              "description": "asymmetric tube-style grit, warmer and thicker",
               "type": "string",
               "const": "asym"
             }
@@ -7527,12 +7527,12 @@
       "sections": [
         {
           "title": "Matching a Beads quality",
-          "body": "The `size` and `tone` Beads itself uses alongside each `$granular` `quality`.",
+          "body": "Beads sets its reverb to these `size` and `tone` values for each `quality` of `$granular`, so use them to match its sound.",
           "table": {
             "columns": [
               "Quality",
-              "`size`",
-              "`tone`"
+              "Size",
+              "Tone"
             ],
             "rows": [
               [
@@ -7541,13 +7541,13 @@
                 "1"
               ],
               [
-                "`'cleanTape'`",
-                "0",
+                "`'vintage'`",
+                "2.5",
                 "2"
               ],
               [
-                "`'vintage'`",
-                "2.5",
+                "`'cleanTape'`",
+                "0",
                 "2"
               ],
               [
@@ -7748,7 +7748,7 @@
     "name": "$granular",
     "docs": {
       "summary": "Live granular processor",
-      "description": "The granular processor from Mutable Instruments Beads: it records its input and plays it back as grains, one per trigger, for clouds, smears and stutters of live sound. Each grain keeps the settings it started with, so for grain-to-grain variation modulate them with something sampled on the same trigger, such as `$sah`. Follow it with `$wowFlutter` and `$reverb` for the rest of Beads' sound.",
+      "description": "The granular processor from Mutable Instruments Beads: it records its input and plays it back as grains, one per trigger, for clouds, smears and stutters of live sound. For grain-to-grain variation, modulate its settings with something sampled on the same trigger, such as `$sah`. Follow it with `$wowFlutter` and `$reverb` for the rest of Beads' sound.",
       "categories": [
         "effect"
       ],
@@ -7814,7 +7814,7 @@
           ]
         },
         "quality": {
-          "description": "recording character: how clean it sounds and how much audio it holds",
+          "description": "recording character: `'digital'` holds 4 s of audio, `'vintage'` 8 s, `'cleanTape'` 10.7 s, `'dirtyTape'` 16 s",
           "$ref": "#/$defs/GranularQuality",
           "default": "digital"
         },
@@ -7904,22 +7904,22 @@
           "description": "Sound character, after Beads' four quality settings. Lower qualities\nsound darker and grittier and hold more audio.",
           "oneOf": [
             {
-              "description": "clean, holding 4 s of audio",
+              "description": "clean and clear",
               "type": "string",
               "const": "digital"
             },
             {
-              "description": "slightly gritty early digital, holding 8 s of audio",
+              "description": "slightly gritty, like early digital samplers",
               "type": "string",
               "const": "vintage"
             },
             {
-              "description": "darker and softer, holding 10.7 s of audio",
+              "description": "darker and softer, like clean tape",
               "type": "string",
               "const": "cleanTape"
             },
             {
-              "description": "lo-fi and noisy, holding 16 s of audio",
+              "description": "lo-fi and noisy, like worn tape",
               "type": "string",
               "const": "dirtyTape"
             }
@@ -8127,7 +8127,7 @@
     "name": "$granularSampler",
     "docs": {
       "summary": "Granular WAV player",
-      "description": "`$granular` playing grains from a WAV file instead of a live input, one per trigger: turn a sample into a texture, a stretched drone or a pitched cloud. Each grain keeps the settings it started with, so for grain-to-grain variation modulate them with something sampled on the same trigger, such as `$sah`.",
+      "description": "Plays grains from a WAV file, one per trigger, the way `$granular` does from a live input: turn a sample into a texture, a stretched drone or a pitched cloud. For grain-to-grain variation, modulate its settings with something sampled on the same trigger, such as `$sah`.",
       "categories": [
         "sampler"
       ],
@@ -8250,22 +8250,22 @@
           "description": "Sound character, after Beads' four quality settings. Lower qualities\nsound darker and grittier and hold more audio.",
           "oneOf": [
             {
-              "description": "clean, holding 4 s of audio",
+              "description": "clean and clear",
               "type": "string",
               "const": "digital"
             },
             {
-              "description": "slightly gritty early digital, holding 8 s of audio",
+              "description": "slightly gritty, like early digital samplers",
               "type": "string",
               "const": "vintage"
             },
             {
-              "description": "darker and softer, holding 10.7 s of audio",
+              "description": "darker and softer, like clean tape",
               "type": "string",
               "const": "cleanTape"
             },
             {
-              "description": "lo-fi and noisy, holding 16 s of audio",
+              "description": "lo-fi and noisy, like worn tape",
               "type": "string",
               "const": "dirtyTape"
             }
@@ -8639,7 +8639,7 @@
     "name": "$clockedDelay",
     "docs": {
       "summary": "Tempo-synced delay",
-      "description": "The delay mode of Mutable Instruments Beads, locked to the transport. Its repeats come from feedback inside the module, so it needs no loop in the patch, and changing the time or the tempo crossfades to the new repeats without a pitch warble. The repeats can also come back as rhythmic slices, or loop what the delay holds while frozen. Each input channel gets its own delay.",
+      "description": "The delay mode of Mutable Instruments Beads, locked to the transport. Changing the time or the tempo crossfades to the new repeats without a pitch warble. The repeats can also come back as rhythmic slices, or loop what the delay holds while frozen.",
       "categories": [
         "effect"
       ],
@@ -8661,7 +8661,7 @@
       "type": "object",
       "properties": {
         "bars": {
-          "description": "base delay time in bars; the longest time depends on the tempo and how much audio `quality` holds",
+          "description": "delay time in bars: `1 / 4` a quarter note in 4/4, `3 / 16` a dotted eighth; the longest time depends on the tempo and `quality`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -8672,7 +8672,7 @@
           ]
         },
         "feedback": {
-          "description": "how much of the repeats feed back into the delay, for more of them",
+          "description": "how long the echoes go on: 0 a single repeat, higher for longer trails; above about 4 they build up instead of dying away",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -8731,7 +8731,7 @@
           ]
         },
         "quality": {
-          "description": "recording character: how clean it sounds and how much audio it holds",
+          "description": "recording character: `'digital'` holds 4 s of audio, `'vintage'` 8 s, `'cleanTape'` 10.7 s, `'dirtyTape'` 16 s",
           "$ref": "#/$defs/GranularQuality",
           "default": "digital"
         },
@@ -8788,22 +8788,22 @@
           "description": "Sound character, after Beads' four quality settings. Lower qualities\nsound darker and grittier and hold more audio.",
           "oneOf": [
             {
-              "description": "clean, holding 4 s of audio",
+              "description": "clean and clear",
               "type": "string",
               "const": "digital"
             },
             {
-              "description": "slightly gritty early digital, holding 8 s of audio",
+              "description": "slightly gritty, like early digital samplers",
               "type": "string",
               "const": "vintage"
             },
             {
-              "description": "darker and softer, holding 10.7 s of audio",
+              "description": "darker and softer, like clean tape",
               "type": "string",
               "const": "cleanTape"
             },
             {
-              "description": "lo-fi and noisy, holding 16 s of audio",
+              "description": "lo-fi and noisy, like worn tape",
               "type": "string",
               "const": "dirtyTape"
             }
@@ -8887,7 +8887,7 @@
       },
       {
         "name": "bars",
-        "description": "base delay time in bars; the longest time depends on the tempo and how much audio `quality` holds",
+        "description": "delay time in bars: `1 / 4` a quarter note in 4/4, `3 / 16` a dotted eighth; the longest time depends on the tempo and `quality`",
         "signalType": "control",
         "defaultValue": 0.25,
         "minValue": 0.0,
@@ -8951,7 +8951,7 @@
       },
       {
         "name": "feedback",
-        "description": "how much of the repeats feed back into the delay, for more of them",
+        "description": "how long the echoes go on: 0 a single repeat, higher for longer trails; above about 4 they build up instead of dying away",
         "signalType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
@@ -9652,7 +9652,7 @@
       "type": "object",
       "properties": {
         "phase": {
-          "description": "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+          "description": "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
           "$ref": "#/$defs/PolySignal"
         }
       },
@@ -9733,7 +9733,7 @@
     "signalParams": [
       {
         "name": "phase",
-        "description": "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+        "description": "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
         "signalType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0
@@ -9768,7 +9768,7 @@
       "type": "object",
       "properties": {
         "phase": {
-          "description": "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+          "description": "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
           "$ref": "#/$defs/PolySignal"
         },
         "shape": {
@@ -9860,7 +9860,7 @@
     "signalParams": [
       {
         "name": "phase",
-        "description": "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+        "description": "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
         "signalType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0
@@ -9905,7 +9905,7 @@
       "type": "object",
       "properties": {
         "phase": {
-          "description": "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+          "description": "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
           "$ref": "#/$defs/PolySignal"
         },
         "pwm": {
@@ -10008,7 +10008,7 @@
     "signalParams": [
       {
         "name": "phase",
-        "description": "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+        "description": "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
         "signalType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0
@@ -10052,12 +10052,16 @@
       "sections": [],
       "examples": [
         {
-          "title": "Noise hi-hats",
-          "code": "$noise('white').$.hpf('c8').amp($perc($clock.beatTrigger, { decay: 0.05 })).out()"
+          "title": "Brown-noise surf",
+          "code": "$noise('brown').amp($sine('0.1hz').range(1, 5)).out()"
         },
         {
           "title": "Random melody in key",
           "code": "$sine($quantizer($noise('white', { rate: '4hz' }).range('c3', 'c5'), $chord('C(minor)'))).out()"
+        },
+        {
+          "title": "Raindrop blips on random triggers",
+          "code": "$sine('c6').amp($perc($noise('dust', { rate: '6hz' }), { decay: 0.03 })).out()"
         }
       ]
     },
@@ -10305,7 +10309,7 @@
           ]
         },
         "fmAmt": {
-          "description": "attenuverter for `fm`; with `fm` unpatched it sets how far a trigger's envelope sweeps pitch, or fine-tunes by up to a semitone",
+          "description": "how much `fm` bends the pitch, negative inverting it. With `fm` unpatched it sets how far each trigger's envelope sweeps the pitch instead, or, with no trigger either, fine-tunes by up to a semitone",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -10364,7 +10368,7 @@
           ]
         },
         "mix": {
-          "description": "blend at `output`: 0 main, 5 aux",
+          "description": "blend at `output` between the engine's `main` sound at 0 and its `aux` variant at 5",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -10439,122 +10443,122 @@
           "description": "Synthesis engine selection for Plaits",
           "oneOf": [
             {
-              "description": "Virtual analog oscillator with VCF - classic subtractive synthesis",
+              "description": "one analog-style oscillator through a resonant filter, for classic subtractive sounds",
               "type": "string",
               "const": "vaVcf"
             },
             {
-              "description": "Phase distortion synthesis",
+              "description": "phase distortion, the Casio CZ sound of sweeping resonant tones",
               "type": "string",
               "const": "phaseDistortion"
             },
             {
-              "description": "Six-operator FM synthesis (bank A)",
+              "description": "DX7-style six-operator FM, preset bank A",
               "type": "string",
               "const": "sixOpA"
             },
             {
-              "description": "Six-operator FM synthesis (bank B)",
+              "description": "DX7-style six-operator FM, preset bank B",
               "type": "string",
               "const": "sixOpB"
             },
             {
-              "description": "Six-operator FM synthesis (bank C)",
+              "description": "DX7-style six-operator FM, preset bank C",
               "type": "string",
               "const": "sixOpC"
             },
             {
-              "description": "Wave terrain synthesis",
+              "description": "wave terrain, shifting and evolving digital tones",
               "type": "string",
               "const": "waveTerrain"
             },
             {
-              "description": "String machine emulation",
+              "description": "string machine, lush ensemble chords",
               "type": "string",
               "const": "stringMachine"
             },
             {
-              "description": "Chiptune waveforms with arpeggiator",
+              "description": "chiptune square waves with a built-in arpeggiator",
               "type": "string",
               "const": "chiptune"
             },
             {
-              "description": "Virtual analog dual oscillator",
+              "description": "two raw analog-style oscillators with no filter, for detuned saws and pulses",
               "type": "string",
               "const": "virtualAnalog"
             },
             {
-              "description": "Waveshaping oscillator",
+              "description": "a folded, waveshaped oscillator, bright and buzzy",
               "type": "string",
               "const": "waveshaping"
             },
             {
-              "description": "Two-operator FM synthesis",
+              "description": "two-operator FM, from bell tones to metallic growls",
               "type": "string",
               "const": "twoOpFm"
             },
             {
-              "description": "Granular formant oscillator",
+              "description": "formant oscillator, vocal and nasal tones",
               "type": "string",
               "const": "granularFormant"
             },
             {
-              "description": "Harmonic/additive oscillator",
+              "description": "additive harmonics, organ-like tones",
               "type": "string",
               "const": "additive"
             },
             {
-              "description": "Wavetable oscillator",
+              "description": "wavetable scanning, classic digital sweeps",
               "type": "string",
               "const": "wavetable"
             },
             {
-              "description": "Chord generator",
+              "description": "stacked chords from a single pitch",
               "type": "string",
               "const": "chords"
             },
             {
-              "description": "Vowel and speech synthesis",
+              "description": "vowels and robotic speech",
               "type": "string",
               "const": "speech"
             },
             {
-              "description": "Swarm oscillator",
+              "description": "a swarm of detuned oscillators, huge and smeary",
               "type": "string",
               "const": "swarm"
             },
             {
-              "description": "Filtered noise",
+              "description": "noise through a resonant filter, from hiss to whistles",
               "type": "string",
               "const": "filteredNoise"
             },
             {
-              "description": "Particle noise",
+              "description": "random dust and droplets ringing through filters",
               "type": "string",
               "const": "particleNoise"
             },
             {
-              "description": "Inharmonic string modeling",
+              "description": "a plucked string, for guitar and sitar tones",
               "type": "string",
               "const": "inharmonicString"
             },
             {
-              "description": "Modal resonator",
+              "description": "a struck resonator for bells, bars and wood",
               "type": "string",
               "const": "modalResonator"
             },
             {
-              "description": "Analog bass drum",
+              "description": "analog-style kick drum",
               "type": "string",
               "const": "bassDrum"
             },
             {
-              "description": "Analog snare drum",
+              "description": "analog-style snare drum",
               "type": "string",
               "const": "snareDrum"
             },
             {
-              "description": "Analog hi-hat",
+              "description": "analog-style hi-hat",
               "type": "string",
               "const": "hiHat"
             }
@@ -10699,7 +10703,7 @@
       },
       {
         "name": "fmAmt",
-        "description": "attenuverter for `fm`; with `fm` unpatched it sets how far a trigger's envelope sweeps pitch, or fine-tunes by up to a semitone",
+        "description": "how much `fm` bends the pitch, negative inverting it. With `fm` unpatched it sets how far each trigger's envelope sweeps the pitch instead, or, with no trigger either, fine-tunes by up to a semitone",
         "signalType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
@@ -10753,7 +10757,7 @@
       },
       {
         "name": "mix",
-        "description": "blend at `output`: 0 main, 5 aux",
+        "description": "blend at `output` between the engine's `main` sound at 0 and its `aux` variant at 5",
         "signalType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -10775,7 +10779,7 @@
     "name": "$supersaw",
     "docs": {
       "summary": "Detuned saw stack",
-      "description": "A stack of detuned sawtooths for huge trance leads, pads and chords. Each saw comes out on its own channel, so the stack is as wide as the voices it holds.",
+      "description": "A stack of detuned sawtooths for huge trance leads, pads and chords. Each saw comes out on its own channel, ready to spread across stereo with `$stereoMix` or `$mixDown`.",
       "categories": [
         "oscillator"
       ],
@@ -10982,7 +10986,7 @@
     "name": "$wavetable",
     "docs": {
       "summary": "Wavetable oscillator",
-      "description": "Plays the single-cycle frames of a wavetable WAV and blends between them, for evolving glassy, vocal or digital timbres. Scan the frame with an LFO or envelope, and bend each cycle further with a `$phase.*` warp.",
+      "description": "Plays the single-cycle frames of a wavetable WAV and blends between them, for evolving glassy, vocal or digital timbres. Sweep `position` with an LFO or envelope, and bend each cycle further with a `$phase.*` warp.",
       "categories": [
         "oscillator"
       ],
@@ -11592,7 +11596,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "fadeStep": {
-          "description": "0 for a plain smear; above 0, `stages` crossfades between chains this many stages apart, giving notches",
+          "description": "how `stages` moves between counts: 0 glides smoothly from one to the next; above 0 it blends two chains this many stages apart, which cuts phaser-like notches",
           "type": "integer",
           "format": "uint32",
           "default": 0,
@@ -11773,8 +11777,8 @@
       "sections": [],
       "examples": [
         {
-          "title": "Noise hi-hats",
-          "code": "$noise('white').$.hpf('c8', 1).amp($perc($cycle($p('c4*8')).trig, { decay: 0.05 })).out()"
+          "title": "Pad thinning out and back",
+          "code": "$saw($chord('C3[maj7]')).$.hpf($sine('0.1hz').range('c3', 'c6'), 2).out()"
         },
         {
           "title": "Riser across each bar",
@@ -11940,7 +11944,7 @@
       "type": "object",
       "properties": {
         "center": {
-          "description": "center frequency; tops out just under half the sample rate",
+          "description": "centre frequency; tops out just under half the sample rate",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -11948,7 +11952,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "resonance": {
-          "description": "resonance: higher narrows the band; keeps narrowing past 5",
+          "description": "higher narrows the band, and keeps narrowing past 5",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -12040,13 +12044,13 @@
       },
       {
         "name": "center",
-        "description": "center frequency; tops out just under half the sample rate",
+        "description": "centre frequency; tops out just under half the sample rate",
         "signalType": "frequency",
         "minValue": -3.71
       },
       {
         "name": "resonance",
-        "description": "resonance: higher narrows the band; keeps narrowing past 5",
+        "description": "higher narrows the band, and keeps narrowing past 5",
         "signalType": "control",
         "defaultValue": 1.0,
         "minValue": 0.0,
@@ -12070,7 +12074,7 @@
     "name": "$jup6f",
     "docs": {
       "summary": "Jupiter-6 style ladder filter",
-      "description": "A warm, saturating 4-pole lowpass modelled on the Roland Jupiter-6, with 12 dB lowpass, bandpass and highpass taps from the same core. Turned up, the resonance self-oscillates into a clean sine at the cutoff.",
+      "description": "A warm, saturating 4-pole lowpass modelled on the Roland Jupiter-6, with extra outputs for a 12 dB lowpass, a bandpass and a highpass from the same core. Turned up, the resonance self-oscillates into a clean sine at the cutoff.",
       "categories": [
         "filter"
       ],
@@ -12474,7 +12478,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the top octaves track flat, so the top of the range sounds near 21 kHz",
+          "description": "cutoff frequency; the top of the range sounds near 21 kHz",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -12638,7 +12642,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the top octaves track flat, so the top of the range sounds near 21 kHz",
+        "description": "cutoff frequency; the top of the range sounds near 21 kHz",
         "signalType": "frequency",
         "defaultValue": 0.0,
         "minValue": -10.08,
@@ -12950,7 +12954,7 @@
     "name": "$unstable.filter.lp",
     "docs": {
       "summary": "Surge lowpass filter",
-      "description": "Surge's resonant lowpass in 12 or 24 dB slopes: smooth at `'clean'`, gritty and singing at `'driven'`.",
+      "description": "Surge's resonant lowpass in 12 or 24 dB slopes: smooth at the default `'standard'` drive, precise at `'clean'`, gritty and singing at `'driven'`.",
       "categories": [
         "filter"
       ],
@@ -12958,7 +12962,7 @@
       "examples": [
         {
           "title": "Driven acid line",
-          "code": "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n$unstable.filter.lp($saw(seq), $sine('0.25hz').range('c3', 'c6'), 4, { drive: 'driven' }).out()"
+          "code": "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\nconst env = $perc(seq.trig, { decay: 0.2 })\n$unstable.filter.lp($saw(seq), env.range('c3', 'c6'), 4, { drive: 'driven' }).out()"
         }
       ]
     },
@@ -12968,7 +12972,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -13006,17 +13010,17 @@
           "description": "Drive character for the LP/HP biquads.",
           "oneOf": [
             {
-              "description": "Smooth, with the mildest resonance.",
+              "description": "smooth, with the mildest resonance",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Heavier resonance that clips harder.",
+              "description": "heavier resonance that clips harder",
               "type": "string",
               "const": "driven"
             },
             {
-              "description": "Clean and precise, even at very low cutoffs.",
+              "description": "clean and precise, even at very low cutoffs",
               "type": "string",
               "const": "clean"
             }
@@ -13026,12 +13030,12 @@
           "description": "Filter slope (pole count). Rendered as `'db12'` / `'db24'` in the DSL.",
           "oneOf": [
             {
-              "description": "12 dB/oct (2-pole).",
+              "description": "12 dB/oct, a gentler slope",
               "type": "string",
               "const": "db12"
             },
             {
-              "description": "24 dB/oct (4-pole).",
+              "description": "24 dB/oct, a steeper slope",
               "type": "string",
               "const": "db24"
             }
@@ -13115,7 +13119,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13164,7 +13168,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -13202,17 +13206,17 @@
           "description": "Drive character for the LP/HP biquads.",
           "oneOf": [
             {
-              "description": "Smooth, with the mildest resonance.",
+              "description": "smooth, with the mildest resonance",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Heavier resonance that clips harder.",
+              "description": "heavier resonance that clips harder",
               "type": "string",
               "const": "driven"
             },
             {
-              "description": "Clean and precise, even at very low cutoffs.",
+              "description": "clean and precise, even at very low cutoffs",
               "type": "string",
               "const": "clean"
             }
@@ -13222,12 +13226,12 @@
           "description": "Filter slope (pole count). Rendered as `'db12'` / `'db24'` in the DSL.",
           "oneOf": [
             {
-              "description": "12 dB/oct (2-pole).",
+              "description": "12 dB/oct, a gentler slope",
               "type": "string",
               "const": "db12"
             },
             {
-              "description": "24 dB/oct (4-pole).",
+              "description": "24 dB/oct, a steeper slope",
               "type": "string",
               "const": "db24"
             }
@@ -13311,7 +13315,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13342,7 +13346,7 @@
     "name": "$unstable.filter.bp",
     "docs": {
       "summary": "Surge bandpass filter",
-      "description": "Surge's resonant bandpass: picks out a band for nasal, vocal tones, narrowing and ringing as the resonance rises. The legacy drives give a rougher 12 dB character.",
+      "description": "Surge's resonant bandpass: picks out a band for nasal, vocal tones, narrowing and ringing as the resonance rises.",
       "categories": [
         "filter"
       ],
@@ -13360,7 +13364,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "centre frequency of the band",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -13398,27 +13402,27 @@
           "description": "Drive character for the bandpass biquad. The legacy variants exist only at the\n12 dB slope (matching Surge XT's menu); at 24 dB they select their modern counterparts.",
           "oneOf": [
             {
-              "description": "Smooth, with the mildest resonance.",
+              "description": "smooth, with the mildest resonance",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Heavier resonance that clips harder.",
+              "description": "heavier resonance that clips harder",
               "type": "string",
               "const": "driven"
             },
             {
-              "description": "Clean and precise, even at very low cutoffs.",
+              "description": "clean and precise, even at very low cutoffs",
               "type": "string",
               "const": "clean"
             },
             {
-              "description": "A darker take on `driven`, as Surge XT's \"Driven (Legacy)\".",
+              "description": "a darker take on `driven`",
               "type": "string",
               "const": "drivenLegacy"
             },
             {
-              "description": "A darker take on `clean`, as Surge XT's \"Clean (Legacy)\".",
+              "description": "a darker take on `clean`",
               "type": "string",
               "const": "cleanLegacy"
             }
@@ -13428,12 +13432,12 @@
           "description": "Filter slope (pole count). Rendered as `'db12'` / `'db24'` in the DSL.",
           "oneOf": [
             {
-              "description": "12 dB/oct (2-pole).",
+              "description": "12 dB/oct, a gentler slope",
               "type": "string",
               "const": "db12"
             },
             {
-              "description": "24 dB/oct (4-pole).",
+              "description": "24 dB/oct, a steeper slope",
               "type": "string",
               "const": "db24"
             }
@@ -13517,7 +13521,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "centre frequency of the band",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13566,7 +13570,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "centre frequency of the notch",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -13604,12 +13608,12 @@
           "description": "Filter slope (pole count). Rendered as `'db12'` / `'db24'` in the DSL.",
           "oneOf": [
             {
-              "description": "12 dB/oct (2-pole).",
+              "description": "12 dB/oct, a gentler slope",
               "type": "string",
               "const": "db12"
             },
             {
-              "description": "24 dB/oct (4-pole).",
+              "description": "24 dB/oct, a steeper slope",
               "type": "string",
               "const": "db24"
             }
@@ -13619,12 +13623,12 @@
           "description": "Notch width character.",
           "oneOf": [
             {
-              "description": "Wide notch with a strong resonance response.",
+              "description": "wide notch with a strong resonance response",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Narrower, gentler notch.",
+              "description": "narrower, gentler notch",
               "type": "string",
               "const": "mild"
             }
@@ -13708,7 +13712,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "centre frequency of the notch",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13757,7 +13761,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "frequency the phase shift centres on",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -13859,7 +13863,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "frequency the phase shift centres on",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -13890,7 +13894,7 @@
     "name": "$unstable.filter.legacyLadder",
     "docs": {
       "summary": "Transistor ladder lowpass",
-      "description": "The classic 4-pole transistor-ladder lowpass, fat and round, with 6 to 24 dB taps. It rings and self-oscillates as the resonance nears the top.",
+      "description": "The classic 4-pole transistor-ladder lowpass, fat and round, with 6 to 24 dB slopes. Lighter and cleaner than `vintageLadder`'s circuit models, it rings and self-oscillates as the resonance nears the top.",
       "categories": [
         "filter"
       ],
@@ -13898,7 +13902,7 @@
       "examples": [
         {
           "title": "Fat ladder bass",
-          "code": "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n$unstable.filter.legacyLadder($saw(seq), $perc(seq.trig, { decay: 0.25 }).range('c3', 'c6'), 3).out()"
+          "code": "const seq = $cycle($p('a1 ~ a1 [a2 a1] ~ e2 g1 ~'))\n$unstable.filter.legacyLadder($saw(seq), $perc(seq.trig, { decay: 0.25 }).range('c3', 'c6'), 3).out()"
         }
       ]
     },
@@ -13908,7 +13912,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -13941,22 +13945,22 @@
           "description": "Ladder slope — which of the four cascaded pole outputs is tapped.",
           "oneOf": [
             {
-              "description": "6 dB/oct (1-pole tap).",
+              "description": "6 dB/oct, the gentlest slope",
               "type": "string",
               "const": "db6"
             },
             {
-              "description": "12 dB/oct (2-pole tap).",
+              "description": "12 dB/oct",
               "type": "string",
               "const": "db12"
             },
             {
-              "description": "18 dB/oct (3-pole tap).",
+              "description": "18 dB/oct",
               "type": "string",
               "const": "db18"
             },
             {
-              "description": "24 dB/oct (full 4-pole ladder).",
+              "description": "24 dB/oct, the full classic ladder",
               "type": "string",
               "const": "db24"
             }
@@ -14040,7 +14044,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14079,7 +14083,7 @@
       "examples": [
         {
           "title": "Screaming acid line",
-          "code": "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n$unstable.filter.diodeLadder($saw(seq), $perc(seq.trig, { decay: 0.15 }).range('c3', 'c7'), 4).out()"
+          "code": "const seq = $cycle($p('c2 c3 [~ c2] eb3 c2 [g2 c3] bb1 c2'))\n$unstable.filter.diodeLadder($saw(seq), $perc(seq.trig, { decay: 0.15 }).range('c3', 'c7'), 4).out()"
         }
       ]
     },
@@ -14089,7 +14093,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -14122,22 +14126,22 @@
           "description": "Ladder slope — which of the four cascaded pole outputs is tapped.",
           "oneOf": [
             {
-              "description": "6 dB/oct (1-pole tap).",
+              "description": "6 dB/oct, the gentlest slope",
               "type": "string",
               "const": "db6"
             },
             {
-              "description": "12 dB/oct (2-pole tap).",
+              "description": "12 dB/oct",
               "type": "string",
               "const": "db12"
             },
             {
-              "description": "18 dB/oct (3-pole tap).",
+              "description": "18 dB/oct",
               "type": "string",
               "const": "db18"
             },
             {
-              "description": "24 dB/oct (full 4-pole ladder).",
+              "description": "24 dB/oct, the full classic ladder",
               "type": "string",
               "const": "db24"
             }
@@ -14221,7 +14225,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14252,7 +14256,7 @@
     "name": "$unstable.filter.vintageLadder",
     "docs": {
       "summary": "Moog-style ladder models",
-      "description": "Three simulations of the Moog transistor ladder, from the most faithful circuit model to grittier and cleaner variants. Turn on `compensated` to keep the bass full at high resonance.",
+      "description": "Three detailed simulations of the Moog transistor ladder, from the most faithful circuit model to grittier and cleaner variants, richer and heavier than `legacyLadder`. Turn on `compensated` to keep the bass full at high resonance.",
       "categories": [
         "filter"
       ],
@@ -14260,7 +14264,7 @@
       "examples": [
         {
           "title": "Resonant ladder pad",
-          "code": "$unstable.filter.vintageLadder($saw($chord('C2[m7]')), $sine('0.1hz').range('c3', 'c6'), 3.5, { compensated: true }).out()"
+          "code": "const pad = $saw($chord('C2[m7]'))\nconst sweep = $sine('0.1hz').range('c3', 'c6')\n$unstable.filter.vintageLadder(pad, sweep, 3.5, { compensated: true }).out()"
         }
       ]
     },
@@ -14275,7 +14279,7 @@
           "default": false
         },
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -14365,17 +14369,17 @@
           "description": "Ladder simulation model.",
           "oneOf": [
             {
-              "description": "The closest simulation of the ladder circuit.",
+              "description": "the closest simulation of the ladder circuit",
               "type": "string",
               "const": "rk"
             },
             {
-              "description": "Saturation in every stage, for a thicker, grittier ladder.",
+              "description": "saturation in every stage, for a thicker, grittier ladder",
               "type": "string",
               "const": "huov"
             },
             {
-              "description": "Saturation at the input only, for a cleaner ladder.",
+              "description": "saturation at the input only, for a cleaner ladder",
               "type": "string",
               "const": "huov2010"
             }
@@ -14402,7 +14406,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14441,7 +14445,7 @@
       "examples": [
         {
           "title": "Snarling lead",
-          "code": "$unstable.filter.k35Lp($saw($cycle($p('c3 eb3 g3 bb3'))), $sine('0.5hz').range('c4', 'c7'), 4, { saturation: 'heavy' }).out()"
+          "code": "const lead = $saw($cycle($p('c3 eb3 g3 bb3')))\nconst sweep = $sine('0.5hz').range('c4', 'c7')\n$unstable.filter.k35Lp(lead, sweep, 4, { saturation: 'heavy' }).out()"
         }
       ]
     },
@@ -14451,7 +14455,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -14484,27 +14488,27 @@
           "description": "Saturation drive applied inside the feedback path. `none` bypasses the\nsaturator entirely (a fully linear filter).",
           "oneOf": [
             {
-              "description": "Clean and linear.",
+              "description": "clean and linear",
               "type": "string",
               "const": "none"
             },
             {
-              "description": "A touch of grit in the resonance.",
+              "description": "a touch of grit in the resonance",
               "type": "string",
               "const": "mild"
             },
             {
-              "description": "Audible growl.",
+              "description": "audible growl",
               "type": "string",
               "const": "moderate"
             },
             {
-              "description": "Thick, distorted resonance.",
+              "description": "thick, distorted resonance",
               "type": "string",
               "const": "heavy"
             },
             {
-              "description": "Fully driven, screaming resonance.",
+              "description": "fully driven, screaming resonance",
               "type": "string",
               "const": "extreme"
             }
@@ -14588,7 +14592,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14637,7 +14641,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -14670,27 +14674,27 @@
           "description": "Saturation drive applied inside the feedback path. `none` bypasses the\nsaturator entirely (a fully linear filter).",
           "oneOf": [
             {
-              "description": "Clean and linear.",
+              "description": "clean and linear",
               "type": "string",
               "const": "none"
             },
             {
-              "description": "A touch of grit in the resonance.",
+              "description": "a touch of grit in the resonance",
               "type": "string",
               "const": "mild"
             },
             {
-              "description": "Audible growl.",
+              "description": "audible growl",
               "type": "string",
               "const": "moderate"
             },
             {
-              "description": "Thick, distorted resonance.",
+              "description": "thick, distorted resonance",
               "type": "string",
               "const": "heavy"
             },
             {
-              "description": "Fully driven, screaming resonance.",
+              "description": "fully driven, screaming resonance",
               "type": "string",
               "const": "extreme"
             }
@@ -14774,7 +14778,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14823,7 +14827,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -14856,12 +14860,12 @@
           "description": "Drive character: `pushed` boosts the feedback nonlinearity into easy\nself-oscillation (Surge XT's \"Pushed\" subtypes).",
           "oneOf": [
             {
-              "description": "Standard feedback bias.",
+              "description": "steady resonance that stays stable",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Self-oscillation push — hotter feedback bias.",
+              "description": "hotter resonance that tips into self-oscillation more easily",
               "type": "string",
               "const": "pushed"
             }
@@ -14945,7 +14949,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -14994,7 +14998,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "centre frequency of the band",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -15027,12 +15031,12 @@
           "description": "Drive character: `pushed` boosts the feedback nonlinearity into easy\nself-oscillation (Surge XT's \"Pushed\" subtypes).",
           "oneOf": [
             {
-              "description": "Standard feedback bias.",
+              "description": "steady resonance that stays stable",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Self-oscillation push — hotter feedback bias.",
+              "description": "hotter resonance that tips into self-oscillation more easily",
               "type": "string",
               "const": "pushed"
             }
@@ -15116,7 +15120,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "centre frequency of the band",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15165,7 +15169,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -15198,12 +15202,12 @@
           "description": "Drive character: `pushed` boosts the feedback nonlinearity into easy\nself-oscillation (Surge XT's \"Pushed\" subtypes).",
           "oneOf": [
             {
-              "description": "Standard feedback bias.",
+              "description": "steady resonance that stays stable",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Self-oscillation push — hotter feedback bias.",
+              "description": "hotter resonance that tips into self-oscillation more easily",
               "type": "string",
               "const": "pushed"
             }
@@ -15287,7 +15291,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15336,7 +15340,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "centre frequency of the notch",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -15369,12 +15373,12 @@
           "description": "Drive character: `pushed` boosts the feedback nonlinearity into easy\nself-oscillation (Surge XT's \"Pushed\" subtypes).",
           "oneOf": [
             {
-              "description": "Standard feedback bias.",
+              "description": "steady resonance that stays stable",
               "type": "string",
               "const": "standard"
             },
             {
-              "description": "Self-oscillation push — hotter feedback bias.",
+              "description": "hotter resonance that tips into self-oscillation more easily",
               "type": "string",
               "const": "pushed"
             }
@@ -15458,7 +15462,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "centre frequency of the notch",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15507,7 +15511,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -15540,27 +15544,27 @@
           "description": "4-pole lowpass slope (Surge `fut_obxd_4p_subtypes`, minus Morph).",
           "oneOf": [
             {
-              "description": "6 dB/oct (1-pole tap).",
+              "description": "6 dB/oct, the gentlest slope",
               "type": "string",
               "const": "db6"
             },
             {
-              "description": "12 dB/oct (2-pole tap).",
+              "description": "12 dB/oct",
               "type": "string",
               "const": "db12"
             },
             {
-              "description": "18 dB/oct (3-pole tap).",
+              "description": "18 dB/oct",
               "type": "string",
               "const": "db18"
             },
             {
-              "description": "24 dB/oct (full cascade).",
+              "description": "24 dB/oct, the steepest slope",
               "type": "string",
               "const": "db24"
             },
             {
-              "description": "A brighter 24 dB/oct, as Surge XT's \"24 dB (Legacy)\".",
+              "description": "a brighter 24 dB/oct",
               "type": "string",
               "const": "db24Legacy"
             }
@@ -15644,7 +15648,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15693,7 +15697,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency, or the centre for the bandpass, notch and phaser modes",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -15783,77 +15787,77 @@
           "description": "Xpander pole-mix selection (Surge `fut_obxd_xpander_subtypes`).",
           "oneOf": [
             {
-              "description": "1-pole lowpass.",
+              "description": "1-pole lowpass",
               "type": "string",
               "const": "lp1"
             },
             {
-              "description": "2-pole lowpass.",
+              "description": "2-pole lowpass",
               "type": "string",
               "const": "lp2"
             },
             {
-              "description": "3-pole lowpass.",
+              "description": "3-pole lowpass",
               "type": "string",
               "const": "lp3"
             },
             {
-              "description": "4-pole lowpass.",
+              "description": "4-pole lowpass",
               "type": "string",
               "const": "lp4"
             },
             {
-              "description": "1-pole highpass.",
+              "description": "1-pole highpass",
               "type": "string",
               "const": "hp1"
             },
             {
-              "description": "2-pole highpass.",
+              "description": "2-pole highpass",
               "type": "string",
               "const": "hp2"
             },
             {
-              "description": "3-pole highpass.",
+              "description": "3-pole highpass",
               "type": "string",
               "const": "hp3"
             },
             {
-              "description": "2-pole bandpass.",
+              "description": "2-pole bandpass",
               "type": "string",
               "const": "bp2"
             },
             {
-              "description": "4-pole bandpass.",
+              "description": "4-pole bandpass",
               "type": "string",
               "const": "bp4"
             },
             {
-              "description": "2-pole notch.",
+              "description": "2-pole notch",
               "type": "string",
               "const": "n2"
             },
             {
-              "description": "3-stage phaser.",
+              "description": "3-stage phaser",
               "type": "string",
               "const": "ph3"
             },
             {
-              "description": "2-pole highpass + 1-pole lowpass.",
+              "description": "2-pole highpass + 1-pole lowpass",
               "type": "string",
               "const": "hp2Lp1"
             },
             {
-              "description": "3-pole highpass + 1-pole lowpass.",
+              "description": "3-pole highpass + 1-pole lowpass",
               "type": "string",
               "const": "hp3Lp1"
             },
             {
-              "description": "2-pole notch + 1-pole lowpass.",
+              "description": "2-pole notch + 1-pole lowpass",
               "type": "string",
               "const": "n2Lp1"
             },
             {
-              "description": "3-stage phaser + 1-pole lowpass.",
+              "description": "3-stage phaser + 1-pole lowpass",
               "type": "string",
               "const": "ph3Lp1"
             }
@@ -15880,7 +15884,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency, or the centre for the bandpass, notch and phaser modes",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -15911,7 +15915,7 @@
     "name": "$unstable.filter.cutoffWarpLp",
     "docs": {
       "summary": "Cutoff Warp lowpass",
-      "description": "A resonant lowpass with saturation in its feedback, so drive bends the sweep into a hot, distorted, slightly unstable growl. More `stages` cut steeper and saturate harder.",
+      "description": "A resonant lowpass with saturation in its feedback, so drive bends the sweep into a hot, distorted, slightly unstable growl; `resWarpLp` squashes the resonant peak instead. More `stages` cut steeper and saturate harder.",
       "categories": [
         "filter"
       ],
@@ -15929,7 +15933,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -16030,17 +16034,17 @@
           "description": "Feedback saturator. Rendered as `'tanh'` / `'softClip'` / `'ojd'` in the DSL.",
           "oneOf": [
             {
-              "description": "Smooth tanh feedback saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "tanh"
             },
             {
-              "description": "Cubic soft clip.",
+              "description": "firmer, brighter saturation",
               "type": "string",
               "const": "softClip"
             },
             {
-              "description": "OJD overdrive — asymmetric knee.",
+              "description": "pedal-style overdrive that rounds off one side early and clips the other hard",
               "type": "string",
               "const": "ojd"
             }
@@ -16067,7 +16071,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16098,7 +16102,7 @@
     "name": "$unstable.filter.cutoffWarpHp",
     "docs": {
       "summary": "Cutoff Warp highpass",
-      "description": "A resonant highpass with saturation in its feedback, for a thin, crackling, overdriven top end.",
+      "description": "A resonant highpass with saturation in its feedback, for a thin, crackling, overdriven top end; `resWarpHp` thickens the peak instead.",
       "categories": [
         "filter"
       ],
@@ -16116,7 +16120,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -16217,17 +16221,17 @@
           "description": "Feedback saturator. Rendered as `'tanh'` / `'softClip'` / `'ojd'` in the DSL.",
           "oneOf": [
             {
-              "description": "Smooth tanh feedback saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "tanh"
             },
             {
-              "description": "Cubic soft clip.",
+              "description": "firmer, brighter saturation",
               "type": "string",
               "const": "softClip"
             },
             {
-              "description": "OJD overdrive — asymmetric knee.",
+              "description": "pedal-style overdrive that rounds off one side early and clips the other hard",
               "type": "string",
               "const": "ojd"
             }
@@ -16254,7 +16258,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16285,7 +16289,7 @@
     "name": "$unstable.filter.cutoffWarpBp",
     "docs": {
       "summary": "Cutoff Warp bandpass",
-      "description": "A resonant bandpass with saturation in its feedback: a narrow, distorted band that honks when driven.",
+      "description": "A resonant bandpass with saturation in its feedback: a narrow, distorted band that honks when driven, where `resWarpBp` buzzes.",
       "categories": [
         "filter"
       ],
@@ -16303,7 +16307,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "centre frequency of the band",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -16404,17 +16408,17 @@
           "description": "Feedback saturator. Rendered as `'tanh'` / `'softClip'` / `'ojd'` in the DSL.",
           "oneOf": [
             {
-              "description": "Smooth tanh feedback saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "tanh"
             },
             {
-              "description": "Cubic soft clip.",
+              "description": "firmer, brighter saturation",
               "type": "string",
               "const": "softClip"
             },
             {
-              "description": "OJD overdrive — asymmetric knee.",
+              "description": "pedal-style overdrive that rounds off one side early and clips the other hard",
               "type": "string",
               "const": "ojd"
             }
@@ -16441,7 +16445,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "centre frequency of the band",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16490,7 +16494,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "centre frequency of the notch",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -16591,17 +16595,17 @@
           "description": "Feedback saturator. Rendered as `'tanh'` / `'softClip'` / `'ojd'` in the DSL.",
           "oneOf": [
             {
-              "description": "Smooth tanh feedback saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "tanh"
             },
             {
-              "description": "Cubic soft clip.",
+              "description": "firmer, brighter saturation",
               "type": "string",
               "const": "softClip"
             },
             {
-              "description": "OJD overdrive — asymmetric knee.",
+              "description": "pedal-style overdrive that rounds off one side early and clips the other hard",
               "type": "string",
               "const": "ojd"
             }
@@ -16628,7 +16632,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "centre frequency of the notch",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16667,7 +16671,7 @@
       "examples": [
         {
           "title": "Driven phase smear",
-          "code": "$unstable.filter.cutoffWarpAp($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 3, { drive: 'softClip', stages: 4 }).out()"
+          "code": "const saw = $saw('c2')\nconst sweep = $sine('0.2hz').range('c3', 'c6')\nconst wet = $unstable.filter.cutoffWarpAp(saw, sweep, 3, { drive: 'softClip', stages: 4 })\n$mix([saw, wet]).out()"
         }
       ]
     },
@@ -16677,7 +16681,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "frequency the phase shift centres on",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -16778,17 +16782,17 @@
           "description": "Feedback saturator. Rendered as `'tanh'` / `'softClip'` / `'ojd'` in the DSL.",
           "oneOf": [
             {
-              "description": "Smooth tanh feedback saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "tanh"
             },
             {
-              "description": "Cubic soft clip.",
+              "description": "firmer, brighter saturation",
               "type": "string",
               "const": "softClip"
             },
             {
-              "description": "OJD overdrive — asymmetric knee.",
+              "description": "pedal-style overdrive that rounds off one side early and clips the other hard",
               "type": "string",
               "const": "ojd"
             }
@@ -16815,7 +16819,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "frequency the phase shift centres on",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -16846,7 +16850,7 @@
     "name": "$unstable.filter.resWarpLp",
     "docs": {
       "summary": "Resonance Warp lowpass",
-      "description": "A resonant lowpass with saturation inside the filter, so loud signals squash and warp the resonant peak into a thick, rubbery tone. More `stages` cut steeper.",
+      "description": "A resonant lowpass with saturation inside the filter, so loud signals squash and warp the resonant peak into a thick, rubbery tone, where `cutoffWarpLp` growls as level pushes its cutoff around. More `stages` cut steeper.",
       "categories": [
         "filter"
       ],
@@ -16854,7 +16858,7 @@
       "examples": [
         {
           "title": "Rubbery resonant bass",
-          "code": "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n$unstable.filter.resWarpLp($saw(seq), $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'), 4, { stages: 2 }).out()"
+          "code": "const seq = $cycle($p('f1 [~ f2] ab1 [c2 eb2]'))\n$unstable.filter.resWarpLp($saw(seq), $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'), 4, { stages: 2 }).out()"
         }
       ]
     },
@@ -16864,7 +16868,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -16921,12 +16925,12 @@
           "description": "State saturator. Rendered as `'tanh'` / `'softClip'` in the DSL.",
           "oneOf": [
             {
-              "description": "Smooth tanh state saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "tanh"
             },
             {
-              "description": "Cubic soft clip.",
+              "description": "firmer, brighter saturation",
               "type": "string",
               "const": "softClip"
             }
@@ -16997,7 +17001,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -17028,7 +17032,7 @@
     "name": "$unstable.filter.resWarpHp",
     "docs": {
       "summary": "Resonance Warp highpass",
-      "description": "A resonant highpass with saturation inside the filter: the peak thickens and warps instead of whistling.",
+      "description": "A resonant highpass with saturation inside the filter: the peak thickens and warps instead of whistling as it does in `cutoffWarpHp`.",
       "categories": [
         "filter"
       ],
@@ -17046,7 +17050,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -17103,12 +17107,12 @@
           "description": "State saturator. Rendered as `'tanh'` / `'softClip'` in the DSL.",
           "oneOf": [
             {
-              "description": "Smooth tanh state saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "tanh"
             },
             {
-              "description": "Cubic soft clip.",
+              "description": "firmer, brighter saturation",
               "type": "string",
               "const": "softClip"
             }
@@ -17179,7 +17183,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -17228,7 +17232,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "centre frequency of the band",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -17285,12 +17289,12 @@
           "description": "State saturator. Rendered as `'tanh'` / `'softClip'` in the DSL.",
           "oneOf": [
             {
-              "description": "Smooth tanh state saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "tanh"
             },
             {
-              "description": "Cubic soft clip.",
+              "description": "firmer, brighter saturation",
               "type": "string",
               "const": "softClip"
             }
@@ -17361,7 +17365,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "centre frequency of the band",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -17410,7 +17414,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "centre frequency of the notch",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -17467,12 +17471,12 @@
           "description": "State saturator. Rendered as `'tanh'` / `'softClip'` in the DSL.",
           "oneOf": [
             {
-              "description": "Smooth tanh state saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "tanh"
             },
             {
-              "description": "Cubic soft clip.",
+              "description": "firmer, brighter saturation",
               "type": "string",
               "const": "softClip"
             }
@@ -17543,7 +17547,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "centre frequency of the notch",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -17592,7 +17596,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "frequency the phase shift centres on",
           "$ref": "#/$defs/PolySignal"
         },
         "drive": {
@@ -17649,12 +17653,12 @@
           "description": "State saturator. Rendered as `'tanh'` / `'softClip'` in the DSL.",
           "oneOf": [
             {
-              "description": "Smooth tanh state saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "tanh"
             },
             {
-              "description": "Cubic soft clip.",
+              "description": "firmer, brighter saturation",
               "type": "string",
               "const": "softClip"
             }
@@ -17725,7 +17729,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "frequency the phase shift centres on",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -17764,7 +17768,7 @@
       "examples": [
         {
           "title": "Wild resonant bass",
-          "code": "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n$unstable.filter.tripole($saw(seq), $sine('0.3hz').range('c3', 'c6'), 3, { mode: 'lhl' }).out()"
+          "code": "const seq = $cycle($p('d2*2 [f2 d3] a1 [c2 ~ d2]'))\n$unstable.filter.tripole($saw(seq), $sine('0.3hz').range('c3', 'c6'), 3, { mode: 'lhl' }).out()"
         }
       ]
     },
@@ -17774,7 +17778,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -17875,22 +17879,22 @@
           "description": "Stage topology (which of the three one-poles are lowpass vs highpass).",
           "oneOf": [
             {
-              "description": "Lowpass → lowpass → lowpass.",
+              "description": "lowpass → lowpass → lowpass",
               "type": "string",
               "const": "lll"
             },
             {
-              "description": "Lowpass → highpass → lowpass.",
+              "description": "lowpass → highpass → lowpass",
               "type": "string",
               "const": "lhl"
             },
             {
-              "description": "Highpass → lowpass → highpass.",
+              "description": "highpass → lowpass → highpass",
               "type": "string",
               "const": "hlh"
             },
             {
-              "description": "Highpass → highpass → highpass.",
+              "description": "highpass → highpass → highpass",
               "type": "string",
               "const": "hhh"
             }
@@ -17917,7 +17921,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -17966,7 +17970,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "cutoff frequency, or the centre of the band, notch or peak",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -17999,32 +18003,32 @@
           "description": "Output mix (the six modes the product's subtype menu exposes).",
           "oneOf": [
             {
-              "description": "Lowpass.",
+              "description": "lowpass, removes the highs",
               "type": "string",
               "const": "lp"
             },
             {
-              "description": "Highpass.",
+              "description": "highpass, removes the lows",
               "type": "string",
               "const": "hp"
             },
             {
-              "description": "Bandpass.",
+              "description": "bandpass, keeps a band around the cutoff",
               "type": "string",
               "const": "bp"
             },
             {
-              "description": "Notch.",
+              "description": "notch, cuts a band around the cutoff",
               "type": "string",
               "const": "notch"
             },
             {
-              "description": "Resonant peak.",
+              "description": "peak, boosts a band around the cutoff",
               "type": "string",
               "const": "peak"
             },
             {
-              "description": "Allpass.",
+              "description": "allpass, shifts phase only, for phaser sweeps",
               "type": "string",
               "const": "allpass"
             }
@@ -18108,7 +18112,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "cutoff frequency, or the centre of the band, notch or peak",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -18157,7 +18161,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "sample clock: how often the input is sampled; lower is crunchier",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -18259,7 +18263,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "sample clock: how often the input is sampled; lower is crunchier",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -18298,7 +18302,7 @@
       "examples": [
         {
           "title": "Plucked strings from noise bursts",
-          "code": "$unstable.filter.comb($noise('white').amp($perc($clock.beatTrigger, { decay: 0.02 })), $cycle($p('c3 eb3 g3 bb3')), 4.5, { mix: 'full' }).out()"
+          "code": "const burst = $noise('white').amp($perc($clock.beatTrigger, { decay: 0.02 }))\nconst notes = $cycle($p('c3 eb3 g3 bb3'))\n$unstable.filter.comb(burst, notes, 4.5, { mix: 'full' }).out()"
         }
       ]
     },
@@ -18308,7 +18312,7 @@
       "type": "object",
       "properties": {
         "cutoff": {
-          "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+          "description": "pitch the comb rings at",
           "$ref": "#/$defs/PolySignal"
         },
         "input": {
@@ -18346,12 +18350,12 @@
           "description": "Wet mix: Surge XT's \"50%\" / \"100%\" comb subtypes.",
           "oneOf": [
             {
-              "description": "50% wet / 50% dry — the feedforward comb response.",
+              "description": "dry and delayed signal together, a flanger-like comb of peaks and notches",
               "type": "string",
               "const": "half"
             },
             {
-              "description": "100% wet — the delayed signal alone.",
+              "description": "the delayed, ringing signal alone",
               "type": "string",
               "const": "full"
             }
@@ -18361,12 +18365,12 @@
           "description": "Feedback polarity: positive resonates at harmonics of the cutoff pitch,\nnegative at the half-shifted series.",
           "oneOf": [
             {
-              "description": "Positive feedback.",
+              "description": "rings at the cutoff pitch and its harmonics, bright and metallic",
               "type": "string",
               "const": "pos"
             },
             {
-              "description": "Negative feedback.",
+              "description": "rings an octave lower on odd harmonics only, hollow and reedy",
               "type": "string",
               "const": "neg"
             }
@@ -18450,7 +18454,7 @@
       },
       {
         "name": "cutoff",
-        "description": "cutoff frequency; the notch centre, comb pitch, or sample clock for those filters",
+        "description": "pitch the comb rings at",
         "signalType": "frequency",
         "defaultValue": 0.0
       },
@@ -19114,7 +19118,7 @@
           ]
         },
         "sustain": {
-          "description": "level held while the gate stays high, in volts; left out while decay is set, it is 0 for a plucky attack-decay shape",
+          "description": "level held while the gate stays high, in volts; if you set `decay` but leave this out, it is 0, giving a plucky attack-decay shape",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -19225,7 +19229,7 @@
       },
       {
         "name": "sustain",
-        "description": "level held while the gate stays high, in volts; left out while decay is set, it is 0 for a plucky attack-decay shape",
+        "description": "level held while the gate stays high, in volts; if you set `decay` but leave this out, it is 0, giving a plucky attack-decay shape",
         "signalType": "control",
         "defaultValue": 5.0,
         "minValue": 0.0,
@@ -19317,7 +19321,7 @@
               ]
             },
             {
-              "description": "`input` raised to `operand`, mirrored for negative inputs.",
+              "description": "`input` raised to `operand`, mirrored for negative inputs",
               "type": "string",
               "const": "pow"
             }
@@ -19466,17 +19470,17 @@
           "description": "How `_round` rounds its input to a whole number.",
           "oneOf": [
             {
-              "description": "To the nearest whole number, halves away from zero.",
+              "description": "to the nearest whole number, halves away from zero",
               "type": "string",
               "const": "round"
             },
             {
-              "description": "Down, towards negative infinity.",
+              "description": "down, towards negative infinity",
               "type": "string",
               "const": "floor"
             },
             {
-              "description": "Up, towards positive infinity.",
+              "description": "up, towards positive infinity",
               "type": "string",
               "const": "ceil"
             }
@@ -19895,7 +19899,7 @@
               ],
               [
                 "Chords",
-                "maj, min, dim, aug, sus2, sus4, 5, 6, m6, 69, 7, maj7, m7, mMaj7, dim7, m7b5, aug7, maj7#5, 7sus4, 7sus2, 7b5, 9, maj9, m9, 11, maj11, m11, 13, maj13, m13, 7b9, 7#9, 7#11, add9, madd9, add11"
+                "maj / M, min / m, dim, aug, sus2, sus4, 5, 6, m6, 69, 7, maj7, m7, mMaj7, dim7, m7b5, aug7, maj7#5, 7sus4, 7sus2, 7b5, 9, maj9, m9, 11, maj11, m11, 13, maj13, m13, 7b9, 7#9, 7#11, add9, madd9, add11"
               ]
             ]
           },
@@ -20396,7 +20400,7 @@
       "sections": [],
       "examples": [
         {
-          "title": "Every note, climbing in fifths",
+          "title": "Circle of fifths folded into one octave",
           "code": "$sine($scan(1, 7 / 12, $clock.beatTrigger)).out()"
         }
       ]
@@ -20936,17 +20940,17 @@
           "description": "How the random value moves the input.",
           "oneOf": [
             {
-              "description": "Add a random offset.",
+              "description": "add a random offset",
               "type": "string",
               "const": "shift"
             },
             {
-              "description": "Add a random offset, then clamp to [min, max].",
+              "description": "add a random offset, then clamp to [min, max]",
               "type": "string",
               "const": "clamp"
             },
             {
-              "description": "Move toward a random value in [min, max], clamped to it.",
+              "description": "move toward a random value in [min, max], clamped to it",
               "type": "string",
               "const": "blend"
             }
@@ -21467,7 +21471,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "high while the input keeps rising for `$rising`, or falling for `$falling`, and for a trigger's length after",
+        "description": "high while the input keeps rising, and for a trigger's length after",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -21580,7 +21584,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "high while the input keeps rising for `$rising`, or falling for `$falling`, and for a trigger's length after",
+        "description": "high while the input keeps falling, and for a trigger's length after",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -21625,7 +21629,7 @@
               ],
               [
                 "Operators",
-                "highest precedence first: `^`, `%`, `/`, `*`, `-`, `+`, then `== != < <= >= >`, then `&&` / `and`, then `||` / `or`"
+                "highest precedence first: `^`; then `%`; then `*` `/`; then `+` `-`; then `== != < <= >= >`; then `&&` / `and`; then `||` / `or`. `%` binds tighter than `*`, so `a * b % c` is `a * (b % c)`"
               ]
             ]
           },
@@ -21825,7 +21829,7 @@
           ]
         },
         "gain": {
-          "description": "volts of output per volt-per-second of movement; negative flips the output below 0",
+          "description": "sensitivity: how much output a given speed of movement gives, in volts per volt-per-second; negative flips the output below 0",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -21987,7 +21991,7 @@
       },
       {
         "name": "gain",
-        "description": "volts of output per volt-per-second of movement; negative flips the output below 0",
+        "description": "sensitivity: how much output a given speed of movement gives, in volts per volt-per-second; negative flips the output below 0",
         "signalType": "control",
         "defaultValue": 0.25,
         "controlMin": 0.0,
@@ -23209,7 +23213,7 @@
       "sections": [],
       "examples": [
         {
-          "title": "Four-octave stack",
+          "title": "Octave stack",
           "code": "$sine($spread('c3', 'c6', 4)).out()"
         },
         {
@@ -23960,7 +23964,7 @@
           "minimum": 1
         },
         "groove": {
-          "description": "groove shift of note starts, in cycles; follows the global groove by default, 0 plays straight, and is 0 when `playhead` is set without it",
+          "description": "groove shift of note starts, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
           "anyOf": [
             {
               "$ref": "#/$defs/MonoSignal"
@@ -24006,7 +24010,7 @@
           ]
         },
         "velocity": {
-          "description": "velocity held from each note start onto the `velocity` output; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
+          "description": "velocity held from each note start onto the `velocity` output. Follows the global groove, unless you set your own `playhead` or `groove`: then every note is full velocity until given a velocity too",
           "anyOf": [
             {
               "$ref": "#/$defs/MonoSignal"
@@ -26208,14 +26212,14 @@
       },
       {
         "name": "groove",
-        "description": "groove shift of note starts, in cycles; follows the global groove by default, 0 plays straight, and is 0 when `playhead` is set without it",
+        "description": "groove shift of note starts, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
         "signalType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       },
       {
         "name": "velocity",
-        "description": "velocity held from each note start onto the `velocity` output; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
+        "description": "velocity held from each note start onto the `velocity` output. Follows the global groove, unless you set your own `playhead` or `groove`: then every note is full velocity until given a velocity too",
         "signalType": "control",
         "controlMin": 0.0,
         "controlMax": 5.0
@@ -26617,7 +26621,7 @@
           ]
         },
         "groove": {
-          "description": "groove shift of each step, in cycles; follows the global groove by default, 0 plays straight, and is 0 when `playhead` is set without it",
+          "description": "groove shift of each step, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
           "anyOf": [
             {
               "$ref": "#/$defs/MonoSignal"
@@ -26666,7 +26670,7 @@
           ]
         },
         "velocity": {
-          "description": "how readily each step accents: lower accents less, 0 never; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
+          "description": "how readily each step accents: lower accents less, 0 never. Follows the global groove, unless you set your own `playhead` or `groove`: then it is full until given a velocity too",
           "anyOf": [
             {
               "$ref": "#/$defs/MonoSignal"
@@ -26846,14 +26850,14 @@
       },
       {
         "name": "groove",
-        "description": "groove shift of each step, in cycles; follows the global groove by default, 0 plays straight, and is 0 when `playhead` is set without it",
+        "description": "groove shift of each step, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
         "signalType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       },
       {
         "name": "velocity",
-        "description": "how readily each step accents: lower accents less, 0 never; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
+        "description": "how readily each step accents: lower accents less, 0 never. Follows the global groove, unless you set your own `playhead` or `groove`: then it is full until given a velocity too",
         "signalType": "control",
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -26926,11 +26930,53 @@
     "name": "$groove",
     "docs": {
       "summary": "Timing and velocity groove",
-      "description": "Pushes steps of the grid early or late and gives each a velocity, for swing and shuffle on a single sequencer. Every sequencer follows the global groove from `$setGroove` by default; pass this module and its `velocity` to one to give it a feel of its own. Notes keep their written lengths.",
+      "description": "Pushes steps of the grid early or late and gives each a velocity, for swing and shuffle on a single sequencer. Every sequencer follows the global groove from `$setGroove` by default; pass this module and its `velocity` to a sequencer's `groove` and `velocity` to give it a feel of its own. Notes keep their written lengths.",
       "categories": [
         "sequencer"
       ],
-      "sections": [],
+      "sections": [
+        {
+          "title": "Templates",
+          "body": "The template is an object; only `timing` is required.",
+          "table": {
+            "columns": [
+              "Field",
+              "What it does"
+            ],
+            "rows": [
+              [
+                "`timing`",
+                "how late (positive) or early each step lands, in grid steps; the pattern repeats every `timing.length` steps"
+              ],
+              [
+                "`velocity`",
+                "each step's velocity from 0 to 1, one per `timing` entry; all full when left out"
+              ],
+              [
+                "`grid`",
+                "steps per cycle: 16 (the default) is sixteenths in a 4/4 bar, 8 eighths"
+              ],
+              [
+                "`amount`",
+                "how strongly the timing applies: 0 straight, 1 (the default) as written"
+              ],
+              [
+                "`velocityAmount`",
+                "how strongly the velocities apply: 0 every step full, 1 (the default) as written"
+              ],
+              [
+                "`random`",
+                "the largest random push early or late on each step, in grid steps"
+              ],
+              [
+                "`seed`",
+                "picks the random pushes, so a groove keeps the same feel each time"
+              ]
+            ]
+          },
+          "examples": []
+        }
+      ],
       "examples": [
         {
           "title": "Shuffled eighths with soft offbeats",
@@ -27194,22 +27240,22 @@
           "description": "Note priority for monophonic operation",
           "oneOf": [
             {
-              "description": "Last note pressed wins",
+              "description": "the newest note you play takes over",
               "type": "string",
               "const": "last"
             },
             {
-              "description": "First note pressed wins (ignores new notes)",
+              "description": "the first held note keeps playing until you let go",
               "type": "string",
               "const": "first"
             },
             {
-              "description": "Lowest pitch note wins",
+              "description": "the lowest held note plays, for bass lines",
               "type": "string",
               "const": "lowest"
             },
             {
-              "description": "Highest pitch note wins",
+              "description": "the highest held note plays, for leads",
               "type": "string",
               "const": "highest"
             }
@@ -27219,22 +27265,22 @@
           "description": "Voice allocation mode for polyphonic operation",
           "oneOf": [
             {
-              "description": "Round-robin through available voices",
+              "description": "each new note takes the next voice in turn, so release tails ring on",
               "type": "string",
               "const": "rotate"
             },
             {
-              "description": "Reuse voice playing same note before rotating",
+              "description": "a repeated note retriggers the voice already playing it, otherwise takes the next voice",
               "type": "string",
               "const": "reuse"
             },
             {
-              "description": "Always start from the first voice",
+              "description": "each new note takes the lowest free voice",
               "type": "string",
               "const": "reset"
             },
             {
-              "description": "MPE mode: MIDI channel maps directly to output channel",
+              "description": "MPE: each MIDI channel drives its own voice, with per-note bends and pressure",
               "type": "string",
               "const": "mpe"
             }
@@ -27383,7 +27429,7 @@
     "name": "$grains",
     "docs": {
       "summary": "Granular sampler",
-      "description": "Sprays short overlapping grains from a WAV file while the gate is high, for time-stretched textures, frozen moments and shimmering clouds. Pitch and position are independent, so a sample can be played slowly without dropping in pitch. Each grain keeps the settings it started with, so changes fade in as new grains arrive.",
+      "description": "Sprays short overlapping grains from a WAV file while the gate is high, for time-stretched textures, frozen moments and shimmering clouds. Pitch and position are independent, so a sample can be played slowly without dropping in pitch.",
       "categories": [
         "sampler"
       ],
@@ -27485,37 +27531,37 @@
           "description": "Amplitude windowing function applied to each grain.",
           "oneOf": [
             {
-              "description": "Symmetric triangle: linear rise and fall meeting at the centre.",
+              "description": "fades in and straight back out, a soft even blur",
               "type": "string",
               "const": "triangle"
             },
             {
-              "description": "Linear rise to peak then a sharp 1 ms linear fall at the tail.",
+              "description": "swells in and cuts off, like reversed audio",
               "type": "string",
               "const": "ramp"
             },
             {
-              "description": "1 ms linear attack, sustain at peak, 1 ms linear decay.",
+              "description": "full level for the whole grain, choppy and stuttery",
               "type": "string",
               "const": "square"
             },
             {
-              "description": "1 ms linear attack followed by exponential decay matching `$perc`.",
+              "description": "a plucked hit that dies away, percussive and ticking",
               "type": "string",
               "const": "decay"
             },
             {
-              "description": "Gaussian bell curve; endpoints ≈ 0.01 (−40 dB).",
+              "description": "a smooth bell swell, the softest and most cloud-like",
               "type": "string",
               "const": "bell"
             },
             {
-              "description": "Lanczos-windowed sinc, 3 lobes per side.",
+              "description": "a peaked swell with faint ripples, slightly ringing",
               "type": "string",
               "const": "sinc"
             },
             {
-              "description": "Cosine-tapered flat-top (Tukey) window, α = 0.5.",
+              "description": "smooth fades around a held middle, full-bodied but click-free",
               "type": "string",
               "const": "tukey"
             }
@@ -27775,15 +27821,21 @@
       "categories": [
         "sampler"
       ],
-      "sections": [],
-      "examples": [
+      "sections": [
         {
-          "title": "Kick on every beat",
-          "code": "$sampler($wavs().kick, $clock.beatTrigger).out()"
-        },
+          "title": "Slicing",
+          "body": "Give `slice` a signal and the whole file is one slice. Give it `[points, signal]` to cut the file, each point a slice start as a fraction of the file from 0 to 1. Either way the signal's whole part picks the slice, wrapping past the last, and its fraction starts playback partway into it.",
+          "examples": []
+        }
+      ],
+      "examples": [
         {
           "title": "Chopped and rearranged loop",
           "code": "const order = $cycle($p('0 2 1 3 0 0 3 2'))\n$sampler($wavs().pad, order.trig, { slice: [[0, 0.25, 0.5, 0.75], order], fade: 2 }).out()"
+        },
+        {
+          "title": "Kick on every beat",
+          "code": "$sampler($wavs().kick, $clock.beatTrigger).out()"
         }
       ]
     },
@@ -27810,7 +27862,7 @@
           "default": "once"
         },
         "slice": {
-          "description": "which slice plays: a signal (the whole file is one slice) or `[points, signal]`, points marking slice starts as fractions of the file from 0 to 1; read at each gate and each loop repeat, its whole part picks the slice (wrapping) and its fraction starts partway in",
+          "description": "which slice plays, read at each gate and each loop repeat: a signal, or `[points, signal]` to cut the file into slices (see Slicing)",
           "anyOf": [
             {
               "anyOf": [
@@ -28061,27 +28113,27 @@
           "description": "Saturation algorithm.",
           "oneOf": [
             {
-              "description": "Smooth, warm saturation.",
+              "description": "smooth, warm saturation",
               "type": "string",
               "const": "soft"
             },
             {
-              "description": "Hard clipping — aggressive, squared-off edges.",
+              "description": "hard clipping, aggressive and squared-off",
               "type": "string",
               "const": "hard"
             },
             {
-              "description": "Asymmetric saturation — adds even harmonics for a warmer colour.",
+              "description": "lopsided saturation with a warmer, tube-like colour",
               "type": "string",
               "const": "asymmetric"
             },
             {
-              "description": "Medium saturation — sits between soft and hard.",
+              "description": "between soft and hard",
               "type": "string",
               "const": "medium"
             },
             {
-              "description": "Overdrive with a soft knee before it clips.",
+              "description": "pedal-style overdrive that rounds off one side early and clips the other hard",
               "type": "string",
               "const": "ojd"
             }
@@ -28223,57 +28275,57 @@
           "description": "Harmonic-generating algorithm.",
           "oneOf": [
             {
-              "description": "Adds a soft 2nd harmonic.",
+              "description": "adds a soft 2nd harmonic",
               "type": "string",
               "const": "cheby2"
             },
             {
-              "description": "Adds a soft 3rd harmonic.",
+              "description": "adds a soft 3rd harmonic",
               "type": "string",
               "const": "cheby3"
             },
             {
-              "description": "Adds a soft 4th harmonic.",
+              "description": "adds a soft 4th harmonic",
               "type": "string",
               "const": "cheby4"
             },
             {
-              "description": "Adds a soft 5th harmonic.",
+              "description": "adds a soft 5th harmonic",
               "type": "string",
               "const": "cheby5"
             },
             {
-              "description": "Blend of the 1st and 2nd harmonics.",
+              "description": "blend of the 1st and 2nd harmonics",
               "type": "string",
               "const": "add12"
             },
             {
-              "description": "Blend of the 1st and 3rd harmonics.",
+              "description": "blend of the 1st and 3rd harmonics",
               "type": "string",
               "const": "add13"
             },
             {
-              "description": "Blend of the 1st and 4th harmonics.",
+              "description": "blend of the 1st and 4th harmonics",
               "type": "string",
               "const": "add14"
             },
             {
-              "description": "Blend of the 1st and 5th harmonics.",
+              "description": "blend of the 1st and 5th harmonics",
               "type": "string",
               "const": "add15"
             },
             {
-              "description": "Blend of the 1st through 5th harmonics.",
+              "description": "blend of the 1st through 5th harmonics",
               "type": "string",
               "const": "add12345"
             },
             {
-              "description": "Sawtooth-like blend of the first three harmonics.",
+              "description": "sawtooth-like blend of the first three harmonics",
               "type": "string",
               "const": "addSaw3"
             },
             {
-              "description": "Square-like blend of odd harmonics.",
+              "description": "square-like blend of odd harmonics",
               "type": "string",
               "const": "addSqr3"
             }
@@ -28441,22 +28493,22 @@
           "description": "Rectification algorithm.",
           "oneOf": [
             {
-              "description": "Full-wave — flips the negative half up (doubles the pitch).",
+              "description": "full-wave, flips the negative half up an octave higher",
               "type": "string",
               "const": "full"
             },
             {
-              "description": "Positive half-wave — keeps only the upper half.",
+              "description": "positive half-wave, keeps only the upper half",
               "type": "string",
               "const": "positive"
             },
             {
-              "description": "Negative half-wave — keeps only the lower half.",
+              "description": "negative half-wave, keeps only the lower half",
               "type": "string",
               "const": "negative"
             },
             {
-              "description": "Softer rectification with rounded edges.",
+              "description": "softer rectification with rounded edges",
               "type": "string",
               "const": "soft"
             }
@@ -28598,32 +28650,32 @@
           "description": "Wavefolding algorithm.",
           "oneOf": [
             {
-              "description": "A single, smooth fold.",
+              "description": "a single, smooth fold",
               "type": "string",
               "const": "soft"
             },
             {
-              "description": "A single sharp fold.",
+              "description": "a single sharp fold",
               "type": "string",
               "const": "single"
             },
             {
-              "description": "A double fold — more harmonics.",
+              "description": "a double fold, more harmonics",
               "type": "string",
               "const": "dual"
             },
             {
-              "description": "West-coast (Buchla-style) fold — complex, metallic harmonics.",
+              "description": "west-coast (Buchla-style) fold with complex, metallic harmonics",
               "type": "string",
               "const": "westcoast"
             },
             {
-              "description": "Triangle fold — hard and buzzy.",
+              "description": "triangle fold, hard and buzzy",
               "type": "string",
               "const": "linear"
             },
             {
-              "description": "Sine fold — wraps the signal smoothly through a sine.",
+              "description": "sine fold, wraps the signal smoothly through a sine",
               "type": "string",
               "const": "sine"
             }
@@ -28778,27 +28830,27 @@
           "description": "Fuzz algorithm.",
           "oneOf": [
             {
-              "description": "Hard, gated fuzz.",
+              "description": "hard, gated fuzz",
               "type": "string",
               "const": "fuzz"
             },
             {
-              "description": "Softer fuzz.",
+              "description": "softer fuzz",
               "type": "string",
               "const": "soft"
             },
             {
-              "description": "Heavier, noisier fuzz.",
+              "description": "heavier, noisier fuzz",
               "type": "string",
               "const": "heavy"
             },
             {
-              "description": "Fuzz focused around the zero crossings.",
+              "description": "fuzz focused around the zero crossings",
               "type": "string",
               "const": "center"
             },
             {
-              "description": "Fuzz focused on the loud peaks.",
+              "description": "fuzz focused on the loud peaks",
               "type": "string",
               "const": "softEdge"
             }
@@ -28906,8 +28958,8 @@
   {
     "name": "$unstable.shape.trigonometric",
     "docs": {
-      "summary": "Sine-curve shaper",
-      "description": "Runs the signal through sine curves for dense, ringing, metallic harmonics that change sharply with level, so a slowly swept drive makes one oscillator glitter. Modelled on the Surge XT trigonometric shapes.",
+      "summary": "Metallic sine-ripple shaper",
+      "description": "Many-cycle sine shapes for dense, ringing, metallic harmonics that change sharply with level, so a slowly swept drive makes one oscillator glitter. Modelled on the Surge XT trigonometric shapes.",
       "categories": [
         "distortion"
       ],
@@ -29010,57 +29062,57 @@
           "description": "Trigonometric shaping algorithm.",
           "oneOf": [
             {
-              "description": "Adds a single sine ripple to the signal.",
+              "description": "adds a single sine ripple to the signal",
               "type": "string",
               "const": "sinPlusX"
             },
             {
-              "description": "Adds 2 sine ripples riding on the signal.",
+              "description": "adds 2 sine ripples riding on the signal",
               "type": "string",
               "const": "sin2x"
             },
             {
-              "description": "Adds 3 sine ripples riding on the signal.",
+              "description": "adds 3 sine ripples riding on the signal",
               "type": "string",
               "const": "sin3x"
             },
             {
-              "description": "Adds 7 sine ripples riding on the signal.",
+              "description": "adds 7 sine ripples riding on the signal",
               "type": "string",
               "const": "sin7x"
             },
             {
-              "description": "Adds 10 sine ripples riding on the signal.",
+              "description": "adds 10 sine ripples riding on the signal",
               "type": "string",
               "const": "sin10x"
             },
             {
-              "description": "Maps the signal through 2 sine cycles — dense harmonics.",
+              "description": "maps the signal through 2 sine cycles, dense harmonics",
               "type": "string",
               "const": "cyc2"
             },
             {
-              "description": "Maps the signal through 7 sine cycles — denser harmonics.",
+              "description": "maps the signal through 7 sine cycles, denser harmonics",
               "type": "string",
               "const": "cyc7"
             },
             {
-              "description": "Maps the signal through 10 sine cycles — densest harmonics.",
+              "description": "maps the signal through 10 sine cycles, densest harmonics",
               "type": "string",
               "const": "cyc10"
             },
             {
-              "description": "2 sine cycles, tapered toward the edges.",
+              "description": "2 sine cycles, tapered toward the edges",
               "type": "string",
               "const": "cyc2Bound"
             },
             {
-              "description": "7 sine cycles, tapered toward the edges.",
+              "description": "7 sine cycles, tapered toward the edges",
               "type": "string",
               "const": "cyc7Bound"
             },
             {
-              "description": "10 sine cycles, tapered toward the edges.",
+              "description": "10 sine cycles, tapered toward the edges",
               "type": "string",
               "const": "cyc10Bound"
             }
@@ -29112,7 +29164,7 @@
     "name": "$unstable.shape.digital",
     "docs": {
       "summary": "Bit-crusher",
-      "description": "Steps the signal down to coarse levels for a lo-fi, digital crunch; higher drive makes the steps coarser.",
+      "description": "Steps the signal down to coarse levels for a lo-fi, digital crunch; raise `drive` for coarser steps.",
       "categories": [
         "distortion"
       ],
@@ -29130,7 +29182,7 @@
       "type": "object",
       "properties": {
         "drive": {
-          "description": "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
+          "description": "step size: -5 fine, about 128 levels across ±5 V; 0 about 32; +5 coarse, about 8",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -29227,7 +29279,7 @@
       },
       {
         "name": "drive",
-        "description": "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
+        "description": "step size: -5 fine, about 128 levels across ±5 V; 0 about 32; +5 coarse, about 8",
         "signalType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,

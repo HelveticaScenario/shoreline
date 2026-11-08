@@ -351,6 +351,7 @@
 
 .docs-panel .param-meta {
     display: block;
+    white-space: nowrap;
     color: var(--text-secondary);
     font-size: 0.9em;
     font-variant-numeric: tabular-nums;
@@ -399,6 +400,10 @@
     font-weight: normal;
 }
 
+.docs-panel .doc-table td:first-child {
+    white-space: nowrap;
+}
+
 /* A narrow card stacks each row: its key as a heading, then `column: value`. */
 @container (max-width: 36ch) {
     .docs-panel .doc-table thead {
@@ -425,6 +430,7 @@
 
     .docs-panel .doc-table td:first-child {
         font-weight: bold;
+        white-space: normal;
     }
 
     .docs-panel .doc-table td:not(:first-child)::before {

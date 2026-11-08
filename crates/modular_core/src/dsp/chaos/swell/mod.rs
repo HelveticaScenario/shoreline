@@ -64,7 +64,7 @@ struct SwellParams {
     #[deserr(default)]
     steepness: Option<PolySignal>,
     #[input(
-        "spectral width: the other waves sit up to `chop / 2` octaves above `freq`; 0 is one clean, periodic swell, higher rolls in sets and adds chop",
+        "how rough the sea is: 0 is one clean, repeating swell; higher mixes in faster waves, up to `chop / 2` octaves above `freq`, so the swell rolls in sets with choppy ripples",
         type = control,
         default = 1.0,
         range = (0, 5),
@@ -339,8 +339,7 @@ const SWELL_DOCS: ModuleDocs = ModuleDocs {
                   wave far bigger than the rest. Use it for tidal filter sweeps \
                   and levels that breathe irregularly; `tilt` and `roll` are \
                   the matching lean of a boat on the water. Changing a param \
-                  bends the waves rather than restarting them, and each channel \
-                  is its own sea.",
+                  bends the waves rather than restarting them.",
     categories: &[ModuleCategory::Modulation],
     sections: &[],
     examples: &[

@@ -17,14 +17,14 @@ use crate::module_docs::{DocExample, ModuleDocs};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum RectifyMode {
-    /// Full-wave — flips the negative half up (doubles the pitch).
+    /// full-wave, flips the negative half up an octave higher
     #[default]
     Full,
-    /// Positive half-wave — keeps only the upper half.
+    /// positive half-wave, keeps only the upper half
     Positive,
-    /// Negative half-wave — keeps only the lower half.
+    /// negative half-wave, keeps only the lower half
     Negative,
-    /// Softer rectification with rounded edges.
+    /// softer rectification with rounded edges
     Soft,
 }
 

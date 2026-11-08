@@ -54,7 +54,7 @@ const SCAN_DOCS: ModuleDocs = ModuleDocs {
     categories: &[ModuleCategory::Sequencer],
     sections: &[],
     examples: &[DocExample {
-        title: "Every note, climbing in fifths",
+        title: "Circle of fifths folded into one octave",
         code: "$sine($scan(1, 7 / 12, $clock.beatTrigger)).out()",
     }],
 };

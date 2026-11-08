@@ -23,6 +23,7 @@ macro_rules! filter_module {
         docs = $docs:path,
         name = $name:literal, ident = $Struct:ident, kernel = $Kernel:ty,
         output_doc = $output_doc:literal,
+        cutoff_doc = $cutoff_doc:literal,
         params = { $( $(#[$fdoc:meta])* $field:ident : $ftype:ty ),* $(,)? },
         mode = |$p:ident| $mode:expr $(,)?
     ) => {
@@ -34,7 +35,7 @@ macro_rules! filter_module {
             struct [<$Struct Params>] {
                 #[input("the sound to filter", type = audio)]
                 input: crate::poly::PolySignal,
-                #[input("cutoff frequency; the notch centre, comb pitch, or sample clock for those filters", type = frequency, default = 0.0)]
+                #[input($cutoff_doc, type = frequency, default = 0.0)]
                 cutoff: crate::poly::PolySignal,
                 #[input(
                     "filter resonance; high values approach self-oscillation",

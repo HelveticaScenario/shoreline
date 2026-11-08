@@ -87,33 +87,49 @@ function moduleSignature(module: Schema): string {
     return `${module.name}(${parts.join(', ')})`;
 }
 
-/** A module schema as a reference entry. */
+/** A union with more literals than this shows its first few and `…`. */
+const MAX_UNION_LITERALS = 4;
+
+/** A module schema as a reference entry. Params list in call order:
+ *  positionals first, then the config keys. */
 export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
-    const params = Object.entries(module.paramsSchema.properties).map(
-        ([name, schema]): ParamDoc => {
-            let type: string | undefined;
-            let variants: EnumVariantInfo[] | null = null;
-            try {
-                type = schemaToTypeExpr(schema, module.paramsSchema);
-            } catch {
-                // A schema the resolver can't express shows no type.
-            }
-            try {
-                variants = getEnumVariants(schema, module.paramsSchema);
-            } catch {
-                // Nor any values.
-            }
-            return {
-                description: (schema as { description?: string }).description,
-                meta: paramMeta(module, name),
-                name,
-                type,
-                variants: variants?.some((v) => v.description)
-                    ? variants
-                    : undefined,
-            };
+    const positional = module.positionalArgs.map((a) => a.name);
+    const properties = Object.entries(module.paramsSchema.properties).sort(
+        ([a], [b]) => {
+            const ia = positional.indexOf(a);
+            const ib = positional.indexOf(b);
+            return (ia < 0 ? Infinity : ia) - (ib < 0 ? Infinity : ib);
         },
     );
+    const params = properties.map(([name, schema]): ParamDoc => {
+        let type: string | undefined;
+        let variants: EnumVariantInfo[] | null = null;
+        try {
+            type = schemaToTypeExpr(schema, module.paramsSchema);
+        } catch {
+            // A schema the resolver can't express shows no type.
+        }
+        try {
+            variants = getEnumVariants(schema, module.paramsSchema);
+        } catch {
+            // Nor any values.
+        }
+        if (variants && variants.length > MAX_UNION_LITERALS) {
+            type = `${variants
+                .slice(0, 3)
+                .map((v) => JSON.stringify(v.rawValue))
+                .join(' | ')} | …`;
+        }
+        return {
+            description: (schema as { description?: string }).description,
+            meta: paramMeta(module, name),
+            name,
+            type,
+            variants: variants?.some((v) => v.description)
+                ? variants
+                : undefined,
+        };
+    });
     return {
         docs: module.docs,
         kind: 'module',
@@ -157,7 +173,7 @@ export function renderDocContentJsDoc(
     for (const section of docs.sections) {
         lines.push('', `**${section.title}**`);
         if (section.body) {
-            lines.push(...section.body.split(/\r?\n/));
+            lines.push('', ...section.body.split(/\r?\n/));
         }
         if (section.table) {
             lines.push('', ...tableToCompactMarkdown(section.table));

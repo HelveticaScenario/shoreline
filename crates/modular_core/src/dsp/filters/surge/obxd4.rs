@@ -138,16 +138,16 @@ impl Filter for Obxd4Pole {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum Obxd4Slope {
-    /// 6 dB/oct (1-pole tap).
+    /// 6 dB/oct, the gentlest slope
     Db6,
-    /// 12 dB/oct (2-pole tap).
+    /// 12 dB/oct
     Db12,
-    /// 18 dB/oct (3-pole tap).
+    /// 18 dB/oct
     Db18,
-    /// 24 dB/oct (full cascade).
+    /// 24 dB/oct, the steepest slope
     #[default]
     Db24,
-    /// A brighter 24 dB/oct, as Surge XT's "24 dB (Legacy)".
+    /// a brighter 24 dB/oct
     Db24Legacy,
 }
 
@@ -169,36 +169,36 @@ impl Obxd4Slope {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum XpanderMode {
-    /// 1-pole lowpass.
+    /// 1-pole lowpass
     Lp1,
-    /// 2-pole lowpass.
+    /// 2-pole lowpass
     Lp2,
-    /// 3-pole lowpass.
+    /// 3-pole lowpass
     Lp3,
-    /// 4-pole lowpass.
+    /// 4-pole lowpass
     #[default]
     Lp4,
-    /// 1-pole highpass.
+    /// 1-pole highpass
     Hp1,
-    /// 2-pole highpass.
+    /// 2-pole highpass
     Hp2,
-    /// 3-pole highpass.
+    /// 3-pole highpass
     Hp3,
-    /// 2-pole bandpass.
+    /// 2-pole bandpass
     Bp2,
-    /// 4-pole bandpass.
+    /// 4-pole bandpass
     Bp4,
-    /// 2-pole notch.
+    /// 2-pole notch
     N2,
-    /// 3-stage phaser.
+    /// 3-stage phaser
     Ph3,
-    /// 2-pole highpass + 1-pole lowpass.
+    /// 2-pole highpass + 1-pole lowpass
     Hp2Lp1,
-    /// 3-pole highpass + 1-pole lowpass.
+    /// 3-pole highpass + 1-pole lowpass
     Hp3Lp1,
-    /// 2-pole notch + 1-pole lowpass.
+    /// 2-pole notch + 1-pole lowpass
     N2Lp1,
-    /// 3-stage phaser + 1-pole lowpass.
+    /// 3-stage phaser + 1-pole lowpass
     Ph3Lp1,
 }
 
@@ -241,6 +241,7 @@ filter_module! {
     docs = OBXD4_DOCS,
     name = "$unstable.filter.obxd4", ident = Obxd4Filter, kernel = Obxd4Pole,
     output_doc = "lowpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
         #[input("how steeply it cuts", default = "db24")]
         slope: Obxd4Slope,
@@ -265,6 +266,7 @@ filter_module! {
     docs = XPANDER_DOCS,
     name = "$unstable.filter.xpander", ident = XpanderFilter, kernel = Obxd4Pole,
     output_doc = "filter output",
+    cutoff_doc = "cutoff frequency, or the centre for the bandpass, notch and phaser modes",
     params = {
         #[input("which response the four poles are mixed into", default = "lp4")]
         mode: XpanderMode,

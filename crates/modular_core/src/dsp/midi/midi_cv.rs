@@ -24,14 +24,14 @@ use crate::types::{
 #[serde(rename_all = "lowercase")]
 #[deserr(rename_all = lowercase)]
 pub enum PolyMode {
-    /// Round-robin through available voices
+    /// each new note takes the next voice in turn, so release tails ring on
     #[default]
     Rotate,
-    /// Reuse voice playing same note before rotating
+    /// a repeated note retriggers the voice already playing it, otherwise takes the next voice
     Reuse,
-    /// Always start from the first voice
+    /// each new note takes the lowest free voice
     Reset,
-    /// MPE mode: MIDI channel maps directly to output channel
+    /// MPE: each MIDI channel drives its own voice, with per-note bends and pressure
     Mpe,
 }
 
@@ -40,14 +40,14 @@ pub enum PolyMode {
 #[serde(rename_all = "lowercase")]
 #[deserr(rename_all = lowercase)]
 pub enum MonoMode {
-    /// Last note pressed wins
+    /// the newest note you play takes over
     #[default]
     Last,
-    /// First note pressed wins (ignores new notes)
+    /// the first held note keeps playing until you let go
     First,
-    /// Lowest pitch note wins
+    /// the lowest held note plays, for bass lines
     Lowest,
-    /// Highest pitch note wins
+    /// the highest held note plays, for leads
     Highest,
 }
 

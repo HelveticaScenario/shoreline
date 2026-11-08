@@ -48,7 +48,9 @@ const DocTableView: React.FC<{ table: DocTable }> = ({ table }) => (
         <thead>
             <tr>
                 {table.columns.map((c) => (
-                    <th key={c}>{c}</th>
+                    <th key={c}>
+                        <InlineDoc text={c} />
+                    </th>
                 ))}
             </tr>
         </thead>

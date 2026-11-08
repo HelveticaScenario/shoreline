@@ -42,7 +42,7 @@ struct MultimodeParams {
     #[input("the sound to filter; DC-coupled, so CV passes too", type = audio)]
     input: PolySignal,
     #[input(
-        "cutoff frequency; the top octaves track flat, so the top of the range sounds near 21 kHz",
+        "cutoff frequency; the top of the range sounds near 21 kHz",
         type = frequency,
         default = 0.0,
         range = (-10.08, 6.53),

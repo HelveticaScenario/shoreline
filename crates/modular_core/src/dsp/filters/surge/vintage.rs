@@ -20,12 +20,12 @@ use crate::module_docs::{DocExample, ModuleDocs};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum VintageType {
-    /// The closest simulation of the ladder circuit.
+    /// the closest simulation of the ladder circuit
     #[default]
     Rk,
-    /// Saturation in every stage, for a thicker, grittier ladder.
+    /// saturation in every stage, for a thicker, grittier ladder
     Huov,
-    /// Saturation at the input only, for a cleaner ladder.
+    /// saturation at the input only, for a cleaner ladder
     Huov2010,
 }
 
@@ -323,14 +323,17 @@ impl Filter for VintageLadder {
 
 const VINTAGE_LADDER_DOCS: ModuleDocs = ModuleDocs {
     summary: "Moog-style ladder models",
-    description: "Three simulations of the Moog transistor ladder, from the most faithful \
-                  circuit model to grittier and cleaner variants. Turn on `compensated` to \
+    description: "Three detailed simulations of the Moog transistor ladder, from the most \
+                  faithful circuit model to grittier and cleaner variants, richer and heavier \
+                  than `legacyLadder`. Turn on `compensated` to \
                   keep the bass full at high resonance.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Resonant ladder pad",
-        code: "$unstable.filter.vintageLadder($saw($chord('C2[m7]')), $sine('0.1hz').range('c3', 'c6'), 3.5, { compensated: true }).out()",
+        code: "const pad = $saw($chord('C2[m7]'))\n\
+              const sweep = $sine('0.1hz').range('c3', 'c6')\n\
+              $unstable.filter.vintageLadder(pad, sweep, 3.5, { compensated: true }).out()",
     }],
 };
 
@@ -338,6 +341,7 @@ filter_module! {
     docs = VINTAGE_LADDER_DOCS,
     name = "$unstable.filter.vintageLadder", ident = VintageLadderFilter, kernel = VintageLadder,
     output_doc = "lowpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
         #[input("which ladder model to simulate", default = "rk")]
         #[serde(rename = "type")]

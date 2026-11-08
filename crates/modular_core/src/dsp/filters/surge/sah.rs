@@ -70,6 +70,7 @@ filter_module! {
     docs = SAH_DOCS,
     name = "$unstable.filter.sah", ident = SahFilter, kernel = SampleHold,
     output_doc = "sampled output",
+    cutoff_doc = "sample clock: how often the input is sampled; lower is crunchier",
     params = {},
     mode = |_p| (),
 }

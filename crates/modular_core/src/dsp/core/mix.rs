@@ -13,14 +13,14 @@ use crate::{
 #[serde(rename_all = "snake_case")]
 #[deserr(rename_all = lowercase)]
 pub enum MixMode {
-    /// Sum all inputs.
+    /// every signal added together, getting louder as more stack up
     #[default]
     Sum,
-    /// Average all inputs.
+    /// the average of the signals, staying at one signal's level however many stack up
     Average,
-    /// Keep the strongest input.
+    /// only the loudest signal at each moment
     Max,
-    /// Keep the weakest non-zero input.
+    /// only the quietest signal that isn't silent at each moment
     Min,
 }
 

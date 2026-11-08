@@ -110,14 +110,15 @@ fn coeff_lp24(freq_semi: f32, reso: f32, subtype: i32, rate: f32) -> [f32; N_COE
 
 const LP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Surge lowpass filter",
-    description: "Surge's resonant lowpass in 12 or 24 dB slopes: smooth at `'clean'`, gritty \
-                  and singing at `'driven'`.",
+    description: "Surge's resonant lowpass in 12 or 24 dB slopes: smooth at the default \
+                  `'standard'` drive, precise at `'clean'`, gritty and singing at `'driven'`.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Driven acid line",
         code: "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n\
-              $unstable.filter.lp($saw(seq), $sine('0.25hz').range('c3', 'c6'), 4, { drive: 'driven' }).out()",
+              const env = $perc(seq.trig, { decay: 0.2 })\n\
+              $unstable.filter.lp($saw(seq), env.range('c3', 'c6'), 4, { drive: 'driven' }).out()",
     }],
 };
 
@@ -125,6 +126,7 @@ filter_module! {
     docs = LP_DOCS,
     name = "$unstable.filter.lp", ident = LpFilter, kernel = LpBiquad,
     output_doc = "lowpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
         #[input("how steeply it cuts", default = "db24")]
         slope: FilterSlope,

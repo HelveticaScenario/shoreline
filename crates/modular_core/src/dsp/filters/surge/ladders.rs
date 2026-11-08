@@ -19,13 +19,13 @@ use crate::module_docs::{DocExample, ModuleDocs};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum LadderSlope {
-    /// 6 dB/oct (1-pole tap).
+    /// 6 dB/oct, the gentlest slope
     Db6,
-    /// 12 dB/oct (2-pole tap).
+    /// 12 dB/oct
     Db12,
-    /// 18 dB/oct (3-pole tap).
+    /// 18 dB/oct
     Db18,
-    /// 24 dB/oct (full 4-pole ladder).
+    /// 24 dB/oct, the full classic ladder
     #[default]
     Db24,
 }
@@ -98,12 +98,13 @@ impl Filter for LegacyLadder {
 const LEGACY_LADDER_DOCS: ModuleDocs = ModuleDocs {
     summary: "Transistor ladder lowpass",
     description: "The classic 4-pole transistor-ladder lowpass, fat and round, with 6 to 24 dB \
-                  taps. It rings and self-oscillates as the resonance nears the top.",
+                  slopes. Lighter and cleaner than `vintageLadder`'s circuit models, it rings and \
+                  self-oscillates as the resonance nears the top.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Fat ladder bass",
-        code: "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n\
+        code: "const seq = $cycle($p('a1 ~ a1 [a2 a1] ~ e2 g1 ~'))\n\
               $unstable.filter.legacyLadder($saw(seq), $perc(seq.trig, { decay: 0.25 }).range('c3', 'c6'), 3).out()",
     }],
 };
@@ -112,6 +113,7 @@ filter_module! {
     docs = LEGACY_LADDER_DOCS,
     name = "$unstable.filter.legacyLadder", ident = LegacyLadderFilter, kernel = LegacyLadder,
     output_doc = "lowpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
         #[input("how steeply it cuts", default = "db24")]
         slope: LadderSlope,
@@ -309,7 +311,7 @@ const DIODE_LADDER_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Screaming acid line",
-        code: "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n\
+        code: "const seq = $cycle($p('c2 c3 [~ c2] eb3 c2 [g2 c3] bb1 c2'))\n\
               $unstable.filter.diodeLadder($saw(seq), $perc(seq.trig, { decay: 0.15 }).range('c3', 'c7'), 4).out()",
     }],
 };
@@ -318,6 +320,7 @@ filter_module! {
     docs = DIODE_LADDER_DOCS,
     name = "$unstable.filter.diodeLadder", ident = DiodeLadderFilter, kernel = DiodeLadder,
     output_doc = "lowpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
         #[input("how steeply it cuts", default = "db24")]
         slope: LadderSlope,

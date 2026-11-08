@@ -74,6 +74,7 @@ filter_module! {
     docs = AP_DOCS,
     name = "$unstable.filter.ap", ident = ApFilter, kernel = ApBiquad,
     output_doc = "allpass output",
+    cutoff_doc = "frequency the phase shift centres on",
     params = {},
     mode = |_p| (),
 }

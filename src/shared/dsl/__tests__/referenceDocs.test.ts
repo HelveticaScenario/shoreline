@@ -46,6 +46,7 @@ describe('renderDocContentJsDoc', () => {
             'Outputs every note of a chord.',
             '',
             '**Syntax**',
+            '',
             'A root, then a chord.',
             '',
             "- `root[chord]` — `'C[maj7]'` · *Gives:* the chord",

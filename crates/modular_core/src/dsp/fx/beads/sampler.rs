@@ -167,10 +167,10 @@ fn sampler_channel_count(params: &GranularSamplerParams) -> usize {
 
 const GRANULAR_SAMPLER_DOCS: ModuleDocs = ModuleDocs {
     summary: "Granular WAV player",
-    description: "`$granular` playing grains from a WAV file instead of a live input, one per \
-                  trigger: turn a sample into a texture, a stretched drone or a pitched cloud. \
-                  Each grain keeps the settings it started with, so for grain-to-grain variation \
-                  modulate them with something sampled on the same trigger, such as `$sah`.",
+    description: "Plays grains from a WAV file, one per trigger, the way `$granular` does from \
+                  a live input: turn a sample into a texture, a stretched drone or a pitched \
+                  cloud. For grain-to-grain variation, modulate its settings with something \
+                  sampled on the same trigger, such as `$sah`.",
     categories: &[ModuleCategory::Sampler],
     sections: &[],
     examples: &[DocExample {

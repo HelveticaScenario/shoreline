@@ -25,9 +25,9 @@ pub enum OverdriveMode {
     /// smooth, rounded saturation
     #[default]
     Soft,
-    /// hard clipping
+    /// hard clipping, buzzy and aggressive
     Hard,
-    /// asymmetric tube-style saturation with even harmonics
+    /// asymmetric tube-style grit, warmer and thicker
     Asym,
 }
 

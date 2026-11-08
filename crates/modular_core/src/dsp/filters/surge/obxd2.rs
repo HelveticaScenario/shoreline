@@ -26,10 +26,10 @@ const N_OBXD12_COEFF: usize = 5;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum ObxdDrive {
-    /// Standard feedback bias.
+    /// steady resonance that stays stable
     #[default]
     Standard,
-    /// Self-oscillation push — hotter feedback bias.
+    /// hotter resonance that tips into self-oscillation more easily
     Pushed,
 }
 
@@ -126,11 +126,12 @@ impl Filter for Obxd2Pole {
 /// Stamp one 2-pole passband module (they differ only in name, docs, and the
 /// passband offset into Surge XT's `sub` index).
 macro_rules! obxd2_module {
-    ($docs:path, $name:literal, $Struct:ident, $offset:literal, $passband:literal) => {
+    ($docs:path, $name:literal, $Struct:ident, $offset:literal, $passband:literal, $cutoff_doc:literal) => {
         filter_module! {
             docs = $docs,
             name = $name, ident = $Struct, kernel = Obxd2Pole,
             output_doc = $passband,
+            cutoff_doc = $cutoff_doc,
             params = {
                 #[input("how readily the filter self-oscillates", default = "standard")]
                 drive: ObxdDrive,
@@ -195,28 +196,32 @@ obxd2_module!(
     "$unstable.filter.obxd2Lp",
     Obxd2LpFilter,
     0,
-    "lowpass output"
+    "lowpass output",
+    "cutoff frequency"
 );
 obxd2_module!(
     OBXD2_BP_DOCS,
     "$unstable.filter.obxd2Bp",
     Obxd2BpFilter,
     1,
-    "bandpass output"
+    "bandpass output",
+    "centre frequency of the band"
 );
 obxd2_module!(
     OBXD2_HP_DOCS,
     "$unstable.filter.obxd2Hp",
     Obxd2HpFilter,
     2,
-    "highpass output"
+    "highpass output",
+    "cutoff frequency"
 );
 obxd2_module!(
     OBXD2_NOTCH_DOCS,
     "$unstable.filter.obxd2Notch",
     Obxd2NotchFilter,
     3,
-    "notch output"
+    "notch output",
+    "centre frequency of the notch"
 );
 
 #[cfg(test)]

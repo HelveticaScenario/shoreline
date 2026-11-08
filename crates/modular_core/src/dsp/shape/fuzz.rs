@@ -18,16 +18,16 @@ use crate::module_docs::{DocExample, ModuleDocs};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum FuzzMode {
-    /// Hard, gated fuzz.
+    /// hard, gated fuzz
     #[default]
     Fuzz,
-    /// Softer fuzz.
+    /// softer fuzz
     Soft,
-    /// Heavier, noisier fuzz.
+    /// heavier, noisier fuzz
     Heavy,
-    /// Fuzz focused around the zero crossings.
+    /// fuzz focused around the zero crossings
     Center,
-    /// Fuzz focused on the loud peaks.
+    /// fuzz focused on the loud peaks
     SoftEdge,
 }
 

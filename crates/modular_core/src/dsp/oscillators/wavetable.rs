@@ -158,7 +158,7 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Wavetable oscillator",
     description: "Plays the single-cycle frames of a wavetable WAV and blends \
                   between them, for evolving glassy, vocal or digital timbres. \
-                  Scan the frame with an LFO or envelope, and bend each cycle \
+                  Sweep `position` with an LFO or envelope, and bend each cycle \
                   further with a `$phase.*` warp.",
     categories: &[ModuleCategory::Oscillator],
     sections: &[],

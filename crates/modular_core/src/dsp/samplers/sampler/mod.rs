@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use self::voice::{RELEASE_SLOTS, Ramp, Release, Voice, push_release};
 use super::slice::SliceParam;
 use crate::module_category::ModuleCategory;
-use crate::module_docs::{DocExample, ModuleDocs};
+use crate::module_docs::{DocExample, DocSection, ModuleDocs};
 use crate::{
     Wav,
     dsp::utils::SchmittTrigger,
@@ -49,7 +49,7 @@ struct SamplerParams {
     #[deserr(default)]
     speed: Option<MonoSignal>,
     #[input(
-        "which slice plays: a signal (the whole file is one slice) or `[points, signal]`, points marking slice starts as fractions of the file from 0 to 1; read at each gate and each loop repeat, its whole part picks the slice (wrapping) and its fraction starts partway in"
+        "which slice plays, read at each gate and each loop repeat: a signal, or `[points, signal]` to cut the file into slices (see Slicing)"
     )]
     #[deserr(default)]
     slice: Option<SliceParam>,
@@ -153,16 +153,24 @@ const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
                   held notes or loops depending on `mode`. Change `speed` to pitch it up, down \
                   or into reverse, and step `slice` through a pattern to chop a break.",
     categories: &[ModuleCategory::Sampler],
-    sections: &[],
+    sections: &[DocSection {
+        title: "Slicing",
+        body: "Give `slice` a signal and the whole file is one slice. Give it `[points, signal]` \
+               to cut the file, each point a slice start as a fraction of the file from 0 to 1. \
+               Either way the signal's whole part picks the slice, wrapping past the last, and \
+               its fraction starts playback partway into it.",
+        table: None,
+        examples: &[],
+    }],
     examples: &[
-        DocExample {
-            title: "Kick on every beat",
-            code: "$sampler($wavs().kick, $clock.beatTrigger).out()",
-        },
         DocExample {
             title: "Chopped and rearranged loop",
             code: "const order = $cycle($p('0 2 1 3 0 0 3 2'))\n\
                    $sampler($wavs().pad, order.trig, { slice: [[0, 0.25, 0.5, 0.75], order], fade: 2 }).out()",
+        },
+        DocExample {
+            title: "Kick on every beat",
+            code: "$sampler($wavs().kick, $clock.beatTrigger).out()",
         },
     ],
 };

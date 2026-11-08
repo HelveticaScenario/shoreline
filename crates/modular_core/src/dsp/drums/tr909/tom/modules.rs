@@ -292,8 +292,8 @@ const LT909_DOCS: ModuleDocs = ModuleDocs {
         title: "Tom fill",
         code: "$tr909.kick($cycle($p('c*4')).trig).out()\n\
                $tr909.highTom($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()\n\
-               $tr909.midTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [~ c]')).trig).out()\n\
-               $tr909.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [c ~]')).trig).out()",
+               $tr909.midTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [c ~]')).trig).out()\n\
+               $tr909.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [~ c]')).trig).out()",
     }],
 };
 
@@ -308,8 +308,8 @@ tom_module! {
 
 const MT909_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-909 mid tom",
-    description: "The 909's mid tom: the low tom's bending, gritty tone, pitched higher \
-                  and shorter.",
+    description: "The 909's mid tom: a tone that bends down from the strike and grows \
+                  gritty as it fades, pitched between the low and high toms.",
     categories: &[ModuleCategory::Drum],
     sections: &[],
     examples: &[DocExample {
@@ -330,8 +330,8 @@ tom_module! {
 
 const HT909_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-909 high tom",
-    description: "The 909's high tom: the low tom's bending, gritty tone, the highest \
-                  and shortest of the three.",
+    description: "The 909's high tom: a tone that bends down from the strike and grows \
+                  gritty as it fades, the highest and shortest of the three.",
     categories: &[ModuleCategory::Drum],
     sections: &[],
     examples: &[DocExample {

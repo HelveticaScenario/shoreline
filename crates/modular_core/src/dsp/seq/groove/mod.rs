@@ -15,7 +15,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
-use crate::module_docs::{DocExample, ModuleDocs};
+use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
 use crate::{MonoSignal, param_errors::ModuleParamErrors};
 
 #[params]
@@ -67,10 +67,47 @@ const GROOVE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Timing and velocity groove",
     description: "Pushes steps of the grid early or late and gives each a velocity, for swing \
                   and shuffle on a single sequencer. Every sequencer follows the global groove \
-                  from `$setGroove` by default; pass this module and its `velocity` to one to \
-                  give it a feel of its own. Notes keep their written lengths.",
+                  from `$setGroove` by default; pass this module and its `velocity` to a \
+                  sequencer's `groove` and `velocity` to give it a feel of its own. Notes keep their written lengths.",
     categories: &[ModuleCategory::Sequencer],
-    sections: &[],
+    sections: &[DocSection {
+        title: "Templates",
+        body: "The template is an object; only `timing` is required.",
+        table: Some(DocTable {
+            columns: &["Field", "What it does"],
+            rows: &[
+                &[
+                    "`timing`",
+                    "how late (positive) or early each step lands, in grid steps; the pattern repeats every `timing.length` steps",
+                ],
+                &[
+                    "`velocity`",
+                    "each step's velocity from 0 to 1, one per `timing` entry; all full when left out",
+                ],
+                &[
+                    "`grid`",
+                    "steps per cycle: 16 (the default) is sixteenths in a 4/4 bar, 8 eighths",
+                ],
+                &[
+                    "`amount`",
+                    "how strongly the timing applies: 0 straight, 1 (the default) as written",
+                ],
+                &[
+                    "`velocityAmount`",
+                    "how strongly the velocities apply: 0 every step full, 1 (the default) as written",
+                ],
+                &[
+                    "`random`",
+                    "the largest random push early or late on each step, in grid steps",
+                ],
+                &[
+                    "`seed`",
+                    "picks the random pushes, so a groove keeps the same feel each time",
+                ],
+            ],
+        }),
+        examples: &[],
+    }],
     examples: &[DocExample {
         title: "Shuffled eighths with soft offbeats",
         code: "const g = $groove({ timing: [0, 0.3], velocity: [1, 0.6], grid: 8 })\n\

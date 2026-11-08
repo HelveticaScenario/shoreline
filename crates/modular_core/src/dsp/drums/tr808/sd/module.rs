@@ -39,7 +39,7 @@ struct Sd808Params {
     #[deserr(default)]
     snappy: Option<PolySignal>,
     #[input(
-        "pitch of the low tone, the high one following; stock is ≈250 Hz, and the hit gets louder or quieter far from it",
+        "pitch of the low tone, the high one following; stock is ≈250 Hz; its level shifts as you tune far from stock",
         type = pitch,
         default = -0.0678,
     )]
@@ -76,8 +76,8 @@ struct Channel {
 
 const SD808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 snare drum",
-    description: "The 808's snare: two drum tones under a burst of bright noise, from a \
-                  dull thump to a crisp, rattling snap.",
+    description: "The 808's snare: two drum tones under a burst of bright noise, which \
+                  `snappy` takes from a dull thump to a crisp, rattling snap.",
     categories: &[ModuleCategory::Drum],
     sections: &[],
     examples: &[DocExample {

@@ -95,7 +95,7 @@ const CHORD_DOCS: ModuleDocs = ModuleDocs {
                     ],
                     &[
                         "Chords",
-                        "maj, min, dim, aug, sus2, sus4, 5, 6, m6, 69, 7, maj7, m7, mMaj7, dim7, m7b5, aug7, maj7#5, 7sus4, 7sus2, 7b5, 9, maj9, m9, 11, maj11, m11, 13, maj13, m13, 7b9, 7#9, 7#11, add9, madd9, add11",
+                        "maj / M, min / m, dim, aug, sus2, sus4, 5, 6, m6, 69, 7, maj7, m7, mMaj7, dim7, m7b5, aug7, maj7#5, 7sus4, 7sus2, 7b5, 9, maj9, m9, 11, maj11, m11, 13, maj13, m13, 7b9, 7#9, 7#11, add9, madd9, add11",
                     ],
                 ],
             }),
