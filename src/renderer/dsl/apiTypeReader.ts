@@ -40,7 +40,7 @@ const NUM = String.raw`[-−]?\d+(?:\.\d+)?`;
 const RANGE_RE = new RegExp(String.raw`(${NUM})\s*(?:–|\.\.)\s*(${NUM})`);
 const SYMMETRIC_RE = new RegExp(String.raw`±\s*(${NUM})`);
 const DEFAULT_RE = new RegExp(
-    String.raw`\bdefault(?:s to)?:?\s+(${NUM})(?![\w.])`,
+    String.raw`\bdefault(?:s to)?:?\s+(${NUM})(?!\w|\.\d)`,
     'i',
 );
 
@@ -77,7 +77,7 @@ export class TypeReader {
 
     signature(decl: ts.SignatureDeclarationBase): ApiParam[] {
         const paramDocs = paramDocTexts(decl);
-        return decl.parameters.map((p) => {
+        const params = decl.parameters.map((p): ApiParam => {
             const name = ts.isIdentifier(p.name) ? p.name.text : '';
             const rest = p.dotDotDotToken !== undefined;
             // A rest parameter's type is the array of what each argument takes.
@@ -98,6 +98,23 @@ export class TypeReader {
                 signal: type ? this.isSignal(type) : false,
             };
         });
+        // The summary describes an undocumented first parameter unless it
+        // names another parameter or option member, as `$delay`'s names
+        // `feedback`: then its range and default are that one's.
+        const [first, ...rest] = params;
+        const summary = jsDocText(decl);
+        const others = rest.flatMap((p) => [
+            p.name,
+            ...(p.options?.keys() ?? []),
+        ]);
+        if (
+            first &&
+            !paramDocs.has(first.name) &&
+            !others.some((name) => summary.includes(`\`${name}\``))
+        ) {
+            params[0] = { ...first, hints: docHints(summary) };
+        }
+        return params;
     }
 
     isSignal(type: ts.TypeNode, depth = 0): boolean {
@@ -271,8 +288,7 @@ function jsDocText(node: ts.Node): string {
         .join(' ');
 }
 
-/** `@param` text by parameter name (`config.zoom` for a member), falling
- *  back to the summary for an undocumented first parameter. */
+/** `@param` text by parameter name, `config.zoom` for a member. */
 function paramDocTexts(decl: ts.SignatureDeclarationBase): Map<string, string> {
     const docs = new Map<string, string>();
     for (const tag of ts.getJSDocTags(decl)) {
@@ -282,10 +298,6 @@ function paramDocTexts(decl: ts.SignatureDeclarationBase): Map<string, string> {
                 ts.getTextOfJSDocComment(tag.comment) ?? '',
             );
         }
-    }
-    const first = decl.parameters[0];
-    if (first && ts.isIdentifier(first.name) && !docs.has(first.name.text)) {
-        docs.set(first.name.text, jsDocText(decl));
     }
     return docs;
 }

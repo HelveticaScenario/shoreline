@@ -21,10 +21,11 @@ const MAX_ANALYZED_SOURCE_LENGTH = 100_000;
 
 /** Where the caret goes once the action's edit applies. The command gets
  *  this object itself, so the offset resolving the action writes is the one
- *  it reads. */
+ *  it reads; null until then, so an action applied without an edit leaves
+ *  the caret alone. */
 interface CaretTarget {
     uri: string;
-    offset: number;
+    offset: number | null;
 }
 
 interface ControlCodeAction extends languages.CodeAction {
@@ -49,7 +50,7 @@ export function registerControlQuickFixProvider(
                 .getEditors()
                 .find((e) => e.getModel()?.uri.toString() === caret.uri);
             const model = target?.getModel();
-            if (!target || !model) {
+            if (!target || !model || caret.offset === null) {
                 return;
             }
             const position = model.getPositionAt(caret.offset);
@@ -119,7 +120,10 @@ export function registerControlQuickFixProvider(
             // edit is left for resolveCodeAction to fill in.
             const versionId = model.getVersionId();
             const actions = fixes.map((fix): ControlCodeAction => {
-                const caret = { offset: 0, uri: model.uri.toString() };
+                const caret: CaretTarget = {
+                    offset: null,
+                    uri: model.uri.toString(),
+                };
                 return {
                     caret,
                     command: {
