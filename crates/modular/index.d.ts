@@ -630,7 +630,8 @@ export interface SignalParamSchema {
   description: string
   /** `audio`, `control`, `pitch`, `frequency`, `gate` or `trig`. */
   signalType: string
-  defaultValue: number
+  /** What a disconnected input reads, when it reads a fixed value. */
+  defaultValue?: number
   /** Lower bound of the usable range; `None` when unbounded below. */
   minValue?: number
   /** Upper bound of the usable range; `None` when unbounded above. */

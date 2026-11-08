@@ -2549,7 +2549,7 @@ function buildConfigArg(moduleSchema: Schema): {
             paramMeta(moduleSchema, key),
         );
         if (doc) {
-            paramDocs.push(`${key} - ${doc}`);
+            paramDocs.push(`  - ${key} - ${doc}`);
         }
 
         // Append enum variant descriptions as sub-bullets
@@ -2660,9 +2660,7 @@ function buildSignature(
     args.push(configArg);
     if (paramDocs.length > 0) {
         docLines.push(`@param config Configuration object`);
-        for (const doc of paramDocs) {
-            docLines.push(`  - ${doc}`);
-        }
+        docLines.push(...paramDocs);
     } else {
         docLines.push(`@param config Configuration object`);
     }

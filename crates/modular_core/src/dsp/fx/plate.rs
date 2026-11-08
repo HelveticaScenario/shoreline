@@ -116,7 +116,7 @@ struct PlateParams {
     #[deserr(default)]
     decay: Option<MonoSignal>,
     #[input(
-        "wobbles the tank's delay times to soften metallic ringing; patch an LFO here (±5 V sways about ±0.1 ms)",
+        "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.1 ms",
         type = control,
         default = 0.0,
         control_range = (-5.0, 5.0),
@@ -130,7 +130,11 @@ struct PlateParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PlateOutputs {
-    #[output("output", "stereo reverb, fully wet (left, right)", default)]
+    #[output(
+        "output",
+        "stereo reverb, fully wet, as left and right channels",
+        default
+    )]
     sample: PolyOutput,
 }
 

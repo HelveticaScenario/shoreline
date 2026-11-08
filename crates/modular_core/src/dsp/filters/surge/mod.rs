@@ -34,7 +34,7 @@ macro_rules! filter_module {
             struct [<$Struct Params>] {
                 #[input("the sound to filter", type = audio)]
                 input: crate::poly::PolySignal,
-                #[input("cutoff frequency", type = frequency, default = 0.0)]
+                #[input("cutoff frequency; the notch centre, comb pitch, or sample clock for those filters", type = frequency, default = 0.0)]
                 cutoff: crate::poly::PolySignal,
                 #[input(
                     "filter resonance; high values approach self-oscillation",

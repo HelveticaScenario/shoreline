@@ -14,7 +14,7 @@ struct LowpassFilterParams {
     #[input("the sound to filter", type = audio)]
     input: PolySignal,
     #[input(
-        "cutoff frequency; held between 20 Hz and just under half the sample rate",
+        "cutoff frequency; tops out just under half the sample rate",
         type = frequency,
         default = 0.0,
         range = (-3.71, ..),

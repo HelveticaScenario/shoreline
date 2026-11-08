@@ -93,9 +93,7 @@ struct ErraticParams {
     #[input("top of the input's range", type = control, default = 5.0, control_range = (-5.0, 5.0))]
     #[deserr(default)]
     max: Option<PolySignal>,
-    #[input(
-        "shift adds a random offset; clamp also clamps it to [min, max]; blend moves toward a random value in [min, max] (default shift)"
-    )]
+    #[input("how the random value moves the input", default = "shift")]
     #[serde(default)]
     #[deserr(default)]
     mode: ErraticMode,

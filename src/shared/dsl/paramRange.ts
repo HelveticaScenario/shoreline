@@ -3,12 +3,13 @@
  * Monaco JSDoc generator and the Reference pane so both show the same
  * metadata next to a description.
  */
-import { formatHzLiteral, voltsToHz, voltsToNoteName } from './sliderUnits';
+import { voltsToHz, voltsToNoteName } from './sliderUnits';
 
 /** The signal metadata a param carries in `ModuleSchema.signalParams`. */
 export interface SignalMeta {
     signalType: string;
-    defaultValue: number;
+    /** Absent when a disconnected input has no fixed value. */
+    defaultValue?: number;
     minValue?: number;
     maxValue?: number;
 }
@@ -28,10 +29,21 @@ export interface OutputMeta {
     maxValue?: number;
 }
 
-const num = (n: number): string => Number(n.toPrecision(4)).toString();
+/** A number for reading, with a true minus sign. */
+const num = (n: number): string =>
+    Number(n.toPrecision(4)).toString().replace('-', '−');
 
-const hz = (volts: number): string =>
-    formatHzLiteral(Number(voltsToHz(volts).toPrecision(3)));
+/** V/Oct volts as a frequency, e.g. `20 Hz` or `2.4 kHz`. */
+const hz = (volts: number): string => {
+    const f = Number(voltsToHz(volts).toPrecision(3));
+    return f >= 1000 ? `${num(f / 1000)} kHz` : `${num(f)} Hz`;
+};
+
+/** V/Oct volts as a note name, e.g. `C4` or `F#2`. */
+const note = (volts: number): string => {
+    const name = voltsToNoteName(volts);
+    return name[0].toUpperCase() + name.slice(1).replace('-', '−');
+};
 
 function formatBounds(
     min: number | undefined,
@@ -55,7 +67,7 @@ function formatBounds(
 
 /**
  * Range and default of a signal param, e.g. `0–5, default 2.5`, `≥ 0`,
- * `note, default c4`, `gate`. A `required` param has no default to show.
+ * `note, default C4`, `gate`. A `required` param has no default to show.
  * `undefined` when there is nothing to add (an unbounded audio input).
  */
 export function formatSignalMeta(
@@ -70,16 +82,12 @@ export function formatSignalMeta(
             return 'trigger';
         case 'pitch': {
             parts.push('note');
-            const range = formatBounds(
-                meta.minValue,
-                meta.maxValue,
-                voltsToNoteName,
-            );
+            const range = formatBounds(meta.minValue, meta.maxValue, note);
             if (range) {
                 parts.push(range);
             }
-            if (!required) {
-                parts.push(`default ${voltsToNoteName(meta.defaultValue)}`);
+            if (!required && meta.defaultValue !== undefined) {
+                parts.push(`default ${note(meta.defaultValue)}`);
             }
             break;
         }
@@ -88,7 +96,7 @@ export function formatSignalMeta(
             if (range) {
                 parts.push(range);
             }
-            if (!required) {
+            if (!required && meta.defaultValue !== undefined) {
                 parts.push(`default ${hz(meta.defaultValue)}`);
             }
             break;
@@ -98,7 +106,11 @@ export function formatSignalMeta(
             if (range) {
                 parts.push(range);
             }
-            if (!required && meta.signalType !== 'audio') {
+            if (
+                !required &&
+                meta.signalType !== 'audio' &&
+                meta.defaultValue !== undefined
+            ) {
                 parts.push(`default ${num(meta.defaultValue)}`);
             }
         }

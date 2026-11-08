@@ -82,6 +82,13 @@
     padding: 15px;
     margin-bottom: 15px;
     border-radius: 4px;
+    /* Long names and signatures break anywhere rather than widen the card. */
+    overflow-wrap: anywhere;
+}
+
+.docs-panel .module-card pre {
+    max-width: 100%;
+    overflow-wrap: normal;
 }
 
 .docs-panel .module-documentation {

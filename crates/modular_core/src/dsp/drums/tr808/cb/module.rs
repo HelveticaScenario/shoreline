@@ -18,7 +18,7 @@ struct Cb808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz, level held steady from -0.5 to 2.5 V",
+        "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz, and the hit gets louder or quieter far from it",
         type = pitch,
         default = 1.0454,
     )]

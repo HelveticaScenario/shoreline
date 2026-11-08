@@ -29,7 +29,7 @@ pub enum MixMode {
 pub struct MixParams {
     #[input("the signals to mix; channel n of each input mixes into output channel n")]
     pub inputs: Vec<PolySignal>,
-    #[input("how the inputs combine (default `'sum'`)")]
+    #[input("how the inputs combine", default = "sum")]
     #[serde(default)]
     #[deserr(default)]
     pub mode: MixMode,
@@ -48,7 +48,7 @@ pub struct MixParams {
 struct MixOutputs {
     #[output(
         "output",
-        "the mix, keeping each channel separate (not a mono fold-down)",
+        "the mix, keeping each channel separate rather than folding to mono",
         default
     )]
     sample: PolyOutput,

@@ -147,7 +147,6 @@ pub struct SeqParams {
     #[input(
         "velocity held from each note start onto the `velocity` output; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
         type = control,
-        default = 5.0,
         control_range = (0.0, 5.0),
     )]
     #[default_connection(module = RootClock, port = "grooveVelocity", channel = 0)]
@@ -157,7 +156,7 @@ pub struct SeqParams {
     #[deserr(default)]
     pub channels: Option<usize>,
     #[input(
-        "[offset, length] of the looped stretch of the pattern, in cycles (fractions allowed)"
+        "[offset, length] of the looped stretch of the pattern, in cycles; fractions are allowed"
     )]
     #[serde(default = "default_ribbon")]
     #[deserr(default = default_ribbon())]

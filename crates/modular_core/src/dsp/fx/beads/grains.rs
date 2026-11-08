@@ -102,7 +102,10 @@ struct GranularParams {
     )]
     #[deserr(default)]
     mix: Option<PolySignal>,
-    #[input("recording character: digital, vintage, cleanTape or dirtyTape (default digital)")]
+    #[input(
+        "recording character: how clean it sounds and how much audio it holds",
+        default = "digital"
+    )]
     #[serde(default)]
     #[deserr(default)]
     quality: GranularQuality,
@@ -118,7 +121,7 @@ struct GranularParams {
 struct GranularOutputs {
     #[output(
         "output",
-        "stereo mix of every voice (left, right)",
+        "stereo mix of every voice, as left and right channels",
         default,
         range = (-5.0, 5.0),
         channels = 2

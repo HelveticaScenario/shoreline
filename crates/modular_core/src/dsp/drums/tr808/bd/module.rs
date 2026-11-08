@@ -37,7 +37,7 @@ struct Bd808Params {
     #[deserr(default)]
     decay: Option<PolySignal>,
     #[input(
-        "pitch; stock is ≈49.5 Hz, level held steady from -3.5 to -1 V",
+        "pitch; stock is ≈49.5 Hz, and the hit gets louder or quieter far from it",
         type = pitch,
         default = -2.4035,
     )]

@@ -28,7 +28,7 @@ struct FallingEdgeDetectorParams {
 struct EdgeDetectorOutputs {
     #[output(
         "output",
-        "a short trigger each time the input moves in the watched direction",
+        "high while the input keeps rising for `$rising`, or falling for `$falling`, and for a trigger's length after",
         default,
         range = (0.0, 5.0)
     )]

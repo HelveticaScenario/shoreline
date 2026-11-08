@@ -156,9 +156,9 @@ filter_module! {
     name = "$unstable.filter.comb", ident = CombFilter, kernel = Comb,
     output_doc = "comb output",
     params = {
-        #[input("feedback polarity: pos or neg (default pos)")]
+        #[input("feedback polarity: which harmonic series rings", default = "pos")]
         polarity: CombPolarity,
-        #[input("wet mix: half (50%) or full (100%; default half)")]
+        #[input("how much of the comb is heard against the dry signal", default = "half")]
         mix: CombMix,
     },
     mode = |p| {

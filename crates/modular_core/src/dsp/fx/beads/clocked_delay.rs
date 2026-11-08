@@ -126,7 +126,10 @@ struct ClockedDelayParams {
     )]
     #[deserr(default)]
     mix: Option<PolySignal>,
-    #[input("recording character: digital, vintage, cleanTape or dirtyTape (default digital)")]
+    #[input(
+        "recording character: how clean it sounds and how much audio it holds",
+        default = "digital"
+    )]
     #[serde(default)]
     #[deserr(default)]
     quality: GranularQuality,

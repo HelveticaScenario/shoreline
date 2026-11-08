@@ -28,7 +28,7 @@ struct Bd909Params {
     #[deserr(default)]
     freq: Option<PolySignal>,
     #[input(
-        "how long the pitch takes to fall to rest (the 909's tune knob)",
+        "how long the pitch takes to fall to rest; the 909's tune knob",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),

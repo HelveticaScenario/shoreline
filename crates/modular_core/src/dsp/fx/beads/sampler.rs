@@ -90,7 +90,7 @@ struct GranularSamplerParams {
     )]
     #[deserr(default)]
     width: Option<MonoSignal>,
-    #[input("sound character: digital, vintage, cleanTape or dirtyTape (default digital)")]
+    #[input("sound character: how clean it sounds", default = "digital")]
     #[serde(default)]
     #[deserr(default)]
     quality: GranularQuality,
@@ -130,7 +130,7 @@ impl crate::types::Connect for Loaded {
 struct GranularSamplerOutputs {
     #[output(
         "output",
-        "stereo mix of every voice (left, right)",
+        "stereo mix of every voice, as left and right channels",
         default,
         range = (-5.0, 5.0),
         channels = 2

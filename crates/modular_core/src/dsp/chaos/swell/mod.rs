@@ -70,7 +70,7 @@ struct SwellParams {
     #[deserr(default)]
     chop: Option<PolySignal>,
     #[input(
-        "directional spread: 0 sends every wave the same way, 5 brings them from every direction (a confused sea)",
+        "directional spread: 0 sends every wave the same way, 5 brings them from every direction, a confused sea",
         type = control,
         default = 1.5,
         range = (0, 5),
