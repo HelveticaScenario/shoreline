@@ -1,7 +1,7 @@
 [
   {
     "name": "oscillator",
-    "description": "Sound sources driven by a frequency or V/Oct pitch."
+    "description": "Oscillators and other sound sources."
   },
   {
     "name": "phase",
@@ -69,6 +69,6 @@
   },
   {
     "name": "utility",
-    "description": "Signal routing and buffers."
+    "description": "General signal plumbing such as routing and smoothing."
   }
 ]

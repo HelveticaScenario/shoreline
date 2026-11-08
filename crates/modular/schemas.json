@@ -18598,6 +18598,7 @@
     "name": "$buffer",
     "documentation": "Writes an input signal into a circular buffer each sample tick.\nThe buffer is owned by this module and exposed as a buffer output.\nReaders ($delayRead, $bufRead) connect to it via buffer params.",
     "categories": [
+      "effect",
       "utility"
     ],
     "paramsSchema": {
@@ -19947,7 +19948,7 @@
     "name": "$slew",
     "documentation": "Slew limiter that smooths abrupt voltage changes.\n\nSeparate **rise** and **fall** times control how quickly the output can\nincrease or decrease. Times are specified in **seconds per volt** — the\ntime the output takes to slew by 1 V. For example, a rise time of `0.1`\nmeans the output climbs 1 V in 0.1 s; a 5 V gate signal would therefore\ntake 0.5 s to reach full height.\n\nUse `$slew` to add portamento to pitch signals, smooth noisy control\nvoltages, or create envelope-like shapes from gate signals.\n\n```js\n// portamento: glide between notes (0.1 s per volt of pitch change)\n$sine($slew($cycle($p('c3 e3 g3')), { rise: 0.1, fall: 0.1 }))\n```",
     "categories": [
-      "modulation"
+      "utility"
     ],
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",

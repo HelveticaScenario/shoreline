@@ -49,6 +49,7 @@ use std::result::Result as StdResult;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::dsp::utils::{hz_to_voct, midi_to_voct};
+use crate::module_category::ModuleCategory;
 use crate::patch::Patch;
 
 // ============================================================================
@@ -2674,8 +2675,6 @@ impl FromNapiValue for SchemaContainer {
 pub struct PositionalArg {
     pub name: String,
 }
-
-pub use crate::module_category::ModuleCategory;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

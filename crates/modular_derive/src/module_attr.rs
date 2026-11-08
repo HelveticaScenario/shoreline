@@ -15,7 +15,7 @@ struct ModuleAttr {
     /// Custom function to derive channel count from params struct.
     /// The function must have signature: fn(&ParamsStruct) -> Option<usize>
     channels_derive: Option<syn::Path>,
-    /// Variant names of `crate::types::ModuleCategory`, written in snake_case.
+    /// Variant names of `crate::module_category::ModuleCategory`, written in snake_case.
     categories: Vec<Ident>,
 }
 
@@ -123,6 +123,12 @@ impl syn::parse::Parse for ModuleAttrArgs {
                         Punctuated::parse_terminated(&content)?;
                     let mut list: Vec<Ident> = Vec::new();
                     for category in parsed {
+                        if category.to_string() != category.to_string().to_case(Case::Snake) {
+                            return Err(syn::Error::new(
+                                category.span(),
+                                format!("category '{category}' must be written in snake_case"),
+                            ));
+                        }
                         if list.contains(&category) {
                             return Err(syn::Error::new(
                                 category.span(),
@@ -317,7 +323,7 @@ fn impl_module_macro_attr(
         .iter()
         .map(|category| {
             let variant = Ident::new(&category.to_string().to_case(Case::Pascal), category.span());
-            quote! { crate::types::ModuleCategory::#variant }
+            quote! { crate::module_category::ModuleCategory::#variant }
         })
         .collect();
 
