@@ -22,12 +22,12 @@ import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import type { ParamRef } from './apiParamControls';
 import type { ApiIndex } from './apiSignatures';
 import {
-    appendCallArgument,
+    appendArgument,
+    appendObjectArgument,
     appendObjectProperty,
-    introducesSyntaxErrors,
-    parseErrors,
-} from './controlFixEdits';
-import type { ListEdit, TextEdit } from './controlFixEdits';
+} from './listEdits';
+import type { CodeStyle, ListEdit, TextEdit } from './listEdits';
+import { introducesSyntaxErrors, parseErrors } from './syntaxCheck';
 import { asLiteral, createCallResolver } from './paramCallResolver';
 import type { ResolvedCall } from './paramCallResolver';
 import { addChoices, wrapChoices } from './paramControls';
@@ -55,8 +55,9 @@ export function computeControlQuickFixes(
     source: string,
     cursorOffset: number,
     { schemas, index }: ControlApi,
-    quote: string,
+    layout: CodeStyle,
 ): ControlQuickFix[] {
+    const { quote } = layout;
     const file = ts.createSourceFile(
         'quickfix.js',
         source,
@@ -172,7 +173,7 @@ export function computeControlQuickFixes(
         }
         const resolved = resolveCall(node);
         if (resolved) {
-            fixes.push(...addFixes(file, node, resolved, label, quote));
+            fixes.push(...addFixes(file, node, resolved, label, layout));
             break;
         }
     }
@@ -191,8 +192,9 @@ function addFixes(
     call: ts.CallExpression,
     resolved: ResolvedCall,
     label: (base: string) => string,
-    quote: string,
+    layout: CodeStyle,
 ): ControlQuickFix[] {
+    const { quote } = layout;
     const args = call.arguments;
     const fixes: ControlQuickFix[] = [];
     /** `edit` appends an element whose control call `control` starts
@@ -255,13 +257,10 @@ function addFixes(
                 quote,
             )) {
                 const prop = prefix + choice.text;
-                if (obj) {
-                    const edit = appendObjectProperty(file, obj, prop);
-                    push(choice.title, choice.text, edit, prefix.length);
-                } else {
-                    const edit = appendCallArgument(file, call, `{ ${prop} }`);
-                    push(choice.title, choice.text, edit, 2 + prefix.length);
-                }
+                const edit = obj
+                    ? appendObjectProperty(file, obj, prop, layout)
+                    : appendObjectArgument(file, call, prop, layout);
+                push(choice.title, choice.text, edit, prefix.length);
             }
         }
     }
@@ -276,7 +275,7 @@ function addFixes(
                 label,
                 quote,
             )) {
-                const edit = appendCallArgument(file, call, choice.text);
+                const edit = appendArgument(file, call, choice.text);
                 push(choice.title, choice.text, edit, 0);
             }
         }

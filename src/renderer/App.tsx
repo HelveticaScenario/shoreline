@@ -42,7 +42,7 @@ import type { EditorBuffer } from './types/editor';
 import { applySliderChange } from './app/sliderChange';
 import { applyButtonChange, applyGroupCollapse } from './app/buttonChange';
 import { resolvePrettierOptions } from './components/monaco/formattingProvider';
-import { codeStyleFromPrettier } from './dsl/objectPropertyInsert';
+import { codeStyleFromPrettier } from './dsl/listEdits';
 import { bindControls } from './app/controlBinding';
 import { performanceControls } from './app/performanceControls';
 import { formatPath } from './components/monaco/monacoHelpers';
