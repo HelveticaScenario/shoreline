@@ -18,6 +18,7 @@
 import ts from 'typescript';
 
 import { parseTransient } from '../../shared/dsl/ast/parse';
+import { findDescendant } from '../../shared/dsl/ast/walk';
 import type { PrettierConfig } from '../../shared/ipcTypes';
 
 /** The Prettier options generated code follows. */
@@ -188,24 +189,37 @@ function bracketShape(
     pad: string,
     closeKind: ts.SyntaxKind,
 ): ListShape | null {
-    // The literal's own last child, not the last token beneath it: a nested
-    // literal's bracket must not stand in for a missing outer one.
-    const close = node.getChildren(file).at(-1);
-    if (!close || close.kind !== closeKind) {
+    const close = closingTokenStart(node, file, closeKind);
+    if (close === null) {
         return null;
     }
     return {
-        close: close.getStart(file),
+        close,
         elements,
         open: node.getStart(file) + 1,
         pad,
     };
 }
 
-function argumentShape(
+/** Where `node`'s closing bracket of kind `closeKind` starts, or null when
+ *  the parser closed it without one. */
+export function closingTokenStart(
+    node: ts.Node,
+    file: ts.SourceFile,
+    closeKind: ts.SyntaxKind,
+): number | null {
+    // The literal's own last child, not the last token beneath it: a nested
+    // literal's bracket must not stand in for a missing outer one.
+    const close = node.getChildren(file).at(-1);
+    return close?.kind === closeKind ? close.getStart(file) : null;
+}
+
+/** A call's argument list: just past `(`, and at `)`. Null when the parser
+ *  found no closing paren. */
+export function callParens(
     call: ts.CallExpression,
     file: ts.SourceFile,
-): ListShape | null {
+): { open: number; close: number } | null {
     const children = call.getChildren(file);
     const open = children.find((c) => c.kind === ts.SyntaxKind.OpenParenToken);
     const close = children.findLast(
@@ -214,12 +228,15 @@ function argumentShape(
     if (!open || !close || close.getStart(file) < open.getEnd()) {
         return null;
     }
-    return {
-        close: close.getStart(file),
-        elements: call.arguments,
-        open: open.getEnd(),
-        pad: '',
-    };
+    return { close: close.getStart(file), open: open.getEnd() };
+}
+
+function argumentShape(
+    call: ts.CallExpression,
+    file: ts.SourceFile,
+): ListShape | null {
+    const parens = callParens(call, file);
+    return parens && { ...parens, elements: call.arguments, pad: '' };
 }
 
 /**
@@ -481,23 +498,14 @@ function nodeAt(
     end: number,
     kind: ts.SyntaxKind,
 ): ts.Node | undefined {
-    let found: ts.Node | undefined;
-    const visit = (node: ts.Node) => {
-        if (found || node.end < start || node.pos > start) {
-            return;
-        }
-        if (
+    return findDescendant(
+        file,
+        (node): node is ts.Node =>
             node.kind === kind &&
             node.getStart(file) === start &&
-            node.getEnd() === end
-        ) {
-            found = node;
-            return;
-        }
-        ts.forEachChild(node, visit);
-    };
-    visit(file);
-    return found;
+            node.getEnd() === end,
+        start,
+    );
 }
 
 /** A block or line comment; the group keeps comments in `split` output. */

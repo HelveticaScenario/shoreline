@@ -95,13 +95,13 @@
       {
         "anchor": 107,
         "gainClear": null,
-        "gainSet": {"end":124,"start":123,"text":", gain: 0.5 "},
+        "gainSet": {"end":123,"start":123,"text":", gain: 0.5"},
         "muteOff": {"end":125,"start":111,"text":""},
         "muteOn": {"end":123,"start":119,"text":"true"},
         "panClear": null,
-        "panSet": {"end":124,"start":123,"text":", pan: 0.25 "},
+        "panSet": {"end":123,"start":123,"text":", pan: 0.25"},
         "soloOff": null,
-        "soloOn": {"end":124,"start":123,"text":", solo: true "}
+        "soloOn": {"end":123,"start":123,"text":", solo: true"}
       },
       {
         "anchor": 183,
@@ -268,13 +268,13 @@
         {
           "anchor": 107,
           "gainClear": null,
-          "gainSet": {"end":124,"start":123,"text":", gain: 0.5 "},
+          "gainSet": {"end":123,"start":123,"text":", gain: 0.5"},
           "muteOff": {"end":125,"start":111,"text":""},
           "muteOn": {"end":123,"start":119,"text":"true"},
           "panClear": null,
-          "panSet": {"end":124,"start":123,"text":", pan: 0.25 "},
+          "panSet": {"end":123,"start":123,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":124,"start":123,"text":", solo: true "}
+          "soloOn": {"end":123,"start":123,"text":", solo: true"}
         }
       ],
       "setOutputGain": {"end":142,"start":142,"text":"\n$setOutputGain(0.5)\n"}
@@ -310,13 +310,13 @@
         {
           "anchor": 105,
           "gainClear": null,
-          "gainSet": {"end":122,"start":121,"text":", gain: 0.5 "},
+          "gainSet": {"end":121,"start":121,"text":", gain: 0.5"},
           "muteOff": {"end":123,"start":109,"text":""},
           "muteOn": {"end":121,"start":117,"text":"true"},
           "panClear": null,
-          "panSet": {"end":122,"start":121,"text":", pan: 0.25 "},
+          "panSet": {"end":121,"start":121,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":122,"start":121,"text":", solo: true "}
+          "soloOn": {"end":121,"start":121,"text":", solo: true"}
         },
         {
           "anchor": 181,
@@ -388,13 +388,13 @@
         {
           "anchor": 105,
           "gainClear": null,
-          "gainSet": {"end":122,"start":121,"text":", gain: 0.5 "},
+          "gainSet": {"end":121,"start":121,"text":", gain: 0.5"},
           "muteOff": {"end":123,"start":109,"text":""},
           "muteOn": {"end":121,"start":117,"text":"true"},
           "panClear": null,
-          "panSet": {"end":122,"start":121,"text":", pan: 0.25 "},
+          "panSet": {"end":121,"start":121,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":122,"start":121,"text":", solo: true "}
+          "soloOn": {"end":121,"start":121,"text":", solo: true"}
         },
         {
           "anchor": 181,
@@ -468,13 +468,13 @@
         {
           "anchor": 105,
           "gainClear": null,
-          "gainSet": {"end":122,"start":121,"text":", gain: 0.5 "},
+          "gainSet": {"end":121,"start":121,"text":", gain: 0.5"},
           "muteOff": {"end":123,"start":109,"text":""},
           "muteOn": {"end":121,"start":117,"text":"true"},
           "panClear": null,
-          "panSet": {"end":122,"start":121,"text":", pan: 0.25 "},
+          "panSet": {"end":121,"start":121,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":122,"start":121,"text":", solo: true "}
+          "soloOn": {"end":121,"start":121,"text":", solo: true"}
         },
         {
           "anchor": 181,
@@ -548,13 +548,13 @@
         {
           "anchor": 107,
           "gainClear": null,
-          "gainSet": {"end":124,"start":123,"text":", gain: 0.5 "},
+          "gainSet": {"end":123,"start":123,"text":", gain: 0.5"},
           "muteOff": {"end":125,"start":111,"text":""},
           "muteOn": {"end":123,"start":119,"text":"true"},
           "panClear": null,
-          "panSet": {"end":124,"start":123,"text":", pan: 0.25 "},
+          "panSet": {"end":123,"start":123,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":124,"start":123,"text":", solo: true "}
+          "soloOn": {"end":123,"start":123,"text":", solo: true"}
         },
         {
           "anchor": 183,
@@ -628,13 +628,13 @@
         {
           "anchor": 107,
           "gainClear": null,
-          "gainSet": {"end":124,"start":123,"text":", gain: 0.5 "},
+          "gainSet": {"end":123,"start":123,"text":", gain: 0.5"},
           "muteOff": {"end":125,"start":111,"text":""},
           "muteOn": {"end":123,"start":119,"text":"true"},
           "panClear": null,
-          "panSet": {"end":124,"start":123,"text":", pan: 0.25 "},
+          "panSet": {"end":123,"start":123,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":124,"start":123,"text":", solo: true "}
+          "soloOn": {"end":123,"start":123,"text":", solo: true"}
         },
         {
           "anchor": 183,
@@ -716,13 +716,13 @@
         {
           "anchor": 107,
           "gainClear": null,
-          "gainSet": {"end":124,"start":123,"text":", gain: 0.5 "},
+          "gainSet": {"end":123,"start":123,"text":", gain: 0.5"},
           "muteOff": {"end":125,"start":111,"text":""},
           "muteOn": {"end":123,"start":119,"text":"true"},
           "panClear": null,
-          "panSet": {"end":124,"start":123,"text":", pan: 0.25 "},
+          "panSet": {"end":123,"start":123,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":124,"start":123,"text":", solo: true "}
+          "soloOn": {"end":123,"start":123,"text":", solo: true"}
         },
         {
           "anchor": 183,

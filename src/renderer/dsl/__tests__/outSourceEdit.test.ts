@@ -86,7 +86,7 @@ describe('computeOutOptionEdit — set on .out', () => {
     test('multi-line call inserts correctly', () => {
         const source = `$sine('c4').out({\n    gain: 2,\n    label: 'lead',\n})`;
         expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
-            `$sine('c4').out({\n    gain: 2,\n    label: 'lead', mute: true })`,
+            `$sine('c4').out({\n    gain: 2,\n    label: 'lead', mute: true\n})`,
         );
     });
 });
@@ -421,8 +421,38 @@ describe('reading the call from the syntax tree', () => {
         ).toBe("$sine('c4').outMono(0, 0.5)");
         const gain = '$setOutputGain(0x1)';
         const edit = computeSetOutputGainEdit(gain, 0.25);
-        expect(edit && gain.slice(0, edit.start) + edit.text).toBe(
-            '$setOutputGain(0.25',
+        expect(
+            edit &&
+                gain.slice(0, edit.start) + edit.text + gain.slice(edit.end),
+        ).toBe('$setOutputGain(0.25)');
+    });
+
+    test('a comment beside a comma does not swallow or strand it', () => {
+        const added = "$sine('c4').out({\n  pan: 0, // wide\n})";
+        expect(apply(added, anchorOf(added, 'out'), 'mute', true)).toBe(
+            "$sine('c4').out({\n  pan: 0, mute: true // wide\n})",
         );
+        const removed = "$sine('c4').out({ mute: true /* m */, pan: 0 })";
+        expect(apply(removed, anchorOf(removed, 'out'), 'mute', false)).toBe(
+            "$sine('c4').out({ pan: 0 })",
+        );
+    });
+
+    test('the fader edits the last $setOutputGain call, the one that wins', () => {
+        const source = '$setOutputGain(1)\n$sine(1).out()\n$setOutputGain(0.5)';
+        const edit = computeSetOutputGainEdit(source, 0.25);
+        expect(
+            edit &&
+                source.slice(0, edit.start) +
+                    edit.text +
+                    source.slice(edit.end),
+        ).toBe('$setOutputGain(1)\n$sine(1).out()\n$setOutputGain(0.25)');
+    });
+
+    test('a spread argument is not wrapped into an options object', () => {
+        const source = "$sine('c4').outMono(0, ...rest)";
+        expect(
+            apply(source, anchorOf(source, 'outMono'), 'mute', true),
+        ).toBeNull();
     });
 });
