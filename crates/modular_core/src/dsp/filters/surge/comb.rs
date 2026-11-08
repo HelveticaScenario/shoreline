@@ -11,6 +11,8 @@ use super::coeffs::note_to_hz;
 use super::fastmath::softclip;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
 use super::sinc::{self, FIRIPOL_N, FIROFFSET};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Delay-line length (Surge `MAX_FB_COMB` with the default ×2 extension factor —
 /// Surge XT's longer-ringing combs). Must be a power of two.
@@ -47,10 +49,10 @@ pub struct CombMode {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum CombPolarity {
-    /// Positive feedback.
+    /// rings at the cutoff pitch and its harmonics, bright and metallic
     #[default]
     Pos,
-    /// Negative feedback.
+    /// rings an octave lower on odd harmonics only, hollow and reedy
     Neg,
 }
 
@@ -59,10 +61,10 @@ pub enum CombPolarity {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum CombMix {
-    /// 50% wet / 50% dry — the feedforward comb response.
+    /// dry and delayed signal together, a flanger-like comb of peaks and notches
     #[default]
     Half,
-    /// 100% wet — the delayed signal alone.
+    /// the delayed, ringing signal alone
     Full,
 }
 
@@ -140,21 +142,32 @@ impl Filter for Comb {
     }
 }
 
+const COMB_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Comb filter",
+    description: "A short feedback delay tuned to the cutoff that rings at that pitch and its \
+                  harmonics, for metallic, plucked-string and flanging tones. `'neg'` polarity \
+                  rings an octave lower and hollower.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Plucked strings from noise bursts",
+        code: r#"
+            const burst = $noise('white').amp(
+              $perc($clock.beatTrigger, { decay: 0.02 }),
+            )
+            const notes = $cycle($p('c3 eb3 g3 bb3'))
+            $unstable.filter
+              .comb(burst, notes, 4.5, { mix: 'full' })
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge XT's comb filter — a sinc-interpolated feedback delay line, one period of
-    /// the cutoff pitch long. Positive feedback resonates at the cutoff's harmonics;
-    /// negative at the half-shifted series. Runs 2× oversampled.
-    ///
-    /// - **cutoff** — comb pitch in V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5 feedback amount; high values ring strongly.
-    /// - **polarity** — `'pos'` or `'neg'`.
-    /// - **mix** — `'half'` (50% wet) or `'full'` (100% wet).
-    ///
-    /// ```js
-    /// $unstable.filter.comb($saw('c2'), 'c3', 4, { polarity: 'neg', mix: 'full' })
-    /// ```
+    docs = COMB_DOCS,
     name = "$unstable.filter.comb", ident = CombFilter, kernel = Comb,
     output_doc = "comb output",
+    cutoff_doc = "pitch the comb rings at",
     params = {
         #[input("feedback polarity: which harmonic series rings", default = "pos")]
         polarity: CombPolarity,

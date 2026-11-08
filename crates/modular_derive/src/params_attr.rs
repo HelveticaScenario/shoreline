@@ -2,6 +2,8 @@
 //!
 //! Every visible field of a params struct carries
 //! `#[input("description", type = …, default = …, range = (…), control_range = (…))]`.
+//! A signal whose default depends on other params also gives `default_doc`, the
+//! default in words (e.g. `"0 if decay is set, otherwise 5"`).
 //! The attribute expands before the struct's derives, so it rewrites each
 //! `#[input]` into the `#[doc]` (and `#[schemars(range)]`) that `JsonSchema`
 //! reads, and emits the struct's `SignalParamMeta` impl and `<FIELD>_DEFAULT`
@@ -95,6 +97,7 @@ struct InputAttr {
     description: String,
     signal_type: Option<(SignalType, Span)>,
     default: Option<(DocumentedDefault, Span)>,
+    default_doc: Option<LitStr>,
     range: Option<Bounds>,
     control_range: Option<Bounds>,
 }
@@ -172,6 +175,7 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
             description: description.value(),
             signal_type: None,
             default: None,
+            default_doc: None,
             range: None,
             control_range: None,
         };
@@ -202,6 +206,12 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
                     };
                     parsed.default = Some((value, key.span()));
                 }
+                "default_doc" => {
+                    if parsed.default_doc.is_some() {
+                        return Err(duplicate());
+                    }
+                    parsed.default_doc = Some(input.parse()?);
+                }
                 "range" => {
                     if parsed.range.is_some() {
                         return Err(duplicate());
@@ -218,7 +228,7 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
                     return Err(syn::Error::new(
                         key.span(),
                         format!(
-                            "unknown `#[input]` key `{other}`; expected type, default, range or control_range"
+                            "unknown `#[input]` key `{other}`; expected type, default, default_doc, range or control_range"
                         ),
                     ));
                 }
@@ -318,6 +328,26 @@ fn check_within(range: &Bounds, value: f64, span: Span, what: &str) -> syn::Resu
 /// Validate one field's `#[input]` against its type.
 fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
     let signal = is_signal_field(&field.ty);
+    if let Some(doc) = &attr.default_doc {
+        if !signal {
+            return Err(syn::Error::new(
+                doc.span(),
+                "`default_doc` applies to signal inputs only",
+            ));
+        }
+        if attr.default.is_none() {
+            return Err(syn::Error::new(
+                doc.span(),
+                "`default_doc` describes a declared `default`",
+            ));
+        }
+        if let Some((SignalType::Audio | SignalType::Gate, span)) = attr.signal_type {
+            return Err(syn::Error::new(
+                span,
+                "`default_doc` applies to control, pitch and frequency inputs, whose defaults the docs show",
+            ));
+        }
+    }
     if !signal {
         if let Some((_, span)) = attr.signal_type {
             return Err(syn::Error::new(
@@ -516,6 +546,10 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             Some(v) => quote! { Some(#v) },
             None => quote! { None },
         };
+        let default_doc = match &parsed.default_doc {
+            Some(doc) => quote! { Some(#doc.to_string()) },
+            None => quote! { None },
+        };
         let (min_value, max_value) = match &parsed.range {
             Some(r) => (option_f64(&r.min), option_f64(&r.max)),
             None => (quote! { None }, quote! { None }),
@@ -534,6 +568,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                 description: #description.to_string(),
                 signal_type: #type_str.to_string(),
                 default_value: #default_schema,
+                default_doc: #default_doc,
                 min_value: #min_value,
                 max_value: #max_value,
                 control_min: #control_min,
@@ -660,6 +695,18 @@ mod tests {
         assert!(
             err("#[derive(Clone)] struct P { #[input(\"a\", type = gate, range = (0.0, 5.0))] a: PolySignal }")
                 .contains("no range")
+        );
+    }
+
+    #[test]
+    fn default_doc_needs_a_signal_default() {
+        assert!(
+            err("#[derive(Clone)] struct P { #[input(\"a\", type = control, range = (0.0, 5.0), default_doc = \"x\")] a: PolySignal }")
+                .contains("default_doc")
+        );
+        assert!(
+            err("#[derive(Clone)] struct P { #[input(\"a\", default = 1, default_doc = \"x\")] a: u32 }")
+                .contains("default_doc")
         );
     }
 

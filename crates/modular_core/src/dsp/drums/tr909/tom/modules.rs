@@ -4,6 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr909::circuit::TRIG_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 fn noise_network(dt: f32) -> Mna<NOISE_UNKNOWNS, NOISE_CAPS, 0, 1> {
     let mut b = MnaBuilder::<NOISE_UNKNOWNS>::default();
@@ -139,7 +141,7 @@ fn seed(base: u64, channels: &mut [Channel]) {
 
 macro_rules! tom_module {
     (
-        $(#[$doc:meta])*
+        docs = $docs:path,
         name = $name:literal,
         ident = $Struct:ident,
         parts = $parts:ident,
@@ -190,12 +192,11 @@ macro_rules! tom_module {
             #[derive(Outputs, JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", "drum output", default, range = (-10.0, 10.0))]
+                #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
                 sample: PolyOutput,
             }
 
-            $(#[$doc])*
-            #[module(name = $name, categories(drum), has_init, patch_update, args(trigger), block)]
+            #[module(name = $name, docs = $docs, has_init, patch_update, args(trigger), block)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 params: [<$Struct Params>],
@@ -281,20 +282,25 @@ macro_rules! tom_module {
     };
 }
 
+const LT909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 low tom",
+    description: "The 909's low tom: a deep tone that bends down from the strike and \
+                  grows gritty as it fades, over a puff of noise.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Tom fill",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.highTom($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()
+            $tr909.midTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [c ~]')).trig).out()
+            $tr909.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [~ c]')).trig).out()
+        "#,
+    }],
+};
+
 tom_module! {
-    /// TR-909 low tom.
-    ///
-    /// A circuit model of the 909's low tom: a deep tone that bends down from
-    /// the strike and grows gritty as it fades, over a puff of noise. **freq**
-    /// sets the pitch, **decay** how long it rings, and **accent** how hard it
-    /// hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr909.lowTom($clock.beatTrigger).out()
-    /// ```
+    docs = LT909_DOCS,
     name = "$tr909.lowTom",
     ident = Lt909,
     parts = LOW,
@@ -302,19 +308,23 @@ tom_module! {
     freq_doc = "pitch; stock is ≈61 Hz",
 }
 
+const MT909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 mid tom",
+    description: "The 909's mid tom: a tone that bends down from the strike and grows \
+                  gritty as it fades, pitched between the low and high toms.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Rolling tom groove",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.midTom($cycle($p('~ c ~ c c ~ ~ c')).trig).out()
+        "#,
+    }],
+};
+
 tom_module! {
-    /// TR-909 mid tom.
-    ///
-    /// The 909's mid tom: the low tom's sound, pitched higher and shorter.
-    /// **freq** sets the pitch, **decay** how long it rings, and **accent** how
-    /// hard it hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr909.midTom($clock.beatTrigger).out()
-    /// ```
+    docs = MT909_DOCS,
     name = "$tr909.midTom",
     ident = Mt909,
     parts = MID,
@@ -322,19 +332,23 @@ tom_module! {
     freq_doc = "pitch; stock is ≈75 Hz",
 }
 
+const HT909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 high tom",
+    description: "The 909's high tom: a tone that bends down from the strike and grows \
+                  gritty as it fades, the highest and shortest of the three.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Tuned tom melody",
+        code: r#"
+            const toms = $cycle($p('c3 ~ eb3 f3 ~ c3 bb2 ~'))
+            $tr909.highTom(toms.trig, { freq: toms }).out()
+        "#,
+    }],
+};
+
 tom_module! {
-    /// TR-909 high tom.
-    ///
-    /// The 909's high tom: the low tom's sound, the highest and shortest of the
-    /// three. **freq** sets the pitch, **decay** how long it rings, and
-    /// **accent** how hard it hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr909.highTom($clock.beatTrigger).out()
-    /// ```
+    docs = HT909_DOCS,
     name = "$tr909.highTom",
     ident = Ht909,
     parts = HIGH,

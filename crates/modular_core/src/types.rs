@@ -2582,6 +2582,10 @@ pub struct SignalParamSchema {
     /// What a disconnected input reads, when it reads a fixed value.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_value: Option<f64>,
+    /// The default in words, for one that depends on other params; the docs
+    /// show it in place of `default_value`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_doc: Option<String>,
     /// Lower bound of the usable range; `None` when unbounded below.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_value: Option<f64>,
@@ -2701,13 +2705,7 @@ pub struct PositionalArg {
 #[napi(object)]
 pub struct ModuleSchema {
     pub name: String,
-    /// Documentation extracted from `///` doc comments on the module struct.
-    pub documentation: String,
-    /// The module's reference categories, in declaration order; never empty.
-    /// Typed as strings in TypeScript so `schemas.json` imports, whose string
-    /// literals widen, still satisfy this interface.
-    #[napi(ts_type = "Array<string>")]
-    pub categories: Vec<ModuleCategory>,
+    pub docs: crate::module_docs::ModuleDocsSchema,
     #[napi(ts_type = "Record<string, unknown>")]
     pub params_schema: SchemaContainer,
     pub outputs: Vec<OutputSchema>,

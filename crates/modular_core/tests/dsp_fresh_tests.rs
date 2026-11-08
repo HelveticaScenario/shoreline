@@ -517,18 +517,6 @@ fn schema_names_match_constructors() {
     }
 }
 
-#[test]
-fn schemas_have_non_empty_documentation() {
-    use modular_core::dsp::schema;
-    for s in schema() {
-        assert!(
-            !s.documentation.is_empty(),
-            "schema '{}' has empty documentation",
-            s.name
-        );
-    }
-}
-
 // ─── Patch-level helpers ─────────────────────────────────────────────────────
 
 /// Process one frame (single sample at `block_size=1`) of the entire patch.

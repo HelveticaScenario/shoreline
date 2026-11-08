@@ -3,6 +3,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::ModuleDocs;
 use crate::{
     Wav,
     param_errors::ModuleParamErrors,
@@ -104,10 +106,16 @@ struct MediaAudioState {
     fade_frames: f64,
 }
 
-/// Plays the audio track of a media file in a loop, at a fixed speed, from
-/// the loop start when the patch starts. The DSL creates one for each
-/// `$v.video(...).audio`.
-#[module(name = "_mediaAudio", categories(sampler), channels_derive = media_audio_derive_channel_count, args(wav), has_init, patch_update)]
+const MEDIA_AUDIO_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Looping media audio track",
+    description: "Loops the audio track of a media file at a fixed speed. Reach it through \
+                  `$v.video(...).audio` rather than creating one directly.",
+    categories: &[ModuleCategory::Sampler],
+    sections: &[],
+    examples: &[],
+};
+
+#[module(name = "_mediaAudio", docs = MEDIA_AUDIO_DOCS, channels_derive = media_audio_derive_channel_count, args(wav), has_init, patch_update)]
 pub struct MediaAudio {
     params: MediaAudioParams,
     outputs: MediaAudioOutputs,

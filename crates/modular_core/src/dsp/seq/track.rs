@@ -2,6 +2,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 use simple_easing;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignalExt, PolySignal};
 use crate::types::InterpolationType;
 use crate::{MonoSignal, PolyOutput};
@@ -11,12 +13,12 @@ use crate::{MonoSignal, PolyOutput};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct TrackParams {
+    #[input("[value, position] pairs, positions from 0 to 1 in ascending order")]
+    keyframes: Vec<(PolySignal, f32)>,
     #[input("position along the keyframes", type = control, range = (0.0, 1.0))]
     #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
-    #[input("[value, position] pairs, positions from 0 to 1 in ascending order")]
-    keyframes: Vec<(PolySignal, f32)>,
     #[input("curve shape between neighbouring keyframes")]
     #[serde(default)]
     #[deserr(default)]
@@ -43,17 +45,30 @@ struct TrackOutputs {
     sample: PolyOutput,
 }
 
-/// Automation track that interpolates between keyframed values.
-///
-/// Place keyframes at positions within a cycle (0–1) and the track
-/// smoothly interpolates between them at the current playhead position according to the chosen
-/// **interpolationType** (linear, ease-in, ease-out, etc.).
-///
-/// ```js
-/// // automate filter cutoff over one cycle
-/// $lpf($saw('c2'), $track([['c2', 0], ['c5', 0.5], ['c3', 1]]))
-/// ```
-#[module(name = "$track", categories(sequencer, modulation), args(keyframes), channels_derive = derive_track_channel_count)]
+const TRACK_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Keyframed automation curve",
+    description: "Draws a curve through `[value, position]` keyframes and plays it along the \
+                  bar, for automation that rises and falls at set points: a filter that opens \
+                  over the bar, a swell into the downbeat.",
+    categories: &[ModuleCategory::Sequencer, ModuleCategory::Modulation],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Filter that opens and closes each bar",
+        code: r#"
+            const cutoff = $track(
+              [
+                ['c3', 0],
+                ['c6', 0.75],
+                ['c3', 1],
+              ],
+              { interpolationType: 'cubicIn' },
+            )
+            $saw('c2').$.lpf(cutoff, 3).out()
+        "#,
+    }],
+};
+
+#[module(name = "$track", docs = TRACK_DOCS, args(keyframes), channels_derive = derive_track_channel_count)]
 pub struct Track {
     outputs: TrackOutputs,
     params: TrackParams,

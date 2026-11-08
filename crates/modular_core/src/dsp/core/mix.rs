@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
@@ -11,14 +13,14 @@ use crate::{
 #[serde(rename_all = "snake_case")]
 #[deserr(rename_all = lowercase)]
 pub enum MixMode {
-    /// Sum all inputs.
+    /// every signal added together, getting louder as more stack up
     #[default]
     Sum,
-    /// Average all inputs.
+    /// the average of the signals, staying at one signal's level however many stack up
     Average,
-    /// Keep the strongest input.
+    /// only the loudest signal at each moment
     Max,
-    /// Keep the weakest non-zero input.
+    /// only the quietest signal that isn't silent at each moment
     Min,
 }
 
@@ -80,12 +82,24 @@ pub fn mix_derive_channel_count(params: &MixParams) -> usize {
     .min(PORT_MAX_CHANNELS)
 }
 
-/// Mix module for combining multiple signals into a single mix bus.
-///
-/// Use this when you want to blend several multichannel modulation/audio sources.
-/// It mixes channel `n` across all inputs into output channel `n`, rather than
-/// folding all channels into a single mono channel.
-#[module(name = "$mix", categories(mixer), channels_derive = mix_derive_channel_count, args(inputs))]
+const MIX_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Channel-by-channel mixer",
+    description: "Mixes several signals into one, keeping their channels apart: channel n of \
+                  every input lands on output channel n, so mixing two four-voice signals \
+                  still gives four voices. Use `$mixDown` to fold channels together instead.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Saw and sub-octave square layered",
+        code: r#"
+            $mix([$saw('c3'), $pulse('c2')], { gain: 3 })
+              .$.lpf('c5', 1)
+              .out()
+        "#,
+    }],
+};
+
+#[module(name = "$mix", docs = MIX_DOCS, channels_derive = mix_derive_channel_count, args(inputs))]
 pub struct Mix {
     outputs: MixOutputs,
     params: MixParams,

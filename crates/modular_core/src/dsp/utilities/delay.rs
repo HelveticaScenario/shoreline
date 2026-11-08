@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{Buffer, PolySignal, poly::PolyOutput};
 
 fn delay_read_derive_channel_count(params: &DelayReadParams) -> usize {
@@ -31,8 +33,42 @@ struct DelayReadOutputs {
     sample: PolyOutput,
 }
 
-/// Reads a signal from a buffer at a specified delay time relative to the write position.
-#[module(name = "$delayRead", categories(effect, utility), channels_derive = delay_read_derive_channel_count, args(buffer, time))]
+const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Delay tap on a buffer",
+    description: "Plays a `$buffer` back a set time behind what it is recording: one \
+                  tap of a delay line. Several taps on one buffer make multi-tap \
+                  echoes, and a modulated time gives chorus and flanging. `$delay` \
+                  builds a complete feedback delay from these parts.",
+    categories: &[ModuleCategory::Effect, ModuleCategory::Utility],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Two-tap echo",
+            code: r#"
+                const voice = $saw($cycle($p('c3 eb3 g3 ~'))).amp(
+                  $perc($clock.beatTrigger, { decay: 0.15 }),
+                )
+                voice.out()
+                const echoes = $buffer(voice, 1)
+                $delayRead(echoes, 0.375).amp(2.5).out()
+                $delayRead(echoes, 0.75).amp(1.25).out()
+            "#,
+        },
+        DocExample {
+            title: "Chorused chord",
+            code: r#"
+                const voice = $saw($chord('C3[m7]'))
+                voice.out()
+                $delayRead(
+                  $buffer(voice, 0.1),
+                  $sine('0.3hz').range(0.01, 0.02),
+                ).out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$delayRead", docs = DELAY_READ_DOCS, channels_derive = delay_read_derive_channel_count, args(buffer, time))]
 pub struct DelayRead {
     outputs: DelayReadOutputs,
     params: DelayReadParams,

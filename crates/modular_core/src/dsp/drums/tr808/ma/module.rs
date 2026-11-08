@@ -4,6 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
@@ -31,24 +33,28 @@ struct Ma808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Ma808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 maracas.
-///
-/// A circuit model of the 808's maracas: a short shake of high, hissing noise.
-/// **accent** makes it louder and draws it out.
-///
-/// An unaccented shake peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.maracas($clock.beatTrigger).out()
-/// ```
+const MA808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 maracas",
+    description: "The 808's maracas: a short shake of high, hissing noise, for a light \
+                  shuffle on top of a beat.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Sixteenth shaker",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            $tr808.maracas($cycle($p('c*16')).trig).out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$tr808.maracas",
-    categories(drum),
+    docs = MA808_DOCS,
     has_init,
     patch_update,
     args(trigger),

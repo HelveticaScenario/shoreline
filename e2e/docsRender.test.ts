@@ -12,10 +12,7 @@ import * as path from 'path';
 import type { Page } from '@playwright/test';
 import schemas from '../crates/modular/schemas.json';
 import { test, expect, openUntitledBuffer } from './fixtures';
-import {
-    formatOutputMeta,
-    paramMeta,
-} from '../src/shared/dsl/paramRange';
+import { formatOutputMeta, paramMeta } from '../src/shared/dsl/paramRange';
 import {
     dollarMethodName,
     processSchemas,
@@ -99,13 +96,16 @@ async function trigger(page: Page, action: string) {
  * examples are code, where `|` and `undefined` are legitimate.
  */
 async function widgetText(page: Page, selector: string): Promise<string> {
-    return page.locator(selector).first().evaluate((el) => {
-        const clone = el.cloneNode(true) as HTMLElement;
-        clone.querySelectorAll('pre, .monaco-tokenized-source').forEach(
-            (n) => n.remove(),
-        );
-        return clone.innerText;
-    });
+    return page
+        .locator(selector)
+        .first()
+        .evaluate((el) => {
+            const clone = el.cloneNode(true) as HTMLElement;
+            clone
+                .querySelectorAll('pre, .monaco-tokenized-source')
+                .forEach((n) => n.remove());
+            return clone.innerText;
+        });
 }
 
 /**
@@ -279,7 +279,9 @@ test.describe('docs render', () => {
                 const meta =
                     i < positionals ? paramMeta(module, param) : undefined;
                 if (meta && !text.includes(`(${meta})`)) {
-                    failures.push(`${name} signature ${param}: missing (${meta})`);
+                    failures.push(
+                        `${name} signature ${param}: missing (${meta})`,
+                    );
                 }
                 await window.keyboard.press('Escape');
             }
@@ -298,7 +300,10 @@ test.describe('docs render', () => {
                 if (width === null) {
                     localStorage.removeItem('modular_sidebar_width');
                 } else {
-                    localStorage.setItem('modular_sidebar_width', String(width));
+                    localStorage.setItem(
+                        'modular_sidebar_width',
+                        String(width),
+                    );
                 }
             }, width);
             await window.setViewportSize({ height: 1000, width: 1600 });
@@ -332,15 +337,76 @@ test.describe('docs render', () => {
                     });
                     await expect(card).toBeVisible({ timeout: 1_000 });
                 }).toPass({ timeout: 15_000 });
-                // The module's own prose is free markdown; its params,
-                // outputs and signature are checked here.
                 const text = await card.evaluate((el) => {
                     const clone = el.cloneNode(true) as HTMLElement;
-                    clone
-                        .querySelectorAll('pre, .module-documentation')
-                        .forEach((n) => n.remove());
+                    clone.querySelectorAll('pre').forEach((n) => n.remove());
                     return clone.innerText;
                 });
+                if (!text.includes(module.docs.summary)) {
+                    failures.push(`${module.name}: summary missing`);
+                }
+                const examples =
+                    module.docs.examples.length +
+                    module.docs.sections.reduce(
+                        (n, s) => n + s.examples.length,
+                        0,
+                    );
+                if ((await card.locator('pre').count()) !== examples) {
+                    failures.push(`${module.name}: examples not all shown`);
+                }
+                // Each example shows its source exactly, in editor colours.
+                const colored = await expect
+                    .poll(() =>
+                        card.evaluate((el) =>
+                            [...el.querySelectorAll('pre')].every((pre) =>
+                                pre.querySelector('[class^="mtk"]'),
+                            ),
+                        ),
+                    )
+                    .toBe(true)
+                    .then(
+                        () => true,
+                        () => false,
+                    );
+                if (!colored) {
+                    failures.push(`${module.name}: examples not colourized`);
+                }
+                const codes = [
+                    ...module.docs.examples,
+                    ...module.docs.sections.flatMap((s) => s.examples),
+                ].map((e) => e.code);
+                const texts = await card.evaluate((el) =>
+                    [...el.querySelectorAll('pre')].map((pre) =>
+                        pre.innerText.trimEnd(),
+                    ),
+                );
+                for (const code of codes) {
+                    if (!texts.includes(code)) {
+                        failures.push(
+                            `${module.name}: example text differs from its source`,
+                        );
+                    }
+                }
+                const tables = module.docs.sections.filter((s) => s.table);
+                if (
+                    (await card.locator('table.doc-table').count()) !==
+                    tables.length
+                ) {
+                    failures.push(`${module.name}: tables not all shown`);
+                }
+                if (tables.length > 0) {
+                    // Wide cards show the header row; narrow ones stack rows
+                    // under their keys instead.
+                    const headerShown = await card
+                        .locator('table.doc-table thead')
+                        .first()
+                        .isVisible();
+                    if (headerShown !== (label === 'wide')) {
+                        failures.push(
+                            `${module.name}: table ${headerShown ? 'not stacked' : 'stacked'} at ${label} width`,
+                        );
+                    }
+                }
                 const found = leaks(text);
                 if (found.length > 0) {
                     failures.push(`${module.name}: ${found.join(', ')}`);
@@ -355,9 +421,7 @@ test.describe('docs render', () => {
                     (el) => el.scrollWidth - el.clientWidth,
                 );
                 if (overflow > 1) {
-                    failures.push(
-                        `${module.name}: overflows by ${overflow}px`,
-                    );
+                    failures.push(`${module.name}: overflows by ${overflow}px`);
                 }
                 const shot = shotPath(`reference-${label}`, safe(module.name));
                 if (shot) {

@@ -4,6 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr909::circuit::{TRIG_SECS, tapered_pot};
 use crate::dsp::drums::voice::{Timing, knob, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
@@ -21,7 +23,7 @@ struct Bd909Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "resting pitch, the sweep following; stock is ≈56 Hz",
+        "settled pitch, the sweep following; stock is ≈56 Hz",
         type = pitch,
         default = -2.2235,
     )]
@@ -68,27 +70,26 @@ struct Bd909Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Bd909Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-909 bass drum.
-///
-/// A circuit model of the 909's punchy kick: a rounded tone that sweeps down
-/// from about 300 Hz to rest near 56 Hz, with a click and a puff of noise at
-/// the attack. **freq** sets the resting pitch, **sweep** how long the fall
-/// takes, **attack** how loud the click is, **decay** how long it booms, and
-/// **accent** how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr909.kick($clock.beatTrigger).out()
-/// ```
+const BD909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 bass drum",
+    description: "The 909's punchy kick: a rounded tone that sweeps down to a settled pitch, \
+                  with a click and a puff of noise at the attack. The backbone of house \
+                  and techno.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Four on the floor",
+        code: "$tr909.kick($cycle($p('c*4')).trig, { decay: 4 }).out()",
+    }],
+};
+
 #[module(
     name = "$tr909.kick",
-    categories(drum),
+    docs = BD909_DOCS,
     has_init,
     patch_update,
     args(trigger),

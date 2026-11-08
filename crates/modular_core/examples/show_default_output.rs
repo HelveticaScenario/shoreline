@@ -32,7 +32,7 @@ fn main() {
 
     if let Some(svf) = schemas.iter().find(|s| s.name == "state-variable-filter") {
         println!("Module: {}", svf.name);
-        println!("Documentation: {}", svf.documentation);
+        println!("Documentation: {}", svf.docs.description);
         println!("\nOutputs:");
         for output in &svf.outputs {
             println!("  - Name: {}", output.name);

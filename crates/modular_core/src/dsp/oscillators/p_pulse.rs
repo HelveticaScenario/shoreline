@@ -1,3 +1,5 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::wrap,
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -13,7 +15,7 @@ use schemars::JsonSchema;
 #[deserr(deny_unknown_fields)]
 struct PPulseOscillatorParams {
     #[input(
-        "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+        "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
         type = audio,
         range = (0.0, 1.0),
     )]
@@ -51,18 +53,28 @@ struct ChannelState {
     prev_phase: f32,
 }
 
-/// Phase-driven pulse/square oscillator with pulse width modulation.
-///
-/// Instead of a frequency input, this oscillator is driven by an external
-/// phasor signal (0–1). Connect a `ramp` or other phase source to `phase`
-/// and use phase-distortion modules between them for complex timbres.
-///
-/// The `width` parameter sets the duty cycle: 0 = narrow pulse,
-/// 2.5 = square wave, 5 = inverted narrow pulse.
-/// `pwm` is added to `width` for modulation.
-///
-/// Output range is **±5V**.
-#[module(name = "$pPulse", categories(oscillator, phase), args(phase))]
+const P_PULSE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Phase-driven pulse",
+    description: "The pulse wave of `$pulse`, following a phase input instead \
+                  of its own pitch. Warp the phase with `$pWarp` to reshape the \
+                  cycle before it is read.",
+    categories: &[ModuleCategory::Oscillator, ModuleCategory::Phase],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Mirrored pulse sweep",
+        code: r#"
+            $pPulse(
+              $pWarp(
+                $ramp('c3'),
+                $phase.mirror($sine('0.3hz').range(0, 5)),
+              ),
+              { width: 1 },
+            ).out()
+        "#,
+    }],
+};
+
+#[module(name = "$pPulse", docs = P_PULSE_DOCS, args(phase))]
 pub struct PPulseOscillator {
     outputs: PPulseOscillatorOutputs,
     channel_state: Box<[ChannelState]>,

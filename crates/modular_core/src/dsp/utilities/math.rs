@@ -1,4 +1,6 @@
 use crate::dsp::utils::{hz_to_voct_f64, voct_to_hz_f64};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::{ClockMessages, Connect};
 use deserr::{DeserializeError, Deserr, ErrorKind, IntoValue, ValuePointerRef};
@@ -137,32 +139,49 @@ impl Default for MathState {
     }
 }
 
-/// Evaluates a math expression every sample, giving you arbitrary control
-/// voltage transformations.
-///
-/// Write an expression string using `x`, `y`, `z` as input variables.
-/// The built-in variable `t` (time in seconds) is also available.
-///
-/// The inputs are polyphonic: the module is as wide as its widest input, the
-/// expression is evaluated once per channel, and narrower inputs cycle. A
-/// non-finite result (e.g. `0/0`) is emitted as 0.
-///
-/// **Functions:** `sin`, `cos`, `tan`, `asin`, `acos`, `atan`,
-/// `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`,
-/// `log(base?, val)`, `abs`, `sign`, `int`, `ceil`, `floor`,
-/// `round(modulus?, val)`, `min(val, ...)`, `max(val, ...)`,
-/// `e()`, `pi()`, `vToHz(volts)`, `hzToV(hz)`
-///
-/// **Operators** (highest to lowest precedence):
-/// `^`, `%`, `/`, `*`, `-`, `+`,
-/// `== != < <= >= >`,
-/// `&& and`, `|| or`
-///
-/// ```js
-/// // crossfade between two oscillators
-/// $math("x * sin(t) + y * cos(t)", { x: $saw('c3'), y: $pulse('c3') })
-/// ```
-#[module(name = "$math", categories(math), args(expression))]
+const MATH_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Formula on signals",
+    description: "Evaluates a formula every sample, for any transformation no other \
+                  module offers. It runs once per channel, as wide as its widest \
+                  input.",
+    categories: &[ModuleCategory::Math],
+    sections: &[DocSection {
+        title: "Writing an expression",
+        body: "Use `x`, `y` and `z` for the patched inputs and `t` for the time in \
+               seconds. A result that is not a number, such as `0/0`, outputs 0 V.",
+        table: Some(DocTable {
+            columns: &["Kind", "Names"],
+            rows: &[
+                &[
+                    "Functions",
+                    "`sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `log(base?, val)`, `abs`, `sign`, `int`, `ceil`, `floor`, `round(modulus?, val)`, `min(val, ...)`, `max(val, ...)`, `e()`, `pi()`, `vToHz(volts)`, `hzToV(hz)`",
+                ],
+                &[
+                    "Operators",
+                    "highest precedence first: `^`; then `%`; then `*` `/`; then `+` `-`; then `== != < <= >= >`; then `&&` / `and`; then `||` / `or`. `%` binds tighter than `*`, so `a * b % c` is `a * (b % c)`",
+                ],
+            ],
+        }),
+        examples: &[],
+    }],
+    examples: &[
+        DocExample {
+            title: "Crossfading two oscillators",
+            code: r#"
+                $math('x * sin(t) + y * cos(t)', {
+                  x: $saw('c3'),
+                  y: $pulse('c3'),
+                }).out()
+            "#,
+        },
+        DocExample {
+            title: "Ring-modulated bell",
+            code: "$math('x * y / 5', { x: $sine('c4'), y: $sine('g5') }).out()",
+        },
+    ],
+};
+
+#[module(name = "$math", docs = MATH_DOCS, args(expression))]
 pub struct Math {
     outputs: MathOutputs,
     params: MathParams,

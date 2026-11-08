@@ -5,6 +5,8 @@ use crate::dsp::drums::input::{Cached, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::tr808::levels;
 use crate::dsp::drums::voice::{Timing, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
@@ -22,7 +24,7 @@ struct Rs808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, and the hit gets louder or quieter far from it",
+        "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz; its level shifts as you tune far from stock",
         type = pitch,
         default = 2.771,
     )]
@@ -45,25 +47,28 @@ struct Rs808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Rs808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 rim shot.
-///
-/// A circuit model of the 808's rim shot: a bright, woody crack, over in about
-/// 10 ms, built from two tones near 1.8 kHz and 450 Hz. **freq** sets its pitch
-/// and **accent** how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.rimShot($clock.beatTrigger).out()
-/// ```
+const RS808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 rim shot",
+    description: "The 808's rim shot: a bright, woody crack, over in about 10 ms, for \
+                  clicky syncopation on top of a groove.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Syncopated rim clicks",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            $tr808.rimShot($cycle($p('c(3,8)')).trig).out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$tr808.rimShot",
-    categories(drum),
+    docs = RS808_DOCS,
     has_init,
     args(trigger),
     block
@@ -242,7 +247,7 @@ struct Cl808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "pitch; stock is ≈2.53 kHz, and the hit gets louder or quieter far from it",
+        "pitch; stock is ≈2.53 kHz; its level shifts as you tune far from stock",
         type = pitch,
         default = 3.273,
     )]
@@ -273,25 +278,31 @@ struct Cl808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Cl808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 claves.
-///
-/// A circuit model of the 808's claves: a short, pure wooden click ringing at
-/// ≈2.5 kHz. **decay** sets how long it rings, **freq** its pitch, and
-/// **accent** how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.claves($clock.beatTrigger).out()
-/// ```
+const CL808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 claves",
+    description: "The 808's claves: a short, pure wooden click ringing high, cutting \
+                  through a mix for Latin patterns and bright accents.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Son clave",
+        code: r#"
+            $tr808
+              .claves(
+                $cycle($p('c ~ ~ c ~ ~ c ~ ~ ~ c ~ c ~ ~ ~')).trig,
+              )
+              .out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$tr808.claves",
-    categories(drum),
+    docs = CL808_DOCS,
     has_init,
     args(trigger),
     block

@@ -17,6 +17,8 @@ use schemars::JsonSchema;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{
@@ -35,10 +37,10 @@ use crate::{
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 pub(crate) struct WavetableOscParams {
-    #[input("WAV file holding the wavetable frames")]
-    pub(crate) wav: Wav,
     #[input("oscillator pitch", type = pitch)]
     pub(crate) pitch: PolySignal,
+    #[input("WAV file holding the wavetable frames")]
+    pub(crate) wav: Wav,
     #[input(
         "which frame plays: 0 the first, 5 the last, blending between neighbours",
         type = control,
@@ -152,22 +154,40 @@ pub fn wavetable_derive_channel_count(params: &WavetableOscParams) -> usize {
         .clamp(1, PORT_MAX_CHANNELS)
 }
 
-/// A band-limited wavetable oscillator.
-///
-/// Reads a pre-built mipmap pyramid (FFT-filtered frame copies) and
-/// selects a level appropriate for the playback frequency to suppress
-/// aliasing. Frame position can be swept across multi-frame tables for
-/// classic wavetable timbral sweeps, and an optional `PhaseWarp`
-/// reshapes the read phase before sampling.
-///
-/// ## Example
-///
-/// ```js
-/// $wavetable('c4', $wavs().tables.pad).out()
-/// $wavetable('c2', $wavs().tables.pad, $sine('0.2hz').range(0, 5)).out()
-/// ```
+const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Wavetable oscillator",
+    description: "Plays the single-cycle frames of a wavetable WAV and blends \
+                  between them, for evolving glassy, vocal or digital timbres. \
+                  Sweep `position` with an LFO or envelope, and bend each cycle \
+                  further with a `$phase.*` warp.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Scanning pad",
+            code: r#"
+                $wavetable(
+                  $chord('C3[m9]'),
+                  $wavs().tables.pad,
+                  $sine('0.1hz').range(0, 5),
+                ).out()
+            "#,
+        },
+        DocExample {
+            title: "Plucked table sweep",
+            code: r#"
+                const seq = $cycle($p('c3 eb3 g3 bb3'))
+                const env = $perc(seq.trig, { decay: 0.5 })
+                $wavetable(seq, $wavs().tables.pad, env.range(0, 4))
+                  .amp(env)
+                  .out()
+            "#,
+        },
+    ],
+};
+
 #[module(
-    name = "$wavetable", categories(oscillator),
+    name = "$wavetable", docs = WAVETABLE_DOCS,
     channels_derive = wavetable_derive_channel_count,
     args(pitch, wav, position),
     has_prepare_resources,

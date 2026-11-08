@@ -5,6 +5,8 @@ use schemars::JsonSchema;
 
 use crate::dsp::filters::svf_core;
 use crate::dsp::utils::sanitize;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, DocSection, ModuleDocs};
 use crate::poly::PolyOutput;
 
 mod live;
@@ -69,62 +71,62 @@ impl Default for ParametricEqState {
     }
 }
 
-/// Parametric EQ: shape the tone of a sound with up to 8 bands.
-///
-/// Each band in **sections** has a **type**:
-///
-/// - `'peak'` (default): boost or cut around a frequency.
-/// - `'lowShelf'` / `'highShelf'`: boost or cut everything below / above a
-///   frequency.
-/// - `'lowpass'` / `'highpass'`: remove everything above / below a frequency.
-/// - `'notch'`: remove a narrow band around a frequency.
-///
-/// and sets:
-///
-/// - **freq**: where the band sits, like `'1000hz'` or `'c4'`.
-/// - **gain**: how much to boost or cut, in dB (-24 to 24). Peaks and shelves
-///   only.
-/// - **q**: how narrow the band is (0.1 to 20, default 0.707). On shelves and
-///   lowpass/highpass, values above 0.707 add a resonant bump at the
-///   frequency; on shelves, lower values make a gentler slope.
-///
-/// Any of them can be modulated. With no sections, the sound passes through
-/// unchanged.
-///
-/// To EQ channels differently, give **sections** one list of bands per
-/// channel, like one for left and one for right.
-///
-/// **adaptiveQ** makes peaks narrower the more you boost or cut them, like
-/// many classic analog EQs.
-///
-/// **ui: true** shows an editor under the call. Drag a band's dot to move it,
-/// scroll over it or drag its handles to change q, and double-click to add a
-/// band. Changes play right away and are written into your code. Hold
-/// Ctrl/Cmd to change only the code, and right-click a control to reset it.
-///
-/// ```js
-/// // Warm up the lows, sweep a dip through the mids, clear out rumble
-/// $eq($saw('c2'), {
-///   sections: [
-///     { type: 'lowShelf', freq: '150hz', gain: 3 },
-///     { type: 'peak', freq: $sine('0.5hz').range('400hz', '2000hz'), gain: -6, q: 2 },
-///     { type: 'highpass', freq: '40hz' },
-///   ],
-///   adaptiveQ: true,
-/// })
-///
-/// // A darker left channel, a brighter right one
-/// $eq($saw(['c2', 'g2']), {
-///   sections: [
-///     [{ type: 'highShelf', freq: '3000hz', gain: -6 }],
-///     [{ type: 'highShelf', freq: '3000hz', gain: 4 }],
-///   ],
-/// })
-///
-/// // Start empty and build the EQ in the editor
-/// $eq($saw('c2'), { ui: true })
-/// ```
-#[module(name = "$eq", categories(filter), channels_derive = eq_derive_channel_count, patch_update, stateful, args(input))]
+const EQ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Parametric EQ",
+    description: "Shapes tone with up to 8 bands of peaks, shelves, cuts and notches, any of \
+                  which can be modulated. Give `sections` one list of bands per channel to EQ \
+                  left and right differently, or set `ui: true` to shape it by hand.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[DocSection {
+        title: "Editing in the EQ editor",
+        body: "Drag a band's dot to move it, scroll over it or drag its handles to change `q`, \
+               and double-click to add a band. Changes play right away and are written into \
+               your code. Hold Ctrl/Cmd to change only the code, and right-click a control to \
+               reset it.",
+        table: None,
+        examples: &[DocExample {
+            title: "Start empty and build the EQ by hand",
+            code: "$saw('c2').$.eq({ ui: true }).out()",
+        }],
+    }],
+    examples: &[
+        DocExample {
+            title: "Warm lows with a sweeping mid dip",
+            code: r#"
+                $saw('c2')
+                  .$.eq({
+                    sections: [
+                      { type: 'lowShelf', freq: '150hz', gain: 3 },
+                      {
+                        type: 'peak',
+                        freq: $sine('0.5hz').range('400hz', '2000hz'),
+                        gain: -6,
+                        q: 2,
+                      },
+                      { type: 'highpass', freq: '40hz' },
+                    ],
+                    adaptiveQ: true,
+                  })
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "A darker left channel, a brighter right one",
+            code: r#"
+                $saw(['c2', 'g2'])
+                  .$.eq({
+                    sections: [
+                      [{ type: 'highShelf', freq: '3000hz', gain: -6 }],
+                      [{ type: 'highShelf', freq: '3000hz', gain: 4 }],
+                    ],
+                  })
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$eq", docs = EQ_DOCS, channels_derive = eq_derive_channel_count, patch_update, stateful, args(input))]
 pub struct ParametricEq {
     outputs: ParametricEqOutputs,
     state: ParametricEqState,

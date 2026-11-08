@@ -10,6 +10,8 @@ use crate::dsp::drums::input::{Held, Hold, Input, Live, each_slot_of};
 use crate::dsp::drums::tr808::metal::MetalFilters;
 use crate::dsp::drums::voice::rails;
 use crate::dsp::utils::rng::seed_base;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal};
 
 /// Scale each hat's output so an unaccented hit peaks near 5 V.
@@ -70,7 +72,7 @@ struct Hh808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Hh808Outputs {
-    #[output("output", "both hats", default, range = (-10.0, 10.0))]
+    #[output("output", "both hats; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output("closed", "the closed hat alone", range = (-10.0, 10.0))]
     closed: PolyOutput,
@@ -78,25 +80,28 @@ struct Hh808Outputs {
     open: PolyOutput,
 }
 
-/// TR-808 hi-hats, closed and open.
-///
-/// A circuit model of the 808's hi-hats: the cymbal's six square waves filtered
-/// to a thin, bright band. **closed** strikes a short, tight hat and **open** a
-/// longer one that rings for as long as **decay** sets; **accent** makes either
-/// hit harder.
-///
-/// As on the 808, a closed hit cuts off a ringing open hat. **cut** sets how
-/// hard: below 0 the open hat only ducks, and above 0 it stops dead.
-///
-/// An unaccented hit of either hat peaks near **±5 V** and a fully accented one
-/// near **±10 V**.
-///
-/// ```js
-/// $tr808.hiHat($clock.beatTrigger, { open: $clock.barTrigger, cut: -2 }).out()
-/// ```
+const HH808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 hi-hats",
+    description: "The 808's closed and open hi-hats: the cymbal's square waves filtered \
+                  to a thin, bright band, short and tight when closed and ringing when \
+                  open. As on the 808, a closed hit chokes a ringing open hat.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Hats with open offbeats",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            const open = $cycle($p('~ c ~ c ~ c ~ c')).trig
+            $tr808
+              .hiHat($cycle($p('c ~ c ~ c ~ c ~')).trig, { open })
+              .out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$tr808.hiHat",
-    categories(drum),
+    docs = HH808_DOCS,
     has_init,
     patch_update,
     args(closed),

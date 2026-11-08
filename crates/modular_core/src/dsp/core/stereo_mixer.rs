@@ -1,3 +1,5 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
@@ -41,10 +43,26 @@ struct ChannelState {
     pan: SwapGlide,
 }
 
-/// Pan and spread a signal into stereo.
+const STEREO_MIX_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stereo panner and spreader",
+    description: "Places a signal in the stereo field and puts out left and right. Give each \
+                  channel its own `pan`, or raise `width` to fan the voices of a chord out \
+                  from the centre.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Chord fanned across the stereo field",
+        code: r#"
+            $stereoMix($saw($chord('C3[m9]')).$.lpf('c5', 1), {
+              width: 4,
+            }).out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$stereoMix",
-    categories(mixer),
+    docs = STEREO_MIX_DOCS,
     channels = 2,
     args(input),
     has_init

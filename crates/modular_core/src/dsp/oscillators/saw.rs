@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
@@ -92,23 +94,30 @@ struct ChannelState {
     blep_carry: f32,
 }
 
-/// A variable-symmetry triangle oscillator that morphs between saw, triangle, and ramp.
-///
-/// The `shape` parameter shifts the peak position of a triangle wave,
-/// smoothly morphing between waveforms by adjusting attack/release time:
-/// - **0** — Saw (all rise, instant drop)
-/// - **2.5** — Triangle (symmetric)
-/// - **5** — Ramp (instant rise, all fall)
-///
-/// The `freq` input follows the **V/Oct** standard (0V = C4).
-/// Output range is **±5V**.
-///
-/// ## Example
-///
-/// ```js
-/// $saw('a3', { shape: 2.5 }).out() // triangle wave
-/// ```
-#[module(name = "$saw", categories(oscillator), args(freq))]
+const SAW_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Saw, triangle and ramp oscillator",
+    description: "A bright sawtooth that morphs through a mellow triangle to a \
+                  ramp: the workhorse for basses, leads and pads under a \
+                  filter. Moving the shape slowly gives a breathing, \
+                  filter-like sweep on its own.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Acid bass sweep",
+            code: r#"
+                const seq = $cycle($p('c2 c2 [c3 c2] eb2'))
+                $saw(seq).$.lpf($sine('0.25hz').range('c3', 'c6'), 4).out()
+            "#,
+        },
+        DocExample {
+            title: "Breathing triangle",
+            code: "$saw('a3', { shape: $sine('0.2hz').range(1, 4) }).out()",
+        },
+    ],
+};
+
+#[module(name = "$saw", docs = SAW_DOCS, args(freq))]
 pub struct SawOscillator {
     outputs: SawOscillatorOutputs,
     channel_state: Box<[ChannelState]>,

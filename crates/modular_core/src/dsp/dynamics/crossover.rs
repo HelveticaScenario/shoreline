@@ -6,6 +6,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::filters::resonant_svf::{Response, cutoff_gain},
     dsp::filters::svf_core::{self, SvfCoeffs},
@@ -136,28 +138,27 @@ struct ChannelState {
 
 // ── Module ───────────────────────────────────────────────────────────────────
 
-/// EXPERIMENTAL
-///
-/// Three-band crossover / band splitter.
-///
-/// Splits an input signal into three frequency bands (low, mid, high).
-/// The default `sample` output passes the input through unchanged,
-/// so the module is a no-op unless you explicitly tap the
-/// `.low`, `.mid`, or `.high` outputs.
-///
-/// Two crossover frequencies define the band boundaries:
-/// - **lowMidFreq** — boundary between the low and mid bands (V/Oct, default ~200 Hz).
-/// - **midHighFreq** — boundary between the mid and high bands (V/Oct, default ~2000 Hz).
-///
-/// ```js
-/// // Split into 3 bands and process each independently
-/// let bands = $xover($saw('c2'), { lowMidFreq: '200hz', midHighFreq: '2000hz' })
-/// let low  = $comp(bands.low,  { threshold: 2.5, ratio: 4 })
-/// let mid  = $comp(bands.mid,  { threshold: 3,   ratio: 3 })
-/// let high = $comp(bands.high, { threshold: 2,   ratio: 6 })
-/// $mix([low, mid, high]).out()
-/// ```
-#[module(name = "$xover", categories(filter), args(input))]
+const XOVER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Three-band crossover",
+    description: "Splits a sound into low, mid and high bands at two crossover points, so each \
+                  band can be processed on its own and mixed back together. The main output \
+                  passes the sound through unchanged; tap `.low`, `.mid` and `.high` for the bands.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Tremolo on the mids only",
+        code: r#"
+            const bands = $xover($saw('c2'))
+            $mix([
+              bands.low,
+              bands.mid.amp($sine('4hz').range(0, 5)),
+              bands.high,
+            ]).out()
+        "#,
+    }],
+};
+
+#[module(name = "$xover", docs = XOVER_DOCS, args(input))]
 pub struct Crossover {
     outputs: CrossoverOutputs,
     channel_state: Box<[ChannelState]>,

@@ -8,6 +8,8 @@ use schemars::JsonSchema;
 
 use crate::dsp::fx::enosc_tables::{aa_segment, interpolate_segment};
 use crate::dsp::utils::voct_to_hz;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
@@ -48,11 +50,20 @@ struct ChannelState {
     amount: SwapGlide,
 }
 
-/// Waveshaper that morphs through 8 distinct tonal shapes as you sweep the
-/// amount control. Low settings pass the signal cleanly; mid settings compress
-/// and square it off; high settings introduce stepped, ripple-like overtone
-/// patterns. Works best on simple waveforms like sines or triangles.
-#[module(name = "$segment", categories(distortion), args(input, amount))]
+const SEGMENT_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Morphing waveshaper",
+    description: "Morphs a signal through eight shapes as `amount` rises: clean at first, then \
+                  squashed and squared off, then stepped and rippling with overtones. Works best \
+                  on simple waveforms like sines and triangles.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Slowly morphing sine",
+        code: "$sine('c3').$.segment($sine('0.1hz').range(0, 5)).out()",
+    }],
+};
+
+#[module(name = "$segment", docs = SEGMENT_DOCS, args(input, amount))]
 pub struct Segment {
     outputs: SegmentOutputs,
     channel_state: Box<[ChannelState]>,

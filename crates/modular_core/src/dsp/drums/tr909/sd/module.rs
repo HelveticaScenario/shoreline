@@ -4,6 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr909::circuit::TRIG_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
@@ -60,25 +62,30 @@ struct Sd909Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Sd909Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-909 snare drum.
-///
-/// A circuit model of the 909's snare: a drum tone that bends up at the strike,
-/// under a burst of noise. **freq** sets the pitch, **snappy** how loud the
-/// noise is, **tone** how long it rings on, and **accent** how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr909.snare($clock.beatTrigger).out()
-/// ```
+const SD909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 snare drum",
+    description: "The 909's snare: a drum tone that bends up at the strike under a burst \
+                  of noise, which `tone` stretches from a tight crack to a long hiss.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Backbeat doubled on four",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909
+              .snare($cycle($p('~ c ~ [c c]')).trig, { snappy: 4 })
+              .out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$tr909.snare",
-    categories(drum),
+    docs = SD909_DOCS,
     has_init,
     patch_update,
     args(trigger),

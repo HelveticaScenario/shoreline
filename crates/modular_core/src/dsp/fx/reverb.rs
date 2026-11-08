@@ -12,6 +12,8 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -238,26 +240,27 @@ struct ReverbState {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-/// Stereo Feedback Delay Network reverb.
-///
-/// The eight modulated delay lines are split into a left and a right
-/// sub-network. Even input channels feed the left half, odd channels the right,
-/// so the wet field tracks the dry stereo image; a `width` control sets how
-/// strongly the two halves cross-couple, from held-apart to collapsed to mono.
-/// Each line has a decay gain tuned so the network reaches −60 dB at the
-/// requested `decay`, plus a one-pole damping filter for a natural
-/// high-frequency rolloff. Per-channel predelay and diffusion sit ahead of the
-/// network. Output is always 100% wet — use `.send()` or `$mix` for a dry/wet
-/// blend.
-///
-/// ```js
-/// $unstable.reverb($saw('c3')).out()
-/// $unstable.reverb($saw('c3'), { decay: 3, damping: 1.5, size: 2 }).out()
-/// $unstable.reverb($saw('c3'), { decay: 4, width: 4, modulation: 3 }).out()
-/// ```
+const REVERB_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stereo room and hall reverb",
+    description: "A dense, natural-sounding reverb for anything from small rooms to long halls, \
+                  keeping a stereo source's left and right apart in the tail. Output is fully \
+                  wet, so blend it with `.$m.unstable.reverb(mix)` or send to it from a bus.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Pad in a wide hall",
+        code: r#"
+            $saw($chord('D3[m7]'))
+              .$.lpf('d5', 1)
+              .$m.unstable.reverb(2.5, { decay: 3, size: 2 })
+              .out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$unstable.reverb",
-    categories(effect),
+    docs = REVERB_DOCS,
     channels = 2,
     has_init,
     args(input)

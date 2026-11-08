@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::wrap,
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -30,23 +32,27 @@ struct WrapOutputs {
     sample: PolyOutput,
 }
 
-/// Folds a signal into a range by wrapping values that exceed the boundaries
-/// back from the opposite side — like a phase accumulator.
-///
-/// Both **min** and **max** accept polyphonic signals. If **max** < **min**
-/// the bounds are swapped automatically.
-///
-/// Set **octave** to `true` to shift by whole integers instead, preserving the
-/// fractional part (pitch class in V/Oct signals). Always exact when
-/// `max − min ≥ 1`; makes the closest-octave attempt otherwise.
-///
-/// ```js
-/// // wrap a saw into 0–5 V
-/// $wrap($saw('c3'), 0, 5)
-/// // keep pitch class, clamp to octave range 0–2 V
-/// $wrap($cycle($p('c2 c5 c3')), 0, 2, { octave: true })
-/// ```
-#[module(name = "$wrap", categories(math), args(input, min, max))]
+const WRAP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Wrap a signal into a range",
+    description: "Wraps anything past one edge of a range back in from the other, the \
+                  way a phase wraps around. In octave mode it moves notes by whole \
+                  octaves instead, keeping a melody's notes but folding it into one \
+                  register.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Wide melody folded into one octave",
+        code: r#"
+            $sine(
+              $wrap($cycle($p('c2 g5 e3 b4 d6')), 'c4', 'c5', {
+                octave: true,
+              }),
+            ).out()
+        "#,
+    }],
+};
+
+#[module(name = "$wrap", docs = WRAP_DOCS, args(input, min, max))]
 pub struct Wrap {
     outputs: WrapOutputs,
     params: WrapParams,

@@ -5,6 +5,8 @@ use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
 use crate::dsp::utils::{hz_to_voct, voct_to_hz};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -35,16 +37,24 @@ struct MulHzOutputs {
     sample: PolyOutput,
 }
 
-/// Multiplies a pitch's frequency by a factor.
-///
-/// The input V/Oct pitch is converted to Hz, multiplied by **factor**, then the
-/// result is converted back to V/Oct. A factor of 1.5 is a just perfect fifth.
-///
-/// ```js
-/// // up a just fifth
-/// $mulHz($saw('C4'), 1.5)
-/// ```
-#[module(name = "$mulHz", categories(pitch), args(input, factor), block)]
+const MUL_HZ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Multiply a pitch's frequency",
+    description: "Multiplies a pitch's frequency by a ratio, for pure just intervals \
+                  and harmonics that equal-tempered transposition misses. A ratio of \
+                  1.5 is a beatless fifth.",
+    categories: &[ModuleCategory::Pitch],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Just-tuned fifths",
+        code: r#"
+            const root = $cycle($p('c3 a2 f2 g2'))
+            $saw(root).out()
+            $saw($mulHz(root, 1.5)).out()
+        "#,
+    }],
+};
+
+#[module(name = "$mulHz", docs = MUL_HZ_DOCS, args(input, factor), block)]
 pub struct MulHz {
     outputs: MulHzOutputs,
     params: MulHzParams,

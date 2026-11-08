@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
@@ -74,21 +76,40 @@ struct PulseChannelState {
     blep_carry: f32,
 }
 
-/// Pulse/square wave oscillator with pulse width modulation.
-///
-/// The `freq` input follows the **V/Oct** standard (0V = C4).
-/// The `width` parameter sets the duty cycle: 0 = narrow pulse,
-/// 2.5 = square wave, 5 = inverted narrow pulse.
-/// `pwm` is added to `width` for modulation.
-///
-/// Output range is **±5V**.
-///
-/// ## Example
-///
-/// ```js
-/// $pulse('c3', { width: 2.5 }).out()
-/// ```
-#[module(name = "$pulse", categories(oscillator), args(freq))]
+const PULSE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Pulse wave oscillator",
+    description: "A pulse wave that is hollow and woody as a square and grows \
+                  nasal and reedy as the pulse narrows. Sweeping the width with \
+                  a slow LFO gives the classic chorused PWM string sound.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "PWM chord pad",
+            code: r#"
+                $pulse($chord('C3[m]'), {
+                  pwm: $sine('0.3hz').range(-2, 2),
+                })
+                  .$.lpf('c6')
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Plucked square bass",
+            code: r#"
+                const seq = $cycle($p('c2 c2 eb2 g1'))
+                $pulse(seq)
+                  .$.lpf(
+                    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'),
+                    2,
+                  )
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$pulse", docs = PULSE_DOCS, args(freq))]
 pub struct PulseOscillator {
     outputs: PulseOscillatorOutputs,
     channel_state: Box<[PulseChannelState]>,

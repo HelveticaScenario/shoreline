@@ -20,9 +20,10 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 /// only writes the parts that differ — its enums and the `mode` they select.
 macro_rules! filter_module {
     (
-        $(#[$doc:meta])*
+        docs = $docs:path,
         name = $name:literal, ident = $Struct:ident, kernel = $Kernel:ty,
         output_doc = $output_doc:literal,
+        cutoff_doc = $cutoff_doc:literal,
         params = { $( $(#[$fdoc:meta])* $field:ident : $ftype:ty ),* $(,)? },
         mode = |$p:ident| $mode:expr $(,)?
     ) => {
@@ -34,7 +35,7 @@ macro_rules! filter_module {
             struct [<$Struct Params>] {
                 #[input("the sound to filter", type = audio)]
                 input: crate::poly::PolySignal,
-                #[input("cutoff frequency; the notch centre, comb pitch, or sample clock for those filters", type = frequency, default = 0.0)]
+                #[input($cutoff_doc, type = frequency, default = 0.0)]
                 cutoff: crate::poly::PolySignal,
                 #[input(
                     "filter resonance; high values approach self-oscillation",
@@ -59,8 +60,7 @@ macro_rules! filter_module {
                 sample: crate::poly::PolyOutput,
             }
 
-            $(#[$doc])*
-            #[module(name = $name, categories(filter), args(input, cutoff, resonance), patch_update)]
+            #[module(name = $name, docs = $docs, args(input, cutoff, resonance), patch_update)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::filters::surge::filter_core::FilterModuleState<
