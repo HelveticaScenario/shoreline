@@ -111,7 +111,7 @@ struct MotionFollowerChannelState {
 /// // a slowly swinging LFO bows a filter open on every sweep
 /// $lpf($saw('c3'), $motionFollower($sine('0.5hz'), { release: 0.5 }).range('c3', 'c7')).out()
 /// ```
-#[module(name = "$motionFollower", args(input))]
+#[module(name = "$motionFollower", categories(envelope), args(input))]
 pub struct MotionFollower {
     outputs: MotionFollowerOutputs,
     params: MotionFollowerParams,

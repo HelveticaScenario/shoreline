@@ -210,7 +210,7 @@ fn grains_derive_channel_count(params: &GrainsParams) -> usize {
 /// $grains(seq, $wavs().strings, seq.gate, { density: 3, shape: 'bell', length: 2 })
 /// ```
 #[module(
-    name = "$grains",
+    name = "$grains", categories(sampler),
     channels_derive = grains_derive_channel_count,
     args(pitch, wav, gate),
     has_init,

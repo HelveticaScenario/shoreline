@@ -84,7 +84,14 @@ struct Hh808Outputs {
 /// ```js
 /// $tr808.hiHat($clock.beatTrigger, { open: $clock.barTrigger, cut: -2 }).out()
 /// ```
-#[module(name = "$tr808.hiHat", has_init, patch_update, args(closed), block)]
+#[module(
+    name = "$tr808.hiHat",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(closed),
+    block
+)]
 pub struct Hh808 {
     outputs: Hh808Outputs,
     params: Hh808Params,

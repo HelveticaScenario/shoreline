@@ -210,7 +210,13 @@ struct PlateState {
 /// $plate($saw('c3'), { decay: 2, bandwidth: 3 }).out()
 /// $plate($saw('c3'), { modulation: $sine('0.1hz') }).out()
 /// ```
-#[module(name = "$plate", channels = 2, has_init, args(input))]
+#[module(
+    name = "$plate",
+    categories(effect),
+    channels = 2,
+    has_init,
+    args(input)
+)]
 pub struct Plate {
     outputs: PlateOutputs,
     state: PlateState,

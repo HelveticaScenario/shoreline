@@ -32,7 +32,7 @@ struct PSineOscillatorOutputs {
 /// and use phase-distortion modules between them for complex timbres.
 ///
 /// Output range is **±5V**.
-#[module(name = "$pSine", args(phase))]
+#[module(name = "$pSine", categories(oscillator, phase), args(phase))]
 pub struct PSineOscillator {
     outputs: PSineOscillatorOutputs,
     params: PSineOscillatorParams,

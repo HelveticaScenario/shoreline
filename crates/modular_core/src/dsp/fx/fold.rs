@@ -53,7 +53,7 @@ struct FoldState {
 /// Wavefolder that reflects the signal back when it exceeds a threshold,
 /// producing dense, harmonically rich tones. Higher amounts create more
 /// complex, metallic timbres.
-#[module(name = "$fold", args(input, amount), has_init)]
+#[module(name = "$fold", categories(distortion), args(input, amount), has_init)]
 pub struct Fold {
     outputs: FoldOutputs,
     state: FoldState,

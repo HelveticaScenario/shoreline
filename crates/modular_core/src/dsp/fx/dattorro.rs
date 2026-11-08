@@ -183,7 +183,13 @@ struct DattorroState {
 /// ```js
 /// $dattorro($saw('c3'), { decay: 3, damping: 1, size: 2 }).out()
 /// ```
-#[module(name = "$dattorro", channels = 2, has_init, args(input))]
+#[module(
+    name = "$dattorro",
+    categories(effect),
+    channels = 2,
+    has_init,
+    args(input)
+)]
 pub struct Dattorro {
     outputs: DattorroOutputs,
     state: DattorroState,

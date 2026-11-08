@@ -73,7 +73,7 @@ struct GrooveOutputs {
 /// const seq = $cycle($p('c4*8'), { groove: g, velocity: g.velocity })
 /// $sine(seq).amp($adsr(seq.gate)).amp(seq.velocity).out()
 /// ```
-#[module(name = "$groove", args(template))]
+#[module(name = "$groove", categories(sequencer), args(template))]
 pub struct Groove {
     outputs: GrooveOutputs,
     params: GrooveParams,

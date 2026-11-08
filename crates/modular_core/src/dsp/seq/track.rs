@@ -53,7 +53,7 @@ struct TrackOutputs {
 /// // automate filter cutoff over one cycle
 /// $lpf($saw('c2'), $track([['c2', 0], ['c5', 0.5], ['c3', 1]]))
 /// ```
-#[module(name = "$track", args(keyframes), channels_derive = derive_track_channel_count)]
+#[module(name = "$track", categories(sequencer, modulation), args(keyframes), channels_derive = derive_track_channel_count)]
 pub struct Track {
     outputs: TrackOutputs,
     params: TrackParams,

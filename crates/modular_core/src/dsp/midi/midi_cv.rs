@@ -170,7 +170,12 @@ struct MidiCvOutputs {
 /// const lead = $midiCV({ channels: 1, pitchBendRange: 12 });
 /// $saw(lead).amplitude($adsr(lead.gate,{attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5})).out();
 /// ```
-#[module(name = "$midiCV", channels_param = "channels", args())]
+#[module(
+    name = "$midiCV",
+    categories(midi),
+    channels_param = "channels",
+    args()
+)]
 pub struct MidiCv {
     outputs: MidiCvOutputs,
     params: MidiCvParams,

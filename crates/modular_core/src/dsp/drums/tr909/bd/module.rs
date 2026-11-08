@@ -70,7 +70,14 @@ struct Bd909Outputs {
 /// ```js
 /// $tr909.kick($clock.beatTrigger).out()
 /// ```
-#[module(name = "$tr909.kick", has_init, patch_update, args(trigger), block)]
+#[module(
+    name = "$tr909.kick",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Bd909 {
     outputs: Bd909Outputs,
     params: Bd909Params,

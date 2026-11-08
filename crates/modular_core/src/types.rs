@@ -49,6 +49,7 @@ use std::result::Result as StdResult;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::dsp::utils::{hz_to_voct, midi_to_voct};
+use crate::module_category::ModuleCategory;
 use crate::patch::Patch;
 
 // ============================================================================
@@ -2682,6 +2683,11 @@ pub struct ModuleSchema {
     pub name: String,
     /// Documentation extracted from `///` doc comments on the module struct.
     pub documentation: String,
+    /// The module's reference categories, in declaration order; never empty.
+    /// Typed as strings in TypeScript so `schemas.json` imports, whose string
+    /// literals widen, still satisfy this interface.
+    #[napi(ts_type = "Array<string>")]
+    pub categories: Vec<ModuleCategory>,
     #[napi(ts_type = "Record<string, unknown>")]
     pub params_schema: SchemaContainer,
     pub outputs: Vec<OutputSchema>,

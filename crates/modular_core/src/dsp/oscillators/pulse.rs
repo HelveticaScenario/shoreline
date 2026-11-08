@@ -75,7 +75,7 @@ struct PulseChannelState {
 /// ```js
 /// $pulse('c3', { width: 2.5 }).out()
 /// ```
-#[module(name = "$pulse", args(freq))]
+#[module(name = "$pulse", categories(oscillator), args(freq))]
 pub struct PulseOscillator {
     outputs: PulseOscillatorOutputs,
     channel_state: Box<[PulseChannelState]>,

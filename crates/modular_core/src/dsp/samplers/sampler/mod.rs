@@ -161,7 +161,7 @@ struct SamplerState {
 /// $sampler($wavs().pad, $pulse('2hz'), { slice: [[0, 0.25, 0.5, 0.75], $cycle($p('0 1 2 3')).cv], fade: 2 })
 /// $sampler($wavs().pad, $pulse('0.5hz'), { mode: 'loop', fade: 10 })
 /// ```
-#[module(name = "$sampler", channels_derive = sampler_derive_channel_count, args(wav, gate), has_init, patch_update)]
+#[module(name = "$sampler", categories(sampler), channels_derive = sampler_derive_channel_count, args(wav, gate), has_init, patch_update)]
 pub struct Sampler {
     params: SamplerParams,
     outputs: SamplerOutputs,

@@ -50,7 +50,11 @@ struct ChannelState {
 /// // Pulses every other bar of the root clock:
 /// $clockDivider($clock.barTrigger, 2)
 /// ```
-#[module(name = "$clockDivider", args(input, division))]
+#[module(
+    name = "$clockDivider",
+    categories(gate, sequencer),
+    args(input, division)
+)]
 pub struct ClockDivider {
     params: ClockDividerParams,
     outputs: ClockDividerOutputs,

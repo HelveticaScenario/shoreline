@@ -70,7 +70,7 @@ struct ChebyState {
 /// At low amounts the signal passes through cleanly; turning it up
 /// progressively emphasizes higher harmonics (2nd, 3rd, … up to 16th),
 /// thickening and brightening the tone.
-#[module(name = "$cheby", args(input, amount), has_init)]
+#[module(name = "$cheby", categories(distortion), args(input, amount), has_init)]
 pub struct Cheby {
     outputs: ChebyOutputs,
     state: ChebyState,

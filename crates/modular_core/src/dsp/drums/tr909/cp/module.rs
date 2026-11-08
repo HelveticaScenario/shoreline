@@ -44,7 +44,14 @@ struct Cp909Outputs {
 /// ```js
 /// $tr909.clap($clock.beatTrigger).out()
 /// ```
-#[module(name = "$tr909.clap", has_init, patch_update, args(trigger), block)]
+#[module(
+    name = "$tr909.clap",
+    categories(drum),
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Cp909 {
     outputs: Cp909Outputs,
     params: Cp909Params,

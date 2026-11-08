@@ -56,7 +56,13 @@ struct Rs808Outputs {
 /// ```js
 /// $tr808.rimShot($clock.beatTrigger).out()
 /// ```
-#[module(name = "$tr808.rimShot", has_init, args(trigger), block)]
+#[module(
+    name = "$tr808.rimShot",
+    categories(drum),
+    has_init,
+    args(trigger),
+    block
+)]
 pub struct Rs808 {
     outputs: Rs808Outputs,
     params: Rs808Params,
@@ -269,7 +275,13 @@ struct Cl808Outputs {
 /// ```js
 /// $tr808.claves($clock.beatTrigger).out()
 /// ```
-#[module(name = "$tr808.claves", has_init, args(trigger), block)]
+#[module(
+    name = "$tr808.claves",
+    categories(drum),
+    has_init,
+    args(trigger),
+    block
+)]
 pub struct Cl808 {
     outputs: Cl808Outputs,
     params: Cl808Params,

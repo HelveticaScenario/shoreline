@@ -56,7 +56,7 @@ macro_rules! filter_module {
             }
 
             $(#[$doc])*
-            #[module(name = $name, args(input, cutoff, resonance), patch_update)]
+            #[module(name = $name, categories(filter), args(input, cutoff, resonance), patch_update)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::filters::surge::filter_core::FilterModuleState<

@@ -35,7 +35,7 @@ fn hz(frequency: f32) -> f32 {
 /// Converts a frequency in Hz to a V/Oct pitch.
 ///
 /// Backs the DSL's `$hz()` when its argument is a signal.
-#[module(name = "_hz", args(input), block)]
+#[module(name = "_hz", categories(pitch), args(input), block)]
 pub struct Hz {
     outputs: HzOutputs,
     params: HzParams,

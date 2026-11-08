@@ -47,7 +47,7 @@ struct WrapOutputs {
 /// // keep pitch class, clamp to octave range 0–2 V
 /// $wrap($cycle($p('c2 c5 c3')), 0, 2, { octave: true })
 /// ```
-#[module(name = "$wrap", args(input, min, max))]
+#[module(name = "$wrap", categories(math), args(input, min, max))]
 pub struct Wrap {
     outputs: WrapOutputs,
     params: WrapParams,

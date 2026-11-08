@@ -148,7 +148,7 @@ enum NoiseInterp {
 /// $sine($noise("brown", { rate: $hz(4), interp: "smooth" })).out()
 /// ```
 #[module(
-    name = "$noise",
+    name = "$noise", categories(oscillator, random),
     channels_derive = noise_derive_channel_count,
     has_init,
     patch_update,
