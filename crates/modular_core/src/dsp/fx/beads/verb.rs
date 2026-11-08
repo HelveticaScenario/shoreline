@@ -159,13 +159,14 @@ const BEADS_REVERB_DOCS: ModuleDocs = ModuleDocs {
     categories: &[ModuleCategory::Effect],
     sections: &[DocSection {
         title: "Matching a Beads quality",
-        body: "The `size` and `tone` Beads itself uses alongside each `$granular` `quality`.",
+        body: "Beads sets its reverb to these `size` and `tone` values for each `quality` of \
+               `$granular`, so use them to match its sound.",
         table: Some(DocTable {
-            columns: &["Quality", "`size`", "`tone`"],
+            columns: &["Quality", "Size", "Tone"],
             rows: &[
                 &["`'digital'`", "0", "1"],
-                &["`'cleanTape'`", "0", "2"],
                 &["`'vintage'`", "2.5", "2"],
+                &["`'cleanTape'`", "0", "2"],
                 &["`'dirtyTape'`", "5", "2"],
             ],
         }),

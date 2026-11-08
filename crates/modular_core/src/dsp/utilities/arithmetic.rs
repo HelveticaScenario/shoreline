@@ -18,7 +18,7 @@ pub enum ArithmeticOp {
     Sub,
     Mul,
     Div,
-    /// `input` raised to `operand`, mirrored for negative inputs.
+    /// `input` raised to `operand`, mirrored for negative inputs
     Pow,
 }
 
@@ -127,12 +127,12 @@ message_handlers!(impl Arithmetic {});
 #[serde(rename_all = "snake_case")]
 #[deserr(rename_all = lowercase)]
 pub enum RoundMode {
-    /// To the nearest whole number, halves away from zero.
+    /// to the nearest whole number, halves away from zero
     #[default]
     Round,
-    /// Down, towards negative infinity.
+    /// down, towards negative infinity
     Floor,
-    /// Up, towards positive infinity.
+    /// up, towards positive infinity
     Ceil,
 }
 

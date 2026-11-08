@@ -149,9 +149,9 @@ describe('every declared range reaches the generated docs', () => {
         }
     });
 
-    test('config options nest one level under their key', () => {
-        expect(lib).not.toMatch(/-\s{2,}- /);
-        expect(lib).toContain("*     - `\"throughZero\"`");
+    test('options sit inline on their param line', () => {
+        expect(lib).not.toMatch(/\n\s*\*\s+-\s+`"/);
+        expect(lib).toContain('Options: `"throughZero"` through-zero');
     });
 
     test('main outputs as @returns', () => {

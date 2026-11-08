@@ -35,5 +35,6 @@ const SINE_SHAPE_DOCS: ModuleDocs = ModuleDocs {
 
 shape_module! {
     docs = SINE_SHAPE_DOCS,
-    name = "$unstable.shape.sine", ident = Sine, shaper = SineShaper
+    name = "$unstable.shape.sine", ident = Sine, shaper = SineShaper,
+    drive_doc = "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
 }

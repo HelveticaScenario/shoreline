@@ -33,16 +33,16 @@ const K35_2Z: usize = 2;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum K35Saturation {
-    /// Clean and linear.
+    /// clean and linear
     #[default]
     None,
-    /// A touch of grit in the resonance.
+    /// a touch of grit in the resonance
     Mild,
-    /// Audible growl.
+    /// audible growl
     Moderate,
-    /// Thick, distorted resonance.
+    /// thick, distorted resonance
     Heavy,
-    /// Fully driven, screaming resonance.
+    /// fully driven, screaming resonance
     Extreme,
 }
 
@@ -203,7 +203,9 @@ const K35_LP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Snarling lead",
-        code: "$unstable.filter.k35Lp($saw($cycle($p('c3 eb3 g3 bb3'))), $sine('0.5hz').range('c4', 'c7'), 4, { saturation: 'heavy' }).out()",
+        code: "const lead = $saw($cycle($p('c3 eb3 g3 bb3')))\n\
+              const sweep = $sine('0.5hz').range('c4', 'c7')\n\
+              $unstable.filter.k35Lp(lead, sweep, 4, { saturation: 'heavy' }).out()",
     }],
 };
 
@@ -211,6 +213,7 @@ filter_module! {
     docs = K35_LP_DOCS,
     name = "$unstable.filter.k35Lp", ident = K35LpFilter, kernel = K35Lp,
     output_doc = "lowpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
         #[input("how hard the resonance feedback saturates", default = "none")]
         saturation: K35Saturation,
@@ -234,6 +237,7 @@ filter_module! {
     docs = K35_HP_DOCS,
     name = "$unstable.filter.k35Hp", ident = K35HpFilter, kernel = K35Hp,
     output_doc = "highpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
         #[input("how hard the resonance feedback saturates", default = "none")]
         saturation: K35Saturation,

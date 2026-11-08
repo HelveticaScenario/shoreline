@@ -101,7 +101,7 @@ struct DrumMapParams {
     #[deserr(default)]
     playhead: Option<MonoSignal>,
     #[input(
-        "groove shift of each step, in cycles; follows the global groove by default, 0 plays straight, and is 0 when `playhead` is set without it",
+        "groove shift of each step, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
         type = control,
         control_range = (-5.0, 5.0),
     )]
@@ -109,7 +109,7 @@ struct DrumMapParams {
     #[deserr(default)]
     groove: Option<MonoSignal>,
     #[input(
-        "how readily each step accents: lower accents less, 0 never; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
+        "how readily each step accents: lower accents less, 0 never. Follows the global groove, unless you set your own `playhead` or `groove`: then it is full until given a velocity too",
         type = control,
         range = (0.0, ..),
         control_range = (0.0, 5.0),

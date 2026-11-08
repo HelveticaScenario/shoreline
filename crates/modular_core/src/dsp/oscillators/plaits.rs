@@ -41,54 +41,54 @@ const ENGINE_SAMPLE_RATE: f32 = 48000.0;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum PlaitsEngine {
-    /// Virtual analog oscillator with VCF - classic subtractive synthesis
+    /// one analog-style oscillator through a resonant filter, for classic subtractive sounds
     #[default]
     VaVcf,
-    /// Phase distortion synthesis
+    /// phase distortion, the Casio CZ sound of sweeping resonant tones
     PhaseDistortion,
-    /// Six-operator FM synthesis (bank A)
+    /// DX7-style six-operator FM, preset bank A
     SixOpA,
-    /// Six-operator FM synthesis (bank B)
+    /// DX7-style six-operator FM, preset bank B
     SixOpB,
-    /// Six-operator FM synthesis (bank C)
+    /// DX7-style six-operator FM, preset bank C
     SixOpC,
-    /// Wave terrain synthesis
+    /// wave terrain, shifting and evolving digital tones
     WaveTerrain,
-    /// String machine emulation
+    /// string machine, lush ensemble chords
     StringMachine,
-    /// Chiptune waveforms with arpeggiator
+    /// chiptune square waves with a built-in arpeggiator
     Chiptune,
-    /// Virtual analog dual oscillator
+    /// two raw analog-style oscillators with no filter, for detuned saws and pulses
     VirtualAnalog,
-    /// Waveshaping oscillator
+    /// a folded, waveshaped oscillator, bright and buzzy
     Waveshaping,
-    /// Two-operator FM synthesis
+    /// two-operator FM, from bell tones to metallic growls
     TwoOpFm,
-    /// Granular formant oscillator
+    /// formant oscillator, vocal and nasal tones
     GranularFormant,
-    /// Harmonic/additive oscillator
+    /// additive harmonics, organ-like tones
     Additive,
-    /// Wavetable oscillator
+    /// wavetable scanning, classic digital sweeps
     Wavetable,
-    /// Chord generator
+    /// stacked chords from a single pitch
     Chords,
-    /// Vowel and speech synthesis
+    /// vowels and robotic speech
     Speech,
-    /// Swarm oscillator
+    /// a swarm of detuned oscillators, huge and smeary
     Swarm,
-    /// Filtered noise
+    /// noise through a resonant filter, from hiss to whistles
     FilteredNoise,
-    /// Particle noise
+    /// random dust and droplets ringing through filters
     ParticleNoise,
-    /// Inharmonic string modeling
+    /// a plucked string, for guitar and sitar tones
     InharmonicString,
-    /// Modal resonator
+    /// a struck resonator for bells, bars and wood
     ModalResonator,
-    /// Analog bass drum
+    /// analog-style kick drum
     BassDrum,
-    /// Analog snare drum
+    /// analog-style snare drum
     SnareDrum,
-    /// Analog hi-hat
+    /// analog-style hi-hat
     HiHat,
 }
 
@@ -177,7 +177,7 @@ struct PlaitsParams {
     timbre_amt: Option<PolySignal>,
 
     #[input(
-        "attenuverter for `fm`; with `fm` unpatched it sets how far a trigger's envelope sweeps pitch, or fine-tunes by up to a semitone",
+        "how much `fm` bends the pitch, negative inverting it. With `fm` unpatched it sets how far each trigger's envelope sweeps the pitch instead, or, with no trigger either, fine-tunes by up to a semitone",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -229,7 +229,7 @@ struct PlaitsParams {
     lpg_decay: Option<PolySignal>,
 
     #[input(
-        "blend at `output`: 0 main, 5 aux",
+        "blend at `output` between the engine's `main` sound at 0 and its `aux` variant at 5",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),

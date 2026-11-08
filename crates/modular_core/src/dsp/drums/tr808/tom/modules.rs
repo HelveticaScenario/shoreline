@@ -238,7 +238,7 @@ tom_module! {
     ident = Lt808,
     parts = LT,
     freq = -1.5959,
-    freq_doc = "pitch; stock is ≈87 Hz, and the hit gets louder or quieter far from it",
+    freq_doc = "pitch; stock is ≈87 Hz; its level shifts as you tune far from stock",
     decay_doc = "how long the drum rings, from ≈0.21 s to ≈1.9 s; ≈0.63 s at 2.5, as on the 808",
 }
 
@@ -262,7 +262,7 @@ tom_module! {
     ident = Mt808,
     parts = MT,
     freq = -0.9623,
-    freq_doc = "pitch; stock is ≈134 Hz, and the hit gets louder or quieter far from it",
+    freq_doc = "pitch; stock is ≈134 Hz; its level shifts as you tune far from stock",
     decay_doc = "how long the drum rings, from ≈0.13 s to ≈1.2 s; ≈0.4 s at 2.5, as on the 808",
 }
 
@@ -285,14 +285,14 @@ tom_module! {
     ident = Ht808,
     parts = HT,
     freq = -0.5216,
-    freq_doc = "pitch; stock is ≈182 Hz, and the hit gets louder or quieter far from it",
+    freq_doc = "pitch; stock is ≈182 Hz; its level shifts as you tune far from stock",
     decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }
 
 const LC808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 low conga",
-    description: "The 808's low conga: a bright, hollow ring that starts sharp and \
-                  settles in pitch.",
+    description: "The 808's low conga, the lowest of the three: a warm, hollow ring that \
+                  starts sharp and settles in pitch.",
     categories: &[ModuleCategory::Drum],
     sections: &[],
     examples: &[DocExample {
@@ -308,14 +308,14 @@ tom_module! {
     ident = Lc808,
     parts = LC,
     freq = -0.4471,
-    freq_doc = "pitch; stock is ≈192 Hz, and the hit gets louder or quieter far from it",
+    freq_doc = "pitch; stock is ≈192 Hz; its level shifts as you tune far from stock",
     decay_doc = "how long the drum rings, from ≈0.21 s to ≈1.9 s; ≈0.63 s at 2.5, as on the 808",
 }
 
 const MC808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 mid conga",
-    description: "The 808's mid conga: a bright, hollow ring that starts sharp and \
-                  settles in pitch.",
+    description: "The 808's mid conga, the middle of the three: a hollow, woody ring that \
+                  starts sharp and settles in pitch.",
     categories: &[ModuleCategory::Drum],
     sections: &[],
     examples: &[DocExample {
@@ -331,13 +331,13 @@ tom_module! {
     ident = Mc808,
     parts = MC,
     freq = 0.0792,
-    freq_doc = "pitch; stock is ≈276 Hz, and the hit gets louder or quieter far from it",
+    freq_doc = "pitch; stock is ≈276 Hz; its level shifts as you tune far from stock",
     decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }
 
 const HC808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 high conga",
-    description: "The 808's high conga: a bright, hollow ring, the highest of the three, \
+    description: "The 808's high conga, the highest of the three: a bright, hollow ring \
                   that starts sharp and settles in pitch.",
     categories: &[ModuleCategory::Drum],
     sections: &[],
@@ -355,6 +355,6 @@ tom_module! {
     ident = Hc808,
     parts = HC,
     freq = 0.629,
-    freq_doc = "pitch; stock is ≈405 Hz, and the hit gets louder or quieter far from it",
+    freq_doc = "pitch; stock is ≈405 Hz; its level shifts as you tune far from stock",
     decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }

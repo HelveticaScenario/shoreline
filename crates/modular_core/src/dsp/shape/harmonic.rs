@@ -16,28 +16,28 @@ use crate::module_docs::{DocExample, ModuleDocs};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum HarmonicMode {
-    /// Adds a soft 2nd harmonic.
+    /// adds a soft 2nd harmonic
     #[default]
     Cheby2,
-    /// Adds a soft 3rd harmonic.
+    /// adds a soft 3rd harmonic
     Cheby3,
-    /// Adds a soft 4th harmonic.
+    /// adds a soft 4th harmonic
     Cheby4,
-    /// Adds a soft 5th harmonic.
+    /// adds a soft 5th harmonic
     Cheby5,
-    /// Blend of the 1st and 2nd harmonics.
+    /// blend of the 1st and 2nd harmonics
     Add12,
-    /// Blend of the 1st and 3rd harmonics.
+    /// blend of the 1st and 3rd harmonics
     Add13,
-    /// Blend of the 1st and 4th harmonics.
+    /// blend of the 1st and 4th harmonics
     Add14,
-    /// Blend of the 1st and 5th harmonics.
+    /// blend of the 1st and 5th harmonics
     Add15,
-    /// Blend of the 1st through 5th harmonics.
+    /// blend of the 1st through 5th harmonics
     Add12345,
-    /// Sawtooth-like blend of the first three harmonics.
+    /// sawtooth-like blend of the first three harmonics
     AddSaw3,
-    /// Square-like blend of odd harmonics.
+    /// square-like blend of odd harmonics
     AddSqr3,
 }
 

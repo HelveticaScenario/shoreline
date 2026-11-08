@@ -64,7 +64,7 @@ struct LadderState {
 const JUP6F_DOCS: ModuleDocs = ModuleDocs {
     summary: "Jupiter-6 style ladder filter",
     description: "A warm, saturating 4-pole lowpass modelled on the Roland Jupiter-6, with \
-                  12 dB lowpass, bandpass and highpass taps from the same core. Turned up, \
+                  extra outputs for a 12 dB lowpass, a bandpass and a highpass from the same core. Turned up, \
                   the resonance self-oscillates into a clean sine at the cutoff.",
     categories: &[ModuleCategory::Filter],
     sections: &[],

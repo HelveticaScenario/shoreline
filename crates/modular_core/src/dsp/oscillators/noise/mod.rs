@@ -117,12 +117,16 @@ const NOISE_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[
         DocExample {
-            title: "Noise hi-hats",
-            code: "$noise('white').$.hpf('c8').amp($perc($clock.beatTrigger, { decay: 0.05 })).out()",
+            title: "Brown-noise surf",
+            code: "$noise('brown').amp($sine('0.1hz').range(1, 5)).out()",
         },
         DocExample {
             title: "Random melody in key",
             code: "$sine($quantizer($noise('white', { rate: '4hz' }).range('c3', 'c5'), $chord('C(minor)'))).out()",
+        },
+        DocExample {
+            title: "Raindrop blips on random triggers",
+            code: "$sine('c6').amp($perc($noise('dust', { rate: '6hz' }), { decay: 0.03 })).out()",
         },
     ],
 };

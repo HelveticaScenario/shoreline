@@ -140,7 +140,7 @@ pub struct SeqParams {
     #[deserr(default)]
     playhead: Option<MonoSignal>,
     #[input(
-        "groove shift of note starts, in cycles; follows the global groove by default, 0 plays straight, and is 0 when `playhead` is set without it",
+        "groove shift of note starts, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
         type = control,
         control_range = (-5.0, 5.0),
     )]
@@ -148,7 +148,7 @@ pub struct SeqParams {
     #[deserr(default)]
     groove: Option<MonoSignal>,
     #[input(
-        "velocity held from each note start onto the `velocity` output; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
+        "velocity held from each note start onto the `velocity` output. Follows the global groove, unless you set your own `playhead` or `groove`: then every note is full velocity until given a velocity too",
         type = control,
         control_range = (0.0, 5.0),
     )]

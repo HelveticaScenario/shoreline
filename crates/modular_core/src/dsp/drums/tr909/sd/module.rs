@@ -69,11 +69,11 @@ struct Sd909Outputs {
 const SD909_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-909 snare drum",
     description: "The 909's snare: a drum tone that bends up at the strike under a burst \
-                  of noise, from a tight crack to a long hiss.",
+                  of noise, which `tone` stretches from a tight crack to a long hiss.",
     categories: &[ModuleCategory::Drum],
     sections: &[],
     examples: &[DocExample {
-        title: "Backbeat with a flam",
+        title: "Backbeat doubled on four",
         code: "$tr909.kick($cycle($p('c*4')).trig).out()\n\
                $tr909.snare($cycle($p('~ c ~ [c c]')).trig, { snappy: 4 }).out()",
     }],

@@ -15,16 +15,16 @@ use crate::module_docs::{DocExample, ModuleDocs};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum SaturateMode {
-    /// Smooth, warm saturation.
+    /// smooth, warm saturation
     #[default]
     Soft,
-    /// Hard clipping — aggressive, squared-off edges.
+    /// hard clipping, aggressive and squared-off
     Hard,
-    /// Asymmetric saturation — adds even harmonics for a warmer colour.
+    /// lopsided saturation with a warmer, tube-like colour
     Asymmetric,
-    /// Medium saturation — sits between soft and hard.
+    /// between soft and hard
     Medium,
-    /// Overdrive with a soft knee before it clips.
+    /// pedal-style overdrive that rounds off one side early and clips the other hard
     Ojd,
 }
 

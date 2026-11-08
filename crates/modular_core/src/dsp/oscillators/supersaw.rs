@@ -84,8 +84,8 @@ pub fn supersaw_derive_channel_count(params: &SupersawParams) -> usize {
 const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
     summary: "Detuned saw stack",
     description: "A stack of detuned sawtooths for huge trance leads, pads and \
-                  chords. Each saw comes out on its own channel, so the stack \
-                  is as wide as the voices it holds.",
+                  chords. Each saw comes out on its own channel, ready to spread \
+                  across stereo with `$stereoMix` or `$mixDown`.",
     categories: &[ModuleCategory::Oscillator],
     sections: &[],
     examples: &[

@@ -2509,6 +2509,31 @@ function paramDescription(description: string): string {
         .join(' ');
 }
 
+/** Options listed in full up to this many; beyond it, by name only. */
+const MAX_DESCRIBED_OPTIONS = 8;
+
+/**
+ * A param's enum options on one line: `Options: \`a\` what a does; \`b\` …`.
+ * TypeScript strips the indentation of JSDoc tag lines, so options cannot
+ * nest as a list under their param.
+ */
+function optionsText(
+    propSchema: JSONSchema,
+    paramsSchema: Schema['paramsSchema'],
+): string | undefined {
+    const variants = getEnumVariants(propSchema, paramsSchema);
+    if (!variants || !variants.some((v) => v.description)) {
+        return undefined;
+    }
+    if (variants.length > MAX_DESCRIBED_OPTIONS) {
+        return `Options: ${variants.map((v) => `\`${v.value}\``).join(', ')}.`;
+    }
+    const items = variants.map((v) =>
+        v.description ? `\`${v.value}\` ${v.description}` : `\`${v.value}\``,
+    );
+    return `Options: ${items.join('; ')}.`;
+}
+
 /**
  * Build the trailing `config?: { ... }` argument shared by the factory-function
  * and `.$.`-method renderers: every non-positional param, plus an optional
@@ -2549,17 +2574,11 @@ function buildConfigArg(moduleSchema: Schema): {
             description && paramDescription(description),
             paramMeta(moduleSchema, key),
         );
-        if (doc) {
-            paramDocs.push(`  - ${key} - ${doc}`);
-        }
-
-        // Append enum variant descriptions as sub-bullets
-        const variants = getEnumVariants(propSchema, paramsSchema);
-        if (variants && variants.some((v) => v.description)) {
-            for (const v of variants) {
-                const desc = v.description ? ` — ${v.description}` : '';
-                paramDocs.push(`    - \`${v.value}\`${desc}`);
-            }
+        const options = optionsText(propSchema, paramsSchema);
+        if (doc || options) {
+            paramDocs.push(
+                `  - ${key} - ${[doc, options].filter(Boolean).join(' ')}`,
+            );
         }
     }
 
@@ -2647,12 +2666,9 @@ function buildSignature(
         docLines.push(doc ? `@param ${arg.name} ${doc}` : `@param ${arg.name}`);
 
         if (propSchema) {
-            const variants = getEnumVariants(propSchema, paramsSchema);
-            if (variants && variants.some((v) => v.description)) {
-                for (const v of variants) {
-                    const desc = v.description ? ` — ${v.description}` : '';
-                    docLines.push(`  - \`${v.value}\`${desc}`);
-                }
+            const options = optionsText(propSchema, paramsSchema);
+            if (options) {
+                docLines.push(options);
             }
         }
     }

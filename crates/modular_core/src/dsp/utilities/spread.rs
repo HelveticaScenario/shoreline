@@ -48,7 +48,7 @@ const SPREAD_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[
         DocExample {
-            title: "Four-octave stack",
+            title: "Octave stack",
             code: "$sine($spread('c3', 'c6', 4)).out()",
         },
         DocExample {

@@ -48,7 +48,7 @@ struct MotionFollowerParams {
     #[deserr(default)]
     smooth: Option<PolySignal>,
     #[input(
-        "volts of output per volt-per-second of movement; negative flips the output below 0",
+        "sensitivity: how much output a given speed of movement gives, in volts per volt-per-second; negative flips the output below 0",
         type = control,
         default = 0.25,
         control_range = (0.0, 10.0),

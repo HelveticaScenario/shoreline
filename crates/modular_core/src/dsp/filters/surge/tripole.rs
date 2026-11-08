@@ -154,14 +154,14 @@ fn res_deriv(x: f32) -> f32 {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum TriPoleShape {
-    /// Lowpass → lowpass → lowpass.
+    /// lowpass → lowpass → lowpass
     #[default]
     Lll,
-    /// Lowpass → highpass → lowpass.
+    /// lowpass → highpass → lowpass
     Lhl,
-    /// Highpass → lowpass → highpass.
+    /// highpass → lowpass → highpass
     Hlh,
-    /// Highpass → highpass → highpass.
+    /// highpass → highpass → highpass
     Hhh,
 }
 
@@ -318,7 +318,7 @@ const TRIPOLE_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Wild resonant bass",
-        code: "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n\
+        code: "const seq = $cycle($p('d2*2 [f2 d3] a1 [c2 ~ d2]'))\n\
               $unstable.filter.tripole($saw(seq), $sine('0.3hz').range('c3', 'c6'), 3, { mode: 'lhl' }).out()",
     }],
 };
@@ -327,6 +327,7 @@ filter_module! {
     docs = TRIPOLE_DOCS,
     name = "$unstable.filter.tripole", ident = TriPoleFilter, kernel = TriPole,
     output_doc = "filter output",
+    cutoff_doc = "cutoff frequency",
     params = {
         #[input("which stages are lowpass and which highpass", default = "lll")]
         mode: TriPoleShape,

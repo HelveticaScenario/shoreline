@@ -93,7 +93,8 @@ macro_rules! shape_module {
     // Single-algorithm modules (`digital`, `sine`): no `mode`, drive is positional 2.
     (
         docs = $docs:path,
-        name = $name:literal, ident = $Struct:ident, shaper = $Shaper:ty $(,)?
+        name = $name:literal, ident = $Struct:ident, shaper = $Shaper:ty,
+        drive_doc = $drive_doc:literal $(,)?
     ) => {
         paste::paste! {
             #[params]
@@ -104,7 +105,7 @@ macro_rules! shape_module {
                 #[input("signal to shape; ±5 V spans the shaper's curve", type = audio)]
                 input: crate::poly::PolySignal,
                 #[input(
-                    "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
+                    $drive_doc,
                     type = control,
                     default = 0.0,
                     range = (-5.0, 5.0),

@@ -15,7 +15,7 @@ struct Bd808Params {
     #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
     #[input(
-        "how hard the hit lands, read at each strike: up to twice as loud at 5 V, with more pitch sigh",
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V, with a deeper pitch drop",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -39,7 +39,7 @@ struct Bd808Params {
     #[deserr(default)]
     decay: Option<PolySignal>,
     #[input(
-        "pitch; stock is ≈49.5 Hz, and the hit gets louder or quieter far from it",
+        "pitch; stock is ≈49.5 Hz; its level shifts as you tune far from stock",
         type = pitch,
         default = -2.4035,
     )]

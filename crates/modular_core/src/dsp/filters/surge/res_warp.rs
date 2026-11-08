@@ -26,10 +26,10 @@ const N_NLS_COEFF: usize = 5;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum ResWarpDrive {
-    /// Smooth tanh state saturation.
+    /// smooth, warm saturation
     #[default]
     Tanh,
-    /// Cubic soft clip.
+    /// firmer, brighter saturation
     SoftClip,
 }
 
@@ -156,11 +156,12 @@ impl Filter for ResWarp {
 
 /// Stamp one res-warp passband module.
 macro_rules! res_warp_module {
-    ($docs:path, $name:literal, $Struct:ident, $passband:expr, $output_doc:literal) => {
+    ($docs:path, $name:literal, $Struct:ident, $passband:expr, $output_doc:literal, $cutoff_doc:literal) => {
         filter_module! {
             docs = $docs,
             name = $name, ident = $Struct, kernel = ResWarp,
             output_doc = $output_doc,
+            cutoff_doc = $cutoff_doc,
             params = {
                 #[input("saturation inside the filter", default = "tanh")]
                 drive: ResWarpDrive,
@@ -178,13 +179,13 @@ macro_rules! res_warp_module {
 const RES_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Resonance Warp lowpass",
     description: "A resonant lowpass with saturation inside the filter, so loud signals squash \
-                  and warp the resonant peak into a thick, rubbery tone. More `stages` cut \
-                  steeper.",
+                  and warp the resonant peak into a thick, rubbery tone, where `cutoffWarpLp` \
+                  growls as level pushes its cutoff around. More `stages` cut steeper.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Rubbery resonant bass",
-        code: "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n\
+        code: "const seq = $cycle($p('f1 [~ f2] ab1 [c2 eb2]'))\n\
               $unstable.filter.resWarpLp($saw(seq), $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'), 4, { stages: 2 }).out()",
     }],
 };
@@ -192,7 +193,7 @@ const RES_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
 const RES_WARP_HP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Resonance Warp highpass",
     description: "A resonant highpass with saturation inside the filter: the peak thickens and \
-                  warps instead of whistling.",
+                  warps instead of whistling as it does in `cutoffWarpHp`.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
@@ -242,35 +243,40 @@ res_warp_module!(
     "$unstable.filter.resWarpLp",
     ResWarpLpFilter,
     WarpPassband::Lp,
-    "lowpass output"
+    "lowpass output",
+    "cutoff frequency"
 );
 res_warp_module!(
     RES_WARP_HP_DOCS,
     "$unstable.filter.resWarpHp",
     ResWarpHpFilter,
     WarpPassband::Hp,
-    "highpass output"
+    "highpass output",
+    "cutoff frequency"
 );
 res_warp_module!(
     RES_WARP_BP_DOCS,
     "$unstable.filter.resWarpBp",
     ResWarpBpFilter,
     WarpPassband::Bp,
-    "bandpass output"
+    "bandpass output",
+    "centre frequency of the band"
 );
 res_warp_module!(
     RES_WARP_NOTCH_DOCS,
     "$unstable.filter.resWarpNotch",
     ResWarpNotchFilter,
     WarpPassband::Notch,
-    "notch output"
+    "notch output",
+    "centre frequency of the notch"
 );
 res_warp_module!(
     RES_WARP_AP_DOCS,
     "$unstable.filter.resWarpAp",
     ResWarpApFilter,
     WarpPassband::Ap,
-    "allpass output"
+    "allpass output",
+    "frequency the phase shift centres on"
 );
 
 #[cfg(test)]

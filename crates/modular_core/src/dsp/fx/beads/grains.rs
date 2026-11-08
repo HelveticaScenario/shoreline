@@ -105,7 +105,7 @@ struct GranularParams {
     #[deserr(default)]
     mix: Option<PolySignal>,
     #[input(
-        "recording character: how clean it sounds and how much audio it holds",
+        "recording character: `'digital'` holds 4 s of audio, `'vintage'` 8 s, `'cleanTape'` 10.7 s, `'dirtyTape'` 16 s",
         default = "digital"
     )]
     #[serde(default)]
@@ -149,9 +149,8 @@ const GRANULAR_DOCS: ModuleDocs = ModuleDocs {
     summary: "Live granular processor",
     description: "The granular processor from Mutable Instruments Beads: it records its input \
                   and plays it back as grains, one per trigger, for clouds, smears and stutters \
-                  of live sound. Each grain keeps the settings it started with, so for \
-                  grain-to-grain variation modulate them with something sampled on the same \
-                  trigger, such as `$sah`. Follow it with `$wowFlutter` and `$reverb` for the \
+                  of live sound. For grain-to-grain variation, modulate its settings with \
+                  something sampled on the same trigger, such as `$sah`. Follow it with `$wowFlutter` and `$reverb` for the \
                   rest of Beads' sound.",
     categories: &[ModuleCategory::Effect],
     sections: &[],

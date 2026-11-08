@@ -20,7 +20,7 @@ struct Cb808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz, and the hit gets louder or quieter far from it",
+        "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz; its level shifts as you tune far from stock",
         type = pitch,
         default = 1.0454,
     )]
@@ -50,7 +50,7 @@ struct Cb808Outputs {
 const CB808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 cowbell",
     description: "The 808's cowbell: two square waves through a band-pass filter, for \
-                  its clanking, slightly sour clang.",
+                  its clanking, slightly sour tone.",
     categories: &[ModuleCategory::Drum],
     sections: &[],
     examples: &[

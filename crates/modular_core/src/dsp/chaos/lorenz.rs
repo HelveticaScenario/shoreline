@@ -50,7 +50,7 @@ const STATE_CLAMP: f32 = 500.0;
 #[deserr(deny_unknown_fields)]
 struct LorenzParams {
     #[input(
-        "σ, how fast x chases y: 5 is σ = 30, and the default is σ = 10; stays chaotic above 0",
+        "how tightly the voltages chase each other: higher makes the swings snappier and more jittery, chaotic at any value above 0 (σ; the default is σ = 10, 5 is σ = 30)",
         type = control,
         default = 1.6667,
         range = (0.0, ..),
@@ -60,7 +60,7 @@ struct LorenzParams {
     sigma: Option<PolySignal>,
 
     #[input(
-        "ρ, how far the attractor's two lobes sit from the centre: 5 is ρ = 60, and the default is ρ = 28; below about 2.06 (ρ ≈ 24.74) the motion settles to a still point",
+        "how wide and wild the swings are: higher roams further; below about 2.06 the motion settles to still voltages (ρ; the default is ρ = 28, 5 is ρ = 60)",
         type = control,
         default = 2.3333,
         range = (0.0, ..),
@@ -70,7 +70,7 @@ struct LorenzParams {
     rho: Option<PolySignal>,
 
     #[input(
-        "β, the attractor's shape: 5 is β = 10, and the default is the classic β = 8/3",
+        "the shape of the loops the voltages trace; the default is the classic butterfly (β = 8/3; 5 is β = 10)",
         type = control,
         default = 1.3333,
         range = (0.0, ..),

@@ -46,12 +46,12 @@ fn speed_to_increment(speed: f32, sample_rate: f32) -> f32 {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 enum ErraticMode {
-    /// Add a random offset.
+    /// add a random offset
     #[default]
     Shift,
-    /// Add a random offset, then clamp to [min, max].
+    /// add a random offset, then clamp to [min, max]
     Clamp,
-    /// Move toward a random value in [min, max], clamped to it.
+    /// move toward a random value in [min, max], clamped to it
     Blend,
 }
 

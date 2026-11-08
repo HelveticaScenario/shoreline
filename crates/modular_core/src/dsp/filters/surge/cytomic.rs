@@ -27,18 +27,18 @@ const N_CY_COEFF: usize = 6;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum FastSvfMode {
-    /// Lowpass.
+    /// lowpass, removes the highs
     #[default]
     Lp,
-    /// Highpass.
+    /// highpass, removes the lows
     Hp,
-    /// Bandpass.
+    /// bandpass, keeps a band around the cutoff
     Bp,
-    /// Notch.
+    /// notch, cuts a band around the cutoff
     Notch,
-    /// Resonant peak.
+    /// peak, boosts a band around the cutoff
     Peak,
-    /// Allpass.
+    /// allpass, shifts phase only, for phaser sweeps
     Allpass,
 }
 
@@ -118,6 +118,7 @@ filter_module! {
     docs = FAST_SVF_DOCS,
     name = "$unstable.filter.fastSvf", ident = FastSvfFilter, kernel = FastSvf,
     output_doc = "filter output",
+    cutoff_doc = "cutoff frequency, or the centre of the band, notch or peak",
     params = {
         #[input("which response the filter outputs", default = "lp")]
         mode: FastSvfMode,

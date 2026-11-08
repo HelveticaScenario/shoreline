@@ -16,18 +16,18 @@ use crate::module_docs::{DocExample, ModuleDocs};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum FoldMode {
-    /// A single, smooth fold.
+    /// a single, smooth fold
     #[default]
     Soft,
-    /// A single sharp fold.
+    /// a single sharp fold
     Single,
-    /// A double fold — more harmonics.
+    /// a double fold, more harmonics
     Dual,
-    /// West-coast (Buchla-style) fold — complex, metallic harmonics.
+    /// west-coast (Buchla-style) fold with complex, metallic harmonics
     Westcoast,
-    /// Triangle fold — hard and buzzy.
+    /// triangle fold, hard and buzzy
     Linear,
-    /// Sine fold — wraps the signal smoothly through a sine.
+    /// sine fold, wraps the signal smoothly through a sine
     Sine,
 }
 

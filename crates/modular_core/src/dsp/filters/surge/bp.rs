@@ -23,16 +23,16 @@ use crate::module_docs::{DocExample, ModuleDocs};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum BpDrive {
-    /// Smooth, with the mildest resonance.
+    /// smooth, with the mildest resonance
     #[default]
     Standard,
-    /// Heavier resonance that clips harder.
+    /// heavier resonance that clips harder
     Driven,
-    /// Clean and precise, even at very low cutoffs.
+    /// clean and precise, even at very low cutoffs
     Clean,
-    /// A darker take on `driven`, as Surge XT's "Driven (Legacy)".
+    /// a darker take on `driven`
     DrivenLegacy,
-    /// A darker take on `clean`, as Surge XT's "Clean (Legacy)".
+    /// a darker take on `clean`
     CleanLegacy,
 }
 
@@ -165,8 +165,7 @@ fn coeff_bp_legacy(freq_semi: f32, reso: f32, subtype: i32, rate: f32) -> [f32; 
 const BP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Surge bandpass filter",
     description: "Surge's resonant bandpass: picks out a band for nasal, vocal tones, \
-                  narrowing and ringing as the resonance rises. The legacy drives give a \
-                  rougher 12 dB character.",
+                  narrowing and ringing as the resonance rises.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
@@ -179,6 +178,7 @@ filter_module! {
     docs = BP_DOCS,
     name = "$unstable.filter.bp", ident = BpFilter, kernel = BpBiquad,
     output_doc = "bandpass output",
+    cutoff_doc = "centre frequency of the band",
     params = {
         #[input("how steeply it cuts", default = "db24")]
         slope: FilterSlope,

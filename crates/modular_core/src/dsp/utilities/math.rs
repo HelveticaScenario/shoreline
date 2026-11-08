@@ -158,7 +158,7 @@ const MATH_DOCS: ModuleDocs = ModuleDocs {
                 ],
                 &[
                     "Operators",
-                    "highest precedence first: `^`, `%`, `/`, `*`, `-`, `+`, then `== != < <= >= >`, then `&&` / `and`, then `||` / `or`",
+                    "highest precedence first: `^`; then `%`; then `*` `/`; then `+` `-`; then `== != < <= >= >`; then `&&` / `and`; then `||` / `or`. `%` binds tighter than `*`, so `a * b % c` is `a * (b % c)`",
                 ],
             ],
         }),

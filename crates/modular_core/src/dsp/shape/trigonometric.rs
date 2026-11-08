@@ -15,36 +15,36 @@ use crate::module_docs::{DocExample, ModuleDocs};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum TrigonometricMode {
-    /// Adds a single sine ripple to the signal.
+    /// adds a single sine ripple to the signal
     #[default]
     SinPlusX,
-    /// Adds 2 sine ripples riding on the signal.
+    /// adds 2 sine ripples riding on the signal
     #[serde(rename = "sin2x")]
     #[deserr(rename = "sin2x")]
     Sin2x,
-    /// Adds 3 sine ripples riding on the signal.
+    /// adds 3 sine ripples riding on the signal
     #[serde(rename = "sin3x")]
     #[deserr(rename = "sin3x")]
     Sin3x,
-    /// Adds 7 sine ripples riding on the signal.
+    /// adds 7 sine ripples riding on the signal
     #[serde(rename = "sin7x")]
     #[deserr(rename = "sin7x")]
     Sin7x,
-    /// Adds 10 sine ripples riding on the signal.
+    /// adds 10 sine ripples riding on the signal
     #[serde(rename = "sin10x")]
     #[deserr(rename = "sin10x")]
     Sin10x,
-    /// Maps the signal through 2 sine cycles — dense harmonics.
+    /// maps the signal through 2 sine cycles, dense harmonics
     Cyc2,
-    /// Maps the signal through 7 sine cycles — denser harmonics.
+    /// maps the signal through 7 sine cycles, denser harmonics
     Cyc7,
-    /// Maps the signal through 10 sine cycles — densest harmonics.
+    /// maps the signal through 10 sine cycles, densest harmonics
     Cyc10,
-    /// 2 sine cycles, tapered toward the edges.
+    /// 2 sine cycles, tapered toward the edges
     Cyc2Bound,
-    /// 7 sine cycles, tapered toward the edges.
+    /// 7 sine cycles, tapered toward the edges
     Cyc7Bound,
-    /// 10 sine cycles, tapered toward the edges.
+    /// 10 sine cycles, tapered toward the edges
     Cyc10Bound,
 }
 
@@ -75,10 +75,10 @@ impl Shaper for TrigonometricShaper {
 }
 
 const TRIGONOMETRIC_DOCS: ModuleDocs = ModuleDocs {
-    summary: "Sine-curve shaper",
-    description: "Runs the signal through sine curves for dense, ringing, \
-                  metallic harmonics that change sharply with level, so a \
-                  slowly swept drive makes one oscillator glitter. Modelled on \
+    summary: "Metallic sine-ripple shaper",
+    description: "Many-cycle sine shapes for dense, ringing, metallic \
+                  harmonics that change sharply with level, so a slowly swept \
+                  drive makes one oscillator glitter. Modelled on \
                   the Surge XT trigonometric shapes.",
     categories: &[ModuleCategory::Distortion],
     sections: &[],

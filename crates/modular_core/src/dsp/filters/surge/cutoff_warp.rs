@@ -35,12 +35,12 @@ pub(super) fn warp_clamped_frequency(freq_semi: f32, rate: f32) -> f32 {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum WarpDrive {
-    /// Smooth tanh feedback saturation.
+    /// smooth, warm saturation
     #[default]
     Tanh,
-    /// Cubic soft clip.
+    /// firmer, brighter saturation
     SoftClip,
-    /// OJD overdrive — asymmetric knee.
+    /// pedal-style overdrive that rounds off one side early and clips the other hard
     Ojd,
 }
 
@@ -210,11 +210,12 @@ impl Filter for CutoffWarp {
 
 /// Stamp one cutoff-warp passband module.
 macro_rules! cutoff_warp_module {
-    ($docs:path, $name:literal, $Struct:ident, $passband:expr, $output_doc:literal) => {
+    ($docs:path, $name:literal, $Struct:ident, $passband:expr, $output_doc:literal, $cutoff_doc:literal) => {
         filter_module! {
             docs = $docs,
             name = $name, ident = $Struct, kernel = CutoffWarp,
             output_doc = $output_doc,
+            cutoff_doc = $cutoff_doc,
             params = {
                 #[input("saturation in the feedback path", default = "tanh")]
                 drive: WarpDrive,
@@ -232,8 +233,8 @@ macro_rules! cutoff_warp_module {
 const CUTOFF_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Cutoff Warp lowpass",
     description: "A resonant lowpass with saturation in its feedback, so drive bends the sweep \
-                  into a hot, distorted, slightly unstable growl. More `stages` cut steeper \
-                  and saturate harder.",
+                  into a hot, distorted, slightly unstable growl; `resWarpLp` squashes the \
+                  resonant peak instead. More `stages` cut steeper and saturate harder.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
@@ -245,7 +246,7 @@ const CUTOFF_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
 const CUTOFF_WARP_HP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Cutoff Warp highpass",
     description: "A resonant highpass with saturation in its feedback, for a thin, crackling, \
-                  overdriven top end.",
+                  overdriven top end; `resWarpHp` thickens the peak instead.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
@@ -257,7 +258,7 @@ const CUTOFF_WARP_HP_DOCS: ModuleDocs = ModuleDocs {
 const CUTOFF_WARP_BP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Cutoff Warp bandpass",
     description: "A resonant bandpass with saturation in its feedback: a narrow, distorted \
-                  band that honks when driven.",
+                  band that honks when driven, where `resWarpBp` buzzes.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
@@ -286,7 +287,10 @@ const CUTOFF_WARP_AP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Driven phase smear",
-        code: "$unstable.filter.cutoffWarpAp($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 3, { drive: 'softClip', stages: 4 }).out()",
+        code: "const saw = $saw('c2')\n\
+              const sweep = $sine('0.2hz').range('c3', 'c6')\n\
+              const wet = $unstable.filter.cutoffWarpAp(saw, sweep, 3, { drive: 'softClip', stages: 4 })\n\
+              $mix([saw, wet]).out()",
     }],
 };
 
@@ -295,35 +299,40 @@ cutoff_warp_module!(
     "$unstable.filter.cutoffWarpLp",
     CutoffWarpLpFilter,
     WarpPassband::Lp,
-    "lowpass output"
+    "lowpass output",
+    "cutoff frequency"
 );
 cutoff_warp_module!(
     CUTOFF_WARP_HP_DOCS,
     "$unstable.filter.cutoffWarpHp",
     CutoffWarpHpFilter,
     WarpPassband::Hp,
-    "highpass output"
+    "highpass output",
+    "cutoff frequency"
 );
 cutoff_warp_module!(
     CUTOFF_WARP_BP_DOCS,
     "$unstable.filter.cutoffWarpBp",
     CutoffWarpBpFilter,
     WarpPassband::Bp,
-    "bandpass output"
+    "bandpass output",
+    "centre frequency of the band"
 );
 cutoff_warp_module!(
     CUTOFF_WARP_NOTCH_DOCS,
     "$unstable.filter.cutoffWarpNotch",
     CutoffWarpNotchFilter,
     WarpPassband::Notch,
-    "notch output"
+    "notch output",
+    "centre frequency of the notch"
 );
 cutoff_warp_module!(
     CUTOFF_WARP_AP_DOCS,
     "$unstable.filter.cutoffWarpAp",
     CutoffWarpApFilter,
     WarpPassband::Ap,
-    "allpass output"
+    "allpass output",
+    "frequency the phase shift centres on"
 );
 
 #[cfg(test)]

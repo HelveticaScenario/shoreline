@@ -15,7 +15,7 @@ use schemars::JsonSchema;
 #[deserr(deny_unknown_fields)]
 struct PPulseOscillatorParams {
     #[input(
-        "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+        "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
         type = audio,
         range = (0.0, 1.0),
     )]

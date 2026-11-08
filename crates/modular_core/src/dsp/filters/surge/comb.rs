@@ -49,10 +49,10 @@ pub struct CombMode {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum CombPolarity {
-    /// Positive feedback.
+    /// rings at the cutoff pitch and its harmonics, bright and metallic
     #[default]
     Pos,
-    /// Negative feedback.
+    /// rings an octave lower on odd harmonics only, hollow and reedy
     Neg,
 }
 
@@ -61,10 +61,10 @@ pub enum CombPolarity {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum CombMix {
-    /// 50% wet / 50% dry — the feedforward comb response.
+    /// dry and delayed signal together, a flanger-like comb of peaks and notches
     #[default]
     Half,
-    /// 100% wet — the delayed signal alone.
+    /// the delayed, ringing signal alone
     Full,
 }
 
@@ -151,7 +151,9 @@ const COMB_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Plucked strings from noise bursts",
-        code: "$unstable.filter.comb($noise('white').amp($perc($clock.beatTrigger, { decay: 0.02 })), $cycle($p('c3 eb3 g3 bb3')), 4.5, { mix: 'full' }).out()",
+        code: "const burst = $noise('white').amp($perc($clock.beatTrigger, { decay: 0.02 }))\n\
+              const notes = $cycle($p('c3 eb3 g3 bb3'))\n\
+              $unstable.filter.comb(burst, notes, 4.5, { mix: 'full' }).out()",
     }],
 };
 
@@ -159,6 +161,7 @@ filter_module! {
     docs = COMB_DOCS,
     name = "$unstable.filter.comb", ident = CombFilter, kernel = Comb,
     output_doc = "comb output",
+    cutoff_doc = "pitch the comb rings at",
     params = {
         #[input("feedback polarity: which harmonic series rings", default = "pos")]
         polarity: CombPolarity,

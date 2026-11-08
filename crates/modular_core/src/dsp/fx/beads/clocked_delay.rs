@@ -57,7 +57,7 @@ struct ClockedDelayParams {
     #[schemars(skip)]
     groove: Option<MonoSignal>,
     #[input(
-        "base delay time in bars; the longest time depends on the tempo and how much audio `quality` holds",
+        "delay time in bars: `1 / 4` a quarter note in 4/4, `3 / 16` a dotted eighth; the longest time depends on the tempo and `quality`",
         type = control,
         default = 0.25,
         range = (0.0, ..),
@@ -113,7 +113,7 @@ struct ClockedDelayParams {
     #[deserr(default)]
     tone: Option<PolySignal>,
     #[input(
-        "how much of the repeats feed back into the delay, for more of them",
+        "how long the echoes go on: 0 a single repeat, higher for longer trails; above about 4 they build up instead of dying away",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -129,7 +129,7 @@ struct ClockedDelayParams {
     #[deserr(default)]
     mix: Option<PolySignal>,
     #[input(
-        "recording character: how clean it sounds and how much audio it holds",
+        "recording character: `'digital'` holds 4 s of audio, `'vintage'` 8 s, `'cleanTape'` 10.7 s, `'dirtyTape'` 16 s",
         default = "digital"
     )]
     #[serde(default)]
@@ -229,11 +229,10 @@ struct ClockedDelayState {
 
 const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
     summary: "Tempo-synced delay",
-    description: "The delay mode of Mutable Instruments Beads, locked to the transport. Its \
-                  repeats come from feedback inside the module, so it needs no loop in the \
-                  patch, and changing the time or the tempo crossfades to the new repeats \
-                  without a pitch warble. The repeats can also come back as rhythmic slices, or \
-                  loop what the delay holds while frozen. Each input channel gets its own delay.",
+    description: "The delay mode of Mutable Instruments Beads, locked to the transport. \
+                  Changing the time or the tempo crossfades to the new repeats without a pitch \
+                  warble. The repeats can also come back as rhythmic slices, or loop what the \
+                  delay holds while frozen.",
     categories: &[ModuleCategory::Effect],
     sections: &[],
     examples: &[

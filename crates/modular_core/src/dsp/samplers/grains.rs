@@ -31,20 +31,20 @@ const GRAINS_PER_CHANNEL: usize = 64;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 enum GrainShape {
-    /// Symmetric triangle: linear rise and fall meeting at the centre.
+    /// fades in and straight back out, a soft even blur
     #[default]
     Triangle,
-    /// Linear rise to peak then a sharp 1 ms linear fall at the tail.
+    /// swells in and cuts off, like reversed audio
     Ramp,
-    /// 1 ms linear attack, sustain at peak, 1 ms linear decay.
+    /// full level for the whole grain, choppy and stuttery
     Square,
-    /// 1 ms linear attack followed by exponential decay matching `$perc`.
+    /// a plucked hit that dies away, percussive and ticking
     Decay,
-    /// Gaussian bell curve; endpoints ≈ 0.01 (−40 dB).
+    /// a smooth bell swell, the softest and most cloud-like
     Bell,
-    /// Lanczos-windowed sinc, 3 lobes per side.
+    /// a peaked swell with faint ripples, slightly ringing
     Sinc,
-    /// Cosine-tapered flat-top (Tukey) window, α = 0.5.
+    /// smooth fades around a held middle, full-bodied but click-free
     Tukey,
 }
 
@@ -222,8 +222,7 @@ const GRAINS_DOCS: ModuleDocs = ModuleDocs {
     description: "Sprays short overlapping grains from a WAV file while the gate is high, for \
                   time-stretched textures, frozen moments and shimmering clouds. Pitch and \
                   position are independent, so a sample can be played slowly without dropping \
-                  in pitch. Each grain keeps the settings it started with, so changes fade in \
-                  as new grains arrive.",
+                  in pitch.",
     categories: &[ModuleCategory::Sampler],
     sections: &[],
     examples: &[

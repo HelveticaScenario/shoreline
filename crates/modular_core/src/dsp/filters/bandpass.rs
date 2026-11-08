@@ -16,13 +16,13 @@ struct BandpassFilterParams {
     #[input("the sound to filter", type = audio)]
     input: PolySignal,
     #[input(
-        "center frequency; tops out just under half the sample rate",
+        "centre frequency; tops out just under half the sample rate",
         type = frequency,
         range = (-3.71, ..),
     )]
     center: PolySignal,
     #[input(
-        "resonance: higher narrows the band; keeps narrowing past 5",
+        "higher narrows the band, and keeps narrowing past 5",
         type = control,
         default = 1.0,
         range = (0.0, ..),
