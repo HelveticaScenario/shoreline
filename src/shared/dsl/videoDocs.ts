@@ -768,7 +768,13 @@ export const VIDEO_DOCS: VideoDoc[] = [
         group: 'Shaping',
         description:
             'Multiplies by `gain`, then keeps the fractional part: a sawtooth of the input that repeats `gain` times as the input goes from 0 to 1.',
-        params: [],
+        params: [
+            {
+                name: 'gain',
+                description:
+                    'Repeats as the input goes from 0 to 1 (default 1)',
+            },
+        ],
         examples: ['$v.out($v.hsv($v.wrap($v.ramp(), 4)))'],
         declarations: [
             'wrap(input: VideoValue, gain?: VideoValue): VideoSignal;',
@@ -779,7 +785,12 @@ export const VIDEO_DOCS: VideoDoc[] = [
         group: 'Shaping',
         description:
             'Multiplies by `gain`, then reflects whatever passes 1 back down: a triangle of the input that matches `input × gain` where the input stays under 1 / gain.',
-        params: [],
+        params: [
+            {
+                name: 'gain',
+                description: 'Scale before the fold (default 1)',
+            },
+        ],
         examples: ['$v.out($v.hsv($v.fold($v.ramp(), 3)))'],
         declarations: [
             'fold(input: VideoValue, gain?: VideoValue): VideoSignal;',
@@ -1679,6 +1690,8 @@ export const VIDEO_DOCS: VideoDoc[] = [
 export interface VideoChainDoc {
     name: string;
     description: string;
+    /** Params the `$v` function of the same name does not document. */
+    params?: VideoDocParam[];
     declarations: string[];
     /** A method of the signal itself that ends or taps a chain, not a member of `.$`. */
     direct?: boolean;
@@ -1803,6 +1816,16 @@ export const VIDEO_CHAIN: VideoChainDoc[] = [
         name: 'tint',
         description:
             'Colors this: its brightness becomes the value of a color with the given hue and saturation, so a mask turns into a shape of that color.',
+        params: [
+            {
+                name: 'hue',
+                description: 'Hue, 0 to 1 around the color wheel (default 0)',
+            },
+            {
+                name: 'saturation',
+                description: '0 for gray, 1 for full color (default 1)',
+            },
+        ],
         declarations: [
             'tint(hue?: VideoValue, saturation?: VideoValue): VideoSignal;',
         ],
@@ -1972,6 +1995,10 @@ export const VIDEO_CHAIN: VideoChainDoc[] = [
         name: 'scroll',
         description:
             'Shifts everything this draws right by `x` and up by `y`, as fractions of the frame.',
+        params: [
+            { name: 'x', description: 'Shift right (default 0)' },
+            { name: 'y', description: 'Shift up (default 0)' },
+        ],
         declarations: ['scroll(x?: VideoValue, y?: VideoValue): VideoSignal;'],
     },
     {

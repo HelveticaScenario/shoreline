@@ -7,6 +7,7 @@ import {
     VIDEO_GROUPS,
     VIDEO_INTRO,
 } from '../../shared/dsl/videoDocs';
+import type { VideoDocParam } from '../../shared/dsl/videoDocs';
 
 /** Splits docs text into paragraphs and renders `code` spans. */
 const Prose: React.FC<{ text: string }> = ({ text }) => (
@@ -25,6 +26,25 @@ const Prose: React.FC<{ text: string }> = ({ text }) => (
             </p>
         ))}
     </>
+);
+
+const ParamList: React.FC<{ params: VideoDocParam[] }> = ({ params }) => (
+    <ul>
+        {params.map((param) => (
+            <li key={param.name}>
+                <strong>{param.name}</strong> &mdash;{' '}
+                {param.description
+                    .split(/(`[^`]+`)/)
+                    .map((part, i) =>
+                        part.startsWith('`') ? (
+                            <code key={i}>{part.slice(1, -1)}</code>
+                        ) : (
+                            part
+                        ),
+                    )}
+            </li>
+        ))}
+    </ul>
 );
 
 /** The Docs panel's Video page, rendered from {@link VIDEO_DOCS}. */
@@ -48,6 +68,7 @@ export const VideoDocs: React.FC = () => (
                             {method.name}
                         </strong>{' '}
                         &mdash; {method.description}
+                        {method.params && <ParamList params={method.params} />}
                     </li>
                 ))}
             </ul>
@@ -65,25 +86,7 @@ export const VideoDocs: React.FC = () => (
                         {doc.params.length > 0 && (
                             <>
                                 <h5>Parameters</h5>
-                                <ul>
-                                    {doc.params.map((param) => (
-                                        <li key={param.name}>
-                                            <strong>{param.name}</strong>{' '}
-                                            &mdash;{' '}
-                                            {param.description
-                                                .split(/(`[^`]+`)/)
-                                                .map((part, i) =>
-                                                    part.startsWith('`') ? (
-                                                        <code key={i}>
-                                                            {part.slice(1, -1)}
-                                                        </code>
-                                                    ) : (
-                                                        part
-                                                    ),
-                                                )}
-                                        </li>
-                                    ))}
-                                </ul>
+                                <ParamList params={doc.params} />
                             </>
                         )}
                         {doc.examples.length > 0 && (
