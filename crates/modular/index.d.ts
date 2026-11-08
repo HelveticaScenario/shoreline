@@ -463,7 +463,7 @@ export interface WavTimeSignature {
  * with `categories(...)` in its `#[module(...)]` attribute, and may belong
  * to several.
  */
-export type ModuleCategory = /** Sound sources driven by a frequency or V/Oct pitch. */
+export type ModuleCategory = /** Oscillators and other sound sources. */
 'oscillator'|
 /** Phase ramps and warps plus the oscillators they drive. */
 'phase'|
@@ -497,7 +497,7 @@ export type ModuleCategory = /** Sound sources driven by a frequency or V/Oct pi
 'math'|
 /** MIDI input. */
 'midi'|
-/** Signal routing and buffers. */
+/** General signal plumbing such as routing and smoothing. */
 'utility';
 
 export interface ModuleIdRemap {

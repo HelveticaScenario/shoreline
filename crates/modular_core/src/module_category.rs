@@ -15,7 +15,7 @@ use strum::{EnumMessage, VariantArray};
 // Variant docs must not contain commas: the napi codegen turns them into `|`.
 // They are also the descriptions written to `moduleCategories.json`.
 pub enum ModuleCategory {
-    /// Sound sources driven by a frequency or V/Oct pitch.
+    /// Oscillators and other sound sources.
     Oscillator,
     /// Phase ramps and warps plus the oscillators they drive.
     Phase,
@@ -49,7 +49,7 @@ pub enum ModuleCategory {
     Math,
     /// MIDI input.
     Midi,
-    /// Signal routing and buffers.
+    /// General signal plumbing such as routing and smoothing.
     Utility,
 }
 
@@ -88,8 +88,8 @@ mod tests {
         for category in ModuleCategory::VARIANTS {
             let doc = category.get_documentation();
             assert!(
-                doc.is_some_and(|d| !d.is_empty() && !d.contains('\n')),
-                "{category:?} needs a one-line `///` description, got {doc:?}"
+                doc.is_some_and(|d| !d.is_empty() && !d.contains(['\n', ','])),
+                "{category:?} needs a one-line `///` description without commas, got {doc:?}"
             );
         }
     }
@@ -100,7 +100,7 @@ mod tests {
         assert_eq!(json[0]["name"], "oscillator");
         assert_eq!(
             json[0]["description"],
-            "Sound sources driven by a frequency or V/Oct pitch."
+            "Oscillators and other sound sources."
         );
         assert_eq!(
             json.as_array().unwrap().len(),
