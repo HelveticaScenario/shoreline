@@ -92,9 +92,9 @@ export const VIDEO_DOCS: VideoDoc[] = [
         ],
         examples: [
             "$v.out($v.solid($v.ramp(), $v.ramp('vertical'), 0.5))",
-            "$v.out($v.hsv($v.osc(6, $v.time, { input: $v.ramp('radial') })))",
+            "$v.out($v.hsv($v.osc(6, $v.time, 0, { input: $v.ramp('radial') })))",
             "$v.out($v.hsv($v.ramp('angular', { rotate: $v.time.$.osc(0.1) })))",
-            "$v.out($v.solid($v.osc(8, 0, { input: $v.ramp('horizontal', { rotate: 0.125, zoom: 2 }) }), 0.2, 0.5))",
+            "$v.out($v.solid($v.osc(8, 0, 0, { input: $v.ramp('horizontal', { rotate: 0.125, zoom: 2 }) }), 0.2, 0.5))",
         ],
         declarations: [
             "ramp(\n    axis?: 'horizontal' | 'vertical' | 'radial' | 'angular',\n    config?: {\n        zoom?: VideoValue;\n        rotate?: VideoValue;\n        shiftX?: VideoValue;\n        shiftY?: VideoValue;\n    },\n): VideoSignal;",
@@ -104,7 +104,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
         name: 'osc',
         group: 'Generators',
         description:
-            'A gray wave: `freq` cycles across the frame, offset by `phase` cycles. `config.input` runs it along another signal instead, `freq` cycles per unit of that signal, such as a radial ramp for rings or `$v.time` for a pulse that changes over time.',
+            'A wave: `freq` cycles across the frame, offset by `phase` cycles. `config.input` runs it along another signal instead, `freq` cycles per unit of that signal, such as a radial ramp for rings or `$v.time` for a pulse that changes over time. The wave is gray unless `offset` splits it into color: as in Hydra, red runs that far behind green and blue that far ahead, though here the offset is in cycles rather than radians.',
         params: [
             {
                 name: 'freq',
@@ -112,6 +112,11 @@ export const VIDEO_DOCS: VideoDoc[] = [
                     'Cycles across the frame, or per unit of `config.input` (default 10)',
             },
             { name: 'phase', description: 'Offset in cycles (default 0)' },
+            {
+                name: 'offset',
+                description:
+                    'Cycles red runs behind green and blue ahead of it (default 0, a gray wave)',
+            },
             {
                 name: 'config.shape',
                 description:
@@ -125,10 +130,11 @@ export const VIDEO_DOCS: VideoDoc[] = [
         ],
         examples: [
             '$v.out($v.solid($v.osc(8), 0, 0))',
-            "$v.out($v.solid($v.osc(3, $v.time, { shape: 'saw' }), $v.osc(5, 0, { input: $v.ramp('vertical') }), 0.3))",
+            '$v.osc(10, $v.time.$.mult(0.1), 0.2).out()',
+            "$v.out($v.solid($v.osc(3, $v.time, 0, { shape: 'saw' }), $v.osc(5, 0, 0, { input: $v.ramp('vertical') }), 0.3))",
         ],
         declarations: [
-            "osc(\n    freq?: VideoValue,\n    phase?: VideoValue,\n    config?: { shape?: 'sine' | 'triangle' | 'saw' | 'square'; input?: VideoValue },\n): VideoSignal;",
+            "osc(\n    freq?: VideoValue,\n    phase?: VideoValue,\n    offset?: VideoValue,\n    config?: { shape?: 'sine' | 'triangle' | 'saw' | 'square'; input?: VideoValue },\n): VideoSignal;",
         ],
     },
     {
@@ -668,7 +674,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             "Sum of each channel, alpha included, as Hydra's `add`. Nothing is clipped until it is shown or stored in a frame, so a sum past 1 still counts in whatever reads it next.",
         params: [],
         examples: [
-            "$v.out($v.hsv($v.add($v.ramp(), $v.osc(3, 0, { input: $v.ramp('vertical') }))))",
+            "$v.out($v.hsv($v.add($v.ramp(), $v.osc(3, 0, 0, { input: $v.ramp('vertical') }))))",
         ],
         declarations: ['add(a: VideoValue, b: VideoValue): VideoSignal;'],
     },
@@ -1181,7 +1187,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             },
         ],
         examples: [
-            "$v.out($v.modulateScale($v.hsv($v.osc(10, 0, { input: $v.ramp('radial') })), $v.noise(3, $v.time), 1.5, 1))",
+            "$v.out($v.modulateScale($v.hsv($v.osc(10, 0, 0, { input: $v.ramp('radial') })), $v.noise(3, $v.time), 1.5, 1))",
         ],
         declarations: [
             'modulateScale(input: VideoSignal, modulator: VideoSignal, multiple?: VideoValue, offset?: VideoValue): VideoSignal;',
@@ -1207,7 +1213,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             },
         ],
         examples: [
-            "$v.out($v.modulateRotate($v.hsv($v.osc(8)), $v.osc(3, $v.time, { input: $v.ramp('radial') }), 0.5))",
+            "$v.out($v.modulateRotate($v.hsv($v.osc(8)), $v.osc(3, $v.time, 0, { input: $v.ramp('radial') }), 0.5))",
         ],
         declarations: [
             'modulateRotate(input: VideoSignal, modulator: VideoSignal, multiple?: VideoValue, offset?: VideoValue): VideoSignal;',
@@ -1409,7 +1415,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             },
         ],
         examples: [
-            "$v.out($v.modulateScrollY($v.hsv($v.osc(8, 0, { input: $v.ramp('vertical') })), $v.ramp(), 0.5, 0.1))",
+            "$v.out($v.modulateScrollY($v.hsv($v.osc(8, 0, 0, { input: $v.ramp('vertical') })), $v.ramp(), 0.5, 0.1))",
         ],
         declarations: [
             'modulateScrollY(input: VideoSignal, modulator: VideoSignal, scroll?: VideoValue, speed?: VideoValue): VideoSignal;',
@@ -1800,9 +1806,9 @@ export const VIDEO_CHAIN: VideoChainDoc[] = [
     {
         name: 'osc',
         description:
-            'A gray wave along this signal: `freq` cycles per unit of its brightness, offset by `phase`.',
+            'A wave along this signal: `freq` cycles per unit of its brightness, offset by `phase`, gray unless `offset` puts red and blue that many cycles either side of green.',
         declarations: [
-            "osc(\n    freq: VideoValue,\n    phase?: VideoValue,\n    config?: { shape?: 'sine' | 'triangle' | 'saw' | 'square' },\n): VideoSignal;",
+            "osc(\n    freq: VideoValue,\n    phase?: VideoValue,\n    offset?: VideoValue,\n    config?: { shape?: 'sine' | 'triangle' | 'saw' | 'square' },\n): VideoSignal;",
         ],
     },
     {
