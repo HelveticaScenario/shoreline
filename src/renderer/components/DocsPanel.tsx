@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Markdown from 'react-markdown';
-import { VideoHelp } from './VideoHelp';
+import { VideoHelp } from './VideoDocs';
 import electronAPI from '../electronAPI';
 import type {
     DslTypeName,
@@ -23,7 +23,7 @@ import {
     schemaToTypeExpr,
     getEnumVariants,
 } from '../../shared/dsl/schemaTypeResolver';
-import './HelpWindow.css';
+import './DocsPanel.css';
 
 type Page =
     | 'getting-started'

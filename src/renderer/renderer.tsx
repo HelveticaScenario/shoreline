@@ -77,7 +77,7 @@ class ErrorBoundary extends Component<
         return this.props.children;
     }
 }
-import { HelpWindow } from './components/HelpWindow';
+import { HelpWindow } from './components/DocsPanel';
 import { ThemeProvider } from './themes/ThemeContext';
 
 // Configure Monaco Editor workers for Vite (replaces MonacoWebpackPlugin)
