@@ -117,12 +117,16 @@ export function appendObjectArgument(
         return null;
     }
     const at = inline.elementOffset;
-    if (fitsOnLine(file.text, inline, layout)) {
+    // The edit may span several lines (an expanded call, a repaired
+    // multi-line argument list); only the line holding the object counts.
+    const result = applyEdit(file.text, inline);
+    const elementAt = inline.span.start + at;
+    const here = { newText: '', span: { end: elementAt, start: elementAt } };
+    if (fitsOnLine(result, here, layout)) {
         return { ...inline, elementOffset: at + 1 + pad.length };
     }
-    const source = file.text;
-    const nl = eolOf(source);
-    const outer = indentAt(source, call.getEnd() - 1);
+    const nl = eolOf(file.text);
+    const outer = indentAt(result, elementAt);
     const head = `{${nl}${outer}${indentUnit(layout)}`;
     const hugged = `${head}${prop}${layout.trailingComma ? ',' : ''}${nl}${outer}}`;
     return {

@@ -143,6 +143,29 @@ describe('appendObjectArgument', () => {
         );
         expect(out).toBe(`f(1, {\n  ${prop},\n})`);
     });
+
+    test('measures and indents by the object line in an expanded call', () => {
+        const add = (source: string, prop: string) => {
+            const file = parse(source);
+            return applied(
+                source,
+                appendObjectArgument(
+                    file,
+                    first(file, ts.isCallExpression),
+                    prop,
+                    LAYOUT,
+                ),
+                prop,
+            );
+        };
+        const long = 'a'.repeat(80);
+        expect(add(`f(\n  ${'b'.repeat(70)},\n)`, 'c: 1')).toBe(
+            `f(\n  ${'b'.repeat(70)},\n  { c: 1 },\n)`,
+        );
+        expect(add(`f(\n  b,\n)`, long)).toBe(
+            `f(\n  b,\n  {\n    ${long},\n  },\n)`,
+        );
+    });
 });
 
 describe('appendArrayElement', () => {
