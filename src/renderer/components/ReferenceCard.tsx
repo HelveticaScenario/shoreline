@@ -2,6 +2,7 @@ import React, { memo, useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 import { LinkifyTypes } from './DocsTypeLinks';
 import { useCustomMonaco } from '../hooks/useCustomMonaco';
+import { useTheme } from '../themes/ThemeContext';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type { EnumVariantInfo } from '../../shared/dsl/schemaTypeResolver';
 import type {
@@ -14,9 +15,20 @@ import type {
 const keepUnits = (text: string): string =>
     text.replace(/(\d) (V|Hz|kHz|dB|s|ms)\b/g, '$1 $2');
 
-/** Inline markdown: code, emphasis and links, never blocks. */
+/** Inline markdown: code, emphasis and links, never blocks. Links open in
+ *  the browser, through the main window's window-open handler. */
 const InlineDoc: React.FC<{ text: string }> = ({ text }) => (
-    <Markdown allowedElements={['code', 'em', 'strong', 'a']} unwrapDisallowed>
+    <Markdown
+        allowedElements={['code', 'em', 'strong', 'a']}
+        unwrapDisallowed
+        components={{
+            a: ({ href, children }) => (
+                <a href={href} target="_blank" rel="noreferrer">
+                    {children}
+                </a>
+            ),
+        }}
+    >
         {keepUnits(text)}
     </Markdown>
 );
@@ -69,34 +81,48 @@ const DocTableView: React.FC<{ table: DocTable }> = ({ table }) => (
     </table>
 );
 
-/** Colorized HTML by source, so a card scrolled back into view keeps its
- *  colours without a flash of plain text. */
+/** Colorized HTML by theme and source, so a card scrolled back into view
+ *  keeps its colours without a flash of plain text. Monaco's token classes
+ *  index the active theme's colours, so each theme has its own entries. */
 const colorized = new Map<string, string>();
 
 /** An example in the editor's colours, plain until Monaco has tokenized it. */
 const ExampleCode: React.FC<{ code: string }> = ({ code }) => {
     const monaco = useCustomMonaco();
-    const [html, setHtml] = useState(() => colorized.get(code));
+    const themeId = useTheme().theme.id;
+    const key = `${themeId}\n${code}`;
+    const [colored, setColored] = useState(() => {
+        const html = colorized.get(key);
+        return html === undefined ? undefined : { html, key };
+    });
+    const html = colored?.key === key ? colored.html : colorized.get(key);
     useEffect(() => {
-        if (!monaco || html) {
+        if (!monaco || colorized.has(key)) {
             return;
         }
         let live = true;
-        monaco.editor
-            .colorize(code, 'javascript', { tabSize: 2 })
-            .then((result) => {
-                colorized.set(code, result);
-                if (live) {
-                    setHtml(result);
-                }
-            })
-            .catch(() => {
-                // The plain code stays.
-            });
+        // The editor applies a new theme in its own effect; tokenizing a
+        // task later reads that theme's colours.
+        const timer = setTimeout(() => {
+            monaco.editor
+                .colorize(code, 'javascript', { tabSize: 2 })
+                .then((result) => {
+                    // Plain spaces, so copied code parses as it reads.
+                    const plain = result.replace(/&nbsp;|\u00a0/g, ' ');
+                    colorized.set(key, plain);
+                    if (live) {
+                        setColored({ html: plain, key });
+                    }
+                })
+                .catch(() => {
+                    // The plain code stays.
+                });
+        });
         return () => {
             live = false;
+            clearTimeout(timer);
         };
-    }, [monaco, code, html]);
+    }, [monaco, code, key]);
     return (
         <pre>
             {html ? (

@@ -377,7 +377,7 @@ test.describe('docs render', () => {
                 ].map((e) => e.code);
                 const texts = await card.evaluate((el) =>
                     [...el.querySelectorAll('pre')].map((pre) =>
-                        pre.innerText.replace(/ /g, ' ').trimEnd(),
+                        pre.innerText.trimEnd(),
                     ),
                 );
                 for (const code of codes) {

@@ -107,7 +107,9 @@ export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
         } catch {
             // Nor any values.
         }
-        if (variants && variants.length > MAX_UNION_LITERALS) {
+        const described = variants?.some((v) => v.description) ?? false;
+        // A long union shortens only where the values are listed below it.
+        if (described && variants && variants.length > MAX_UNION_LITERALS) {
             type = `${variants
                 .slice(0, 3)
                 .map((v) => JSON.stringify(v.rawValue))
@@ -118,9 +120,7 @@ export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
             meta: paramMeta(module, name),
             name,
             type,
-            variants: variants?.some((v) => v.description)
-                ? variants
-                : undefined,
+            variants: described ? (variants ?? undefined) : undefined,
         };
     });
     return {
