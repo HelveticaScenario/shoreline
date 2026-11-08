@@ -25,4 +25,10 @@ describe('argument span registry', () => {
             "2:3 $sine freq='c4'",
         ]);
     });
+
+    test('config keys are read by name, quoted or not', () => {
+        expect(entries("$sine('c4', { 'phase': 0.25, [k]: 1 }).out()")).toEqual(
+            ["1:5 $sine freq='c4' phase=0.25"],
+        );
+    });
 });

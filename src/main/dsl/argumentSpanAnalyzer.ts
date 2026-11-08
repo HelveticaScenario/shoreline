@@ -19,6 +19,7 @@ import type {
     SourceSpan,
     SpanRegistry,
 } from './sourceAnalysisTypes';
+import { propertyName } from '../../shared/dsl/ast/names';
 import { callSiteKey, v8CallAnchor } from '../../shared/dsl/ast/position';
 import { forEachDescendant } from '../../shared/dsl/ast/walk';
 import { findControlCalls } from '../../shared/dsl/controlCalls';
@@ -209,8 +210,8 @@ export function analyzeArgumentSpans(
         if (config && ts.isObjectLiteralExpression(config)) {
             for (const prop of config.properties) {
                 if (ts.isPropertyAssignment(prop)) {
-                    const key = prop.name.getText(file);
-                    if (key !== 'id') {
+                    const key = propertyName(prop);
+                    if (key !== null && key !== 'id') {
                         record(argsMap, key, prop.initializer);
                     }
                 } else if (ts.isShorthandPropertyAssignment(prop)) {
