@@ -1,0 +1,56 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:68",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [
+      {
+        "anchor": 63,
+        "muteOff": null,
+        "muteOn": {"end":67,"start":67,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":67,"start":67,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":67,"start":67,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["0-10 0","11-12 1","13-13 0","14-17 2","45-48 3","50-57 4","58-61 5"],
+      "fixes": [
+        "[{\"caretOffset\":33,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('softness', 0.01, 0, 5)\",\"span\":{\"end\":17,\"start\":17},\"title\":\"Add slider for 'softness'\"}]",
+        "[{\"caretOffset\":25,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('sides', 6, 0, 6)\",\"preferred\":true,\"span\":{\"end\":12,\"start\":11},\"title\":\"Wrap 'sides' in $slider\"},{\"caretOffset\":33,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('softness', 0.01, 0, 5)\",\"span\":{\"end\":17,\"start\":17},\"title\":\"Add slider for 'softness'\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('size', 0.2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":17,\"start\":14},\"title\":\"Wrap 'size' in $slider\"},{\"caretOffset\":33,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('softness', 0.01, 0, 5)\",\"span\":{\"end\":17,\"start\":17},\"title\":\"Add slider for 'softness'\"}]",
+        "[{\"caretOffset\":23,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('b', 0.1, 0, 5)\",\"preferred\":true,\"span\":{\"end\":48,\"start\":45},\"title\":\"Wrap 'b' in $slider\"}]",
+        "[{\"caretOffset\":32,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('saturation', 1, 0, 5)\",\"span\":{\"end\":61,\"start\":61},\"title\":\"Add slider for 'saturation'\"}]",
+        "[{\"caretOffset\":25,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('hue', 0.6, 0, 5)\",\"preferred\":true,\"span\":{\"end\":61,\"start\":58},\"title\":\"Wrap 'hue' in $slider\"},{\"caretOffset\":32,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('saturation', 1, 0, 5)\",\"span\":{\"end\":61,\"start\":61},\"title\":\"Add slider for 'saturation'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":68,"start":68,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":17,"start":17,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":34,"start":34,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":51,"start":51,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

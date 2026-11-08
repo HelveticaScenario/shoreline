@@ -1,0 +1,127 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["4:21",4,4],["5:29",5,5]],
+      "interpolations": [
+        [
+          "48:61",
+          [
+            {
+              "constLiteralSpan": {"end":37,"start":28},
+              "evaluatedLength": 8,
+              "evaluatedStart": 1,
+              "nestedResolutions": [{"constLiteralSpan":{"end":17,"start":10},"evaluatedLength":5,"evaluatedStart":0}]
+            },
+            {"constLiteralSpan":{"end":17,"start":10},"evaluatedLength":5,"evaluatedStart":10}
+          ]
+        ],
+        [
+          "103:112",
+          [
+            {
+              "constLiteralSpan": {"end":61,"start":48},
+              "evaluatedLength": 16,
+              "evaluatedStart": 0,
+              "nestedResolutions": [
+                {
+                  "constLiteralSpan": {"end":37,"start":28},
+                  "evaluatedLength": 8,
+                  "evaluatedStart": 1,
+                  "nestedResolutions": [
+                    {
+                      "constLiteralSpan": {"end":17,"start":10},
+                      "evaluatedLength": 5,
+                      "evaluatedStart": 0
+                    }
+                  ]
+                },
+                {"constLiteralSpan":{"end":17,"start":10},"evaluatedLength":5,"evaluatedStart":10}
+              ]
+            }
+          ]
+        ]
+      ],
+      "registry": [["7:13","$p",[["source",48,61]]],["8:13","$p",[["source",103,112]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [
+      {
+        "anchor": 82,
+        "muteOff": null,
+        "muteOn": {"end":86,"start":86,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":86,"start":86,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":86,"start":86,"text":"{ solo: true }"}
+      },
+      {
+        "anchor": 116,
+        "muteOff": null,
+        "muteOn": {"end":120,"start":120,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":120,"start":120,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":120,"start":120,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["104-111 0"],
+      "fixes": [
+        "[{\"caretOffset\":39,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", { groove: $slider('groove', 0, -5, 5) }\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":42,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", { playhead: $slider('playhead', 0, 0, 1) }\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":42,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", { velocity: $slider('velocity', 0, 0, 5) }\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'velocity'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":122,"start":122,"text":"$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":30,"start":30,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":61,"start":61,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [["4:21",4,4]],
+        "interpolations": [
+          [
+            "48:61",
+            [
+              {
+                "constLiteralSpan": {"end":37,"start":28},
+                "evaluatedLength": 8,
+                "evaluatedStart": 1,
+                "nestedResolutions": [{"constLiteralSpan":{"end":17,"start":10},"evaluatedLength":5,"evaluatedStart":0}]
+              },
+              {"constLiteralSpan":{"end":17,"start":10},"evaluatedLength":5,"evaluatedStart":10}
+            ]
+          ]
+        ],
+        "registry": [["7:13","$p",[["source",48,61]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 82,
+          "muteOff": null,
+          "muteOn": {"end":86,"start":86,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":86,"start":86,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":86,"start":86,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":91,"start":91,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

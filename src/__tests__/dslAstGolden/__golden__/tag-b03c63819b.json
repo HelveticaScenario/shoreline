@@ -1,0 +1,68 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+    "quickFixes": {
+      "at": [
+        "7-15 0",
+        "23-24 1",
+        "26-27 2",
+        "29-30 3",
+        "41-64 4",
+        "65-72 5",
+        "73-78 6",
+        "79-79 4",
+        "80-85 7",
+        "86-87 8",
+        "88-89 4",
+        "93-94 0",
+        "95-98 9",
+        "99-99 0",
+        "100-103 10"
+      ],
+      "fixes": [
+        "[{\"caretOffset\":23,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('a', 1, 0, 5)\",\"span\":{\"end\":103,\"start\":103},\"title\":\"Add slider for 'a'\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 8, 0, 8)\",\"preferred\":true,\"span\":{\"end\":24,\"start\":23},\"title\":\"Wrap 'freq' in $slider\"}]",
+        "[{\"caretOffset\":25,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('phase', 0, 0, 5)\",\"preferred\":true,\"span\":{\"end\":27,\"start\":26},\"title\":\"Wrap 'phase' in $slider\"}]",
+        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('offset', 0, 0, 5)\",\"preferred\":true,\"span\":{\"end\":30,\"start\":29},\"title\":\"Wrap 'offset' in $slider\"}]",
+        "[{\"caretOffset\":66,\"controlOffset\":40,\"kind\":\"add\",\"newText\":\"{\\n  rotate: 0.125,\\n  zoom: 2,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":89,\"start\":63},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":66,\"controlOffset\":40,\"kind\":\"add\",\"newText\":\"{\\n  rotate: 0.125,\\n  zoom: 2,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":89,\"start\":63},\"title\":\"Add slider for 'shiftY'\"}]",
+        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('rotate', 0.125, 0, 5)\",\"preferred\":false,\"span\":{\"end\":78,\"start\":73},\"title\":\"Wrap 'rotate' in $slider\"},{\"caretOffset\":66,\"controlOffset\":40,\"kind\":\"add\",\"newText\":\"{\\n  rotate: 0.125,\\n  zoom: 2,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":89,\"start\":63},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":66,\"controlOffset\":40,\"kind\":\"add\",\"newText\":\"{\\n  rotate: 0.125,\\n  zoom: 2,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":89,\"start\":63},\"title\":\"Add slider for 'shiftY'\"}]",
+        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('rotate', 0.125, 0, 5)\",\"preferred\":true,\"span\":{\"end\":78,\"start\":73},\"title\":\"Wrap 'rotate' in $slider\"},{\"caretOffset\":66,\"controlOffset\":40,\"kind\":\"add\",\"newText\":\"{\\n  rotate: 0.125,\\n  zoom: 2,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":89,\"start\":63},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":66,\"controlOffset\":40,\"kind\":\"add\",\"newText\":\"{\\n  rotate: 0.125,\\n  zoom: 2,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":89,\"start\":63},\"title\":\"Add slider for 'shiftY'\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('zoom', 2, 0, 5)\",\"preferred\":false,\"span\":{\"end\":87,\"start\":86},\"title\":\"Wrap 'zoom' in $slider\"},{\"caretOffset\":66,\"controlOffset\":40,\"kind\":\"add\",\"newText\":\"{\\n  rotate: 0.125,\\n  zoom: 2,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":89,\"start\":63},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":66,\"controlOffset\":40,\"kind\":\"add\",\"newText\":\"{\\n  rotate: 0.125,\\n  zoom: 2,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":89,\"start\":63},\"title\":\"Add slider for 'shiftY'\"}]",
+        "[{\"caretOffset\":24,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('zoom', 2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":87,\"start\":86},\"title\":\"Wrap 'zoom' in $slider\"},{\"caretOffset\":66,\"controlOffset\":40,\"kind\":\"add\",\"newText\":\"{\\n  rotate: 0.125,\\n  zoom: 2,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":89,\"start\":63},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":66,\"controlOffset\":40,\"kind\":\"add\",\"newText\":\"{\\n  rotate: 0.125,\\n  zoom: 2,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":89,\"start\":63},\"title\":\"Add slider for 'shiftY'\"}]",
+        "[{\"caretOffset\":23,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('g', 0.2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":98,\"start\":95},\"title\":\"Wrap 'g' in $slider\"},{\"caretOffset\":23,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('a', 1, 0, 5)\",\"span\":{\"end\":103,\"start\":103},\"title\":\"Add slider for 'a'\"}]",
+        "[{\"caretOffset\":23,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('b', 0.5, 0, 5)\",\"preferred\":true,\"span\":{\"end\":103,\"start\":100},\"title\":\"Wrap 'b' in $slider\"},{\"caretOffset\":23,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('a', 1, 0, 5)\",\"span\":{\"end\":103,\"start\":103},\"title\":\"Add slider for 'a'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":105,"start":105,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "setOutputGain": {"end":26,"start":26,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "setOutputGain": {"end":52,"start":52,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "setOutputGain": {"end":78,"start":78,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

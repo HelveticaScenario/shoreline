@@ -1,0 +1,99 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [],
+      "interpolations": [],
+      "registry": [
+        [
+          "5:11",
+          "$adsr",
+          [["attack",112,115],["decay",124,127],["sustain",138,141],["release",152,155]]
+        ],
+        ["6:1","$jup6f",[["resonance",208,211]]],
+        ["6:8","$saw",[["freq",171,175]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [],
+    "quickFixes": {
+      "at": [
+        "76-81 0",
+        "82-99 1",
+        "100-103 0",
+        "104-111 2",
+        "112-115 3",
+        "116-116 0",
+        "117-123 4",
+        "124-127 5",
+        "128-128 0",
+        "129-137 6",
+        "138-141 7",
+        "142-142 0",
+        "143-151 8",
+        "152-155 9",
+        "156-157 0",
+        "166-170 10",
+        "171-175 11",
+        "188-195 12",
+        "197-205 13",
+        "208-211 14"
+      ],
+      "fixes": [
+        "[{\"caretOffset\":98,\"controlOffset\":72,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  curve: $slider('curve', 5, -5, 5),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":93,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $btn('retrigger'),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":106,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add toggle for 'retrigger'\"}]",
+        "[{\"caretOffset\":35,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", {\\n  pwm: $slider('pwm', 0, -5, 5),\\n}\",\"span\":{\"end\":99,\"start\":99},\"title\":\"Add slider for 'pwm'\"},{\"caretOffset\":40,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  width: $slider('width', 2.5, 0, 5),\\n}\",\"span\":{\"end\":99,\"start\":99},\"title\":\"Add slider for 'width'\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('attack', 0.4, 0, 10)\",\"preferred\":false,\"span\":{\"end\":115,\"start\":112},\"title\":\"Wrap 'attack' in $slider\"},{\"caretOffset\":98,\"controlOffset\":72,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  curve: $slider('curve', 5, -5, 5),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":93,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $btn('retrigger'),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":106,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add toggle for 'retrigger'\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('attack', 0.4, 0, 10)\",\"preferred\":true,\"span\":{\"end\":115,\"start\":112},\"title\":\"Wrap 'attack' in $slider\"},{\"caretOffset\":98,\"controlOffset\":72,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  curve: $slider('curve', 5, -5, 5),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":93,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $btn('retrigger'),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":106,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add toggle for 'retrigger'\"}]",
+        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('decay', 0.6, 0, 10)\",\"preferred\":false,\"span\":{\"end\":127,\"start\":124},\"title\":\"Wrap 'decay' in $slider\"},{\"caretOffset\":98,\"controlOffset\":72,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  curve: $slider('curve', 5, -5, 5),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":93,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $btn('retrigger'),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":106,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add toggle for 'retrigger'\"}]",
+        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('decay', 0.6, 0, 10)\",\"preferred\":true,\"span\":{\"end\":127,\"start\":124},\"title\":\"Wrap 'decay' in $slider\"},{\"caretOffset\":98,\"controlOffset\":72,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  curve: $slider('curve', 5, -5, 5),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":93,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $btn('retrigger'),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":106,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add toggle for 'retrigger'\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('sustain', 0.3, 0, 5)\",\"preferred\":false,\"span\":{\"end\":141,\"start\":138},\"title\":\"Wrap 'sustain' in $slider\"},{\"caretOffset\":98,\"controlOffset\":72,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  curve: $slider('curve', 5, -5, 5),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":93,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $btn('retrigger'),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":106,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add toggle for 'retrigger'\"}]",
+        "[{\"caretOffset\":29,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('sustain', 0.3, 0, 5)\",\"preferred\":true,\"span\":{\"end\":141,\"start\":138},\"title\":\"Wrap 'sustain' in $slider\"},{\"caretOffset\":98,\"controlOffset\":72,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  curve: $slider('curve', 5, -5, 5),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":93,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $btn('retrigger'),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":106,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add toggle for 'retrigger'\"}]",
+        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('release', 1.0, 0, 10)\",\"preferred\":false,\"span\":{\"end\":155,\"start\":152},\"title\":\"Wrap 'release' in $slider\"},{\"caretOffset\":98,\"controlOffset\":72,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  curve: $slider('curve', 5, -5, 5),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":93,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $btn('retrigger'),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":106,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add toggle for 'retrigger'\"}]",
+        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('release', 1.0, 0, 10)\",\"preferred\":true,\"span\":{\"end\":155,\"start\":152},\"title\":\"Wrap 'release' in $slider\"},{\"caretOffset\":98,\"controlOffset\":72,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  curve: $slider('curve', 5, -5, 5),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":93,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $btn('retrigger'),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":106,\"controlOffset\":76,\"kind\":\"add\",\"newText\":\"{\\n  attack: 0.4,\\n  decay: 0.6,\\n  sustain: 0.3,\\n  release: 1.0,\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":157,\"start\":102},\"title\":\"Add toggle for 'retrigger'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":175,\"start\":175},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":175,\"start\":175},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":175,\"start\":175},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":175,\"start\":175},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c2', 'c0', 'c4')\",\"preferred\":true,\"span\":{\"end\":175,\"start\":171},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":175,\"start\":175},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":175,\"start\":175},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":175,\"start\":175},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":175,\"start\":175},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":43,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMin', '200hz', '50hz', '800hz')\",\"preferred\":true,\"span\":{\"end\":195,\"start\":188},\"title\":\"Wrap 'outMin' in an hz $slider\"}]",
+        "[{\"caretOffset\":48,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMax', '4000hz', '1000hz', '16000hz')\",\"preferred\":true,\"span\":{\"end\":205,\"start\":197},\"title\":\"Wrap 'outMax' in an hz $slider\"}]",
+        "[{\"caretOffset\":31,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('resonance', 2.5, 0, 5)\",\"preferred\":true,\"span\":{\"end\":211,\"start\":208},\"title\":\"Wrap 'resonance' in $slider\"}]"
+      ]
+    },
+    "setOutputGain": {"end":212,"start":212,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":53,"start":53,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":106,"start":106,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [
+          [
+            "5:11",
+            "$adsr",
+            [["attack",112,115],["decay",124,127],["sustain",138,141],["release",152,155]]
+          ]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":159,"start":159,"text":"$setOutputGain(0.5)\n"}
+    }
+  }
+}

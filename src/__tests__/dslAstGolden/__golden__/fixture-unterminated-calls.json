@@ -1,0 +1,129 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["1:15",1,3]],
+      "interpolations": [],
+      "registry": [["5:1","$sine",[["freq",37,41]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [],
+    "quickFixes": {
+      "at": ["37-41 0"],
+      "fixes": [
+        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c4', 'c2', 'c6')\",\"preferred\":true,\"span\":{\"end\":41,\"start\":37},\"title\":\"Wrap 'freq' in a note $slider\"}]"
+      ]
+    },
+    "setOutputGain": {"end":107,"start":107,"text":"$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[["1:15",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [{"call":[10,25],"group":[],"kind":"$slider","name":10}],
+      "controls": {
+        "controls": {
+          "buttons": [],
+          "groups": [],
+          "sliders": [{"argsStart":18,"callStart":10,"group":[],"incomplete":true,"label":"s"}]
+        },
+        "groupCollapse": []
+      },
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":26,"start":26,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [["1:15",1,2]],
+        "interpolations": [],
+        "registry": [["5:1","$sine",[["freq",37,41],["phase",52,53]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":53,"start":53,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [["1:15",1,3]],
+        "interpolations": [],
+        "registry": [["5:1","$sine",[["freq",37,41]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":80,"start":80,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@10:0": {
+      "analyze": {
+        "callSiteSpans": [["1:15",1,3]],
+        "interpolations": [],
+        "registry": [["5:1","$sine",[["freq",35,39]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":105,"start":105,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@10:1": {
+      "analyze": {
+        "callSiteSpans": [["1:15",1,3]],
+        "interpolations": [],
+        "registry": [["5:1","$sine",[["freq",37,41]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":107,"start":107,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@10:2": {
+      "analyze": {
+        "callSiteSpans": [["1:15",1,3]],
+        "interpolations": [],
+        "registry": [["5:1","$sine",[["freq",37,41]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":107,"start":107,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@10:3": {
+      "analyze": {
+        "callSiteSpans": [["1:15",1,3]],
+        "interpolations": [],
+        "registry": [["5:1","$sine",[["freq",37,41]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":107,"start":107,"text":"$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@10:4": {
+      "analyze": {"callSiteSpans":[["1:15",1,2]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":33,"start":33,"text":"$setOutputGain(0.5)\n"}
+    },
+    "numericBool@78": {
+      "analyze": {
+        "callSiteSpans": [["1:15",1,3]],
+        "interpolations": [],
+        "registry": [["5:1","$sine",[["freq",37,41]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":104,"start":104,"text":"$setOutputGain(0.5)\n"}
+    }
+  }
+}

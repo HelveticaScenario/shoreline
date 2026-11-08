@@ -1,0 +1,52 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:74",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "out": [
+      {
+        "anchor": 69,
+        "muteOff": null,
+        "muteOn": {"end":73,"start":73,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":73,"start":73,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":73,"start":73,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["48-61 0","62-66 1"],
+      "fixes": [
+        "[{\"caretOffset\":27,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('phase', 0, 0, 5)\",\"span\":{\"end\":66,\"start\":66},\"title\":\"Add slider for 'phase'\"}]",
+        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 0.05, 0, 5)\",\"preferred\":true,\"span\":{\"end\":66,\"start\":62},\"title\":\"Wrap 'freq' in $slider\"},{\"caretOffset\":27,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('phase', 0, 0, 5)\",\"span\":{\"end\":66,\"start\":66},\"title\":\"Add slider for 'phase'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":74,"start":74,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":18,"start":18,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":37,"start":37,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":55,"start":55,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

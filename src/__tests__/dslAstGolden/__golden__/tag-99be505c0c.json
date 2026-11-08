@@ -1,0 +1,192 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:15",1,1],["1:61",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [{"call":[10,41],"group":[],"kind":"$slider","name":10}],
+    "controls": {
+      "controls": {
+        "buttons": [],
+        "groups": [],
+        "sliders": [
+          {
+            "argsStart": 18,
+            "callStart": 10,
+            "group": [],
+            "label": "pitch",
+            "max": 500,
+            "min": 100,
+            "unit": "number",
+            "value": 220,
+            "valueRange": {"end":30,"start":27}
+          }
+        ]
+      },
+      "groupCollapse": []
+    },
+    "eq": [],
+    "out": [
+      {
+        "anchor": 56,
+        "muteOff": null,
+        "muteOn": {"end":60,"start":60,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":60,"start":60,"text":"{ pan: 0.25 }"},
+        "soloOn": {"end":60,"start":60,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["43-54 0","55-60 1"],
+      "fixes": [
+        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":38,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  shape: $slider('shape', 0, 0, 5),\\n}\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'sync'\"}]",
+        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":60,\"start\":60},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":60,\"start\":60},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":60,\"start\":60},\"title\":\"Add slider for 'width'\"}]"
+      ]
+    },
+    "setOutputGain": {"end":61,"start":61,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":15,"start":15,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[["1:15",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [{"call":[10,30],"group":[],"kind":"$slider","name":10}],
+      "controls": {
+        "controls": {
+          "buttons": [],
+          "groups": [],
+          "sliders": [{"argsStart":18,"callStart":10,"group":[],"incomplete":true,"label":"pitch"}]
+        },
+        "groupCollapse": []
+      },
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":30,"start":30,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[["1:15",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [{"call":[10,41],"group":[],"kind":"$slider","name":10}],
+      "controls": {
+        "controls": {
+          "buttons": [],
+          "groups": [],
+          "sliders": [
+            {
+              "argsStart": 18,
+              "callStart": 10,
+              "group": [],
+              "label": "pitch",
+              "max": 500,
+              "min": 100,
+              "unit": "number",
+              "value": 220,
+              "valueRange": {"end":30,"start":27}
+            }
+          ]
+        },
+        "groupCollapse": []
+      },
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":45,"start":45,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@10:0": {
+      "analyze": {"error":"$slider() label (argument 1) must be a string literal at line 1, column 19"},
+      "controlCalls": [{"call":[10,35],"group":[],"kind":"$slider","name":10}],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 50,
+          "muteOff": null,
+          "muteOn": {"end":54,"start":54,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":54,"start":54,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":54,"start":54,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":55,"start":55,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@10:1": {
+      "analyze": {
+        "error": "$slider() value (argument 2) must be a numeric or string literal at line 1, column 28"
+      },
+      "controlCalls": [{"call":[10,39],"group":[],"kind":"$slider","name":10}],
+      "controls": {
+        "controls": {
+          "buttons": [],
+          "groups": [],
+          "sliders": [{"argsStart":18,"callStart":10,"group":[],"incomplete":true,"label":"pitch"}]
+        },
+        "groupCollapse": []
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 54,
+          "muteOff": null,
+          "muteOn": {"end":58,"start":58,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":58,"start":58,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":58,"start":58,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":59,"start":59,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@10:2": {
+      "analyze": {
+        "error": "$slider() min (argument 3) must be a numeric or string literal at line 1, column 33"
+      },
+      "controlCalls": [{"call":[10,39],"group":[],"kind":"$slider","name":10}],
+      "controls": {
+        "controls": {
+          "buttons": [],
+          "groups": [],
+          "sliders": [{"argsStart":18,"callStart":10,"group":[],"incomplete":true,"label":"pitch"}]
+        },
+        "groupCollapse": []
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 54,
+          "muteOff": null,
+          "muteOn": {"end":58,"start":58,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":58,"start":58,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":58,"start":58,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":59,"start":59,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "nonLiteral@10:3": {
+      "analyze": {
+        "error": "$slider() max (argument 4) must be a numeric or string literal at line 1, column 38"
+      },
+      "controlCalls": [{"call":[10,39],"group":[],"kind":"$slider","name":10}],
+      "controls": {
+        "controls": {
+          "buttons": [],
+          "groups": [],
+          "sliders": [{"argsStart":18,"callStart":10,"group":[],"incomplete":true,"label":"pitch"}]
+        },
+        "groupCollapse": []
+      },
+      "eq": [],
+      "out": [
+        {
+          "anchor": 54,
+          "muteOff": null,
+          "muteOn": {"end":58,"start":58,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":58,"start":58,"text":"{ pan: 0.25 }"},
+          "soloOn": {"end":58,"start":58,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":59,"start":59,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}
