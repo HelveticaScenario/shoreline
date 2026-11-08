@@ -4,11 +4,11 @@
       "callSiteSpans": [["7:4",7,7],["8:49",8,8]],
       "interpolations": [],
       "registry": [
-        ["5:21","$p",[["source",47,53]]],
-        ["6:14","$cycle",[["groove",98,99]]],
-        ["6:21","$p",[["source",79,85]]],
-        ["7:1","$noise",[["color",110,117]]],
-        ["8:8","$perc",[["decay",152,156]]]
+        ["2:21","$p",[["source",47,53]]],
+        ["3:14","$cycle",[["groove",98,99]]],
+        ["3:21","$p",[["source",79,85]]],
+        ["4:1","$noise",[["color",110,117]]],
+        ["5:8","$perc",[["decay",152,156]]]
       ]
     },
     "controlCalls": [],
@@ -261,7 +261,7 @@
   },
   "variants": {
     "cut25": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["5:21","$p",[["source",47,53]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["2:21","$p",[["source",47,53]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -273,10 +273,10 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["5:21","$p",[["source",47,53]]],
-          ["6:14","$cycle",[["groove",98,99]]],
-          ["6:21","$p",[["source",79,85]]],
-          ["7:1","$noise",[["color",110,117]]]
+          ["2:21","$p",[["source",47,53]]],
+          ["3:14","$cycle",[["groove",98,99]]],
+          ["3:21","$p",[["source",79,85]]],
+          ["4:1","$noise",[["color",110,117]]]
         ]
       },
       "controlCalls": [],
@@ -290,11 +290,11 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["5:21","$p",[["source",47,53]]],
-          ["6:14","$cycle",[["groove",98,99]]],
-          ["6:21","$p",[["source",79,85]]],
-          ["7:1","$noise",[["color",110,117]]],
-          ["8:8","$perc",[["decay",152,156]]]
+          ["2:21","$p",[["source",47,53]]],
+          ["3:14","$cycle",[["groove",98,99]]],
+          ["3:21","$p",[["source",79,85]]],
+          ["4:1","$noise",[["color",110,117]]],
+          ["5:8","$perc",[["decay",152,156]]]
         ]
       },
       "controlCalls": [],

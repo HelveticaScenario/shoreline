@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["5:8",5,5]],
       "interpolations": [],
-      "registry": [["6:23","$noise",[["color",126,133]]]]
+      "registry": [["3:23","$noise",[["color",126,133]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -84,7 +84,7 @@
       "setOutputGain": {"end":91,"start":91,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut75": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["6:23","$noise",[["color",126,133]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["3:23","$noise",[["color",126,133]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],

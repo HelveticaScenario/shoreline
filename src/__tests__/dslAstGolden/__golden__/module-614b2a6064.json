@@ -4,9 +4,9 @@
       "callSiteSpans": [["7:4",7,7]],
       "interpolations": [],
       "registry": [
-        ["5:4","$unstable.filter.obxd2Hp",[["resonance",101,102]]],
-        ["6:10","$chord",[["chord",45,55]]],
-        ["7:5","$sine",[["freq",69,76]]]
+        ["2:4","$unstable.filter.obxd2Hp",[["resonance",101,102]]],
+        ["3:10","$chord",[["chord",45,55]]],
+        ["4:5","$sine",[["freq",69,76]]]
       ]
     },
     "controlCalls": [],
@@ -173,7 +173,7 @@
       "setOutputGain": {"end":29,"start":29,"text":"$setOutputGain(0.5)\n"}
     },
     "cut50": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["6:10","$chord",[["chord",45,55]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["3:10","$chord",[["chord",45,55]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -184,7 +184,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["6:10","$chord",[["chord",45,55]]],["7:5","$sine",[["freq",69,76]]]]
+        "registry": [["3:10","$chord",[["chord",45,55]]],["4:5","$sine",[["freq",69,76]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

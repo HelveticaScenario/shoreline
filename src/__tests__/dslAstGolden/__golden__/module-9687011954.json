@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["3:4",3,3]],
       "interpolations": [],
-      "registry": [["4:5","$supersaw",[["voices",37,38],["detune",48,51]]],["4:15","$chord",[["chord",17,24]]]]
+      "registry": [["1:5","$supersaw",[["voices",37,38],["detune",48,51]]],["1:15","$chord",[["chord",17,24]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -127,7 +127,7 @@
   },
   "variants": {
     "cut25": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:15","$chord",[["chord",17,20]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:15","$chord",[["chord",17,20]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -138,7 +138,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:5","$supersaw",[["voices",37,38]]],["4:15","$chord",[["chord",17,24]]]]
+        "registry": [["1:5","$supersaw",[["voices",37,38]]],["1:15","$chord",[["chord",17,24]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -151,8 +151,8 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["4:5","$supersaw",[["voices",37,38],["detune",48,51]]],
-          ["4:15","$chord",[["chord",17,24]]]
+          ["1:5","$supersaw",[["voices",37,38],["detune",48,51]]],
+          ["1:15","$chord",[["chord",17,24]]]
         ]
       },
       "controlCalls": [],

@@ -4,8 +4,8 @@
       "callSiteSpans": [["1:48",1,1]],
       "interpolations": [],
       "registry": [
-        ["4:5","$mixDown",[["channels",40,41]]],
-        ["4:19","$spread",[["min",22,27],["max",29,33],["count",35,36]]]
+        ["1:5","$mixDown",[["channels",40,41]]],
+        ["1:19","$spread",[["min",22,27],["max",29,33],["count",35,36]]]
       ]
     },
     "controlCalls": [],
@@ -142,7 +142,7 @@
       "setOutputGain": {"end":12,"start":12,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut50": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:19","$spread",[["min",22,24]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:19","$spread",[["min",22,24]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -153,7 +153,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:19","$spread",[["min",22,27],["max",29,33],["count",35,36]]]]
+        "registry": [["1:19","$spread",[["min",22,27],["max",29,33],["count",35,36]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

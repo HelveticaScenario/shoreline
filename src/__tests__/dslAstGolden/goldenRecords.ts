@@ -35,9 +35,6 @@ import {
     LAYOUT,
 } from '../../renderer/dsl/__tests__/controlQuickFixHarness';
 
-/** Lines the executor's script wrapper puts before user code. */
-const WRAPPER_LINES = 3;
-
 const CONTROL_CALLEES = new Set(['$slider', '$btn', '$toggleBtn', '$cGroup']);
 
 function parse(source: string, parents = true): ts.SourceFile {
@@ -121,11 +118,7 @@ function guarded<T>(fn: () => T): T | { error: string } {
 
 function analyzeRecord(source: string) {
     return guarded(() => {
-        const result = analyzeSourceSpans(
-            source,
-            schemas as ModuleSchema[],
-            WRAPPER_LINES,
-        );
+        const result = analyzeSourceSpans(source, schemas as ModuleSchema[]);
         return {
             callSiteSpans: [...result.callSiteSpans].map(([key, span]) => [
                 key,

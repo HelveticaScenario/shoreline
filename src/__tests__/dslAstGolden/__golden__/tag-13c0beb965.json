@@ -1,6 +1,6 @@
 {
   "original": {
-    "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:31","$lpf",[["cutoff",36,44]]]]},
+    "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:31","$lpf",[["cutoff",36,44]]]]},
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],

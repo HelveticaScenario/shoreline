@@ -4,9 +4,9 @@
       "callSiteSpans": [["6:4",6,6]],
       "interpolations": [],
       "registry": [
-        ["4:24","$p",[["source",22,49]]],
-        ["6:4","$unstable.filter.tripole",[["resonance",125,126],["mode",140,145]]],
-        ["6:23","$sine",[["freq",97,104]]]
+        ["1:24","$p",[["source",22,49]]],
+        ["3:4","$unstable.filter.tripole",[["resonance",125,126],["mode",140,145]]],
+        ["3:23","$sine",[["freq",97,104]]]
       ]
     },
     "controlCalls": [],
@@ -165,7 +165,7 @@
   },
   "variants": {
     "cut25": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:24","$p",[["source",22,40]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:24","$p",[["source",22,40]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -173,7 +173,7 @@
       "setOutputGain": {"end":40,"start":40,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut50": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:24","$p",[["source",22,49]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:24","$p",[["source",22,49]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -184,7 +184,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:24","$p",[["source",22,49]]],["6:23","$sine",[["freq",97,104]]]]
+        "registry": [["1:24","$p",[["source",22,49]]],["3:23","$sine",[["freq",97,104]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [],
       "interpolations": [],
-      "registry": [["4:5","$stereoMix",[["width",32,35]]],["4:16","$saw",[["freq",16,20]]]]
+      "registry": [["1:5","$stereoMix",[["width",32,35]]],["1:16","$saw",[["freq",16,20]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -110,7 +110,7 @@
       "setOutputGain": {"end":16,"start":16,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut50": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:16","$saw",[["freq",16,20]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:16","$saw",[["freq",16,20]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -121,7 +121,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:5","$stereoMix",[["width",32,35]]],["4:16","$saw",[["freq",16,20]]]]
+        "registry": [["1:5","$stereoMix",[["width",32,35]]],["1:16","$saw",[["freq",16,20]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

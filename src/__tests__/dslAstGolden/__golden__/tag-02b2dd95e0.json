@@ -4,9 +4,9 @@
       "callSiteSpans": [["2:23",2,2],["3:27",3,3]],
       "interpolations": [],
       "registry": [
-        ["4:23","$sine",[["freq",24,28]]],
-        ["4:36","$sine",[["freq",37,41]]],
-        ["4:49","$sine",[["freq",50,54]]]
+        ["1:23","$sine",[["freq",24,28]]],
+        ["1:36","$sine",[["freq",37,41]]],
+        ["1:49","$sine",[["freq",50,54]]]
       ]
     },
     "controlCalls": [],
@@ -211,9 +211,9 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["4:23","$sine",[["freq",24,28]]],
-          ["4:36","$sine",[["freq",37,41]]],
-          ["4:49","$sine",[["freq",50,54]]]
+          ["1:23","$sine",[["freq",24,28]]],
+          ["1:36","$sine",[["freq",37,41]]],
+          ["1:49","$sine",[["freq",50,54]]]
         ]
       },
       "controlCalls": [],
@@ -227,9 +227,9 @@
         "callSiteSpans": [["2:23",2,2]],
         "interpolations": [],
         "registry": [
-          ["4:23","$sine",[["freq",24,28]]],
-          ["4:36","$sine",[["freq",37,41]]],
-          ["4:49","$sine",[["freq",50,54]]]
+          ["1:23","$sine",[["freq",24,28]]],
+          ["1:36","$sine",[["freq",37,41]]],
+          ["1:49","$sine",[["freq",50,54]]]
         ]
       },
       "controlCalls": [],
@@ -255,9 +255,9 @@
         "callSiteSpans": [["2:23",2,2],["3:27",3,3]],
         "interpolations": [],
         "registry": [
-          ["4:23","$sine",[["freq",24,28]]],
-          ["4:36","$sine",[["freq",37,41]]],
-          ["4:49","$sine",[["freq",50,54]]]
+          ["1:23","$sine",[["freq",24,28]]],
+          ["1:36","$sine",[["freq",37,41]]],
+          ["1:49","$sine",[["freq",50,54]]]
         ]
       },
       "controlCalls": [],

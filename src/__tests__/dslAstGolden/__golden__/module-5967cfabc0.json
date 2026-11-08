@@ -4,10 +4,10 @@
       "callSiteSpans": [["7:18",7,7]],
       "interpolations": [],
       "registry": [
-        ["4:17","$saw",[["freq",17,21]]],
-        ["5:15","$sine",[["freq",43,50]]],
+        ["1:17","$saw",[["freq",17,21]]],
+        ["2:15","$sine",[["freq",43,50]]],
         [
-          "6:30",
+          "3:30",
           "$unstable.filter.cutoffWarpAp",
           [["resonance",124,125],["drive",138,148],["stages",160,161]]
         ]
@@ -227,7 +227,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:17","$saw",[["freq",17,21]]],["5:15","$sine",[["freq",43,47]]]]
+        "registry": [["1:17","$saw",[["freq",17,21]]],["2:15","$sine",[["freq",43,47]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -239,7 +239,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:17","$saw",[["freq",17,21]]],["5:15","$sine",[["freq",43,50]]]]
+        "registry": [["1:17","$saw",[["freq",17,21]]],["2:15","$sine",[["freq",43,50]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -252,9 +252,9 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["4:17","$saw",[["freq",17,21]]],
-          ["5:15","$sine",[["freq",43,50]]],
-          ["6:30","$unstable.filter.cutoffWarpAp",[["resonance",124,125],["drive",138,141]]]
+          ["1:17","$saw",[["freq",17,21]]],
+          ["2:15","$sine",[["freq",43,50]]],
+          ["3:30","$unstable.filter.cutoffWarpAp",[["resonance",124,125],["drive",138,141]]]
         ]
       },
       "controlCalls": [],

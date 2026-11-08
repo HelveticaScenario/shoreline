@@ -9,9 +9,9 @@
         ]
       ],
       "registry": [
-        ["6:14","$p",[["source",59,71]]],
-        ["7:1","$eq",[["sections",156,169]]],
-        ["7:5","$saw",[["freq",137,141]]]
+        ["3:14","$p",[["source",59,71]]],
+        ["4:1","$eq",[["sections",156,169]]],
+        ["4:5","$saw",[["freq",137,141]]]
       ]
     },
     "controlCalls": [
@@ -180,7 +180,7 @@
             [{"constLiteralSpan":{"end":17,"start":13},"evaluatedLength":2,"evaluatedStart":0}]
           ]
         ],
-        "registry": [["6:14","$p",[["source",59,71]]]]
+        "registry": [["3:14","$p",[["source",59,71]]]]
       },
       "controlCalls": [
         {"call":[29,41],"group":[],"kind":"$cGroup","name":29},
@@ -222,7 +222,7 @@
             [{"constLiteralSpan":{"end":17,"start":13},"evaluatedLength":2,"evaluatedStart":0}]
           ]
         ],
-        "registry": [["6:14","$p",[["source",59,71]]],["7:5","$saw",[["freq",137,141]]]]
+        "registry": [["3:14","$p",[["source",59,71]]],["4:5","$saw",[["freq",137,141]]]]
       },
       "controlCalls": [
         {"call":[29,41],"group":[],"kind":"$cGroup","name":29},
@@ -660,9 +660,9 @@
           ]
         ],
         "registry": [
-          ["6:14","$p",[["source",59,71]]],
-          ["7:1","$eq",[["sections",156,169]]],
-          ["7:5","$saw",[["freq",137,141]]]
+          ["3:14","$p",[["source",59,71]]],
+          ["4:1","$eq",[["sections",156,169]]],
+          ["4:5","$saw",[["freq",137,141]]]
         ]
       },
       "controlCalls": [{"call":[29,41],"group":[],"kind":"$cGroup","name":29}],

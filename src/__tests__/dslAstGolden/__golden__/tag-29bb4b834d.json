@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["1:8",1,1]],
       "interpolations": [],
-      "registry": [["4:22","$unstable.shape.fold",[["mode",33,34]]]]
+      "registry": [["1:22","$unstable.shape.fold",[["mode",33,34]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

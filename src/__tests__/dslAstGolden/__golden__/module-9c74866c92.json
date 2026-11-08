@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["3:4",3,3]],
       "interpolations": [],
-      "registry": [["4:10","$step",[["steps.0",12,16],["steps.1",18,23],["steps.2",25,29],["steps.3",31,36]]]]
+      "registry": [["1:10","$step",[["steps.0",12,16],["steps.1",18,23],["steps.2",25,29],["steps.3",31,36]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -118,7 +118,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:10","$step",[["steps.0",12,16],["steps.1",18,21]]]]
+        "registry": [["1:10","$step",[["steps.0",12,16],["steps.1",18,21]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -130,7 +130,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:10","$step",[["steps.0",12,16],["steps.1",18,23],["steps.2",25,29],["steps.3",31,36]]]]
+        "registry": [["1:10","$step",[["steps.0",12,16],["steps.1",18,23],["steps.2",25,29],["steps.3",31,36]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -142,7 +142,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:10","$step",[["steps.0",12,16],["steps.1",18,23],["steps.2",25,29],["steps.3",31,36]]]]
+        "registry": [["1:10","$step",[["steps.0",12,16],["steps.1",18,23],["steps.2",25,29],["steps.3",31,36]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

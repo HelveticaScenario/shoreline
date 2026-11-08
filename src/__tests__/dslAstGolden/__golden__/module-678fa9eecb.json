@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["5:4",5,5]],
       "interpolations": [],
-      "registry": [["4:17","$swell",[["freq",19,27]]],["5:1","$noise",[["color",36,42]]]]
+      "registry": [["1:17","$swell",[["freq",19,27]]],["2:1","$noise",[["color",36,42]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -172,7 +172,7 @@
   },
   "variants": {
     "cut25": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:17","$swell",[["freq",19,27]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:17","$swell",[["freq",19,27]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -183,7 +183,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:17","$swell",[["freq",19,27]]],["5:1","$noise",[["color",36,42]]]]
+        "registry": [["1:17","$swell",[["freq",19,27]]],["2:1","$noise",[["color",36,42]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -195,7 +195,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:17","$swell",[["freq",19,27]]],["5:1","$noise",[["color",36,42]]]]
+        "registry": [["1:17","$swell",[["freq",19,27]]],["2:1","$noise",[["color",36,42]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

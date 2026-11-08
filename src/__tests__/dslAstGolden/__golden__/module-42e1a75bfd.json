@@ -4,9 +4,9 @@
       "callSiteSpans": [["8:4",8,8]],
       "interpolations": [],
       "registry": [
-        ["5:4","$unstable.filter.xpander",[["resonance",87,88],["mode",102,107]]],
-        ["6:5","$saw",[["freq",38,42]]],
-        ["7:5","$sine",[["freq",55,62]]]
+        ["2:4","$unstable.filter.xpander",[["resonance",87,88],["mode",102,107]]],
+        ["3:5","$saw",[["freq",38,42]]],
+        ["4:5","$sine",[["freq",55,62]]]
       ]
     },
     "controlCalls": [],
@@ -211,7 +211,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["6:5","$saw",[["freq",38,42]]],["7:5","$sine",[["freq",55,61]]]]
+        "registry": [["3:5","$saw",[["freq",38,42]]],["4:5","$sine",[["freq",55,61]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -224,9 +224,9 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["5:4","$unstable.filter.xpander",[["resonance",87,88]]],
-          ["6:5","$saw",[["freq",38,42]]],
-          ["7:5","$sine",[["freq",55,62]]]
+          ["2:4","$unstable.filter.xpander",[["resonance",87,88]]],
+          ["3:5","$saw",[["freq",38,42]]],
+          ["4:5","$sine",[["freq",55,62]]]
         ]
       },
       "controlCalls": [],

@@ -30,16 +30,15 @@ export function v8CallAnchor(
 }
 
 /**
- * The `line:column` V8 reports for code at `pos`: the executor runs line 1 of
- * the patch indented by FIRST_LINE_COLUMN_OFFSET, and `lineOffset` adds the
- * script wrapper's lines before it.
+ * The `line:column` `captureSourceLocation()` reports for code at `pos`: patch
+ * lines, with line 1's columns shifted by FIRST_LINE_COLUMN_OFFSET, since the
+ * executor runs that line indented.
  */
 export function callSiteKey(
     file: ts.SourceFile,
     pos: number,
-    lineOffset = 0,
 ): `${number}:${number}` {
     const { line, column } = lineColumn(file, pos);
     const shift = line === 1 ? FIRST_LINE_COLUMN_OFFSET : 0;
-    return `${line + lineOffset}:${column + shift}`;
+    return `${line}:${column + shift}`;
 }
