@@ -12,6 +12,8 @@
  */
 import ts from 'typescript';
 
+import { signedNumericLiteral } from '../../shared/dsl/ast/literals';
+import { dottedName } from '../../shared/dsl/ast/names';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import type { ApiIndex, Family } from './apiSignatures';
 import {
@@ -24,7 +26,7 @@ import {
 import type { ParamRef, SchemaEntry } from './apiParamControls';
 import type { ApiParam, ApiSignature, DocHints } from './apiTypeReader';
 import type { ParamLiteral } from './paramControls';
-import { createFamilyReader, dottedName, splitChain } from './receiverFamily';
+import { createFamilyReader, splitChain } from './receiverFamily';
 
 export interface ResolvedCall {
     /** The param the argument at `index` sets, or null when a control
@@ -272,23 +274,14 @@ export function asLiteral(
     node: ts.Node,
     file: ts.SourceFile,
 ): ParamLiteral | null {
-    if (ts.isNumericLiteral(node)) {
-        return {
-            kind: 'number',
-            text: node.getText(file),
-            value: Number(node.text),
-        };
-    }
+    const number = signedNumericLiteral(node);
     // Only unary minus: control-literal validation rejects a unary plus.
-    if (
-        ts.isPrefixUnaryExpression(node) &&
-        node.operator === ts.SyntaxKind.MinusToken &&
-        ts.isNumericLiteral(node.operand)
-    ) {
+    if (number && number.sign !== '+') {
+        const value = Number(number.literal.text);
         return {
             kind: 'number',
             text: node.getText(file),
-            value: -Number(node.operand.text),
+            value: number.sign === '-' ? -value : value,
         };
     }
     if (ts.isStringLiteral(node)) {

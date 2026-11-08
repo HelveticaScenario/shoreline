@@ -11,12 +11,15 @@
  * mid-edit. Within a group, duplicate labels after the first are omitted.
  */
 
-import { ts } from 'ts-morph';
+import ts from 'typescript';
+
+import { signedNumericLiteral } from '../../shared/dsl/ast/literals';
+import { propertyName } from '../../shared/dsl/ast/names';
+import { parseDsl } from '../../shared/dsl/ast/parse';
 import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
 import {
     findControlCalls,
     GROUP_ARG_INDEX,
-    propertyName,
 } from '../../shared/dsl/controlCalls';
 import type { SliderDefinition } from '../../shared/dsl/sliderTypes';
 import { parseSliderValue } from '../../shared/dsl/sliderUnits';
@@ -92,20 +95,15 @@ function rangeOf(node: ts.Node, sourceFile: ts.SourceFile): SourceRange {
 
 /** A numeric (optionally negated) or string literal's value, else null. */
 function sliderLiteral(node: ts.Expression): number | string | null {
-    if (ts.isNumericLiteral(node)) {
-        return Number(node.text);
-    }
     if (ts.isStringLiteral(node)) {
         return node.text;
     }
-    if (
-        ts.isPrefixUnaryExpression(node) &&
-        node.operator === ts.SyntaxKind.MinusToken &&
-        ts.isNumericLiteral(node.operand)
-    ) {
-        return -Number(node.operand.text);
+    const number = signedNumericLiteral(node);
+    if (!number || number.sign === '+') {
+        return null;
     }
-    return null;
+    const value = Number(number.literal.text);
+    return number.sign === '-' ? -value : value;
 }
 
 function booleanLiteral(node: ts.Expression): boolean | null {
@@ -223,16 +221,6 @@ function toGroupState(
     };
 }
 
-function parse(source: string): ts.SourceFile {
-    return ts.createSourceFile(
-        'patch.js',
-        source,
-        ts.ScriptTarget.Latest,
-        false,
-        ts.ScriptKind.JS,
-    );
-}
-
 /**
  * The edit that sets the collapsed state of the `$cGroup` call whose name
  * starts at `callStart`: the `collapsed` literal is replaced, the property
@@ -245,7 +233,7 @@ export function groupCollapseEdit(
     collapsed: boolean,
     layout: CodeStyle,
 ): { span: SourceRange; text: string } | null {
-    const sourceFile = parse(source);
+    const sourceFile = parseDsl(source);
     const found = findControlCalls(sourceFile).find(
         (c) =>
             c.kind === '$cGroup' && c.name.getStart(sourceFile) === callStart,
@@ -269,7 +257,7 @@ export function groupCollapseEdit(
 }
 
 export function extractControls(source: string): StaticControls {
-    const sourceFile = parse(source);
+    const sourceFile = parseDsl(source);
     const sliders: StaticControls['sliders'] = [];
     const buttons: StaticControls['buttons'] = [];
     const groups: StaticGroup[] = [];

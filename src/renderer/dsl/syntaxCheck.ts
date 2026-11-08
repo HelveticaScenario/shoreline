@@ -4,21 +4,14 @@
  */
 import ts from 'typescript';
 
+import { parseDsl } from '../../shared/dsl/ast/parse';
 import type { TextEdit } from './listEdits';
 
 /** Parse errors of `source` read as a JavaScript patch. */
 export function syntaxErrors(
     source: string,
 ): readonly ts.DiagnosticWithLocation[] {
-    return parseErrors(
-        ts.createSourceFile(
-            'patch.js',
-            source,
-            ts.ScriptTarget.Latest,
-            false,
-            ts.ScriptKind.JS,
-        ),
-    );
+    return parseErrors(parseDsl(source));
 }
 
 /** Parse errors of an already parsed `file`. */
