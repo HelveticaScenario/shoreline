@@ -19032,7 +19032,7 @@
     "name": "$adsr",
     "docs": {
       "summary": "ADSR envelope",
-      "description": "The classic attack-decay-sustain-release envelope: it rises when the gate opens, settles at the sustain level while held, and falls away when the gate closes. Its ramps are curved by default for a natural, punchy feel.",
+      "description": "The classic attack-decay-sustain-release envelope: it rises when the gate opens, settles at the sustain level while held, and falls away when the gate closes. Its ramps are curved by default for a natural, punchy feel. Setting `decay` without `sustain` drops the sustain to 0, for a plucky attack-decay shape.",
       "categories": [
         "envelope"
       ],
