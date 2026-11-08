@@ -45,8 +45,10 @@ const CP909_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "House clap",
-        code: "$tr909.kick($cycle($p('c*4')).trig).out()\n\
-               $tr909.clap($cycle($p('~ c ~ c')).trig).out()",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.clap($cycle($p('~ c ~ c')).trig).out()
+        "#,
     }],
 };
 

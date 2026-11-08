@@ -92,23 +92,36 @@ const EQ_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Warm lows with a sweeping mid dip",
-            code: "$saw('c2').$.eq({\n\
-                   \x20 sections: [\n\
-                   \x20   { type: 'lowShelf', freq: '150hz', gain: 3 },\n\
-                   \x20   { type: 'peak', freq: $sine('0.5hz').range('400hz', '2000hz'), gain: -6, q: 2 },\n\
-                   \x20   { type: 'highpass', freq: '40hz' },\n\
-                   \x20 ],\n\
-                   \x20 adaptiveQ: true,\n\
-                   }).out()",
+            code: r#"
+                $saw('c2')
+                  .$.eq({
+                    sections: [
+                      { type: 'lowShelf', freq: '150hz', gain: 3 },
+                      {
+                        type: 'peak',
+                        freq: $sine('0.5hz').range('400hz', '2000hz'),
+                        gain: -6,
+                        q: 2,
+                      },
+                      { type: 'highpass', freq: '40hz' },
+                    ],
+                    adaptiveQ: true,
+                  })
+                  .out()
+            "#,
         },
         DocExample {
             title: "A darker left channel, a brighter right one",
-            code: "$saw(['c2', 'g2']).$.eq({\n\
-                   \x20 sections: [\n\
-                   \x20   [{ type: 'highShelf', freq: '3000hz', gain: -6 }],\n\
-                   \x20   [{ type: 'highShelf', freq: '3000hz', gain: 4 }],\n\
-                   \x20 ],\n\
-                   }).out()",
+            code: r#"
+                $saw(['c2', 'g2'])
+                  .$.eq({
+                    sections: [
+                      [{ type: 'highShelf', freq: '3000hz', gain: -6 }],
+                      [{ type: 'highShelf', freq: '3000hz', gain: 4 }],
+                    ],
+                  })
+                  .out()
+            "#,
         },
     ],
 };

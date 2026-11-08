@@ -83,8 +83,12 @@ const CHEBY_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Bass that brightens and darkens",
-        code: "const bass = $cycle($p('c2 c2 eb2 g1'))\n\
-                   $sine(bass).$.cheby($sine('0.25hz').range(0, 4), { freq: bass }).out()",
+        code: r#"
+            const bass = $cycle($p('c2 c2 eb2 g1'))
+            $sine(bass)
+              .$.cheby($sine('0.25hz').range(0, 4), { freq: bass })
+              .out()
+        "#,
     }],
 };
 

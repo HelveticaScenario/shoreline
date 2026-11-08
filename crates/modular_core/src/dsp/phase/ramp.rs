@@ -42,9 +42,11 @@ const RAMP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Locked sine and synced saw",
-        code: "const phase = $ramp('c3')\n\
-                   $pSine(phase).out()\n\
-                   $pSaw($pWarp(phase, $phase.sync(2))).out()",
+        code: r#"
+            const phase = $ramp('c3')
+            $pSine(phase).out()
+            $pSaw($pWarp(phase, $phase.sync(2))).out()
+        "#,
     }],
 };
 

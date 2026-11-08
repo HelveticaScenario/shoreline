@@ -130,7 +130,17 @@ const MOTION_FOLLOWER_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "A swinging LFO bows the filter open",
-        code: "$saw('c3').$.lpf($motionFollower($sine('0.5hz'), { release: 0.5 }).range('c3', 'c7'), 1).out()",
+        code: r#"
+            $saw('c3')
+              .$.lpf(
+                $motionFollower($sine('0.5hz'), { release: 0.5 }).range(
+                  'c3',
+                  'c7',
+                ),
+                1,
+              )
+              .out()
+        "#,
     }],
 };
 

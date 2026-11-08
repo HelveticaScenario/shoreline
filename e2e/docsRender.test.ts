@@ -354,6 +354,39 @@ test.describe('docs render', () => {
                 if ((await card.locator('pre').count()) !== examples) {
                     failures.push(`${module.name}: examples not all shown`);
                 }
+                // Each example shows its source exactly, in editor colours.
+                const colored = await expect
+                    .poll(() =>
+                        card.evaluate((el) =>
+                            [...el.querySelectorAll('pre')].every((pre) =>
+                                pre.querySelector('[class^="mtk"]'),
+                            ),
+                        ),
+                    )
+                    .toBe(true)
+                    .then(
+                        () => true,
+                        () => false,
+                    );
+                if (!colored) {
+                    failures.push(`${module.name}: examples not colourized`);
+                }
+                const codes = [
+                    ...module.docs.examples,
+                    ...module.docs.sections.flatMap((s) => s.examples),
+                ].map((e) => e.code);
+                const texts = await card.evaluate((el) =>
+                    [...el.querySelectorAll('pre')].map((pre) =>
+                        pre.innerText.replace(/ /g, ' ').trimEnd(),
+                    ),
+                );
+                for (const code of codes) {
+                    if (!texts.includes(code)) {
+                        failures.push(
+                            `${module.name}: example text differs from its source`,
+                        );
+                    }
+                }
                 const tables = module.docs.sections.filter((s) => s.table);
                 if (
                     (await card.locator('table.doc-table').count()) !==

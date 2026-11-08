@@ -156,15 +156,17 @@ const GRANULAR_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Chord cloud from a single saw",
-        code: "const grains = $pulse('8hz')\n\
-                   $granular($saw('a3'), grains, {\n\
-                   \x20\x20time: $sah($noise('white').range(0, 2), grains),\n\
-                   \x20\x20freq: $cycle($p('[c4, e4, g4] [b3, d4, g4]')),\n\
-                   \x20\x20rootFreq: 'a3',\n\
-                   \x20\x20width: 4,\n\
-                   \x20\x20spread: 2,\n\
-                   \x20\x20mix: 4,\n\
-                   }).out()",
+        code: r#"
+            const grains = $pulse('8hz')
+            $granular($saw('a3'), grains, {
+              time: $sah($noise('white').range(0, 2), grains),
+              freq: $cycle($p('[c4, e4, g4] [b3, d4, g4]')),
+              rootFreq: 'a3',
+              width: 4,
+              spread: 2,
+              mix: 4,
+            }).out()
+        "#,
     }],
 };
 

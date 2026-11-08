@@ -53,7 +53,11 @@ const BPF_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Whistling wind",
-            code: "$noise('white').$.bpf($lorenz({ rate: 0.1 }).range('c5', 'c7'), 4.5).out()",
+            code: r#"
+                $noise('white')
+                  .$.bpf($lorenz({ rate: 0.1 }).range('c5', 'c7'), 4.5)
+                  .out()
+            "#,
         },
     ],
 };

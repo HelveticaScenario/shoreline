@@ -96,7 +96,11 @@ const NOTCH_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Hollow notch sweep",
-        code: "$unstable.filter.notch($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 1).out()",
+        code: r#"
+            $unstable.filter
+              .notch($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 1)
+              .out()
+        "#,
     }],
 };
 

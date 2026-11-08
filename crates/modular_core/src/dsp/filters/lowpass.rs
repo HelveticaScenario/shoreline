@@ -51,12 +51,23 @@ const LPF_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Plucky acid bass",
-            code: "const seq = $cycle($p('c2 c2 [eb2 c3] g1'))\n\
-                   $saw(seq).$.lpf($perc(seq.trig, { decay: 0.2 }).range('c3', 'c7'), 4).out()",
+            code: r#"
+                const seq = $cycle($p('c2 c2 [eb2 c3] g1'))
+                $saw(seq)
+                  .$.lpf(
+                    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c7'),
+                    4,
+                  )
+                  .out()
+            "#,
         },
         DocExample {
             title: "Slow pad sweep",
-            code: "$saw($chord('C3[m7]')).$.lpf($sine('0.05hz').range('c4', 'c7'), 1).out()",
+            code: r#"
+                $saw($chord('C3[m7]'))
+                  .$.lpf($sine('0.05hz').range('c4', 'c7'), 1)
+                  .out()
+            "#,
         },
     ],
 };

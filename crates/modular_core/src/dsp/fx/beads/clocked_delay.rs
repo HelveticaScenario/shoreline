@@ -238,13 +238,26 @@ const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Dotted-eighth echoes",
-            code: "const pluck = $saw('c3').amp($perc($clock.beatTrigger, { decay: 0.1 }))\n\
-                   $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()",
+            code: r#"
+                const pluck = $saw('c3').amp(
+                  $perc($clock.beatTrigger, { decay: 0.1 }),
+                )
+                $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()
+            "#,
         },
         DocExample {
             title: "Sliced sixteenth repeats",
-            code: "const pluck = $saw($cycle($p('c3 eb3 g3 bb3'))).amp($perc($clock.beatTrigger, { decay: 0.3 }))\n\
-                   $clockedDelay(pluck, { bars: 1 / 16, shape: 1, feedback: 2, mix: 3 }).out()",
+            code: r#"
+                const pluck = $saw($cycle($p('c3 eb3 g3 bb3'))).amp(
+                  $perc($clock.beatTrigger, { decay: 0.3 }),
+                )
+                $clockedDelay(pluck, {
+                  bars: 1 / 16,
+                  shape: 1,
+                  feedback: 2,
+                  mix: 3,
+                }).out()
+            "#,
         },
     ],
 };

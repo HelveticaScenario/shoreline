@@ -34,9 +34,11 @@ const SIGNAL_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "One pitch shared by two oscillators",
-        code: "const root = $signal('c3')\n\
-               $saw(root).out()\n\
-               $pulse(root.add(7 / 12)).out()",
+        code: r#"
+            const root = $signal('c3')
+            $saw(root).out()
+            $pulse(root.add(7 / 12)).out()
+        "#,
     }],
 };
 

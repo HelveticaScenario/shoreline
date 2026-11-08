@@ -45,8 +45,10 @@ const CP808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Clap on two and four",
-        code: "$tr808.kick($cycle($p('c*4')).trig).out()\n\
-               $tr808.clap($cycle($p('~ c ~ c')).trig).out()",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            $tr808.clap($cycle($p('~ c ~ c')).trig).out()
+        "#,
     }],
 };
 

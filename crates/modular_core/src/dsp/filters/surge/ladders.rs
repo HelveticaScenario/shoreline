@@ -104,8 +104,16 @@ const LEGACY_LADDER_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Fat ladder bass",
-        code: "const seq = $cycle($p('a1 ~ a1 [a2 a1] ~ e2 g1 ~'))\n\
-              $unstable.filter.legacyLadder($saw(seq), $perc(seq.trig, { decay: 0.25 }).range('c3', 'c6'), 3).out()",
+        code: r#"
+            const seq = $cycle($p('a1 ~ a1 [a2 a1] ~ e2 g1 ~'))
+            $unstable.filter
+              .legacyLadder(
+                $saw(seq),
+                $perc(seq.trig, { decay: 0.25 }).range('c3', 'c6'),
+                3,
+              )
+              .out()
+        "#,
     }],
 };
 
@@ -311,8 +319,16 @@ const DIODE_LADDER_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Screaming acid line",
-        code: "const seq = $cycle($p('c2 c3 [~ c2] eb3 c2 [g2 c3] bb1 c2'))\n\
-              $unstable.filter.diodeLadder($saw(seq), $perc(seq.trig, { decay: 0.15 }).range('c3', 'c7'), 4).out()",
+        code: r#"
+            const seq = $cycle($p('c2 c3 [~ c2] eb3 c2 [g2 c3] bb1 c2'))
+            $unstable.filter
+              .diodeLadder(
+                $saw(seq),
+                $perc(seq.trig, { decay: 0.15 }).range('c3', 'c7'),
+                4,
+              )
+              .out()
+        "#,
     }],
 };
 

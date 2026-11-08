@@ -214,8 +214,13 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Plucks in a big plate",
-        code: "const notes = $cycle($p('c4 eb4 g4 bb4'))\n\
-                   $sine(notes).amp($perc(notes.trig, { decay: 0.2 })).$m.dattorro(2, { decay: 3 }).out()",
+        code: r#"
+            const notes = $cycle($p('c4 eb4 g4 bb4'))
+            $sine(notes)
+              .amp($perc(notes.trig, { decay: 0.2 }))
+              .$m.dattorro(2, { decay: 3 })
+              .out()
+        "#,
     }],
 };
 

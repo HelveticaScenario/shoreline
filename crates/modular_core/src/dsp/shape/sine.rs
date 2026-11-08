@@ -29,7 +29,11 @@ const SINE_SHAPE_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Sweeping sine harmonics",
-        code: "$sine('c3').$.unstable.shape.sine($sine('0.2hz').range(0, 4)).out()",
+        code: r#"
+            $sine('c3')
+              .$.unstable.shape.sine($sine('0.2hz').range(0, 4))
+              .out()
+        "#,
     }],
 };
 

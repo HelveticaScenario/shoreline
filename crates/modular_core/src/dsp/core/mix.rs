@@ -91,7 +91,11 @@ const MIX_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Saw and sub-octave square layered",
-        code: "$mix([$saw('c3'), $pulse('c2')], { gain: 3 }).$.lpf('c5', 1).out()",
+        code: r#"
+            $mix([$saw('c3'), $pulse('c2')], { gain: 3 })
+              .$.lpf('c5', 1)
+              .out()
+        "#,
     }],
 };
 

@@ -62,8 +62,10 @@ const MIDI_CC_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Mod wheel filter sweep",
-        code: "const wheel = $midiCC({ cc: 1, smoothingMs: 10 })\n\
-               $saw('c2').$.lpf(wheel.range('c3', 'c7'), 2).out()",
+        code: r#"
+            const wheel = $midiCC({ cc: 1, smoothingMs: 10 })
+            $saw('c2').$.lpf(wheel.range('c3', 'c7'), 2).out()
+        "#,
     }],
 };
 

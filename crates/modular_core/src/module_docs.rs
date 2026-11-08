@@ -47,7 +47,9 @@ pub struct DocTable {
 pub struct DocExample {
     /// What you hear, e.g. "Acid bass sweep".
     pub title: &'static str,
-    /// A complete patch that runs as written.
+    /// A complete patch that runs as written. A multi-line example is a raw
+    /// string opening on its own line and indented with the source; the
+    /// schema drops that indent and the surrounding blank lines.
     pub code: &'static str,
 }
 
@@ -92,12 +94,29 @@ pub struct DocExampleSchema {
     pub code: String,
 }
 
+/// `code` without its leading and trailing blank lines or the indent its
+/// lines share.
+fn dedent(code: &str) -> String {
+    let lines: Vec<&str> = code.trim_matches('\n').trim_end().lines().collect();
+    let indent = lines
+        .iter()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.len() - l.trim_start().len())
+        .min()
+        .unwrap_or(0);
+    lines
+        .iter()
+        .map(|l| l.get(indent..).unwrap_or("").trim_end())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn examples(examples: &[DocExample]) -> Vec<DocExampleSchema> {
     examples
         .iter()
         .map(|e| DocExampleSchema {
             title: e.title.to_string(),
-            code: e.code.to_string(),
+            code: dedent(e.code),
         })
         .collect()
 }

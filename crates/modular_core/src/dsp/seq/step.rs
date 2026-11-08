@@ -60,13 +60,23 @@ const STEP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Four-note riff on the beat",
-            code: "$saw($step(['c2', 'eb2', 'g2', 'bb1'], $clock.beatTrigger)).$.lpf('c4', 2).out()",
+            code: r#"
+                $saw($step(['c2', 'eb2', 'g2', 'bb1'], $clock.beatTrigger))
+                  .$.lpf('c4', 2)
+                  .out()
+            "#,
         },
         DocExample {
             title: "Switching between modulators each bar",
-            code: "const sweeps = [$sine('2hz').range('c3', 'c6'), $saw('0.5hz').range('c6', 'c3'), 'c5']\n\
-                   const cutoff = $step(sweeps, $clock.barTrigger)\n\
-                   $pulse('c3').$.lpf(cutoff, 1).out()",
+            code: r#"
+                const sweeps = [
+                  $sine('2hz').range('c3', 'c6'),
+                  $saw('0.5hz').range('c6', 'c3'),
+                  'c5',
+                ]
+                const cutoff = $step(sweeps, $clock.barTrigger)
+                $pulse('c3').$.lpf(cutoff, 1).out()
+            "#,
         },
     ],
 };

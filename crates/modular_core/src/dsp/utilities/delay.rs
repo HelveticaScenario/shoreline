@@ -44,17 +44,26 @@ const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Two-tap echo",
-            code: "const voice = $saw($cycle($p('c3 eb3 g3 ~'))).amp($perc($clock.beatTrigger, { decay: 0.15 }))\n\
-                   voice.out()\n\
-                   const echoes = $buffer(voice, 1)\n\
-                   $delayRead(echoes, 0.375).amp(2.5).out()\n\
-                   $delayRead(echoes, 0.75).amp(1.25).out()",
+            code: r#"
+                const voice = $saw($cycle($p('c3 eb3 g3 ~'))).amp(
+                  $perc($clock.beatTrigger, { decay: 0.15 }),
+                )
+                voice.out()
+                const echoes = $buffer(voice, 1)
+                $delayRead(echoes, 0.375).amp(2.5).out()
+                $delayRead(echoes, 0.75).amp(1.25).out()
+            "#,
         },
         DocExample {
             title: "Chorused chord",
-            code: "const voice = $saw($chord('C3[m7]'))\n\
-                   voice.out()\n\
-                   $delayRead($buffer(voice, 0.1), $sine('0.3hz').range(0.01, 0.02)).out()",
+            code: r#"
+                const voice = $saw($chord('C3[m7]'))
+                voice.out()
+                $delayRead(
+                  $buffer(voice, 0.1),
+                  $sine('0.3hz').range(0.01, 0.02),
+                ).out()
+            "#,
         },
     ],
 };

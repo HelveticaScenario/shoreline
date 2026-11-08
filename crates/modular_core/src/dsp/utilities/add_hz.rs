@@ -44,9 +44,11 @@ const ADD_HZ_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Slow, even beating",
-        code: "const pitch = $cycle($p('c3 eb3 g3 bb2'))\n\
-               $saw(pitch).out()\n\
-               $saw($addHz(pitch, 0.7)).out()",
+        code: r#"
+            const pitch = $cycle($p('c3 eb3 g3 bb2'))
+            $saw(pitch).out()
+            $saw($addHz(pitch, 0.7)).out()
+        "#,
     }],
 };
 

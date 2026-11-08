@@ -116,9 +116,15 @@ const LP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Driven acid line",
-        code: "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n\
-              const env = $perc(seq.trig, { decay: 0.2 })\n\
-              $unstable.filter.lp($saw(seq), env.range('c3', 'c6'), 4, { drive: 'driven' }).out()",
+        code: r#"
+            const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))
+            const env = $perc(seq.trig, { decay: 0.2 })
+            $unstable.filter
+              .lp($saw(seq), env.range('c3', 'c6'), 4, {
+                drive: 'driven',
+              })
+              .out()
+        "#,
     }],
 };
 

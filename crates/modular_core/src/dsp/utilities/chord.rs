@@ -109,7 +109,14 @@ const CHORD_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "A drifting melody that stays in key",
-            code: "$sine($quantizer($sine('0.1hz').range('a3', 'a5'), $chord('A(minor)'))).out()",
+            code: r#"
+                $sine(
+                  $quantizer(
+                    $sine('0.1hz').range('a3', 'a5'),
+                    $chord('A(minor)'),
+                  ),
+                ).out()
+            "#,
         },
     ],
 };

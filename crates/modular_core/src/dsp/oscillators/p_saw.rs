@@ -56,7 +56,17 @@ const P_SAW_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Hard-sync sweep",
-        code: "$pSaw($pWarp($ramp('c2'), $phase.sync($sine('0.2hz').range(0, 3)), { freq: 'c2' })).$.lpf('c6').out()",
+        code: r#"
+            $pSaw(
+              $pWarp(
+                $ramp('c2'),
+                $phase.sync($sine('0.2hz').range(0, 3)),
+                { freq: 'c2' },
+              ),
+            )
+              .$.lpf('c6')
+              .out()
+        "#,
     }],
 };
 

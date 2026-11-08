@@ -48,9 +48,13 @@ const REMAP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Pad ducked by an upside-down envelope",
-        code: "const duck = $perc($clock.beatTrigger, { decay: 0.3 })\n\
-               $tr808.kick($clock.beatTrigger).out()\n\
-               $saw($chord('C3[m7]')).amp($remap(duck, 5, 0, 0, 5)).out()",
+        code: r#"
+            const duck = $perc($clock.beatTrigger, { decay: 0.3 })
+            $tr808.kick($clock.beatTrigger).out()
+            $saw($chord('C3[m7]'))
+              .amp($remap(duck, 5, 0, 0, 5))
+              .out()
+        "#,
     }],
 };
 

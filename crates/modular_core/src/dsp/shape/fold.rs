@@ -80,9 +80,14 @@ const FOLD_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "West-coast pluck",
-        code: "const seq = $cycle($p('c3 eb3 g3 bb2'))\n\
-                   const env = $perc(seq.trig, { decay: 0.4 })\n\
-                   $sine(seq).$.unstable.shape.fold('westcoast', env.range(-2, 4)).amp(env).out()",
+        code: r#"
+            const seq = $cycle($p('c3 eb3 g3 bb2'))
+            const env = $perc(seq.trig, { decay: 0.4 })
+            $sine(seq)
+              .$.unstable.shape.fold('westcoast', env.range(-2, 4))
+              .amp(env)
+              .out()
+        "#,
     }],
 };
 

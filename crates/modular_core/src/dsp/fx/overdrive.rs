@@ -107,11 +107,20 @@ const OVERDRIVE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Driven acid bass",
-            code: "$saw('a1').$.lpf($sine('0.25hz').range('a2', 'a5'), 4).$.overdrive(3).out()",
+            code: r#"
+                $saw('a1')
+                  .$.lpf($sine('0.25hz').range('a2', 'a5'), 4)
+                  .$.overdrive(3)
+                  .out()
+            "#,
         },
         DocExample {
             title: "Gritty tube chords",
-            code: "$saw($chord('C3[m7]')).$.overdrive(2, { mode: 'asym', tone: -2 }).out()",
+            code: r#"
+                $saw($chord('C3[m7]'))
+                  .$.overdrive(2, { mode: 'asym', tone: -2 })
+                  .out()
+            "#,
         },
     ],
 };

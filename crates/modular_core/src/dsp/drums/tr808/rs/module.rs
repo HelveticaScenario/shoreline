@@ -59,8 +59,10 @@ const RS808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Syncopated rim clicks",
-        code: "$tr808.kick($cycle($p('c*4')).trig).out()\n\
-               $tr808.rimShot($cycle($p('c(3,8)')).trig).out()",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            $tr808.rimShot($cycle($p('c(3,8)')).trig).out()
+        "#,
     }],
 };
 
@@ -288,7 +290,13 @@ const CL808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Son clave",
-        code: "$tr808.claves($cycle($p('c ~ ~ c ~ ~ c ~ ~ ~ c ~ c ~ ~ ~')).trig).out()",
+        code: r#"
+            $tr808
+              .claves(
+                $cycle($p('c ~ ~ c ~ ~ c ~ ~ ~ c ~ c ~ ~ ~')).trig,
+              )
+              .out()
+        "#,
     }],
 };
 

@@ -91,11 +91,19 @@ const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Trance chord",
-            code: "$supersaw($chord('A2[m]'), { voices: 7, detune: 0.3 }).$.lpf('c6', 1).out()",
+            code: r#"
+                $supersaw($chord('A2[m]'), { voices: 7, detune: 0.3 })
+                  .$.lpf('c6', 1)
+                  .out()
+            "#,
         },
         DocExample {
             title: "Wide lead sweep",
-            code: "$supersaw('a3', { detune: 0.3 }).$.lpf($sine('0.1hz').range('c5', 'c7')).out()",
+            code: r#"
+                $supersaw('a3', { detune: 0.3 })
+                  .$.lpf($sine('0.1hz').range('c5', 'c7'))
+                  .out()
+            "#,
         },
     ],
 };

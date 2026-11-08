@@ -243,19 +243,32 @@ const COMP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Pad pumping to the beat",
-            code: "$saw($chord('C3[m9]')).$.lpf('c5').$.comp({\n\
-                   \x20 sidechain: $perc($clock.beatTrigger, { decay: 0.2 }),\n\
-                   \x20 threshold: 1, ratio: 8, attack: 0.005, release: 0.2,\n\
-                   }).out()",
+            code: r#"
+                $saw($chord('C3[m9]'))
+                  .$.lpf('c5')
+                  .$.comp({
+                    sidechain: $perc($clock.beatTrigger, { decay: 0.2 }),
+                    threshold: 1,
+                    ratio: 8,
+                    attack: 0.005,
+                    release: 0.2,
+                  })
+                  .out()
+            "#,
         },
         DocExample {
             title: "Multiband squash",
-            code: "const bands = $xover($saw('c2'), { lowMidFreq: '200hz', midHighFreq: '2000hz' })\n\
-                   $mix([\n\
-                   \x20 $comp(bands.low, { threshold: 2.5, ratio: 4 }),\n\
-                   \x20 $comp(bands.mid, { threshold: 3, ratio: 3 }),\n\
-                   \x20 $comp(bands.high, { threshold: 2, ratio: 6 }),\n\
-                   ]).out()",
+            code: r#"
+                const bands = $xover($saw('c2'), {
+                  lowMidFreq: '200hz',
+                  midHighFreq: '2000hz',
+                })
+                $mix([
+                  $comp(bands.low, { threshold: 2.5, ratio: 4 }),
+                  $comp(bands.mid, { threshold: 3, ratio: 3 }),
+                  $comp(bands.high, { threshold: 2, ratio: 6 }),
+                ]).out()
+            "#,
         },
     ],
 };

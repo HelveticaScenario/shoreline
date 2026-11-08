@@ -311,12 +311,23 @@ const MACRO_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Struck modal melody",
-            code: "const seq = $cycle($p('c4 g4 eb4 <bb4 f4>'))\n\
-                   $macro(seq, 'modalResonator', { trigger: seq.trig, timbre: 1, lpgDecay: 3 }).out()",
+            code: r#"
+                const seq = $cycle($p('c4 g4 eb4 <bb4 f4>'))
+                $macro(seq, 'modalResonator', {
+                  trigger: seq.trig,
+                  timbre: 1,
+                  lpgDecay: 3,
+                }).out()
+            "#,
         },
         DocExample {
             title: "Chord stabs",
-            code: "$macro('c3', 'chords', { trigger: $clock.beatTrigger, harmonics: 1 }).out()",
+            code: r#"
+                $macro('c3', 'chords', {
+                  trigger: $clock.beatTrigger,
+                  harmonics: 1,
+                }).out()
+            "#,
         },
     ],
 };
