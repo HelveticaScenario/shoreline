@@ -22,20 +22,23 @@ pub enum MixMode {
     Min,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct MixParams {
-    /// Input signals to mix channel-by-channel.
-    ///
-    /// Channel `n` from every input is mixed into output channel `n`.
+    #[input("the signals to mix; channel n of each input mixes into output channel n")]
     pub inputs: Vec<PolySignal>,
-    /// How inputs are combined.
+    #[input("how the inputs combine", default = "sum")]
     #[serde(default)]
     #[deserr(default)]
     pub mode: MixMode,
-    /// Final output level (perceptual curve, exponent 3).
-    #[signal(default = 5.0, range = (0.0, 10.0))]
+    #[input(
+        "output level on a cubic curve: 0 silent, 5 unity, 10 eight times louder; negative flips polarity",
+        type = control,
+        default = 5.0,
+        control_range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     pub gain: Option<PolySignal>,
 }
@@ -43,10 +46,9 @@ pub struct MixParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MixOutputs {
-    /// Mixed multichannel output.
     #[output(
         "output",
-        "multichannel mix: each output channel mixes the same channel index from all inputs (not a mono fold-down)",
+        "the mix, keeping each channel separate rather than folding to mono",
         default
     )]
     sample: PolyOutput,
@@ -213,11 +215,9 @@ impl Mix {
             }
         }
 
-        // Apply gain with cycling on pre_gain_values. `powf(3.0)` is
-        // replaced with `n * n * n` — the exponent is a compile-time
-        // integer so the multiplication form gives identical bit-pattern
-        // results for finite inputs while sidestepping the generic powf
-        // dispatch.
+        // Apply gain with cycling on pre_gain_values. `n * n * n` matches
+        // `powf(3.0)` bit for bit on finite inputs without the generic powf
+        // call.
         for i in 0..output_channels {
             let pre_gain_index = i % max_input_channels;
             let pre_gain_value = pre_gain_values[pre_gain_index];

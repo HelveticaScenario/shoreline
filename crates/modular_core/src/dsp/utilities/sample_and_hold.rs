@@ -3,21 +3,21 @@ use crate::poly::{PolyOutput, PolySignal};
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SampleAndHoldParams {
-    /// signal to sample
+    #[input("signal to sample", type = audio)]
     input: PolySignal,
-    /// rising edge captures the current input value
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edge captures the current input value", type = trig)]
     trigger: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SampleAndHoldOutputs {
-    #[output("output", "held voltage", default)]
+    #[output("output", "the voltage captured at the last trigger", default)]
     sample: PolyOutput,
 }
 
@@ -74,21 +74,24 @@ impl SampleAndHold {
 
 message_handlers!(impl SampleAndHold {});
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct TrackAndHoldParams {
-    /// signal to track
+    #[input("signal to track", type = audio)]
     input: PolySignal,
-    /// while gate is low the output follows the input; when gate goes high the last value is held
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input(
+        "output follows the input while low and holds its last value while high",
+        type = gate,
+    )]
     gate: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct TrackAndHoldOutputs {
-    #[output("output", "tracked or held voltage", default)]
+    #[output("output", "the tracked or held voltage", default)]
     sample: PolyOutput,
 }
 

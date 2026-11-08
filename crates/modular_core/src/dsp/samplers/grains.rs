@@ -130,39 +130,61 @@ impl Default for GrainsState {
 
 // ── Params ─────────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct GrainsParams {
-    /// Pitch of spawned grains in V/Oct. 0 V = native speed, 1 V = 2×, −1 V = 0.5×.
-    #[signal(type = pitch, range = (-4.0, 4.0))]
+    #[input(
+        "pitch of new grains: 0 plays at the file's own speed, each volt an octave",
+        type = pitch
+    )]
     pitch: PolySignal,
-    /// WAV file to granulate.
+    #[input("the WAV file to granulate")]
     wav: Wav,
-    /// Gate: rising edge resets the loop counter; high level enables grain spawning.
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input(
+        "grains spawn while high; each new gate restarts the `loopCount` tally",
+        type = gate,
+    )]
     gate: PolySignal,
-    /// Read position within the sample: 0 V = start, 5 V = end.
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "where in the file new grains start: 0 the beginning, 5 the end",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     start: Option<PolySignal>,
-    /// Grain length: 1 V ≈ 100 ms, 0.01 V ≈ 1 ms. Clamped to sample duration.
-    #[signal(default = 1.0, range = (0.01, 10.0))]
+    #[input(
+        "grain length: 1 is 100 ms, 10 is 1 s, up to the length of the file",
+        type = control,
+        default = 1.0,
+        range = (0.01, ..),
+        control_range = (0.01, 10.0),
+    )]
     #[deserr(default)]
     length: Option<PolySignal>,
-    /// Grain spawn rate: grains/sec = value × 10. Default 2.5 V = 25 grains/sec.
-    #[signal(default = 2.5, range = (0.0001, 100.0))]
+    #[input(
+        "how often grains spawn: 10 grains per second per volt",
+        type = control,
+        default = 2.5,
+        range = (0.0001, 100.0),
+    )]
     #[deserr(default)]
     density: Option<PolySignal>,
-    /// Reverse probability: 0 V = always forward, 5 V = always reverse.
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "chance a grain plays in reverse: 0 never, 5 always",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     direction_bias: Option<PolySignal>,
-    /// Max grains per gate-high. Absent/null = infinite.
+    #[input("how many grains each gate spawns; unlimited when unset")]
     #[serde(default)]
     #[deserr(default)]
     loop_count: Option<u32>,
-    /// Amplitude window function applied to each grain.
+    #[input("volume envelope of each grain")]
     #[serde(default)]
     #[deserr(default)]
     shape: GrainShape,
@@ -176,7 +198,7 @@ struct GrainsOutputs {
     // No declared range: the Clouds-style normalisation is power-based, so
     // correlated grains (a sustained tone, DC) can sum above the ±5 V nominal
     // level, and a declared range would be a contract the output cannot keep.
-    #[output("output", "granular synthesis output", default)]
+    #[output("output", "the mix of all playing grains", default)]
     sample: PolyOutput,
 }
 

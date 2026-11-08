@@ -93,25 +93,38 @@ impl OutputStage {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BeadsReverbParams {
-    /// audio input; even channels feed the left side and odd channels the
-    /// right
+    #[input(
+        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        type = audio,
+    )]
     input: PolySignal,
-    /// how much reverb, and how long it rings (0–5, default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how much reverb you hear and how long it rings: 0 dry, 5 most",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     amount: Option<MonoSignal>,
-    /// room size; moving it while the reverb rings bends the tail's pitch
-    /// (0–5, default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "room size; moving it while the tail rings bends its pitch",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<MonoSignal>,
-    /// how quickly the tail darkens, from bright at 0 to muffled at 5
-    /// (default 1)
-    #[signal(default = 1.0, range = (0.0, 5.0))]
+    #[input(
+        "how fast the tail darkens: 0 bright, 5 muffled",
+        type = control,
+        default = 1.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     tone: Option<MonoSignal>,
 }
@@ -119,7 +132,7 @@ struct BeadsReverbParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BeadsReverbOutputs {
-    #[output("output", "stereo output (ch0=left, ch1=right)", default, range = (-5.0, 5.0))]
+    #[output("output", "the input plus reverb, as left and right channels", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

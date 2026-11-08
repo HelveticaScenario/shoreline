@@ -6,18 +6,19 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::poly::{PolyOutput, PolySignal};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FilterDcParams {
-    /// input signal to filter (any range)
+    #[input("signal to strip of DC offset and sub-audio rumble", type = audio)]
     input: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FilterDcOutputs {
-    #[output("output", "DC-blocked output signal", default)]
+    #[output("output", "the input, centred on 0 V", default)]
     sample: PolyOutput,
 }
 

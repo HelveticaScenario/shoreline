@@ -183,6 +183,15 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                         }
                     };
 
+                    if let Some(doc) = f.attrs.iter().find(|a| a.path().is_ident("doc")) {
+                        return syn::Error::new(
+                            doc.span(),
+                            "output docs live in `#[output(\"name\", \"…\")]`, not `///`",
+                        )
+                        .to_compile_error()
+                        .into();
+                    }
+
                     // Detect field precision (f32 or PolySignal)
                     let precision = match &f.ty {
                         Type::Path(tp) => {

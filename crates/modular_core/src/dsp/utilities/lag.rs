@@ -5,18 +5,28 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct LagProcessorParams {
-    /// signal input
+    #[input("signal to smooth", type = audio)]
     input: PolySignal,
-    /// rise rate — seconds to slew 1 volt upward (default 0.01)
-    #[signal(default = 0.01, range = (0.0, 10.0))]
+    #[input(
+        "seconds the output takes to climb 1 V; follows fall when not patched",
+        type = control,
+        range = (0.001, ..),
+        control_range = (0.001, 10.0),
+    )]
     #[deserr(default)]
     rise: Option<PolySignal>,
-    /// fall rate — seconds to slew 1 volt downward (default 0.01)
-    #[signal(default = 0.01, range = (0.0, 10.0))]
+    #[input(
+        "seconds the output takes to drop 1 V",
+        type = control,
+        default = 0.01,
+        range = (0.001, ..),
+        control_range = (0.001, 10.0),
+    )]
     #[deserr(default)]
     fall: Option<PolySignal>,
 }
@@ -24,7 +34,7 @@ struct LagProcessorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LagProcessorOutputs {
-    #[output("output", "slewed signal", default)]
+    #[output("output", "the smoothed signal", default)]
     sample: PolyOutput,
 }
 

@@ -16,42 +16,52 @@ use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal};
 const CLOSED_GAIN: f32 = 2.996;
 const OPEN_GAIN: f32 = 2.101;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Hh808Params {
-    /// rising edges strike the closed hat, which also cuts off a ringing
-    /// open hat
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input(
+        "rising edges strike the closed hat, which also cuts off a ringing open hat",
+        type = trig,
+    )]
     closed: PolySignal,
-    /// rising edges strike the open hat
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the open hat", type = trig)]
     #[deserr(default)]
     open: Option<PolySignal>,
-    /// accent, 0–5 V, sampled at each strike of either hat and held for the
-    /// hit: up to twice as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike of either hat: up to twice as loud at 5 V",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// decay control, 0–5 V: how long the open hat rings (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how long the open hat rings",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<PolySignal>,
-    /// how hard a closed hit cuts off the open hat, −5 to 5 V: 0 is the 808's
-    /// own cut, silencing it in about 100 ms; −5 lets it ring on, and 5
-    /// silences it in a few milliseconds (default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "how hard a closed hit cuts off the open hat: -5 lets it ring on, 0 is the 808's own cut of about 100 ms, 5 silences it in a few milliseconds",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     cut: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one on the same hat
-    /// strikes, so every hit starts from rest; otherwise each hit builds on the
-    /// last, as on the 808 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding on the same hat over 2 ms; off, each hit builds on the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike of either hat and hold them until
-    /// the next, as accent always is, so changes reach only the hits after
-    /// them (default false)
+    #[input(
+        "sample the controls on each strike of either hat and hold them until the next, as accent always is, so changes reach only the hits after them"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,

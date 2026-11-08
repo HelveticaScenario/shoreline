@@ -120,33 +120,44 @@ fn default_ribbon() -> (f64, f64) {
     (0.0, DEFAULT_RIBBON_LENGTH)
 }
 
-#[derive(Clone, Deserr, ChannelCount, JsonSchema, Connect, Debug, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, ChannelCount, JsonSchema, Connect, Debug)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = seq_bake_ribbon -> ModuleParamErrors)]
 pub struct SeqParams {
-    /// pattern string in mini-notation
+    #[input("the pattern to play, in mini-notation")]
     pattern: SeqPatternParam,
-    /// playhead position (driven by the global clock)
+    #[input(
+        "playhead position in cycles; follows the global clock by default",
+        type = control,
+        range = (0.0, ..),
+        control_range = (0.0, 1.0),
+    )]
     #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
-    #[signal(range = (0.0, 1.0))]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
-    /// groove offset added to the playhead to time note onsets; follows the
-    /// global groove by default, and is 0 when `playhead` is set without it
+    #[input(
+        "groove shift of note starts, in cycles; follows the global groove by default, and is 0 when `playhead` is set without it",
+        type = control,
+        control_range = (-5.0, 5.0),
+    )]
     #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
     #[deserr(default)]
     groove: Option<MonoSignal>,
-    /// groove velocity (0-5V), sampled at each note onset; follows the global
-    /// groove by default, and is full (5V) when `playhead` or `groove` is set
-    /// without it
+    #[input(
+        "velocity held from each note start onto the `velocity` output; follows the global groove by default, and is full when `playhead` or `groove` is set without it",
+        type = control,
+        control_range = (0.0, 5.0),
+    )]
     #[default_connection(module = RootClock, port = "grooveVelocity", channel = 0)]
-    #[signal(range = (0.0, 5.0))]
     #[deserr(default)]
     velocity: Option<MonoSignal>,
-    /// Number of polyphonic voices (1-64)
+    #[input("number of voices; worked out from the pattern when unset", range = (1, 64))]
     #[deserr(default)]
     pub channels: Option<usize>,
-    /// loop window [offset, length] in cycles (fractional allowed)
+    #[input(
+        "[offset, length] of the looped stretch of the pattern, in cycles; fractions are allowed"
+    )]
     #[serde(default = "default_ribbon")]
     #[deserr(default = default_ribbon())]
     ribbon: (f64, f64),
@@ -254,13 +265,13 @@ pub fn seq_derive_channel_count(params: &SeqParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SeqOutputs {
-    #[output("cv", "pitch output in V/Oct", default)]
+    #[output("cv", "pitch of the current or last note", default)]
     cv: PolyOutput,
-    #[output("gate", "high (5 V) while a note is active, low (0 V) otherwise", range = (0.0, 5.0))]
+    #[output("gate", "high while a note plays", range = (0.0, 5.0))]
     gate: PolyOutput,
-    #[output("trig", "short pulse (5 V) at the start of each note", range = (0.0, 5.0))]
+    #[output("trig", "fires at the start of each note", range = (0.0, 5.0))]
     trig: PolyOutput,
-    #[output("velocity", "groove velocity (0-5 V) of the current or last note", range = (0.0, 5.0))]
+    #[output("velocity", "groove velocity of the current or last note", range = (0.0, 5.0))]
     velocity: PolyOutput,
 }
 

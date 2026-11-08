@@ -18,65 +18,94 @@ use super::voice::VoiceControls;
 use super::wav_load::silent_buffer;
 use super::{FULL_SCALE_VOLTS, GranularQuality, grain_params, input_value, unit};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct GranularParams {
-    /// audio to record; each channel gets its own voice
+    #[input(
+        "signal to record; each channel gets its own voice",
+        type = audio,
+    )]
     input: PolySignal,
-    /// starts a grain on each rising edge
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("starts a grain", type = trig)]
     #[deserr(default)]
     trigger: Option<PolySignal>,
-    /// while high, recording stops and grains keep playing the audio already
-    /// held
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input(
+        "while high, recording stops and grains keep playing the audio already held",
+        type = gate,
+    )]
     #[deserr(default)]
     freeze: Option<PolySignal>,
-    /// where grains start: 0 = the most recent audio, 5 = the oldest
-    /// (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "where grains start: 0 the most recent audio, 5 the oldest",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     time: Option<PolySignal>,
-    /// grain length: 0 = shortest, 5 = longest; negative values play the
-    /// grains backwards (−5 to 5, default 2.75)
-    #[signal(default = 2.75, range = (-5.0, 5.0))]
+    #[input(
+        "grain length: 0 shortest, 5 longest; negative values play the grains backwards",
+        type = control,
+        default = 2.75,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<PolySignal>,
-    /// grain envelope: 0 = square, 1.67 = sharp attack, 3.33 = smooth,
-    /// 5 = reverse swell (default 3.33)
-    #[signal(default = 3.33, range = (0.0, 5.0))]
+    #[input(
+        "grain envelope: 0 square, 1.67 sharp attack, 3.33 smooth, 5 reverse swell",
+        type = control,
+        default = 3.33,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     shape: Option<PolySignal>,
-    /// grain pitch; grains play at the input's own pitch when `freq` equals
-    /// `rootFreq` (default C4)
-    #[signal(type = pitch)]
+    #[input(
+        "grain pitch; grains keep the input's pitch when `freq` equals `rootFreq`",
+        type = pitch,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// pitch of the input, so `freq` plays in tune (default C4)
-    #[signal(type = pitch)]
+    #[input("pitch of the input, so `freq` plays in tune", type = pitch)]
     #[deserr(default)]
     root_freq: Option<PolySignal>,
-    /// random stereo position for each grain (0–5, default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how far each grain lands at a random stereo position: 0 centred, 5 anywhere",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     spread: Option<PolySignal>,
-    /// spreads the voices across the stereo field: 0 = all centred, 5 =
-    /// first voice hard left to last hard right (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<MonoSignal>,
-    /// feeds the grains back into the recording, building up dense washes
-    /// (0–5, default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "feeds the grains back into the recording, building dense washes",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     feedback: Option<PolySignal>,
-    /// dry/wet: 0 = input only, 5 = grains only (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "dry/wet blend: 0 dry, 5 grains only",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     mix: Option<PolySignal>,
-    /// recording character: digital, vintage, cleanTape or dirtyTape
-    /// (default digital)
+    #[input(
+        "recording character: how clean it sounds and how much audio it holds",
+        default = "digital"
+    )]
     #[serde(default)]
     #[deserr(default)]
     quality: GranularQuality,
@@ -92,13 +121,13 @@ struct GranularParams {
 struct GranularOutputs {
     #[output(
         "output",
-        "stereo mix of every voice (ch0=left, ch1=right)",
+        "stereo mix of every voice, as left and right channels",
         default,
         range = (-5.0, 5.0),
         channels = 2
     )]
     sample: PolyOutput,
-    #[output("voices", "one channel per voice", range = (-5.0, 5.0))]
+    #[output("voices", "each voice on its own channel, mono", range = (-5.0, 5.0))]
     voices: PolyOutput,
 }
 

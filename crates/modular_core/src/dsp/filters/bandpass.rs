@@ -6,17 +6,26 @@ use crate::{
     poly::{PolyOutput, PolySignal},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BandpassFilterParams {
-    /// signal input
+    #[input("the sound to filter", type = audio)]
     input: PolySignal,
-    /// center frequency in V/Oct (0V = C4)
-    #[signal(type = frequency)]
+    #[input(
+        "center frequency; tops out just under half the sample rate",
+        type = frequency,
+        range = (-3.71, ..),
+    )]
     center: PolySignal,
-    /// filter resonance — controls bandwidth (0–5)
-    #[signal(default = 1.0, range = (0.0, 5.0))]
+    #[input(
+        "resonance: higher narrows the band; keeps narrowing past 5",
+        type = control,
+        default = 1.0,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
 }

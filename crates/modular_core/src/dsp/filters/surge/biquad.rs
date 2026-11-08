@@ -38,12 +38,12 @@ impl FilterSlope {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum BiquadDrive {
-    /// State-variable form (cleanest, mildest resonance).
+    /// Smooth, with the mildest resonance.
     #[default]
     Standard,
-    /// Coupled state-space form with a heavier resonance/clip character.
+    /// Heavier resonance that clips harder.
     Driven,
-    /// Normalized-lattice form (high numerical precision).
+    /// Clean and precise, even at very low cutoffs.
     Clean,
 }
 

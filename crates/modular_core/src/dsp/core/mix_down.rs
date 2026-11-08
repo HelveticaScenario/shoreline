@@ -8,17 +8,21 @@ fn default_channels() -> usize {
     1
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct MixDownParams {
-    /// Polyphonic input whose channels are folded down.
+    #[input(
+        "the polyphonic signal to fold down",
+        type = audio,
+    )]
     pub input: PolySignal,
-    /// Target output channel count (1–64). Defaults to 1 (mono).
+    #[input("number of output channels", range = (1, 64))]
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
     pub channels: usize,
-    /// How channels that land on the same output channel are combined.
+    #[input("how channels landing on the same output combine", default = "sum")]
     #[serde(default)]
     #[deserr(default)]
     mode: MixMode,
@@ -27,11 +31,9 @@ pub struct MixDownParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MixDownOutputs {
-    /// Folded-down output: the input channels are panned evenly across the
-    /// output field with an equal-power law (e.g. 3→2 ⇒ inputs at -1/0/+1).
     #[output(
         "output",
-        "fold-down output: input channels panned evenly across the output channels",
+        "the input channels spread evenly across the output channels with equal-power panning",
         default
     )]
     sample: PolyOutput,

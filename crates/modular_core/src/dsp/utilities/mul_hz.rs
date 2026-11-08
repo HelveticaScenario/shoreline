@@ -11,21 +11,27 @@ use crate::types::SwapGlide;
 /// Lower bound for the post-scale frequency, keeping `hz_to_voct` away from log2(≤0).
 const MIN_HZ: f32 = 1e-4;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MulHzParams {
-    /// V/Oct pitch signal to scale
-    #[signal(type = pitch)]
+    #[input("pitch to scale", type = pitch)]
     input: PolySignal,
-    /// frequency multiplier (1 = unity, 2 = octave up, 0.5 = octave down)
+    #[input(
+        "frequency ratio: 1 unchanged, 2 an octave up, 0.5 an octave down, 1.5 a just fifth up",
+        type = control,
+        default = 1.0,
+        range = (0.0, ..),
+        control_range = (0.0, 4.0),
+    )]
     factor: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MulHzOutputs {
-    #[output("output", "V/Oct pitch output", default)]
+    #[output("output", "the scaled pitch", default)]
     sample: PolyOutput,
 }
 

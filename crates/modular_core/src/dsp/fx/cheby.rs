@@ -13,22 +13,30 @@ use crate::dsp::utils::voct_to_hz;
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ChebyParams {
-    /// input signal to shape (bipolar, typically -5 to 5)
+    #[input(
+        "signal to shape",
+        type = audio,
+        range = (-5.0, 5.0),
+    )]
     input: PolySignal,
-    /// harmonic richness (0–5). At 0 the signal is clean; at 5 the highest harmonic content dominates
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "harmonic richness: 0 clean, 5 dominated by the highest harmonics",
+        type = control,
+        range = (0.0, 5.0),
+    )]
     amount: PolySignal,
-    /// pitch of the source signal in V/Oct (optional, reduces aliasing at high frequencies)
-    #[signal(type = pitch)]
+    #[input(
+        "pitch of the incoming signal; patch it to reduce aliasing on high notes",
+        type = pitch,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// when true (default), a one-pole high-pass (~20 Hz) on the output removes
-    /// the DC offset that the even-order harmonics introduce, keeping the
-    /// signal centred
+    #[input("remove the DC offset the even harmonics add, keeping the output centred")]
     #[serde(rename = "blockDC", default = "default_true")]
     #[deserr(rename = "blockDC", default = default_true())]
     block_dc: bool,
@@ -41,7 +49,7 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ChebyOutputs {
-    #[output("output", "waveshaped signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "waveshaped signal", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

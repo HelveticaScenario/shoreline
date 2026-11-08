@@ -225,9 +225,9 @@ macro_rules! cutoff_warp_module {
             name = $name, ident = $Struct, kernel = CutoffWarp,
             output_doc = $output_doc,
             params = {
-                /// feedback saturator: tanh, softClip, or ojd (default tanh)
+                #[input("saturation in the feedback path", default = "tanh")]
                 drive: WarpDrive,
-                /// number of cascaded filter stages, 1–4 (default 1)
+                #[input("number of cascaded filter stages", default = 1, range = (1, 4))]
                 stages: Option<usize>,
             },
             mode = |p| CutoffWarpMode {

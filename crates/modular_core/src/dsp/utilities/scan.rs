@@ -4,23 +4,27 @@ use schemars::JsonSchema;
 use crate::dsp::utils::SchmittTrigger;
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ScanParams {
-    /// span the counter wraps within; must be above 0
+    #[input("span the counter wraps within, read at each trigger", type = control, default = 1.0, range = (0.0, ..), control_range = (0.0, 5.0))]
     pub length: PolySignal,
-    /// amount added to the counter on each trigger; negative steps backwards
+    #[input(
+        "amount added to the counter on each trigger; negative steps backwards",
+        type = control,
+        control_range = (-5.0, 5.0),
+    )]
     pub distance: PolySignal,
-    /// rising edges step the counter by `distance`
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges step the counter by `distance`", type = trig)]
     pub trigger: PolySignal,
-    /// rising edges set the counter to 0
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edge sets the counter to 0, winning over a trigger in the same sample", type = trig)]
     #[deserr(default)]
     pub reset: Option<PolySignal>,
-    /// a step past either end lands on the opposite end instead of wrapping
-    /// by the overshoot (default false)
+    #[input(
+        "a step past either end lands on the opposite end instead of wrapping by the overshoot"
+    )]
     #[serde(default)]
     #[deserr(default)]
     pub snap_on_wrap: bool,

@@ -120,9 +120,9 @@ filter_module! {
     name = "$unstable.filter.lp", ident = LpFilter, kernel = LpBiquad,
     output_doc = "lowpass output",
     params = {
-        /// slope: 12 or 24 dB/oct (default 24)
+        #[input("how steeply it cuts", default = "db24")]
         slope: FilterSlope,
-        /// drive character: standard, driven, or clean (default standard)
+        #[input("how hard the resonance pushes and clips", default = "standard")]
         drive: BiquadDrive,
     },
     mode = |p| BiquadMode {

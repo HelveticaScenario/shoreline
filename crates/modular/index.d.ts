@@ -628,10 +628,20 @@ export interface ScopeStats {
 export interface SignalParamSchema {
   name: string
   description: string
+  /** `audio`, `control`, `pitch`, `frequency`, `gate` or `trig`. */
   signalType: string
-  defaultValue: number
-  minValue: number
-  maxValue: number
+  /** What a disconnected input reads, when it reads a fixed value. */
+  defaultValue?: number
+  /** Lower bound of the usable range; `None` when unbounded below. */
+  minValue?: number
+  /** Upper bound of the usable range; `None` when unbounded above. */
+  maxValue?: number
+  /**
+   * Slider span of a `control` input; set for every control, `None`
+   * otherwise.
+   */
+  controlMin?: number
+  controlMax?: number
 }
 
 /** One VU meter's loudness snapshot, joined to its `VuMeterSpec` by `module_id`. */

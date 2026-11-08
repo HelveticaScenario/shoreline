@@ -6,19 +6,32 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PPulseOscillatorParams {
-    /// phasor input (0–1, wraps at boundaries)
-    #[signal(range = (0.0, 1.0))]
+    #[input(
+        "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+        type = audio,
+        range = (0.0, 1.0),
+    )]
     phase: PolySignal,
-    /// pulse width (0-5, 2.5 is square)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "pulse width: 0 a thin high spike, 2.5 square, 5 a thin low notch",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<PolySignal>,
-    /// pulse width modulation CV — added to the width parameter
+    #[input(
+        "pulse width modulation, added to `width`",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pwm: Option<PolySignal>,
 }
@@ -26,7 +39,7 @@ struct PPulseOscillatorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PPulseOscillatorOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the pulse wave", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

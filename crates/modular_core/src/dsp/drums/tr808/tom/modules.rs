@@ -87,40 +87,40 @@ macro_rules! tom_module {
         ident = $Struct:ident,
         parts = $parts:ident,
         freq = $freq:literal,
-        freq_range = ($freq_min:literal, $freq_max:literal),
         freq_doc = $freq_doc:literal,
         decay_doc = $decay_doc:literal $(,)?
     ) => {
         paste::paste! {
-            #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+            #[params]
+            #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                /// rising edges strike the drum
-                #[signal(type = trig, range = (0.0, 5.0))]
+                #[input("rising edges strike the drum", type = trig)]
                 trigger: PolySignal,
-                /// accent, 0–5 V, sampled at each strike and held for the hit:
-                /// up to twice as loud, starting sharper (default 0)
-                #[signal(default = 0.0, range = (0.0, 5.0))]
+                #[input(
+                    "how hard the hit lands, read at each strike: up to twice as loud at 5 V, starting sharper",
+                    type = control,
+                    default = 0.0,
+                    range = (0.0, 5.0),
+                )]
                 #[deserr(default)]
                 accent: Option<PolySignal>,
-                #[doc = $freq_doc]
-                #[signal(type = pitch, default = $freq, range = ($freq_min, $freq_max))]
+                #[input($freq_doc, type = pitch, default = $freq)]
                 #[deserr(default)]
                 freq: Option<PolySignal>,
-                #[doc = $decay_doc]
-                #[signal(default = 2.5, range = (0.0, 5.0))]
+                #[input($decay_doc, type = control, default = 2.5, range = (0.0, 5.0))]
                 #[deserr(default)]
                 decay: Option<PolySignal>,
-                /// fade out a hit still sounding over 2 ms as the next one
-                /// strikes, so every hit starts from rest; otherwise each hit
-                /// builds on the last, as on the 808 (default false)
+                #[input(
+                    "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808",
+                )]
                 #[serde(default)]
                 #[deserr(default)]
                 restart: bool,
-                /// sample the controls on each strike and hold them until the
-                /// next, as accent always is, so changes reach only the hits
-                /// after them (default false)
+                #[input(
+                    "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them",
+                )]
                 #[serde(default)]
                 #[deserr(default)]
                 hold: bool,
@@ -237,9 +237,8 @@ tom_module! {
     ident = Lt808,
     parts = LT,
     freq = -1.5959,
-    freq_range = (-3.1, -0.1),
-    freq_doc = "pitch in V/Oct; stock is ≈87 Hz (default -1.5959)",
-    decay_doc = "decay control, 0–5 V: how long the drum rings, from ≈0.21 s to ≈1.9 s (default 2.5, ≈0.63 s as on the 808)",
+    freq_doc = "pitch; stock is ≈87 Hz, and the hit gets louder or quieter far from it",
+    decay_doc = "how long the drum rings, from ≈0.21 s to ≈1.9 s; ≈0.63 s at 2.5, as on the 808",
 }
 
 tom_module! {
@@ -260,9 +259,8 @@ tom_module! {
     ident = Mt808,
     parts = MT,
     freq = -0.9623,
-    freq_range = (-2.46, 0.54),
-    freq_doc = "pitch in V/Oct; stock is ≈134 Hz (default -0.9623)",
-    decay_doc = "decay control, 0–5 V: how long the drum rings, from ≈0.13 s to ≈1.2 s (default 2.5, ≈0.4 s as on the 808)",
+    freq_doc = "pitch; stock is ≈134 Hz, and the hit gets louder or quieter far from it",
+    decay_doc = "how long the drum rings, from ≈0.13 s to ≈1.2 s; ≈0.4 s at 2.5, as on the 808",
 }
 
 tom_module! {
@@ -283,9 +281,8 @@ tom_module! {
     ident = Ht808,
     parts = HT,
     freq = -0.5216,
-    freq_range = (-2.02, 0.98),
-    freq_doc = "pitch in V/Oct; stock is ≈182 Hz (default -0.5216)",
-    decay_doc = "decay control, 0–5 V: how long the drum rings, from ≈0.1 s to ≈0.92 s (default 2.5, ≈0.31 s as on the 808)",
+    freq_doc = "pitch; stock is ≈182 Hz, and the hit gets louder or quieter far from it",
+    decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }
 
 tom_module! {
@@ -305,9 +302,8 @@ tom_module! {
     ident = Lc808,
     parts = LC,
     freq = -0.4471,
-    freq_range = (-1.95, 1.05),
-    freq_doc = "pitch in V/Oct; stock is ≈192 Hz (default -0.4471)",
-    decay_doc = "decay control, 0–5 V: how long the drum rings, from ≈0.21 s to ≈1.9 s (default 2.5, ≈0.63 s as on the 808)",
+    freq_doc = "pitch; stock is ≈192 Hz, and the hit gets louder or quieter far from it",
+    decay_doc = "how long the drum rings, from ≈0.21 s to ≈1.9 s; ≈0.63 s at 2.5, as on the 808",
 }
 
 tom_module! {
@@ -327,9 +323,8 @@ tom_module! {
     ident = Mc808,
     parts = MC,
     freq = 0.0792,
-    freq_range = (-1.42, 1.58),
-    freq_doc = "pitch in V/Oct; stock is ≈276 Hz (default 0.0792)",
-    decay_doc = "decay control, 0–5 V: how long the drum rings, from ≈0.1 s to ≈0.92 s (default 2.5, ≈0.31 s as on the 808)",
+    freq_doc = "pitch; stock is ≈276 Hz, and the hit gets louder or quieter far from it",
+    decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }
 
 tom_module! {
@@ -349,7 +344,6 @@ tom_module! {
     ident = Hc808,
     parts = HC,
     freq = 0.629,
-    freq_range = (-0.87, 2.13),
-    freq_doc = "pitch in V/Oct; stock is ≈405 Hz (default 0.629)",
-    decay_doc = "decay control, 0–5 V: how long the drum rings, from ≈0.1 s to ≈0.92 s (default 2.5, ≈0.31 s as on the 808)",
+    freq_doc = "pitch; stock is ≈405 Hz, and the hit gets louder or quieter far from it",
+    decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }
