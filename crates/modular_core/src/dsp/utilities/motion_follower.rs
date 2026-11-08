@@ -8,31 +8,55 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MotionFollowerParams {
-    /// controller signal whose movement drives the output
+    #[input(
+        "controller signal whose movement drives the output",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     input: PolySignal,
-    /// seconds for the level to rise toward the current speed (default 0.02)
-    #[signal(default = 0.02, range = (0.0, 5.0))]
+    #[input(
+        "seconds for the level to rise toward the current speed (default 0.02)",
+        type = control,
+        default = 0.02,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     attack: Option<PolySignal>,
-    /// seconds for the level to fall once movement slows or stops (default 0.3)
-    #[signal(default = 0.3, range = (0.0, 10.0))]
+    #[input(
+        "seconds for the level to fall once movement slows or stops (default 0.3)",
+        type = control,
+        default = 0.3,
+        range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     release: Option<PolySignal>,
-    /// seconds of averaging applied to the speed before attack/release; set it
-    /// longer than the gap between controller updates to hide stepping (default 0.02)
-    #[signal(default = 0.02, range = (0.0, 1.0))]
+    #[input(
+        "seconds of averaging applied to the speed before attack/release; set it longer than the gap between controller updates to hide stepping (default 0.02)",
+        type = control,
+        default = 0.02,
+        range = (0.0, 1.0),
+    )]
     #[deserr(default)]
     smooth: Option<PolySignal>,
-    /// volts of output per volt-per-second of movement (default 0.25)
-    #[signal(default = 0.25, range = (0.0, 10.0))]
+    #[input(
+        "volts of output per volt-per-second of movement (default 0.25)",
+        type = control,
+        default = 0.25,
+        range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     gain: Option<PolySignal>,
-    /// soft-clip ceiling in volts; the output never exceeds it (default 5)
-    #[signal(default = 5.0, range = (0.0, 20.0))]
+    #[input(
+        "soft-clip ceiling in volts; the output never exceeds it (default 5)",
+        type = control,
+        default = 5.0,
+        range = (0.0, 20.0),
+    )]
     #[deserr(default)]
     ceiling: Option<PolySignal>,
 }

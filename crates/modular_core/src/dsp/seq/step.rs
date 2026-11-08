@@ -8,15 +8,16 @@ use crate::{
     poly::{PolyOutput, PolySignal},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_step_params -> ModuleParamErrors)]
 struct StepParams {
-    /// Steps of the sequence
+    #[input("Steps of the sequence")]
     steps: Vec<PolySignal>,
-    /// Next step trigger
+    #[input("Next step trigger", type = control, range = (-5.0, 5.0))]
     next: MonoSignal,
-    /// Reset trigger
+    #[input("Reset trigger", type = control, range = (-5.0, 5.0))]
     #[deserr(default)]
     reset: Option<MonoSignal>,
 }

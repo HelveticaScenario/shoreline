@@ -335,11 +335,11 @@ filter_module! {
     name = "$unstable.filter.vintageLadder", ident = VintageLadderFilter, kernel = VintageLadder,
     output_doc = "lowpass output",
     params = {
-        /// ladder model: rk, huov, or huov2010 (default rk)
+        #[input("ladder model: rk, huov, or huov2010 (default rk)")]
         #[serde(rename = "type")]
         #[deserr(rename = "type")]
         r#type: VintageType,
-        /// bass compensation (default false)
+        #[input("bass compensation (default false)")]
         compensated: bool,
     },
     mode = |p| VintageMode {

@@ -5,21 +5,24 @@ use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cp808Params {
-    /// rising edges clap
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges clap", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the clap: up to twice
-    /// as loud, with a longer tail (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "accent, 0–5 V, sampled at each strike and held for the clap: up to twice as loud, with a longer tail (default 0)",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// fade out a clap still sounding over 2 ms as the next one strikes, so
-    /// every clap starts from rest; otherwise each clap runs into the last, as
-    /// on the 808 (default false)
+    #[input(
+        "fade out a clap still sounding over 2 ms as the next one strikes, so every clap starts from rest; otherwise each clap runs into the last, as on the 808 (default false)"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,

@@ -26,21 +26,24 @@ struct RsState {
     groups: Groups<RimDrum>,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Rs909Params {
-    /// rising edges strike the rim
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the rim", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "accent, 0–5 V, sampled at each strike and held for the hit: up to twice as loud (default 0)",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 909 (default false)
+    #[input(
+        "fade out a hit still sounding over 2 ms as the next one strikes, so every hit starts from rest; otherwise each hit builds on the last, as on the 909 (default false)"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,

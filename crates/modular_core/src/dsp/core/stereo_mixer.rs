@@ -5,19 +5,25 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct StereoMixerParams {
-    /// Input signal to place in the stereo field.
+    #[input("Input signal to place in the stereo field.", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// Pan position per channel (-5 = left, 0 = center, +5 = right).
+    #[input(
+        "Pan position per channel (-5 = left, 0 = center, +5 = right).",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pan: Option<PolySignal>,
-    /// Stereo spread across channels (0 = no spread, 5 = widest spread).
-    /// Width offsets each channel around its base pan position. Defaults to 0
-    /// (no spread) when omitted.
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "Stereo spread across channels (0 = no spread, 5 = widest spread). Width offsets each channel around its base pan position. Defaults to 0 (no spread) when omitted.",
+        type = control,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<MonoSignal>,
 }

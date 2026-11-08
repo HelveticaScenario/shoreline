@@ -9,27 +9,28 @@ use schemars::JsonSchema;
 
 use crate::types::{DeviceName, MidiControlChange, MidiControlChange14Bit};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MidiCcParams {
-    /// MIDI device name to receive from (leave unset to receive from all devices)
+    #[input("MIDI device name to receive from (leave unset to receive from all devices)")]
     #[deserr(default)]
     device: Option<String>,
 
-    /// CC number to monitor (0-127 for 7-bit, 0-31 for 14-bit mode)
+    #[input("CC number to monitor (0-127 for 7-bit, 0-31 for 14-bit mode)")]
     cc: u8,
 
-    /// MIDI channel to listen on (1–16, leave unset for omni/all channels)
+    #[input("MIDI channel to listen on (1–16, leave unset for omni/all channels)")]
     #[deserr(default)]
     channel: Option<u8>,
 
-    /// Smoothing time in milliseconds (0 = instant)
+    #[input("Smoothing time in milliseconds (0 = instant)")]
     #[serde(default)]
     #[deserr(default)]
     smoothing_ms: f32,
 
-    /// Enable 14-bit high-resolution CC mode (CC 0-31 MSB + CC 32-63 LSB)
+    #[input("Enable 14-bit high-resolution CC mode (CC 0-31 MSB + CC 32-63 LSB)")]
     #[serde(default)]
     #[deserr(default)]
     high_resolution: bool,

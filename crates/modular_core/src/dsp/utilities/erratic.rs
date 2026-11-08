@@ -53,44 +53,54 @@ enum ErraticMode {
     Blend,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ErraticParams {
-    /// signal to vary
+    #[input("signal to vary", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// depth (0–5); at 5, shift moves up to half the range either way and
-    /// blend jumps all the way to the random value
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "depth (0–5); at 5, shift moves up to half the range either way and blend jumps all the way to the random value",
+        type = control,
+        range = (0.0, 5.0),
+    )]
     amount: PolySignal,
-    /// rising edge samples and holds the current random value
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edge samples and holds the current random value", type = trig)]
     #[block_input(optional)]
     #[deserr(default)]
     trigger: Option<PolySignal>,
-    /// how fast the variation wanders: 0 = frozen, 5 = a fresh value every sample
-    #[signal(default = 2.0, range = (0.0, 5.0))]
+    #[input(
+        "how fast the variation wanders: 0 = frozen, 5 = a fresh value every sample",
+        type = control,
+        default = 2.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     speed: Option<PolySignal>,
-    /// leans the variation upward (positive) or downward (negative); ±5 makes it one-sided
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "leans the variation upward (positive) or downward (negative); ±5 makes it one-sided",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     bias: Option<PolySignal>,
-    /// minimum of the input's range
-    #[signal(default = -5.0)]
+    #[input("minimum of the input's range", type = control, default = -5.0, range = (-5.0, 5.0))]
     #[deserr(default)]
     min: Option<PolySignal>,
-    /// maximum of the input's range
-    #[signal(default = 5.0)]
+    #[input("maximum of the input's range", type = control, default = 5.0, range = (-5.0, 5.0))]
     #[deserr(default)]
     max: Option<PolySignal>,
-    /// shift adds a random offset; clamp also clamps it to [min, max]; blend
-    /// moves toward a random value in [min, max]
+    #[input(
+        "shift adds a random offset; clamp also clamps it to [min, max]; blend moves toward a random value in [min, max]"
+    )]
     #[serde(default)]
     #[deserr(default)]
     mode: ErraticMode,
-    /// draw a random depth per value: low amounts mostly stay near the input
-    /// with rare big jumps, high amounts mostly jump
+    #[input(
+        "draw a random depth per value: low amounts mostly stay near the input with rare big jumps, high amounts mostly jump"
+    )]
     #[serde(default)]
     #[deserr(default)]
     sparse: bool,

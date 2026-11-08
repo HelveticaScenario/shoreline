@@ -5,18 +5,27 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct LagProcessorParams {
-    /// signal input
+    #[input("signal input", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// rise rate — seconds to slew 1 volt upward (default 0.01)
-    #[signal(default = 0.01, range = (0.0, 10.0))]
+    #[input(
+        "rise rate — seconds to slew 1 volt upward (default 0.01)",
+        type = control,
+        default = 0.01,
+        range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     rise: Option<PolySignal>,
-    /// fall rate — seconds to slew 1 volt downward (default 0.01)
-    #[signal(default = 0.01, range = (0.0, 10.0))]
+    #[input(
+        "fall rate — seconds to slew 1 volt downward (default 0.01)",
+        type = control,
+        default = 0.01,
+        range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     fall: Option<PolySignal>,
 }

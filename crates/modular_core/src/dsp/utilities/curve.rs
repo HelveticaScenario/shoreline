@@ -7,14 +7,18 @@ use crate::block_input::{self, InputScratch};
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CurveParams {
-    /// signal to apply curve to
+    #[input("signal to apply curve to", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// exponent for the power curve (0 = step, 1 = linear, >1 = audio taper)
-    #[signal(range = (0.0, 10.0))]
+    #[input(
+        "exponent for the power curve (0 = step, 1 = linear, >1 = audio taper)",
+        type = control,
+        range = (0.0, 10.0),
+    )]
     exp: PolySignal,
 }
 

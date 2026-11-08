@@ -3,16 +3,25 @@ use schemars::JsonSchema;
 
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ClampParams {
-    /// signal to clamp
+    #[input("signal to clamp", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// lower bound — if omitted the signal is unclamped below
+    #[input(
+        "lower bound — if omitted the signal is unclamped below",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     min: Option<PolySignal>,
-    /// upper bound — if omitted the signal is unclamped above
+    #[input(
+        "upper bound — if omitted the signal is unclamped above",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     max: Option<PolySignal>,
 }

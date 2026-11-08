@@ -30,7 +30,7 @@ const SUGAR_METHODS: Record<
     addHz: { module: '$addHz', param: 'offset' },
     exp: { module: '$curve', param: 'exp' },
     // gain's level is perceptual: 5 = unity, 0 = silence — narrower than
-    // scale's schema range.
+    // scale's control range.
     gain: {
         module: '$scaleAndShift',
         param: 'scale',
@@ -42,6 +42,8 @@ const SUGAR_METHODS: Record<
 
 /** The `.$m.` crossfade mix argument: 0 = dry, 5 = wet, 2.5 = equal. */
 export const MIX_SPEC: ParamSpec = {
+    controlMax: 5,
+    controlMin: 0,
     defaultValue: 2.5,
     maxValue: 5,
     minValue: 0,
@@ -182,8 +184,8 @@ export function createCallResolver(
             name,
             spec: {
                 ...spec,
-                maxValue: sugar.range?.max ?? spec.maxValue,
-                minValue: sugar.range?.min ?? spec.minValue,
+                controlMax: sugar.range?.max ?? spec.controlMax,
+                controlMin: sugar.range?.min ?? spec.controlMin,
             },
         };
     };

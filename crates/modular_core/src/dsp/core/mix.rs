@@ -22,20 +22,25 @@ pub enum MixMode {
     Min,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct MixParams {
-    /// Input signals to mix channel-by-channel.
-    ///
-    /// Channel `n` from every input is mixed into output channel `n`.
+    #[input(
+        "Input signals to mix channel-by-channel.  Channel `n` from every input is mixed into output channel `n`."
+    )]
     pub inputs: Vec<PolySignal>,
-    /// How inputs are combined.
+    #[input("How inputs are combined.")]
     #[serde(default)]
     #[deserr(default)]
     pub mode: MixMode,
-    /// Final output level (perceptual curve, exponent 3).
-    #[signal(default = 5.0, range = (0.0, 10.0))]
+    #[input(
+        "Final output level (perceptual curve, exponent 3).",
+        type = control,
+        default = 5.0,
+        range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     pub gain: Option<PolySignal>,
 }

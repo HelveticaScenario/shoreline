@@ -7,18 +7,19 @@ use crate::dsp::phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState};
 use crate::dsp::utils::voct_to_hz;
 use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PWarpParams {
-    /// input phase (0 to 1)
-    #[signal(range = (0.0, 1.0))]
+    #[input("input phase (0 to 1)", type = control, range = (0.0, 1.0))]
     input: PolySignal,
-    /// the warp to apply, built with `$phase.*`
+    #[input("the warp to apply, built with `$phase.*`")]
     phase: PhaseWarp,
-    /// pitch of the phase in V/Oct (optional, reduces aliasing of the pulsar
-    /// and feedback warps at high frequencies)
-    #[signal(type = pitch)]
+    #[input(
+        "pitch of the phase in V/Oct (optional, reduces aliasing of the pulsar and feedback warps at high frequencies)",
+        type = pitch,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
 }

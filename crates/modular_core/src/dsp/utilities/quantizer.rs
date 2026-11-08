@@ -76,24 +76,25 @@ impl<E: DeserializeError> deserr::Deserr<E> for ScaleSignal {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct QuantizerParams {
-    /// Input V/Oct signal to quantize
-    #[signal(type = pitch)]
+    #[input("Input V/Oct signal to quantize", type = pitch)]
     input: PolySignal,
-    /// Offset added to input before quantization (in V/Oct)
-    #[signal(type = pitch)]
+    #[input("Offset added to input before quantization (in V/Oct)", type = pitch)]
     #[deserr(default)]
     offset: Option<PolySignal>,
-    /// Notes to snap to, one V/Oct pitch per channel (octave is ignored), or a
-    /// spec string like "C(major)" / "C[maj7]". Snaps to semitones if omitted.
+    #[input(
+        "Notes to snap to, one V/Oct pitch per channel (octave is ignored), or a spec string like \"C(major)\" / \"C[maj7]\". Snaps to semitones if omitted."
+    )]
     #[deserr(default)]
     scale: Option<ScaleSignal>,
-    /// Per-note gate for **scale**: scale channel N is used only while gate
-    /// channel N is high. While every gate channel is low the output holds.
-    #[signal(type = gate)]
+    #[input(
+        "Per-note gate for **scale**: scale channel N is used only while gate channel N is high. While every gate channel is low the output holds.",
+        type = gate,
+    )]
     #[deserr(default)]
     gate: Option<PolySignal>,
 }

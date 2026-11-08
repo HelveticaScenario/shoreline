@@ -8,17 +8,22 @@ fn default_channels() -> usize {
     1
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct MixDownParams {
-    /// Polyphonic input whose channels are folded down.
+    #[input(
+        "Polyphonic input whose channels are folded down.",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     pub input: PolySignal,
-    /// Target output channel count (1–64). Defaults to 1 (mono).
+    #[input("Target output channel count (1–64). Defaults to 1 (mono).")]
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
     pub channels: usize,
-    /// How channels that land on the same output channel are combined.
+    #[input("How channels that land on the same output channel are combined.")]
     #[serde(default)]
     #[deserr(default)]
     mode: MixMode,

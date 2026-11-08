@@ -40,15 +40,16 @@ impl ArithmeticOp {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ArithmeticParams {
-    /// left-hand side
+    #[input("left-hand side", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// right-hand side
+    #[input("right-hand side", type = control, range = (-5.0, 5.0))]
     operand: PolySignal,
-    /// operation applied as `input op operand`
+    #[input("operation applied as `input op operand`")]
     #[serde(default)]
     #[deserr(default)]
     op: ArithmeticOp,
@@ -135,13 +136,14 @@ impl RoundMode {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RoundParams {
-    /// signal to round
+    #[input("signal to round", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// rounding direction
+    #[input("rounding direction")]
     #[serde(default)]
     #[deserr(default)]
     mode: RoundMode,

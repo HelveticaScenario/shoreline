@@ -25,20 +25,22 @@ const MAX_SPEED: f64 = 16.0;
 /// Fade at each end of the loop, in seconds, that keeps the loop point from clicking.
 const EDGE_FADE_SECONDS: f64 = 0.001;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = media_audio_validate_params -> ModuleParamErrors)]
 struct MediaAudioParams {
+    #[input("TODO")]
     wav: Wav,
-    /// Playback rate: 1 is normal speed, 0 is silent (default 1).
+    #[input("Playback rate: 1 is normal speed, 0 is silent (default 1).")]
     #[serde(default = "default_speed")]
     #[deserr(default = default_speed())]
     speed: f64,
-    /// Loop start in seconds (default 0).
+    #[input("Loop start in seconds (default 0).")]
     #[serde(default)]
     #[deserr(default)]
     loop_start: f64,
-    /// Loop end in seconds; the end of the file by default.
+    #[input("Loop end in seconds; the end of the file by default.")]
     #[serde(default)]
     #[deserr(default)]
     loop_end: Option<f64>,

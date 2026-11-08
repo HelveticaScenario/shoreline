@@ -11,17 +11,27 @@ use crate::dsp::utils::voct_to_hz;
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SegmentParams {
-    /// input signal to shape (bipolar, typically -5 to 5)
+    #[input(
+        "input signal to shape (bipolar, typically -5 to 5)",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     input: PolySignal,
-    /// segment shape amount (0-5, morphs between 8 shapes)
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "segment shape amount (0-5, morphs between 8 shapes)",
+        type = control,
+        range = (0.0, 5.0),
+    )]
     amount: PolySignal,
-    /// pitch of the source signal in V/Oct (optional, reduces aliasing at high frequencies)
-    #[signal(type = pitch)]
+    #[input(
+        "pitch of the source signal in V/Oct (optional, reduces aliasing at high frequencies)",
+        type = pitch,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
 }

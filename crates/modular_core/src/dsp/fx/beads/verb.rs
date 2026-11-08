@@ -93,25 +93,39 @@ impl OutputStage {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BeadsReverbParams {
-    /// audio input; even channels feed the left side and odd channels the
-    /// right
+    #[input(
+        "audio input; even channels feed the left side and odd channels the right",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     input: PolySignal,
-    /// how much reverb, and how long it rings (0–5, default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how much reverb, and how long it rings (0–5, default 2.5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     amount: Option<MonoSignal>,
-    /// room size; moving it while the reverb rings bends the tail's pitch
-    /// (0–5, default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "room size; moving it while the reverb rings bends the tail's pitch (0–5, default 0)",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<MonoSignal>,
-    /// how quickly the tail darkens, from bright at 0 to muffled at 5
-    /// (default 1)
-    #[signal(default = 1.0, range = (0.0, 5.0))]
+    #[input(
+        "how quickly the tail darkens, from bright at 0 to muffled at 5 (default 1)",
+        type = control,
+        default = 1.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     tone: Option<MonoSignal>,
 }

@@ -3,15 +3,19 @@ use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct HoldParams {
-    /// gate/trigger input — a rising edge opens the output
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input("gate/trigger input — a rising edge opens the output", type = gate)]
     input: PolySignal,
-    /// hold time in seconds; a rising edge mid-hold retriggers the gate (default 0.05)
-    #[signal(default = 0.05, range = (0.0, 10.0))]
+    #[input(
+        "hold time in seconds; a rising edge mid-hold retriggers the gate (default 0.05)",
+        type = control,
+        default = 0.05,
+        range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     time: Option<PolySignal>,
 }

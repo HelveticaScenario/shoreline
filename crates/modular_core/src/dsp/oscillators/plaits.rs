@@ -122,68 +122,102 @@ impl PlaitsEngine {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PlaitsParams {
-    /// Pitch input in V/Oct (0V = C4)
-    #[signal(type = pitch)]
+    #[input("Pitch input in V/Oct (0V = C4)", type = pitch)]
     freq: PolySignal,
 
-    /// Synthesis engine selection
+    #[input("Synthesis engine selection")]
     engine: PlaitsEngine,
 
-    /// Harmonics parameter (-5V to +5V, bipolar, default 0V) - function varies per engine
+    #[input(
+        "Harmonics parameter (-5V to +5V, bipolar, default 0V) - function varies per engine",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     harmonics: Option<PolySignal>,
 
-    /// Timbre parameter (-5V to +5V, bipolar, default 0V) - function varies per engine
+    #[input(
+        "Timbre parameter (-5V to +5V, bipolar, default 0V) - function varies per engine",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     timbre: Option<PolySignal>,
 
-    /// Morph parameter (-5V to +5V, bipolar, default 0V) - function varies per engine
+    #[input(
+        "Morph parameter (-5V to +5V, bipolar, default 0V) - function varies per engine",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     morph: Option<PolySignal>,
 
-    /// FM input (-5V to +5V) - frequency modulation
+    #[input("FM input (-5V to +5V) - frequency modulation", type = control, range = (-5.0, 5.0))]
     #[deserr(default)]
     fm: Option<PolySignal>,
 
-    /// Timbre CV attenuverter (-5 to 5) - scales timbre modulation
+    #[input(
+        "Timbre CV attenuverter (-5 to 5) - scales timbre modulation",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     timbre_amt: Option<PolySignal>,
 
-    /// FM CV attenuverter (-5 to 5) - scales frequency modulation
+    #[input(
+        "FM CV attenuverter (-5 to 5) - scales frequency modulation",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     fm_amt: Option<PolySignal>,
 
-    /// Morph CV attenuverter (-5 to 5) - scales morph modulation
+    #[input(
+        "Morph CV attenuverter (-5 to 5) - scales morph modulation",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     morph_amt: Option<PolySignal>,
 
-    /// Trigger input - gates/triggers the internal envelope
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("Trigger input - gates/triggers the internal envelope", type = trig)]
     #[deserr(default)]
     trigger: Option<PolySignal>,
 
-    /// Level/dynamics input (0-5V) - controls VCA/LPG
-    #[signal(range = (0.0, 5.0))]
+    #[input("Level/dynamics input (0-5V) - controls VCA/LPG", type = control, range = (0.0, 5.0))]
     #[deserr(default)]
     level: Option<PolySignal>,
 
-    /// LPG color (0-5V) - lowpass gate filter response (low = mellow, high = bright)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "LPG color (0-5V) - lowpass gate filter response (low = mellow, high = bright)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     lpg_color: Option<PolySignal>,
 
-    /// LPG decay (0-5V) - lowpass gate envelope decay time
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "LPG decay (0-5V) - lowpass gate envelope decay time",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     lpg_decay: Option<PolySignal>,
 
-    /// Main/Aux Mix (0-5v) - Crossfade mix between main and aux outputs at the primary output.
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "Main/Aux Mix (0-5v) - Crossfade mix between main and aux outputs at the primary output.",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     mix: Option<PolySignal>,
 }

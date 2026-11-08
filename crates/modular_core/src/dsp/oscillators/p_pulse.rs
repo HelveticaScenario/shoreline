@@ -6,19 +6,22 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PPulseOscillatorParams {
-    /// phasor input (0–1, wraps at boundaries)
-    #[signal(range = (0.0, 1.0))]
+    #[input("phasor input (0–1, wraps at boundaries)", type = control, range = (0.0, 1.0))]
     phase: PolySignal,
-    /// pulse width (0-5, 2.5 is square)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input("pulse width (0-5, 2.5 is square)", type = control, default = 2.5, range = (0.0, 5.0))]
     #[deserr(default)]
     width: Option<PolySignal>,
-    /// pulse width modulation CV — added to the width parameter
+    #[input(
+        "pulse width modulation CV — added to the width parameter",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pwm: Option<PolySignal>,
 }

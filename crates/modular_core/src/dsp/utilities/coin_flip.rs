@@ -5,15 +5,19 @@ use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{GATE_HIGH_VOLTAGE, GATE_LOW_VOLTAGE, SchmittTrigger};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CoinFlipParams {
-    /// triggers or gates to flip
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("triggers or gates to flip", type = trig)]
     input: PolySignal,
-    /// chance of heads: 0 = never, 2.5 = half the time, 5 = always
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "chance of heads: 0 = never, 2.5 = half the time, 5 = always",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     probability: Option<PolySignal>,
 }

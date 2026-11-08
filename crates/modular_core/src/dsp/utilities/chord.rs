@@ -5,11 +5,12 @@ use crate::poly::PolyOutput;
 
 use super::scale::ScaleSpec;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ChordParams {
-    /// scale or chord spec, e.g. "C(major)", "Eb3[m7]", "C[just maj7 inv1]"
+    #[input("scale or chord spec, e.g. \"C(major)\", \"Eb3[m7]\", \"C[just maj7 inv1]\"")]
     chord: ScaleSpec,
 }
 

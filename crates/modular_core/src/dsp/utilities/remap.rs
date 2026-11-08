@@ -4,23 +4,20 @@ use schemars::JsonSchema;
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RemapParams {
-    /// signal input to remap
+    #[input("signal input to remap", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// minimum of input range
-    #[signal(default = -5.0)]
+    #[input("minimum of input range", type = control, default = -5.0, range = (-5.0, 5.0))]
     in_min: PolySignal,
-    /// maximum of input range
-    #[signal(default = 5.0)]
+    #[input("maximum of input range", type = control, default = 5.0, range = (-5.0, 5.0))]
     in_max: PolySignal,
-    /// minimum of output range
-    #[signal(default = -5.0)]
+    #[input("minimum of output range", type = control, default = -5.0, range = (-5.0, 5.0))]
     out_min: PolySignal,
-    /// maximum of output range
-    #[signal(default = 5.0)]
+    #[input("maximum of output range", type = control, default = 5.0, range = (-5.0, 5.0))]
     out_max: PolySignal,
 }
 

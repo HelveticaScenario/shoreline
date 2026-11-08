@@ -7,17 +7,22 @@ fn default_count() -> usize {
     1
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct UnisonParams {
-    /// input signal to expand (typically V/Oct pitch)
+    #[input("input signal to expand (typically V/Oct pitch)", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// number of unison voices per input channel (1–64)
+    #[input("number of unison voices per input channel (1–64)")]
     #[serde(default = "default_count")]
     #[deserr(default = default_count())]
     count: usize,
-    /// detune spread amount (0–10V, exponential: 0V = none, 10V = 1 octave)
+    #[input(
+        "detune spread amount (0–10V, exponential: 0V = none, 10V = 1 octave)",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     spread: Option<PolySignal>,
 }

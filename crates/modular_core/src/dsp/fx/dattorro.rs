@@ -74,35 +74,63 @@ fn scale_delay_f(ref_samples: f32, sample_rate: f32, size: f32) -> f32 {
 
 // ─── Params ──────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct DattorroParams {
-    /// audio input (even channels → left, odd channels → right; with an odd
-    /// channel count the last channel feeds both sides)
+    #[input(
+        "audio input (even channels → left, odd channels → right; with an odd channel count the last channel feeds both sides)",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     input: PolySignal,
-    /// reverb decay time (-5 to 5, default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "reverb decay time (-5 to 5, default 0)",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<MonoSignal>,
-    /// high-frequency damping in the reverb tank (-5 to 5, default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "high-frequency damping in the reverb tank (-5 to 5, default 0)",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     damping: Option<MonoSignal>,
-    /// room size — scales all delay line lengths (-5 to 5, default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "room size — scales all delay line lengths (-5 to 5, default 0)",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<MonoSignal>,
-    /// predelay time in seconds (0 to 0.5, default 0)
-    #[signal(default = 0.0, range = (0.0, 0.5))]
+    #[input(
+        "predelay time in seconds (0 to 0.5, default 0)",
+        type = control,
+        default = 0.0,
+        range = (0.0, 0.5),
+    )]
     #[deserr(default)]
     predelay: Option<MonoSignal>,
-    /// input diffusion amount (0 to 5, default 3.5)
-    #[signal(default = 3.5, range = (0.0, 5.0))]
+    #[input(
+        "input diffusion amount (0 to 5, default 3.5)",
+        type = control,
+        default = 3.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     diffusion: Option<MonoSignal>,
-    /// external tank modulation signal (-5 to 5, default 0, not clamped)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "external tank modulation signal (-5 to 5, default 0, not clamped)",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     modulation: Option<MonoSignal>,
 }

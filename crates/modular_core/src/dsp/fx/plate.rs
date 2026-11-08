@@ -81,31 +81,47 @@ fn scale_samples(ref_samples: usize, sample_rate: f32) -> usize {
 
 // ─── Params ──────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PlateParams {
-    /// audio input (even channels → left, odd channels → right; with an odd
-    /// channel count the last channel feeds both sides)
+    #[input(
+        "audio input (even channels → left, odd channels → right; with an odd channel count the last channel feeds both sides)",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     input: PolySignal,
-    /// input bandwidth — controls high-frequency content entering the tank.
-    /// default 2.02V → coeff 0.7 (maps -5V..5V to 0.005..0.9999, clamped)
-    #[signal(default = 2.02, range = (-5.0, 5.0))]
+    #[input(
+        "input bandwidth — controls high-frequency content entering the tank. default 2.02V → coeff 0.7 (maps -5V..5V to 0.005..0.9999, clamped)",
+        type = control,
+        default = 2.02,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     bandwidth: Option<MonoSignal>,
-    /// tank damping — higher values absorb more high frequencies per recirculation.
-    /// default 4.09V → coeff 0.1 (maps -5V..5V to 0.9999..0.005, inverted, clamped)
-    #[signal(default = 4.09, range = (-5.0, 5.0))]
+    #[input(
+        "tank damping — higher values absorb more high frequencies per recirculation. default 4.09V → coeff 0.1 (maps -5V..5V to 0.9999..0.005, inverted, clamped)",
+        type = control,
+        default = 4.09,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     damping: Option<MonoSignal>,
-    /// feedback decay — controls how long the reverb tail sustains.
-    /// default -2.0V → coeff 0.3 (maps -5V..5V to 0.0..0.9999, clamped)
-    #[signal(default = -2.0, range = (-5.0, 5.0))]
+    #[input(
+        "feedback decay — controls how long the reverb tail sustains. default -2.0V → coeff 0.3 (maps -5V..5V to 0.0..0.9999, clamped)",
+        type = control,
+        default = -2.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<MonoSignal>,
-    /// external tank modulation signal.
-    /// default 0.0V → no modulation (±5V maps to ±5.5 samples excursion at 48kHz)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "external tank modulation signal. default 0.0V → no modulation (±5V maps to ±5.5 samples excursion at 48kHz)",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     modulation: Option<MonoSignal>,
 }

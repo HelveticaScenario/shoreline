@@ -122,55 +122,76 @@ struct ChannelState {
     release_coeff: Cached<f32>,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CompressorParams {
-    /// audio input signal
+    #[input("audio input signal", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// optional side-chain detector input — when connected, the envelope follower
-    /// reads from this signal instead of `input`, but the gain is still applied
-    /// to `input`. Use for ducking, kick-triggered pumping, etc.
+    #[input(
+        "optional side-chain detector input — when connected, the envelope follower reads from this signal instead of `input`, but the gain is still applied to `input`. Use for ducking, kick-triggered pumping, etc.",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     sidechain: Option<PolySignal>,
-    /// downward stage threshold (0-5V, default 2.5)
+    #[input("downward stage threshold (0-5V, default 2.5)", type = control, range = (-5.0, 5.0))]
     #[deserr(default)]
     threshold: Option<PolySignal>,
-    /// downward stage ratio in textbook X:1 form (= Δinput dB / Δoutput dB above
-    /// threshold). > 1 compresses, < 1 expands (boost loud), 1 = passthrough.
-    /// `f32::INFINITY` acts as a brick-wall limiter (output clamps to
-    /// threshold). Equivalent to Ableton's 1:Y display via `ratio = 1/Y`.
-    /// Lower-bounded at 1e-3. Default 4.0 (= Ableton 1:0.25).
+    #[input(
+        "downward stage ratio in textbook X:1 form (= Δinput dB / Δoutput dB above threshold). > 1 compresses, < 1 expands (boost loud), 1 = passthrough. `f32::INFINITY` acts as a brick-wall limiter (output clamps to threshold). Equivalent to Ableton's 1:Y display via `ratio = 1/Y`. Lower-bounded at 1e-3. Default 4.0 (= Ableton 1:0.25).",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     ratio: Option<PolySignal>,
-    /// upward stage threshold — signal *below* this gets pushed toward the
-    /// threshold (0-5V, default 0 = bypassed; no real signal sits below the
-    /// resulting ~-200 dB floor)
+    #[input(
+        "upward stage threshold — signal *below* this gets pushed toward the threshold (0-5V, default 0 = bypassed; no real signal sits below the resulting ~-200 dB floor)",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     upward_threshold: Option<PolySignal>,
-    /// upward stage ratio in textbook X:1 form. > 1 compresses below threshold
-    /// (boosts quiet signal), < 1 expands below threshold (gates quiet signal),
-    /// 1 = passthrough. Equivalent to Ableton's 1:Y display via `ratio = 1/Y`.
-    /// Lower-bounded at 1e-3. Default 1.0.
+    #[input(
+        "upward stage ratio in textbook X:1 form. > 1 compresses below threshold (boosts quiet signal), < 1 expands below threshold (gates quiet signal), 1 = passthrough. Equivalent to Ableton's 1:Y display via `ratio = 1/Y`. Lower-bounded at 1e-3. Default 1.0.",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     upward_ratio: Option<PolySignal>,
-    /// attack time in seconds (default 0.01)
+    #[input("attack time in seconds (default 0.01)", type = control, range = (-5.0, 5.0))]
     #[deserr(default)]
     attack: Option<PolySignal>,
-    /// release time in seconds (default 0.1)
+    #[input("release time in seconds (default 0.1)", type = control, range = (-5.0, 5.0))]
     #[deserr(default)]
     release: Option<PolySignal>,
-    /// makeup gain as a dB-domain voltage (-5V = -24dB, 0V = unity, +5V = +24dB,
-    /// default 0 = unity) — matches the inputGain / outputGain convention.
+    #[input(
+        "makeup gain as a dB-domain voltage (-5V = -24dB, 0V = unity, +5V = +24dB, default 0 = unity) — matches the inputGain / outputGain convention.",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     makeup: Option<PolySignal>,
-    /// input gain control (-5V = -24dB, 0V = unity, 5V = +24dB) — drives signal into the compressor
+    #[input(
+        "input gain control (-5V = -24dB, 0V = unity, 5V = +24dB) — drives signal into the compressor",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     input_gain: Option<PolySignal>,
-    /// output gain control (-5V = -24dB, 0V = unity, 5V = +24dB) — trims level after compression
+    #[input(
+        "output gain control (-5V = -24dB, 0V = unity, 5V = +24dB) — trims level after compression",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     output_gain: Option<PolySignal>,
-    /// dry/wet blend (0 = fully dry, 5 = fully wet, default 5.0)
+    #[input(
+        "dry/wet blend (0 = fully dry, 5 = fully wet, default 5.0)",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     mix: Option<PolySignal>,
 }

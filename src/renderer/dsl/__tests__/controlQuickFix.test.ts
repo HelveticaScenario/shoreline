@@ -564,24 +564,31 @@ describe('computeControlQuickFixes — controls by signal type', () => {
         ]);
     });
 
-    test('the two-octave span is clipped to the schema range', () => {
-        // c9 is the top of the ±5 V range.
-        const { source, fixes } = fixesAt(`$saw('b|8').out();`);
+    test('the two-octave span is clipped to the usable range', () => {
+        // c9 is the top of $lpf cutoff's ±5 V range.
+        const { source, fixes } = fixesAt(`$lpf($noise('white'), 'b|8').out();`);
         expect(apply(source, wrapFix(fixes))).toBe(
-            `$saw($slider('freq', 'b8', 'b6', 'c9')).out();`,
+            `$lpf($noise('white'), $slider('cutoff', 'b8', 'b6', 'c9')).out();`,
         );
     });
 
-    test('a value past a schema limit keeps its full span on both sides', () => {
-        // 1hz is ~8 octaves below C4, under the -5 V schema minimum.
-        const low = fixesAt(`$saw('1|hz').out();`);
+    test('a value past a usable-range limit keeps its full span on both sides', () => {
+        // 1hz is ~8 octaves below C4, under the -5 V minimum.
+        const low = fixesAt(`$lpf($noise('white'), '1|hz').out();`);
         expect(apply(low.source, wrapFix(low.fixes))).toBe(
-            `$saw($slider('freq', '1hz', '0.25hz', '4hz')).out();`,
+            `$lpf($noise('white'), $slider('cutoff', '1hz', '0.25hz', '4hz')).out();`,
         );
-        // c10 is above the +5 V (c9) schema maximum.
-        const high = fixesAt(`$saw('c1|0').out();`);
+        // c10 is above the +5 V (c9) maximum.
+        const high = fixesAt(`$lpf($noise('white'), 'c1|0').out();`);
         expect(apply(high.source, wrapFix(high.fixes))).toBe(
-            `$saw($slider('freq', 'c10', 'c8', 'c12')).out();`,
+            `$lpf($noise('white'), $slider('cutoff', 'c10', 'c8', 'c12')).out();`,
+        );
+    });
+
+    test('a pitch param without a usable range spans two octaves', () => {
+        const { source, fixes } = fixesAt(`$saw('b|8').out();`);
+        expect(apply(source, wrapFix(fixes))).toBe(
+            `$saw($slider('freq', 'b8', 'b6', 'b10')).out();`,
         );
     });
 
@@ -593,7 +600,7 @@ describe('computeControlQuickFixes — controls by signal type', () => {
     test('a number on a pitch param stays a volts slider', () => {
         const { source, fixes } = fixesAt(`$saw(0.|5).out();`);
         expect(apply(source, wrapFix(fixes))).toBe(
-            `$saw($slider('freq', 0.5, -5, 5)).out();`,
+            `$saw($slider('freq', 0.5, -1.5, 2.5)).out();`,
         );
     });
 

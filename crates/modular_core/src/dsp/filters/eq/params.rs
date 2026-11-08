@@ -122,22 +122,24 @@ impl JsonSchema for EqSections {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_eq_params -> ModuleParamErrors)]
 pub struct ParametricEqParams {
-    /// sound to EQ
+    #[input("sound to EQ", type = control, range = (-5.0, 5.0))]
     pub input: PolySignal,
-    /// up to 8 bands, or one list of bands per channel (default none: the sound
-    /// passes through unchanged)
+    #[input(
+        "up to 8 bands, or one list of bands per channel (default none: the sound passes through unchanged)"
+    )]
     #[serde(default)]
     #[deserr(default)]
     pub sections: EqSections,
-    /// make peaks narrower the more they boost or cut (default false)
+    #[input("make peaks narrower the more they boost or cut (default false)")]
     #[serde(default)]
     #[deserr(default)]
     pub adaptive_q: bool,
-    /// show an EQ editor under the call (default false)
+    #[input("show an EQ editor under the call (default false)")]
     #[serde(default)]
     #[deserr(default)]
     pub ui: bool,

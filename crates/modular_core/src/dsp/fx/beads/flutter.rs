@@ -22,20 +22,27 @@ const HARDWARE_LP: f32 = 0.95;
 /// Control blocks per second.
 const BLOCK_RATE: f32 = 4000.0;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct WowFlutterParams {
-    /// audio input
+    #[input("audio input", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// how fast the tape wobbles; each volt doubles it, and 2.5 is Beads'
-    /// dirty tape (0–5, default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how fast the tape wobbles; each volt doubles it, and 2.5 is Beads' dirty tape (0–5, default 2.5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     speed: Option<MonoSignal>,
-    /// how deep the wobble is: 0 = none, 2.5 = Beads' dirty tape, 5 = twice
-    /// as deep (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how deep the wobble is: 0 = none, 2.5 = Beads' dirty tape, 5 = twice as deep (default 2.5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     intensity: Option<MonoSignal>,
 }

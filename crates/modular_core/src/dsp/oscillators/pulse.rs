@@ -10,33 +10,44 @@ use crate::{
     types::SwapGlide,
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PulseOscillatorParams {
-    /// pitch in V/Oct (0V = C4)
-    #[signal(type = pitch)]
+    #[input("pitch in V/Oct (0V = C4)", type = pitch)]
     freq: PolySignal,
-    /// pulse width (0-5, 2.5 is square)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input("pulse width (0-5, 2.5 is square)", type = control, default = 2.5, range = (0.0, 5.0))]
     #[deserr(default)]
     width: Option<PolySignal>,
-    /// pulse width modulation CV — added to the width parameter
+    #[input(
+        "pulse width modulation CV — added to the width parameter",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pwm: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user)
+    #[input("FM input signal (pre-scaled by user)", type = control, range = (-5.0, 5.0))]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp
+    #[input("FM mode: throughZero (default), lin, or exp")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    /// hard sync source — rising edges reset the oscillator phase
+    #[input(
+        "hard sync source — rising edges reset the oscillator phase",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     sync: Option<PolySignal>,
-    /// phase offset in [0, 1) added to the internal phase before sampling
-    #[signal(default = 0.0, range = (0.0, 1.0))]
+    #[input(
+        "phase offset in [0, 1) added to the internal phase before sampling",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
     #[deserr(default)]
     phase_offset: Option<PolySignal>,
 }

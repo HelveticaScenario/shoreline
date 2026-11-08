@@ -86,19 +86,32 @@ impl<E: DeserializeError> deserr::Deserr<E> for MathExpressionParam {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, ChannelCount, SignalParams, Connect)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, ChannelCount, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MathParams {
-    /// math expression to evaluate (e.g. "x * 2 + sin(t)")
+    #[input("math expression to evaluate (e.g. \"x * 2 + sin(t)\")")]
     expression: MathExpressionParam,
-    /// first input variable, referenced as `x` in the expression
+    #[input(
+        "first input variable, referenced as `x` in the expression",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     x: Option<PolySignal>,
-    /// second input variable, referenced as `y` in the expression
+    #[input(
+        "second input variable, referenced as `y` in the expression",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     y: Option<PolySignal>,
-    /// third input variable, referenced as `z` in the expression
+    #[input(
+        "third input variable, referenced as `z` in the expression",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     z: Option<PolySignal>,
 }

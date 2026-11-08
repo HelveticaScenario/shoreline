@@ -17,34 +17,43 @@ fn default_voices() -> usize {
     5
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct SupersawParams {
-    /// pitch in V/Oct (0V = C4)
+    #[input("pitch in V/Oct (0V = C4)", type = control, range = (-5.0, 5.0))]
     freq: PolySignal,
-    /// number of supersaw voices (1–64)
+    #[input("number of supersaw voices (1–64)")]
     #[serde(default = "default_voices")]
     #[deserr(default = default_voices())]
     voices: usize,
-    /// detune spread in semitones (default 0.18)
-    #[signal(type = control, default = 0.18, range = (0, 12))]
+    #[input(
+        "detune spread in semitones (default 0.18)",
+        type = control,
+        default = 0.18,
+        range = (0, 12),
+    )]
     #[deserr(default)]
     detune: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user)
+    #[input("FM input signal (pre-scaled by user)", type = control, range = (-5.0, 5.0))]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp
+    #[input("FM mode: throughZero (default), lin, or exp")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    /// hard sync source — rising edges reset every detuned voice's phase
+    #[input(
+        "hard sync source — rising edges reset every detuned voice's phase",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     sync: Option<PolySignal>,
-    /// when true, each freshly started voice stays silent until its output
-    /// first crosses zero. Because voices start at random phases, this prevents
-    /// a click when the patch begins. Default true.
+    #[input(
+        "when true, each freshly started voice stays silent until its output first crosses zero. Because voices start at random phases, this prevents a click when the patch begins. Default true."
+    )]
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]
     wait_for_zero_cross: bool,

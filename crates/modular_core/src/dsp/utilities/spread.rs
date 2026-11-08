@@ -7,18 +7,23 @@ fn default_count() -> usize {
     2
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SpreadParams {
-    /// lower bound of the spread range
+    #[input("lower bound of the spread range", type = control, range = (-5.0, 5.0))]
     min: MonoSignal,
-    /// upper bound of the spread range
+    #[input("upper bound of the spread range", type = control, range = (-5.0, 5.0))]
     max: MonoSignal,
-    /// number of output channels (1–64)
+    #[input("number of output channels (1–64)")]
     count: usize,
-    /// distribution bias (-5 to 5): positive biases toward max, negative toward min
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "distribution bias (-5 to 5): positive biases toward max, negative toward min",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     bias: Option<MonoSignal>,
 }

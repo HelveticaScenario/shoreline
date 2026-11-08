@@ -10,17 +10,16 @@ fn default_division() -> u32 {
     1
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ClockDividerParams {
-    /// division factor (e.g. 2 = output fires every other tick)
+    #[input("division factor (e.g. 2 = output fires every other tick)")]
     pub division: u32,
-    /// clock signal to divide
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("clock signal to divide", type = trig)]
     pub input: PolySignal,
-    /// trigger to reset the counter to 0
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("trigger to reset the counter to 0", type = trig)]
     #[deserr(default)]
     pub reset: Option<PolySignal>,
 }

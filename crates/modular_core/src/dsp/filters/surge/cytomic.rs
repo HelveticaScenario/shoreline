@@ -114,7 +114,7 @@ filter_module! {
     name = "$unstable.filter.fastSvf", ident = FastSvfFilter, kernel = FastSvf,
     output_doc = "filter output",
     params = {
-        /// output mix: lp, hp, bp, notch, peak, or allpass (default lp)
+        #[input("output mix: lp, hp, bp, notch, peak, or allpass (default lp)")]
         mode: FastSvfMode,
     },
     mode = |p| p.mode,
