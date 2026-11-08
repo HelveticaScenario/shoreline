@@ -60,3 +60,21 @@ describe('argument span registry', () => {
         );
     });
 });
+
+/** Each resolution of the first interpolated template as
+ *  `name@evaluatedStart+evaluatedLength`. */
+function resolutions(source: string): string[] {
+    const [list] = [...analyze(source).interpolationResolutions.values()];
+    return (list ?? []).map(
+        (r) =>
+            `${source.slice(r.constLiteralSpan.start, r.constLiteralSpan.end)}@${r.evaluatedStart}+${r.evaluatedLength}`,
+    );
+}
+
+describe('template interpolation', () => {
+    test('a number written in place counts as the text it prints', () => {
+        expect(
+            resolutions("const root = 'c4'\n$p(`${0x10} ${root} e4`)"),
+        ).toEqual(["'c4'@3+2"]);
+    });
+});
