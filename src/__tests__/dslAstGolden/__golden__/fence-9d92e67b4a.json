@@ -8,13 +8,17 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 302,
+        "gainClear": null,
+        "gainSet": {"end":306,"start":306,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":306,"start":306,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":306,"start":306,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":306,"start":306,"text":"{ solo: true }"}
       }
     ],
@@ -34,16 +38,255 @@
         "301-306 9"
       ],
       "fixes": [
-        "[{\"caretOffset\":37,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"{ beta: $slider('beta', 1.3333, 0, 5) }\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'beta'\"},{\"caretOffset\":34,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"{ rate: $slider('rate', 0.1, 0, 5) }\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'rate'\"},{\"caretOffset\":35,\"controlOffset\":7,\"kind\":\"add\",\"newText\":\"{ rho: $slider('rho', 2.3333, 0, 5) }\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'rho'\"},{\"caretOffset\":39,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{ sigma: $slider('sigma', 1.6667, 0, 5) }\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'sigma'\"}]",
-        "[{\"caretOffset\":37,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"{ beta: $slider('beta', 1.3333, 0, 5) }\",\"span\":{\"end\":103,\"start\":103},\"title\":\"Add slider for 'beta'\"},{\"caretOffset\":34,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"{ rate: $slider('rate', 0.1, 0, 5) }\",\"span\":{\"end\":103,\"start\":103},\"title\":\"Add slider for 'rate'\"},{\"caretOffset\":35,\"controlOffset\":7,\"kind\":\"add\",\"newText\":\"{ rho: $slider('rho', 2.3333, 0, 5) }\",\"span\":{\"end\":103,\"start\":103},\"title\":\"Add slider for 'rho'\"},{\"caretOffset\":39,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{ sigma: $slider('sigma', 1.6667, 0, 5) }\",\"span\":{\"end\":103,\"start\":103},\"title\":\"Add slider for 'sigma'\"}]",
-        "[{\"caretOffset\":85,\"controlOffset\":56,\"kind\":\"add\",\"newText\":\"{\\n  rho: $sine('1hz').range(0, 5),\\n  rate: 0.5,\\n  beta: $slider('beta', 1.3333, 0, 5),\\n}\",\"span\":{\"end\":300,\"start\":256},\"title\":\"Add slider for 'beta'\"},{\"caretOffset\":87,\"controlOffset\":57,\"kind\":\"add\",\"newText\":\"{\\n  rho: $sine('1hz').range(0, 5),\\n  rate: 0.5,\\n  sigma: $slider('sigma', 1.6667, 0, 5),\\n}\",\"span\":{\"end\":300,\"start\":256},\"title\":\"Add slider for 'sigma'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":274,\"start\":274},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":274,\"start\":274},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":274,\"start\":274},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":39,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', '1hz', '0.25hz', '4hz')\",\"preferred\":true,\"span\":{\"end\":274,\"start\":269},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":274,\"start\":274},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":274,\"start\":274},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":274,\"start\":274},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMin', 0, 0, 5)\",\"preferred\":true,\"span\":{\"end\":283,\"start\":282},\"title\":\"Wrap 'outMin' in $slider\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMax', 5, 0, 5)\",\"preferred\":true,\"span\":{\"end\":286,\"start\":285},\"title\":\"Wrap 'outMax' in $slider\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('rate', 0.5, 0, 5)\",\"preferred\":false,\"span\":{\"end\":298,\"start\":295},\"title\":\"Wrap 'rate' in $slider\"},{\"caretOffset\":85,\"controlOffset\":56,\"kind\":\"add\",\"newText\":\"{\\n  rho: $sine('1hz').range(0, 5),\\n  rate: 0.5,\\n  beta: $slider('beta', 1.3333, 0, 5),\\n}\",\"span\":{\"end\":300,\"start\":256},\"title\":\"Add slider for 'beta'\"},{\"caretOffset\":87,\"controlOffset\":57,\"kind\":\"add\",\"newText\":\"{\\n  rho: $sine('1hz').range(0, 5),\\n  rate: 0.5,\\n  sigma: $slider('sigma', 1.6667, 0, 5),\\n}\",\"span\":{\"end\":300,\"start\":256},\"title\":\"Add slider for 'sigma'\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('rate', 0.5, 0, 5)\",\"preferred\":true,\"span\":{\"end\":298,\"start\":295},\"title\":\"Wrap 'rate' in $slider\"},{\"caretOffset\":85,\"controlOffset\":56,\"kind\":\"add\",\"newText\":\"{\\n  rho: $sine('1hz').range(0, 5),\\n  rate: 0.5,\\n  beta: $slider('beta', 1.3333, 0, 5),\\n}\",\"span\":{\"end\":300,\"start\":256},\"title\":\"Add slider for 'beta'\"},{\"caretOffset\":87,\"controlOffset\":57,\"kind\":\"add\",\"newText\":\"{\\n  rho: $sine('1hz').range(0, 5),\\n  rate: 0.5,\\n  sigma: $slider('sigma', 1.6667, 0, 5),\\n}\",\"span\":{\"end\":300,\"start\":256},\"title\":\"Add slider for 'sigma'\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":306,\"start\":306},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":306,\"start\":306},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":306,\"start\":306},\"title\":\"Add slider for 'width'\"}]"
+        [
+          {
+            "caretOffset": 37,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ beta: $slider('beta', 1.3333, 0, 5) }",
+            "span": {"end":54,"start":54},
+            "title": "Add slider for 'beta'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ rate: $slider('rate', 0.1, 0, 5) }",
+            "span": {"end":54,"start":54},
+            "title": "Add slider for 'rate'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ rho: $slider('rho', 2.3333, 0, 5) }",
+            "span": {"end":54,"start":54},
+            "title": "Add slider for 'rho'"
+          },
+          {
+            "caretOffset": 39,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ sigma: $slider('sigma', 1.6667, 0, 5) }",
+            "span": {"end":54,"start":54},
+            "title": "Add slider for 'sigma'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 37,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ beta: $slider('beta', 1.3333, 0, 5) }",
+            "span": {"end":103,"start":103},
+            "title": "Add slider for 'beta'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ rate: $slider('rate', 0.1, 0, 5) }",
+            "span": {"end":103,"start":103},
+            "title": "Add slider for 'rate'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ rho: $slider('rho', 2.3333, 0, 5) }",
+            "span": {"end":103,"start":103},
+            "title": "Add slider for 'rho'"
+          },
+          {
+            "caretOffset": 39,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ sigma: $slider('sigma', 1.6667, 0, 5) }",
+            "span": {"end":103,"start":103},
+            "title": "Add slider for 'sigma'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 85,
+            "controlOffset": 56,
+            "kind": "add",
+            "newText": "{\n  rho: $sine('1hz').range(0, 5),\n  rate: 0.5,\n  beta: $slider('beta', 1.3333, 0, 5),\n}",
+            "span": {"end":300,"start":256},
+            "title": "Add slider for 'beta'"
+          },
+          {
+            "caretOffset": 87,
+            "controlOffset": 57,
+            "kind": "add",
+            "newText": "{\n  rho: $sine('1hz').range(0, 5),\n  rate: 0.5,\n  sigma: $slider('sigma', 1.6667, 0, 5),\n}",
+            "span": {"end":300,"start":256},
+            "title": "Add slider for 'sigma'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "span": {"end":274,"start":274},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":274,"start":274},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":274,"start":274},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 39,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', '1hz', '0.25hz', '4hz')",
+            "preferred": true,
+            "span": {"end":274,"start":269},
+            "title": "Wrap 'freq' in an hz $slider"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "span": {"end":274,"start":274},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":274,"start":274},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":274,"start":274},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMin', 0, 0, 5)",
+            "preferred": true,
+            "span": {"end":283,"start":282},
+            "title": "Wrap 'outMin' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMax', 5, 0, 5)",
+            "preferred": true,
+            "span": {"end":286,"start":285},
+            "title": "Wrap 'outMax' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('rate', 0.5, 0, 5)",
+            "preferred": false,
+            "span": {"end":298,"start":295},
+            "title": "Wrap 'rate' in $slider"
+          },
+          {
+            "caretOffset": 85,
+            "controlOffset": 56,
+            "kind": "add",
+            "newText": "{\n  rho: $sine('1hz').range(0, 5),\n  rate: 0.5,\n  beta: $slider('beta', 1.3333, 0, 5),\n}",
+            "span": {"end":300,"start":256},
+            "title": "Add slider for 'beta'"
+          },
+          {
+            "caretOffset": 87,
+            "controlOffset": 57,
+            "kind": "add",
+            "newText": "{\n  rho: $sine('1hz').range(0, 5),\n  rate: 0.5,\n  sigma: $slider('sigma', 1.6667, 0, 5),\n}",
+            "span": {"end":300,"start":256},
+            "title": "Add slider for 'sigma'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('rate', 0.5, 0, 5)",
+            "preferred": true,
+            "span": {"end":298,"start":295},
+            "title": "Wrap 'rate' in $slider"
+          },
+          {
+            "caretOffset": 85,
+            "controlOffset": 56,
+            "kind": "add",
+            "newText": "{\n  rho: $sine('1hz').range(0, 5),\n  rate: 0.5,\n  beta: $slider('beta', 1.3333, 0, 5),\n}",
+            "span": {"end":300,"start":256},
+            "title": "Add slider for 'beta'"
+          },
+          {
+            "caretOffset": 87,
+            "controlOffset": 57,
+            "kind": "add",
+            "newText": "{\n  rho: $sine('1hz').range(0, 5),\n  rate: 0.5,\n  sigma: $slider('sigma', 1.6667, 0, 5),\n}",
+            "span": {"end":300,"start":256},
+            "title": "Add slider for 'sigma'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":306,"start":306},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":306,"start":306},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":306,"start":306},
+            "title": "Add slider for 'width'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":307,"start":307,"text":"\n$setOutputGain(0.5)\n"}

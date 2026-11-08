@@ -15,13 +15,89 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [],
     "quickFixes": {
       "at": ["0-6 0","41-41 0","85-132 1","134-185 2"],
       "fixes": [
-        "[{\"caretOffset\":41,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":41,\"start\":41},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":41,\"start\":41},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":41,\"start\":41},\"title\":\"Add slider for 'velocity'\"}]",
-        "[{\"caretOffset\":41,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":132,\"start\":132},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":132,\"start\":132},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":132,\"start\":132},\"title\":\"Add slider for 'velocity'\"}]",
-        "[{\"caretOffset\":41,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":185,\"start\":185},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":185,\"start\":185},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":185,\"start\":185},\"title\":\"Add slider for 'velocity'\"}]"
+        [
+          {
+            "caretOffset": 41,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  groove: $slider('groove', 0, -5, 5),\n}",
+            "span": {"end":41,"start":41},
+            "title": "Add slider for 'groove'"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": ", {\n  playhead: $slider('playhead', 0, 0, 1),\n}",
+            "span": {"end":41,"start":41},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": ", {\n  velocity: $slider('velocity', 0, 0, 5),\n}",
+            "span": {"end":41,"start":41},
+            "title": "Add slider for 'velocity'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 41,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  groove: $slider('groove', 0, -5, 5),\n}",
+            "span": {"end":132,"start":132},
+            "title": "Add slider for 'groove'"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": ", {\n  playhead: $slider('playhead', 0, 0, 1),\n}",
+            "span": {"end":132,"start":132},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": ", {\n  velocity: $slider('velocity', 0, 0, 5),\n}",
+            "span": {"end":132,"start":132},
+            "title": "Add slider for 'velocity'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 41,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  groove: $slider('groove', 0, -5, 5),\n}",
+            "span": {"end":185,"start":185},
+            "title": "Add slider for 'groove'"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": ", {\n  playhead: $slider('playhead', 0, 0, 1),\n}",
+            "span": {"end":185,"start":185},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": ", {\n  velocity: $slider('velocity', 0, 0, 5),\n}",
+            "span": {"end":185,"start":185},
+            "title": "Add slider for 'velocity'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":186,"start":186,"text":"\n$setOutputGain(0.5)\n"}

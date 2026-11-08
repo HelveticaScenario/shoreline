@@ -4,13 +4,17 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 59,
+        "gainClear": null,
+        "gainSet": {"end":63,"start":63,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":63,"start":63,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":63,"start":63,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":63,"start":63,"text":"{ solo: true }"}
       }
     ],

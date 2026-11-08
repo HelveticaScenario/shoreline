@@ -8,24 +8,180 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 27,
+        "gainClear": null,
+        "gainSet": {"end":31,"start":31,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":31,"start":31,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":31,"start":31,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":31,"start":31,"text":"{ solo: true }"}
       }
     ],
     "quickFixes": {
       "at": ["0-4 0","5-9 1","10-12 0","13-19 2","20-23 3","24-25 0","26-31 4"],
       "fixes": [
-        "[{\"caretOffset\":29,\"controlOffset\":6,\"kind\":\"add\",\"newText\":\", fm: $slider('fm', 0, -5, 5)\",\"span\":{\"end\":23,\"start\":23},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":62,\"controlOffset\":31,\"kind\":\"add\",\"newText\":\"{\\n  shape: 2.5,\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":25,\"start\":11},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":49,\"controlOffset\":24,\"kind\":\"add\",\"newText\":\"{\\n  shape: 2.5,\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":25,\"start\":11},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'a3', 'a1', 'a5')\",\"preferred\":true,\"span\":{\"end\":9,\"start\":5},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":29,\"controlOffset\":6,\"kind\":\"add\",\"newText\":\", fm: $slider('fm', 0, -5, 5)\",\"span\":{\"end\":23,\"start\":23},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":62,\"controlOffset\":31,\"kind\":\"add\",\"newText\":\"{\\n  shape: 2.5,\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":25,\"start\":11},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":49,\"controlOffset\":24,\"kind\":\"add\",\"newText\":\"{\\n  shape: 2.5,\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":25,\"start\":11},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('shape', 2.5, 0, 5)\",\"preferred\":false,\"span\":{\"end\":23,\"start\":20},\"title\":\"Wrap 'shape' in $slider\"},{\"caretOffset\":29,\"controlOffset\":6,\"kind\":\"add\",\"newText\":\", fm: $slider('fm', 0, -5, 5)\",\"span\":{\"end\":23,\"start\":23},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":62,\"controlOffset\":31,\"kind\":\"add\",\"newText\":\"{\\n  shape: 2.5,\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":25,\"start\":11},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":49,\"controlOffset\":24,\"kind\":\"add\",\"newText\":\"{\\n  shape: 2.5,\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":25,\"start\":11},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('shape', 2.5, 0, 5)\",\"preferred\":true,\"span\":{\"end\":23,\"start\":20},\"title\":\"Wrap 'shape' in $slider\"},{\"caretOffset\":29,\"controlOffset\":6,\"kind\":\"add\",\"newText\":\", fm: $slider('fm', 0, -5, 5)\",\"span\":{\"end\":23,\"start\":23},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":62,\"controlOffset\":31,\"kind\":\"add\",\"newText\":\"{\\n  shape: 2.5,\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":25,\"start\":11},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":49,\"controlOffset\":24,\"kind\":\"add\",\"newText\":\"{\\n  shape: 2.5,\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":25,\"start\":11},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":31,\"start\":31},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":31,\"start\":31},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":31,\"start\":31},\"title\":\"Add slider for 'width'\"}]"
+        [
+          {
+            "caretOffset": 29,
+            "controlOffset": 6,
+            "kind": "add",
+            "newText": ", fm: $slider('fm', 0, -5, 5)",
+            "span": {"end":23,"start":23},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 62,
+            "controlOffset": 31,
+            "kind": "add",
+            "newText": "{\n  shape: 2.5,\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":25,"start":11},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 49,
+            "controlOffset": 24,
+            "kind": "add",
+            "newText": "{\n  shape: 2.5,\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":25,"start":11},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'a3', 'a1', 'a5')",
+            "preferred": true,
+            "span": {"end":9,"start":5},
+            "title": "Wrap 'freq' in a note $slider"
+          },
+          {
+            "caretOffset": 29,
+            "controlOffset": 6,
+            "kind": "add",
+            "newText": ", fm: $slider('fm', 0, -5, 5)",
+            "span": {"end":23,"start":23},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 62,
+            "controlOffset": 31,
+            "kind": "add",
+            "newText": "{\n  shape: 2.5,\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":25,"start":11},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 49,
+            "controlOffset": 24,
+            "kind": "add",
+            "newText": "{\n  shape: 2.5,\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":25,"start":11},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('shape', 2.5, 0, 5)",
+            "preferred": false,
+            "span": {"end":23,"start":20},
+            "title": "Wrap 'shape' in $slider"
+          },
+          {
+            "caretOffset": 29,
+            "controlOffset": 6,
+            "kind": "add",
+            "newText": ", fm: $slider('fm', 0, -5, 5)",
+            "span": {"end":23,"start":23},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 62,
+            "controlOffset": 31,
+            "kind": "add",
+            "newText": "{\n  shape: 2.5,\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":25,"start":11},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 49,
+            "controlOffset": 24,
+            "kind": "add",
+            "newText": "{\n  shape: 2.5,\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":25,"start":11},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('shape', 2.5, 0, 5)",
+            "preferred": true,
+            "span": {"end":23,"start":20},
+            "title": "Wrap 'shape' in $slider"
+          },
+          {
+            "caretOffset": 29,
+            "controlOffset": 6,
+            "kind": "add",
+            "newText": ", fm: $slider('fm', 0, -5, 5)",
+            "span": {"end":23,"start":23},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 62,
+            "controlOffset": 31,
+            "kind": "add",
+            "newText": "{\n  shape: 2.5,\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":25,"start":11},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 49,
+            "controlOffset": 24,
+            "kind": "add",
+            "newText": "{\n  shape: 2.5,\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":25,"start":11},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":31,"start":31},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":31,"start":31},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":31,"start":31},
+            "title": "Add slider for 'width'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":49,"start":49,"text":"\n$setOutputGain(0.5)\n"}
@@ -63,10 +219,13 @@
       "out": [
         {
           "anchor": 27,
+          "gainClear": null,
+          "gainSet": {"end":31,"start":31,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":31,"start":31,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":31,"start":31,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":31,"start":31,"text":"{ solo: true }"}
         }
       ],

@@ -13,20 +13,49 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 112,
+        "gainClear": null,
+        "gainSet": {"end":116,"start":116,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":116,"start":116,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":116,"start":116,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":116,"start":116,"text":"{ solo: true }"}
       }
     ],
     "quickFixes": {
       "at": ["64-89 0"],
       "fixes": [
-        "[{\"caretOffset\":41,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n  groove: $slider('groove', 0, -5, 5),\\n}\",\"span\":{\"end\":96,\"start\":96},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":96,\"start\":96},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":44,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":96,\"start\":96},\"title\":\"Add slider for 'velocity'\"}]"
+        [
+          {
+            "caretOffset": 41,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  groove: $slider('groove', 0, -5, 5),\n}",
+            "span": {"end":96,"start":96},
+            "title": "Add slider for 'groove'"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": ", {\n  playhead: $slider('playhead', 0, 0, 1),\n}",
+            "span": {"end":96,"start":96},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": ", {\n  velocity: $slider('velocity', 0, 0, 5),\n}",
+            "span": {"end":96,"start":96},
+            "title": "Add slider for 'velocity'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":118,"start":118,"text":"$setOutputGain(0.5)\n"}

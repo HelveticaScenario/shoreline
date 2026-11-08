@@ -8,11 +8,21 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [],
     "quickFixes": {
       "at": ["45-79 0"],
       "fixes": [
-        "[{\"caretOffset\":24,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { reset: $btn('reset') }\",\"span\":{\"end\":79,\"start\":79},\"title\":\"Add button for 'reset'\"}]"
+        [
+          {
+            "caretOffset": 24,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { reset: $btn('reset') }",
+            "span": {"end":79,"start":79},
+            "title": "Add button for 'reset'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":80,"start":80,"text":"\n$setOutputGain(0.5)\n"}

@@ -4,7 +4,20 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
-    "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 3,
+        "gainClear": null,
+        "gainSet": null,
+        "muteOff": null,
+        "muteOn": null,
+        "panClear": null,
+        "panSet": null,
+        "soloOff": null,
+        "soloOn": null
+      }
+    ],
     "quickFixes": {
       "at": [
         "7-28 0",
@@ -21,15 +34,183 @@
         "111-112 0"
       ],
       "fixes": [
-        "[{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.02,\\n  rotate: 0.004,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.02,\\n  rotate: 0.004,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftY'\"}]",
-        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('saturation', 1, 0, 1)\",\"preferred\":true,\"span\":{\"end\":53,\"start\":52},\"title\":\"Wrap 'saturation' in $slider\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('softness', 0.01, 0, 5)\",\"span\":{\"end\":67,\"start\":67},\"title\":\"Add slider for 'softness'\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('size', 0.1, 0, 5)\",\"preferred\":true,\"span\":{\"end\":67,\"start\":64},\"title\":\"Wrap 'size' in $slider\"},{\"caretOffset\":33,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('softness', 0.01, 0, 5)\",\"span\":{\"end\":67,\"start\":67},\"title\":\"Add slider for 'softness'\"}]",
-        "[{\"caretOffset\":28,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('amount', 0.9, 0, 1)\",\"preferred\":true,\"span\":{\"end\":80,\"start\":77},\"title\":\"Wrap 'amount' in $slider\"}]",
-        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('zoom', 1.02, 0, 5)\",\"preferred\":false,\"span\":{\"end\":95,\"start\":91},\"title\":\"Wrap 'zoom' in $slider\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.02,\\n  rotate: 0.004,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.02,\\n  rotate: 0.004,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftY'\"}]",
-        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('zoom', 1.02, 0, 5)\",\"preferred\":true,\"span\":{\"end\":95,\"start\":91},\"title\":\"Wrap 'zoom' in $slider\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.02,\\n  rotate: 0.004,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.02,\\n  rotate: 0.004,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftY'\"}]",
-        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('rotate', 0.004, 0, 5)\",\"preferred\":false,\"span\":{\"end\":110,\"start\":105},\"title\":\"Wrap 'rotate' in $slider\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.02,\\n  rotate: 0.004,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.02,\\n  rotate: 0.004,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftY'\"}]",
-        "[{\"caretOffset\":30,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('rotate', 0.004, 0, 5)\",\"preferred\":true,\"span\":{\"end\":110,\"start\":105},\"title\":\"Wrap 'rotate' in $slider\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.02,\\n  rotate: 0.004,\\n  shiftX: $slider('shiftX', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftX'\"},{\"caretOffset\":69,\"controlOffset\":43,\"kind\":\"add\",\"newText\":\"{\\n  zoom: 1.02,\\n  rotate: 0.004,\\n  shiftY: $slider('shiftY', 0, 0, 5),\\n}\",\"span\":{\"end\":112,\"start\":83},\"title\":\"Add slider for 'shiftY'\"}]"
+        [
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.02,\n  rotate: 0.004,\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.02,\n  rotate: 0.004,\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('saturation', 1, 0, 1)",
+            "preferred": true,
+            "span": {"end":53,"start":52},
+            "title": "Wrap 'saturation' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('softness', 0.01, 0, 5)",
+            "span": {"end":67,"start":67},
+            "title": "Add slider for 'softness'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('size', 0.1, 0, 5)",
+            "preferred": true,
+            "span": {"end":67,"start":64},
+            "title": "Wrap 'size' in $slider"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('softness', 0.01, 0, 5)",
+            "span": {"end":67,"start":67},
+            "title": "Add slider for 'softness'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('amount', 0.9, 0, 1)",
+            "preferred": true,
+            "span": {"end":80,"start":77},
+            "title": "Wrap 'amount' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('zoom', 1.02, 0, 5)",
+            "preferred": false,
+            "span": {"end":95,"start":91},
+            "title": "Wrap 'zoom' in $slider"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.02,\n  rotate: 0.004,\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.02,\n  rotate: 0.004,\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('zoom', 1.02, 0, 5)",
+            "preferred": true,
+            "span": {"end":95,"start":91},
+            "title": "Wrap 'zoom' in $slider"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.02,\n  rotate: 0.004,\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.02,\n  rotate: 0.004,\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('rotate', 0.004, 0, 5)",
+            "preferred": false,
+            "span": {"end":110,"start":105},
+            "title": "Wrap 'rotate' in $slider"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.02,\n  rotate: 0.004,\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.02,\n  rotate: 0.004,\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('rotate', 0.004, 0, 5)",
+            "preferred": true,
+            "span": {"end":110,"start":105},
+            "title": "Wrap 'rotate' in $slider"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.02,\n  rotate: 0.004,\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n  zoom: 1.02,\n  rotate: 0.004,\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":112,"start":83},
+            "title": "Add slider for 'shiftY'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":114,"start":114,"text":"\n$setOutputGain(0.5)\n"}
@@ -40,7 +221,19 @@
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
-      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
       "setOutputGain": {"end":28,"start":28,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut50": {
@@ -48,7 +241,19 @@
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
-      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
       "setOutputGain": {"end":57,"start":57,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut75": {
@@ -56,7 +261,19 @@
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
-      "out": [{"anchor":3,"muteOff":null,"muteOn":null,"panClear":null,"panSet":null,"soloOn":null}],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
       "setOutputGain": {"end":85,"start":85,"text":"\n$setOutputGain(0.5)\n"}
     }
   }

@@ -8,21 +8,28 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 102,
+        "gainClear": null,
+        "gainSet": {"end":106,"start":106,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":106,"start":106,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":106,"start":106,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":106,"start":106,"text":"{ solo: true }"}
       },
       {
         "anchor": 173,
+        "gainClear": null,
+        "gainSet": {"end":177,"start":177,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":177,"start":177,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":177,"start":177,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":177,"start":177,"text":"{ solo: true }"}
       }
     ],
@@ -43,15 +50,133 @@
         "172-177 8"
       ],
       "fixes": [
-        "[{\"caretOffset\":45,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  freq: $slider('freq', 'c4', 'c2', 'c6'),\\n}\",\"span\":{\"end\":99,\"start\":99},\"title\":\"Add note slider for 'freq'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c3', 'c1', 'c5')\",\"preferred\":true,\"span\":{\"end\":80,\"start\":76},\"title\":\"Wrap 'freq' in a note $slider\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('amount', 3, 0, 5)\",\"preferred\":true,\"span\":{\"end\":98,\"start\":97},\"title\":\"Wrap 'amount' in $slider\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":106,\"start\":106},\"title\":\"Add slider for 'width'\"}]",
-        "[{\"caretOffset\":45,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  freq: $slider('freq', 'c4', 'c2', 'c6'),\\n}\",\"span\":{\"end\":170,\"start\":170},\"title\":\"Add note slider for 'freq'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c3', 'c1', 'c5')\",\"preferred\":true,\"span\":{\"end\":132,\"start\":128},\"title\":\"Wrap 'freq' in a note $slider\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('amount', 2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":149,\"start\":148},\"title\":\"Wrap 'amount' in $slider\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('amount', 1, 0, 5)\",\"preferred\":true,\"span\":{\"end\":168,\"start\":167},\"title\":\"Wrap 'amount' in $slider\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":177,\"start\":177},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":177,\"start\":177},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":177,\"start\":177},\"title\":\"Add slider for 'width'\"}]"
+        [
+          {
+            "caretOffset": 45,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  freq: $slider('freq', 'c4', 'c2', 'c6'),\n}",
+            "span": {"end":99,"start":99},
+            "title": "Add note slider for 'freq'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'c3', 'c1', 'c5')",
+            "preferred": true,
+            "span": {"end":80,"start":76},
+            "title": "Wrap 'freq' in a note $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('amount', 3, 0, 5)",
+            "preferred": true,
+            "span": {"end":98,"start":97},
+            "title": "Wrap 'amount' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":106,"start":106},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":106,"start":106},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":106,"start":106},
+            "title": "Add slider for 'width'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 45,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  freq: $slider('freq', 'c4', 'c2', 'c6'),\n}",
+            "span": {"end":170,"start":170},
+            "title": "Add note slider for 'freq'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'c3', 'c1', 'c5')",
+            "preferred": true,
+            "span": {"end":132,"start":128},
+            "title": "Wrap 'freq' in a note $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('amount', 2, 0, 5)",
+            "preferred": true,
+            "span": {"end":149,"start":148},
+            "title": "Wrap 'amount' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('amount', 1, 0, 5)",
+            "preferred": true,
+            "span": {"end":168,"start":167},
+            "title": "Wrap 'amount' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":177,"start":177},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":177,"start":177},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":177,"start":177},
+            "title": "Add slider for 'width'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":178,"start":178,"text":"\n$setOutputGain(0.5)\n"}
@@ -85,10 +210,13 @@
       "out": [
         {
           "anchor": 102,
+          "gainClear": null,
+          "gainSet": {"end":106,"start":106,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":106,"start":106,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":106,"start":106,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":106,"start":106,"text":"{ solo: true }"}
         }
       ],

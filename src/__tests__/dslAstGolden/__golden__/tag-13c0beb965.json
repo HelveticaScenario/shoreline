@@ -4,12 +4,40 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [],
     "quickFixes": {
       "at": ["26-35 0","36-44 1"],
       "fixes": [
-        "[{\"caretOffset\":31,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('resonance', 0, 0, 5)\",\"span\":{\"end\":44,\"start\":44},\"title\":\"Add slider for 'resonance'\"}]",
-        "[{\"caretOffset\":46,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('cutoff', '2000hz', '500hz', '8000hz')\",\"preferred\":true,\"span\":{\"end\":44,\"start\":36},\"title\":\"Wrap 'cutoff' in an hz $slider\"},{\"caretOffset\":31,\"controlOffset\":2,\"kind\":\"add\",\"newText\":\", $slider('resonance', 0, 0, 5)\",\"span\":{\"end\":44,\"start\":44},\"title\":\"Add slider for 'resonance'\"}]"
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('resonance', 0, 0, 5)",
+            "span": {"end":44,"start":44},
+            "title": "Add slider for 'resonance'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 46,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('cutoff', '2000hz', '500hz', '8000hz')",
+            "preferred": true,
+            "span": {"end":44,"start":36},
+            "title": "Wrap 'cutoff' in an hz $slider"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('resonance', 0, 0, 5)",
+            "span": {"end":44,"start":44},
+            "title": "Add slider for 'resonance'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":47,"start":47,"text":"\n$setOutputGain(0.5)\n"}

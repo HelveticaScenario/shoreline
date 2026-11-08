@@ -8,11 +8,22 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"error":"DSL execution error: missing ) after argument list"},
     "out": [],
     "quickFixes": {
       "at": ["37-41 0"],
       "fixes": [
-        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'c4', 'c2', 'c6')\",\"preferred\":true,\"span\":{\"end\":41,\"start\":37},\"title\":\"Wrap 'freq' in a note $slider\"}]"
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'c4', 'c2', 'c6')",
+            "preferred": true,
+            "span": {"end":41,"start":37},
+            "title": "Wrap 'freq' in a note $slider"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":107,"start":107,"text":"$setOutputGain(0.5)\n"}

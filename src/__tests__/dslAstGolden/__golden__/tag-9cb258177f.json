@@ -4,21 +4,28 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 46,
+        "gainClear": null,
+        "gainSet": {"end":50,"start":50,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":50,"start":50,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":50,"start":50,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":50,"start":50,"text":"{ solo: true }"}
       },
       {
         "anchor": 64,
+        "gainClear": null,
+        "gainSet": {"end":68,"start":68,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":68,"start":68,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":68,"start":68,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":68,"start":68,"text":"{ solo: true }"}
       }
     ],
@@ -50,10 +57,13 @@
       "out": [
         {
           "anchor": 46,
+          "gainClear": null,
+          "gainSet": {"end":50,"start":50,"text":"{ gain: 0.5 }"},
           "muteOff": null,
           "muteOn": {"end":50,"start":50,"text":"{ mute: true }"},
           "panClear": null,
           "panSet": {"end":50,"start":50,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
           "soloOn": {"end":50,"start":50,"text":"{ solo: true }"}
         }
       ],

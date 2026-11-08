@@ -18,13 +18,17 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 217,
+        "gainClear": null,
+        "gainSet": {"end":221,"start":221,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":221,"start":221,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":221,"start":221,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":221,"start":221,"text":"{ solo: true }"}
       }
     ],
@@ -57,24 +61,710 @@
         "216-221 17"
       ],
       "fixes": [
-        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":27,\"start\":27},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":27,\"start\":27},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\", { pwm: $slider('pwm', 0, -5, 5) }\",\"span\":{\"end\":27,\"start\":27},\"title\":\"Add slider for 'pwm'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":27,\"start\":27},\"title\":\"Add slider for 'sync'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { width: $slider('width', 2.5, 0, 5) }\",\"span\":{\"end\":27,\"start\":27},\"title\":\"Add slider for 'width'\"}]",
-        "[{\"caretOffset\":37,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', '8hz', '2hz', '32hz')\",\"preferred\":true,\"span\":{\"end\":27,\"start\":22},\"title\":\"Wrap 'freq' in an hz $slider\"},{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":27,\"start\":27},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":48,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }\",\"span\":{\"end\":27,\"start\":27},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\", { pwm: $slider('pwm', 0, -5, 5) }\",\"span\":{\"end\":27,\"start\":27},\"title\":\"Add slider for 'pwm'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":27,\"start\":27},\"title\":\"Add slider for 'sync'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { width: $slider('width', 2.5, 0, 5) }\",\"span\":{\"end\":27,\"start\":27},\"title\":\"Add slider for 'width'\"}]",
-        "[{\"caretOffset\":41,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\"\\n  feedback: $slider('feedback', 0, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'feedback'\"},{\"caretOffset\":25,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $btn('freeze'),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add button for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $toggleBtn('freeze', false),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add toggle for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"\\n  shape: $slider('shape', 3.33, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"\\n  size: $slider('size', 2.75, -5, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'size'\"}]",
-        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":48,\"start\":48},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":48,\"start\":48},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":48,\"start\":48},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":48,\"start\":48},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('freq', 'a3', 'a1', 'a5')\",\"preferred\":true,\"span\":{\"end\":48,\"start\":44},\"title\":\"Wrap 'freq' in a note $slider\"},{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":48,\"start\":48},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":48,\"start\":48},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { shape: $slider('shape', 0, 0, 5) }\",\"span\":{\"end\":48,\"start\":48},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":48,\"start\":48},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":47,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n    rate: $slider('rate', 'c4', 'c2', 'c6'),\\n  }\",\"span\":{\"end\":88,\"start\":88},\"title\":\"Add note slider for 'rate'\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMin', 0, 0, 5)\",\"preferred\":true,\"span\":{\"end\":97,\"start\":96},\"title\":\"Wrap 'outMin' in $slider\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('outMax', 2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":100,\"start\":99},\"title\":\"Wrap 'outMax' in $slider\"}]",
-        "[{\"caretOffset\":43,\"controlOffset\":16,\"kind\":\"add\",\"newText\":\", {\\n    groove: $slider('groove', 0, -5, 5),\\n  }\",\"span\":{\"end\":158,\"start\":158},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":46,\"controlOffset\":18,\"kind\":\"add\",\"newText\":\", {\\n    playhead: $slider('playhead', 0, 0, 1),\\n  }\",\"span\":{\"end\":158,\"start\":158},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":46,\"controlOffset\":18,\"kind\":\"add\",\"newText\":\", {\\n    velocity: $slider('velocity', 0, 0, 5),\\n  }\",\"span\":{\"end\":158,\"start\":158},\"title\":\"Add slider for 'velocity'\"}]",
-        "[{\"caretOffset\":37,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('rootFreq', 'a3', 'a1', 'a5')\",\"preferred\":false,\"span\":{\"end\":177,\"start\":173},\"title\":\"Wrap 'rootFreq' in a note $slider\"},{\"caretOffset\":41,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\"\\n  feedback: $slider('feedback', 0, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'feedback'\"},{\"caretOffset\":25,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $btn('freeze'),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add button for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $toggleBtn('freeze', false),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add toggle for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"\\n  shape: $slider('shape', 3.33, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"\\n  size: $slider('size', 2.75, -5, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'size'\"}]",
-        "[{\"caretOffset\":37,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('rootFreq', 'a3', 'a1', 'a5')\",\"preferred\":true,\"span\":{\"end\":177,\"start\":173},\"title\":\"Wrap 'rootFreq' in a note $slider\"},{\"caretOffset\":41,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\"\\n  feedback: $slider('feedback', 0, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'feedback'\"},{\"caretOffset\":25,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $btn('freeze'),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add button for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $toggleBtn('freeze', false),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add toggle for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"\\n  shape: $slider('shape', 3.33, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"\\n  size: $slider('size', 2.75, -5, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'size'\"}]",
-        "[{\"caretOffset\":25,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('width', 4, 0, 5)\",\"preferred\":false,\"span\":{\"end\":189,\"start\":188},\"title\":\"Wrap 'width' in $slider\"},{\"caretOffset\":41,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\"\\n  feedback: $slider('feedback', 0, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'feedback'\"},{\"caretOffset\":25,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $btn('freeze'),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add button for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $toggleBtn('freeze', false),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add toggle for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"\\n  shape: $slider('shape', 3.33, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"\\n  size: $slider('size', 2.75, -5, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'size'\"}]",
-        "[{\"caretOffset\":25,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('width', 4, 0, 5)\",\"preferred\":true,\"span\":{\"end\":189,\"start\":188},\"title\":\"Wrap 'width' in $slider\"},{\"caretOffset\":41,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\"\\n  feedback: $slider('feedback', 0, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'feedback'\"},{\"caretOffset\":25,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $btn('freeze'),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add button for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $toggleBtn('freeze', false),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add toggle for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"\\n  shape: $slider('shape', 3.33, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"\\n  size: $slider('size', 2.75, -5, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'size'\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('spread', 2, 0, 5)\",\"preferred\":false,\"span\":{\"end\":202,\"start\":201},\"title\":\"Wrap 'spread' in $slider\"},{\"caretOffset\":41,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\"\\n  feedback: $slider('feedback', 0, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'feedback'\"},{\"caretOffset\":25,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $btn('freeze'),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add button for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $toggleBtn('freeze', false),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add toggle for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"\\n  shape: $slider('shape', 3.33, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"\\n  size: $slider('size', 2.75, -5, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'size'\"}]",
-        "[{\"caretOffset\":26,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('spread', 2, 0, 5)\",\"preferred\":true,\"span\":{\"end\":202,\"start\":201},\"title\":\"Wrap 'spread' in $slider\"},{\"caretOffset\":41,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\"\\n  feedback: $slider('feedback', 0, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'feedback'\"},{\"caretOffset\":25,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $btn('freeze'),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add button for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $toggleBtn('freeze', false),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add toggle for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"\\n  shape: $slider('shape', 3.33, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"\\n  size: $slider('size', 2.75, -5, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'size'\"}]",
-        "[{\"caretOffset\":23,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('mix', 4, 0, 5)\",\"preferred\":false,\"span\":{\"end\":212,\"start\":211},\"title\":\"Wrap 'mix' in $slider\"},{\"caretOffset\":41,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\"\\n  feedback: $slider('feedback', 0, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'feedback'\"},{\"caretOffset\":25,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $btn('freeze'),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add button for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $toggleBtn('freeze', false),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add toggle for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"\\n  shape: $slider('shape', 3.33, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"\\n  size: $slider('size', 2.75, -5, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'size'\"}]",
-        "[{\"caretOffset\":23,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('mix', 4, 0, 5)\",\"preferred\":true,\"span\":{\"end\":212,\"start\":211},\"title\":\"Wrap 'mix' in $slider\"},{\"caretOffset\":41,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\"\\n  feedback: $slider('feedback', 0, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'feedback'\"},{\"caretOffset\":25,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $btn('freeze'),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add button for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"\\n  freeze: $toggleBtn('freeze', false),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add toggle for 'freeze'\"},{\"caretOffset\":38,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"\\n  shape: $slider('shape', 3.33, 0, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'shape'\"},{\"caretOffset\":37,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"\\n  size: $slider('size', 2.75, -5, 5),\",\"span\":{\"end\":213,\"start\":213},\"title\":\"Add slider for 'size'\"}]",
-        "[{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"{ gain: $slider('gain', 5, 0, 5) }\",\"span\":{\"end\":221,\"start\":221},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":31,\"controlOffset\":7,\"kind\":\"add\",\"newText\":\"{ pan: $slider('pan', 0, -5, 5) }\",\"span\":{\"end\":221,\"start\":221},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":34,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{ width: $slider('width', 0, 0, 5) }\",\"span\":{\"end\":221,\"start\":221},\"title\":\"Add slider for 'width'\"}]"
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
+            "span": {"end":27,"start":27},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":27,"start":27},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": ", { pwm: $slider('pwm', 0, -5, 5) }",
+            "span": {"end":27,"start":27},
+            "title": "Add slider for 'pwm'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "span": {"end":27,"start":27},
+            "title": "Add slider for 'sync'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { width: $slider('width', 2.5, 0, 5) }",
+            "span": {"end":27,"start":27},
+            "title": "Add slider for 'width'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 37,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', '8hz', '2hz', '32hz')",
+            "preferred": true,
+            "span": {"end":27,"start":22},
+            "title": "Wrap 'freq' in an hz $slider"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
+            "span": {"end":27,"start":27},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":27,"start":27},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": ", { pwm: $slider('pwm', 0, -5, 5) }",
+            "span": {"end":27,"start":27},
+            "title": "Add slider for 'pwm'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "span": {"end":27,"start":27},
+            "title": "Add slider for 'sync'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { width: $slider('width', 2.5, 0, 5) }",
+            "span": {"end":27,"start":27},
+            "title": "Add slider for 'width'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 41,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": "\n  feedback: $slider('feedback', 0, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'feedback'"
+          },
+          {
+            "caretOffset": 25,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $btn('freeze'),",
+            "span": {"end":213,"start":213},
+            "title": "Add button for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $toggleBtn('freeze', false),",
+            "span": {"end":213,"start":213},
+            "title": "Add toggle for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "\n  shape: $slider('shape', 3.33, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "\n  size: $slider('size', 2.75, -5, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'size'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
+            "span": {"end":48,"start":48},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":48,"start":48},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { shape: $slider('shape', 0, 0, 5) }",
+            "span": {"end":48,"start":48},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "span": {"end":48,"start":48},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'a3', 'a1', 'a5')",
+            "preferred": true,
+            "span": {"end":48,"start":44},
+            "title": "Wrap 'freq' in a note $slider"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
+            "span": {"end":48,"start":48},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":48,"start":48},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { shape: $slider('shape', 0, 0, 5) }",
+            "span": {"end":48,"start":48},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "span": {"end":48,"start":48},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 47,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n    rate: $slider('rate', 'c4', 'c2', 'c6'),\n  }",
+            "span": {"end":88,"start":88},
+            "title": "Add note slider for 'rate'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMin', 0, 0, 5)",
+            "preferred": true,
+            "span": {"end":97,"start":96},
+            "title": "Wrap 'outMin' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMax', 2, 0, 5)",
+            "preferred": true,
+            "span": {"end":100,"start":99},
+            "title": "Wrap 'outMax' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 43,
+            "controlOffset": 16,
+            "kind": "add",
+            "newText": ", {\n    groove: $slider('groove', 0, -5, 5),\n  }",
+            "span": {"end":158,"start":158},
+            "title": "Add slider for 'groove'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 18,
+            "kind": "add",
+            "newText": ", {\n    playhead: $slider('playhead', 0, 0, 1),\n  }",
+            "span": {"end":158,"start":158},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 18,
+            "kind": "add",
+            "newText": ", {\n    velocity: $slider('velocity', 0, 0, 5),\n  }",
+            "span": {"end":158,"start":158},
+            "title": "Add slider for 'velocity'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 37,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('rootFreq', 'a3', 'a1', 'a5')",
+            "preferred": false,
+            "span": {"end":177,"start":173},
+            "title": "Wrap 'rootFreq' in a note $slider"
+          },
+          {
+            "caretOffset": 41,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": "\n  feedback: $slider('feedback', 0, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'feedback'"
+          },
+          {
+            "caretOffset": 25,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $btn('freeze'),",
+            "span": {"end":213,"start":213},
+            "title": "Add button for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $toggleBtn('freeze', false),",
+            "span": {"end":213,"start":213},
+            "title": "Add toggle for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "\n  shape: $slider('shape', 3.33, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "\n  size: $slider('size', 2.75, -5, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'size'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 37,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('rootFreq', 'a3', 'a1', 'a5')",
+            "preferred": true,
+            "span": {"end":177,"start":173},
+            "title": "Wrap 'rootFreq' in a note $slider"
+          },
+          {
+            "caretOffset": 41,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": "\n  feedback: $slider('feedback', 0, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'feedback'"
+          },
+          {
+            "caretOffset": 25,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $btn('freeze'),",
+            "span": {"end":213,"start":213},
+            "title": "Add button for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $toggleBtn('freeze', false),",
+            "span": {"end":213,"start":213},
+            "title": "Add toggle for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "\n  shape: $slider('shape', 3.33, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "\n  size: $slider('size', 2.75, -5, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'size'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('width', 4, 0, 5)",
+            "preferred": false,
+            "span": {"end":189,"start":188},
+            "title": "Wrap 'width' in $slider"
+          },
+          {
+            "caretOffset": 41,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": "\n  feedback: $slider('feedback', 0, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'feedback'"
+          },
+          {
+            "caretOffset": 25,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $btn('freeze'),",
+            "span": {"end":213,"start":213},
+            "title": "Add button for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $toggleBtn('freeze', false),",
+            "span": {"end":213,"start":213},
+            "title": "Add toggle for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "\n  shape: $slider('shape', 3.33, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "\n  size: $slider('size', 2.75, -5, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'size'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('width', 4, 0, 5)",
+            "preferred": true,
+            "span": {"end":189,"start":188},
+            "title": "Wrap 'width' in $slider"
+          },
+          {
+            "caretOffset": 41,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": "\n  feedback: $slider('feedback', 0, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'feedback'"
+          },
+          {
+            "caretOffset": 25,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $btn('freeze'),",
+            "span": {"end":213,"start":213},
+            "title": "Add button for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $toggleBtn('freeze', false),",
+            "span": {"end":213,"start":213},
+            "title": "Add toggle for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "\n  shape: $slider('shape', 3.33, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "\n  size: $slider('size', 2.75, -5, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'size'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('spread', 2, 0, 5)",
+            "preferred": false,
+            "span": {"end":202,"start":201},
+            "title": "Wrap 'spread' in $slider"
+          },
+          {
+            "caretOffset": 41,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": "\n  feedback: $slider('feedback', 0, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'feedback'"
+          },
+          {
+            "caretOffset": 25,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $btn('freeze'),",
+            "span": {"end":213,"start":213},
+            "title": "Add button for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $toggleBtn('freeze', false),",
+            "span": {"end":213,"start":213},
+            "title": "Add toggle for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "\n  shape: $slider('shape', 3.33, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "\n  size: $slider('size', 2.75, -5, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'size'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('spread', 2, 0, 5)",
+            "preferred": true,
+            "span": {"end":202,"start":201},
+            "title": "Wrap 'spread' in $slider"
+          },
+          {
+            "caretOffset": 41,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": "\n  feedback: $slider('feedback', 0, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'feedback'"
+          },
+          {
+            "caretOffset": 25,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $btn('freeze'),",
+            "span": {"end":213,"start":213},
+            "title": "Add button for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $toggleBtn('freeze', false),",
+            "span": {"end":213,"start":213},
+            "title": "Add toggle for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "\n  shape: $slider('shape', 3.33, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "\n  size: $slider('size', 2.75, -5, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'size'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 23,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('mix', 4, 0, 5)",
+            "preferred": false,
+            "span": {"end":212,"start":211},
+            "title": "Wrap 'mix' in $slider"
+          },
+          {
+            "caretOffset": 41,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": "\n  feedback: $slider('feedback', 0, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'feedback'"
+          },
+          {
+            "caretOffset": 25,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $btn('freeze'),",
+            "span": {"end":213,"start":213},
+            "title": "Add button for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $toggleBtn('freeze', false),",
+            "span": {"end":213,"start":213},
+            "title": "Add toggle for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "\n  shape: $slider('shape', 3.33, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "\n  size: $slider('size', 2.75, -5, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'size'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 23,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('mix', 4, 0, 5)",
+            "preferred": true,
+            "span": {"end":212,"start":211},
+            "title": "Wrap 'mix' in $slider"
+          },
+          {
+            "caretOffset": 41,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": "\n  feedback: $slider('feedback', 0, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'feedback'"
+          },
+          {
+            "caretOffset": 25,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $btn('freeze'),",
+            "span": {"end":213,"start":213},
+            "title": "Add button for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "\n  freeze: $toggleBtn('freeze', false),",
+            "span": {"end":213,"start":213},
+            "title": "Add toggle for 'freeze'"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "\n  shape: $slider('shape', 3.33, 0, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "\n  size: $slider('size', 2.75, -5, 5),",
+            "span": {"end":213,"start":213},
+            "title": "Add slider for 'size'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ gain: $slider('gain', 5, 0, 5) }",
+            "span": {"end":221,"start":221},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":221,"start":221},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ width: $slider('width', 0, 0, 5) }",
+            "span": {"end":221,"start":221},
+            "title": "Add slider for 'width'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":222,"start":222,"text":"\n$setOutputGain(0.5)\n"}

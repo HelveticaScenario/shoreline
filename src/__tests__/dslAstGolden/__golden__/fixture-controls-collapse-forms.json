@@ -93,6 +93,7 @@
       ]
     },
     "eq": [],
+    "execute": {"error":"DSL execution error: makeParams is not defined"},
     "out": [],
     "quickFixes": {"at":[],"fixes":[]},
     "setOutputGain": {"end":274,"start":274,"text":"$setOutputGain(0.5)\n"}

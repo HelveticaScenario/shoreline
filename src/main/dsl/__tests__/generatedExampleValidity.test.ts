@@ -19,49 +19,12 @@ import { describe, expect, test } from 'vitest';
 import { validatePatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
+import { executePatchScript } from '../executor';
 import {
-    type DSLExecutionOptions,
-    type WavsFolderNode,
-    executePatchScript,
-} from '../executor';
-import { extractDocExamples, isTypeLevelExample } from './docExamples';
-
-// ─── Execution environment ──────────────────────────────────────────────────
-//
-// A stub wavs folder so examples that read samples via `$wavs()` can build a
-// graph without real audio files on disk. Covers every wav path referenced by
-// the examples (`pad`, `strings`, `kick`, `tables/pad`).
-
-const STUB_WAVS_TREE: WavsFolderNode = {
-    pad: 'file',
-    strings: 'file',
-    kick: 'file',
-    tables: { pad: 'file' },
-};
-
-const stubLoadWav: NonNullable<DSLExecutionOptions['loadWav']> = (path) => ({
-    channels: 2,
-    frameCount: 96_000,
-    path,
-    sampleRate: 48_000,
-    duration: 2,
-    bitDepth: 16,
-    loops: [],
-    cuePoints: [],
-    mtime: 0,
-});
-
-const stubLoadMediaAudio: NonNullable<DSLExecutionOptions['loadMediaAudio']> = (
-    path,
-) => ({ ...stubLoadWav(`media:${path}`), bitDepth: 32 });
-
-const EXECUTION_OPTIONS: DSLExecutionOptions = {
-    loadMediaAudio: stubLoadMediaAudio,
-    sampleRate: 48_000,
-    workspaceRoot: '/workspace',
-    wavsFolderTree: STUB_WAVS_TREE,
-    loadWav: stubLoadWav,
-};
+    DOC_EXECUTION_OPTIONS,
+    extractDocExamples,
+    isTypeLevelExample,
+} from './docExamples';
 
 // ─── The check ──────────────────────────────────────────────────────────────
 
@@ -81,7 +44,7 @@ describe('every generated code example evaluates to a valid patch', () => {
     test.each(patchExamples)('[$kind #$ordinal] $label', ({ code }) => {
         let result: ReturnType<typeof executePatchScript>;
         try {
-            result = executePatchScript(code, schemas, EXECUTION_OPTIONS);
+            result = executePatchScript(code, schemas, DOC_EXECUTION_OPTIONS);
         } catch (error) {
             throw new Error(
                 `Example failed to execute:\n\n${code}\n\n→ ${

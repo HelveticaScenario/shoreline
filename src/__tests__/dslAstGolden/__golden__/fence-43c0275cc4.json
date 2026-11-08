@@ -12,21 +12,28 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [
       {
         "anchor": 156,
+        "gainClear": null,
+        "gainSet": {"end":160,"start":160,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":160,"start":160,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":160,"start":160,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":160,"start":160,"text":"{ solo: true }"}
       },
       {
         "anchor": 196,
+        "gainClear": null,
+        "gainSet": {"end":200,"start":200,"text":"{ gain: 0.5 }"},
         "muteOff": null,
         "muteOn": {"end":200,"start":200,"text":"{ mute: true }"},
         "panClear": null,
         "panSet": {"end":200,"start":200,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
         "soloOn": {"end":200,"start":200,"text":"{ solo: true }"}
       }
     ],
@@ -45,16 +52,324 @@
         "195-200 9"
       ],
       "fixes": [
-        "[{\"caretOffset\":39,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", { groove: $slider('groove', 0, -5, 5) }\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'groove'\"},{\"caretOffset\":42,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", { playhead: $slider('playhead', 0, 0, 1) }\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":42,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", { velocity: $slider('velocity', 0, 0, 5) }\",\"span\":{\"end\":54,\"start\":54},\"title\":\"Add slider for 'velocity'\"}]",
-        "[{\"caretOffset\":55,\"controlOffset\":27,\"kind\":\"add\",\"newText\":\"{\\n  groove: 0,\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":101,\"start\":88},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":55,\"controlOffset\":27,\"kind\":\"add\",\"newText\":\"{\\n  groove: 0,\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":101,\"start\":88},\"title\":\"Add slider for 'velocity'\"}]",
-        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('groove', 0, -5, 5)\",\"preferred\":false,\"span\":{\"end\":99,\"start\":98},\"title\":\"Wrap 'groove' in $slider\"},{\"caretOffset\":55,\"controlOffset\":27,\"kind\":\"add\",\"newText\":\"{\\n  groove: 0,\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":101,\"start\":88},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":55,\"controlOffset\":27,\"kind\":\"add\",\"newText\":\"{\\n  groove: 0,\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":101,\"start\":88},\"title\":\"Add slider for 'velocity'\"}]",
-        "[{\"caretOffset\":27,\"controlOffset\":0,\"kind\":\"wrap\",\"newText\":\"$slider('groove', 0, -5, 5)\",\"preferred\":true,\"span\":{\"end\":99,\"start\":98},\"title\":\"Wrap 'groove' in $slider\"},{\"caretOffset\":55,\"controlOffset\":27,\"kind\":\"add\",\"newText\":\"{\\n  groove: 0,\\n  playhead: $slider('playhead', 0, 0, 1),\\n}\",\"span\":{\"end\":101,\"start\":88},\"title\":\"Add slider for 'playhead'\"},{\"caretOffset\":55,\"controlOffset\":27,\"kind\":\"add\",\"newText\":\"{\\n  groove: 0,\\n  velocity: $slider('velocity', 0, 0, 5),\\n}\",\"span\":{\"end\":101,\"start\":88},\"title\":\"Add slider for 'velocity'\"}]",
-        "[{\"caretOffset\":33,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", {\\n  fm: $slider('fm', 0, -5, 5),\\n}\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":37,\"controlOffset\":12,\"kind\":\"add\",\"newText\":\", {\\n  sync: $slider('sync', 0, -5, 5),\\n}\",\"span\":{\"end\":113,\"start\":113},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":45,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n  attack: $slider('attack', 0.001, 0, 10),\\n}\",\"span\":{\"end\":134,\"start\":134},\"title\":\"Add slider for 'attack'\"},{\"caretOffset\":39,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  curve: $slider('curve', 5, -5, 5),\\n}\",\"span\":{\"end\":134,\"start\":134},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":42,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  decay: $slider('decay', 0.05, 0, 10),\\n}\",\"span\":{\"end\":134,\"start\":134},\"title\":\"Add slider for 'decay'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\", {\\n  release: $slider('release', 0.01, 0, 10),\\n}\",\"span\":{\"end\":134,\"start\":134},\"title\":\"Add slider for 'release'\"},{\"caretOffset\":34,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", {\\n  retrigger: $btn('retrigger'),\\n}\",\"span\":{\"end\":134,\"start\":134},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":47,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", {\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":134,\"start\":134},\"title\":\"Add toggle for 'retrigger'\"},{\"caretOffset\":42,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\", {\\n  sustain: $slider('sustain', 5, 0, 5),\\n}\",\"span\":{\"end\":134,\"start\":134},\"title\":\"Add slider for 'sustain'\"}]",
-        "[{\"caretOffset\":34,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\"{\\n  gain: $slider('gain', 5, 0, 5),\\n}\",\"span\":{\"end\":160,\"start\":160},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":33,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{\\n  pan: $slider('pan', 0, -5, 5),\\n}\",\"span\":{\"end\":160,\"start\":160},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":36,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\"{\\n  width: $slider('width', 0, 0, 5),\\n}\",\"span\":{\"end\":160,\"start\":160},\"title\":\"Add slider for 'width'\"}]",
-        "[{\"caretOffset\":31,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\", { fm: $slider('fm', 0, -5, 5) }\",\"span\":{\"end\":172,\"start\":172},\"title\":\"Add slider for 'fm'\"},{\"caretOffset\":50,\"controlOffset\":19,\"kind\":\"add\",\"newText\":\", {\\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\\n}\",\"span\":{\"end\":172,\"start\":172},\"title\":\"Add slider for 'phaseOffset'\"},{\"caretOffset\":35,\"controlOffset\":10,\"kind\":\"add\",\"newText\":\", { sync: $slider('sync', 0, -5, 5) }\",\"span\":{\"end\":172,\"start\":172},\"title\":\"Add slider for 'sync'\"}]",
-        "[{\"caretOffset\":45,\"controlOffset\":14,\"kind\":\"add\",\"newText\":\", {\\n  attack: $slider('attack', 0.001, 0, 10),\\n}\",\"span\":{\"end\":193,\"start\":193},\"title\":\"Add slider for 'attack'\"},{\"caretOffset\":37,\"controlOffset\":11,\"kind\":\"add\",\"newText\":\", { curve: $slider('curve', 5, -5, 5) }\",\"span\":{\"end\":193,\"start\":193},\"title\":\"Add slider for 'curve'\"},{\"caretOffset\":42,\"controlOffset\":13,\"kind\":\"add\",\"newText\":\", {\\n  decay: $slider('decay', 0.05, 0, 10),\\n}\",\"span\":{\"end\":193,\"start\":193},\"title\":\"Add slider for 'decay'\"},{\"caretOffset\":46,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\", {\\n  release: $slider('release', 0.01, 0, 10),\\n}\",\"span\":{\"end\":193,\"start\":193},\"title\":\"Add slider for 'release'\"},{\"caretOffset\":32,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\", { retrigger: $btn('retrigger') }\",\"span\":{\"end\":193,\"start\":193},\"title\":\"Add button for 'retrigger'\"},{\"caretOffset\":47,\"controlOffset\":17,\"kind\":\"add\",\"newText\":\", {\\n  retrigger: $toggleBtn('retrigger', false),\\n}\",\"span\":{\"end\":193,\"start\":193},\"title\":\"Add toggle for 'retrigger'\"},{\"caretOffset\":42,\"controlOffset\":15,\"kind\":\"add\",\"newText\":\", {\\n  sustain: $slider('sustain', 5, 0, 5),\\n}\",\"span\":{\"end\":193,\"start\":193},\"title\":\"Add slider for 'sustain'\"}]",
-        "[{\"caretOffset\":32,\"controlOffset\":8,\"kind\":\"add\",\"newText\":\"{ gain: $slider('gain', 5, 0, 5) }\",\"span\":{\"end\":200,\"start\":200},\"title\":\"Add slider for 'gain'\"},{\"caretOffset\":31,\"controlOffset\":7,\"kind\":\"add\",\"newText\":\"{ pan: $slider('pan', 0, -5, 5) }\",\"span\":{\"end\":200,\"start\":200},\"title\":\"Add slider for 'pan'\"},{\"caretOffset\":34,\"controlOffset\":9,\"kind\":\"add\",\"newText\":\"{ width: $slider('width', 0, 0, 5) }\",\"span\":{\"end\":200,\"start\":200},\"title\":\"Add slider for 'width'\"}]"
+        [
+          {
+            "caretOffset": 39,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", { groove: $slider('groove', 0, -5, 5) }",
+            "span": {"end":54,"start":54},
+            "title": "Add slider for 'groove'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", { playhead: $slider('playhead', 0, 0, 1) }",
+            "span": {"end":54,"start":54},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", { velocity: $slider('velocity', 0, 0, 5) }",
+            "span": {"end":54,"start":54},
+            "title": "Add slider for 'velocity'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 55,
+            "controlOffset": 27,
+            "kind": "add",
+            "newText": "{\n  groove: 0,\n  playhead: $slider('playhead', 0, 0, 1),\n}",
+            "span": {"end":101,"start":88},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 55,
+            "controlOffset": 27,
+            "kind": "add",
+            "newText": "{\n  groove: 0,\n  velocity: $slider('velocity', 0, 0, 5),\n}",
+            "span": {"end":101,"start":88},
+            "title": "Add slider for 'velocity'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('groove', 0, -5, 5)",
+            "preferred": false,
+            "span": {"end":99,"start":98},
+            "title": "Wrap 'groove' in $slider"
+          },
+          {
+            "caretOffset": 55,
+            "controlOffset": 27,
+            "kind": "add",
+            "newText": "{\n  groove: 0,\n  playhead: $slider('playhead', 0, 0, 1),\n}",
+            "span": {"end":101,"start":88},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 55,
+            "controlOffset": 27,
+            "kind": "add",
+            "newText": "{\n  groove: 0,\n  velocity: $slider('velocity', 0, 0, 5),\n}",
+            "span": {"end":101,"start":88},
+            "title": "Add slider for 'velocity'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('groove', 0, -5, 5)",
+            "preferred": true,
+            "span": {"end":99,"start":98},
+            "title": "Wrap 'groove' in $slider"
+          },
+          {
+            "caretOffset": 55,
+            "controlOffset": 27,
+            "kind": "add",
+            "newText": "{\n  groove: 0,\n  playhead: $slider('playhead', 0, 0, 1),\n}",
+            "span": {"end":101,"start":88},
+            "title": "Add slider for 'playhead'"
+          },
+          {
+            "caretOffset": 55,
+            "controlOffset": 27,
+            "kind": "add",
+            "newText": "{\n  groove: 0,\n  velocity: $slider('velocity', 0, 0, 5),\n}",
+            "span": {"end":101,"start":88},
+            "title": "Add slider for 'velocity'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "span": {"end":113,"start":113},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 45,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  attack: $slider('attack', 0.001, 0, 10),\n}",
+            "span": {"end":134,"start":134},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 39,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", {\n  curve: $slider('curve', 5, -5, 5),\n}",
+            "span": {"end":134,"start":134},
+            "title": "Add slider for 'curve'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", {\n  decay: $slider('decay', 0.05, 0, 10),\n}",
+            "span": {"end":134,"start":134},
+            "title": "Add slider for 'decay'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", {\n  release: $slider('release', 0.01, 0, 10),\n}",
+            "span": {"end":134,"start":134},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", {\n  retrigger: $btn('retrigger'),\n}",
+            "span": {"end":134,"start":134},
+            "title": "Add button for 'retrigger'"
+          },
+          {
+            "caretOffset": 47,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", {\n  retrigger: $toggleBtn('retrigger', false),\n}",
+            "span": {"end":134,"start":134},
+            "title": "Add toggle for 'retrigger'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", {\n  sustain: $slider('sustain', 5, 0, 5),\n}",
+            "span": {"end":134,"start":134},
+            "title": "Add slider for 'sustain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":160,"start":160},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":160,"start":160},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":160,"start":160},
+            "title": "Add slider for 'width'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
+            "span": {"end":172,"start":172},
+            "title": "Add slider for 'fm'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":172,"start":172},
+            "title": "Add slider for 'phaseOffset'"
+          },
+          {
+            "caretOffset": 35,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "span": {"end":172,"start":172},
+            "title": "Add slider for 'sync'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 45,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  attack: $slider('attack', 0.001, 0, 10),\n}",
+            "span": {"end":193,"start":193},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 37,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { curve: $slider('curve', 5, -5, 5) }",
+            "span": {"end":193,"start":193},
+            "title": "Add slider for 'curve'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", {\n  decay: $slider('decay', 0.05, 0, 10),\n}",
+            "span": {"end":193,"start":193},
+            "title": "Add slider for 'decay'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", {\n  release: $slider('release', 0.01, 0, 10),\n}",
+            "span": {"end":193,"start":193},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", { retrigger: $btn('retrigger') }",
+            "span": {"end":193,"start":193},
+            "title": "Add button for 'retrigger'"
+          },
+          {
+            "caretOffset": 47,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", {\n  retrigger: $toggleBtn('retrigger', false),\n}",
+            "span": {"end":193,"start":193},
+            "title": "Add toggle for 'retrigger'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", {\n  sustain: $slider('sustain', 5, 0, 5),\n}",
+            "span": {"end":193,"start":193},
+            "title": "Add slider for 'sustain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ gain: $slider('gain', 5, 0, 5) }",
+            "span": {"end":200,"start":200},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":200,"start":200},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ width: $slider('width', 0, 0, 5) }",
+            "span": {"end":200,"start":200},
+            "title": "Add slider for 'width'"
+          }
+        ]
       ]
     },
     "setOutputGain": {"end":201,"start":201,"text":"\n$setOutputGain(0.5)\n"}

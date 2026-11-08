@@ -4,6 +4,7 @@
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
     "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [],
     "quickFixes": {"at":[],"fixes":[]},
     "setOutputGain": {"end":39,"start":39,"text":"\n$setOutputGain(0.5)\n"}
