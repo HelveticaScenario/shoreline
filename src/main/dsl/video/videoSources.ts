@@ -26,12 +26,12 @@ function networkUrl(fn: string, url: string): string {
     }
 }
 
-/** The scheme of a `scheme://` address that is not a workspace path, or an error naming `fn`. */
-function rejectScheme(fn: string, path: string): void {
+/** Throws an error naming `fn` when `path` is a `scheme://` address the app cannot load. */
+function rejectScheme(fn: string, path: string, remote: boolean): void {
     const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(path);
     if (scheme !== null) {
         throw new Error(
-            `${fn}: ${scheme[1]}:// addresses cannot be played; use an http or https URL, such as an .m3u8 HLS stream or an .mp4 file`,
+            `${fn}: ${scheme[1]}:// addresses cannot be loaded; ${remote ? 'use an http or https URL' : 'use a file in the workspace folder'}`,
         );
     }
 }
@@ -55,12 +55,12 @@ function mediaPath(
     if (isRemoteMedia(path)) {
         if (!remote) {
             throw new Error(
-                `${fn}: plays files in the workspace folder; use $v.stream for the network address "${path}"`,
+                `${fn}: plays files in the workspace folder, got the network address "${path}"`,
             );
         }
         return networkUrl(fn, path);
     }
-    rejectScheme(fn, path);
+    rejectScheme(fn, path, remote);
     const normalized = path.replaceAll('\\', '/');
     if (
         normalized.startsWith('/') ||
@@ -200,24 +200,6 @@ export function sourceMethods(core: VideoCore) {
          * `speed` and between the `loop` points.
          */
         video: make('$v.video', 'video', VIDEO_EXTENSIONS),
-
-        /**
-         * A video or live stream at an http(s) address, played as it arrives
-         * and muted, as a color.
-         */
-        stream: (url: string, config?: VideoMediaConfig): VideoOutput => {
-            const fit = fitOf('$v.stream', config);
-            if (typeof url !== 'string' || !isRemoteMedia(url)) {
-                if (typeof url === 'string') rejectScheme('$v.stream', url);
-                throw new Error(
-                    `$v.stream: url must be an http or https address, got ${describe(url)}`,
-                );
-            }
-            return source(
-                { kind: 'video', path: networkUrl('$v.stream', url) },
-                fit,
-            );
-        },
 
         /** The live picture of a camera, as a color. */
         camera: (config?: VideoCameraConfig): VideoOutput => {
