@@ -51,10 +51,10 @@ export function buildConstTable(file: ts.SourceFile): ConstTable {
             continue;
         }
         const { flags } = statement.declarationList;
-        // `using` and `await using` also set the Const bit.
+        // `await using` sets the Const bit too.
         const isConst =
             (flags & ts.NodeFlags.Const) !== 0 &&
-            (flags & (ts.NodeFlags.Let | ts.NodeFlags.Using)) === 0;
+            (flags & ts.NodeFlags.Using) === 0;
         if (!isConst) {
             continue;
         }
@@ -69,12 +69,6 @@ export function buildConstTable(file: ts.SourceFile): ConstTable {
         }
     }
     return { file, initializers, literals };
-}
-
-/** The span of the literal a const holds, or null. */
-export function constSpan(table: ConstTable, name: string): SourceSpan | null {
-    const literal = table.literals.get(name);
-    return literal ? spanOf(literal, table.file) : null;
 }
 
 /** Length of the string a literal evaluates to, or null when the source

@@ -31,7 +31,6 @@ import {
 } from './patternChains';
 import {
     buildConstTable,
-    constSpan,
     isTrackableLiteral,
     resolveInterpolations,
     spanOf,
@@ -101,25 +100,17 @@ export function analyzeArgumentSpans(
         name: string,
         node: ts.Node,
     ): boolean => {
-        const own = isTrackableLiteral(node);
-        const reference = !own && ts.isIdentifier(node) ? node.text : null;
-        const span = own
-            ? spanOf(node, file)
-            : reference !== null
-              ? constSpan(consts, reference)
-              : null;
-        if (!span) {
+        const literal = isTrackableLiteral(node)
+            ? node
+            : ts.isIdentifier(node)
+              ? consts.literals.get(node.text)
+              : undefined;
+        if (!literal) {
             return false;
         }
+        const span = spanOf(literal, file);
         args.set(name, span);
-        const literal = own
-            ? node
-            : reference !== null
-              ? consts.literals.get(reference)
-              : undefined;
-        const resolutions = literal
-            ? resolveInterpolations(literal, consts)
-            : null;
+        const resolutions = resolveInterpolations(literal, consts);
         if (resolutions) {
             interpolationResolutions.set(
                 `${span.start}:${span.end}`,
