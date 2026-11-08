@@ -29,20 +29,20 @@
       {
         "anchor": 30,
         "gainClear": null,
-        "gainSet": {"end":47,"start":46,"text":", gain: 0.5 "},
+        "gainSet": {"end":46,"start":46,"text":", gain: 0.5"},
         "muteOff": {"end":48,"start":34,"text":""},
         "muteOn": {"end":46,"start":42,"text":"true"},
         "panClear": null,
-        "panSet": {"end":47,"start":46,"text":", pan: 0.25 "},
+        "panSet": {"end":46,"start":46,"text":", pan: 0.25"},
         "soloOff": null,
-        "soloOn": {"end":47,"start":46,"text":", solo: true "}
+        "soloOn": {"end":46,"start":46,"text":", solo: true"}
       },
       {
         "anchor": 62,
         "gainClear": null,
-        "gainSet": {"end":91,"start":90,"text":", gain: 0.5 "},
+        "gainSet": {"end":90,"start":90,"text":", gain: 0.5"},
         "muteOff": null,
-        "muteOn": {"end":91,"start":90,"text":", mute: true "},
+        "muteOn": {"end":90,"start":90,"text":", mute: true"},
         "panClear": {"end":90,"start":79,"text":""},
         "panSet": {"end":90,"start":86,"text":"0.25"},
         "soloOff": {"end":81,"start":68,"text":""},
@@ -51,13 +51,13 @@
       {
         "anchor": 106,
         "gainClear": null,
-        "gainSet": {"end":131,"start":130,"text":", gain: 0.5 "},
+        "gainSet": {"end":130,"start":130,"text":", gain: 0.5"},
         "muteOff": {"end":132,"start":115,"text":""},
         "muteOn": {"end":130,"start":125,"text":"true"},
         "panClear": null,
-        "panSet": {"end":131,"start":130,"text":", pan: 0.25 "},
+        "panSet": {"end":130,"start":130,"text":", pan: 0.25"},
         "soloOff": null,
-        "soloOn": {"end":131,"start":130,"text":", solo: true "}
+        "soloOn": {"end":130,"start":130,"text":", solo: true"}
       }
     ],
     "quickFixes": {
@@ -473,13 +473,13 @@
         {
           "anchor": 30,
           "gainClear": null,
-          "gainSet": {"end":47,"start":46,"text":", gain: 0.5 "},
+          "gainSet": {"end":46,"start":46,"text":", gain: 0.5"},
           "muteOff": {"end":48,"start":34,"text":""},
           "muteOn": {"end":46,"start":42,"text":"true"},
           "panClear": null,
-          "panSet": {"end":47,"start":46,"text":", pan: 0.25 "},
+          "panSet": {"end":46,"start":46,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":47,"start":46,"text":", solo: true "}
+          "soloOn": {"end":46,"start":46,"text":", solo: true"}
         },
         {
           "anchor": 62,
@@ -524,20 +524,20 @@
         {
           "anchor": 30,
           "gainClear": null,
-          "gainSet": {"end":47,"start":46,"text":", gain: 0.5 "},
+          "gainSet": {"end":46,"start":46,"text":", gain: 0.5"},
           "muteOff": {"end":48,"start":34,"text":""},
           "muteOn": {"end":46,"start":42,"text":"true"},
           "panClear": null,
-          "panSet": {"end":47,"start":46,"text":", pan: 0.25 "},
+          "panSet": {"end":46,"start":46,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":47,"start":46,"text":", solo: true "}
+          "soloOn": {"end":46,"start":46,"text":", solo: true"}
         },
         {
           "anchor": 62,
           "gainClear": null,
-          "gainSet": {"end":91,"start":90,"text":", gain: 0.5 "},
+          "gainSet": {"end":90,"start":90,"text":", gain: 0.5"},
           "muteOff": null,
-          "muteOn": {"end":91,"start":90,"text":", mute: true "},
+          "muteOn": {"end":90,"start":90,"text":", mute: true"},
           "panClear": {"end":90,"start":79,"text":""},
           "panSet": {"end":90,"start":86,"text":"0.25"},
           "soloOff": {"end":81,"start":68,"text":""},

@@ -15,11 +15,11 @@
         "gainClear": {"end":29,"start":18,"text":""},
         "gainSet": {"end":27,"start":24,"text":"0.5"},
         "muteOff": null,
-        "muteOn": {"end":37,"start":36,"text":", mute: true "},
+        "muteOn": {"end":36,"start":36,"text":", mute: true"},
         "panClear": {"end":36,"start":27,"text":""},
         "panSet": {"end":36,"start":34,"text":"0.25"},
         "soloOff": null,
-        "soloOn": {"end":37,"start":36,"text":", solo: true "}
+        "soloOn": {"end":36,"start":36,"text":", solo: true"}
       }
     ],
     "quickFixes": {

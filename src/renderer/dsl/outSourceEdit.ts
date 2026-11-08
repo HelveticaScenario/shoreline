@@ -6,14 +6,16 @@
  * The VU meter panel's buttons anchor each out call with a Monaco tracked
  * decoration; this module turns that anchor (a character offset at the method
  * name) plus the desired property change into a single text edit, reading
- * the call, its arguments and its options object from the syntax tree.
+ * the call, its arguments, its options object and their separating commas
+ * from the syntax tree.
  */
 import ts from 'typescript';
 
 import { booleanLiteral, negatableNumber } from '../../shared/dsl/ast/literals';
 import { propertyName } from '../../shared/dsl/ast/names';
 import { parseDsl } from '../../shared/dsl/ast/parse';
-import { forEachDescendant } from '../../shared/dsl/ast/walk';
+import { findDescendant, forEachDescendant } from '../../shared/dsl/ast/walk';
+import { callParens, closingTokenStart } from './listEdits';
 
 export type OutOptionProp = 'mute' | 'solo';
 
@@ -32,70 +34,52 @@ type LiteralCheck = (node: ts.Node) => boolean;
 const isBoolean: LiteralCheck = (node) => booleanLiteral(node) !== null;
 const isNumber: LiteralCheck = (node) => negatableNumber(node) !== null;
 
-/** The call's parentheses: just past `(`, and at `)`. Null when the parser
- *  found no closing paren. */
-function parens(
-    call: ts.CallExpression,
-    file: ts.SourceFile,
-): { open: number; close: number } | null {
-    const children = call.getChildren(file);
-    const open = children.find((c) => c.kind === ts.SyntaxKind.OpenParenToken);
-    const close = children.findLast(
-        (c) => c.kind === ts.SyntaxKind.CloseParenToken,
-    );
-    return open && close
-        ? { close: close.getStart(file), open: open.getEnd() }
-        : null;
-}
-
 /** The `.out` / `.outMono` call whose method name starts at `anchor`. */
 function outCallAt(
     file: ts.SourceFile,
     anchor: number,
-): { call: ts.CallExpression; method: 'out' | 'outMono' } | null {
-    let found: { call: ts.CallExpression; method: 'out' | 'outMono' } | null =
-        null;
-    forEachDescendant(file, (node) => {
-        if (found || !ts.isCallExpression(node)) {
-            return;
-        }
-        const callee = node.expression;
-        if (
-            ts.isPropertyAccessExpression(callee) &&
-            (callee.name.text === 'out' || callee.name.text === 'outMono') &&
-            callee.name.getStart(file) === anchor
-        ) {
-            found = { call: node, method: callee.name.text };
-        }
-    });
-    return found;
+): ts.CallExpression | undefined {
+    return findDescendant(
+        file,
+        (node): node is ts.CallExpression =>
+            ts.isCallExpression(node) &&
+            ts.isPropertyAccessExpression(node.expression) &&
+            (node.expression.name.text === 'out' ||
+                node.expression.name.text === 'outMono') &&
+            node.expression.name.getStart(file) === anchor,
+        anchor,
+    );
 }
 
-/** An object literal's closing brace, or null for one the parser closed
- *  without it. */
-function closeBrace(
-    obj: ts.ObjectLiteralExpression,
+/** The comma tokens on either side of `element` in the argument or
+ *  property list holding it. */
+function commasAround(
+    element: ts.Node,
     file: ts.SourceFile,
-): number | null {
-    const last = obj.getLastToken(file);
-    return last?.kind === ts.SyntaxKind.CloseBraceToken
-        ? last.getStart(file)
-        : null;
+): { before?: ts.Node; after?: ts.Node } {
+    const list = element.parent
+        .getChildren(file)
+        .find(
+            (c) =>
+                c.kind === ts.SyntaxKind.SyntaxList &&
+                c.pos <= element.pos &&
+                element.end <= c.end,
+        );
+    const items = list?.getChildren(file) ?? [];
+    const i = items.indexOf(element);
+    const comma = (n: ts.Node | undefined) =>
+        n?.kind === ts.SyntaxKind.CommaToken ? n : undefined;
+    return {
+        after: i < 0 ? undefined : comma(items[i + 1]),
+        before: i < 0 ? undefined : comma(items[i - 1]),
+    };
 }
 
-/** Start of `node` widened back over whitespace and one comma before it,
- *  so removing from there drops the argument and its separator. */
-function withLeadingComma(
-    source: string,
-    node: ts.Node,
-    file: ts.SourceFile,
-    floor: number,
-): number {
-    let start = node.getStart(file);
-    while (start > floor && /\s/.test(source[start - 1])) {
-        start--;
-    }
-    return source[start - 1] === ',' ? start - 1 : start;
+/** Start of `element` together with the comma separating it from the one
+ *  before, so removing from there drops it and its separator. */
+function startWithComma(element: ts.Node, file: ts.SourceFile): number {
+    const { before } = commasAround(element, file);
+    return before ? before.getStart(file) : element.getStart(file);
 }
 
 /**
@@ -144,9 +128,10 @@ export function computeOutNumericOptionEdit(
 
 /**
  * Compute the text edit that sets the master output gain: updates the
- * numeric literal in the first `$setOutputGain(...)` call, or appends a new
- * call at the end of the source. Returns null when that call's argument is
- * not a numeric literal (signal-driven — the fader is locked).
+ * numeric literal in the last `$setOutputGain(...)` call, the one whose
+ * level the patch ends up with, or appends a new call at the end of the
+ * source. Returns null when that call's argument is not a numeric literal
+ * (signal-driven — the fader is locked).
  */
 export function computeSetOutputGainEdit(
     source: string,
@@ -154,21 +139,24 @@ export function computeSetOutputGainEdit(
 ): OutOptionEdit | null {
     const newText = String(Number(value.toPrecision(4)));
     const file = parseDsl(source);
-    let call: ts.CallExpression | null = null;
+    let last: ts.CallExpression | undefined;
     forEachDescendant(file, (node) => {
         if (
-            !call &&
             ts.isCallExpression(node) &&
             ts.isIdentifier(node.expression) &&
-            node.expression.text === '$setOutputGain'
+            node.expression.text === '$setOutputGain' &&
+            (!last || node.getStart(file) > last.getStart(file))
         ) {
-            call = node;
+            last = node;
         }
     });
-    if (call) {
-        const { arguments: args } = call as ts.CallExpression;
-        const arg = args[0];
-        if (!parens(call, file) || args.length !== 1 || !isNumber(arg)) {
+    if (last) {
+        const arg = last.arguments[0];
+        if (
+            !callParens(last, file) ||
+            last.arguments.length !== 1 ||
+            !isNumber(arg)
+        ) {
             return null;
         }
         return { end: arg.getEnd(), start: arg.getStart(file), text: newText };
@@ -190,12 +178,12 @@ function computeOptionPropertyEdit(
     isLiteral: LiteralCheck,
 ): OutOptionEdit | null {
     const file = parseDsl(source);
-    const found = outCallAt(file, anchorOffset);
-    const bounds = found && parens(found.call, file);
-    if (!found || !bounds) {
+    const call = outCallAt(file, anchorOffset);
+    const bounds = call && callParens(call, file);
+    if (!call || !bounds) {
         return null;
     }
-    const { call, method } = found;
+    const method = (call.expression as ts.PropertyAccessExpression).name.text;
     const { open, close } = bounds;
     const args = call.arguments;
 
@@ -232,6 +220,9 @@ function computeOptionPropertyEdit(
             // object, or supply the default channel for a bare call. Setting
             // `gain` itself keeps the positional form.
             if (optionsArg !== undefined) {
+                if (ts.isSpreadElement(optionsArg)) {
+                    return null;
+                }
                 const span = {
                     end: optionsArg.getEnd(),
                     start: optionsArg.getStart(file),
@@ -268,7 +259,11 @@ function computeOptionPropertyEdit(
             };
         }
 
-        const objClose = closeBrace(options, file);
+        const objClose = closingTokenStart(
+            options,
+            file,
+            ts.SyntaxKind.CloseBraceToken,
+        );
         if (objClose === null) {
             return null;
         }
@@ -287,24 +282,22 @@ function computeOptionPropertyEdit(
                 text: newText,
             };
         }
-        const objOpen = options.getStart(file);
-        if (options.properties.length === 0) {
+        const last = options.properties.at(-1);
+        if (!last) {
             return {
                 end: objClose + 1,
-                start: objOpen,
+                start: options.getStart(file),
                 text: `{ ${prop}: ${newText} }`,
             };
         }
-        // Insert before the closing brace, after any trailing comma.
-        let insertAt = objClose;
-        while (insertAt > objOpen + 1 && /\s/.test(source[insertAt - 1])) {
-            insertAt--;
-        }
-        const needsComma = source[insertAt - 1] !== ',';
+        // After the last property's own comma, or after the property with a
+        // comma of its own; either way ahead of any comment on that line.
+        const trailing = commasAround(last, file).after;
+        const at = trailing ? trailing.getEnd() : last.getEnd();
         return {
-            end: objClose,
-            start: insertAt,
-            text: `${needsComma ? ',' : ''} ${prop}: ${newText} `,
+            end: at,
+            start: at,
+            text: `${trailing ? '' : ','} ${prop}: ${newText}`,
         };
     }
 
@@ -319,13 +312,17 @@ function computeOptionPropertyEdit(
         ) {
             return {
                 end: optionsArg.getEnd(),
-                start: withLeadingComma(source, optionsArg, file, open),
+                start: startWithComma(optionsArg, file),
                 text: '',
             };
         }
         return null;
     }
-    const objClose = closeBrace(options, file);
+    const objClose = closingTokenStart(
+        options,
+        file,
+        ts.SyntaxKind.CloseBraceToken,
+    );
     const existing = objClose === null ? null : findProperty(options, prop);
     if (
         objClose === null ||
@@ -335,30 +332,9 @@ function computeOptionPropertyEdit(
     ) {
         return null;
     }
-    const objOpen = options.getStart(file);
-
-    // Property removal span: through the following comma if present,
-    // otherwise back through the preceding comma.
-    let removeStart = existing.getStart(file);
-    let removeEnd = existing.initializer.getEnd();
-    let k = removeEnd;
-    while (k < objClose && /\s/.test(source[k])) {
-        k++;
-    }
-    if (source[k] === ',') {
-        removeEnd = k + 1;
-        while (removeEnd < objClose && /\s/.test(source[removeEnd])) {
-            removeEnd++;
-        }
-    } else {
-        removeStart = withLeadingComma(source, existing, file, objOpen + 1);
-    }
 
     // If this was the only property, drop the whole options argument.
-    const remainder =
-        source.slice(objOpen + 1, removeStart) +
-        source.slice(removeEnd, objClose);
-    if (/^\s*$/.test(remainder)) {
+    if (options.properties.length === 1) {
         if (method === 'out') {
             return { end: close, start: open, text: '' };
         }
@@ -366,11 +342,26 @@ function computeOptionPropertyEdit(
         // comma separating it from the channel.
         return {
             end: options.getEnd(),
-            start: withLeadingComma(source, options, file, open),
+            start: startWithComma(options, file),
             text: '',
         };
     }
-    return { end: removeEnd, start: removeStart, text: '' };
+
+    // Through the property's own comma and the space after it, or else
+    // back through the comma before it.
+    const { after } = commasAround(existing, file);
+    if (after) {
+        let end = after.getEnd();
+        while (end < objClose && /\s/.test(source[end])) {
+            end++;
+        }
+        return { end, start: existing.getStart(file), text: '' };
+    }
+    return {
+        end: existing.initializer.getEnd(),
+        start: startWithComma(existing, file),
+        text: '',
+    };
 }
 
 /** The member of `obj` that sets `prop`. */

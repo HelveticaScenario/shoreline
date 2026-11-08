@@ -13,13 +13,13 @@
       {
         "anchor": 19,
         "gainClear": null,
-        "gainSet": {"end":46,"start":45,"text":", gain: 0.5 "},
+        "gainSet": {"end":45,"start":45,"text":", gain: 0.5"},
         "muteOff": null,
-        "muteOn": {"end":46,"start":45,"text":", mute: true "},
+        "muteOn": {"end":45,"start":45,"text":", mute: true"},
         "panClear": null,
-        "panSet": {"end":46,"start":45,"text":", pan: 0.25 "},
+        "panSet": {"end":45,"start":45,"text":", pan: 0.25"},
         "soloOff": null,
-        "soloOn": {"end":46,"start":45,"text":", solo: true "}
+        "soloOn": {"end":45,"start":45,"text":", solo: true"}
       }
     ],
     "quickFixes": {

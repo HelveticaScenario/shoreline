@@ -17,24 +17,24 @@
       {
         "anchor": 11,
         "gainClear": null,
-        "gainSet": {"end":31,"start":30,"text":", gain: 0.5 "},
+        "gainSet": {"end":30,"start":30,"text":", gain: 0.5"},
         "muteOff": null,
-        "muteOn": {"end":31,"start":30,"text":", mute: true "},
+        "muteOn": {"end":30,"start":30,"text":", mute: true"},
         "panClear": null,
-        "panSet": {"end":31,"start":30,"text":", pan: 0.25 "},
+        "panSet": {"end":30,"start":30,"text":", pan: 0.25"},
         "soloOff": null,
-        "soloOn": {"end":31,"start":30,"text":", solo: true "}
+        "soloOn": {"end":30,"start":30,"text":", solo: true"}
       },
       {
         "anchor": 129,
         "gainClear": null,
-        "gainSet": {"end":149,"start":148,"text":", gain: 0.5 "},
+        "gainSet": {"end":148,"start":148,"text":", gain: 0.5"},
         "muteOff": null,
-        "muteOn": {"end":149,"start":148,"text":", mute: true "},
+        "muteOn": {"end":148,"start":148,"text":", mute: true"},
         "panClear": null,
         "panSet": null,
         "soloOff": null,
-        "soloOn": {"end":149,"start":148,"text":", solo: true "}
+        "soloOn": {"end":148,"start":148,"text":", solo: true"}
       },
       {
         "anchor": 227,
@@ -300,13 +300,13 @@
         {
           "anchor": 11,
           "gainClear": null,
-          "gainSet": {"end":31,"start":30,"text":", gain: 0.5 "},
+          "gainSet": {"end":30,"start":30,"text":", gain: 0.5"},
           "muteOff": null,
-          "muteOn": {"end":31,"start":30,"text":", mute: true "},
+          "muteOn": {"end":30,"start":30,"text":", mute: true"},
           "panClear": null,
-          "panSet": {"end":31,"start":30,"text":", pan: 0.25 "},
+          "panSet": {"end":30,"start":30,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":31,"start":30,"text":", solo: true "}
+          "soloOn": {"end":30,"start":30,"text":", solo: true"}
         }
       ],
       "setOutputGain": {"end":58,"start":58,"text":"\n$setOutputGain(0.5)\n"}
@@ -324,13 +324,13 @@
         {
           "anchor": 11,
           "gainClear": null,
-          "gainSet": {"end":31,"start":30,"text":", gain: 0.5 "},
+          "gainSet": {"end":30,"start":30,"text":", gain: 0.5"},
           "muteOff": null,
-          "muteOn": {"end":31,"start":30,"text":", mute: true "},
+          "muteOn": {"end":30,"start":30,"text":", mute: true"},
           "panClear": null,
-          "panSet": {"end":31,"start":30,"text":", pan: 0.25 "},
+          "panSet": {"end":30,"start":30,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":31,"start":30,"text":", solo: true "}
+          "soloOn": {"end":30,"start":30,"text":", solo: true"}
         }
       ],
       "setOutputGain": {"end":116,"start":116,"text":"\n$setOutputGain(0.5)\n"}
@@ -348,24 +348,24 @@
         {
           "anchor": 11,
           "gainClear": null,
-          "gainSet": {"end":31,"start":30,"text":", gain: 0.5 "},
+          "gainSet": {"end":30,"start":30,"text":", gain: 0.5"},
           "muteOff": null,
-          "muteOn": {"end":31,"start":30,"text":", mute: true "},
+          "muteOn": {"end":30,"start":30,"text":", mute: true"},
           "panClear": null,
-          "panSet": {"end":31,"start":30,"text":", pan: 0.25 "},
+          "panSet": {"end":30,"start":30,"text":", pan: 0.25"},
           "soloOff": null,
-          "soloOn": {"end":31,"start":30,"text":", solo: true "}
+          "soloOn": {"end":30,"start":30,"text":", solo: true"}
         },
         {
           "anchor": 129,
           "gainClear": null,
-          "gainSet": {"end":149,"start":148,"text":", gain: 0.5 "},
+          "gainSet": {"end":148,"start":148,"text":", gain: 0.5"},
           "muteOff": null,
-          "muteOn": {"end":149,"start":148,"text":", mute: true "},
+          "muteOn": {"end":148,"start":148,"text":", mute: true"},
           "panClear": null,
           "panSet": null,
           "soloOff": null,
-          "soloOn": {"end":149,"start":148,"text":", solo: true "}
+          "soloOn": {"end":148,"start":148,"text":", solo: true"}
         }
       ],
       "setOutputGain": {"end":174,"start":174,"text":"\n$setOutputGain(0.5)\n"}
