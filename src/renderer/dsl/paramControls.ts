@@ -22,6 +22,8 @@ export interface ParamSpec {
     defaultValue: number;
     minValue: number;
     maxValue: number;
+    /** The range is a guess, so unit sliders ignore it. */
+    freeUnits?: boolean;
 }
 
 /** A literal param value a control can take over. */
@@ -210,7 +212,8 @@ function numberSlider(
 /**
  * A note or hz slider spanning UNIT_SPAN_OCTAVES either side of `volts`. A
  * side is clipped at a schema limit only when the value lies within it, so
- * a value past a limit (e.g. an LFO-rate '1hz') still gets its full span.
+ * a value past a limit (e.g. an LFO-rate '1hz') still gets its full span,
+ * and neither side is clipped for a spec with `freeUnits`.
  */
 function unitSlider(
     label: string,
@@ -220,12 +223,13 @@ function unitSlider(
     spec: ParamSpec,
     quote: string,
 ): string {
+    const clip = !spec.freeUnits;
     const lo =
-        volts >= spec.minValue
+        clip && volts >= spec.minValue
             ? Math.max(volts - UNIT_SPAN_OCTAVES, spec.minValue)
             : volts - UNIT_SPAN_OCTAVES;
     const hi =
-        volts <= spec.maxValue
+        clip && volts <= spec.maxValue
             ? Math.min(volts + UNIT_SPAN_OCTAVES, spec.maxValue)
             : volts + UNIT_SPAN_OCTAVES;
     const bound = (v: number) =>
