@@ -12,7 +12,7 @@
  */
 import ts from 'typescript';
 
-import { signedNumericLiteral } from '../../shared/dsl/ast/literals';
+import { negatableNumber } from '../../shared/dsl/ast/literals';
 import { dottedName } from '../../shared/dsl/ast/names';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import type { ApiIndex, Family } from './apiSignatures';
@@ -274,15 +274,10 @@ export function asLiteral(
     node: ts.Node,
     file: ts.SourceFile,
 ): ParamLiteral | null {
-    const number = signedNumericLiteral(node);
     // Only unary minus: control-literal validation rejects a unary plus.
-    if (number && number.sign !== '+') {
-        const value = Number(number.literal.text);
-        return {
-            kind: 'number',
-            text: node.getText(file),
-            value: number.sign === '-' ? -value : value,
-        };
+    const value = negatableNumber(node);
+    if (value !== null) {
+        return { kind: 'number', text: node.getText(file), value };
     }
     if (ts.isStringLiteral(node)) {
         return { kind: 'string', text: node.getText(file), value: node.text };

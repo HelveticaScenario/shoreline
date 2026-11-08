@@ -10,7 +10,7 @@ import * as prettierBabel from 'prettier/plugins/babel';
 import * as prettierEstree from 'prettier/plugins/estree';
 import ts from 'typescript';
 
-import { parseDsl } from '../../shared/dsl/ast/parse';
+import { parseTransient } from '../../shared/dsl/ast/parse';
 import type { PrettierConfig } from '../../shared/ipcTypes';
 import { introducesSyntaxErrors, parseErrors } from './syntaxCheck';
 import type { ControlQuickFix } from './controlQuickFix';
@@ -39,7 +39,7 @@ async function formatStatement(
         source.slice(fix.span.end);
     const controlStart = fix.span.start + fix.controlOffset;
     const controlEnd = fix.span.start + fix.caretOffset;
-    const file = parseDsl(edited);
+    const file = parseTransient(edited);
     const unit = formatUnit(file, controlStart, controlEnd, parseErrors(file));
     if (!unit) {
         return null;
@@ -202,7 +202,7 @@ function reindent(text: string, indent: string): string {
 
 /** `callee(firstArg` of the control call `text`, e.g. `$slider('fm'`. */
 function callKey(text: string): string | null {
-    const file = parseDsl(text);
+    const file = parseTransient(text);
     const stmt = file.statements[0];
     if (
         !stmt ||
@@ -224,7 +224,7 @@ function matchingCalls(
     text: string,
     key: string,
 ): { start: number; end: number }[] {
-    const file = parseDsl(text);
+    const file = parseTransient(text);
     const found: { start: number; end: number }[] = [];
     const visit = (node: ts.Node) => {
         if (ts.isCallExpression(node) && keyOf(node, file) === key) {

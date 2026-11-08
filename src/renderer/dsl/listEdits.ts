@@ -17,6 +17,7 @@
  */
 import ts from 'typescript';
 
+import { parseTransient } from '../../shared/dsl/ast/parse';
 import type { PrettierConfig } from '../../shared/ipcTypes';
 
 /** The Prettier options generated code follows. */
@@ -319,12 +320,7 @@ function withRepairedSeparators<T extends ts.Node>(
         return append(file, node);
     }
     const repairedText = applyEdit(file.text, repair);
-    const repaired = ts.createSourceFile(
-        file.fileName,
-        repairedText,
-        ts.ScriptTarget.Latest,
-        true,
-    );
+    const repaired = parseTransient(repairedText);
     const shift = repair.newText.length - (repair.span.end - repair.span.start);
     const again = nodeAt(
         repaired,
