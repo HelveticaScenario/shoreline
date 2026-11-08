@@ -5,6 +5,8 @@
  */
 import ts from 'typescript';
 
+import { constInitializerOf } from '../../shared/dsl/ast/consts';
+
 /** Pattern methods whose argument spans are recorded. */
 export type PatternMethodName = 'fast' | 'slow' | 'struct' | 'beat' | 'glide';
 
@@ -39,10 +41,7 @@ type PatternRoot = '$p' | '$p.s' | '$p.arrange';
  * chain links and `const` hops (a visited set guards circular consts), or
  * null when the chain does not start at one.
  */
-function chainRoot(
-    node: ts.Node,
-    consts: ReadonlyMap<string, ts.Expression>,
-): PatternRoot | null {
+function chainRoot(node: ts.Node): PatternRoot | null {
     const visited = new Set<string>();
     let n = node;
     for (;;) {
@@ -67,7 +66,7 @@ function chainRoot(
         } else if (ts.isPropertyAccessExpression(n)) {
             n = n.expression;
         } else if (ts.isIdentifier(n)) {
-            const init = consts.get(n.text);
+            const init = constInitializerOf(n);
             if (!init || visited.has(n.text)) {
                 return null;
             }
@@ -94,10 +93,7 @@ export function isPsCall(call: ts.CallExpression): boolean {
  * An `.add(rhs)` / `.sub(rhs)` link, or one with a mode (`.add.in(rhs)`,
  * `.sub.squeeze(rhs)`, …), on a chain rooted at `$p.s(...)`.
  */
-export function isSpChainCall(
-    call: ts.CallExpression,
-    consts: ReadonlyMap<string, ts.Expression>,
-): boolean {
+export function isSpChainCall(call: ts.CallExpression): boolean {
     const callee = call.expression;
     if (!ts.isPropertyAccessExpression(callee)) {
         return false;
@@ -114,14 +110,13 @@ export function isSpChainCall(
     } else if (!SP_OPS.has(callee.name.text)) {
         return false;
     }
-    return chainRoot(receiver, consts) === '$p.s';
+    return chainRoot(receiver) === '$p.s';
 }
 
 /** The pattern method a `.fast(…)`, `.slow(…)`, `.struct(…)`, `.beat(…)` or
  *  `.glide(…)` call on any pattern chain names, or null. */
 export function patternMethodCallName(
     call: ts.CallExpression,
-    consts: ReadonlyMap<string, ts.Expression>,
 ): PatternMethodName | null {
     const callee = call.expression;
     if (!ts.isPropertyAccessExpression(callee)) {
@@ -131,7 +126,7 @@ export function patternMethodCallName(
     if (!Object.hasOwn(PATTERN_METHOD_ARGS, name)) {
         return null;
     }
-    return chainRoot(callee.expression, consts) !== null
+    return chainRoot(callee.expression) !== null
         ? (name as PatternMethodName)
         : null;
 }
