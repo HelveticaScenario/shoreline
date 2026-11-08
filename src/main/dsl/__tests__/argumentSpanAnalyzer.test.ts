@@ -47,4 +47,10 @@ describe('argument span registry', () => {
         expect(kick808).toMatch(/^1:\d+ \$tr808\.kick /);
         expect(kick909).toMatch(/^2:\d+ \$tr909\.kick /);
     });
+
+    test('only a bare $p call is the pattern builder', () => {
+        expect(entries("$p('a b')\nobj.$p('c d')")).toEqual([
+            "1:5 $p source='a b'",
+        ]);
+    });
 });
