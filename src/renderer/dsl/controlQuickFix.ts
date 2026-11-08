@@ -25,7 +25,7 @@ import {
     appendCallArgument,
     appendObjectProperty,
     introducesSyntaxErrors,
-    syntaxErrors,
+    parseErrors,
 } from './controlFixEdits';
 import type { ListEdit, TextEdit } from './controlFixEdits';
 import { asLiteral, createCallResolver } from './paramCallResolver';
@@ -177,7 +177,7 @@ export function computeControlQuickFixes(
         }
     }
 
-    const errors = syntaxErrors(source);
+    const errors = parseErrors(file);
     return fixes.filter((fix) => !introducesSyntaxErrors(source, fix, errors));
 }
 

@@ -135,13 +135,21 @@ function ranges(nodes: readonly ts.Node[], file: ts.SourceFile) {
 export function syntaxErrors(
     source: string,
 ): readonly ts.DiagnosticWithLocation[] {
-    const file = ts.createSourceFile(
-        'patch.js',
-        source,
-        ts.ScriptTarget.Latest,
-        false,
-        ts.ScriptKind.JS,
+    return parseErrors(
+        ts.createSourceFile(
+            'patch.js',
+            source,
+            ts.ScriptTarget.Latest,
+            false,
+            ts.ScriptKind.JS,
+        ),
     );
+}
+
+/** Parse errors of an already parsed `file`. */
+export function parseErrors(
+    file: ts.SourceFile,
+): readonly ts.DiagnosticWithLocation[] {
     // The parser's own error list: what a Program's syntactic diagnostics
     // return, without building a Program.
     return (

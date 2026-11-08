@@ -462,11 +462,10 @@ export function MonacoPatchEditor({
         if (!monaco || schemas.length === 0) {
             return;
         }
-        const api = { index: apiIndexFor(libSource), schemas };
         const formatOptions = resolvePrettierOptions(prettierConfig);
         const provider = registerControlQuickFixProvider(
             monaco,
-            () => api,
+            () => ({ index: apiIndexFor(libSource), schemas }),
             () => formatOptions,
         );
         return () => provider.dispose();

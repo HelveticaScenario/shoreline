@@ -68,7 +68,9 @@ export const VideoDocs: React.FC = () => (
                             {method.name}
                         </strong>{' '}
                         &mdash; {method.description}
-                        {method.params && <ParamList params={method.params} />}
+                        {method.params && method.params.length > 0 && (
+                            <ParamList params={method.params} />
+                        )}
                     </li>
                 ))}
             </ul>

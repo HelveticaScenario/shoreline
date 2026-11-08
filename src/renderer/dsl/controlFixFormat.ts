@@ -10,7 +10,7 @@ import * as prettierBabel from 'prettier/plugins/babel';
 import * as prettierEstree from 'prettier/plugins/estree';
 import ts from 'typescript';
 
-import { introducesSyntaxErrors, syntaxErrors } from './controlFixEdits';
+import { introducesSyntaxErrors, parseErrors } from './controlFixEdits';
 import type { ControlQuickFix } from './controlQuickFix';
 import { indentAt } from './objectPropertyInsert';
 
@@ -44,12 +44,7 @@ async function formatStatement(
     const controlStart = fix.span.start + fix.controlOffset;
     const controlEnd = fix.span.start + fix.caretOffset;
     const file = parse(edited);
-    const unit = formatUnit(
-        file,
-        controlStart,
-        controlEnd,
-        syntaxErrors(edited),
-    );
+    const unit = formatUnit(file, controlStart, controlEnd, parseErrors(file));
     if (!unit) {
         return null;
     }
@@ -203,7 +198,9 @@ function hasMultilineTemplate(node: ts.Node, file: ts.SourceFile): boolean {
 function reindent(text: string, indent: string): string {
     return text
         .split('\n')
-        .map((line, i) => (i === 0 || line === '' ? line : indent + line))
+        .map((line, i) =>
+            i === 0 || line === '' || line === '\r' ? line : indent + line,
+        )
         .join('\n');
 }
 
