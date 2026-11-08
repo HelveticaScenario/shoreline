@@ -92,6 +92,9 @@ describe('SourceTextures', () => {
         expect(onError).toHaveBeenCalledWith(
             expect.stringContaining('clips/a.mov'),
         );
+        expect(onError).toHaveBeenCalledWith(
+            expect.stringContaining('need converting'),
+        );
     });
 
     it('bumps its generation when the set changes so bind groups are rebuilt', () => {
