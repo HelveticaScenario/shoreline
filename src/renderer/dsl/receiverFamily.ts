@@ -6,6 +6,7 @@
  */
 import ts from 'typescript';
 
+import { dottedName } from '../../shared/dsl/ast/names';
 import type { ApiIndex, Family } from './apiSignatures';
 
 const MAX_DEPTH = 16;
@@ -110,22 +111,6 @@ export function splitChain(callee: ts.PropertyAccessExpression): {
         path: [callee.name.text],
         receiver: callee.expression,
     };
-}
-
-/**
- * `foo` for an identifier, `a.b.c` for a property-access chain rooted at an
- * identifier, and null for anything else. Read from the syntax tree, so
- * whitespace and comments around the dots never reach it.
- */
-export function dottedName(expr: ts.Expression): string | null {
-    if (ts.isIdentifier(expr)) {
-        return expr.text;
-    }
-    if (ts.isPropertyAccessExpression(expr)) {
-        const base = dottedName(expr.expression);
-        return base === null ? null : `${base}.${expr.name.text}`;
-    }
-    return null;
 }
 
 /** Initializers of the file's `const` bindings; null for a name bound more
