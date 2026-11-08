@@ -134,11 +134,7 @@
             {"span":{"end":30,"start":30},"text":" collapsed: true "},
             {"span":{"end":30,"start":30},"text":" collapsed: false "}
           ],
-          [
-            48,
-            {"span":{"end":66,"start":67},"text":" collapsed: true "},
-            {"span":{"end":66,"start":67},"text":" collapsed: false "}
-          ]
+          [48,null,null]
         ]
       },
       "eq": [],
