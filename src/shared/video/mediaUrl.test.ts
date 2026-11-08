@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-    isHlsUrl,
     isRemoteMedia,
     mediaUrl,
     parseMediaUrl,
@@ -47,8 +46,8 @@ describe('mediaUrl', () => {
     });
 
     describe('network URLs', () => {
-        const stream =
-            'https://cdn.example.com/live/stream.m3u8?token=a b&x=1#t';
+        const address =
+            'https://cdn.example.com/pictures/photo.jpg?token=a b&x=1#t';
 
         it('tells a network URL from a workspace path', () => {
             expect(isRemoteMedia('http://a/b.mp4')).toBe(true);
@@ -59,11 +58,11 @@ describe('mediaUrl', () => {
         });
 
         it('round-trips a network URL with a query and a fragment', () => {
-            expect(parseRemoteMediaUrl(mediaUrl(stream))).toBe(stream);
+            expect(parseRemoteMediaUrl(mediaUrl(address))).toBe(address);
         });
 
         it('keeps a network URL out of the workspace', () => {
-            expect(parseMediaUrl(mediaUrl(stream))).toBeNull();
+            expect(parseMediaUrl(mediaUrl(address))).toBeNull();
             expect(parseRemoteMediaUrl(mediaUrl('clips/a.mp4'))).toBeNull();
         });
 
@@ -77,13 +76,6 @@ describe('mediaUrl', () => {
             expect(
                 parseRemoteMediaUrl('shoreline-media://remote/%E0%A4%A'),
             ).toBeNull();
-        });
-
-        it('recognizes an HLS playlist by its path, not its query', () => {
-            expect(isHlsUrl(stream)).toBe(true);
-            expect(isHlsUrl('https://a/b/index.M3U8')).toBe(true);
-            expect(isHlsUrl('https://a/b.mp4?x=.m3u8')).toBe(false);
-            expect(isHlsUrl('not a url')).toBe(false);
         });
     });
 });

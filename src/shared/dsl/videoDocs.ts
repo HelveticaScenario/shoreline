@@ -439,7 +439,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
         name: 'video',
         group: 'Generators',
         description:
-            "A recording from the workspace folder (`.mp4`, `.webm`, `.mov`, `.m4v` or `.ogv`) as a color, played in a loop. The picture is muted; the video's sound is its `.audio` property, an audio signal you route like any other, such as `$v.video('clips/loop.mp4').audio.out()`. The sound plays at the same `speed` between the same `loop` points, starting when the patch starts, and has no sound at speed 0. Reading `.audio` of a file without sound is an error. Sound is read from AAC, ALAC, FLAC, MP3, Vorbis and PCM tracks of up to ten minutes; the sound of a file with Opus audio, as most `.webm` files have, does not play. For a video at a network address, use `$v.stream`, which has no sound. Like `$v.image`, it is read at the coordinate being drawn. It plays while the patch plays, holds its frame when the patch is stopped, and starts over from its loop start when the patch starts. Changing `speed` or `loop` and running the patch again keeps the video playing from where it is. Which formats play depends on the codecs the app's browser engine includes (H.264, HEVC, VP8/VP9 and AV1); `speed` and `loop` are fixed numbers, and video cannot play backwards.",
+            "A recording from the workspace folder (`.mp4`, `.webm`, `.mov`, `.m4v` or `.ogv`) as a color, played in a loop. The picture is muted; the video's sound is its `.audio` property, an audio signal you route like any other, such as `$v.video('clips/loop.mp4').audio.out()`. The sound plays at the same `speed` between the same `loop` points, starting when the patch starts, and has no sound at speed 0. Reading `.audio` of a file without sound is an error. Sound is read from AAC, ALAC, FLAC, MP3, Vorbis and PCM tracks of up to ten minutes; the sound of a file with Opus audio, as most `.webm` files have, does not play. Like `$v.image`, it is read at the coordinate being drawn. It plays while the patch plays, holds its frame when the patch is stopped, and starts over from its loop start when the patch starts. Changing `speed` or `loop` and running the patch again keeps the video playing from where it is. Which formats play depends on the codecs the app's browser engine includes (H.264, HEVC, VP8/VP9 and AV1); `speed` and `loop` are fixed numbers, and video cannot play backwards.",
         params: [
             {
                 name: 'path',
@@ -469,31 +469,6 @@ export const VIDEO_DOCS: VideoDoc[] = [
         ],
         declarations: [
             "video(\n    path: string,\n    config?: {\n        fit?: 'cover' | 'contain' | 'stretch';\n        speed?: number;\n        loop?: [start: number, end?: number];\n    },\n): VideoFile;",
-        ],
-    },
-    {
-        name: 'stream',
-        group: 'Generators',
-        description:
-            'A video or live stream at an `http://` or `https://` address as a color, played as it arrives with its sound off. The address can be a video file, or an HLS stream when it ends in `.m3u8`; RTSP, RTMP and other protocols the app cannot play are refused. The app fetches the address itself, so the server needs no special headers. It is read at the coordinate being drawn, so warps, kaleidoscopes and feedback move it like any other pattern, and it plays while the patch plays.',
-        params: [
-            {
-                name: 'url',
-                description:
-                    'An http(s) address of a video file or an .m3u8 HLS playlist',
-            },
-            {
-                name: 'config.fit',
-                description:
-                    "How a picture of another shape fills the frame: `'cover'` (default) fills it and crops the overflow, `'contain'` fits the whole picture and leaves transparent bars, `'stretch'` ignores the aspect ratio",
-            },
-        ],
-        examples: [
-            "$v.out($v.stream('https://example.com/live/stream.m3u8'))",
-            "$v.stream('https://example.com/clip.mp4', { fit: 'contain' }).$.hue($v.time.$.osc(0.05)).out()",
-        ],
-        declarations: [
-            "stream(url: string, config?: { fit?: 'cover' | 'contain' | 'stretch' }): VideoSignal;",
         ],
     },
     {

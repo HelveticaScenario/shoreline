@@ -8,15 +8,6 @@ export function isRemoteMedia(path: string): boolean {
     return /^https?:\/\//i.test(path);
 }
 
-/** Whether a network URL is an HLS playlist, which the browser engine cannot play itself. */
-export function isHlsUrl(url: string): boolean {
-    try {
-        return new URL(url).pathname.toLowerCase().endsWith('.m3u8');
-    } catch {
-        return false;
-    }
-}
-
 /**
  * The URL the renderer loads the workspace file or network URL `path` from.
  * Network media goes through the app, which adds the CORS headers a shader
