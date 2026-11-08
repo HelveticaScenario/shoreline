@@ -2600,9 +2600,9 @@ function buildConfigArg(moduleSchema: Schema): {
  * `.$.`-method renderers. `positionalStart` drops leading positionals (1 for
  * `.$.`, whose receiver is injected as the first argument); `leadParams` are
  * prepended to the parameter list (the `.$m.` `mix` crossfade); `leadDocLines`
- * are prepended before the module's own documentation. The module's full
- * documentation and every `@param` are always included, so the factory and
- * `.$.` surfaces carry identical docs and cannot drift.
+ * are prepended before the module's own documentation. The module's docs
+ * (`renderDocContentJsDoc`) and every `@param` are always included, so the
+ * factory and `.$.` surfaces carry identical docs and cannot drift.
  */
 function buildSignature(
     moduleSchema: Schema,
@@ -2699,7 +2699,7 @@ function buildSignature(
  * for `moduleSchema`: the module's factory with its first positional dropped
  * (it becomes the chained signal receiver). For `.$m.`, a required leading
  * `mix` signal crossfades dry/wet and the return type collapses to
- * `Collection`. Carries the module's full documentation, like the factory.
+ * `Collection`. Carries the module's docs, like the factory.
  *
  * Only called on schemas passing `qualifiesForDollarChain`, which guarantees
  * `dollarMethodName` yields a valid TS identifier for the interface member.

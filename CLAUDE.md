@@ -145,7 +145,7 @@ A param whose edits would click (a gain, a cutoff, a mix amount) glides across p
 
 A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crates/modular_core/src/module_docs.rs`), named in `#[module(name = …, docs = NAME_DOCS)]`. A `///` on a `#[module]` struct is a compile error. It holds:
 - `summary`: 1–6 words;
-- `description`: 1–3 sentences of inline markdown, never explaining individual params;
+- `description`: 1–3 sentences of inline markdown, never explaining individual params, except to flag a param behaviour surprising enough to need a prominent note (`$adsr`'s sustain);
 - `categories`;
 - `sections`: titled body, `DocTable` and examples, only for real reference material such as a syntax guide;
 - `examples`: titled patches that run as written, formatted as the editor's Format Document prints them (Prettier with `DEFAULT_PRETTIER_OPTIONS`). A multi-line example is an indented raw string opening on its own line; the schema strips the indent.

@@ -281,7 +281,11 @@ fn impl_module_macro_attr(
     let module_name = &attr_args.module.name;
 
     // The `docs` const is the module's only user-facing documentation.
-    if let Some(doc) = ast.attrs.iter().find(|a| a.path().is_ident("doc")) {
+    if let Some(doc) = ast
+        .attrs
+        .iter()
+        .find(|a| a.path().is_ident("doc") && matches!(a.meta, syn::Meta::NameValue(_)))
+    {
         return Err(syn::Error::new_spanned(
             doc,
             "module docs live in the `ModuleDocs` const named by `docs = …`, not `///`",

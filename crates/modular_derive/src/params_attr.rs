@@ -341,6 +341,12 @@ fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
                 "`default_doc` describes a declared `default`",
             ));
         }
+        if let Some((SignalType::Audio | SignalType::Gate, span)) = attr.signal_type {
+            return Err(syn::Error::new(
+                span,
+                "`default_doc` applies to control, pitch and frequency inputs, whose defaults the docs show",
+            ));
+        }
     }
     if !signal {
         if let Some((_, span)) = attr.signal_type {

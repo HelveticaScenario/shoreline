@@ -47,18 +47,27 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
 
     const filteredModules = useMemo(() => {
         const query = searchQuery.toLowerCase();
-        // Name matches lead, best first; entries that only mention the query
-        // in their summary or description follow, each group keeping the
-        // display order.
+        // Name matches lead, best first; then entries whose summary or
+        // description mention the query; then those whose params or examples
+        // do. Each group keeps the display order.
         const rankOf = (entry: ReferenceEntry): number => {
             const name = entry.name.toLowerCase();
             if (name === query) return 0;
             if (name.startsWith(query)) return 1;
             if (name.includes(query)) return 2;
-            const { summary, description } = entry.docs;
-            return `${summary}\n${description}`.toLowerCase().includes(query)
-                ? 3
-                : -1;
+            const { summary, description, sections, examples } = entry.docs;
+            if (`${summary}\n${description}`.toLowerCase().includes(query)) {
+                return 3;
+            }
+            const rest = [
+                ...entry.params.flatMap((p) => [p.name, p.description ?? '']),
+                ...sections.flatMap((s) => [s.title, s.body]),
+                ...[
+                    ...examples,
+                    ...sections.flatMap((s) => s.examples),
+                ].flatMap((e) => [e.title, e.code]),
+            ];
+            return rest.join('\n').toLowerCase().includes(query) ? 4 : -1;
         };
         return entries
             .map((entry) => ({ entry, rank: rankOf(entry) }))
