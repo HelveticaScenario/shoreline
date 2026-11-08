@@ -1,13 +1,7 @@
-import type { ReactNode } from 'react';
-import React, {
-    useState,
-    useMemo,
-    useEffect,
-    useCallback,
-    useRef,
-} from 'react';
-import Markdown from 'react-markdown';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { VideoDocs } from './VideoDocs';
+import { LinkifyTypes, TypeLink } from './DocsTypeLinks';
+import { ModuleReference } from './ModuleReference';
 import type { DocsTarget } from './docsCommand';
 import electronAPI from '../electronAPI';
 import type {
@@ -21,15 +15,7 @@ import {
     isDslType,
     GLOBAL_DOCS,
 } from '../../shared/dsl/typeDocs';
-import type {
-    EnumVariantInfo,
-    Schema,
-    Schemas,
-} from '../../shared/dsl/schemaTypeResolver';
-import {
-    schemaToTypeExpr,
-    getEnumVariants,
-} from '../../shared/dsl/schemaTypeResolver';
+import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import './DocsPanel.css';
 
 type Page = 'types' | 'globals' | 'reference' | 'video';
@@ -41,79 +27,17 @@ const PAGES: { id: Page; label: string }[] = [
     { id: 'video', label: 'Video' },
 ];
 
+const MODULE_NAME_ORDER = new Intl.Collator('en', {
+    numeric: true,
+    sensitivity: 'base',
+});
+
+const NO_MODULES: Schemas = [];
+
 interface DocsPanelProps {
     target: DocsTarget | null;
     hidden: boolean;
 }
-
-/**
- * Regex pattern matching all DSL type names for linkification.
- * Sorted longest-first so `Poly<Signal>` matches before `Signal`.
- * Uses lookaround instead of \b since type names contain non-word chars (<>).
- */
-const SORTED_TYPE_NAMES = [...DSL_TYPE_NAMES].sort(
-    (a, b) => b.length - a.length,
-);
-const TYPE_PATTERN_SOURCE = `(?<!\\w)(${SORTED_TYPE_NAMES.join('|')})(?!\\w)`;
-
-interface TypeLinkProps {
-    typeName: DslTypeName;
-    onTypeClick: (typeName: DslTypeName) => void;
-}
-
-/**
- * A clickable link that navigates to a type's documentation.
- */
-const TypeLink: React.FC<TypeLinkProps> = ({ typeName, onTypeClick }) => (
-    <button
-        className="type-link"
-        onClick={() => onTypeClick(typeName)}
-        title={`View ${typeName} documentation`}
-    >
-        {typeName}
-    </button>
-);
-
-interface LinkifyTypesProps {
-    text: string;
-    onTypeClick: (typeName: DslTypeName) => void;
-}
-
-/**
- * Component that renders text with DSL type names as clickable links.
- */
-const LinkifyTypes: React.FC<LinkifyTypesProps> = ({ text, onTypeClick }) => {
-    const parts: ReactNode[] = [];
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-    let key = 0;
-
-    const typePattern = new RegExp(TYPE_PATTERN_SOURCE, 'g');
-
-    while ((match = typePattern.exec(text)) !== null) {
-        // Add text before the match
-        if (match.index > lastIndex) {
-            parts.push(text.slice(lastIndex, match.index));
-        }
-        // Add the type link
-        const typeName = match[1] as DslTypeName;
-        parts.push(
-            <TypeLink
-                key={key++}
-                typeName={typeName}
-                onTypeClick={onTypeClick}
-            />,
-        );
-        lastIndex = match.index + match[0].length;
-    }
-
-    // Add remaining text
-    if (lastIndex < text.length) {
-        parts.push(text.slice(lastIndex));
-    }
-
-    return <>{parts}</>;
-};
 
 interface TypeCardProps {
     typeDoc: TypeDocumentation;
@@ -227,7 +151,13 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
             .getSchemas()
             .then((schemaList) => {
                 // Modules named with a leading `_` are internal; hide them from user-facing docs
-                setSchemas(schemaList.filter((e) => !e.name.startsWith('_')));
+                setSchemas(
+                    schemaList
+                        .filter((e) => !e.name.startsWith('_'))
+                        .sort((a, b) =>
+                            MODULE_NAME_ORDER.compare(a.name, b.name),
+                        ),
+                );
             })
             .catch(console.error);
     }, []);
@@ -285,65 +215,6 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
             });
         }
     }, [revealedType, activePage]);
-
-    const filteredModules = useMemo(() => {
-        if (!schemas) {
-            return [];
-        }
-        return Object.values(schemas).filter(
-            (schema) =>
-                schema.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                schema.documentation
-                    .toLowerCase()
-                    .includes(searchQuery.toLowerCase()),
-        );
-    }, [schemas, searchQuery]);
-
-    const getSignature = (module: Schema): string => {
-        const { positionalArgs } = module;
-        const positionalKeys = new Set(positionalArgs.map((a) => a.name));
-        const schemaRequired: string[] = module.paramsSchema.required ?? [];
-
-        const parts: string[] = positionalArgs.map((a) =>
-            schemaRequired.includes(a.name) ? a.name : `${a.name}?`,
-        );
-
-        const configKeys = Object.keys(module.paramsSchema.properties).filter(
-            (k) => !positionalKeys.has(k),
-        );
-
-        if (configKeys.length > 0) {
-            parts.push(
-                `{ ${configKeys.map((k) => (schemaRequired.includes(k) ? k : `${k}?`)).join(', ')} }`,
-            );
-        }
-
-        return `${module.name}(${parts.join(', ')})`;
-    };
-
-    const getParams = (module: Schema) => {
-        const properties = Object.entries(module.paramsSchema.properties);
-        return properties.map(([name, schema]) => {
-            let type: string | undefined;
-            try {
-                type = schemaToTypeExpr(schema, module.paramsSchema);
-            } catch {
-                // Fall back to no type annotation for unsupported schemas
-            }
-            let variants: EnumVariantInfo[] | null = null;
-            try {
-                variants = getEnumVariants(schema, module.paramsSchema);
-            } catch {
-                // Fall back to no variant info
-            }
-            return {
-                description: schema.description as string | undefined,
-                name,
-                type,
-                variants,
-            };
-        });
-    };
 
     const renderContent = () => {
         switch (activePage) {
@@ -444,157 +315,13 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
                 );
             case 'reference':
                 return (
-                    <div>
-                        <h2>Module Reference</h2>
-                        <div className="search-container">
-                            <input
-                                type="text"
-                                placeholder="Search modules..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="search-input"
-                            />
-                        </div>
-                        {filteredModules.map((module) => {
-                            const params = getParams(module);
-                            return (
-                                <div key={module.name} className="module-card">
-                                    <h3>
-                                        <code>{getSignature(module)}</code>
-                                    </h3>
-                                    <div className="module-documentation">
-                                        <Markdown>
-                                            {module.documentation}
-                                        </Markdown>
-                                    </div>
-                                    <h4>Inputs</h4>
-                                    <ul>
-                                        {params.map(
-                                            ({
-                                                name,
-                                                type,
-                                                description,
-                                                variants,
-                                            }) => (
-                                                <li key={name}>
-                                                    <strong>
-                                                        {name}
-                                                        {type && (
-                                                            <>
-                                                                {': '}
-                                                                <LinkifyTypes
-                                                                    text={type}
-                                                                    onTypeClick={
-                                                                        handleTypeClick
-                                                                    }
-                                                                />
-                                                            </>
-                                                        )}
-                                                    </strong>
-                                                    {description && (
-                                                        <>
-                                                            {' '}
-                                                            &mdash;{' '}
-                                                            {description}
-                                                        </>
-                                                    )}
-                                                    {variants &&
-                                                        variants.some(
-                                                            (v) =>
-                                                                v.description,
-                                                        ) &&
-                                                        (variants.length > 8 ? (
-                                                            <details className="enum-variants">
-                                                                <summary>
-                                                                    {
-                                                                        variants.length
-                                                                    }{' '}
-                                                                    values
-                                                                    (click to
-                                                                    expand)
-                                                                </summary>
-                                                                <ul>
-                                                                    {variants.map(
-                                                                        (v) => (
-                                                                            <li
-                                                                                key={
-                                                                                    v.value
-                                                                                }
-                                                                            >
-                                                                                <code>
-                                                                                    {
-                                                                                        v.rawValue as string
-                                                                                    }
-                                                                                </code>
-                                                                                {v.description && (
-                                                                                    <>
-                                                                                        {' '}
-                                                                                        &mdash;{' '}
-                                                                                        {
-                                                                                            v.description
-                                                                                        }
-                                                                                    </>
-                                                                                )}
-                                                                            </li>
-                                                                        ),
-                                                                    )}
-                                                                </ul>
-                                                            </details>
-                                                        ) : (
-                                                            <ul className="enum-variants">
-                                                                {variants.map(
-                                                                    (v) => (
-                                                                        <li
-                                                                            key={
-                                                                                v.value
-                                                                            }
-                                                                        >
-                                                                            <code>
-                                                                                {
-                                                                                    v.rawValue as string
-                                                                                }
-                                                                            </code>
-                                                                            {v.description && (
-                                                                                <>
-                                                                                    {' '}
-                                                                                    &mdash;{' '}
-                                                                                    {
-                                                                                        v.description
-                                                                                    }
-                                                                                </>
-                                                                            )}
-                                                                        </li>
-                                                                    ),
-                                                                )}
-                                                            </ul>
-                                                        ))}
-                                                </li>
-                                            ),
-                                        )}
-                                    </ul>
-                                    <h4>Outputs</h4>
-                                    <ul>
-                                        {module.outputs.map((out) => (
-                                            <li key={out.name}>
-                                                <strong>
-                                                    {out.default
-                                                        ? 'main'
-                                                        : out.name}
-                                                </strong>
-                                                :{' '}
-                                                <LinkifyTypes
-                                                    text={out.description}
-                                                    onTypeClick={
-                                                        handleTypeClick
-                                                    }
-                                                />
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <ModuleReference
+                        modules={schemas ?? NO_MODULES}
+                        searchQuery={searchQuery}
+                        onSearchQueryChange={setSearchQuery}
+                        scrollRef={contentRef}
+                        onTypeClick={handleTypeClick}
+                    />
                 );
         }
     };
