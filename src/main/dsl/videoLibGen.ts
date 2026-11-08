@@ -77,12 +77,20 @@ export function generateVideoNamespace(): string {
     ].join('\n');
 }
 
+interface ChainEntry {
+    doc: string;
+    declarations: string[];
+    params: VideoDocParam[];
+}
+
 /** Declarations of the chain functions, the direct methods or the members of `.$`. */
-function chainDeclarations(
-    direct: boolean,
-): { doc: string; declarations: string[] }[] {
+function chainDeclarations(direct: boolean): ChainEntry[] {
     return VIDEO_CHAIN.filter((doc) => (doc.direct ?? false) === direct).map(
-        (doc) => ({ declarations: doc.declarations, doc: doc.description }),
+        (doc) => ({
+            declarations: doc.declarations,
+            doc: doc.description,
+            params: doc.params ?? [],
+        }),
     );
 }
 
@@ -94,12 +102,12 @@ function withMix(declaration: string): string {
 }
 
 function renderMembers(
-    entries: { doc: string; declarations: string[] }[],
+    entries: ChainEntry[],
     transform: (declaration: string) => string = (d) => d,
 ): string {
     return entries
-        .flatMap(({ doc, declarations }) => [
-            jsdoc('    ', doc, [], []),
+        .flatMap(({ doc, declarations, params }) => [
+            jsdoc('    ', doc, params, []),
             ...declarations.map(
                 (declaration) => `    ${transform(declaration)}`,
             ),
