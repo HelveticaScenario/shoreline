@@ -170,7 +170,13 @@ const BP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Nasal bandpass sweep",
-        code: "$unstable.filter.bp($saw('c2'), $sine('0.3hz').range('c4', 'c6'), 3, { slope: 'db12' }).out()",
+        code: r#"
+            $unstable.filter
+              .bp($saw('c2'), $sine('0.3hz').range('c4', 'c6'), 3, {
+                slope: 'db12',
+              })
+              .out()
+        "#,
     }],
 };
 

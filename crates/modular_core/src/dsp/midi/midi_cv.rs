@@ -139,13 +139,23 @@ const MIDI_CV_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Four-voice keyboard synth",
-            code: "const midi = $midiCV({ channels: 4 })\n\
-                   $saw(midi).$.lpf(midi.velocity.range('c4', 'c7'), 1).amp($adsr(midi.gate, { release: 0.4 })).out()",
+            code: r#"
+                const midi = $midiCV({ channels: 4 })
+                $saw(midi)
+                  .$.lpf(midi.velocity.range('c4', 'c7'), 1)
+                  .amp($adsr(midi.gate, { release: 0.4 }))
+                  .out()
+            "#,
         },
         DocExample {
             title: "Mono lead with a wide pitch bend",
-            code: "const lead = $midiCV({ pitchBendRange: 12 })\n\
-                   $pulse(lead).$.lpf(lead.modWheel.range('c4', 'c7'), 2).amp($adsr(lead.gate)).out()",
+            code: r#"
+                const lead = $midiCV({ pitchBendRange: 12 })
+                $pulse(lead)
+                  .$.lpf(lead.modWheel.range('c4', 'c7'), 2)
+                  .amp($adsr(lead.gate))
+                  .out()
+            "#,
         },
     ],
 };

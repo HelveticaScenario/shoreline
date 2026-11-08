@@ -195,12 +195,23 @@ const ADSR_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Plucky filter envelope",
-            code: "const notes = $cycle($p('c3 eb3 g3 bb3'))\n\
-                   $saw(notes).$.lpf($adsr(notes.gate, { decay: 0.2 }).range('c4', 'c7'), 2).out()",
+            code: r#"
+                const notes = $cycle($p('c3 eb3 g3 bb3'))
+                $saw(notes)
+                  .$.lpf(
+                    $adsr(notes.gate, { decay: 0.2 }).range('c4', 'c7'),
+                    2,
+                  )
+                  .out()
+            "#,
         },
         DocExample {
             title: "Slow pad swell",
-            code: "$saw($chord('C3[maj9]')).amp($adsr($pulse('0.25hz'), { attack: 1.5, release: 2 })).out()",
+            code: r#"
+                $saw($chord('C3[maj9]'))
+                  .amp($adsr($pulse('0.25hz'), { attack: 1.5, release: 2 }))
+                  .out()
+            "#,
         },
     ],
 };

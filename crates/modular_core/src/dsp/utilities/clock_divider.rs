@@ -49,8 +49,18 @@ const CLOCK_DIVIDER_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Bass on every other beat",
-        code: "$saw('c2').amp($perc($clockDivider($clock.beatTrigger, 2), { decay: 0.3 })).out()\n\
-               $noise('white').amp($perc($clock.beatTrigger, { decay: 0.03 })).out()",
+        code: r#"
+            $saw('c2')
+              .amp(
+                $perc($clockDivider($clock.beatTrigger, 2), {
+                  decay: 0.3,
+                }),
+              )
+              .out()
+            $noise('white')
+              .amp($perc($clock.beatTrigger, { decay: 0.03 }))
+              .out()
+        "#,
     }],
 };
 

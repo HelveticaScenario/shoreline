@@ -290,10 +290,12 @@ const LT909_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Tom fill",
-        code: "$tr909.kick($cycle($p('c*4')).trig).out()\n\
-               $tr909.highTom($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()\n\
-               $tr909.midTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [c ~]')).trig).out()\n\
-               $tr909.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [~ c]')).trig).out()",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.highTom($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()
+            $tr909.midTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [c ~]')).trig).out()
+            $tr909.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [~ c]')).trig).out()
+        "#,
     }],
 };
 
@@ -314,8 +316,10 @@ const MT909_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Rolling tom groove",
-        code: "$tr909.kick($cycle($p('c*4')).trig).out()\n\
-               $tr909.midTom($cycle($p('~ c ~ c c ~ ~ c')).trig).out()",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.midTom($cycle($p('~ c ~ c c ~ ~ c')).trig).out()
+        "#,
     }],
 };
 
@@ -336,8 +340,10 @@ const HT909_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Tuned tom melody",
-        code: "const toms = $cycle($p('c3 ~ eb3 f3 ~ c3 bb2 ~'))\n\
-               $tr909.highTom(toms.trig, { freq: toms }).out()",
+        code: r#"
+            const toms = $cycle($p('c3 ~ eb3 f3 ~ c3 bb2 ~'))
+            $tr909.highTom(toms.trig, { freq: toms }).out()
+        "#,
     }],
 };
 

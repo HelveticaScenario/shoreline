@@ -73,8 +73,12 @@ const RISING_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Only the upward steps sound",
-        code: "const notes = $cycle($p('c3 e3 g3 e3 c4 g3'))\n\
-               $sine(notes).amp($perc($rising(notes), { decay: 0.3 })).out()",
+        code: r#"
+            const notes = $cycle($p('c3 e3 g3 e3 c4 g3'))
+            $sine(notes)
+              .amp($perc($rising(notes), { decay: 0.3 }))
+              .out()
+        "#,
     }],
 };
 
@@ -117,8 +121,12 @@ const FALLING_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Only the downward steps sound",
-        code: "const notes = $cycle($p('c3 e3 g3 e3 c4 g3'))\n\
-               $sine(notes).amp($perc($falling(notes), { decay: 0.3 })).out()",
+        code: r#"
+            const notes = $cycle($p('c3 e3 g3 e3 c4 g3'))
+            $sine(notes)
+              .amp($perc($falling(notes), { decay: 0.3 }))
+              .out()
+        "#,
     }],
 };
 

@@ -233,10 +233,16 @@ const DRUM_MAP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Morphing drum loop",
-        code: "const drums = $drumMap({ x: $sine('0.05hz').range(0, 5), y: 3, chaos: 0.5 })\n\
-               $tr808.kick(drums).out()\n\
-               $tr808.snare(drums.sd).out()\n\
-               $tr808.hiHat(drums.hh).out()",
+        code: r#"
+            const drums = $drumMap({
+              x: $sine('0.05hz').range(0, 5),
+              y: 3,
+              chaos: 0.5,
+            })
+            $tr808.kick(drums).out()
+            $tr808.snare(drums.sd).out()
+            $tr808.hiHat(drums.hh).out()
+        "#,
     }],
 };
 

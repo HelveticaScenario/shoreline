@@ -318,8 +318,14 @@ const TRIPOLE_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Wild resonant bass",
-        code: "const seq = $cycle($p('d2*2 [f2 d3] a1 [c2 ~ d2]'))\n\
-              $unstable.filter.tripole($saw(seq), $sine('0.3hz').range('c3', 'c6'), 3, { mode: 'lhl' }).out()",
+        code: r#"
+            const seq = $cycle($p('d2*2 [f2 d3] a1 [c2 ~ d2]'))
+            $unstable.filter
+              .tripole($saw(seq), $sine('0.3hz').range('c3', 'c6'), 3, {
+                mode: 'lhl',
+              })
+              .out()
+        "#,
     }],
 };
 

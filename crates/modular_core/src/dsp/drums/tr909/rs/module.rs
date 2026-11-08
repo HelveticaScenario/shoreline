@@ -66,8 +66,10 @@ const RS909_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Ticking rim shots",
-        code: "$tr909.kick($cycle($p('c*4')).trig).out()\n\
-               $tr909.rimShot($cycle($p('~ c ~ c c ~ ~ c')).trig).out()",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.rimShot($cycle($p('~ c ~ c c ~ ~ c')).trig).out()
+        "#,
     }],
 };
 

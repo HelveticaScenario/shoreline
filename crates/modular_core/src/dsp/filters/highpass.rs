@@ -48,11 +48,19 @@ const HPF_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Pad thinning out and back",
-            code: "$saw($chord('C3[maj7]')).$.hpf($sine('0.1hz').range('c3', 'c6'), 2).out()",
+            code: r#"
+                $saw($chord('C3[maj7]'))
+                  .$.hpf($sine('0.1hz').range('c3', 'c6'), 2)
+                  .out()
+            "#,
         },
         DocExample {
             title: "Riser across each bar",
-            code: "$noise('white').$.hpf($clock.ramp.range('c2', 'c9'), 2).out()",
+            code: r#"
+                $noise('white')
+                  .$.hpf($clock.ramp.range('c2', 'c9'), 2)
+                  .out()
+            "#,
         },
     ],
 };

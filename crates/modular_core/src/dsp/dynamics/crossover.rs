@@ -147,8 +147,14 @@ const XOVER_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Tremolo on the mids only",
-        code: "const bands = $xover($saw('c2'))\n\
-               $mix([bands.low, bands.mid.amp($sine('4hz').range(0, 5)), bands.high]).out()",
+        code: r#"
+            const bands = $xover($saw('c2'))
+            $mix([
+              bands.low,
+              bands.mid.amp($sine('4hz').range(0, 5)),
+              bands.high,
+            ]).out()
+        "#,
     }],
 };
 

@@ -67,7 +67,12 @@ const FUZZ_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Fuzz lead",
-        code: "$saw('a3').$.unstable.shape.fuzz('heavy', 2).$.lpf('c7').out()",
+        code: r#"
+            $saw('a3')
+              .$.unstable.shape.fuzz('heavy', 2)
+              .$.lpf('c7')
+              .out()
+        "#,
     }],
 };
 

@@ -105,11 +105,23 @@ const APF_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Ringing, pitched smear with repeats",
-            code: "$pPulse($clock[0]).$.apf('g3', { stages: 32, resonance: 3, feedback: 3 }).out()",
+            code: r#"
+                $pPulse($clock[0])
+                  .$.apf('g3', { stages: 32, resonance: 3, feedback: 3 })
+                  .out()
+            "#,
         },
         DocExample {
             title: "Four-stage phaser",
-            code: "$saw('c2').$m.apf(2.5, $sine('0.2hz').range(-1, 3), { stages: 4, resonance: 2, feedback: 3 }).out()",
+            code: r#"
+                $saw('c2')
+                  .$m.apf(2.5, $sine('0.2hz').range(-1, 3), {
+                    stages: 4,
+                    resonance: 2,
+                    feedback: 3,
+                  })
+                  .out()
+            "#,
         },
     ],
 };

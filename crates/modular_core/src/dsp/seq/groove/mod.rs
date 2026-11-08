@@ -110,9 +110,18 @@ const GROOVE_DOCS: ModuleDocs = ModuleDocs {
     }],
     examples: &[DocExample {
         title: "Shuffled eighths with soft offbeats",
-        code: "const g = $groove({ timing: [0, 0.3], velocity: [1, 0.6], grid: 8 })\n\
-               const seq = $cycle($p('c4 e4 g4 c5 g4 e4 c4 g3'), { groove: g, velocity: g.velocity })\n\
-               $sine(seq).amp($adsr(seq.gate)).amp(seq.velocity).out()",
+        code: r#"
+            const g = $groove({
+              timing: [0, 0.3],
+              velocity: [1, 0.6],
+              grid: 8,
+            })
+            const seq = $cycle($p('c4 e4 g4 c5 g4 e4 c4 g3'), {
+              groove: g,
+              velocity: g.velocity,
+            })
+            $sine(seq).amp($adsr(seq.gate)).amp(seq.velocity).out()
+        "#,
     }],
 };
 

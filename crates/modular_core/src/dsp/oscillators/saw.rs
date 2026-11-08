@@ -105,8 +105,10 @@ const SAW_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Acid bass sweep",
-            code: "const seq = $cycle($p('c2 c2 [c3 c2] eb2'))\n\
-                   $saw(seq).$.lpf($sine('0.25hz').range('c3', 'c6'), 4).out()",
+            code: r#"
+                const seq = $cycle($p('c2 c2 [c3 c2] eb2'))
+                $saw(seq).$.lpf($sine('0.25hz').range('c3', 'c6'), 4).out()
+            "#,
         },
         DocExample {
             title: "Breathing triangle",

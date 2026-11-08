@@ -203,9 +203,13 @@ const K35_LP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Snarling lead",
-        code: "const lead = $saw($cycle($p('c3 eb3 g3 bb3')))\n\
-              const sweep = $sine('0.5hz').range('c4', 'c7')\n\
-              $unstable.filter.k35Lp(lead, sweep, 4, { saturation: 'heavy' }).out()",
+        code: r#"
+            const lead = $saw($cycle($p('c3 eb3 g3 bb3')))
+            const sweep = $sine('0.5hz').range('c4', 'c7')
+            $unstable.filter
+              .k35Lp(lead, sweep, 4, { saturation: 'heavy' })
+              .out()
+        "#,
     }],
 };
 
@@ -229,7 +233,13 @@ const K35_HP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Whistling highpass on a saw",
-        code: "$unstable.filter.k35Hp($saw('c2'), $sine('0.15hz').range('c3', 'c6'), 4, { saturation: 'mild' }).out()",
+        code: r#"
+            $unstable.filter
+              .k35Hp($saw('c2'), $sine('0.15hz').range('c3', 'c6'), 4, {
+                saturation: 'mild',
+              })
+              .out()
+        "#,
     }],
 };
 

@@ -55,7 +55,12 @@ const SATURATE_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Driven bass",
-        code: "$saw('c2').$.unstable.shape.saturate('soft', 3).$.lpf('c5').out()",
+        code: r#"
+            $saw('c2')
+              .$.unstable.shape.saturate('soft', 3)
+              .$.lpf('c5')
+              .out()
+        "#,
     }],
 };
 

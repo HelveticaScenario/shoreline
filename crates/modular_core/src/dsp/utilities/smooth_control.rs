@@ -45,7 +45,11 @@ const SMOOTH_CONTROL_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Filter cutoff on a slider",
-        code: "$saw('c2').$.lpf($slider('Cutoff', 2, 0, 5), 2).out()",
+        code: r#"
+            $saw('c2')
+              .$.lpf($slider('Cutoff', 2, 0, 5), 2)
+              .out()
+        "#,
     }],
 };
 

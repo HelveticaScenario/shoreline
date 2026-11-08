@@ -82,8 +82,10 @@ const BD808_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Tuned 808 bassline",
-            code: "const bass = $cycle($p('g1 ~ ~ g1 ~ ~ bb1 c2'))\n\
-                   $tr808.kick(bass.trig, { freq: bass, decay: 4.5 }).out()",
+            code: r#"
+                const bass = $cycle($p('g1 ~ ~ g1 ~ ~ bb1 c2'))
+                $tr808.kick(bass.trig, { freq: bass, decay: 4.5 }).out()
+            "#,
         },
     ],
 };

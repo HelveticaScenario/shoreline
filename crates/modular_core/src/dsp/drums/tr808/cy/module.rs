@@ -68,8 +68,10 @@ const CY808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Crash on the one",
-        code: "$tr808.kick($cycle($p('c*4')).trig).out()\n\
-               $tr808.cymbal($clock.barTrigger, { decay: 4 }).out()",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            $tr808.cymbal($clock.barTrigger, { decay: 4 }).out()
+        "#,
     }],
 };
 

@@ -210,13 +210,26 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "LFO melody in C major",
-            code: "const melody = $quantizer($sine('0.13hz').range('c3', 'c5'), 'C(major)')\n\
-                   $sine(melody).amp($perc(melody.trig, { decay: 0.3 })).out()",
+            code: r#"
+                const melody = $quantizer(
+                  $sine('0.13hz').range('c3', 'c5'),
+                  'C(major)',
+                )
+                $sine(melody)
+                  .amp($perc(melody.trig, { decay: 0.3 }))
+                  .out()
+            "#,
         },
         DocExample {
             title: "Playing only the keys you hold",
-            code: "const midi = $midiCV({ channels: 4 })\n\
-                   $sine($quantizer($sine('0.1hz').range('c3', 'c5'), midi, { gate: midi.gate })).out()",
+            code: r#"
+                const midi = $midiCV({ channels: 4 })
+                $sine(
+                  $quantizer($sine('0.1hz').range('c3', 'c5'), midi, {
+                    gate: midi.gate,
+                  }),
+                ).out()
+            "#,
         },
     ],
 };

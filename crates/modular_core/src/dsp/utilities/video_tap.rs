@@ -110,8 +110,10 @@ const VIDEO_TAP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "LFO driving a video oscillator",
-        code: "const lfo = $sine('0.5hz')\n\
-               $v.out($v.solid($v.osc(lfo.range(1, 10)), 0, 0))",
+        code: r#"
+            const lfo = $sine('0.5hz')
+            $v.out($v.solid($v.osc(lfo.range(1, 10)), 0, 0))
+        "#,
     }],
 };
 

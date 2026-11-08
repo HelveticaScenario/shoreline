@@ -62,7 +62,15 @@ const P_PULSE_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Mirrored pulse sweep",
-        code: "$pPulse($pWarp($ramp('c3'), $phase.mirror($sine('0.3hz').range(0, 5))), { width: 1 }).out()",
+        code: r#"
+            $pPulse(
+              $pWarp(
+                $ramp('c3'),
+                $phase.mirror($sine('0.3hz').range(0, 5)),
+              ),
+              { width: 1 },
+            ).out()
+        "#,
     }],
 };
 

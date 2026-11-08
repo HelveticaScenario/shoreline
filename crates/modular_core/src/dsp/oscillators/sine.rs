@@ -69,12 +69,20 @@ const SINE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Soft sine melody",
-            code: "const seq = $cycle($p('c4 e4 g4 <b4 a4>'))\n\
-                   $sine(seq).amp($perc(seq.trig, { decay: 0.3 })).out()",
+            code: r#"
+                const seq = $cycle($p('c4 e4 g4 <b4 a4>'))
+                $sine(seq)
+                  .amp($perc(seq.trig, { decay: 0.3 }))
+                  .out()
+            "#,
         },
         DocExample {
             title: "FM bell",
-            code: "$sine('c4', { fm: $sine('c5').range(-3, 3) }).amp($perc($clock.beatTrigger, { decay: 1 })).out()",
+            code: r#"
+                $sine('c4', { fm: $sine('c5').range(-3, 3) })
+                  .amp($perc($clock.beatTrigger, { decay: 1 }))
+                  .out()
+            "#,
         },
     ],
 };

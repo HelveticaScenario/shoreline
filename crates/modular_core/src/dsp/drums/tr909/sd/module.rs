@@ -74,8 +74,12 @@ const SD909_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Backbeat doubled on four",
-        code: "$tr909.kick($cycle($p('c*4')).trig).out()\n\
-               $tr909.snare($cycle($p('~ c ~ [c c]')).trig, { snappy: 4 }).out()",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909
+              .snare($cycle($p('~ c ~ [c c]')).trig, { snappy: 4 })
+              .out()
+        "#,
     }],
 };
 

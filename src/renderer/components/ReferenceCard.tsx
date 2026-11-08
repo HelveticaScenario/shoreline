@@ -1,6 +1,7 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 import { LinkifyTypes } from './DocsTypeLinks';
+import { useCustomMonaco } from '../hooks/useCustomMonaco';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type { EnumVariantInfo } from '../../shared/dsl/schemaTypeResolver';
 import type {
@@ -68,14 +69,52 @@ const DocTableView: React.FC<{ table: DocTable }> = ({ table }) => (
     </table>
 );
 
+/** Colorized HTML by source, so a card scrolled back into view keeps its
+ *  colours without a flash of plain text. */
+const colorized = new Map<string, string>();
+
+/** An example in the editor's colours, plain until Monaco has tokenized it. */
+const ExampleCode: React.FC<{ code: string }> = ({ code }) => {
+    const monaco = useCustomMonaco();
+    const [html, setHtml] = useState(() => colorized.get(code));
+    useEffect(() => {
+        if (!monaco || html) {
+            return;
+        }
+        let live = true;
+        monaco.editor
+            .colorize(code, 'javascript', { tabSize: 2 })
+            .then((result) => {
+                colorized.set(code, result);
+                if (live) {
+                    setHtml(result);
+                }
+            })
+            .catch(() => {
+                // The plain code stays.
+            });
+        return () => {
+            live = false;
+        };
+    }, [monaco, code, html]);
+    return (
+        <pre>
+            {html ? (
+                // Monaco escapes the source it tokenizes.
+                <code dangerouslySetInnerHTML={{ __html: html }} />
+            ) : (
+                <code>{code}</code>
+            )}
+        </pre>
+    );
+};
+
 const Examples: React.FC<{ examples: DocExample[] }> = ({ examples }) => (
     <>
         {examples.map((e) => (
             <figure key={e.title} className="doc-example">
                 <figcaption>{e.title}</figcaption>
-                <pre>
-                    <code>{e.code}</code>
-                </pre>
+                <ExampleCode code={e.code} />
             </figure>
         ))}
     </>

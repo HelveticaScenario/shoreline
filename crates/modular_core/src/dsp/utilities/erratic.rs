@@ -247,7 +247,15 @@ const ERRATIC_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Tremolo that changes depth each beat",
-        code: "$saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock.beatTrigger })).out()",
+        code: r#"
+            $saw('c3')
+              .amp(
+                $sine('4hz')
+                  .range(2, 5)
+                  .erratic(2, { trigger: $clock.beatTrigger }),
+              )
+              .out()
+        "#,
     }],
 };
 

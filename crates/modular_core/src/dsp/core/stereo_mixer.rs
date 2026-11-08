@@ -52,7 +52,11 @@ const STEREO_MIX_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Chord fanned across the stereo field",
-        code: "$stereoMix($saw($chord('C3[m9]')).$.lpf('c5', 1), { width: 4 }).out()",
+        code: r#"
+            $stereoMix($saw($chord('C3[m9]')).$.lpf('c5', 1), {
+              width: 4,
+            }).out()
+        "#,
     }],
 };
 

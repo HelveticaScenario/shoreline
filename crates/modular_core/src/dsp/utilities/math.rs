@@ -167,7 +167,12 @@ const MATH_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Crossfading two oscillators",
-            code: "$math('x * sin(t) + y * cos(t)', { x: $saw('c3'), y: $pulse('c3') }).out()",
+            code: r#"
+                $math('x * sin(t) + y * cos(t)', {
+                  x: $saw('c3'),
+                  y: $pulse('c3'),
+                }).out()
+            "#,
         },
         DocExample {
             title: "Ring-modulated bell",

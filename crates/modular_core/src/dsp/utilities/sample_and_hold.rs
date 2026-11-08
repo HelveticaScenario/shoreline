@@ -39,11 +39,31 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Random notes in C major",
-            code: "$sine($quantizer($sah($noise('white').range('c3', 'c5'), $clock.beatTrigger), 'C(major)')).out()",
+            code: r#"
+                $sine(
+                  $quantizer(
+                    $sah(
+                      $noise('white').range('c3', 'c5'),
+                      $clock.beatTrigger,
+                    ),
+                    'C(major)',
+                  ),
+                ).out()
+            "#,
         },
         DocExample {
             title: "Stepped random filter",
-            code: "$saw('c2').$.lpf($sah($noise('white').range('c4', 'c7'), $clock.beatTrigger), 3).out()",
+            code: r#"
+                $saw('c2')
+                  .$.lpf(
+                    $sah(
+                      $noise('white').range('c4', 'c7'),
+                      $clock.beatTrigger,
+                    ),
+                    3,
+                  )
+                  .out()
+            "#,
         },
     ],
 };
@@ -118,7 +138,11 @@ const TAH_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Glide that freezes in steps",
-        code: "$sine($tah($sine('0.3hz').range('c3', 'c5'), $pulse('1hz'))).out()",
+        code: r#"
+            $sine(
+              $tah($sine('0.3hz').range('c3', 'c5'), $pulse('1hz')),
+            ).out()
+        "#,
     }],
 };
 

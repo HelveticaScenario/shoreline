@@ -89,9 +89,13 @@ const HH808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Hats with open offbeats",
-        code: "$tr808.kick($cycle($p('c*4')).trig).out()\n\
-               const open = $cycle($p('~ c ~ c ~ c ~ c')).trig\n\
-               $tr808.hiHat($cycle($p('c ~ c ~ c ~ c ~')).trig, { open }).out()",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            const open = $cycle($p('~ c ~ c ~ c ~ c')).trig
+            $tr808
+              .hiHat($cycle($p('c ~ c ~ c ~ c ~')).trig, { open })
+              .out()
+        "#,
     }],
 };
 

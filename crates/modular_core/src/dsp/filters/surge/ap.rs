@@ -65,8 +65,17 @@ const AP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "One-notch phaser",
-        code: "const saw = $saw('c2')\n\
-              $mix([saw, $unstable.filter.ap(saw, $sine('0.2hz').range('c3', 'c6'), 2)]).out()",
+        code: r#"
+            const saw = $saw('c2')
+            $mix([
+              saw,
+              $unstable.filter.ap(
+                saw,
+                $sine('0.2hz').range('c3', 'c6'),
+                2,
+              ),
+            ]).out()
+        "#,
     }],
 };
 

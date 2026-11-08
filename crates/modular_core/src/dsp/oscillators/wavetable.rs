@@ -165,13 +165,23 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Scanning pad",
-            code: "$wavetable($chord('C3[m9]'), $wavs().tables.pad, $sine('0.1hz').range(0, 5)).out()",
+            code: r#"
+                $wavetable(
+                  $chord('C3[m9]'),
+                  $wavs().tables.pad,
+                  $sine('0.1hz').range(0, 5),
+                ).out()
+            "#,
         },
         DocExample {
             title: "Plucked table sweep",
-            code: "const seq = $cycle($p('c3 eb3 g3 bb3'))\n\
-                   const env = $perc(seq.trig, { decay: 0.5 })\n\
-                   $wavetable(seq, $wavs().tables.pad, env.range(0, 4)).amp(env).out()",
+            code: r#"
+                const seq = $cycle($p('c3 eb3 g3 bb3'))
+                const env = $perc(seq.trig, { decay: 0.5 })
+                $wavetable(seq, $wavs().tables.pad, env.range(0, 4))
+                  .amp(env)
+                  .out()
+            "#,
         },
     ],
 };

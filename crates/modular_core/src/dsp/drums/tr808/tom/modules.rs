@@ -228,7 +228,11 @@ const LT808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Booming tom groove",
-        code: "$tr808.lowTom($cycle($p('c ~ ~ c ~ ~ c ~')).trig, { decay: 4 }).out()",
+        code: r#"
+            $tr808
+              .lowTom($cycle($p('c ~ ~ c ~ ~ c ~')).trig, { decay: 4 })
+              .out()
+        "#,
     }],
 };
 
@@ -250,9 +254,11 @@ const MT808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Tom fill",
-        code: "$tr808.highTom($cycle($p('~ ~ ~ ~ c c ~ ~')).trig).out()\n\
-               $tr808.midTom($cycle($p('~ ~ ~ ~ ~ ~ c ~')).trig).out()\n\
-               $tr808.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ c')).trig).out()",
+        code: r#"
+            $tr808.highTom($cycle($p('~ ~ ~ ~ c c ~ ~')).trig).out()
+            $tr808.midTom($cycle($p('~ ~ ~ ~ ~ ~ c ~')).trig).out()
+            $tr808.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ c')).trig).out()
+        "#,
     }],
 };
 
@@ -274,8 +280,10 @@ const HT808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Tuned tom melody",
-        code: "const toms = $cycle($p('g3 ~ bb3 c4 ~ g3 f3 ~'))\n\
-               $tr808.highTom(toms.trig, { freq: toms }).out()",
+        code: r#"
+            const toms = $cycle($p('g3 ~ bb3 c4 ~ g3 f3 ~'))
+            $tr808.highTom(toms.trig, { freq: toms }).out()
+        "#,
     }],
 };
 
@@ -297,8 +305,10 @@ const LC808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Two-conga pattern",
-        code: "$tr808.lowConga($cycle($p('~ ~ c ~ ~ c c ~')).trig).out()\n\
-               $tr808.highConga($cycle($p('c ~ ~ c ~ ~ ~ ~')).trig).out()",
+        code: r#"
+            $tr808.lowConga($cycle($p('~ ~ c ~ ~ c c ~')).trig).out()
+            $tr808.highConga($cycle($p('c ~ ~ c ~ ~ ~ ~')).trig).out()
+        "#,
     }],
 };
 
@@ -320,8 +330,10 @@ const MC808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Congas and claves",
-        code: "$tr808.midConga($cycle($p('c ~ c c ~ c ~ ~')).trig).out()\n\
-               $tr808.claves($cycle($p('c ~ ~ c ~ ~ c ~')).trig).out()",
+        code: r#"
+            $tr808.midConga($cycle($p('c ~ c c ~ c ~ ~')).trig).out()
+            $tr808.claves($cycle($p('c ~ ~ c ~ ~ c ~')).trig).out()
+        "#,
     }],
 };
 
@@ -343,9 +355,11 @@ const HC808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Three-conga groove",
-        code: "$tr808.highConga($cycle($p('c ~ ~ c ~ ~ ~ ~')).trig).out()\n\
-               $tr808.midConga($cycle($p('~ ~ c ~ ~ c ~ ~')).trig).out()\n\
-               $tr808.lowConga($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()",
+        code: r#"
+            $tr808.highConga($cycle($p('c ~ ~ c ~ ~ ~ ~')).trig).out()
+            $tr808.midConga($cycle($p('~ ~ c ~ ~ c ~ ~')).trig).out()
+            $tr808.lowConga($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()
+        "#,
     }],
 };
 

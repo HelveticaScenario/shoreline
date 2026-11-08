@@ -91,9 +91,14 @@ const WOW_FLUTTER_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "The full Beads chain",
-            code: "const grains = $pulse('8hz')\n\
-                   const cloud = $granular($saw('a3'), grains, { mix: 4, quality: 'dirtyTape' })\n\
-                   $reverb($wowFlutter(cloud), 3, { size: 5, tone: 2 }).out()",
+            code: r#"
+                const grains = $pulse('8hz')
+                const cloud = $granular($saw('a3'), grains, {
+                  mix: 4,
+                  quality: 'dirtyTape',
+                })
+                $reverb($wowFlutter(cloud), 3, { size: 5, tone: 2 }).out()
+            "#,
         },
     ],
 };

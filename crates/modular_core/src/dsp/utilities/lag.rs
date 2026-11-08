@@ -57,11 +57,25 @@ const SLEW_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Gliding bassline",
-            code: "$saw($slew($cycle($p('c2 c3 eb2 g2')), { fall: 0.1 })).$.lpf('c5', 2).out()",
+            code: r#"
+                $saw($slew($cycle($p('c2 c3 eb2 g2')), { fall: 0.1 }))
+                  .$.lpf('c5', 2)
+                  .out()
+            "#,
         },
         DocExample {
             title: "Random notes that slide",
-            code: "$sine($slew($sah($noise('white').range('c3', 'c5'), $clock.beatTrigger), { fall: 0.05 })).out()",
+            code: r#"
+                $sine(
+                  $slew(
+                    $sah(
+                      $noise('white').range('c3', 'c5'),
+                      $clock.beatTrigger,
+                    ),
+                    { fall: 0.05 },
+                  ),
+                ).out()
+            "#,
         },
     ],
 };

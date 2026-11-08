@@ -54,8 +54,17 @@ const TRACK_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Filter that opens and closes each bar",
-        code: "const cutoff = $track([['c3', 0], ['c6', 0.75], ['c3', 1]], { interpolationType: 'cubicIn' })\n\
-               $saw('c2').$.lpf(cutoff, 3).out()",
+        code: r#"
+            const cutoff = $track(
+              [
+                ['c3', 0],
+                ['c6', 0.75],
+                ['c3', 1],
+              ],
+              { interpolationType: 'cubicIn' },
+            )
+            $saw('c2').$.lpf(cutoff, 3).out()
+        "#,
     }],
 };
 

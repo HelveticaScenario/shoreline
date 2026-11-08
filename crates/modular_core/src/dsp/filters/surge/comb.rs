@@ -151,9 +151,15 @@ const COMB_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Plucked strings from noise bursts",
-        code: "const burst = $noise('white').amp($perc($clock.beatTrigger, { decay: 0.02 }))\n\
-              const notes = $cycle($p('c3 eb3 g3 bb3'))\n\
-              $unstable.filter.comb(burst, notes, 4.5, { mix: 'full' }).out()",
+        code: r#"
+            const burst = $noise('white').amp(
+              $perc($clock.beatTrigger, { decay: 0.02 }),
+            )
+            const notes = $cycle($p('c3 eb3 g3 bb3'))
+            $unstable.filter
+              .comb(burst, notes, 4.5, { mix: 'full' })
+              .out()
+        "#,
     }],
 };
 

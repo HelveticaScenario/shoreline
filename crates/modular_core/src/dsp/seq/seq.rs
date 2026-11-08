@@ -312,8 +312,15 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             }),
             examples: &[DocExample {
                 title: "Plucked bass line",
-                code: "const seq = $cycle($p('c2 ~ eb2 g2 ~ c3 bb2 g2'))\n\
-                       $saw(seq).$.lpf($perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'), 2).out()",
+                code: r#"
+                    const seq = $cycle($p('c2 ~ eb2 g2 ~ c3 bb2 g2'))
+                    $saw(seq)
+                      .$.lpf(
+                        $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'),
+                        2,
+                      )
+                      .out()
+                "#,
             }],
         },
         DocSection {
@@ -341,8 +348,10 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             }),
             examples: &[DocExample {
                 title: "Bass that changes every bar",
-                code: "const seq = $cycle($p('<c2 ab1 f1 g1> [~ c3] ~ c2'))\n\
-                       $saw(seq).$.lpf('c5', 1).amp($adsr(seq.gate)).out()",
+                code: r#"
+                    const seq = $cycle($p('<c2 ab1 f1 g1> [~ c3] ~ c2'))
+                    $saw(seq).$.lpf('c5', 1).amp($adsr(seq.gate)).out()
+                "#,
             }],
         },
         DocSection {
@@ -352,8 +361,10 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             table: None,
             examples: &[DocExample {
                 title: "Melody over a drone",
-                code: "const seq = $cycle($p('c4 eb4 g4 bb4, c3'))\n\
-                       $saw(seq).$.lpf('c5', 1).amp($adsr(seq.gate)).out()",
+                code: r#"
+                    const seq = $cycle($p('c4 eb4 g4 bb4, c3'))
+                    $saw(seq).$.lpf('c5', 1).amp($adsr(seq.gate)).out()
+                "#,
             }],
         },
         DocSection {
@@ -363,8 +374,10 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             table: None,
             examples: &[DocExample {
                 title: "A melody that never quite repeats",
-                code: "const seq = $cycle($p('c4 [eb4|g4|bb4] f4? [g4|c5]'))\n\
-                       $sine(seq).amp($adsr(seq.gate)).out()",
+                code: r#"
+                    const seq = $cycle($p('c4 [eb4|g4|bb4] f4? [g4|c5]'))
+                    $sine(seq).amp($adsr(seq.gate)).out()
+                "#,
             }],
         },
         DocSection {
@@ -410,18 +423,25 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             }),
             examples: &[DocExample {
                 title: "Euclidean rhythm",
-                code: "const seq = $cycle($p('c2(3,8) [g2 c3](5,8,2)'))\n\
-                       $pulse(seq).$.lpf('c5', 2).amp($adsr(seq.gate)).out()",
+                code: r#"
+                    const seq = $cycle($p('c2(3,8) [g2 c3](5,8,2)'))
+                    $pulse(seq).$.lpf('c5', 2).amp($adsr(seq.gate)).out()
+                "#,
             }],
         },
     ],
     examples: &[DocExample {
         title: "Swung hats over a straight bass",
-        code: "$setGroove($swing(0.6))\n\
-               const hats = $cycle($p('c5*8'))\n\
-               const bass = $cycle($p('c2*4'), { groove: 0 })\n\
-               $noise('white').amp($perc(hats.trig, { decay: 0.05 })).amp(hats.velocity).out()\n\
-               $saw(bass).$.lpf('c4', 1).amp($adsr(bass.gate)).out()",
+        code: r#"
+            $setGroove($swing(0.6))
+            const hats = $cycle($p('c5*8'))
+            const bass = $cycle($p('c2*4'), { groove: 0 })
+            $noise('white')
+              .amp($perc(hats.trig, { decay: 0.05 }))
+              .amp(hats.velocity)
+              .out()
+            $saw(bass).$.lpf('c4', 1).amp($adsr(bass.gate)).out()
+        "#,
     }],
 };
 

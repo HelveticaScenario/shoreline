@@ -86,12 +86,25 @@ const PULSE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "PWM chord pad",
-            code: "$pulse($chord('C3[m]'), { pwm: $sine('0.3hz').range(-2, 2) }).$.lpf('c6').out()",
+            code: r#"
+                $pulse($chord('C3[m]'), {
+                  pwm: $sine('0.3hz').range(-2, 2),
+                })
+                  .$.lpf('c6')
+                  .out()
+            "#,
         },
         DocExample {
             title: "Plucked square bass",
-            code: "const seq = $cycle($p('c2 c2 eb2 g1'))\n\
-                   $pulse(seq).$.lpf($perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'), 2).out()",
+            code: r#"
+                const seq = $cycle($p('c2 c2 eb2 g1'))
+                $pulse(seq)
+                  .$.lpf(
+                    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'),
+                    2,
+                  )
+                  .out()
+            "#,
         },
     ],
 };

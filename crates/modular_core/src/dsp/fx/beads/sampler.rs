@@ -175,12 +175,14 @@ const GRANULAR_SAMPLER_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Scattered pad texture",
-        code: "const grains = $pulse('8hz')\n\
-                   $granularSampler($wavs().pad, grains, {\n\
-                   \x20\x20time: $sah($noise('white').range(0, 5), grains),\n\
-                   \x20\x20width: 4,\n\
-                   \x20\x20spread: 2,\n\
-                   }).out()",
+        code: r#"
+            const grains = $pulse('8hz')
+            $granularSampler($wavs().pad, grains, {
+              time: $sah($noise('white').range(0, 5), grains),
+              width: 4,
+              spread: 2,
+            }).out()
+        "#,
     }],
 };
 

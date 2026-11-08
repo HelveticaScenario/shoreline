@@ -151,8 +151,16 @@ const OBXD2_LP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Brassy chord stab",
-        code: "const seq = $cycle($p('[c3, eb3, g3] ~ ~ [bb2, d3, f3]'))\n\
-              $unstable.filter.obxd2Lp($saw(seq), $perc(seq.trig, { decay: 0.4 }).range('c4', 'c7'), 2).out()",
+        code: r#"
+            const seq = $cycle($p('[c3, eb3, g3] ~ ~ [bb2, d3, f3]'))
+            $unstable.filter
+              .obxd2Lp(
+                $saw(seq),
+                $perc(seq.trig, { decay: 0.4 }).range('c4', 'c7'),
+                2,
+              )
+              .out()
+        "#,
     }],
 };
 
@@ -164,7 +172,11 @@ const OBXD2_BP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Vocal band sweep",
-        code: "$unstable.filter.obxd2Bp($saw('c2'), $sine('0.3hz').range('c4', 'c6'), 3).out()",
+        code: r#"
+            $unstable.filter
+              .obxd2Bp($saw('c2'), $sine('0.3hz').range('c4', 'c6'), 3)
+              .out()
+        "#,
     }],
 };
 
@@ -175,7 +187,15 @@ const OBXD2_HP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Airy thinned pad",
-        code: "$unstable.filter.obxd2Hp($saw($chord('C3[maj9]')), $sine('0.1hz').range('c3', 'c5'), 2).out()",
+        code: r#"
+            $unstable.filter
+              .obxd2Hp(
+                $saw($chord('C3[maj9]')),
+                $sine('0.1hz').range('c3', 'c5'),
+                2,
+              )
+              .out()
+        "#,
     }],
 };
 
@@ -187,7 +207,15 @@ const OBXD2_NOTCH_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Gentle notch sweep",
-        code: "$unstable.filter.obxd2Notch($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 2).out()",
+        code: r#"
+            $unstable.filter
+              .obxd2Notch(
+                $saw('c2'),
+                $sine('0.2hz').range('c3', 'c6'),
+                2,
+              )
+              .out()
+        "#,
     }],
 };
 

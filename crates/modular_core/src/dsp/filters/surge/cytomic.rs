@@ -110,7 +110,13 @@ const FAST_SVF_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Audio-rate bandpass FM",
-        code: "$unstable.filter.fastSvf($saw('c2'), $sine('c3').range('c4', 'c6'), 3, { mode: 'bp' }).out()",
+        code: r#"
+            $unstable.filter
+              .fastSvf($saw('c2'), $sine('c3').range('c4', 'c6'), 3, {
+                mode: 'bp',
+              })
+              .out()
+        "#,
     }],
 };
 

@@ -75,9 +75,11 @@ const COIN_FLIP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Kick or snare, 75/25",
-        code: "const flip = $coinFlip($clock.beatTrigger, 3.75)\n\
-               $tr808.kick(flip).out()\n\
-               $tr808.snare(flip.tails).out()",
+        code: r#"
+            const flip = $coinFlip($clock.beatTrigger, 3.75)
+            $tr808.kick(flip).out()
+            $tr808.snare(flip.tails).out()
+        "#,
     }],
 };
 
