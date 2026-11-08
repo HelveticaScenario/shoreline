@@ -27,8 +27,8 @@ const Prose: React.FC<{ text: string }> = ({ text }) => (
     </>
 );
 
-/** The Help window's Video page, rendered from {@link VIDEO_DOCS}. */
-export const VideoHelp: React.FC = () => (
+/** The Docs panel's Video page, rendered from {@link VIDEO_DOCS}. */
+export const VideoDocs: React.FC = () => (
     <div>
         <h2>Video</h2>
         <div className="types-intro">

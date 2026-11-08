@@ -1,19 +1,23 @@
 import {
     Activity,
+    BookOpen,
     Files,
     type LucideIcon,
     SlidersHorizontal,
 } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { registerCommand, unregisterCommand } from '../keybindings/commands';
+import { DocsPanel, type DocsTarget, SHOW_DOCS_COMMAND } from './DocsPanel';
 import { SidebarSash, sidebarPanelStyle, useSidebarWidth } from './SidebarSash';
 import './Sidebar.css';
 
-export type SidebarTab = 'explorer' | 'control' | 'perform';
+export type SidebarTab = 'explorer' | 'control' | 'perform' | 'docs';
 
 const TABS: { id: SidebarTab; label: string; icon: LucideIcon }[] = [
     { id: 'explorer', label: 'Explorer', icon: Files },
     { id: 'control', label: 'Control', icon: SlidersHorizontal },
     { id: 'perform', label: 'Perform', icon: Activity },
+    { id: 'docs', label: 'Docs', icon: BookOpen },
 ];
 
 interface SidebarProps {
@@ -30,6 +34,21 @@ export function Sidebar({
     const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
     const activeLabel = TABS.find(({ id }) => id === activeTab)?.label;
     const [width, setWidth] = useSidebarWidth();
+    const [docsTarget, setDocsTarget] = useState<DocsTarget | null>(null);
+
+    useEffect(() => {
+        registerCommand(
+            SHOW_DOCS_COMMAND,
+            (target) => {
+                setActiveTab('docs');
+                setDocsTarget((target as DocsTarget | undefined) ?? null);
+            },
+            { label: 'Show Docs', category: 'View' },
+        );
+        return () => {
+            unregisterCommand(SHOW_DOCS_COMMAND);
+        };
+    }, []);
 
     return (
         <div className="app-sidebar">
@@ -47,6 +66,7 @@ export function Sidebar({
                     {
                         {
                             control: controlContent,
+                            docs: <DocsPanel target={docsTarget} />,
                             explorer: explorerContent,
                             perform: performContent,
                         }[activeTab]
@@ -61,7 +81,10 @@ export function Sidebar({
                         aria-label={label}
                         title={label}
                         className={`app-activity-bar-item ${activeTab === id ? 'active' : ''}`}
-                        onClick={() => setActiveTab(id)}
+                        onClick={() => {
+                            setActiveTab(id);
+                            setDocsTarget(null);
+                        }}
                     >
                         <Icon size={22} strokeWidth={1.5} aria-hidden />
                     </button>

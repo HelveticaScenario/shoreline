@@ -393,10 +393,6 @@ export const IPC_CHANNELS = {
     MENU_SET_ACCELERATORS: 'ui:menu-set-accelerators',
     SHOW_UNSAVED_CHANGES_DIALOG: 'ui:show-unsaved-changes-dialog',
 
-    // Window operations
-    OPEN_HELP_WINDOW: 'modular:window:open-help',
-    OPEN_HELP_FOR_SYMBOL: 'modular:window:open-help-for-symbol',
-
     // Config operations
     CONFIG_GET_PATH: 'modular:config:get-path',
     CONFIG_READ: 'modular:config:read',
@@ -595,13 +591,6 @@ export interface IPCHandlers {
     [IPC_CHANNELS.SHOW_UNSAVED_CHANGES_DIALOG]: (
         fileName: string,
     ) => Promise<number>;
-
-    // Window operations
-    [IPC_CHANNELS.OPEN_HELP_WINDOW]: () => void;
-    [IPC_CHANNELS.OPEN_HELP_FOR_SYMBOL]: (
-        symbolType: 'type' | 'module' | 'namespace',
-        symbolName: string,
-    ) => void;
 
     // Config operations
     [IPC_CHANNELS.CONFIG_GET_PATH]: () => string;

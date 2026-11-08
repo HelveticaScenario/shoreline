@@ -77,7 +77,6 @@ class ErrorBoundary extends Component<
         return this.props.children;
     }
 }
-import { HelpWindow } from './components/DocsPanel';
 import { ThemeProvider } from './themes/ThemeContext';
 
 // Configure Monaco Editor workers for Vite (replaces MonacoWebpackPlugin)
@@ -186,13 +185,11 @@ if (!root) {
     throw new Error('Failed to find the root element');
 }
 
-const isHelpWindow = window.location.hash === '#help';
-
 createRoot(root).render(
     <StrictMode>
         <ErrorBoundary>
             <ThemeProvider>
-                {isHelpWindow ? <HelpWindow /> : <App />}
+                <App />
             </ThemeProvider>
         </ErrorBoundary>
     </StrictMode>,
