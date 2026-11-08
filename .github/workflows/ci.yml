@@ -32,10 +32,12 @@ jobs:
             # The vitest suite loads the N-API binding at import time
             # (factories.ts -> @modular/core), so CI must build the native
             # module — which links cpal (ALSA + JACK) and udev on Linux.
-            - name: Install audio system deps (cpal — ALSA/JACK)
+            # The WGSL validation tests run Dawn (the `webgpu` package) on
+            # Mesa's software Vulkan driver, lavapipe, as the runner has no GPU.
+            - name: Install system deps (cpal — ALSA/JACK; Vulkan — lavapipe)
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y libasound2-dev libudev-dev libjack-jackd2-dev
+                  sudo apt-get install -y libasound2-dev libudev-dev libjack-jackd2-dev libvulkan1 mesa-vulkan-drivers
 
             - name: Install dependencies
               run: yarn install --frozen-lockfile
