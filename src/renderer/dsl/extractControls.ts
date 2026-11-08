@@ -20,11 +20,8 @@ import {
 } from '../../shared/dsl/controlCalls';
 import type { SliderDefinition } from '../../shared/dsl/sliderTypes';
 import { parseSliderValue } from '../../shared/dsl/sliderUnits';
-import {
-    appendObjectArgument,
-    insertObjectProperty,
-} from './objectPropertyInsert';
-import type { CodeStyle } from './objectPropertyInsert';
+import { appendObjectArgument, appendObjectProperty } from './listEdits';
+import type { CodeStyle } from './listEdits';
 
 /** A `[start, end)` character range in the parsed source. */
 export interface SourceRange {
@@ -266,9 +263,9 @@ export function groupCollapseEdit(
     const prop = `collapsed: ${String(collapsed)}`;
     const edit =
         target.kind === 'insert'
-            ? insertObjectProperty(sourceFile, target.params, prop, layout)
+            ? appendObjectProperty(sourceFile, target.params, prop, layout)
             : appendObjectArgument(sourceFile, found.call, prop, layout);
-    return { span: edit.span, text: edit.newText };
+    return edit && { span: edit.span, text: edit.newText };
 }
 
 export function extractControls(source: string): StaticControls {

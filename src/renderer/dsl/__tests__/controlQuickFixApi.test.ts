@@ -5,7 +5,7 @@ import * as prettierBabel from 'prettier/plugins/babel';
 import * as prettierEstree from 'prettier/plugins/estree';
 
 import { docHints } from '../apiTypeReader';
-import { syntaxErrors } from '../controlFixEdits';
+import { syntaxErrors } from '../syntaxCheck';
 import { formatControlQuickFix } from '../controlFixFormat';
 import { computeControlQuickFixes } from '../controlQuickFix';
 import {
@@ -13,6 +13,7 @@ import {
     addTitles,
     API,
     apply,
+    LAYOUT,
     fixesAt,
     wrapFix,
 } from './controlQuickFixHarness';
@@ -159,7 +160,7 @@ describe('computeControlQuickFixes — video', () => {
             `Add slider for 'shiftY'`,
         ]);
         expect(apply(source, addFix(fixes, 'zoom'))).toContain(
-            `{ rotate: 0.125, zoom: $slider('zoom', 1, 0, 5),`,
+            `{ rotate: 0.125, zoom: $slider('zoom', 1, 0, 5)`,
         );
         const wrap = fixesAt(`$v.out($v.ramp('angular', { rotate: 0.1|25 }))`);
         expect(apply(wrap.source, wrapFix(wrap.fixes))).toContain(
@@ -277,17 +278,17 @@ describe('docHints', () => {
 });
 
 describe('computeControlQuickFixes — stray and trailing commas', () => {
-    test('a positional add after a trailing comma keeps one comma', () => {
+    test('a positional add after a trailing comma takes it as its separator', () => {
         const { source, fixes } = fixesAt(`$sine(0).$.lpf('100hz',|).out()`);
         expect(apply(source, addFix(fixes, 'resonance'))).toBe(
-            `$sine(0).$.lpf('100hz', $slider('resonance', 0, 0, 5),).out()`,
+            `$sine(0).$.lpf('100hz', $slider('resonance', 0, 0, 5)).out()`,
         );
     });
 
     test('stray commas in the edited argument list are dropped', () => {
         const { source, fixes } = fixesAt(`$sine(0).$.lpf('100hz',,|).out()`);
         expect(apply(source, addFix(fixes, 'resonance'))).toBe(
-            `$sine(0).$.lpf('100hz', $slider('resonance', 0, 0, 5),).out()`,
+            `$sine(0).$.lpf('100hz', $slider('resonance', 0, 0, 5)).out()`,
         );
         const empty = fixesAt(`$saw(,|).out()`);
         expect(apply(empty.source, empty.fixes[0])).toBe(
@@ -300,7 +301,7 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
             `$pulse('a3', { width: 1,, |}).out()`,
         );
         expect(apply(source, addFix(fixes, 'pwm'))).toBe(
-            `$pulse('a3', { width: 1, pwm: $slider('pwm', 0, -5, 5), }).out()`,
+            `$pulse('a3', { width: 1, pwm: $slider('pwm', 0, -5, 5) }).out()`,
         );
         const empty = fixesAt(`$pulse('a3', {|,}).out()`);
         expect(apply(empty.source, addFix(empty.fixes, 'pwm'))).toBe(
@@ -308,12 +309,12 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
         );
     });
 
-    test('a multi-line argument list gets the new argument before its close', () => {
+    test('a multi-line argument list gets the new argument on its own line', () => {
         const { source, fixes } = fixesAt(
             `$sine(0).$.lpf(\n  '100hz',|\n).out()`,
         );
         expect(apply(source, addFix(fixes, 'resonance'))).toBe(
-            `$sine(0).$.lpf(\n  '100hz', $slider('resonance', 0, 0, 5),\n).out()`,
+            `$sine(0).$.lpf(\n  '100hz',\n  $slider('resonance', 0, 0, 5),\n).out()`,
         );
     });
 
@@ -331,7 +332,7 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
             `$sine(0).$.lpf('100hz', /* c */ ,,|).out()`,
         );
         expect(apply(source, addFix(fixes, 'resonance'))).toBe(
-            `$sine(0).$.lpf('100hz', $slider('resonance', 0, 0, 5), /* c */ ).out()`,
+            `$sine(0).$.lpf('100hz', $slider('resonance', 0, 0, 5) /* c */ ).out()`,
         );
     });
 
@@ -340,7 +341,7 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
             `$sine(0).$.lpf('100hz' /* a, b */,|).out()`,
         );
         expect(apply(source, addFix(fixes, 'resonance'))).toBe(
-            `$sine(0).$.lpf('100hz', $slider('resonance', 0, 0, 5), /* a, b */).out()`,
+            `$sine(0).$.lpf('100hz' /* a, b */, $slider('resonance', 0, 0, 5)).out()`,
         );
     });
 
@@ -374,7 +375,12 @@ describe('control quick-fixes never produce malformed JavaScript', () => {
     async function everyFix(source: string) {
         const out: { pos: number; title: string; text: string }[] = [];
         for (let pos = 0; pos <= source.length; pos++) {
-            for (const fix of computeControlQuickFixes(source, pos, API, "'")) {
+            for (const fix of computeControlQuickFixes(
+                source,
+                pos,
+                API,
+                LAYOUT,
+            )) {
                 const formatted = await formatControlQuickFix(
                     source,
                     fix,

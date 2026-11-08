@@ -10,20 +10,15 @@ import * as prettierBabel from 'prettier/plugins/babel';
 import * as prettierEstree from 'prettier/plugins/estree';
 import ts from 'typescript';
 
-import { introducesSyntaxErrors, parseErrors } from './controlFixEdits';
+import type { PrettierConfig } from '../../shared/ipcTypes';
+import { introducesSyntaxErrors, parseErrors } from './syntaxCheck';
 import type { ControlQuickFix } from './controlQuickFix';
-import { indentAt } from './objectPropertyInsert';
-
-/** The user's Prettier options, without parser or plugins. */
-export type FormatOptions = Record<string, unknown> & {
-    printWidth?: number;
-    tabWidth?: number;
-};
+import { indentAt } from './listEdits';
 
 export async function formatControlQuickFix(
     source: string,
     fix: ControlQuickFix,
-    options: FormatOptions,
+    options: PrettierConfig,
 ): Promise<ControlQuickFix> {
     try {
         return (await formatStatement(source, fix, options)) ?? fix;
@@ -35,7 +30,7 @@ export async function formatControlQuickFix(
 async function formatStatement(
     source: string,
     fix: ControlQuickFix,
-    options: FormatOptions,
+    options: PrettierConfig,
 ): Promise<ControlQuickFix | null> {
     const edited =
         source.slice(0, fix.span.start) +
