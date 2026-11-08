@@ -175,7 +175,7 @@ filter_module! {
     name = "$unstable.filter.bp", ident = BpFilter, kernel = BpBiquad,
     output_doc = "bandpass output",
     params = {
-        #[input("slope: 12 or 24 dB/oct (default 24)")]
+        #[input("how steeply it cuts: 12 or 24 dB/oct (default 24)")]
         slope: FilterSlope,
         #[input("drive character (default standard); legacy variants apply at 12 dB only")]
         drive: BpDrive,

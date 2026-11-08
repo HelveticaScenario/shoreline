@@ -27,6 +27,11 @@ import {
     renderOutOptionsMembers,
 } from '../../shared/dsl/outOptions';
 import { GLIDE_CURVES, GLIDE_MODES, literalUnion } from './glideCurves';
+import {
+    formatOutputMeta,
+    paramMeta,
+    withMeta,
+} from '../../shared/dsl/paramRange';
 export type { WavsFolderNode } from './executor';
 
 const BASE_LIB_SOURCE = `
@@ -2461,8 +2466,9 @@ function generateMultiOutputInterface(
         const outputType = getOutputType(output);
         const safeName = sanitizeOutputName(output.name);
 
-        if (output.description) {
-            lines.push(`${indent}  /** ${output.description} */`);
+        const doc = withMeta(output.description, formatOutputMeta(output));
+        if (doc) {
+            lines.push(`${indent}  /** ${doc} */`);
         }
         lines.push(`${indent}  readonly ${safeName}: ${outputType};`);
     }
@@ -2532,10 +2538,13 @@ function buildConfigArg(moduleSchema: Schema): {
         const optionalMark = schemaRequired.includes(key) ? '' : '?';
         configProps.push(`${key}${optionalMark}: ${type}`);
 
-        // Collect config param descriptions
         const description = propSchema?.description;
-        if (description) {
-            paramDocs.push(`${key} - ${paramDescription(description)}`);
+        const doc = withMeta(
+            description && paramDescription(description),
+            paramMeta(moduleSchema, key),
+        );
+        if (doc) {
+            paramDocs.push(`${key} - ${doc}`);
         }
 
         // Append enum variant descriptions as sub-bullets
@@ -2576,6 +2585,8 @@ function buildSignature(
         positionalStart: number;
         leadParams?: { decl: string; doc: string }[];
         leadDocLines?: string[];
+        /** Document the main output as `@returns` (default true). */
+        returnsDoc?: boolean;
     },
 ): { args: string[]; docLines: string[] } {
     const { paramsSchema } = moduleSchema;
@@ -2623,13 +2634,11 @@ function buildSignature(
         }
 
         const description = propSchema?.description;
-        if (description) {
-            docLines.push(
-                `@param ${arg.name} ${paramDescription(description)}`,
-            );
-        } else {
-            docLines.push(`@param ${arg.name}`);
-        }
+        const doc = withMeta(
+            description && paramDescription(description),
+            paramMeta(moduleSchema, arg.name),
+        );
+        docLines.push(doc ? `@param ${arg.name} ${doc}` : `@param ${arg.name}`);
 
         if (propSchema) {
             const variants = getEnumVariants(propSchema, paramsSchema);
@@ -2651,6 +2660,15 @@ function buildSignature(
         }
     } else {
         docLines.push(`@param config Configuration object`);
+    }
+
+    if (opts.returnsDoc ?? true) {
+        const outputs = moduleSchema.outputs ?? [];
+        const main = outputs.find((o) => o.default) ?? outputs[0];
+        const doc = main && withMeta(main.description, formatOutputMeta(main));
+        if (doc) {
+            docLines.push(`@returns ${doc}`);
+        }
     }
 
     return { args, docLines };
@@ -2701,6 +2719,7 @@ function renderDollarMethod(
         positionalStart: 1,
         leadParams,
         leadDocLines,
+        returnsDoc: !withMix,
     });
 
     const returnType = withMix

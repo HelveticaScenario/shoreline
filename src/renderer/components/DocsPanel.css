@@ -341,3 +341,10 @@
 .docs-panel .module-list .module-card {
     margin-bottom: 0;
 }
+
+.docs-panel .param-meta {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    font-variant-numeric: tabular-nums;
+}

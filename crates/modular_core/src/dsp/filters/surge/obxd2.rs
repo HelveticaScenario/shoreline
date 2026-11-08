@@ -140,7 +140,7 @@ macro_rules! obxd2_module {
             name = $name, ident = $Struct, kernel = Obxd2Pole,
             output_doc = $passband,
             params = {
-                #[input("drive: standard or pushed (self-oscillation push; default standard)")]
+                #[input("standard, or pushed toward self-oscillation (default standard)")]
                 drive: ObxdDrive,
             },
             mode = |p| Obxd2Mode {

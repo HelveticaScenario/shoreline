@@ -27,10 +27,10 @@ const BLOCK_RATE: f32 = 4000.0;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct WowFlutterParams {
-    #[input("audio input", type = control, range = (-5.0, 5.0))]
+    #[input("signal to run through the tape; each channel wobbles in step", type = audio)]
     input: PolySignal,
     #[input(
-        "how fast the tape wobbles; each volt doubles it, and 2.5 is Beads' dirty tape (0–5, default 2.5)",
+        "how fast the tape wobbles; each volt doubles it, and 2.5 is Beads' dirty tape",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -38,7 +38,7 @@ struct WowFlutterParams {
     #[deserr(default)]
     speed: Option<MonoSignal>,
     #[input(
-        "how deep the wobble is: 0 = none, 2.5 = Beads' dirty tape, 5 = twice as deep (default 2.5)",
+        "how deep the wobble is: 0 none, 2.5 Beads' dirty tape, 5 twice as deep",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),

@@ -12,13 +12,18 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Jup6fParams {
-    #[input("signal input", type = control, range = (-5.0, 5.0))]
+    #[input("the sound to filter", type = audio)]
     input: PolySignal,
-    #[input("cutoff frequency in V/Oct (0V = C4)", type = frequency)]
+    #[input(
+        "cutoff frequency; held between 20 Hz and just under half the sample rate",
+        type = frequency,
+        range = (-3.71, ..),
+    )]
     cutoff: PolySignal,
     #[input(
-        "filter resonance (0-5). High values produce self-oscillation.",
+        "filter resonance; self-oscillates at 5",
         type = control,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -28,9 +33,9 @@ struct Jup6fParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Jup6fOutputs {
-    #[output("output", "4-pole (24dB/oct) lowpass", default, range = (-5.0, 5.0))]
+    #[output("output", "4-pole (24 dB/oct) lowpass", default, range = (-5.0, 5.0))]
     lp24: PolyOutput,
-    #[output("lp12", "2-pole (12dB/oct) lowpass", range = (-5.0, 5.0))]
+    #[output("lp12", "2-pole (12 dB/oct) lowpass", range = (-5.0, 5.0))]
     lp12: PolyOutput,
     #[output("bp", "bandpass", range = (-5.0, 5.0))]
     bp: PolyOutput,

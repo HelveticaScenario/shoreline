@@ -119,13 +119,12 @@ fn one_pole(prev: f32, x: f32, coeff: f32) -> f32 {
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ReverbParams {
     #[input(
-        "audio input — even channels feed the left half of the reverb, odd channels the right; an odd channel count feeds the last channel to both",
-        type = control,
-        range = (-5.0, 5.0),
+        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        type = audio,
     )]
     input: PolySignal,
     #[input(
-        "reverb decay time, mapped logarithmically from ~0.15 s (-5) to ~18 s (+5). default 0 → ~1.6 s",
+        "how long the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -133,7 +132,7 @@ struct ReverbParams {
     #[deserr(default)]
     decay: Option<MonoSignal>,
     #[input(
-        "high-frequency damping — higher values darken the tail by absorbing more treble on each recirculation. default 0",
+        "how fast the tail darkens: -5 bright, +5 muffled",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -141,7 +140,7 @@ struct ReverbParams {
     #[deserr(default)]
     damping: Option<MonoSignal>,
     #[input(
-        "room size — scales every delay length from 0.5× (-5) to 2× (+5), trading echo spacing and modal density. default 0 → 1.25×",
+        "room size, from 0.5× (-5) to 2× (+5); bigger rooms space the echoes further apart",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -149,7 +148,7 @@ struct ReverbParams {
     #[deserr(default)]
     size: Option<MonoSignal>,
     #[input(
-        "stereo width — how strongly the left and right halves of the network stay separate. -5 is narrowest (a panned source pulls toward centre), +5 is widest; default 0 → natural",
+        "stereo width: -5 narrow, pulling panned sources toward the centre; +5 widest",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -157,7 +156,7 @@ struct ReverbParams {
     #[deserr(default)]
     width: Option<MonoSignal>,
     #[input(
-        "predelay before the network, in seconds (0 to 0.5). default 0",
+        "gap before the reverb starts, in seconds",
         type = control,
         default = 0.0,
         range = (0.0, 0.5),
@@ -165,7 +164,7 @@ struct ReverbParams {
     #[deserr(default)]
     predelay: Option<MonoSignal>,
     #[input(
-        "internal chorusing depth — subtly detunes the delay lines to reduce metallic ringing. -5 is off, +5 is deepest; default 0 → gentle",
+        "gentle chorusing inside the tail that softens metallic ringing: -5 off, +5 deepest",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -179,7 +178,7 @@ struct ReverbParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ReverbOutputs {
-    #[output("output", "stereo reverb output (ch0=left, ch1=right)", default)]
+    #[output("output", "stereo reverb, fully wet (left, right)", default)]
     sample: PolyOutput,
 }
 

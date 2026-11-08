@@ -14,23 +14,23 @@ use crate::types::{DeviceName, MidiControlChange, MidiControlChange14Bit};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MidiCcParams {
-    #[input("MIDI device name to receive from (leave unset to receive from all devices)")]
+    #[input("MIDI device to listen to; every device when unset")]
     #[deserr(default)]
     device: Option<String>,
 
-    #[input("CC number to monitor (0-127 for 7-bit, 0-31 for 14-bit mode)")]
+    #[input("controller number to follow; 0–31 in high-resolution mode", range = (0, 127))]
     cc: u8,
 
-    #[input("MIDI channel to listen on (1–16, leave unset for omni/all channels)")]
+    #[input("MIDI channel to listen to; every channel when unset", range = (1, 16))]
     #[deserr(default)]
     channel: Option<u8>,
 
-    #[input("Smoothing time in milliseconds (0 = instant)")]
+    #[input("glide time between controller values, in milliseconds; 0 jumps instantly", range = (0.0, ..))]
     #[serde(default)]
     #[deserr(default)]
     smoothing_ms: f32,
 
-    #[input("Enable 14-bit high-resolution CC mode (CC 0-31 MSB + CC 32-63 LSB)")]
+    #[input("read 14-bit controllers, pairing CC 0–31 with CC 32–63 for finer steps")]
     #[serde(default)]
     #[deserr(default)]
     high_resolution: bool,
@@ -39,7 +39,7 @@ struct MidiCcParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MidiCcOutputs {
-    #[output("output", "CC value as voltage (0-5V)", default, range = (0.0, 5.0))]
+    #[output("output", "the controller's value: 0 at its minimum, 5 at its maximum", default, range = (0.0, 5.0))]
     output: f32,
 }
 

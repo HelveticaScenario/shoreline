@@ -237,7 +237,7 @@ filter_module! {
     name = "$unstable.filter.obxd4", ident = Obxd4Filter, kernel = Obxd4Pole,
     output_doc = "lowpass output",
     params = {
-        #[input("slope: 6, 12, 18, 24 dB/oct, or the brighter 24 dB legacy mix (default 24)")]
+        #[input("how steeply it cuts: 6, 12, 18, 24 dB/oct, or the brighter 24 dB legacy mix (default 24)")]
         slope: Obxd4Slope,
     },
     mode = |p| p.slope.pole_mix(),

@@ -13,7 +13,7 @@ struct Ma808Params {
     #[input("rising edges shake the maracas", type = trig)]
     trigger: PolySignal,
     #[input(
-        "accent, 0–5 V, sampled at each strike and held for the shake: up to twice as loud, and drawn out (default 0)",
+        "how hard the shake lands, read at each strike: up to twice as loud at 5 V, and drawn out",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -21,7 +21,7 @@ struct Ma808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "fade out a shake still sounding over 2 ms as the next one strikes, so every shake starts from rest; otherwise each shake runs into the last, as on the 808 (default false)"
+        "start every shake from rest, fading out one still sounding over 2 ms; off, each shake runs into the last, as on the 808"
     )]
     #[serde(default)]
     #[deserr(default)]

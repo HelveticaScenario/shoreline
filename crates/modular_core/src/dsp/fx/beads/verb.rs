@@ -99,13 +99,12 @@ impl OutputStage {
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BeadsReverbParams {
     #[input(
-        "audio input; even channels feed the left side and odd channels the right",
-        type = control,
-        range = (-5.0, 5.0),
+        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        type = audio,
     )]
     input: PolySignal,
     #[input(
-        "how much reverb, and how long it rings (0–5, default 2.5)",
+        "how much reverb you hear and how long it rings: 0 dry, 5 most",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -113,7 +112,7 @@ struct BeadsReverbParams {
     #[deserr(default)]
     amount: Option<MonoSignal>,
     #[input(
-        "room size; moving it while the reverb rings bends the tail's pitch (0–5, default 0)",
+        "room size; moving it while the tail rings bends its pitch",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -121,7 +120,7 @@ struct BeadsReverbParams {
     #[deserr(default)]
     size: Option<MonoSignal>,
     #[input(
-        "how quickly the tail darkens, from bright at 0 to muffled at 5 (default 1)",
+        "how fast the tail darkens: 0 bright, 5 muffled",
         type = control,
         default = 1.0,
         range = (0.0, 5.0),
@@ -133,7 +132,7 @@ struct BeadsReverbParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BeadsReverbOutputs {
-    #[output("output", "stereo output (ch0=left, ch1=right)", default, range = (-5.0, 5.0))]
+    #[output("output", "the input plus reverb, in stereo (left, right)", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

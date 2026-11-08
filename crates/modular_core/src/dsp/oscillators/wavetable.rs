@@ -35,36 +35,36 @@ use crate::{
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 pub(crate) struct WavetableOscParams {
-    #[input("Loaded WAV reference containing the wavetable data.")]
+    #[input("WAV file holding the wavetable frames")]
     pub(crate) wav: Wav,
-    #[input("Pitch in V/Oct (0V = C4).", type = pitch)]
+    #[input("oscillator pitch", type = pitch)]
     pub(crate) pitch: PolySignal,
     #[input(
-        "Frame position as a signal. 0V maps to the first frame, 5V maps to the last frame. Values are clamped to [0, 5] before being normalized.",
+        "which frame plays: 0 the first, 5 the last, blending between neighbours",
         type = control,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
     pub(crate) position: Option<PolySignal>,
-    #[input("FM input signal (pre-scaled by user).", type = control, range = (-5.0, 5.0))]
+    #[input(
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
+        type = audio,
+    )]
     #[deserr(default)]
     pub(crate) fm: Option<PolySignal>,
-    #[input("FM mode: throughZero (default), lin, or exp.")]
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     pub(crate) fm_mode: FmMode,
-    #[input(
-        "hard sync source — rising edges reset the oscillator phase.",
-        type = control,
-        range = (-5.0, 5.0),
-    )]
+    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
     #[deserr(default)]
     pub(crate) sync: Option<PolySignal>,
-    #[input("Optional phase warp applied before sampling, built with `$phase.*`.")]
+    #[input("reshapes the cycle before the table is read, built with `$phase.*`")]
     #[deserr(default)]
     pub(crate) phase: Option<PhaseWarp>,
     #[input(
-        "phase offset in [0, 1) added to the internal phase before warping/sampling",
+        "shifts where in the cycle the table is read, in cycles; wraps around",
         type = control,
         default = 0.0,
         range = (0.0, 1.0),
@@ -82,7 +82,7 @@ pub(crate) struct WavetableOscParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WavetableOscOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the wavetable oscillator", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

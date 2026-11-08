@@ -11,14 +11,14 @@ use crate::poly::{PolyOutput, PolySignal};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FilterDcParams {
-    #[input("input signal to filter (any range)", type = control, range = (-5.0, 5.0))]
+    #[input("signal to strip of DC offset and sub-audio rumble", type = audio)]
     input: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FilterDcOutputs {
-    #[output("output", "DC-blocked output signal", default)]
+    #[output("output", "the input, centred on 0 V", default)]
     sample: PolyOutput,
 }
 

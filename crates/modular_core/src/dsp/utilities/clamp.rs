@@ -8,19 +8,19 @@ use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ClampParams {
-    #[input("signal to clamp", type = control, range = (-5.0, 5.0))]
+    #[input("signal to clamp", type = audio)]
     input: PolySignal,
     #[input(
-        "lower bound — if omitted the signal is unclamped below",
+        "lowest value let through; leave out to keep the bottom unclamped",
         type = control,
-        range = (-5.0, 5.0),
+        control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     min: Option<PolySignal>,
     #[input(
-        "upper bound — if omitted the signal is unclamped above",
+        "highest value let through; leave out to keep the top unclamped",
         type = control,
-        range = (-5.0, 5.0),
+        control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     max: Option<PolySignal>,
@@ -29,7 +29,7 @@ struct ClampParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ClampOutputs {
-    #[output("output", "clamped signal output", default)]
+    #[output("output", "the clamped signal", default)]
     sample: PolyOutput,
 }
 

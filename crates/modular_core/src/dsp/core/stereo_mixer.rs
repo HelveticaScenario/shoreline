@@ -10,18 +10,19 @@ use schemars::JsonSchema;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct StereoMixerParams {
-    #[input("Input signal to place in the stereo field.", type = control, range = (-5.0, 5.0))]
+    #[input("the signal to place in the stereo field", type = audio)]
     input: PolySignal,
     #[input(
-        "Pan position per channel (-5 = left, 0 = center, +5 = right).",
+        "pan position of each channel: -5 left, 0 centre, +5 right",
         type = control,
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     pan: Option<PolySignal>,
     #[input(
-        "Stereo spread across channels (0 = no spread, 5 = widest spread). Width offsets each channel around its base pan position. Defaults to 0 (no spread) when omitted.",
+        "how far the channels fan out around their pan positions: 0 none, 5 widest",
         type = control,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -31,8 +32,7 @@ struct StereoMixerParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct StereoMixerOutputs {
-    /// Stereo output (left on channel 0, right on channel 1).
-    #[output("output", "stereo mix output", default)]
+    #[output("output", "stereo mix: left on channel 0, right on channel 1", default)]
     sample: PolyOutput,
 }
 

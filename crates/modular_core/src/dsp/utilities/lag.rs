@@ -10,21 +10,23 @@ use schemars::JsonSchema;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct LagProcessorParams {
-    #[input("signal input", type = control, range = (-5.0, 5.0))]
+    #[input("signal to smooth", type = audio)]
     input: PolySignal,
     #[input(
-        "rise rate — seconds to slew 1 volt upward (default 0.01)",
+        "seconds the output takes to climb 1 V; follows fall when not patched",
         type = control,
         default = 0.01,
-        range = (0.0, 10.0),
+        range = (0.001, ..),
+        control_range = (0.001, 10.0),
     )]
     #[deserr(default)]
     rise: Option<PolySignal>,
     #[input(
-        "fall rate — seconds to slew 1 volt downward (default 0.01)",
+        "seconds the output takes to drop 1 V",
         type = control,
         default = 0.01,
-        range = (0.0, 10.0),
+        range = (0.001, ..),
+        control_range = (0.001, 10.0),
     )]
     #[deserr(default)]
     fall: Option<PolySignal>,
@@ -33,7 +35,7 @@ struct LagProcessorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LagProcessorOutputs {
-    #[output("output", "slewed signal", default)]
+    #[output("output", "the smoothed signal", default)]
     sample: PolyOutput,
 }
 

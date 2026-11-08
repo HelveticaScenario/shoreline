@@ -325,7 +325,7 @@ filter_module! {
     params = {
         #[input("stage topology: lll, lhl, hlh, or hhh (default lll)")]
         mode: TriPoleShape,
-        #[input("which stage to tap: 1, 2, or 3 (default 3, the full output)")]
+        #[input("which stage to tap (default 3, the full output)", range = (1, 3))]
         output_stage: Option<usize>,
     },
     mode = |p| TriPoleMode {

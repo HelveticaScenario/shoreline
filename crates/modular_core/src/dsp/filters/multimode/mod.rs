@@ -37,25 +37,26 @@ use lanes::{HalfbandDown, LANES, f32x4};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MultimodeParams {
-    #[input("signal input (DC-coupled)", type = control, range = (-5.0, 5.0))]
+    #[input("the sound to filter; DC-coupled, so CV passes too", type = audio)]
     input: PolySignal,
     #[input(
-        "cutoff frequency in V/Oct (0V = C4), capped at ~21 kHz",
+        "cutoff frequency; tops out near 21 kHz",
         type = frequency,
         default = 0.0,
-        range = (-5.0, 5.0),
+        range = (-10.08, 6.53),
     )]
     cutoff: PolySignal,
     #[input(
-        "resonance (0-5). Self-oscillates from ~4.3.",
+        "filter resonance; self-oscillates from about 4.3",
         type = control,
         default = 0.0,
-        range = (0.0, 5.0),
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
     )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
     #[input(
-        "response: 0 = lowpass, 2.5 = bandpass, 5 = highpass, crossfading between",
+        "response: 0 lowpass, 2.5 bandpass, 5 highpass, crossfading between",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -63,15 +64,16 @@ struct MultimodeParams {
     #[deserr(default)]
     mode: Option<PolySignal>,
     #[input(
-        "input drive (0 = unity, 5 = +18 dB), cubic response",
+        "input level into the clipper: 0 unity, 5 +18 dB, -5 silent; maxes out at +20 dB",
         type = control,
         default = 0.0,
-        range = (0.0, 5.0),
+        range = (-5.0, 5.7),
+        control_range = (0.0, 5.0),
     )]
     #[deserr(default)]
     drive: Option<PolySignal>,
     #[input(
-        "drive response (0 = soft clipping, 5 = two-stage wavefolder)",
+        "drive character: 0 soft clipping, 5 two-stage wavefolder",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -79,7 +81,7 @@ struct MultimodeParams {
     #[deserr(default)]
     fold: Option<PolySignal>,
     #[input(
-        "when true (default), the circuit runs at twice the engine rate, which reduces aliasing from the clipper, wavefolder and self-oscillation and keeps the highpass accurate at high cutoffs; false costs less CPU"
+        "run at twice the engine rate: less aliasing from clipping, folding and self-oscillation, and a truer highpass at high cutoffs; false costs less CPU"
     )]
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]
@@ -95,11 +97,11 @@ fn default_true() -> bool {
 struct MultimodeOutputs {
     #[output("output", "response selected by mode", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
-    #[output("lp", "lowpass (the output at mode 0)", range = (-10.0, 10.0))]
+    #[output("lp", "lowpass, the output at mode 0", range = (-10.0, 10.0))]
     lp: PolyOutput,
-    #[output("bp", "bandpass (the output near mode 2.5)", range = (-10.0, 10.0))]
+    #[output("bp", "bandpass, the output near mode 2.5", range = (-10.0, 10.0))]
     bp: PolyOutput,
-    #[output("hp", "highpass (the output at mode 5)", range = (-10.0, 10.0))]
+    #[output("hp", "highpass, the output at mode 5", range = (-10.0, 10.0))]
     hp: PolyOutput,
 }
 

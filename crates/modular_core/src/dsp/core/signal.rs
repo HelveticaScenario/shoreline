@@ -12,14 +12,14 @@ use crate::types::SwapGlide;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SignalParams {
-    #[input("Input signal to forward.", type = control, range = (-5.0, 5.0))]
+    #[input("the signal or value to pass on", type = audio)]
     value: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SignalOutputs {
-    #[output("output", "forwarded signal", default)]
+    #[output("output", "the input, unchanged", default)]
     sample: PolyOutput,
 }
 

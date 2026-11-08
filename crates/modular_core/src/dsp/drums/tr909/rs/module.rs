@@ -34,7 +34,7 @@ struct Rs909Params {
     #[input("rising edges strike the rim", type = trig)]
     trigger: PolySignal,
     #[input(
-        "accent, 0–5 V, sampled at each strike and held for the hit: up to twice as loud (default 0)",
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -42,7 +42,7 @@ struct Rs909Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "fade out a hit still sounding over 2 ms as the next one strikes, so every hit starts from rest; otherwise each hit builds on the last, as on the 909 (default false)"
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 909"
     )]
     #[serde(default)]
     #[deserr(default)]

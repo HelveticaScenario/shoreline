@@ -56,14 +56,14 @@ const FULL_SCALE_VOLTS: f32 = 5.0;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum GranularQuality {
-    /// Clean, with 4 s of audio.
+    /// clean, holding 4 s of audio
     #[default]
     Digital,
-    /// Slightly gritty early digital, with 8 s of audio.
+    /// slightly gritty early digital, holding 8 s of audio
     Vintage,
-    /// Darker, softer grains, with 10.7 s of audio.
+    /// darker and softer, holding 10.7 s of audio
     CleanTape,
-    /// Lo-fi and noisy, with 16 s of audio.
+    /// lo-fi and noisy, holding 16 s of audio
     DirtyTape,
 }
 

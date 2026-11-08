@@ -16,12 +16,12 @@ const MIN_HZ: f32 = 1e-4;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct AddHzParams {
-    #[input("V/Oct pitch signal to detune", type = pitch)]
+    #[input("pitch to detune", type = pitch)]
     input: PolySignal,
     #[input(
-        "frequency offset added to the input pitch, in Hz",
+        "frequency added to the pitch, in Hz; small amounts give slow beating",
         type = control,
-        range = (-5.0, 5.0),
+        control_range = (-5.0, 5.0),
     )]
     offset: PolySignal,
 }
@@ -29,7 +29,7 @@ struct AddHzParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct AddHzOutputs {
-    #[output("output", "V/Oct pitch output", default)]
+    #[output("output", "the detuned pitch", default)]
     sample: PolyOutput,
 }
 

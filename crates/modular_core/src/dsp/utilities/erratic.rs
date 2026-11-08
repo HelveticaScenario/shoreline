@@ -58,12 +58,13 @@ enum ErraticMode {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ErraticParams {
-    #[input("signal to vary", type = control, range = (-5.0, 5.0))]
+    #[input("signal to vary", type = audio)]
     input: PolySignal,
     #[input(
-        "depth (0–5); at 5, shift moves up to half the range either way and blend jumps all the way to the random value",
+        "how far the variation reaches: at 5, shift moves up to half the range either way and blend jumps all the way to the random value; blend stops deepening past 5",
         type = control,
-        range = (0.0, 5.0),
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
     )]
     amount: PolySignal,
     #[input("rising edge samples and holds the current random value", type = trig)]
@@ -71,7 +72,7 @@ struct ErraticParams {
     #[deserr(default)]
     trigger: Option<PolySignal>,
     #[input(
-        "how fast the variation wanders: 0 = frozen, 5 = a fresh value every sample",
+        "how fast the variation wanders: 0 frozen, 5 a fresh value every sample",
         type = control,
         default = 2.0,
         range = (0.0, 5.0),
@@ -86,14 +87,14 @@ struct ErraticParams {
     )]
     #[deserr(default)]
     bias: Option<PolySignal>,
-    #[input("minimum of the input's range", type = control, default = -5.0, range = (-5.0, 5.0))]
+    #[input("bottom of the input's range", type = control, default = -5.0, control_range = (-5.0, 5.0))]
     #[deserr(default)]
     min: Option<PolySignal>,
-    #[input("maximum of the input's range", type = control, default = 5.0, range = (-5.0, 5.0))]
+    #[input("top of the input's range", type = control, default = 5.0, control_range = (-5.0, 5.0))]
     #[deserr(default)]
     max: Option<PolySignal>,
     #[input(
-        "shift adds a random offset; clamp also clamps it to [min, max]; blend moves toward a random value in [min, max]"
+        "shift adds a random offset; clamp also clamps it to [min, max]; blend moves toward a random value in [min, max] (default shift)"
     )]
     #[serde(default)]
     #[deserr(default)]
@@ -109,7 +110,7 @@ struct ErraticParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ErraticOutputs {
-    #[output("output", "randomly shifted signal", default)]
+    #[output("output", "the varied signal", default)]
     sample: PolyOutput,
 }
 

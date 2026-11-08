@@ -13,7 +13,7 @@ struct CoinFlipParams {
     #[input("triggers or gates to flip", type = trig)]
     input: PolySignal,
     #[input(
-        "chance of heads: 0 = never, 2.5 = half the time, 5 = always",
+        "chance of heads: 0 never, 2.5 half the time, 5 always",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -25,9 +25,9 @@ struct CoinFlipParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CoinFlipOutputs {
-    #[output("heads", "triggers that land heads", default)]
+    #[output("heads", "triggers and gates that land heads", default, range = (0.0, 5.0))]
     heads: PolyOutput,
-    #[output("tails", "triggers that land tails")]
+    #[output("tails", "triggers and gates that land tails", range = (0.0, 5.0))]
     tails: PolyOutput,
 }
 

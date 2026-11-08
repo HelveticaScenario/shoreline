@@ -71,30 +71,30 @@ struct VoiceState {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MidiCvParams {
-    #[input("MIDI device name to receive from (leave unset to receive from all devices)")]
+    #[input("MIDI device to listen to; every device when unset")]
     #[deserr(default)]
     device: Option<String>,
 
-    #[input("Number of polyphonic voices (1-64)")]
+    #[input("number of voices", range = (1, 64))]
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
     channels: usize,
 
-    #[input("MIDI channel to listen on (1–16, leave unset for omni/all channels)")]
+    #[input("MIDI channel to listen to; every channel when unset", range = (1, 16))]
     #[deserr(default)]
     channel: Option<u8>,
 
-    #[input("Polyphonic voice allocation mode")]
+    #[input("how new notes are given to voices")]
     #[serde(default)]
     #[deserr(default)]
     poly_mode: PolyMode,
 
-    #[input("Monophonic note priority (used when only one voice is active)")]
+    #[input("which held note plays when `channels` is 1")]
     #[serde(default)]
     #[deserr(default)]
     mono_mode: MonoMode,
 
-    #[input("Pitch bend range in semitones (0 = disabled, default 2)")]
+    #[input("how far the pitch wheel bends, in semitones; 0 turns bending off")]
     #[serde(default = "default_pitch_bend_range")]
     #[deserr(default = default_pitch_bend_range())]
     pitch_bend_range: u8,
@@ -111,23 +111,19 @@ fn default_pitch_bend_range() -> u8 {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MidiCvOutputs {
-    #[output(
-        "pitch",
-        "pitch CV in 1V/octave (0V = C4, includes pitch bend)",
-        default
-    )]
+    #[output("pitch", "pitch of the voice's note, including pitch bend", default)]
     pitch: PolyOutput,
-    #[output("gate", "gate output (0V or 5V)", range = (0.0, 5.0))]
+    #[output("gate", "high while the voice's note is held", range = (0.0, 5.0))]
     gate: PolyOutput,
-    #[output("velocity", "velocity (0-5V)", range = (0.0, 5.0))]
+    #[output("velocity", "how hard the note was struck", range = (0.0, 5.0))]
     velocity: PolyOutput,
-    #[output("aftertouch", "channel pressure / aftertouch (0-5V)", range = (0.0, 5.0))]
+    #[output("aftertouch", "pressure on the held keys", range = (0.0, 5.0))]
     aftertouch: PolyOutput,
-    #[output("retrigger", "retrigger pulse (5V for 1ms on new note)", range = (0.0, 5.0))]
+    #[output("retrigger", "fires at the start of each new note, even when gate stays high", range = (0.0, 5.0))]
     retrigger: PolyOutput,
-    #[output("pitchWheel", "pitch wheel position (-5V to +5V)", range = (-5.0, 5.0))]
+    #[output("pitchWheel", "pitch wheel position: 0 centred, ±5 at either end", range = (-5.0, 5.0))]
     pitch_wheel: PolyOutput,
-    #[output("modWheel", "mod wheel (0-5V)", range = (0.0, 5.0))]
+    #[output("modWheel", "mod wheel position", range = (0.0, 5.0))]
     mod_wheel: PolyOutput,
 }
 

@@ -32,24 +32,23 @@ fn noise_derive_channel_count(params: &NoiseParams) -> usize {
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct NoiseParams {
-    #[input(
-        "kind of noise: white, pink, brown, blue, violet, binary, gaussian, lfsr, lfsrShort, velvet, telegraph, dust"
-    )]
+    #[input("kind of noise (default white)")]
     #[serde(default)]
     #[deserr(default)]
     color: NoiseKind,
     #[input(
-        "generator clock in V/Oct (use `$hz()` or a note name); a new value is drawn each tick. For telegraph and dust it is the average events per second, and for lfsrShort the pitch of its 93-step loop. Unconnected, the generator runs at the sample rate.",
-        type = pitch,
+        "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop. Unpatched, a new value every sample",
+        type = frequency,
     )]
     #[deserr(default)]
     rate: Option<PolySignal>,
-    #[input("how the output moves between ticks: step, linear, smooth")]
+    #[input("how the output moves between draws while `rate` is patched (default step)")]
     #[serde(default)]
     #[deserr(default)]
     interp: NoiseInterp,
     #[input(
-        "number of independent noise channels (1–64), each a different sequence; a polyphonic `rate` raises it to that many channels"
+        "number of independent noise channels, each a different sequence; a polyphonic `rate` raises it to that many",
+        range = (1, 64),
     )]
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
@@ -179,7 +178,7 @@ struct NoiseState {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct NoiseOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the noise", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

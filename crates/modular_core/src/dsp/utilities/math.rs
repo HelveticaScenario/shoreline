@@ -91,26 +91,23 @@ impl<E: DeserializeError> deserr::Deserr<E> for MathExpressionParam {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MathParams {
-    #[input("math expression to evaluate (e.g. \"x * 2 + sin(t)\")")]
+    #[input("expression to evaluate, e.g. \"x * 2 + sin(t)\"")]
     expression: MathExpressionParam,
     #[input(
-        "first input variable, referenced as `x` in the expression",
-        type = control,
-        range = (-5.0, 5.0),
+        "signal read as `x` in the expression; 0 when not patched",
+        type = audio,
     )]
     #[deserr(default)]
     x: Option<PolySignal>,
     #[input(
-        "second input variable, referenced as `y` in the expression",
-        type = control,
-        range = (-5.0, 5.0),
+        "signal read as `y` in the expression; 0 when not patched",
+        type = audio,
     )]
     #[deserr(default)]
     y: Option<PolySignal>,
     #[input(
-        "third input variable, referenced as `z` in the expression",
-        type = control,
-        range = (-5.0, 5.0),
+        "signal read as `z` in the expression; 0 when not patched",
+        type = audio,
     )]
     #[deserr(default)]
     z: Option<PolySignal>,
@@ -119,7 +116,7 @@ struct MathParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MathOutputs {
-    #[output("output", "result of the expression", default)]
+    #[output("output", "the expression's result", default)]
     output: PolyOutput,
 }
 

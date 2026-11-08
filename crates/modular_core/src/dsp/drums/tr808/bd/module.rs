@@ -13,7 +13,7 @@ struct Bd808Params {
     #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
     #[input(
-        "accent, 0–5 V, sampled at each strike and held for the hit: up to twice as loud, with more pitch sigh (default 0)",
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V, with more pitch sigh",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -21,7 +21,7 @@ struct Bd808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "tone control, 0–5 V: from a dull thud to a bright click at the attack (default 2.5)",
+        "brightness of the attack, from a dull thud to a bright click",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -29,7 +29,7 @@ struct Bd808Params {
     #[deserr(default)]
     tone: Option<PolySignal>,
     #[input(
-        "decay control, 0–5 V: how long the drum rings, from ≈0.09 s to ≈3.8 s (default 2.5, ≈0.6 s)",
+        "how long the drum rings, from ≈0.09 s to ≈3.8 s; ≈0.6 s at 2.5",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -37,21 +37,20 @@ struct Bd808Params {
     #[deserr(default)]
     decay: Option<PolySignal>,
     #[input(
-        "pitch in V/Oct; stock is ≈49.5 Hz (default -2.4035)",
+        "pitch; stock is ≈49.5 Hz, level held steady from -3.5 to -1 V",
         type = pitch,
         default = -2.4035,
-        range = (-3.5, -1.0),
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
     #[input(
-        "fade out a hit still sounding over 2 ms as the next one strikes, so every hit starts from rest; otherwise each hit builds on the last, as on the 808 (default false)"
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
     )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
     #[input(
-        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them (default false)"
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
     )]
     #[serde(default)]
     #[deserr(default)]

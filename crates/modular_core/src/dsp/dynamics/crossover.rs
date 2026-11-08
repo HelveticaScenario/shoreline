@@ -14,12 +14,6 @@ use crate::{
     types::{GlideMark, SwapGlide},
 };
 
-// Default crossover frequencies in V/Oct
-// 200 Hz: hz_to_voct(200.0) = log2(200 / 261.626) ≈ -0.389
-const DEFAULT_LOW_MID_FREQ_VOCT: f32 = -0.389;
-// 2000 Hz: hz_to_voct(2000.0) = log2(2000 / 261.626) ≈ 2.935
-const DEFAULT_MID_HIGH_FREQ_VOCT: f32 = 2.935;
-
 const BUTTERWORTH_Q: f32 = 0.707_107; // 1/sqrt(2)
 
 // ── Params & Outputs ─────────────────────────────────────────────────────────
@@ -29,19 +23,23 @@ const BUTTERWORTH_Q: f32 = 0.707_107; // 1/sqrt(2)
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CrossoverParams {
-    #[input("audio input signal", type = control, range = (-5.0, 5.0))]
+    #[input("the sound to split", type = audio)]
     input: PolySignal,
     #[input(
-        "crossover frequency between low and mid bands (V/Oct, 0V = C4)",
-        type = control,
-        range = (-5.0, 5.0),
+        "where the low band ends and the mid band begins",
+        type = frequency,
+        // 200 Hz
+        default = -0.389,
+        range = (-3.71, ..),
     )]
     #[deserr(default)]
     low_mid_freq: Option<PolySignal>,
     #[input(
-        "crossover frequency between mid and high bands (V/Oct, 0V = C4)",
-        type = control,
-        range = (-5.0, 5.0),
+        "where the mid band ends and the high band begins",
+        type = frequency,
+        // 2 kHz
+        default = 2.935,
+        range = (-3.71, ..),
     )]
     #[deserr(default)]
     mid_high_freq: Option<PolySignal>,
@@ -52,11 +50,11 @@ struct CrossoverParams {
 struct CrossoverOutputs {
     #[output("output", "input passed through unchanged", default)]
     sample: PolyOutput,
-    #[output("low", "low band output")]
+    #[output("low", "frequencies below lowMidFreq")]
     low: PolyOutput,
-    #[output("mid", "mid band output")]
+    #[output("mid", "frequencies between lowMidFreq and midHighFreq")]
     mid: PolyOutput,
-    #[output("high", "high band output")]
+    #[output("high", "frequencies above midHighFreq")]
     high: PolyOutput,
 }
 
@@ -179,11 +177,11 @@ impl Crossover {
             let low_mid_voct = self
                 .params
                 .low_mid_freq
-                .value_or(ch, DEFAULT_LOW_MID_FREQ_VOCT);
+                .value_or(ch, CrossoverParams::LOW_MID_FREQ_DEFAULT);
             let mid_high_voct = self
                 .params
                 .mid_high_freq
-                .value_or(ch, DEFAULT_MID_HIGH_FREQ_VOCT);
+                .value_or(ch, CrossoverParams::MID_HIGH_FREQ_DEFAULT);
 
             state.low_mid.refresh(
                 low_mid_voct,

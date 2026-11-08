@@ -12,9 +12,18 @@ use schemars::JsonSchema;
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PSawOscillatorParams {
-    #[input("phasor input (0–1, wraps at boundaries)", type = control, range = (0.0, 1.0))]
+    #[input(
+        "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+        type = audio,
+        range = (0.0, 1.0),
+    )]
     phase: PolySignal,
-    #[input("waveform shape: 0=saw, 2.5=triangle, 5=ramp", type = control, range = (0.0, 5.0))]
+    #[input(
+        "waveform: 0 saw, 2.5 triangle, 5 ramp, morphing in between",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     shape: Option<PolySignal>,
 }
@@ -22,7 +31,7 @@ struct PSawOscillatorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PSawOscillatorOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the saw/triangle/ramp wave", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

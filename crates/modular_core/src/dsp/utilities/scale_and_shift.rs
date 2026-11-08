@@ -12,17 +12,17 @@ use crate::types::SwapGlide;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ScaleAndShiftParams {
-    #[input("signal to scale and shift", type = control, range = (-5.0, 5.0))]
+    #[input("signal to scale and shift", type = audio)]
     input: PolySignal,
     #[input(
-        "scale factor (0–10V range; 5V = unity gain, 0V = silence, -5V = inverted, 10V = 2x)",
+        "gain: 5 unity, 0 silence, 10 double, negative inverts",
         type = control,
         default = 5.0,
-        range = (0.0, 10.0),
+        control_range = (0.0, 10.0),
     )]
     #[deserr(default)]
     scale: Option<PolySignal>,
-    #[input("DC offset added to the scaled signal (in volts)", type = control, range = (-5.0, 5.0))]
+    #[input("offset added after scaling, in volts", type = control, control_range = (-5.0, 5.0))]
     #[deserr(default)]
     shift: Option<PolySignal>,
 }
@@ -30,7 +30,7 @@ struct ScaleAndShiftParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ScaleAndShiftOutputs {
-    #[output("output", "signal output", default)]
+    #[output("output", "the scaled and shifted signal", default)]
     sample: PolyOutput,
 }
 

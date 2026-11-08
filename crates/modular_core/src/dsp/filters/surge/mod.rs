@@ -32,17 +32,12 @@ macro_rules! filter_module {
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                #[input("signal input (bipolar, ±5 V)", type = control, range = (-5.0, 5.0))]
+                #[input("the sound to filter", type = audio)]
                 input: crate::poly::PolySignal,
-                #[input(
-                    "cutoff frequency in V/Oct (0V = C4)",
-                    type = frequency,
-                    default = 0.0,
-                    range = (-5.0, 5.0),
-                )]
+                #[input("cutoff frequency", type = frequency, default = 0.0)]
                 cutoff: crate::poly::PolySignal,
                 #[input(
-                    "filter resonance (0–5); high values approach self-oscillation",
+                    "filter resonance; high values approach self-oscillation",
                     type = control,
                     default = 0.0,
                     range = (0.0, 5.0),

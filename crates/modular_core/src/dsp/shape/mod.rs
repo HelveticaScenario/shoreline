@@ -36,16 +36,12 @@ macro_rules! shape_module {
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                #[input(
-                    "input signal to shape (bipolar, ±5 V)",
-                    type = control,
-                    range = (-5.0, 5.0),
-                )]
+                #[input("signal to shape; ±5 V spans the shaper's curve", type = audio)]
                 input: crate::poly::PolySignal,
-                #[input("shaper algorithm")]
+                #[input("shaping curve")]
                 mode: $Mode,
                 #[input(
-                    "drive amount (-5..5, 0 = unity); higher pushes harder into the shaper",
+                    "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
                     type = control,
                     default = 0.0,
                     range = (-5.0, 5.0),
@@ -57,7 +53,7 @@ macro_rules! shape_module {
             #[derive(Outputs, schemars::JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", "shaped signal output", default, range = (-5.0, 5.0))]
+                #[output("output", "the shaped signal", default, range = (-5.0, 5.0))]
                 sample: crate::poly::PolyOutput,
             }
 
@@ -106,14 +102,10 @@ macro_rules! shape_module {
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                #[input(
-                    "input signal to shape (bipolar, ±5 V)",
-                    type = control,
-                    range = (-5.0, 5.0),
-                )]
+                #[input("signal to shape; ±5 V spans the shaper's curve", type = audio)]
                 input: crate::poly::PolySignal,
                 #[input(
-                    "drive amount (-5..5, 0 = unity); higher pushes harder into the shaper",
+                    "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
                     type = control,
                     default = 0.0,
                     range = (-5.0, 5.0),
@@ -125,7 +117,7 @@ macro_rules! shape_module {
             #[derive(Outputs, schemars::JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", "shaped signal output", default, range = (-5.0, 5.0))]
+                #[output("output", "the shaped signal", default, range = (-5.0, 5.0))]
                 sample: crate::poly::PolyOutput,
             }
 

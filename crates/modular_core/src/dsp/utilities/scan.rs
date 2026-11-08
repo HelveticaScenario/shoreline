@@ -9,21 +9,21 @@ use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ScanParams {
-    #[input("span the counter wraps within; must be above 0", type = control, range = (-5.0, 5.0))]
+    #[input("span the counter wraps within, read at each trigger", type = control, default = 1.0, range = (0.0, ..), control_range = (0.0, 5.0))]
     pub length: PolySignal,
     #[input(
         "amount added to the counter on each trigger; negative steps backwards",
         type = control,
-        range = (-5.0, 5.0),
+        control_range = (-5.0, 5.0),
     )]
     pub distance: PolySignal,
     #[input("rising edges step the counter by `distance`", type = trig)]
     pub trigger: PolySignal,
-    #[input("rising edges set the counter to 0", type = trig)]
+    #[input("rising edge sets the counter to 0, winning over a trigger in the same sample", type = trig)]
     #[deserr(default)]
     pub reset: Option<PolySignal>,
     #[input(
-        "a step past either end lands on the opposite end instead of wrapping by the overshoot (default false)"
+        "a step past either end lands on the opposite end instead of wrapping by the overshoot"
     )]
     #[serde(default)]
     #[deserr(default)]

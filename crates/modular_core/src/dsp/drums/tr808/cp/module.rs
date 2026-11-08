@@ -13,7 +13,7 @@ struct Cp808Params {
     #[input("rising edges clap", type = trig)]
     trigger: PolySignal,
     #[input(
-        "accent, 0–5 V, sampled at each strike and held for the clap: up to twice as loud, with a longer tail (default 0)",
+        "how hard the clap lands, read at each strike: up to twice as loud at 5 V, with a longer tail",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -21,7 +21,7 @@ struct Cp808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "fade out a clap still sounding over 2 ms as the next one strikes, so every clap starts from rest; otherwise each clap runs into the last, as on the 808 (default false)"
+        "start every clap from rest, fading out one still sounding over 2 ms; off, each clap runs into the last, as on the 808"
     )]
     #[serde(default)]
     #[deserr(default)]

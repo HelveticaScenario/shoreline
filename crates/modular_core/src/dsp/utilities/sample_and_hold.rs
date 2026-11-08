@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SampleAndHoldParams {
-    #[input("signal to sample", type = control, range = (-5.0, 5.0))]
+    #[input("signal to sample", type = audio)]
     input: PolySignal,
     #[input("rising edge captures the current input value", type = trig)]
     trigger: PolySignal,
@@ -17,7 +17,7 @@ struct SampleAndHoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SampleAndHoldOutputs {
-    #[output("output", "held voltage", default)]
+    #[output("output", "the voltage captured at the last trigger", default)]
     sample: PolyOutput,
 }
 
@@ -79,10 +79,10 @@ message_handlers!(impl SampleAndHold {});
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct TrackAndHoldParams {
-    #[input("signal to track", type = control, range = (-5.0, 5.0))]
+    #[input("signal to track", type = audio)]
     input: PolySignal,
     #[input(
-        "while gate is low the output follows the input; when gate goes high the last value is held",
+        "output follows the input while low and holds its last value while high",
         type = gate,
     )]
     gate: PolySignal,
@@ -91,7 +91,7 @@ struct TrackAndHoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct TrackAndHoldOutputs {
-    #[output("output", "tracked or held voltage", default)]
+    #[output("output", "the tracked or held voltage", default)]
     sample: PolyOutput,
 }
 

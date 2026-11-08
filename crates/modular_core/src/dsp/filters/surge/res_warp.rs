@@ -171,9 +171,9 @@ macro_rules! res_warp_module {
             name = $name, ident = $Struct, kernel = ResWarp,
             output_doc = $output_doc,
             params = {
-                #[input("state saturator: tanh or softClip (default tanh)")]
+                #[input("saturation inside the filter: tanh or softClip (default tanh)")]
                 drive: ResWarpDrive,
-                #[input("number of cascaded filter stages, 1–4 (default 1)")]
+                #[input("number of cascaded filter stages (default 1)", range = (1, 4))]
                 stages: Option<usize>,
             },
             mode = |p| ResWarpMode {

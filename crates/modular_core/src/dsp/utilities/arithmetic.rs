@@ -45,11 +45,11 @@ impl ArithmeticOp {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ArithmeticParams {
-    #[input("left-hand side", type = control, range = (-5.0, 5.0))]
+    #[input("signal on the left of the operation", type = audio)]
     input: PolySignal,
-    #[input("right-hand side", type = control, range = (-5.0, 5.0))]
+    #[input("signal or amount on the right of the operation", type = control, control_range = (-5.0, 5.0))]
     operand: PolySignal,
-    #[input("operation applied as `input op operand`")]
+    #[input("operation applied as `input op operand` (default add)")]
     #[serde(default)]
     #[deserr(default)]
     op: ArithmeticOp,
@@ -58,7 +58,7 @@ struct ArithmeticParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ArithmeticOutputs {
-    #[output("output", "result", default)]
+    #[output("output", "the result", default)]
     sample: PolyOutput,
 }
 
@@ -141,9 +141,9 @@ impl RoundMode {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RoundParams {
-    #[input("signal to round", type = control, range = (-5.0, 5.0))]
+    #[input("signal to round", type = audio)]
     input: PolySignal,
-    #[input("rounding direction")]
+    #[input("which way to round to a whole volt (default round)")]
     #[serde(default)]
     #[deserr(default)]
     mode: RoundMode,
@@ -152,7 +152,7 @@ struct RoundParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct RoundOutputs {
-    #[output("output", "rounded signal", default)]
+    #[output("output", "the signal in whole volts", default)]
     sample: PolyOutput,
 }
 
