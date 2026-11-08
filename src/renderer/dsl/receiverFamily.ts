@@ -13,11 +13,10 @@ import type { ApiIndex, Family } from './apiSignatures';
 const MAX_DEPTH = 16;
 
 /**
- * A reader of the family of expressions in `file`, or null for one whose
- * family the source alone cannot tell (a function parameter, a `let`).
+ * A reader of the family of an expression, or null for one whose family the
+ * source alone cannot tell (a function parameter, a `let`).
  */
 export function createFamilyReader(
-    file: ts.SourceFile,
     api: ApiIndex,
 ): (expr: ts.Expression) => Family | null {
     const familyOf = (expr: ts.Expression, depth: number): Family | null => {
