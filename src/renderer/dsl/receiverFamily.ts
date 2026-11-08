@@ -6,6 +6,7 @@
  */
 import ts from 'typescript';
 
+import { constBindings } from '../../shared/dsl/ast/consts';
 import { dottedName } from '../../shared/dsl/ast/names';
 import type { ApiIndex, Family } from './apiSignatures';
 
@@ -19,11 +20,7 @@ export function createFamilyReader(
     file: ts.SourceFile,
     api: ApiIndex,
 ): (expr: ts.Expression) => Family | null {
-    let consts: Map<string, ts.Expression | null> | undefined;
-    const constInit = (name: string) => {
-        consts ??= constInitializers(file);
-        return consts.get(name) ?? null;
-    };
+    const constInit = (name: string) => constBindings(file).get(name) ?? null;
 
     const familyOf = (expr: ts.Expression, depth: number): Family | null => {
         if (depth > MAX_DEPTH) {
@@ -111,27 +108,4 @@ export function splitChain(callee: ts.PropertyAccessExpression): {
         path: [callee.name.text],
         receiver: callee.expression,
     };
-}
-
-/** Initializers of the file's `const` bindings; null for a name bound more
- *  than once, whose value depends on scope. */
-function constInitializers(
-    file: ts.SourceFile,
-): Map<string, ts.Expression | null> {
-    const out = new Map<string, ts.Expression | null>();
-    const visit = (node: ts.Node) => {
-        if (
-            ts.isVariableDeclaration(node) &&
-            ts.isIdentifier(node.name) &&
-            node.initializer &&
-            ts.isVariableDeclarationList(node.parent) &&
-            (node.parent.flags & ts.NodeFlags.Const) !== 0
-        ) {
-            const name = node.name.text;
-            out.set(name, out.has(name) ? null : node.initializer);
-        }
-        ts.forEachChild(node, visit);
-    };
-    visit(file);
-    return out;
 }

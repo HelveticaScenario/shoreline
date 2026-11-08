@@ -2,7 +2,15 @@
   "original": {
     "analyze": {
       "callSiteSpans": [["6:9",6,6]],
-      "interpolations": [],
+      "interpolations": [
+        [
+          "88:107",
+          [
+            {"constLiteralSpan":{"end":60,"start":56},"evaluatedLength":2,"evaluatedStart":0},
+            {"constLiteralSpan":{"end":18,"start":14},"evaluatedLength":2,"evaluatedStart":3}
+          ]
+        ]
+      ],
       "registry": [["4:25","$p",[["source",88,107]]]]
     },
     "controlCalls": [],
