@@ -77,4 +77,12 @@ describe('template interpolation', () => {
             resolutions("const root = 'c4'\n$p(`${0x10} ${root} e4`)"),
         ).toEqual(["'c4'@3+2"]);
     });
+
+    test('a const holding a number resolves like one holding a string', () => {
+        expect(
+            resolutions(
+                "const n = 3\nconst m = -2\nconst root = 'c4'\n$p(`${n} ${m} ${root}`)",
+            ),
+        ).toEqual(['3@0+1', '-2@2+2', "'c4'@5+2"]);
+    });
 });

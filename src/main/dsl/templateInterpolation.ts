@@ -80,6 +80,12 @@ function evaluatedLength(
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
         return node.text.length;
     }
+    const number = signedNumericLiteral(node);
+    if (number) {
+        // The number as a template prints it: `0x10` interpolates as `16`.
+        const value = Number(number.literal.text);
+        return String(number.sign === '-' ? -value : value).length;
+    }
     if (!ts.isTemplateExpression(node)) {
         return null;
     }
@@ -95,7 +101,7 @@ function evaluatedLength(
 }
 
 /** Length of what an interpolated expression evaluates to: a const literal
- *  (guarding circular references), or a string or number written in place. */
+ *  (guarding circular references), or a literal written in place. */
 function interpolatedLength(
     expr: ts.Expression,
     table: ConstTable,
@@ -111,14 +117,7 @@ function interpolatedLength(
         visited.delete(expr.text);
         return length;
     }
-    if (ts.isStringLiteral(expr)) {
-        return expr.text.length;
-    }
-    if (ts.isNumericLiteral(expr)) {
-        // The number as a template prints it: `0x10` interpolates as `16`.
-        return String(Number(expr.text)).length;
-    }
-    return null;
+    return evaluatedLength(expr, table, visited);
 }
 
 /**
