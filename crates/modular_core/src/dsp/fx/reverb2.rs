@@ -16,6 +16,8 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -262,28 +264,24 @@ struct Reverb2State {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-/// Stereo Jot-style Feedback Delay Network reverb with a scattering matrix.
-///
-/// The eight modulated delay lines split into a left and a right sub-network,
-/// each recirculating through its own paraunitary scattering matrix — a
-/// Hadamard mix, short per-line delays, then a Householder mix — so energy
-/// diffuses densely without a fixed metallic structure. Even input channels
-/// feed the left half, odd the right, so the wet field tracks the dry stereo
-/// image; a `width` control sets how strongly the halves cross-couple. Each
-/// line's feedback runs through a first-order absorption filter that sets a
-/// two-band decay time (`decay` for the low band, `damping` for how much faster
-/// the high band decays), and a matching tonal-correction shelf flattens the
-/// output timbre. Per-channel predelay and diffusion sit ahead of the network.
-/// Output is always 100% wet — use `.send()` or `$mix` for a dry/wet blend.
-///
-/// ```js
-/// $unstable.reverb2($saw('c3')).out()
-/// $unstable.reverb2($saw('c3'), { decay: 3, damping: 2, size: 2 }).out()
-/// $unstable.reverb2($saw('c3'), { decay: 4, width: 4, modulation: 3 }).out()
-/// ```
+const REVERB2_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Hall reverb with darkening tail",
+    description: "A dense stereo reverb whose bass and treble ring out for different times, like \
+                  a real hall where the highs die first. Keeps a stereo source's left and right \
+                  apart in the tail. Output is fully wet, so blend it with \
+                  `.$m.unstable.reverb2(mix)` or send to it from a bus.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Dark, long-tailed plucks",
+        code: "const notes = $cycle($p('c5 g4 eb5 ~'))\n\
+                   $sine(notes).amp($perc(notes.trig, { decay: 0.15 })).$m.unstable.reverb2(3, { decay: 4, damping: 4 }).out()",
+    }],
+};
+
 #[module(
     name = "$unstable.reverb2",
-    categories(effect),
+    docs = REVERB2_DOCS,
     channels = 2,
     has_init,
     args(input)

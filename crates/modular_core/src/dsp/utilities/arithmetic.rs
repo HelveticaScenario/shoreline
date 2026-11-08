@@ -4,6 +4,8 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use crate::block_input;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 
 /// Operation `_arithmetic` applies between its input and operand.
@@ -62,12 +64,21 @@ struct ArithmeticOutputs {
     sample: PolyOutput,
 }
 
-/// Adds, subtracts, multiplies, divides or raises one signal to the power of
-/// another, sample by sample. Division by zero outputs 0 V.
-///
-/// Backs the DSL's `.add()`, `.sub()`, `.mul()`, `.div()` and `.exp()` signal
-/// methods.
-#[module(name = "_arithmetic", categories(math), args(input, operand), block)]
+const ARITHMETIC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Signal arithmetic",
+    description: "Adds, subtracts, multiplies, divides or raises one signal to the \
+                  power of another, sample by sample; dividing by zero gives 0 V. \
+                  Backs the `.add()`, `.sub()`, `.mul()`, `.div()` and `.exp()` signal \
+                  methods.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Tremolo by multiplying",
+        code: "$saw('c3').mul($sine('5hz').range(0, 1)).out()",
+    }],
+};
+
+#[module(name = "_arithmetic", docs = ARITHMETIC_DOCS, args(input, operand), block)]
 pub struct Arithmetic {
     outputs: ArithmeticOutputs,
     params: ArithmeticParams,
@@ -156,10 +167,20 @@ struct RoundOutputs {
     sample: PolyOutput,
 }
 
-/// Rounds a signal to a whole number of volts.
-///
-/// Backs the DSL's `.round()`, `.floor()` and `.ceil()` signal methods.
-#[module(name = "_round", categories(math), args(input), block)]
+const ROUND_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Round to whole volts",
+    description: "Rounds a signal to whole volts, which on a pitch means whole \
+                  octaves. Backs the `.round()`, `.floor()` and `.ceil()` signal \
+                  methods.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Octave-stepping arpeggio",
+        code: "$sine($saw('0.5hz').range(-1, 2).round()).out()",
+    }],
+};
+
+#[module(name = "_round", docs = ROUND_DOCS, args(input), block)]
 pub struct Round {
     outputs: RoundOutputs,
     params: RoundParams,

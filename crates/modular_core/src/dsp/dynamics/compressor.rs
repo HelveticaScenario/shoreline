@@ -7,6 +7,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::{cached::Cached, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
 // Gain voltage scaling: maps [-5, 5] volts to [-24, 24] dB (4.8 dB per volt)
@@ -230,73 +232,35 @@ struct CompressorOutputs {
     sample: PolyOutput,
 }
 
-/// EXPERIMENTAL
-///
-/// Single-band feed-forward dynamics processor with peak envelope follower.
-///
-/// Two stages run in parallel:
-///
-/// - **downward stage** acts on signal above `threshold`. `ratio > 1` =
-///   compression, `ratio < 1` = upward expansion (boost loud), `ratio = 1` =
-///   passthrough.
-/// - **upward stage** acts on signal below `upwardThreshold`. `upwardRatio > 1`
-///   = upward compression (boost quiet), `upwardRatio < 1` = downward
-///   expansion / gate-like attenuation of quiet signal, `upwardRatio = 1` =
-///   passthrough.
-///
-/// Both ratios use textbook `X:1` notation (X = Δinput dB / Δoutput dB) and
-/// are lower-bounded at 1e-3 (≈ Ableton's 1:1000 display). The detected
-/// level is clamped to ±60 dB so expansion stays bounded at signal extremes.
-///
-/// An optional **side-chain** input lets the envelope follower track an
-/// external signal while the gain is applied to `input` — useful for
-/// ducking, kick-triggered pumping, or building multiband effects like OTT.
-///
-/// **Signal flow:** input → input gain → (detector: side-chain or input)
-///   → up + down compression → output gain → dry/wet mix → output
-///
-/// - **threshold** — downward stage threshold in volts (0–5, default 2.5).
-/// - **ratio** — downward stage ratio in textbook X:1 form. > 1 compresses,
-///   < 1 expands (boosts loud signal), 1 = passthrough. Lower-bounded at
-///   1e-3 (≈ 1:1000 expansion); upper bound is `f32::INFINITY` =
-///   brick-wall limiter. Default 4.0 (= Ableton display 1:0.25).
-/// - **upwardThreshold** — upward stage threshold in volts (0–5, default 0).
-/// - **upwardRatio** — upward stage ratio in textbook X:1 form. > 1 boosts
-///   quiet signal, < 1 gates quiet signal, 1 = passthrough. Same bounds as
-///   `ratio`. Default 1 (passthrough).
-/// - **sidechain** — optional external detector signal.
-/// - **attack** / **release** — envelope follower time constants in seconds.
-/// - **makeup** — post-compression makeup gain as a dB-domain voltage
-///   (-5V = -24dB, 0V = unity, +5V = +24dB, default 0).
-/// - **inputGain** — gain before the compressor (-5V = -24dB, 0V = unity,
-///   5V = +24dB). Raising input gain drives more signal into the compressor.
-/// - **outputGain** — gain after compression (-5V = -24dB, 0V = unity,
-///   5V = +24dB). Trims the final output level.
-/// - **mix** — dry/wet blend (0 = fully dry, 5 = fully wet, default 5.0).
-///   The dry signal is the original input before any gain staging.
-///
-/// ```js
-/// // simple bus compressor
-/// $comp($saw('c2'), { threshold: 2.5, ratio: 4, attack: 0.01, release: 0.1 })
-/// ```
-///
-/// ```js
-/// // side-chain ducking — a kick envelope ducks a sustained pad
-/// $comp($saw('c3'), {
-///   sidechain: $perc($clock.beatTrigger, { decay: 0.2 }),
-///   threshold: 1.0, ratio: 8, attack: 0.005, release: 0.2,
-/// })
-/// ```
-///
-/// ```js
-/// // multiband compression using $xover + $comp
-/// let bands = $xover($saw('c2'), { lowMidFreq: '200hz', midHighFreq: '2000hz' })
-/// let low  = $comp(bands.low,  { threshold: 2.5, ratio: 4 })
-/// let mid  = $comp(bands.mid,  { threshold: 3,   ratio: 3 })
-/// let high = $comp(bands.high, { threshold: 2,   ratio: 6 })
-/// $mix([low, mid, high]).out()
-/// ```
-#[module(name = "$comp", categories(dynamics), args(input))]
+const COMP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Compressor and expander",
+    description: "Evens out levels by turning loud parts down, and with its upward stage can \
+                  also lift quiet details or gate them away. Patch `sidechain` to duck one \
+                  sound under another, or split a sound with `$xover` to compress each band \
+                  on its own.",
+    categories: &[ModuleCategory::Dynamics],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Pad pumping to the beat",
+            code: "$saw($chord('C3[m9]')).$.lpf('c5').$.comp({\n\
+                   \x20 sidechain: $perc($clock.beatTrigger, { decay: 0.2 }),\n\
+                   \x20 threshold: 1, ratio: 8, attack: 0.005, release: 0.2,\n\
+                   }).out()",
+        },
+        DocExample {
+            title: "Multiband squash",
+            code: "const bands = $xover($saw('c2'), { lowMidFreq: '200hz', midHighFreq: '2000hz' })\n\
+                   $mix([\n\
+                   \x20 $comp(bands.low, { threshold: 2.5, ratio: 4 }),\n\
+                   \x20 $comp(bands.mid, { threshold: 3, ratio: 3 }),\n\
+                   \x20 $comp(bands.high, { threshold: 2, ratio: 6 }),\n\
+                   ]).out()",
+        },
+    ],
+};
+
+#[module(name = "$comp", docs = COMP_DOCS, args(input))]
 pub struct Compressor {
     outputs: CompressorOutputs,
     channel_state: Box<[ChannelState]>,

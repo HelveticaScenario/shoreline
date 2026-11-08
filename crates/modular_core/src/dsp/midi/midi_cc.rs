@@ -7,6 +7,8 @@ use deserr::Deserr;
 use napi::Result;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::types::{DeviceName, MidiControlChange, MidiControlChange14Bit};
 
 #[params]
@@ -52,24 +54,20 @@ struct MidiCcState {
     smoothed_value: f32,
 }
 
-/// Converts a MIDI continuous controller (CC) message into a smooth control voltage (0–5V).
-///
-/// Use the `cc` parameter to select which CC number to listen to (0–127).
-/// Optional `smoothingMs` applies a slew filter to reduce stepping artifacts.
-/// Enable `highResolution` for 14-bit CC precision (pairs CC 0–31 with 32–63).
-///
-/// ## Example
-///
-/// ```js
-/// // Use mod wheel (CC 1) to sweep a filter cutoff
-/// const mod = $midiCC({ cc: 1 });
-/// $lpf($saw('c3'), mod.range('c2', 'c6')).out();
-///
-/// // High-resolution breath controller with smoothing
-/// const breath = $midiCC({ cc: 2, highResolution: true, smoothingMs: 10 });
-/// $sine('c4').amplitude(breath).out();
-/// ```
-#[module(name = "$midiCC", categories(midi), args())]
+const MIDI_CC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "MIDI controller to voltage",
+    description: "Follows one knob, fader or wheel on a MIDI controller as a 0–5 V control \
+                  voltage, for playing any param of a patch by hand.",
+    categories: &[ModuleCategory::Midi],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Mod wheel filter sweep",
+        code: "const wheel = $midiCC({ cc: 1, smoothingMs: 10 })\n\
+               $saw('c2').$.lpf(wheel.range('c3', 'c7'), 2).out()",
+    }],
+};
+
+#[module(name = "$midiCC", docs = MIDI_CC_DOCS, args())]
 pub struct MidiCc {
     outputs: MidiCcOutputs,
     params: MidiCcParams,

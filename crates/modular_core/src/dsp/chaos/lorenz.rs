@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
 // --- Scaling constants ---
@@ -132,38 +134,28 @@ struct LorenzState {
     inv_sample_rate: f32,
 }
 
-/// Chaotic signal source based on the Lorenz strange attractor.
-///
-/// Simulates the Lorenz system continuously — changing any parameter pulls the
-/// trajectory in a new direction rather than restarting from scratch. Outputs x
-/// (default) and y coordinates normalized to **±5V**, and z normalized to **0–5V**
-/// (z is always positive in the Lorenz system).
-///
-/// ## Parameters (all 0–5 CV)
-///
-/// | param | mapped range | default | chaotic butterfly |
-/// |-------|-------------|---------|-------------------|
-/// | sigma | σ 0–30      | 1.667 → σ=10   | stays chaotic for σ > 0 |
-/// | rho   | ρ 0–60      | 2.333 → ρ=28   | chaos requires ρ > ~24.74 (CV > ~2.06V) |
-/// | beta  | β 0–10      | 1.333 → β=8/3  | classic shape near 2.667 |
-/// | rate  | 0–200 t/s   | 0.1   → 4 t/s  | audio-rate at ≥ ~50 t/s |
-///
-/// ## Example
-///
-/// ```js
-/// // Classic Lorenz butterfly at default params
-/// $lorenz()
-///
-/// // Access all three outputs
-/// const l = $lorenz()
-/// l    // x coordinate (±5V)
-/// l.y  // y coordinate (±5V)
-/// l.z  // z coordinate (0–5V)
-///
-/// // Modulate rho — nudges the attractor without resetting it
-/// $lorenz({ rho: $sine('1hz').range(0, 5), rate: 0.5 }).out()
-/// ```
-#[module(name = "$lorenz", categories(modulation, random), has_init)]
+const LORENZ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Chaotic three-voltage drift",
+    description: "Three voltages that swirl around each other and never repeat, from the \
+                  Lorenz attractor: organic modulation for anything that should wander \
+                  without looping. Changing a param bends the path rather than restarting it.",
+    categories: &[ModuleCategory::Modulation, ModuleCategory::Random],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Wandering filter sweep",
+            code: "$saw('c2').$.lpf($lorenz({ rate: 0.2 }).range('c3', 'c6'), 3).out()",
+        },
+        DocExample {
+            title: "Two voices drifting together",
+            code: "const chaos = $lorenz({ rate: 0.1 })\n\
+                   $sine(chaos.range('a3', 'a4')).out()\n\
+                   $sine(chaos.y.range('e4', 'e5')).out()",
+        },
+    ],
+};
+
+#[module(name = "$lorenz", docs = LORENZ_DOCS, has_init)]
 pub struct Lorenz {
     outputs: LorenzOutputs,
     params: LorenzParams,

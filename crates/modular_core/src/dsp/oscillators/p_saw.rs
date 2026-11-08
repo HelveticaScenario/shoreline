@@ -1,3 +1,5 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::wrap,
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -45,20 +47,20 @@ struct ChannelState {
     prev_phase: f64,
 }
 
-/// Phase-driven variable-symmetry triangle oscillator.
-///
-/// Instead of a frequency input, this oscillator is driven by an external
-/// phasor signal (0–1). Connect a `ramp` or other phase source to `phase`
-/// and use phase-distortion modules between them for complex timbres.
-///
-/// The `shape` parameter shifts the peak position of a triangle wave,
-/// smoothly morphing between waveforms by adjusting attack/release time:
-/// - **0** — Saw (all rise, instant drop)
-/// - **2.5** — Triangle (symmetric)
-/// - **5** — Ramp (instant rise, all fall)
-///
-/// Output range is **±5V**.
-#[module(name = "$pSaw", categories(oscillator, phase), args(phase))]
+const P_SAW_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Phase-driven saw and triangle",
+    description: "The saw-to-triangle morph of `$saw`, following a phase input \
+                  instead of its own pitch. Warp the phase with `$pWarp` for \
+                  sync sweeps, folds and other reshaped cycles.",
+    categories: &[ModuleCategory::Oscillator, ModuleCategory::Phase],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Hard-sync sweep",
+        code: "$pSaw($pWarp($ramp('c2'), $phase.sync($sine('0.2hz').range(0, 3)), { freq: 'c2' })).$.lpf('c6').out()",
+    }],
+};
+
+#[module(name = "$pSaw", docs = P_SAW_DOCS, args(phase))]
 pub struct PSawOscillator {
     outputs: PSawOscillatorOutputs,
     channel_state: Box<[ChannelState]>,

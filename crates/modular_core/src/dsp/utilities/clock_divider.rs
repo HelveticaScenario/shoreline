@@ -3,6 +3,8 @@ use napi::Result;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::{SchmittTrigger, TempGate, TempGateState, min_gate_samples};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::ClockMessages;
 
@@ -39,19 +41,22 @@ struct ChannelState {
     trigger_gate: TempGate,
 }
 
-/// Divides an incoming clock signal so it fires less often.
-///
-/// Feed it a clock and set **division** to an integer — the output will
-/// tick once every *n* input ticks. Useful for creating slower rhythmic
-/// subdivisions from a master clock.
-///
-/// ```js
-/// // Pulses every other bar of the root clock:
-/// $clockDivider($clock.barTrigger, 2)
-/// ```
+const CLOCK_DIVIDER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Clock divider",
+    description: "Fires once every so many input ticks, turning one clock into slower \
+                  ones for half-time parts, longer phrases and polyrhythms.",
+    categories: &[ModuleCategory::Gate, ModuleCategory::Sequencer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Bass on every other beat",
+        code: "$saw('c2').amp($perc($clockDivider($clock.beatTrigger, 2), { decay: 0.3 })).out()\n\
+               $noise('white').amp($perc($clock.beatTrigger, { decay: 0.03 })).out()",
+    }],
+};
+
 #[module(
     name = "$clockDivider",
-    categories(gate, sequencer),
+    docs = CLOCK_DIVIDER_DOCS,
     args(input, division)
 )]
 pub struct ClockDivider {

@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
 #[params]
@@ -33,19 +35,27 @@ struct ClampOutputs {
     sample: PolyOutput,
 }
 
-/// Constrains a signal between a minimum and maximum value.
-///
-/// Bounds are independently optional — omit **min** or **max** to leave
-/// that side unclamped.
-///
-/// ```js
-/// // clamp a sine into the 0–5 V range
-/// $clamp($sine('440hz'), 0, 5)
-///
-/// // one-sided: floor at 0 V, no ceiling
-/// $clamp($sine('1hz'), { min: 0 })
-/// ```
-#[module(name = "$clamp", categories(math), args(input))]
+const CLAMP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Limit a signal to a range",
+    description: "Holds a signal between a floor and a ceiling, flattening anything \
+                  past either edge. Give only one bound to clamp one side: handy for \
+                  keeping modulation from pushing a cutoff or pitch somewhere \
+                  unpleasant.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Half-wave rectified buzz",
+            code: "$clamp($sine('c3'), { min: 0 }).out()",
+        },
+        DocExample {
+            title: "Sweep that lingers wide open",
+            code: "$saw('c2').$.lpf($clamp($sine('0.2hz').range('c3', 'c8'), { max: 'c6' }), 2).out()",
+        },
+    ],
+};
+
+#[module(name = "$clamp", docs = CLAMP_DOCS, args(input))]
 pub struct Clamp {
     outputs: ClampOutputs,
     params: ClampParams,

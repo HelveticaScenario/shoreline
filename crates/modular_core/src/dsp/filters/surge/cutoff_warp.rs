@@ -11,6 +11,8 @@ use super::coeffs::note_to_hz;
 use super::fastmath::{fastcos, fastsin, fasttanh_clamped, softclip};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
 use crate::dsp::shape::shapers::ojd;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Biquad passband shared by the warp families.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -208,20 +210,9 @@ impl Filter for CutoffWarp {
 
 /// Stamp one cutoff-warp passband module.
 macro_rules! cutoff_warp_module {
-    ($name:literal, $Struct:ident, $passband:expr, $output_doc:literal, $example:literal) => {
+    ($docs:path, $name:literal, $Struct:ident, $passband:expr, $output_doc:literal) => {
         filter_module! {
-            /// Surge XT's Cutoff Warp filter — an RBJ biquad with a saturator in the
-            /// feedback path (a nonlinear-feedback design by Jatin Chowdhury), up to
-            /// four cascaded stages. Runs 2× oversampled.
-            ///
-            /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-            /// - **resonance** — 0–5 (biquad Q up to ~18).
-            /// - **drive** — `'tanh'`, `'softClip'`, or `'ojd'`.
-            /// - **stages** — 1–4 cascaded sections.
-            ///
-            /// ```js
-            #[doc = $example]
-            /// ```
+            docs = $docs,
             name = $name, ident = $Struct, kernel = CutoffWarp,
             output_doc = $output_doc,
             params = {
@@ -238,40 +229,101 @@ macro_rules! cutoff_warp_module {
     };
 }
 
+const CUTOFF_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Cutoff Warp lowpass",
+    description: "A resonant lowpass with saturation in its feedback, so drive bends the sweep \
+                  into a hot, distorted, slightly unstable growl. More `stages` cut steeper \
+                  and saturate harder.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Growling saturated sweep",
+        code: "$unstable.filter.cutoffWarpLp($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 3, { drive: 'ojd', stages: 2 }).out()",
+    }],
+};
+
+const CUTOFF_WARP_HP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Cutoff Warp highpass",
+    description: "A resonant highpass with saturation in its feedback, for a thin, crackling, \
+                  overdriven top end.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Crackling highpass sweep",
+        code: "$unstable.filter.cutoffWarpHp($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 3, { stages: 2 }).out()",
+    }],
+};
+
+const CUTOFF_WARP_BP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Cutoff Warp bandpass",
+    description: "A resonant bandpass with saturation in its feedback: a narrow, distorted \
+                  band that honks when driven.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Honking distorted wah",
+        code: "$unstable.filter.cutoffWarpBp($saw('c2'), $sine('1hz').range('c4', 'c6'), 3).out()",
+    }],
+};
+
+const CUTOFF_WARP_NOTCH_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Cutoff Warp notch",
+    description: "A notch with saturation in its feedback, so the hole it cuts smears and \
+                  grits up with level.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Gritty notch sweep",
+        code: "$unstable.filter.cutoffWarpNotch($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 3).out()",
+    }],
+};
+
+const CUTOFF_WARP_AP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Cutoff Warp allpass",
+    description: "An allpass with saturation in its feedback: phase-smearing that adds its own \
+                  distortion; stack `stages` for a deeper smear.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Driven phase smear",
+        code: "$unstable.filter.cutoffWarpAp($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 3, { drive: 'softClip', stages: 4 }).out()",
+    }],
+};
+
 cutoff_warp_module!(
+    CUTOFF_WARP_LP_DOCS,
     "$unstable.filter.cutoffWarpLp",
     CutoffWarpLpFilter,
     WarpPassband::Lp,
-    "lowpass output",
-    "$unstable.filter.cutoffWarpLp($saw('c2'), 'c4', 2, { drive: 'ojd', stages: 2 })"
+    "lowpass output"
 );
 cutoff_warp_module!(
+    CUTOFF_WARP_HP_DOCS,
     "$unstable.filter.cutoffWarpHp",
     CutoffWarpHpFilter,
     WarpPassband::Hp,
-    "highpass output",
-    "$unstable.filter.cutoffWarpHp($saw('c2'), 'c4', 2, { stages: 2 })"
+    "highpass output"
 );
 cutoff_warp_module!(
+    CUTOFF_WARP_BP_DOCS,
     "$unstable.filter.cutoffWarpBp",
     CutoffWarpBpFilter,
     WarpPassband::Bp,
-    "bandpass output",
-    "$unstable.filter.cutoffWarpBp($saw('c2'), 'c4', 2)"
+    "bandpass output"
 );
 cutoff_warp_module!(
+    CUTOFF_WARP_NOTCH_DOCS,
     "$unstable.filter.cutoffWarpNotch",
     CutoffWarpNotchFilter,
     WarpPassband::Notch,
-    "notch output",
-    "$unstable.filter.cutoffWarpNotch($saw('c2'), 'c4', 2)"
+    "notch output"
 );
 cutoff_warp_module!(
+    CUTOFF_WARP_AP_DOCS,
     "$unstable.filter.cutoffWarpAp",
     CutoffWarpApFilter,
     WarpPassband::Ap,
-    "allpass output",
-    "$unstable.filter.cutoffWarpAp($saw('c2'), 'c4', 2, { drive: 'softClip' })"
+    "allpass output"
 );
 
 #[cfg(test)]

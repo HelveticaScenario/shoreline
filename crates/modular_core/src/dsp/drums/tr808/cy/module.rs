@@ -4,6 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
@@ -53,26 +55,27 @@ struct Cy808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Cy808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 cymbal.
-///
-/// A circuit model of the 808's cymbal: six detuned square waves filtered into
-/// a shimmering high band and a ringing lower one. **decay** sets how long the
-/// lower band rings, **tone** the balance from dark to bright, and **accent**
-/// how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.cymbal($clock.barTrigger).out()
-/// ```
+const CY808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 cymbal",
+    description: "The 808's cymbal: six detuned square waves filtered into a shimmering \
+                  high band over a ringing lower one, for a crash at the top of a phrase \
+                  or a washy ride.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Crash on the one",
+        code: "$tr808.kick($cycle($p('c*4')).trig).out()\n\
+               $tr808.cymbal($clock.barTrigger, { decay: 4 }).out()",
+    }],
+};
+
 #[module(
     name = "$tr808.cymbal",
-    categories(drum),
+    docs = CY808_DOCS,
     has_init,
     patch_update,
     args(trigger),

@@ -1,4 +1,6 @@
 use crate::dsp::utils::SchmittTrigger;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use deserr::Deserr;
 use schemars::JsonSchema;
@@ -182,31 +184,28 @@ impl Default for ChannelState {
     }
 }
 
-/// An Attack-Decay-Sustain-Release envelope generator.
-///
-/// Generates a control voltage envelope driven by a **gate** input.
-/// When the gate goes high (>1V) the envelope enters the attack phase;
-/// when the gate goes low it enters release.
-///
-/// - **attack** / **decay** / **release** — time in seconds
-/// - **sustain** — level in volts (0–5V). Defaults to 5V, but if **decay** is set
-///   without **sustain**, sustain defaults to 0V for a plucky attack-decay shape.
-/// - **curve** — ramp shape from -5 to 5. 0 is linear; +5 gives a logarithmic
-///   attack and exponential decay/release; -5 is the inverse.
-///   Defaults to 5.
-/// - **retrigger** — a rising edge restarts the attack from the current level
-///   (no jump). Defaults to the gate input. Set **resetOnRetrig** to true to
-///   instead snap back to the start of the attack on every retrigger.
-///
-/// Output range is **0–5V**.
-///
-/// ## Example
-///
-/// ```js
-/// const env = $adsr($pPulse($clock[0]), { attack: 0.01, decay: 0.2, sustain: 3, release: 0.5 })
-/// $sine('c4').amplitude(env).out()
-/// ```
-#[module(name = "$adsr", categories(envelope), args(gate))]
+const ADSR_DOCS: ModuleDocs = ModuleDocs {
+    summary: "ADSR envelope",
+    description: "The classic attack-decay-sustain-release envelope: it rises when the \
+                  gate opens, settles at the sustain level while held, and falls away \
+                  when the gate closes. Its ramps are curved by default for a natural, \
+                  punchy feel.",
+    categories: &[ModuleCategory::Envelope],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Plucky filter envelope",
+            code: "const notes = $cycle($p('c3 eb3 g3 bb3'))\n\
+                   $saw(notes).$.lpf($adsr(notes.gate, { decay: 0.2 }).range('c4', 'c7'), 2).out()",
+        },
+        DocExample {
+            title: "Slow pad swell",
+            code: "$saw($chord('C3[maj9]')).amp($adsr($pulse('0.25hz'), { attack: 1.5, release: 2 })).out()",
+        },
+    ],
+};
+
+#[module(name = "$adsr", docs = ADSR_DOCS, args(gate))]
 pub struct Adsr {
     outputs: AdsrOutputs,
     channel_state: Box<[ChannelState]>,

@@ -3,6 +3,8 @@ use std::f32::consts::PI;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     Wav,
     dsp::utils::{
@@ -215,24 +217,31 @@ fn grains_derive_channel_count(params: &GrainsParams) -> usize {
 
 // ── Module ─────────────────────────────────────────────────────────────────────
 
-/// Granular sampler. Continuously spawns short, windowed grains from a WAV
-/// file, enabling time-stretching, pitch-shifting independent of time, and
-/// cloud textures.
-///
-/// Each polyphonic channel maintains up to 64 concurrent grains. Spawned grains
-/// capture their pitch, start position, and length at spawn time, so live
-/// parameter changes only affect new grains.
-///
-/// Amplitude is normalised using the Mutable Instruments Clouds formula:
-/// `gain = 1/√(max(1, smoothed_active_grains − 1))`.
-///
-/// ```js
-/// $grains('c4', $wavs().pad, $pulse('2hz'))
-/// const seq = $cycle($p('c3 e3'))
-/// $grains(seq, $wavs().strings, seq.gate, { density: 3, shape: 'bell', length: 2 })
-/// ```
+const GRAINS_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Granular sampler",
+    description: "Sprays short overlapping grains from a WAV file while the gate is high, for \
+                  time-stretched textures, frozen moments and shimmering clouds. Pitch and \
+                  position are independent, so a sample can be played slowly without dropping \
+                  in pitch. Each grain keeps the settings it started with, so changes fade in \
+                  as new grains arrive.",
+    categories: &[ModuleCategory::Sampler],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Slowly scanned cloud",
+            code: "$grains('c4', $wavs().pad, 5, { start: $ramp('0.02hz').range(0, 5), density: 4, shape: 'bell' }).out()",
+        },
+        DocExample {
+            title: "Grain chords from a melody",
+            code: "const seq = $cycle($p('<[c3, g3] [eb3, bb3]>'))\n\
+                   $grains(seq, $wavs().strings, seq.gate, { length: 2, density: 3, shape: 'tukey' }).out()",
+        },
+    ],
+};
+
 #[module(
-    name = "$grains", categories(sampler),
+    name = "$grains",
+    docs = GRAINS_DOCS,
     channels_derive = grains_derive_channel_count,
     args(pitch, wav, gate),
     has_init,

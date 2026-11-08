@@ -3,6 +3,8 @@ use std::ops::Range;
 use super::*;
 use crate::dsp::drums::input::{Held, Input, Live, each_slot};
 use crate::dsp::drums::voice::rails;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Seeds each channel's noise from the module's [`seed_base`].
 fn seed(base: u64, channels: &mut [Channel]) {
@@ -82,7 +84,7 @@ impl TomState {
 
 macro_rules! tom_module {
     (
-        $(#[$doc:meta])*
+        docs = $docs:path,
         name = $name:literal,
         ident = $Struct:ident,
         parts = $parts:ident,
@@ -129,12 +131,11 @@ macro_rules! tom_module {
             #[derive(Outputs, JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", "drum output", default, range = (-10.0, 10.0))]
+                #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
                 sample: PolyOutput,
             }
 
-            $(#[$doc])*
-            #[module(name = $name, categories(drum), has_init, patch_update, args(trigger), block)]
+            #[module(name = $name, docs = $docs, has_init, patch_update, args(trigger), block)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 params: [<$Struct Params>],
@@ -219,20 +220,20 @@ macro_rules! tom_module {
     };
 }
 
+const LT808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 low tom",
+    description: "The 808's low tom: a round, low ring that starts sharp and settles in \
+                  pitch, over a soft puff of noise.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Booming tom groove",
+        code: "$tr808.lowTom($cycle($p('c ~ ~ c ~ ~ c ~')).trig, { decay: 4 }).out()",
+    }],
+};
+
 tom_module! {
-    /// TR-808 low tom.
-    ///
-    /// A circuit model of the 808's low tom: a round, low ring at ≈87 Hz that
-    /// starts sharp and settles in pitch, over a soft puff of noise. **decay**
-    /// sets how long it rings, **freq** its pitch, and **accent** how hard it
-    /// hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr808.lowTom($clock.beatTrigger).out()
-    /// ```
+    docs = LT808_DOCS,
     name = "$tr808.lowTom",
     ident = Lt808,
     parts = LT,
@@ -241,20 +242,22 @@ tom_module! {
     decay_doc = "how long the drum rings, from ≈0.21 s to ≈1.9 s; ≈0.63 s at 2.5, as on the 808",
 }
 
+const MT808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 mid tom",
+    description: "The 808's mid tom: a round ring that starts sharp and settles in \
+                  pitch, over a soft puff of noise.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Tom fill",
+        code: "$tr808.highTom($cycle($p('~ ~ ~ ~ c c ~ ~')).trig).out()\n\
+               $tr808.midTom($cycle($p('~ ~ ~ ~ ~ ~ c ~')).trig).out()\n\
+               $tr808.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ c')).trig).out()",
+    }],
+};
+
 tom_module! {
-    /// TR-808 mid tom.
-    ///
-    /// A circuit model of the 808's mid tom: a round ring at ≈134 Hz that
-    /// starts sharp and settles in pitch, over a soft puff of noise. **decay**
-    /// sets how long it rings, **freq** its pitch, and **accent** how hard it
-    /// hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr808.midTom($clock.beatTrigger).out()
-    /// ```
+    docs = MT808_DOCS,
     name = "$tr808.midTom",
     ident = Mt808,
     parts = MT,
@@ -263,20 +266,21 @@ tom_module! {
     decay_doc = "how long the drum rings, from ≈0.13 s to ≈1.2 s; ≈0.4 s at 2.5, as on the 808",
 }
 
+const HT808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 high tom",
+    description: "The 808's high tom: a round, high ring that starts sharp and settles \
+                  in pitch, over a soft puff of noise.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Tuned tom melody",
+        code: "const toms = $cycle($p('g3 ~ bb3 c4 ~ g3 f3 ~'))\n\
+               $tr808.highTom(toms.trig, { freq: toms }).out()",
+    }],
+};
+
 tom_module! {
-    /// TR-808 high tom.
-    ///
-    /// A circuit model of the 808's high tom: a round ring at ≈182 Hz that
-    /// starts sharp and settles in pitch, over a soft puff of noise. **decay**
-    /// sets how long it rings, **freq** its pitch, and **accent** how hard it
-    /// hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr808.highTom($clock.beatTrigger).out()
-    /// ```
+    docs = HT808_DOCS,
     name = "$tr808.highTom",
     ident = Ht808,
     parts = HT,
@@ -285,19 +289,21 @@ tom_module! {
     decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }
 
+const LC808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 low conga",
+    description: "The 808's low conga: a bright, hollow ring that starts sharp and \
+                  settles in pitch.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Two-conga pattern",
+        code: "$tr808.lowConga($cycle($p('~ ~ c ~ ~ c c ~')).trig).out()\n\
+               $tr808.highConga($cycle($p('c ~ ~ c ~ ~ ~ ~')).trig).out()",
+    }],
+};
+
 tom_module! {
-    /// TR-808 low conga.
-    ///
-    /// A circuit model of the 808's low conga: a bright, hollow ring at ≈192 Hz
-    /// that starts sharp and settles in pitch. **decay** sets how long it
-    /// rings, **freq** its pitch, and **accent** how hard it hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr808.lowConga($clock.beatTrigger).out()
-    /// ```
+    docs = LC808_DOCS,
     name = "$tr808.lowConga",
     ident = Lc808,
     parts = LC,
@@ -306,19 +312,21 @@ tom_module! {
     decay_doc = "how long the drum rings, from ≈0.21 s to ≈1.9 s; ≈0.63 s at 2.5, as on the 808",
 }
 
+const MC808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 mid conga",
+    description: "The 808's mid conga: a bright, hollow ring that starts sharp and \
+                  settles in pitch.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Congas and claves",
+        code: "$tr808.midConga($cycle($p('c ~ c c ~ c ~ ~')).trig).out()\n\
+               $tr808.claves($cycle($p('c ~ ~ c ~ ~ c ~')).trig).out()",
+    }],
+};
+
 tom_module! {
-    /// TR-808 mid conga.
-    ///
-    /// A circuit model of the 808's mid conga: a bright, hollow ring at ≈276 Hz
-    /// that starts sharp and settles in pitch. **decay** sets how long it
-    /// rings, **freq** its pitch, and **accent** how hard it hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr808.midConga($clock.beatTrigger).out()
-    /// ```
+    docs = MC808_DOCS,
     name = "$tr808.midConga",
     ident = Mc808,
     parts = MC,
@@ -327,19 +335,22 @@ tom_module! {
     decay_doc = "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
 }
 
+const HC808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 high conga",
+    description: "The 808's high conga: a bright, hollow ring, the highest of the three, \
+                  that starts sharp and settles in pitch.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Three-conga groove",
+        code: "$tr808.highConga($cycle($p('c ~ ~ c ~ ~ ~ ~')).trig).out()\n\
+               $tr808.midConga($cycle($p('~ ~ c ~ ~ c ~ ~')).trig).out()\n\
+               $tr808.lowConga($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()",
+    }],
+};
+
 tom_module! {
-    /// TR-808 high conga.
-    ///
-    /// A circuit model of the 808's high conga: a bright, hollow ring at ≈405
-    /// Hz that starts sharp and settles in pitch. **decay** sets how long it
-    /// rings, **freq** its pitch, and **accent** how hard it hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr808.highConga($clock.beatTrigger).out()
-    /// ```
+    docs = HC808_DOCS,
     name = "$tr808.highConga",
     ident = Hc808,
     parts = HC,

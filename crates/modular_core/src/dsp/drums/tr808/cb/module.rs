@@ -1,6 +1,8 @@
 use std::ops::Range;
 
 use super::*;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
@@ -41,25 +43,33 @@ struct Cb808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Cb808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 cowbell.
-///
-/// A circuit model of the 808's cowbell: two square waves near 540 and 800 Hz
-/// through a band-pass filter, for its clanking, slightly sour clang. **freq**
-/// sets the pitch and **accent** how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.cowbell($clock.beatTrigger).out()
-/// ```
+const CB808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 cowbell",
+    description: "The 808's cowbell: two square waves through a band-pass filter, for \
+                  its clanking, slightly sour clang.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Cowbell riff",
+            code: "$tr808.kick($cycle($p('c*4')).trig).out()\n\
+                   $tr808.cowbell($cycle($p('~ c ~ c c ~ c ~')).trig).out()",
+        },
+        DocExample {
+            title: "Tuned cowbell melody",
+            code: "const bell = $cycle($p('c5 ~ eb5 c5 ~ g4 ~ bb4'))\n\
+                   $tr808.cowbell(bell.trig, { freq: bell }).out()",
+        },
+    ],
+};
+
 #[module(
     name = "$tr808.cowbell",
-    categories(drum),
+    docs = CB808_DOCS,
     has_init,
     patch_update,
     args(trigger),

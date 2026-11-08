@@ -11,6 +11,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::{fasttan, softclip8};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Ladder slope — which of the four cascaded pole outputs is tapped.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserr, JsonSchema, Connect)]
@@ -93,17 +95,21 @@ impl Filter for LegacyLadder {
     }
 }
 
+const LEGACY_LADDER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Transistor ladder lowpass",
+    description: "The classic 4-pole transistor-ladder lowpass, fat and round, with 6 to 24 dB \
+                  taps. It rings and self-oscillates as the resonance nears the top.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Fat ladder bass",
+        code: "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n\
+              $unstable.filter.legacyLadder($saw(seq), $perc(seq.trig, { decay: 0.25 }).range('c3', 'c6'), 3).out()",
+    }],
+};
+
 filter_module! {
-    /// Surge XT's Legacy Ladder — the classic 4-pole transistor-ladder lowpass.
-    /// Self-oscillates at high resonance; runs 2× oversampled.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; past ~4 the ladder rings and self-oscillates.
-    /// - **slope** — output tap: `'db6'`, `'db12'`, `'db18'`, or `'db24'`.
-    ///
-    /// ```js
-    /// $unstable.filter.legacyLadder($saw('c2'), 'c4', 3, { slope: 'db24' })
-    /// ```
+    docs = LEGACY_LADDER_DOCS,
     name = "$unstable.filter.legacyLadder", ident = LegacyLadderFilter, kernel = LegacyLadder,
     output_doc = "lowpass output",
     params = {
@@ -295,17 +301,21 @@ impl Filter for DiodeLadder {
     }
 }
 
+const DIODE_LADDER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "EMS-style diode ladder",
+    description: "A diode-ladder lowpass in the EMS style: thinner and more acidic than a \
+                  transistor ladder, and it screams at high resonance.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Screaming acid line",
+        code: "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n\
+              $unstable.filter.diodeLadder($saw(seq), $perc(seq.trig, { decay: 0.15 }).range('c3', 'c7'), 4).out()",
+    }],
+};
+
 filter_module! {
-    /// Surge XT's Diode Ladder — an EMS-style diode-cascade lowpass (zero-delay
-    /// feedback, adapted from Odin 2). Screams at high resonance.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; high values self-oscillate.
-    /// - **slope** — output tap: `'db6'`, `'db12'`, `'db18'`, or `'db24'`.
-    ///
-    /// ```js
-    /// $unstable.filter.diodeLadder($saw('c2'), 'c4', 3, { slope: 'db24' })
-    /// ```
+    docs = DIODE_LADDER_DOCS,
     name = "$unstable.filter.diodeLadder", ident = DiodeLadderFilter, kernel = DiodeLadder,
     output_doc = "lowpass output",
     params = {

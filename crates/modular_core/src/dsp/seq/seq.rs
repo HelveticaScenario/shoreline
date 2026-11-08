@@ -22,6 +22,9 @@ use crate::{
     poly::{MonoSignalExt, PORT_MAX_CHANNELS, PolyOutput},
 };
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
+
 use super::glide::{GlideRamp, GlideTracker, GlideVoice, Playhead};
 use super::groove::{GrooveHold, before_first_step, fill_groove_inputs};
 use super::seq_value::{HAP_MATCH_EPS, SeqCycleHap, SeqCycleStorage, SeqPatternParam, SeqValue};
@@ -137,7 +140,7 @@ pub struct SeqParams {
     #[deserr(default)]
     playhead: Option<MonoSignal>,
     #[input(
-        "groove shift of note starts, in cycles; follows the global groove by default, and is 0 when `playhead` is set without it",
+        "groove shift of note starts, in cycles; follows the global groove by default, 0 plays straight, and is 0 when `playhead` is set without it",
         type = control,
         control_range = (-5.0, 5.0),
     )]
@@ -275,120 +278,156 @@ struct SeqOutputs {
     velocity: PolyOutput,
 }
 
-/// Pattern sequencer using mini-notation strings.
-///
-/// Write rhythmic and melodic patterns using a compact text syntax ported
-/// from TidalCycles/Strudel. The pattern loops each **cycle** and supports
-/// polyphony — overlapping notes are automatically allocated to separate
-/// output channels.
-///
-/// ## Cycles
-///
-/// A **cycle** is one full traversal of the pattern. The playhead position
-/// determines timing: its integer part selects the current cycle number and
-/// the fractional part selects the position within that cycle. Space-separated
-/// values divide the cycle into equal time slots.
-///
-/// ## Values
-///
-/// | Syntax | Meaning | Example |
-/// |--------|---------|---------|
-/// | Note name | Pitch (octave defaults to 3) | `'c4'`, `'a#3'`, `'db5'` |
-/// | Bare number | MIDI note number | `60`, `72` |
-/// | `Xhz` | Frequency | `'440hz'` |
-/// | `Xv` | Explicit voltage | `'0v'`, `'1v'`, `'-0.5v'` |
-/// | `~` | Rest (gate low, no change in CV) | `'c4 ~ e4 ~'` |
-///
-/// Bare numbers are MIDI note numbers (A0 = MIDI 33 = 0 V).
-///
-/// ## Grouping
-///
-/// - **`[a b c]`** — fast subsequence: subdivides the parent time slot so all
-///   elements play within it.
-/// - **`<a b c>`** — slow / alternating: plays one element per cycle,
-///   advancing each time the pattern loops.
-///
-/// ```js
-/// $cycle($p("c4 [d4 e4]"))   // c4 for half the cycle, d4 & e4 share the other half
-/// $cycle($p("<c4 g4> e4"))   // cycle 1: c4 e4, cycle 2: g4 e4, …
-/// ```
-///
-/// ## Stacks
-///
-/// **`a b, c d`** — comma-separated patterns play **simultaneously** (layered).
-/// Each sub-pattern has its own independent timing.
-///
-/// ```js
-/// $cycle($p("c4 e4, g4 b4"))   // two patterns layered on top of each other
-/// $cycle($p("c4 d4 e4, g3"))   // three-note melody over a pedal tone
-/// ```
-///
-/// ## Random choice
-///
-/// **`a|b|c`** — randomly selects one option each time the slot is reached.
-///
-/// ```js
-/// $cycle($p("c4|d4|e4 g4"))  // first slot is a random pick each cycle
-/// ```
-///
-/// ## Nesting
-///
-/// Grouping, stacks, and random choice nest arbitrarily:
-///
-/// ```js
-/// $cycle($p("<c4 [d4 e4]> [f4|g4 a4]"))  // slow + fast + random combined
-/// $cycle($p("[c4 e4, g4] a4"))           // stack inside a fast subsequence
-/// ```
-///
-/// ## Per-element modifiers
-///
-/// Modifiers attach directly to an element (no spaces). Multiple modifiers
-/// can be chained in any order.
-///
-/// | Modifier | Syntax | Meaning |
-/// |----------|--------|---------|
-/// | Weight | `@n` | Relative duration within a sequence (default 1). `c4@2 e4` gives c4 twice the time. |
-/// | Speed up | `*n` | Repeat/subdivide `n` times within the slot. `c4*3` plays c4 three times. |
-/// | Slow down | `/n` | Stretch over `n` cycles. `c4/2` plays every other cycle. |
-/// | Replicate | `!n` | Duplicate the element `n` times (default 2). `c4!3` is equivalent to `c4 c4 c4`. |
-/// | Degrade | `?` or `?n` | Randomly drop the element. `c4?` drops ~50 % of the time; `c4?0.8` drops 80 %. |
-/// | Euclidean | `(k,n)` or `(k,n,offset)` | Distribute `k` pulses over `n` steps using the Bjorklund algorithm. Optional `offset` rotates the pattern. |
-///
-/// ```js
-/// $cycle($p("c4*2 e4 g4"))        // c4 plays twice in its slot
-/// $cycle($p("c4@3 e4 g4"))        // c4 gets 3/5 of the cycle, e4 and g4 get 1/5 each
-/// $cycle($p("c4? e4 g4"))         // c4 randomly drops out ~50 % of the time
-/// $cycle($p("c4(3,8) e4"))        // Euclidean: 3 hits spread over 8 steps
-/// $cycle($p("[c4 d4 e4 f4](3,8)")) // Euclidean applied to a subpattern
-/// ```
-///
-/// Modifier operands can also be subpatterns: `c4*[2 3]` alternates between
-/// doubling and tripling each slot.
-///
-/// ## Outputs
-///
-/// - **cv** — V/Oct pitch (C4 = 0 V).
-/// - **gate** — 5 V while a note is active, 0 V otherwise.
-/// - **trig** — single-sample 5 V pulse at each note onset.
-/// - **velocity** — groove velocity (0–5 V) sampled at each note onset.
-///
-/// ## Groove
-///
-/// By default notes start on the global groove set with `$setGroove`, and
-/// `velocity` reports that groove's step velocity. The groove moves when each
-/// note starts; every note keeps its written length. Pass a `$groove` as
-/// `groove` (with its `velocity`) to use a different groove, or `groove: 0` to
-/// play straight.
-///
-/// ```js
-/// $setGroove($swing(0.6))
-/// const hats = $cycle($p('c5*8'))
-/// const bass = $cycle($p('c2*4'), { groove: 0 })
-/// $sine(hats).amp($adsr(hats.gate)).amp(hats.velocity).out()
-/// $sine(bass).amp($adsr(bass.gate)).out()
-/// ```
+const CYCLE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Mini-notation pattern sequencer",
+    description: "Plays a `$p(...)` mini-notation pattern in time with the clock, putting out \
+                  pitch, gate, trigger and velocity for every note. The pattern repeats once \
+                  per bar, overlapping notes get voices of their own so stacks play as \
+                  chords, and note starts follow the global groove set with `$setGroove`.",
+    categories: &[ModuleCategory::Sequencer],
+    sections: &[
+        DocSection {
+            title: "Values",
+            body: "Space-separated values share the cycle equally.",
+            table: Some(DocTable {
+                columns: &["Form", "Plays", "Example"],
+                rows: &[
+                    &[
+                        "note name",
+                        "that note; octave 4 when left out",
+                        "`c4`, `a#3`, `eb`",
+                    ],
+                    &[
+                        "number",
+                        "a pitch voltage, 1 V per octave with 0 at C4",
+                        "`0`, `-1`, `0.25`",
+                    ],
+                    &["`Nhz`", "a frequency", "`440hz`"],
+                    &[
+                        "`~` or `-`",
+                        "a rest: the gate drops and the pitch holds",
+                        "`c4 ~ e4 ~`",
+                    ],
+                ],
+            }),
+            examples: &[DocExample {
+                title: "Plucked bass line",
+                code: "const seq = $cycle($p('c2 ~ eb2 g2 ~ c3 bb2 g2'))\n\
+                       $saw(seq).$.lpf($perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'), 2).out()",
+            }],
+        },
+        DocSection {
+            title: "Grouping",
+            body: "Groups nest inside each other freely.",
+            table: Some(DocTable {
+                columns: &["Syntax", "Plays", "Example"],
+                rows: &[
+                    &[
+                        "`[a b]`",
+                        "the group squeezed into one slot",
+                        "`c3 [e3 g3]`",
+                    ],
+                    &[
+                        "`<a b>`",
+                        "one element per cycle, taking turns",
+                        "`<c3 f3 g3> e4`",
+                    ],
+                    &[
+                        "`{a b, c d e}`",
+                        "the parts step together at the first part's rate, so they drift against each other; `%n` sets the steps per cycle",
+                        "`{c3 e3, g3 b3 d4}%8`",
+                    ],
+                ],
+            }),
+            examples: &[DocExample {
+                title: "Bass that changes every bar",
+                code: "const seq = $cycle($p('<c2 ab1 f1 g1> [~ c3] ~ c2'))\n\
+                       $saw(seq).$.lpf('c5', 1).amp($adsr(seq.gate)).out()",
+            }],
+        },
+        DocSection {
+            title: "Stacks",
+            body: "`a b, c d` plays comma-separated patterns at the same time, each with its \
+                   own timing and its own voices.",
+            table: None,
+            examples: &[DocExample {
+                title: "Melody over a drone",
+                code: "const seq = $cycle($p('c4 eb4 g4 bb4, c3'))\n\
+                       $saw(seq).$.lpf('c5', 1).amp($adsr(seq.gate)).out()",
+            }],
+        },
+        DocSection {
+            title: "Random choice",
+            body: "`a|b|c` picks one option each time the slot comes round, and `?` after an \
+                   element drops it at random.",
+            table: None,
+            examples: &[DocExample {
+                title: "A melody that never quite repeats",
+                code: "const seq = $cycle($p('c4 [eb4|g4|bb4] f4? [g4|c5]'))\n\
+                       $sine(seq).amp($adsr(seq.gate)).out()",
+            }],
+        },
+        DocSection {
+            title: "Modifiers",
+            body: "Modifiers attach to an element with no space between and chain in any \
+                   order. Their numbers can be patterns too: `c4*<2 3>` alternates doubling \
+                   and tripling.",
+            table: Some(DocTable {
+                columns: &["Modifier", "Does", "Example"],
+                rows: &[
+                    &[
+                        "`@n`",
+                        "makes the element n slots long; `@` alone is 2",
+                        "`c4@3 e4`",
+                    ],
+                    &[
+                        "`_`",
+                        "stretches the previous element by one slot",
+                        "`c4 _ _ e4`",
+                    ],
+                    &["`*n`", "repeats the element n times in its slot", "`c4*3`"],
+                    &[
+                        "`/n`",
+                        "spreads the element over n cycles",
+                        "`[c4 e4 g4]/2`",
+                    ],
+                    &[
+                        "`!n`",
+                        "copies the element n times; `!` alone is 2",
+                        "`c4!3 e4`",
+                    ],
+                    &[
+                        "`?` or `?n`",
+                        "drops the element at random, half the time or with chance n",
+                        "`c4?0.3`",
+                    ],
+                    &[
+                        "`(k,n)` or `(k,n,r)`",
+                        "k evenly spread hits over n steps, rotated by r",
+                        "`c2(3,8)`",
+                    ],
+                ],
+            }),
+            examples: &[DocExample {
+                title: "Euclidean rhythm",
+                code: "const seq = $cycle($p('c2(3,8) [g2 c3](5,8,2)'))\n\
+                       $pulse(seq).$.lpf('c5', 2).amp($adsr(seq.gate)).out()",
+            }],
+        },
+    ],
+    examples: &[DocExample {
+        title: "Swung hats over a straight bass",
+        code: "$setGroove($swing(0.6))\n\
+               const hats = $cycle($p('c5*8'))\n\
+               const bass = $cycle($p('c2*4'), { groove: 0 })\n\
+               $noise('white').amp($perc(hats.trig, { decay: 0.05 })).amp(hats.velocity).out()\n\
+               $saw(bass).$.lpf('c4', 1).amp($adsr(bass.gate)).out()",
+    }],
+};
+
 #[module(
-    name = "$cycle", categories(sequencer),
+    name = "$cycle",
+    docs = CYCLE_DOCS,
     channels_derive = seq_derive_channel_count,
     args(pattern),
     stateful,

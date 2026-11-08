@@ -1,180 +1,20 @@
 import type { RefObject } from 'react';
 import React, {
-    memo,
     useCallback,
     useLayoutEffect,
     useMemo,
     useRef,
     useState,
 } from 'react';
-import Markdown from 'react-markdown';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
-import { LinkifyTypes } from './DocsTypeLinks';
+import { ReferenceCard } from './ReferenceCard';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
-import type {
-    EnumVariantInfo,
-    Schema,
-} from '../../shared/dsl/schemaTypeResolver';
-import {
-    schemaToTypeExpr,
-    getEnumVariants,
-} from '../../shared/dsl/schemaTypeResolver';
-import { formatOutputMeta, paramMeta } from '../../shared/dsl/paramRange';
+import type { Schema } from '../../shared/dsl/schemaTypeResolver';
+import type { ReferenceEntry } from '../../shared/dsl/referenceDocs';
+import { moduleToReferenceEntry } from '../../shared/dsl/referenceDocs';
 
 const CARD_GAP_PX = 15;
 const ESTIMATED_CARD_HEIGHT_PX = 320;
-
-const getSignature = (module: Schema): string => {
-    const { positionalArgs } = module;
-    const positionalKeys = new Set(positionalArgs.map((a) => a.name));
-    const schemaRequired: string[] = module.paramsSchema.required ?? [];
-
-    const parts: string[] = positionalArgs.map((a) =>
-        schemaRequired.includes(a.name) ? a.name : `${a.name}?`,
-    );
-
-    const configKeys = Object.keys(module.paramsSchema.properties).filter(
-        (k) => !positionalKeys.has(k),
-    );
-
-    if (configKeys.length > 0) {
-        parts.push(
-            `{ ${configKeys.map((k) => (schemaRequired.includes(k) ? k : `${k}?`)).join(', ')} }`,
-        );
-    }
-
-    return `${module.name}(${parts.join(', ')})`;
-};
-
-const getParams = (module: Schema) => {
-    const properties = Object.entries(module.paramsSchema.properties);
-    return properties.map(([name, schema]) => {
-        let type: string | undefined;
-        try {
-            type = schemaToTypeExpr(schema, module.paramsSchema);
-        } catch {
-            // Fall back to no type annotation for unsupported schemas
-        }
-        let variants: EnumVariantInfo[] | null = null;
-        try {
-            variants = getEnumVariants(schema, module.paramsSchema);
-        } catch {
-            // Fall back to no variant info
-        }
-        return {
-            description: schema.description as string | undefined,
-            meta: paramMeta(module, name),
-            name,
-            type,
-            variants,
-        };
-    });
-};
-
-/** A number stays on the line of its unit, e.g. `5 V`. */
-const keepUnits = (text: string): string =>
-    text.replace(/(\d) (V|Hz|kHz|dB|s|ms)\b/g, '$1\u00a0$2');
-
-/** One-line param, output, or value doc: inline markdown only. */
-const InlineDoc: React.FC<{ text: string }> = ({ text }) => (
-    <Markdown allowedElements={['code', 'em', 'strong']} unwrapDisallowed>
-        {keepUnits(text)}
-    </Markdown>
-);
-
-const VariantItems: React.FC<{ variants: EnumVariantInfo[] }> = ({
-    variants,
-}) => (
-    <>
-        {variants.map((v) => (
-            <li key={v.value}>
-                <code>{v.rawValue as string}</code>
-                {v.description && (
-                    <>
-                        {' '}
-                        &mdash; <InlineDoc text={v.description} />
-                    </>
-                )}
-            </li>
-        ))}
-    </>
-);
-
-interface ModuleCardProps {
-    module: Schema;
-    onTypeClick: (typeName: DslTypeName) => void;
-}
-
-const ModuleCard = memo<ModuleCardProps>(({ module, onTypeClick }) => {
-    const params = useMemo(() => getParams(module), [module]);
-    return (
-        <div className="module-card">
-            <h3>
-                <code>{getSignature(module)}</code>
-            </h3>
-            <div className="module-documentation">
-                <Markdown>{module.documentation}</Markdown>
-            </div>
-            <h4>Inputs</h4>
-            <ul>
-                {params.map(({ name, type, description, meta, variants }) => (
-                    <li key={name}>
-                        <strong>
-                            {name}
-                            {type && (
-                                <>
-                                    {': '}
-                                    <LinkifyTypes
-                                        text={type}
-                                        onTypeClick={onTypeClick}
-                                    />
-                                </>
-                            )}
-                        </strong>
-                        {description && (
-                            <>
-                                {' '}
-                                &mdash; <InlineDoc text={description} />
-                            </>
-                        )}
-                        {meta && <span className="param-meta">{meta}</span>}
-                        {variants &&
-                            variants.some((v) => v.description) &&
-                            (variants.length > 8 ? (
-                                <details className="enum-variants">
-                                    <summary>
-                                        {variants.length} values (click to
-                                        expand)
-                                    </summary>
-                                    <ul>
-                                        <VariantItems variants={variants} />
-                                    </ul>
-                                </details>
-                            ) : (
-                                <ul className="enum-variants">
-                                    <VariantItems variants={variants} />
-                                </ul>
-                            ))}
-                    </li>
-                ))}
-            </ul>
-            <h4>Outputs</h4>
-            <ul>
-                {module.outputs.map((out) => {
-                    const meta = formatOutputMeta(out);
-                    return (
-                        <li key={out.name}>
-                            <strong>{out.default ? 'main' : out.name}</strong>:{' '}
-                            <InlineDoc text={out.description} />
-                            {meta && <span className="param-meta">{meta}</span>}
-                        </li>
-                    );
-                })}
-            </ul>
-        </div>
-    );
-});
-ModuleCard.displayName = 'ModuleCard';
 
 interface ModuleReferenceProps {
     /** Already sorted in display order. */
@@ -200,23 +40,32 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
     // The list's offset within the scrolling pane, below the heading and search box.
     const [scrollMargin, setScrollMargin] = useState(0);
 
+    const entries = useMemo(
+        () => modules.map(moduleToReferenceEntry),
+        [modules],
+    );
+
     const filteredModules = useMemo(() => {
         const query = searchQuery.toLowerCase();
-        // Name matches lead, best first; modules that only mention the query
-        // in their docs follow, each group keeping the display order.
-        const rankOf = (schema: Schema): number => {
-            const name = schema.name.toLowerCase();
+        // Name matches lead, best first; entries that only mention the query
+        // in their summary or description follow, each group keeping the
+        // display order.
+        const rankOf = (entry: ReferenceEntry): number => {
+            const name = entry.name.toLowerCase();
             if (name === query) return 0;
             if (name.startsWith(query)) return 1;
             if (name.includes(query)) return 2;
-            return schema.documentation.toLowerCase().includes(query) ? 3 : -1;
+            const { summary, description } = entry.docs;
+            return `${summary}\n${description}`.toLowerCase().includes(query)
+                ? 3
+                : -1;
         };
-        return modules
-            .map((schema) => ({ rank: rankOf(schema), schema }))
+        return entries
+            .map((entry) => ({ entry, rank: rankOf(entry) }))
             .filter(({ rank }) => rank >= 0)
             .sort((a, b) => a.rank - b.rank)
-            .map(({ schema }) => schema);
-    }, [modules, searchQuery]);
+            .map(({ entry }) => entry);
+    }, [entries, searchQuery]);
 
     useLayoutEffect(() => {
         const scrollElement = scrollRef.current;
@@ -307,8 +156,8 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
                             transform: `translateY(${item.start - scrollMargin}px)`,
                         }}
                     >
-                        <ModuleCard
-                            module={filteredModules[item.index]}
+                        <ReferenceCard
+                            entry={filteredModules[item.index]}
                             onTypeClick={onTypeClick}
                         />
                     </div>

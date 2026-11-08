@@ -5,6 +5,8 @@
 use super::biquad::iir12_b;
 use super::coeffs::{bound_freq, note_to_omega, to_normalized_lattice};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Allpass kernel — a single configuration, so `Mode` is `()`.
 #[derive(Clone, Copy, Default)]
@@ -55,16 +57,21 @@ fn coeff_apf(freq_semi: f32, reso: f32, rate: f32) -> [f32; N_COEFFS] {
     to_normalized_lattice(a0inv, a1, a2, b0, b1, b2, 0.005)
 }
 
+const AP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Surge allpass filter",
+    description: "Leaves the level alone and shifts the phase around the cutoff. Mixed with \
+                  the dry sound it carves a moving notch, a simple phaser.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "One-notch phaser",
+        code: "const saw = $saw('c2')\n\
+              $mix([saw, $unstable.filter.ap(saw, $sine('0.2hz').range('c3', 'c6'), 2)]).out()",
+    }],
+};
+
 filter_module! {
-    /// Surge allpass filter — flat magnitude, frequency-dependent phase shift.
-    /// Useful for phaser-style effects when mixed against the dry signal.
-    ///
-    /// - **cutoff** — phase-transition center in V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; sharpens the phase transition around the center.
-    ///
-    /// ```js
-    /// $unstable.filter.ap($saw('c2'), 'c4', 2)
-    /// ```
+    docs = AP_DOCS,
     name = "$unstable.filter.ap", ident = ApFilter, kernel = ApBiquad,
     output_doc = "allpass output",
     params = {},

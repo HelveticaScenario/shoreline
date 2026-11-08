@@ -1,4 +1,6 @@
 use crate::dsp::utils::{GATE_HIGH_VOLTAGE, SchmittTrigger, min_gate_samples};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use deserr::Deserr;
 use schemars::JsonSchema;
@@ -40,23 +42,20 @@ struct HoldChannelState {
     output_high: bool,
 }
 
-/// Stretches a trigger into a fixed-length gate.
-///
-/// A rising edge on the input opens the output at 5V for `time` seconds,
-/// regardless of when the input falls; the output closes after `time` even if
-/// the input is still high. A rising edge while the output is high
-/// retriggers it: the output drops low for a brief retrigger gap, so
-/// downstream envelopes see a new rising edge, and the gate closes `time`
-/// after the new edge.
-///
-/// ## Example
-///
-/// ```js
-/// // stretch short clock pulses into 100 ms gates
-/// const env = $adsr($hold($clock.beatTrigger, 0.1))
-/// $sine('c4').amplitude(env).out()
-/// ```
-#[module(name = "$hold", categories(gate), args(input, time))]
+const HOLD_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stretch triggers into gates",
+    description: "Turns each trigger into a gate of a fixed length, however long the \
+                  input stays high. A new trigger mid-hold restarts it with a brief \
+                  drop, so envelopes downstream fire again.",
+    categories: &[ModuleCategory::Gate],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Clock ticks held into notes",
+        code: "$saw('c3').amp($adsr($hold($clock.beatTrigger, 0.15), { release: 0.2 })).out()",
+    }],
+};
+
+#[module(name = "$hold", docs = HOLD_DOCS, args(input, time))]
 pub struct Hold {
     outputs: HoldOutputs,
     params: HoldParams,

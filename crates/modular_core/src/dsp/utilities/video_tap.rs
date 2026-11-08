@@ -3,6 +3,8 @@ use std::sync::atomic::{AtomicU32, Ordering, fence};
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{param_errors::ModuleParamErrors, poly::MonoSignal};
 
 /// Number of tap slots the video renderer can read.
@@ -100,10 +102,20 @@ struct VideoTapOutputs {
     sample: f32,
 }
 
-/// Publishes its input to the video renderer, which polls the latest value
-/// and the recent samples of each tap slot. The DSL inserts one per audio
-/// signal a `$v` input reads.
-#[module(name = "_videoTap", categories(utility), args(input, slot))]
+const VIDEO_TAP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Audio signal for video",
+    description: "Publishes an audio signal to the video renderer. The DSL inserts one \
+                  for each audio signal a `$v` input reads.",
+    categories: &[ModuleCategory::Utility],
+    sections: &[],
+    examples: &[DocExample {
+        title: "LFO driving a video oscillator",
+        code: "const lfo = $sine('0.5hz')\n\
+               $v.out($v.solid($v.osc(lfo.range(1, 10)), 0, 0))",
+    }],
+};
+
+#[module(name = "_videoTap", docs = VIDEO_TAP_DOCS, args(input, slot))]
 pub struct VideoTap {
     outputs: VideoTapOutputs,
     params: VideoTapParams,

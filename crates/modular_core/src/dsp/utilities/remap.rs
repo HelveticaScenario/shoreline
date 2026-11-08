@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -36,22 +38,25 @@ struct RemapOutputs {
     sample: PolyOutput,
 }
 
-/// Linearly rescales a signal from one voltage range to another.
-///
-/// Maps **input** from \[inMin, inMax\] to \[outMin, outMax\]. Useful for
-/// converting between different voltage standards or reshaping control
-/// signals.
-///
-/// ```js
-/// // convert a 0–5 V envelope to a -5–5 V bipolar signal
-/// $remap($adsr($clock.beatTrigger, {attack: 0.3, decay: 0.2, sustain: 4, release: 0.5}), -5, 5, 0, 5)
-///
-/// // convert a -5–5 V signal to 0–1 V
-/// $remap($sine('1hz'), 0, 1, -5, 5)
-/// ```
+const REMAP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Rescale between ranges",
+    description: "Maps a signal from one voltage range onto another, stretching, \
+                  shifting or flipping it on the way. It is what `.range()` uses; \
+                  reach for it directly to flip a signal or to stretch just part of \
+                  its swing over the target.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Pad ducked by an upside-down envelope",
+        code: "const duck = $perc($clock.beatTrigger, { decay: 0.3 })\n\
+               $tr808.kick($clock.beatTrigger).out()\n\
+               $saw($chord('C3[m7]')).amp($remap(duck, 5, 0, 0, 5)).out()",
+    }],
+};
+
 #[module(
     name = "$remap",
-    categories(math),
+    docs = REMAP_DOCS,
     args(input, outMin, outMax, inMin, inMax)
 )]
 pub struct Remap {

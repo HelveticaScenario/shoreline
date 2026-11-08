@@ -12,6 +12,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::{fastexp, fasttanh_clamped};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Ladder simulation model.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserr, JsonSchema, Connect)]
@@ -319,19 +321,21 @@ impl Filter for VintageLadder {
     }
 }
 
+const VINTAGE_LADDER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Moog-style ladder models",
+    description: "Three simulations of the Moog transistor ladder, from the most faithful \
+                  circuit model to grittier and cleaner variants. Turn on `compensated` to \
+                  keep the bass full at high resonance.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Resonant ladder pad",
+        code: "$unstable.filter.vintageLadder($saw($chord('C2[m7]')), $sine('0.1hz').range('c3', 'c6'), 3.5, { compensated: true }).out()",
+    }],
+};
+
 filter_module! {
-    /// Surge XT's Vintage Ladder — three Moog-ladder simulations. `type` picks the
-    /// model: `'rk'` (Runge-Kutta circuit integration), `'huov'` (Huovilainen,
-    /// per-stage saturation), or `'huov2010'` (Huovilainen's 2010 revision).
-    /// Runs 2× oversampled.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; the top of the range self-oscillates.
-    /// - **compensated** — bass compensation: keeps low end at high resonance.
-    ///
-    /// ```js
-    /// $unstable.filter.vintageLadder($saw('c2'), 'c4', 2, { type: 'huov', compensated: true })
-    /// ```
+    docs = VINTAGE_LADDER_DOCS,
     name = "$unstable.filter.vintageLadder", ident = VintageLadderFilter, kernel = VintageLadder,
     output_doc = "lowpass output",
     params = {

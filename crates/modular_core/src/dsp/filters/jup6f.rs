@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::filters::resonant_svf::{CutoffResonance, hand_over, params_mono},
     dsp::utils::{changed, sanitize, voct_to_hz},
@@ -59,29 +61,29 @@ struct LadderState {
     k: f32,
 }
 
-/// Jupiter-6–style multimode ladder filter.
-///
-/// Models the IR3109 4-pole OTA cascade found in the Roland Jupiter-6.
-/// Each stage applies `tanh` saturation for the warm, harmonically rich
-/// character of the original analog circuit. Resonance drives the feedback
-/// path and self-oscillates at high values.
-///
-/// The default output is a 24 dB/oct lowpass. Additional taps provide
-/// 12 dB/oct lowpass, bandpass, and highpass responses derived from the
-/// same ladder core.
-///
-/// - **cutoff** — set in V/Oct (0 V = C4). Accepts modulation for filter sweeps.
-/// - **resonance** — feedback amount (0–5). Above ~4 the filter self-oscillates,
-///   producing a clean sine at the cutoff frequency.
-///
-/// ```js
-/// // classic Jupiter pad: saw through the ladder with slow envelope
-/// let env = $adsr($pPulse($clock[0]), { attack: 0.4, decay: 0.6, sustain: 0.3, release: 1.0 })
-/// $jup6f($saw('c2'), env.range('200hz', '4000hz'), 2.5)
-/// ```
+const JUP6F_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Jupiter-6 style ladder filter",
+    description: "A warm, saturating 4-pole lowpass modelled on the Roland Jupiter-6, with \
+                  12 dB lowpass, bandpass and highpass taps from the same core. Turned up, \
+                  the resonance self-oscillates into a clean sine at the cutoff.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Breathing analog pad",
+            code: "$saw($chord('C3[maj9]')).$.jup6f($sine('0.1hz').range('c4', 'c7'), 2.5).out()",
+        },
+        DocExample {
+            title: "Squelchy bandpass bass",
+            code: "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n\
+                   $jup6f($saw(seq), $perc(seq.trig, { decay: 0.15 }).range('c3', 'c6'), 4).bp.out()",
+        },
+    ],
+};
+
 #[module(
     name = "$jup6f",
-    categories(filter),
+    docs = JUP6F_DOCS,
     patch_update,
     args(input, cutoff, resonance)
 )]

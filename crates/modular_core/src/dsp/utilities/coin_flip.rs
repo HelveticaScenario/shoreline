@@ -3,6 +3,8 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{GATE_HIGH_VOLTAGE, GATE_LOW_VOLTAGE, SchmittTrigger};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
 #[params]
@@ -63,25 +65,25 @@ impl CoinFlipChannelState {
     }
 }
 
-/// Sends each trigger to heads or tails at random.
-///
-/// Each trigger on **input** flips a weighted coin, and **probability** sets
-/// the chance of heads. The module itself is the heads output; `.tails`
-/// carries the rest. Gates keep their length, and each channel flips on its
-/// own.
-///
-/// Place it after `$clockDivider` to turn a steady clock into a loose rhythm,
-/// or use both outputs to split one stream between two sounds.
-///
-/// ```js
-/// // Each beat lands on the kick or the snare, 75/25:
-/// const flip = $coinFlip($clock.beatTrigger, 3.75)
-/// $tr808.kick(flip).out()
-/// $tr808.snare(flip.tails).out()
-/// ```
+const COIN_FLIP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Random trigger router",
+    description: "Sends each trigger to heads or tails at random, weighted by the \
+                  probability: thin a steady clock into a loose rhythm, or split one \
+                  stream between two sounds. The module itself is the heads output; \
+                  `.tails` carries the rest.",
+    categories: &[ModuleCategory::Gate, ModuleCategory::Random],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Kick or snare, 75/25",
+        code: "const flip = $coinFlip($clock.beatTrigger, 3.75)\n\
+               $tr808.kick(flip).out()\n\
+               $tr808.snare(flip.tails).out()",
+    }],
+};
+
 #[module(
     name = "$coinFlip",
-    categories(gate, random),
+    docs = COIN_FLIP_DOCS,
     patch_update,
     args(input, probability)
 )]
