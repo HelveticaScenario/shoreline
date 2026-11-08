@@ -4,19 +4,20 @@
  * one. Only literal values are rewritten; a section property holding any
  * other expression is left alone and reported as skipped.
  */
-import { ts } from 'ts-morph';
+import ts from 'typescript';
 
 import type { EqField } from './eqPanelModel';
 import {
     type CodeStyle,
-    insertObjectProperty,
-} from '../dsl/objectPropertyInsert';
+    appendArrayElement,
+    appendObjectProperty,
+} from '../dsl/listEdits';
 import {
     type EqListTarget,
     type EqSourceEditResult,
     type FieldLiteral,
-    appendElement,
     applyTextEdit,
+    asTextEdit,
     diffEdit,
     findProperty,
     isRewritableLiteral,
@@ -79,19 +80,13 @@ function setField(
             }),
         };
     }
-    const insert = insertObjectProperty(
+    const insert = appendObjectProperty(
         loc.sf,
         element,
         `${field}: ${literal(layout.quote)}`,
         layout,
     );
-    return {
-        source: applyTextEdit(source, {
-            end: insert.span.end,
-            start: insert.span.start,
-            text: insert.newText,
-        }),
-    };
+    return { source: applyTextEdit(source, asTextEdit(insert)) };
 }
 
 /** Section object literal text for an appended section. */
@@ -154,24 +149,20 @@ export function computeEqSourceEdit(
     if (op.kind === 'add') {
         const text = sectionText(op.fields, layout);
         if (!loc.sections) {
-            const insert = insertObjectProperty(
+            const insert = appendObjectProperty(
                 loc.sf,
                 loc.config,
                 `sections: [${text}]`,
                 layout,
             );
             return {
-                edit: {
-                    end: insert.span.end,
-                    start: insert.span.start,
-                    text: insert.newText,
-                },
+                edit: asTextEdit(insert),
                 ok: true,
                 skipped: [],
             };
         }
         return {
-            edit: appendElement(loc.sf, loc.sections, text),
+            edit: asTextEdit(appendArrayElement(loc.sf, loc.sections, text)),
             ok: true,
             skipped: [],
         };

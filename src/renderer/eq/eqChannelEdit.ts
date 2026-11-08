@@ -3,7 +3,7 @@
  * list into per-channel copies, adding a copy of a channel's list, and
  * removing one (two remaining lists collapse back to the shared form).
  */
-import { ts } from 'ts-morph';
+import ts from 'typescript';
 
 import {
     type CodeStyle,
@@ -11,11 +11,12 @@ import {
     fitsOnLine,
     indentAt,
     indentUnit,
-    insertObjectProperty,
-} from '../dsl/objectPropertyInsert';
+    appendArrayElement,
+    appendObjectProperty,
+} from '../dsl/listEdits';
 import {
     type EqSourceEditResult,
-    appendElement,
+    asTextEdit,
     isPerChannelLiteral,
     locateSections,
     removeElement,
@@ -64,18 +65,14 @@ export function computeEqChannelEdit(
             return { ok: false, reason: 'stale' };
         }
         if (!outer) {
-            const insert = insertObjectProperty(
+            const insert = appendObjectProperty(
                 sf,
                 config,
                 'sections: [[], []]',
                 layout,
             );
             return {
-                edit: {
-                    end: insert.span.end,
-                    start: insert.span.start,
-                    text: insert.newText,
-                },
+                edit: asTextEdit(insert),
                 ok: true,
                 skipped: [],
             };
@@ -86,7 +83,7 @@ export function computeEqChannelEdit(
         const inline = `[${list}, ${list}]`;
         if (
             !list.includes('\n') &&
-            fitsOnLine(source, { newText: inline, propOffset: 0, span }, layout)
+            fitsOnLine(source, { newText: inline, span }, layout)
         ) {
             return { edit: { ...span, text: inline }, ok: true, skipped: [] };
         }
@@ -108,7 +105,7 @@ export function computeEqChannelEdit(
             return { ok: false, reason: 'unsupported' };
         }
         return {
-            edit: appendElement(sf, outer, from.getText(sf)),
+            edit: asTextEdit(appendArrayElement(sf, outer, from.getText(sf))),
             ok: true,
             skipped: [],
         };
