@@ -12,15 +12,10 @@ import { Settings } from './components/Settings';
 import { AudioPanicDialog } from './components/AudioPanicDialog';
 import { EngineHealth } from './components/EngineHealth';
 import { ModuleProfile } from './components/ModuleProfile';
-import { MigrationDiffModal } from './components/MigrationDiffModal';
 import {
     SaveConflictDiff,
     SaveConflictNotification,
 } from './components/SaveConflict';
-import type { MigrationModalSummary } from './components/MigrationDiffModal';
-import { migrateChebyBlockDC } from './dsl/migrateChebyBlockDC';
-import { migrateCycleCalls } from './dsl/migrateCycleCalls';
-import { migrateWavetableArgs } from './dsl/migrateWavetableArgs';
 import type { UpdateNotificationState } from './components/UpdateNotification';
 import { UpdateNotification } from './components/UpdateNotification';
 import { CommandPalette } from './components/CommandPalette';
@@ -176,14 +171,6 @@ function App() {
     const [isEngineHealthOpen, setIsEngineHealthOpen] = useState(false);
     const [isPaletteOpen, setIsPaletteOpen] = useState(false);
     const [isModuleProfileOpen, setIsModuleProfileOpen] = useState(false);
-    const [migrationState, setMigrationState] = useState<{
-        bufferId: string;
-        original: string;
-        migrated: string;
-        summary: MigrationModalSummary;
-        title?: string;
-        skippedLabel?: string;
-    } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<
         ValidationError[] | null
@@ -2234,28 +2221,6 @@ function App() {
         setValidationErrors(null);
     }, []);
 
-    const handleCloseBuffer = useCallback(
-        async (id: string) => {
-            setMigrationState(null);
-            await closeBuffer(id);
-        },
-        [closeBuffer],
-    );
-
-    const handleSelectBuffer = useCallback(
-        (id: string) => {
-            setMigrationState(null);
-            setActiveBufferId(id);
-        },
-        [setActiveBufferId],
-    );
-
-    useEffect(() => {
-        setMigrationState((prev) =>
-            prev && prev.bufferId !== activeBufferId ? null : prev,
-        );
-    }, [activeBufferId]);
-
     // Refs keep command handlers stable across renders so the registration
     // effect below only needs to run once. Anything captured by closure must
     // funnel through a ref or it goes stale between renders.
@@ -2264,10 +2229,10 @@ function App() {
         activeBufferIdRef.current = activeBufferId;
     }, [activeBufferId]);
 
-    const handleCloseBufferRef = useRef(handleCloseBuffer);
+    const closeBufferRef = useRef(closeBuffer);
     useEffect(() => {
-        handleCloseBufferRef.current = handleCloseBuffer;
-    }, [handleCloseBuffer]);
+        closeBufferRef.current = closeBuffer;
+    }, [closeBuffer]);
 
     const createUntitledFileRef = useRef(createUntitledFile);
     useEffect(() => {
@@ -2362,7 +2327,7 @@ function App() {
             () => {
                 const id = activeBufferIdRef.current;
                 if (id) {
-                    void handleCloseBufferRef.current(id);
+                    void closeBufferRef.current(id);
                 }
             },
             { label: 'Close Buffer', category: 'File' },
@@ -2547,129 +2512,6 @@ function App() {
                 setIsModuleProfileOpen(true);
             },
         );
-        const cleanupMigrateBuffer = electronAPI.onMenuMigrateBuffer(() => {
-            const ed = editorRef.current;
-            // Read the live id from the ref: this listener is registered once
-            // (deps below), so closing over the `activeBufferId` state would
-            // migrate a stale buffer after the user switches buffers.
-            const activeId = activeBufferIdRef.current;
-            if (!ed || !activeId) {
-                console.warn('Migrate buffer: no editor available');
-                setMigrationState({
-                    bufferId: activeId ?? '',
-                    original: '',
-                    migrated: '',
-                    summary: {
-                        callsChanged: 0,
-                        assignmentsChanged: 0,
-                        commentsChanged: 0,
-                        skippedVariables: [],
-                        error: 'No editor available',
-                    },
-                });
-                return;
-            }
-            const original = ed.getValue();
-            const result = migrateCycleCalls(original);
-            setMigrationState({
-                bufferId: activeId,
-                original,
-                migrated: result.migrated,
-                summary: {
-                    callsChanged: result.callsChanged,
-                    assignmentsChanged: result.assignmentsChanged,
-                    commentsChanged: result.commentsChanged,
-                    skippedVariables: result.skippedVariables,
-                    error: result.error,
-                },
-            });
-        });
-
-        const cleanupMigrateWavetable = electronAPI.onMenuMigrateWavetable(
-            () => {
-                const ed = editorRef.current;
-                // Read the live id from the ref: this listener is registered
-                // once (deps below), so closing over the `activeBufferId` state
-                // would migrate a stale buffer after the user switches buffers.
-                const activeId = activeBufferIdRef.current;
-                const wavetableTitle =
-                    'Migrate $wavetable to pitch-first order';
-                if (!ed || !activeId) {
-                    console.warn('Migrate wavetable: no editor available');
-                    setMigrationState({
-                        bufferId: activeId ?? '',
-                        original: '',
-                        migrated: '',
-                        title: wavetableTitle,
-                        summary: {
-                            callsChanged: 0,
-                            commentsChanged: 0,
-                            skippedVariables: [],
-                            error: 'No editor available',
-                        },
-                    });
-                    return;
-                }
-                const original = ed.getValue();
-                const result = migrateWavetableArgs(original);
-                setMigrationState({
-                    bufferId: activeId,
-                    original,
-                    migrated: result.migrated,
-                    title: wavetableTitle,
-                    skippedLabel: 'Needs manual review:',
-                    summary: {
-                        callsChanged: result.callsChanged,
-                        commentsChanged: result.commentsChanged,
-                        skippedVariables: result.skipped,
-                        error: result.error,
-                    },
-                });
-            },
-        );
-
-        const cleanupMigrateChebyBlockDC =
-            electronAPI.onMenuMigrateChebyBlockDC(() => {
-                const ed = editorRef.current;
-                // Read the live id from the ref: this listener is registered
-                // once (deps below), so closing over the `activeBufferId` state
-                // would migrate a stale buffer after the user switches buffers.
-                const activeId = activeBufferIdRef.current;
-                const chebyTitle =
-                    'Migrate $cheby to preserve pre-DC-blocker output';
-                if (!ed || !activeId) {
-                    console.warn('Migrate $cheby: no editor available');
-                    setMigrationState({
-                        bufferId: activeId ?? '',
-                        original: '',
-                        migrated: '',
-                        title: chebyTitle,
-                        summary: {
-                            callsChanged: 0,
-                            commentsChanged: 0,
-                            skippedVariables: [],
-                            error: 'No editor available',
-                        },
-                    });
-                    return;
-                }
-                const original = ed.getValue();
-                const result = migrateChebyBlockDC(original);
-                setMigrationState({
-                    bufferId: activeId,
-                    original,
-                    migrated: result.migrated,
-                    title: chebyTitle,
-                    skippedLabel: 'Needs manual review:',
-                    summary: {
-                        callsChanged: result.callsChanged,
-                        commentsChanged: 0,
-                        skippedVariables: result.skipped,
-                        error: result.error,
-                    },
-                });
-            });
-
         return () => {
             cleanupNewFile();
             cleanupSave();
@@ -2685,9 +2527,6 @@ function App() {
             cleanupOpenSettings();
             cleanupOpenEngineHealth();
             cleanupOpenModuleProfile();
-            cleanupMigrateBuffer();
-            cleanupMigrateWavetable();
-            cleanupMigrateChebyBlockDC();
         };
     }, [isRecording]);
 
@@ -2811,44 +2650,6 @@ function App() {
                 editor={paletteEditor}
             />
 
-            {migrationState && (
-                <MigrationDiffModal
-                    isOpen
-                    original={migrationState.original}
-                    migrated={migrationState.migrated}
-                    summary={migrationState.summary}
-                    title={migrationState.title}
-                    skippedLabel={migrationState.skippedLabel}
-                    onCancel={() => setMigrationState(null)}
-                    onApply={() => {
-                        const ed = editorRef.current;
-                        const model = ed?.getModel();
-                        if (!ed || !model) {
-                            setMigrationState(null);
-                            return;
-                        }
-                        if (migrationState.bufferId !== activeBufferId) {
-                            console.warn(
-                                'Migrate apply: active buffer changed since modal opened; aborting',
-                            );
-                            setMigrationState(null);
-                            return;
-                        }
-                        model.pushEditOperations(
-                            [],
-                            [
-                                {
-                                    range: model.getFullModelRange(),
-                                    text: migrationState.migrated,
-                                },
-                            ],
-                            () => null,
-                        );
-                        setMigrationState(null);
-                    }}
-                />
-            )}
-
             <main className="app-main">
                 {!workspaceRoot ? (
                     <div className="empty-state">
@@ -2897,13 +2698,13 @@ function App() {
                                     runningBufferId={runningBufferId}
                                     renamingPath={renamingPath}
                                     formatLabel={formatLabel}
-                                    onSelectBuffer={handleSelectBuffer}
+                                    onSelectBuffer={setActiveBufferId}
                                     onOpenFile={handleOpenFile}
                                     onCreateFile={createUntitledFile}
                                     onSaveFile={handleSaveFileStable}
                                     onRenameFile={renameFile}
                                     onDeleteFile={handleDeleteFile}
-                                    onCloseBuffer={handleCloseBuffer}
+                                    onCloseBuffer={closeBuffer}
                                     onSelectWorkspace={selectWorkspaceFolder}
                                     onRefreshTree={refreshFileTree}
                                     onRenameCommit={handleRenameCommitSafe}

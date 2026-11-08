@@ -7,7 +7,6 @@ import { buildLibSource } from '../../../main/dsl/typescriptLibGen';
 import { indexApiSignatures } from '../apiSignatures';
 import { computeControlQuickFixes } from '../controlQuickFix';
 import type { ControlApi, ControlQuickFix } from '../controlQuickFix';
-import { applyEdits } from '../migrationEdits';
 
 export const API: ControlApi = {
     index: indexApiSignatures(buildLibSource(schemas)),
@@ -42,11 +41,11 @@ export function addFix(
 }
 
 export function apply(source: string, fix: ControlQuickFix): string {
-    const { source: out, conflict } = applyEdits(source, [
-        { end: fix.span.end, replacement: fix.newText, start: fix.span.start },
-    ]);
-    expect(conflict).toBe(false);
-    return out;
+    return (
+        source.slice(0, fix.span.start) +
+        fix.newText +
+        source.slice(fix.span.end)
+    );
 }
 
 /** The `$slider(...)` call that ends at the caret after applying `fix`. */
