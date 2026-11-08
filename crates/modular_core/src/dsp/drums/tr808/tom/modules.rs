@@ -92,35 +92,36 @@ macro_rules! tom_module {
         decay_doc = $decay_doc:literal $(,)?
     ) => {
         paste::paste! {
-            #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+            #[params]
+            #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                /// rising edges strike the drum
-                #[signal(type = trig, range = (0.0, 5.0))]
+                #[input("rising edges strike the drum", type = trig)]
                 trigger: PolySignal,
-                /// accent, 0–5 V, sampled at each strike and held for the hit:
-                /// up to twice as loud, starting sharper (default 0)
-                #[signal(default = 0.0, range = (0.0, 5.0))]
+                #[input(
+                    "accent, 0–5 V, sampled at each strike and held for the hit: up to twice as loud, starting sharper (default 0)",
+                    type = control,
+                    default = 0.0,
+                    range = (0.0, 5.0),
+                )]
                 #[deserr(default)]
                 accent: Option<PolySignal>,
-                #[doc = $freq_doc]
-                #[signal(type = pitch, default = $freq, range = ($freq_min, $freq_max))]
+                #[input($freq_doc, type = pitch, default = $freq, range = ($freq_min, $freq_max))]
                 #[deserr(default)]
                 freq: Option<PolySignal>,
-                #[doc = $decay_doc]
-                #[signal(default = 2.5, range = (0.0, 5.0))]
+                #[input($decay_doc, type = control, default = 2.5, range = (0.0, 5.0))]
                 #[deserr(default)]
                 decay: Option<PolySignal>,
-                /// fade out a hit still sounding over 2 ms as the next one
-                /// strikes, so every hit starts from rest; otherwise each hit
-                /// builds on the last, as on the 808 (default false)
+                #[input(
+                    "fade out a hit still sounding over 2 ms as the next one strikes, so every hit starts from rest; otherwise each hit builds on the last, as on the 808 (default false)",
+                )]
                 #[serde(default)]
                 #[deserr(default)]
                 restart: bool,
-                /// sample the controls on each strike and hold them until the
-                /// next, as accent always is, so changes reach only the hits
-                /// after them (default false)
+                #[input(
+                    "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them (default false)",
+                )]
                 #[serde(default)]
                 #[deserr(default)]
                 hold: bool,

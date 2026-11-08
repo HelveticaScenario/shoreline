@@ -8,12 +8,12 @@ use schemars::JsonSchema;
 use crate::dsp::utils::{voct_to_hz, wrap_phase};
 use crate::poly::{PolyOutput, PolySignal};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RampParams {
-    /// pitch in V/Oct (0V = C4)
-    #[signal(type = pitch)]
+    #[input("pitch in V/Oct (0V = C4)", type = pitch)]
     freq: PolySignal,
 }
 

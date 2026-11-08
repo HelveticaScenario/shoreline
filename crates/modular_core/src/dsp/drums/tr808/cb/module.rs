@@ -2,32 +2,38 @@ use std::ops::Range;
 
 use super::*;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cb808Params {
-    /// rising edges strike the bell
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the bell", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "accent, 0–5 V, sampled at each strike and held for the hit: up to twice as loud (default 0)",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// pitch of the lower tone in V/Oct, the higher one following; stock is 540
-    /// Hz against 800 Hz (default 1.0454)
-    #[signal(type = pitch, default = 1.0454, range = (-0.5, 2.5))]
+    #[input(
+        "pitch of the lower tone in V/Oct, the higher one following; stock is 540 Hz against 800 Hz (default 1.0454)",
+        type = pitch,
+        default = 1.0454,
+        range = (-0.5, 2.5),
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 808 (default false)
+    #[input(
+        "fade out a hit still sounding over 2 ms as the next one strikes, so every hit starts from rest; otherwise each hit builds on the last, as on the 808 (default false)"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike and hold them until the next, as
-    /// accent always is, so changes reach only the hits after them (default
-    /// false)
+    #[input(
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them (default false)"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,

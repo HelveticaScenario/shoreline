@@ -5,19 +5,21 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RisingEdgeDetectorParams {
-    /// signal to detect rising edges in
+    #[input("signal to detect rising edges in", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FallingEdgeDetectorParams {
-    /// signal to detect falling edges in
+    #[input("signal to detect falling edges in", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
 }
 

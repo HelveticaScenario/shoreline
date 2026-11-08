@@ -29,36 +29,46 @@ use crate::{
     types::{Wav, WavData},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 pub(crate) struct WavetableOscParams {
-    /// Loaded WAV reference containing the wavetable data.
+    #[input("Loaded WAV reference containing the wavetable data.")]
     pub(crate) wav: Wav,
-    /// Pitch in V/Oct (0V = C4).
-    #[signal(type = pitch)]
+    #[input("Pitch in V/Oct (0V = C4).", type = pitch)]
     pub(crate) pitch: PolySignal,
-    /// Frame position as a signal. 0V maps to the first frame, 5V maps to
-    /// the last frame. Values are clamped to [0, 5] before being normalized.
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "Frame position as a signal. 0V maps to the first frame, 5V maps to the last frame. Values are clamped to [0, 5] before being normalized.",
+        type = control,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     pub(crate) position: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user).
+    #[input("FM input signal (pre-scaled by user).", type = control, range = (-5.0, 5.0))]
     #[deserr(default)]
     pub(crate) fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp.
+    #[input("FM mode: throughZero (default), lin, or exp.")]
     #[serde(default)]
     #[deserr(default)]
     pub(crate) fm_mode: FmMode,
-    /// hard sync source — rising edges reset the oscillator phase.
+    #[input(
+        "hard sync source — rising edges reset the oscillator phase.",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pub(crate) sync: Option<PolySignal>,
-    /// Optional phase warp applied before sampling, built with `$phase.*`.
+    #[input("Optional phase warp applied before sampling, built with `$phase.*`.")]
     #[deserr(default)]
     pub(crate) phase: Option<PhaseWarp>,
-    /// phase offset in [0, 1) added to the internal phase before warping/sampling
-    #[signal(default = 0.0, range = (0.0, 1.0))]
+    #[input(
+        "phase offset in [0, 1) added to the internal phase before warping/sampling",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
     #[deserr(default)]
     pub(crate) phase_offset: Option<PolySignal>,
     /// Pre-computed mipmap pyramid, populated by `prepare_resources` on the

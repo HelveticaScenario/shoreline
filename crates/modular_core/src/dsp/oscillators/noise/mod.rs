@@ -26,29 +26,31 @@ fn noise_derive_channel_count(params: &NoiseParams) -> usize {
         .clamp(1, PORT_MAX_CHANNELS)
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct NoiseParams {
-    /// kind of noise: white, pink, brown, blue, violet, binary, gaussian,
-    /// lfsr, lfsrShort, velvet, telegraph, dust
+    #[input(
+        "kind of noise: white, pink, brown, blue, violet, binary, gaussian, lfsr, lfsrShort, velvet, telegraph, dust"
+    )]
     #[serde(default)]
     #[deserr(default)]
     color: NoiseKind,
-    /// generator clock in V/Oct (use `$hz()` or a note name); a new value is drawn
-    /// each tick. For telegraph and dust it is the average events per second,
-    /// and for lfsrShort the pitch of its 93-step loop.
-    /// Unconnected, the generator runs at the sample rate.
-    #[signal(type = pitch)]
+    #[input(
+        "generator clock in V/Oct (use `$hz()` or a note name); a new value is drawn each tick. For telegraph and dust it is the average events per second, and for lfsrShort the pitch of its 93-step loop. Unconnected, the generator runs at the sample rate.",
+        type = pitch,
+    )]
     #[deserr(default)]
     rate: Option<PolySignal>,
-    /// how the output moves between ticks: step, linear, smooth
+    #[input("how the output moves between ticks: step, linear, smooth")]
     #[serde(default)]
     #[deserr(default)]
     interp: NoiseInterp,
-    /// number of independent noise channels (1–64), each a different sequence;
-    /// a polyphonic `rate` raises it to that many channels
+    #[input(
+        "number of independent noise channels (1–64), each a different sequence; a polyphonic `rate` raises it to that many channels"
+    )]
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
     channels: usize,

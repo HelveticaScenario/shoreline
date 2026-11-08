@@ -67,13 +67,14 @@ pub fn read_video_since(slot: usize, since: Option<u32>) -> Option<VideoTapChunk
     Some(VideoTapChunk { head, samples })
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = video_tap_validate_params -> ModuleParamErrors)]
 struct VideoTapParams {
-    /// signal published to the video renderer
+    #[input("signal published to the video renderer", type = control, range = (-5.0, 5.0))]
     input: MonoSignal,
-    /// index of the tap slot the renderer reads (0–63)
+    #[input("index of the tap slot the renderer reads (0–63)")]
     slot: usize,
 }
 

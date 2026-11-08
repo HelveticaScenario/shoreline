@@ -130,39 +130,61 @@ impl Default for GrainsState {
 
 // ── Params ─────────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct GrainsParams {
-    /// Pitch of spawned grains in V/Oct. 0 V = native speed, 1 V = 2×, −1 V = 0.5×.
-    #[signal(type = pitch, range = (-4.0, 4.0))]
+    #[input(
+        "Pitch of spawned grains in V/Oct. 0 V = native speed, 1 V = 2×, −1 V = 0.5×.",
+        type = pitch,
+        range = (-4.0, 4.0),
+    )]
     pitch: PolySignal,
-    /// WAV file to granulate.
+    #[input("WAV file to granulate.")]
     wav: Wav,
-    /// Gate: rising edge resets the loop counter; high level enables grain spawning.
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input(
+        "Gate: rising edge resets the loop counter; high level enables grain spawning.",
+        type = gate,
+    )]
     gate: PolySignal,
-    /// Read position within the sample: 0 V = start, 5 V = end.
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "Read position within the sample: 0 V = start, 5 V = end.",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     start: Option<PolySignal>,
-    /// Grain length: 1 V ≈ 100 ms, 0.01 V ≈ 1 ms. Clamped to sample duration.
-    #[signal(default = 1.0, range = (0.01, 10.0))]
+    #[input(
+        "Grain length: 1 V ≈ 100 ms, 0.01 V ≈ 1 ms. Clamped to sample duration.",
+        type = control,
+        default = 1.0,
+        range = (0.01, 10.0),
+    )]
     #[deserr(default)]
     length: Option<PolySignal>,
-    /// Grain spawn rate: grains/sec = value × 10. Default 2.5 V = 25 grains/sec.
-    #[signal(default = 2.5, range = (0.0001, 100.0))]
+    #[input(
+        "Grain spawn rate: grains/sec = value × 10. Default 2.5 V = 25 grains/sec.",
+        type = control,
+        default = 2.5,
+        range = (0.0001, 100.0),
+    )]
     #[deserr(default)]
     density: Option<PolySignal>,
-    /// Reverse probability: 0 V = always forward, 5 V = always reverse.
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "Reverse probability: 0 V = always forward, 5 V = always reverse.",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     direction_bias: Option<PolySignal>,
-    /// Max grains per gate-high. Absent/null = infinite.
+    #[input("Max grains per gate-high. Absent/null = infinite.")]
     #[serde(default)]
     #[deserr(default)]
     loop_count: Option<u32>,
-    /// Amplitude window function applied to each grain.
+    #[input("Amplitude window function applied to each grain.")]
     #[serde(default)]
     #[deserr(default)]
     shape: GrainShape,

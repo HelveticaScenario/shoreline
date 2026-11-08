@@ -41,34 +41,45 @@ const MAX_SUBSTEPS: u32 = 16;
 // a diverging trajectory (e.g. extreme params). The channel is reseeded.
 const STATE_CLAMP: f32 = 500.0;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct LorenzParams {
-    /// Sigma (σ) — rate of divergence between the x and y variables.
-    /// Input 0–5 maps to σ 0–30; default 1.667 → σ=10.
-    #[signal(type = control, default = 1.6667, range = (0, 5))]
+    #[input(
+        "Sigma (σ) — rate of divergence between the x and y variables. Input 0–5 maps to σ 0–30; default 1.667 → σ=10.",
+        type = control,
+        default = 1.6667,
+        range = (0, 5),
+    )]
     #[deserr(default)]
     sigma: Option<PolySignal>,
 
-    /// Rho (ρ) — distance from the origin to the critical points.
-    /// Input 0–5 maps to ρ 0–60; default 2.333 → ρ=28.
-    /// Chaos requires ρ > 24.74 (→ CV > ~2.06V); below that the system spirals to a fixed point.
-    #[signal(type = control, default = 2.3333, range = (0, 5))]
+    #[input(
+        "Rho (ρ) — distance from the origin to the critical points. Input 0–5 maps to ρ 0–60; default 2.333 → ρ=28. Chaos requires ρ > 24.74 (→ CV > ~2.06V); below that the system spirals to a fixed point.",
+        type = control,
+        default = 2.3333,
+        range = (0, 5),
+    )]
     #[deserr(default)]
     rho: Option<PolySignal>,
 
-    /// Beta (β) — geometry of the attractor.
-    /// Input 0–5 maps to β 0–10; default 1.333 → β=8/3 ≈ 2.667.
-    #[signal(type = control, default = 1.3333, range = (0, 5))]
+    #[input(
+        "Beta (β) — geometry of the attractor. Input 0–5 maps to β 0–10; default 1.333 → β=8/3 ≈ 2.667.",
+        type = control,
+        default = 1.3333,
+        range = (0, 5),
+    )]
     #[deserr(default)]
     beta: Option<PolySignal>,
 
-    /// Simulation speed — Lorenz time-units advanced per second of audio.
-    /// Input 0–5 maps to 0–200 t/s; default 0.1 → 4 t/s (slow LFO-rate butterfly).
-    /// Higher values push outputs toward audio-rate chaos.
-    #[signal(type = control, default = 0.1, range = (0, 5))]
+    #[input(
+        "Simulation speed — Lorenz time-units advanced per second of audio. Input 0–5 maps to 0–200 t/s; default 0.1 → 4 t/s (slow LFO-rate butterfly). Higher values push outputs toward audio-rate chaos.",
+        type = control,
+        default = 0.1,
+        range = (0, 5),
+    )]
     #[deserr(default)]
     rate: Option<PolySignal>,
 }

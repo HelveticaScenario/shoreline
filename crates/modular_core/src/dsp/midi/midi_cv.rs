@@ -66,34 +66,35 @@ struct VoiceState {
     mod_wheel: u8,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MidiCvParams {
-    /// MIDI device name to receive from (leave unset to receive from all devices)
+    #[input("MIDI device name to receive from (leave unset to receive from all devices)")]
     #[deserr(default)]
     device: Option<String>,
 
-    /// Number of polyphonic voices (1-64)
+    #[input("Number of polyphonic voices (1-64)")]
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
     channels: usize,
 
-    /// MIDI channel to listen on (1–16, leave unset for omni/all channels)
+    #[input("MIDI channel to listen on (1–16, leave unset for omni/all channels)")]
     #[deserr(default)]
     channel: Option<u8>,
 
-    /// Polyphonic voice allocation mode
+    #[input("Polyphonic voice allocation mode")]
     #[serde(default)]
     #[deserr(default)]
     poly_mode: PolyMode,
 
-    /// Monophonic note priority (used when only one voice is active)
+    #[input("Monophonic note priority (used when only one voice is active)")]
     #[serde(default)]
     #[deserr(default)]
     mono_mode: MonoMode,
 
-    /// Pitch bend range in semitones (0 = disabled, default 2)
+    #[input("Pitch bend range in semitones (0 = disabled, default 2)")]
     #[serde(default = "default_pitch_bend_range")]
     #[deserr(default = default_pitch_bend_range())]
     pitch_bend_range: u8,

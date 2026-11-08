@@ -31,16 +31,25 @@ macro_rules! shape_module {
         name = $name:literal, ident = $Struct:ident, mode = $Mode:ty, shaper = $Shaper:ty $(,)?
     ) => {
         paste::paste! {
-            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount, SignalParams)]
+            #[params]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                /// input signal to shape (bipolar, ±5 V)
+                #[input(
+                    "input signal to shape (bipolar, ±5 V)",
+                    type = control,
+                    range = (-5.0, 5.0),
+                )]
                 input: crate::poly::PolySignal,
-                /// shaper algorithm
+                #[input("shaper algorithm")]
                 mode: $Mode,
-                /// drive amount (-5..5, 0 = unity); higher pushes harder into the shaper
-                #[signal(default = 0.0, range = (-5.0, 5.0))]
+                #[input(
+                    "drive amount (-5..5, 0 = unity); higher pushes harder into the shaper",
+                    type = control,
+                    default = 0.0,
+                    range = (-5.0, 5.0),
+                )]
                 #[deserr(default)]
                 drive: Option<crate::poly::PolySignal>,
             }
@@ -92,14 +101,23 @@ macro_rules! shape_module {
         name = $name:literal, ident = $Struct:ident, shaper = $Shaper:ty $(,)?
     ) => {
         paste::paste! {
-            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount, SignalParams)]
+            #[params]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                /// input signal to shape (bipolar, ±5 V)
+                #[input(
+                    "input signal to shape (bipolar, ±5 V)",
+                    type = control,
+                    range = (-5.0, 5.0),
+                )]
                 input: crate::poly::PolySignal,
-                /// drive amount (-5..5, 0 = unity); higher pushes harder into the shaper
-                #[signal(default = 0.0, range = (-5.0, 5.0))]
+                #[input(
+                    "drive amount (-5..5, 0 = unity); higher pushes harder into the shaper",
+                    type = control,
+                    default = 0.0,
+                    range = (-5.0, 5.0),
+                )]
                 #[deserr(default)]
                 drive: Option<crate::poly::PolySignal>,
             }

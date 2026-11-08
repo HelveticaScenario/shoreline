@@ -84,53 +84,69 @@ impl JsonSchema for DrumMapResolution {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = drum_map_fill_groove -> ModuleParamErrors)]
 struct DrumMapParams {
-    /// playhead position; one cycle plays the 32-step pattern once
+    #[input(
+        "playhead position; one cycle plays the 32-step pattern once",
+        type = control,
+        range = (0.0, 1.0),
+    )]
     #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
-    #[signal(range = (0.0, 1.0))]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
-    /// groove offset added to the playhead to time each step; follows the
-    /// global groove by default, and is 0 when `playhead` is set without it
+    #[input(
+        "groove offset added to the playhead to time each step; follows the global groove by default, and is 0 when `playhead` is set without it",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
     #[deserr(default)]
     groove: Option<MonoSignal>,
-    /// groove velocity (0-5V), sampled at each step: scales each hit's level
-    /// for the accent threshold only, so lower velocities accent less; follows
-    /// the global groove by default, and is full (5V) when `playhead` or
-    /// `groove` is set without it
+    #[input(
+        "groove velocity (0-5V), sampled at each step: scales each hit's level for the accent threshold only, so lower velocities accent less; follows the global groove by default, and is full (5V) when `playhead` or `groove` is set without it",
+        type = control,
+        range = (0.0, 5.0),
+    )]
     #[default_connection(module = RootClock, port = "grooveVelocity", channel = 0)]
-    #[signal(range = (0.0, 5.0))]
     #[deserr(default)]
     velocity: Option<MonoSignal>,
-    /// horizontal position in the pattern map
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "horizontal position in the pattern map",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     x: Option<PolySignal>,
-    /// vertical position in the pattern map
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "vertical position in the pattern map",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     y: Option<PolySignal>,
-    /// random perturbation of hit levels, re-rolled at the start of each cycle
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "random perturbation of hit levels, re-rolled at the start of each cycle",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     chaos: Option<PolySignal>,
-    /// bass drum fill density
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input("bass drum fill density", type = control, default = 2.5, range = (0.0, 5.0))]
     #[deserr(default)]
     bd_density: Option<PolySignal>,
-    /// snare drum fill density
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input("snare drum fill density", type = control, default = 2.5, range = (0.0, 5.0))]
     #[deserr(default)]
     sd_density: Option<PolySignal>,
-    /// hi-hat fill density
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input("hi-hat fill density", type = control, default = 2.5, range = (0.0, 5.0))]
     #[deserr(default)]
     hh_density: Option<PolySignal>,
-    /// step resolution
+    #[input("step resolution")]
     #[serde(default)]
     #[deserr(default)]
     resolution: DrumMapResolution,

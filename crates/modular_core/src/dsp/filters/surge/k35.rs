@@ -207,7 +207,7 @@ filter_module! {
     name = "$unstable.filter.k35Lp", ident = K35LpFilter, kernel = K35Lp,
     output_doc = "lowpass output",
     params = {
-        /// feedback saturation: none, mild, moderate, heavy, extreme (default none)
+        #[input("feedback saturation: none, mild, moderate, heavy, extreme (default none)")]
         saturation: K35Saturation,
     },
     mode = |p| p.saturation,
@@ -227,7 +227,7 @@ filter_module! {
     name = "$unstable.filter.k35Hp", ident = K35HpFilter, kernel = K35Hp,
     output_doc = "highpass output",
     params = {
-        /// feedback saturation: none, mild, moderate, heavy, extreme (default none)
+        #[input("feedback saturation: none, mild, moderate, heavy, extreme (default none)")]
         saturation: K35Saturation,
     },
     mode = |p| p.saturation,

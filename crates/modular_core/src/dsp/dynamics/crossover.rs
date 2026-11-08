@@ -24,16 +24,25 @@ const BUTTERWORTH_Q: f32 = 0.707_107; // 1/sqrt(2)
 
 // ── Params & Outputs ─────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CrossoverParams {
-    /// audio input signal
+    #[input("audio input signal", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// crossover frequency between low and mid bands (V/Oct, 0V = C4)
+    #[input(
+        "crossover frequency between low and mid bands (V/Oct, 0V = C4)",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     low_mid_freq: Option<PolySignal>,
-    /// crossover frequency between mid and high bands (V/Oct, 0V = C4)
+    #[input(
+        "crossover frequency between mid and high bands (V/Oct, 0V = C4)",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     mid_high_freq: Option<PolySignal>,
 }

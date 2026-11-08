@@ -8,17 +8,18 @@ use crate::dsp::utils::{SchmittTrigger, TempGate, TempGateState, min_gate_sample
 use crate::param_errors::ModuleParamErrors;
 use crate::types::{ClockMessages, ExternalClockState};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_clock_params -> ModuleParamErrors)]
 struct ClockParams {
-    /// Tempo in BPM.
+    #[input("Tempo in BPM.")]
     tempo: f64,
-    /// Time signature numerator (beats per bar). Must be a positive integer.
+    #[input("Time signature numerator (beats per bar). Must be a positive integer.")]
     numerator: u32,
-    /// Time signature denominator (beat value). Must be a positive integer.
+    #[input("Time signature denominator (beat value). Must be a positive integer.")]
     denominator: u32,
-    /// Global groove reported by `grooveOffset`, `grooveVelocity` and `grooveTrigger`.
+    #[input("Global groove reported by `grooveOffset`, `grooveVelocity` and `grooveTrigger`.")]
     #[serde(default = "GrooveTemplate::straight")]
     #[deserr(default = GrooveTemplate::straight())]
     groove: GrooveTemplate,

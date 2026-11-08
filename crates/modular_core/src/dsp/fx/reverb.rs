@@ -113,41 +113,63 @@ fn one_pole(prev: f32, x: f32, coeff: f32) -> f32 {
 
 // ─── Params ──────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ReverbParams {
-    /// audio input — even channels feed the left half of the reverb, odd
-    /// channels the right; an odd channel count feeds the last channel to both
+    #[input(
+        "audio input — even channels feed the left half of the reverb, odd channels the right; an odd channel count feeds the last channel to both",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     input: PolySignal,
-    /// reverb decay time, mapped logarithmically from ~0.15 s (-5) to ~18 s
-    /// (+5). default 0 → ~1.6 s
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "reverb decay time, mapped logarithmically from ~0.15 s (-5) to ~18 s (+5). default 0 → ~1.6 s",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<MonoSignal>,
-    /// high-frequency damping — higher values darken the tail by absorbing more
-    /// treble on each recirculation. default 0
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "high-frequency damping — higher values darken the tail by absorbing more treble on each recirculation. default 0",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     damping: Option<MonoSignal>,
-    /// room size — scales every delay length from 0.5× (-5) to 2× (+5),
-    /// trading echo spacing and modal density. default 0 → 1.25×
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "room size — scales every delay length from 0.5× (-5) to 2× (+5), trading echo spacing and modal density. default 0 → 1.25×",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<MonoSignal>,
-    /// stereo width — how strongly the left and right halves of the network
-    /// stay separate. -5 is narrowest (a panned source pulls toward centre),
-    /// +5 is widest; default 0 → natural
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "stereo width — how strongly the left and right halves of the network stay separate. -5 is narrowest (a panned source pulls toward centre), +5 is widest; default 0 → natural",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<MonoSignal>,
-    /// predelay before the network, in seconds (0 to 0.5). default 0
-    #[signal(default = 0.0, range = (0.0, 0.5))]
+    #[input(
+        "predelay before the network, in seconds (0 to 0.5). default 0",
+        type = control,
+        default = 0.0,
+        range = (0.0, 0.5),
+    )]
     #[deserr(default)]
     predelay: Option<MonoSignal>,
-    /// internal chorusing depth — subtly detunes the delay lines to reduce
-    /// metallic ringing. -5 is off, +5 is deepest; default 0 → gentle
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "internal chorusing depth — subtly detunes the delay lines to reduce metallic ringing. -5 is off, +5 is deepest; default 0 → gentle",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     modulation: Option<MonoSignal>,
 }

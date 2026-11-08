@@ -10,11 +10,12 @@ use crate::poly::{PolyOutput, PolySignal};
 /// Lowest frequency converted, keeping `hz_to_voct` away from log2(≤0).
 const MIN_HZ: f32 = 1e-4;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct HzParams {
-    /// frequency in Hz
+    #[input("frequency in Hz", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
 }
 

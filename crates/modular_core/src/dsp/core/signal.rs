@@ -7,11 +7,12 @@ use crate::block_input::{self, InputScratch};
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
-#[derive(Clone, Deserr, JsonSchema, ChannelCount, SignalParams, Connect)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, ChannelCount, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SignalParams {
-    /// Input signal to forward.
+    #[input("Input signal to forward.", type = control, range = (-5.0, 5.0))]
     value: PolySignal,
 }
 

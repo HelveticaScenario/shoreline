@@ -26,33 +26,38 @@ fn default_fade() -> f64 {
 /// Upper bound on the declick fade time.
 const MAX_FADE_MS: f64 = 1000.0;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = sampler_validate_params -> ModuleParamErrors)]
 struct SamplerParams {
+    #[input("TODO")]
     wav: Wav,
-    /// Gate input — rising edge starts playback of the selected window;
-    /// `mode` sets what the gate does after that.
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input(
+        "Gate input — rising edge starts playback of the selected window; `mode` sets what the gate does after that.",
+        type = gate,
+    )]
     gate: MonoSignal,
-    /// Playback speed. 1.0 = normal, 2.0 = double speed, negative = reverse.
-    #[signal(default = 1.0, range = (-4.0, 4.0))]
+    #[input(
+        "Playback speed. 1.0 = normal, 2.0 = double speed, negative = reverse.",
+        type = control,
+        default = 1.0,
+        range = (-4.0, 4.0),
+    )]
     #[deserr(default)]
     speed: Option<MonoSignal>,
-    /// Slice selector: a mono signal (whole file as one slice) or
-    /// `[points, signal]` where points are fractions of the total length in
-    /// [0, 1]. Sampled at each gate rising edge and, while looping, once
-    /// per repeat as the pass comes within a fade width of its end: the
-    /// integer part picks the slice (wrapping), the fraction offsets the
-    /// start into it.
+    #[input(
+        "Slice selector: a mono signal (whole file as one slice) or `[points, signal]` where points are fractions of the total length in [0, 1]. Sampled at each gate rising edge and, while looping, once per repeat as the pass comes within a fade width of its end: the integer part picks the slice (wrapping), the fraction offsets the start into it."
+    )]
     #[deserr(default)]
     slice: Option<SliceParam>,
-    /// Declick fade in milliseconds: fade-in at onset, fade-out at the window
-    /// exit edge and on release, and retrigger crossfade. 0 disables.
+    #[input(
+        "Declick fade in milliseconds: fade-in at onset, fade-out at the window exit edge and on release, and retrigger crossfade. 0 disables."
+    )]
     #[serde(default = "default_fade")]
     #[deserr(default = default_fade())]
     fade: f64,
-    /// What the gate does once playback starts (default `'once'`).
+    #[input("What the gate does once playback starts (default `'once'`).")]
     #[serde(default)]
     #[deserr(default)]
     mode: SamplerMode,

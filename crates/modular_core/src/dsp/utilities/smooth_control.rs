@@ -8,11 +8,12 @@ use crate::dsp::utils::sanitize;
 /// line.
 const RAMP_SECONDS: f32 = 0.03;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SmoothControlParams {
-    /// value the output ramps to
+    #[input("value the output ramps to")]
     value: f64,
 }
 

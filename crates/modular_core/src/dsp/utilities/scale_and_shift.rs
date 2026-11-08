@@ -7,17 +7,22 @@ use crate::block_input;
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ScaleAndShiftParams {
-    /// signal to scale and shift
+    #[input("signal to scale and shift", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// scale factor (0–10V range; 5V = unity gain, 0V = silence, -5V = inverted, 10V = 2x)
-    #[signal(default = 5.0, range = (0.0, 10.0))]
+    #[input(
+        "scale factor (0–10V range; 5V = unity gain, 0V = silence, -5V = inverted, 10V = 2x)",
+        type = control,
+        default = 5.0,
+        range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     scale: Option<PolySignal>,
-    /// DC offset added to the scaled signal (in volts)
+    #[input("DC offset added to the scaled signal (in volts)", type = control, range = (-5.0, 5.0))]
     #[deserr(default)]
     shift: Option<PolySignal>,
 }

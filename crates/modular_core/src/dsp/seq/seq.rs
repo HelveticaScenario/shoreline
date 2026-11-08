@@ -120,33 +120,37 @@ fn default_ribbon() -> (f64, f64) {
     (0.0, DEFAULT_RIBBON_LENGTH)
 }
 
-#[derive(Clone, Deserr, ChannelCount, JsonSchema, Connect, Debug, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, ChannelCount, JsonSchema, Connect, Debug)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = seq_bake_ribbon -> ModuleParamErrors)]
 pub struct SeqParams {
-    /// pattern string in mini-notation
+    #[input("pattern string in mini-notation")]
     pattern: SeqPatternParam,
-    /// playhead position (driven by the global clock)
+    #[input("playhead position (driven by the global clock)", type = control, range = (0.0, 1.0))]
     #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
-    #[signal(range = (0.0, 1.0))]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
-    /// groove offset added to the playhead to time note onsets; follows the
-    /// global groove by default, and is 0 when `playhead` is set without it
+    #[input(
+        "groove offset added to the playhead to time note onsets; follows the global groove by default, and is 0 when `playhead` is set without it",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
     #[deserr(default)]
     groove: Option<MonoSignal>,
-    /// groove velocity (0-5V), sampled at each note onset; follows the global
-    /// groove by default, and is full (5V) when `playhead` or `groove` is set
-    /// without it
+    #[input(
+        "groove velocity (0-5V), sampled at each note onset; follows the global groove by default, and is full (5V) when `playhead` or `groove` is set without it",
+        type = control,
+        range = (0.0, 5.0),
+    )]
     #[default_connection(module = RootClock, port = "grooveVelocity", channel = 0)]
-    #[signal(range = (0.0, 5.0))]
     #[deserr(default)]
     velocity: Option<MonoSignal>,
-    /// Number of polyphonic voices (1-64)
+    #[input("Number of polyphonic voices (1-64)")]
     #[deserr(default)]
     pub channels: Option<usize>,
-    /// loop window [offset, length] in cycles (fractional allowed)
+    #[input("loop window [offset, length] in cycles (fractional allowed)")]
     #[serde(default = "default_ribbon")]
     #[deserr(default = default_ribbon())]
     ribbon: (f64, f64),

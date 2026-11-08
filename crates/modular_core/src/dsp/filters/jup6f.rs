@@ -7,17 +7,20 @@ use crate::{
     poly::{PolyOutput, PolySignal},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Jup6fParams {
-    /// signal input
+    #[input("signal input", type = control, range = (-5.0, 5.0))]
     input: PolySignal,
-    /// cutoff frequency in V/Oct (0V = C4)
-    #[signal(type = frequency)]
+    #[input("cutoff frequency in V/Oct (0V = C4)", type = frequency)]
     cutoff: PolySignal,
-    /// filter resonance (0-5). High values produce self-oscillation.
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "filter resonance (0-5). High values produce self-oscillation.",
+        type = control,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
 }

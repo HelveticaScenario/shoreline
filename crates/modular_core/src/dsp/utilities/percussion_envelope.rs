@@ -3,15 +3,14 @@ use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PercussionEnvelopeParams {
-    /// trigger input (rising edge triggers envelope)
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("trigger input (rising edge triggers envelope)", type = trig)]
     trigger: PolySignal,
-    /// decay time in seconds
-    #[signal(default = 0.1, range = (0.0, 10.0))]
+    #[input("decay time in seconds", type = control, default = 0.1, range = (0.0, 10.0))]
     #[deserr(default)]
     decay: Option<PolySignal>,
 }

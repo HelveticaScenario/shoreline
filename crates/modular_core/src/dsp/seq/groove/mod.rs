@@ -16,15 +16,19 @@ use schemars::JsonSchema;
 
 use crate::{MonoSignal, param_errors::ModuleParamErrors};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_groove_params -> ModuleParamErrors)]
 struct GrooveParams {
-    /// groove template: timing offsets, velocities and grid
+    #[input("groove template: timing offsets, velocities and grid")]
     template: GrooveTemplate,
-    /// straight playhead to groove (defaults to the global clock, ignoring the global groove)
+    #[input(
+        "straight playhead to groove (defaults to the global clock, ignoring the global groove)",
+        type = control,
+        range = (0.0, 1.0),
+    )]
     #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
-    #[signal(range = (0.0, 1.0))]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
 }
