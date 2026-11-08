@@ -4,6 +4,8 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -23,8 +25,24 @@ struct SignalOutputs {
     sample: PolyOutput,
 }
 
-/// Utility module for routing, naming, and exposing signals in a patch.
-#[module(name = "$signal", categories(utility), args(value), block)]
+const SIGNAL_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Pass-through signal",
+    description: "Passes its input on unchanged, giving a value or cable a module of its own: \
+                  a named point in the patch to tap, scope or reuse. A constant set here glides \
+                  to its new value when the patch updates instead of jumping.",
+    categories: &[ModuleCategory::Utility],
+    sections: &[],
+    examples: &[DocExample {
+        title: "One pitch shared by two oscillators",
+        code: r#"
+            const root = $signal('c3')
+            $saw(root).out()
+            $pulse(root.add(7 / 12)).out()
+        "#,
+    }],
+};
+
+#[module(name = "$signal", docs = SIGNAL_DOCS, args(value), block)]
 pub struct Signal {
     outputs: SignalOutputs,
     params: SignalParams,

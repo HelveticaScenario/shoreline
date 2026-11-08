@@ -1,3 +1,5 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::sanitize,
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -44,22 +46,41 @@ struct SlewChannelState {
     initialized: bool,
 }
 
-/// Slew limiter that smooths abrupt voltage changes.
-///
-/// Separate **rise** and **fall** times control how quickly the output can
-/// increase or decrease. Times are specified in **seconds per volt** — the
-/// time the output takes to slew by 1 V. For example, a rise time of `0.1`
-/// means the output climbs 1 V in 0.1 s; a 5 V gate signal would therefore
-/// take 0.5 s to reach full height.
-///
-/// Use `$slew` to add portamento to pitch signals, smooth noisy control
-/// voltages, or create envelope-like shapes from gate signals.
-///
-/// ```js
-/// // portamento: glide between notes (0.1 s per volt of pitch change)
-/// $sine($slew($cycle($p('c3 e3 g3')), { rise: 0.1, fall: 0.1 }))
-/// ```
-#[module(name = "$slew", categories(utility), args(input))]
+const SLEW_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Slew limiter",
+    description: "Limits how fast a signal can change, so jumps become glides: \
+                  portamento on a pitch, softened steps on stepped modulation, or a \
+                  gate rounded into a rise and fall. Rising and falling can glide at \
+                  different rates.",
+    categories: &[ModuleCategory::Utility],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Gliding bassline",
+            code: r#"
+                $saw($slew($cycle($p('c2 c3 eb2 g2')), { fall: 0.1 }))
+                  .$.lpf('c5', 2)
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Random notes that slide",
+            code: r#"
+                $sine(
+                  $slew(
+                    $sah(
+                      $noise('white').range('c3', 'c5'),
+                      $clock.beatTrigger,
+                    ),
+                    { fall: 0.05 },
+                  ),
+                ).out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$slew", docs = SLEW_DOCS, args(input))]
 pub struct LagProcessor {
     outputs: LagProcessorOutputs,
     params: LagProcessorParams,

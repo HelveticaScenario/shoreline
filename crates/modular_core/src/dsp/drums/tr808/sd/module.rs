@@ -4,6 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
@@ -37,7 +39,7 @@ struct Sd808Params {
     #[deserr(default)]
     snappy: Option<PolySignal>,
     #[input(
-        "pitch of the low tone, the high one following; stock is ≈250 Hz, and the hit gets louder or quieter far from it",
+        "pitch of the low tone, the high one following; stock is ≈250 Hz; its level shifts as you tune far from stock",
         type = pitch,
         default = -0.0678,
     )]
@@ -60,7 +62,7 @@ struct Sd808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Sd808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
@@ -72,22 +74,28 @@ struct Channel {
     tuning: Cached<f32, Tuning>,
 }
 
-/// TR-808 snare drum.
-///
-/// A circuit model of the 808's snare: two drum tones near 250 and 500 Hz under
-/// a burst of bright noise. **tone** blends from the low tone to the high one,
-/// **snappy** sets how much noise, **freq** the pitch, and **accent** how hard
-/// it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.snare($clock.beatTrigger, { snappy: 4 }).out()
-/// ```
+const SD808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 snare drum",
+    description: "The 808's snare: two drum tones under a burst of bright noise, which \
+                  `snappy` takes from a dull thump to a crisp, rattling snap.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Electro backbeat",
+        code: r#"
+            $tr808
+              .kick($cycle($p('c ~ ~ c ~ ~ c ~')).trig, { decay: 3 })
+              .out()
+            $tr808
+              .snare($cycle($p('~ c ~ c')).trig, { snappy: 4 })
+              .out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$tr808.snare",
-    categories(drum),
+    docs = SD808_DOCS,
     has_init,
     patch_update,
     args(trigger),

@@ -10,6 +10,8 @@ use crate::dsp::fx::enosc_tables::{aa_cheby, interpolate_cheby};
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
 use crate::dsp::utils::voct_to_hz;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
@@ -73,12 +75,24 @@ struct ChebyState {
     fade_inc: f32,
 }
 
-/// Harmonic waveshaping effect that adds controlled overtone content.
-///
-/// At low amounts the signal passes through cleanly; turning it up
-/// progressively emphasizes higher harmonics (2nd, 3rd, … up to 16th),
-/// thickening and brightening the tone.
-#[module(name = "$cheby", categories(distortion), args(input, amount), has_init)]
+const CHEBY_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Harmonic waveshaper",
+    description: "Adds overtones to a signal, from a clean pass at 0 to a bright, buzzy stack of \
+                  upper harmonics at full. Sounds smoothest on sines and triangles.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Bass that brightens and darkens",
+        code: r#"
+            const bass = $cycle($p('c2 c2 eb2 g1'))
+            $sine(bass)
+              .$.cheby($sine('0.25hz').range(0, 4), { freq: bass })
+              .out()
+        "#,
+    }],
+};
+
+#[module(name = "$cheby", docs = CHEBY_DOCS, args(input, amount), has_init)]
 pub struct Cheby {
     outputs: ChebyOutputs,
     state: ChebyState,

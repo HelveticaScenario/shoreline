@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
@@ -79,25 +81,34 @@ pub fn supersaw_derive_channel_count(params: &SupersawParams) -> usize {
     params.voices.clamp(1, PORT_MAX_CHANNELS)
 }
 
-/// Supersaw oscillator with multiple detuned sawtooth voices and PolyBLEP anti-aliasing.
-///
-/// Generates a classic supersaw sound by stacking multiple sawtooth oscillators
-/// with symmetric detuning. Each input channel is processed by all voices,
-/// creating a rich, full sound.
-///
-/// - **freq** — pitch in V/Oct (0V = C4)
-/// - **voices** — number of detuned saw voices (1–64, default 5)
-/// - **detune** — detune spread in semitones (default 0.18)
-///
-/// Output range is **±5V** with gain compensation for input channel count.
-///
-/// ## Example
-///
-/// ```js
-/// $supersaw('c3').out()
-/// $supersaw('c3', { voices: 7, detune: 0.3 }).out()
-/// ```
-#[module(name = "$supersaw", categories(oscillator), channels_derive = supersaw_derive_channel_count, has_init, patch_update, args(freq))]
+const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Detuned saw stack",
+    description: "A stack of detuned sawtooths for huge trance leads, pads and \
+                  chords. Each saw comes out on its own channel, ready to spread \
+                  across stereo with `$stereoMix` or `$mixDown`.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Trance chord",
+            code: r#"
+                $supersaw($chord('A2[m]'), { voices: 7, detune: 0.3 })
+                  .$.lpf('c6', 1)
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Wide lead sweep",
+            code: r#"
+                $supersaw('a3', { detune: 0.3 })
+                  .$.lpf($sine('0.1hz').range('c5', 'c7'))
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$supersaw", docs = SUPERSAW_DOCS, channels_derive = supersaw_derive_channel_count, has_init, patch_update, args(freq))]
 pub struct Supersaw {
     outputs: SupersawOutputs,
     params: SupersawParams,

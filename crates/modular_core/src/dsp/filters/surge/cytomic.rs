@@ -10,6 +10,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::fasttan;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Cytomic coefficient slots (Surge `cytomic_quadform::Coeff`).
 const CY_A1: usize = 0;
@@ -25,18 +27,18 @@ const N_CY_COEFF: usize = 6;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum FastSvfMode {
-    /// Lowpass.
+    /// lowpass, removes the highs
     #[default]
     Lp,
-    /// Highpass.
+    /// highpass, removes the lows
     Hp,
-    /// Bandpass.
+    /// bandpass, keeps a band around the cutoff
     Bp,
-    /// Notch.
+    /// notch, cuts a band around the cutoff
     Notch,
-    /// Resonant peak.
+    /// peak, boosts a band around the cutoff
     Peak,
-    /// Allpass.
+    /// allpass, shifts phase only, for phaser sweeps
     Allpass,
 }
 
@@ -100,19 +102,29 @@ impl Filter for FastSvf {
     }
 }
 
+const FAST_SVF_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Clean state-variable filter",
+    description: "A clean, linear multimode filter that stays smooth under fast, even \
+                  audio-rate, cutoff modulation.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Audio-rate bandpass FM",
+        code: r#"
+            $unstable.filter
+              .fastSvf($saw('c2'), $sine('c3').range('c4', 'c6'), 3, {
+                mode: 'bp',
+              })
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge XT's Fast SVF — Andy Simper's (Cytomic) trapezoidal state-variable filter.
-    /// Clean and linear, stable with cutoff modulation right up to Nyquist.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5.
-    /// - **mode** — `'lp'`, `'hp'`, `'bp'`, `'notch'`, `'peak'`, or `'allpass'`.
-    ///
-    /// ```js
-    /// $unstable.filter.fastSvf($saw('c2'), 'c4', 3, { mode: 'peak' })
-    /// ```
+    docs = FAST_SVF_DOCS,
     name = "$unstable.filter.fastSvf", ident = FastSvfFilter, kernel = FastSvf,
     output_doc = "filter output",
+    cutoff_doc = "cutoff frequency, or the centre of the band, notch or peak",
     params = {
         #[input("which response the filter outputs", default = "lp")]
         mode: FastSvfMode,

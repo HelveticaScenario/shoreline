@@ -3,6 +3,8 @@ use schemars::JsonSchema;
 
 use self::voice::{RELEASE_SLOTS, Ramp, Release, Voice, push_release};
 use super::slice::SliceParam;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, DocSection, ModuleDocs};
 use crate::{
     Wav,
     dsp::utils::SchmittTrigger,
@@ -47,7 +49,7 @@ struct SamplerParams {
     #[deserr(default)]
     speed: Option<MonoSignal>,
     #[input(
-        "which slice plays: a signal (the whole file is one slice) or `[points, signal]`, points marking slice starts as fractions of the file from 0 to 1; read at each gate and each loop repeat, its whole part picks the slice (wrapping) and its fraction starts partway in"
+        "which slice plays, read at each gate and each loop repeat: a signal, or `[points, signal]` to cut the file into slices (see Slicing)"
     )]
     #[deserr(default)]
     slice: Option<SliceParam>,
@@ -145,23 +147,40 @@ struct SamplerState {
     playing_out: bool,
 }
 
-/// Sample player. Each gate rising edge starts playback of the whole file,
-/// or of one slice when `slice` is set. The slice signal is sampled at the
-/// edge: integer part picks the slice point (wrapping), fraction offsets the
-/// start into it. `mode` sets what the gate does next: `'once'` plays the
-/// window through, `'gate'` plays it while the gate is high, and `'loop'`
-/// repeats it while the gate is high, picking the slice again for each
-/// repeat. Speed control allows pitch-shifting and reverse playback (a slice
-/// plays the same region backwards). A short `fade` (milliseconds) declicks
-/// onsets, slice ends, releases, and retriggers.
-///
-/// ```js
-/// $sampler($wavs().kick, $clock.beatTrigger)
-/// $sampler($wavs().pad, $pulse('1hz'), { speed: 0.5, mode: 'gate' })
-/// $sampler($wavs().pad, $pulse('2hz'), { slice: [[0, 0.25, 0.5, 0.75], $cycle($p('0 1 2 3')).cv], fade: 2 })
-/// $sampler($wavs().pad, $pulse('0.5hz'), { mode: 'loop', fade: 10 })
-/// ```
-#[module(name = "$sampler", categories(sampler), channels_derive = sampler_derive_channel_count, args(wav, gate), has_init, patch_update)]
+const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Gate-triggered sample player",
+    description: "Plays a WAV file, or one slice of it, each time the gate rises: one-shots, \
+                  held notes or loops depending on `mode`. Change `speed` to pitch it up, down \
+                  or into reverse, and step `slice` through a pattern to chop a break.",
+    categories: &[ModuleCategory::Sampler],
+    sections: &[DocSection {
+        title: "Slicing",
+        body: "Give `slice` a signal and the whole file is one slice. Give it `[points, signal]` \
+               to cut the file, each point a slice start as a fraction of the file from 0 to 1. \
+               Either way the signal's whole part picks the slice, wrapping past the last, and \
+               its fraction starts playback partway into it.",
+        table: None,
+        examples: &[],
+    }],
+    examples: &[
+        DocExample {
+            title: "Chopped and rearranged loop",
+            code: r#"
+                const order = $cycle($p('0 2 1 3 0 0 3 2'))
+                $sampler($wavs().pad, order.trig, {
+                  slice: [[0, 0.25, 0.5, 0.75], order],
+                  fade: 2,
+                }).out()
+            "#,
+        },
+        DocExample {
+            title: "Kick on every beat",
+            code: "$sampler($wavs().kick, $clock.beatTrigger).out()",
+        },
+    ],
+};
+
+#[module(name = "$sampler", docs = SAMPLER_DOCS, channels_derive = sampler_derive_channel_count, args(wav, gate), has_init, patch_update)]
 pub struct Sampler {
     params: SamplerParams,
     outputs: SamplerOutputs,

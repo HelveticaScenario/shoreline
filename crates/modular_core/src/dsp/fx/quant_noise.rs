@@ -1,9 +1,7 @@
 //! Quantization-noise grit effect.
 //!
 //! Recreates the bright, granular digital fizz that a coarsely-quantized signal
-//! produces when its quantization error is differentiated — the same character
-//! the DPW saw oscillators emitted at low rates before their differencing was
-//! widened to f64. The signal is snapped to a coarse voltage grid (with dither
+//! produces when its quantization error is differentiated. The signal is snapped to a coarse voltage grid (with dither
 //! so the result is broadband noise rather than a tonal staircase buzz), the
 //! quantized value is differentiated to brighten it, and that grit is added back
 //! onto the dry signal.
@@ -12,6 +10,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
@@ -86,23 +86,22 @@ struct QuantNoiseState {
     seeded: bool,
 }
 
-/// Adds bright, granular quantization noise to a signal.
-///
-/// The signal is snapped to a coarse voltage grid (`step`), dithered so the
-/// result is broadband noise instead of a tonal buzz, then the quantized value
-/// is differentiated and scaled by `amount` and summed back onto the dry signal.
-/// Because the grit is the signal's own (dithered) quantization residual, it
-/// tracks the signal's level and motion — feed it a slow LFO for a fizz that
-/// swells with the modulator, or audio for a crunchy digital edge.
-///
-/// ## Example
-///
-/// ```js
-/// $quantNoise($sine('c'), 2).out() // grainy, fizzy sine
-/// ```
+const QUANT_NOISE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Digital grit",
+    description: "Adds a bright, granular digital fizz on top of the signal. The grit follows \
+                  the signal's own level and motion, so it crackles on loud, moving material and \
+                  fades with it: a lo-fi edge for pads, drums or bass.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Fizzy lo-fi pad",
+        code: "$saw($chord('A2[m9]')).$.lpf('a4', 1).$.quantNoise(2).out()",
+    }],
+};
+
 #[module(
     name = "$quantNoise",
-    categories(distortion),
+    docs = QUANT_NOISE_DOCS,
     args(input, amount),
     patch_update
 )]

@@ -1,6 +1,8 @@
 use std::ops::Range;
 
 use super::*;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// The inputs every channel of the rim shot reads.
 struct RsInputs<I> {
@@ -52,24 +54,28 @@ struct Rs909Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Rs909Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-909 rim shot.
-///
-/// A circuit model of the 909's rim shot: a short, sharp, metallic click from
-/// three tones rung together and clipped. **accent** makes it hit harder.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr909.rimShot($clock.beatTrigger).out()
-/// ```
+const RS909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 rim shot",
+    description: "The 909's rim shot: a short, sharp, metallic click, for ticking \
+                  syncopation over a kick.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Ticking rim shots",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.rimShot($cycle($p('~ c ~ c c ~ ~ c')).trig).out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$tr909.rimShot",
-    categories(drum),
+    docs = RS909_DOCS,
     has_init,
     patch_update,
     args(trigger),

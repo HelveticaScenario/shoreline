@@ -4,9 +4,8 @@ use napi_derive::napi;
 use serde::{Deserialize, Serialize};
 use strum::{EnumMessage, VariantArray};
 
-/// A grouping for the module reference. Every module declares at least one
-/// with `categories(...)` in its `#[module(...)]` attribute, and may belong
-/// to several.
+/// A grouping for the module reference. Every module lists at least one in
+/// its `ModuleDocs`, and may belong to several.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, EnumMessage, VariantArray,
 )]

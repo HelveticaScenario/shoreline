@@ -1,3 +1,5 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
@@ -56,14 +58,36 @@ struct ChannelState {
     blep_carry: f32,
 }
 
-/// A sine wave oscillator.
-///
-/// ## Example
-///
-/// ```js
-/// $sine('c4').out()
-/// ```
-#[module(name = "$sine", categories(oscillator), args(freq))]
+const SINE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Sine wave oscillator",
+    description: "The purest tone, a single sine with no overtones: sub bass, \
+                  soft leads and the classic FM carrier or modulator. \
+                  Through-zero FM from another oscillator turns it into bells \
+                  and electric pianos.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Soft sine melody",
+            code: r#"
+                const seq = $cycle($p('c4 e4 g4 <b4 a4>'))
+                $sine(seq)
+                  .amp($perc(seq.trig, { decay: 0.3 }))
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "FM bell",
+            code: r#"
+                $sine('c4', { fm: $sine('c5').range(-3, 3) })
+                  .amp($perc($clock.beatTrigger, { decay: 1 }))
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$sine", docs = SINE_DOCS, args(freq))]
 pub struct SineOscillator {
     outputs: SineOscillatorOutputs,
     channel_state: Box<[ChannelState]>,

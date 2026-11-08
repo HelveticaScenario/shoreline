@@ -1,4 +1,6 @@
 use crate::dsp::utils::{SchmittState, SchmittTrigger};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 use deserr::Deserr;
 use schemars::JsonSchema;
@@ -27,22 +29,46 @@ struct SampleAndHoldChannelState {
     held_value: f32,
 }
 
-/// Captures and holds a voltage on each trigger.
-///
-/// When **trigger** receives a rising edge, the current value of **input**
-/// is sampled and held at the output until the next trigger. Classic
-/// use: sample random noise to generate stepped random melodies.
-///
-/// ```js
-/// // stepped random melody
-/// $sine(
-///  $quantizer(
-///    $sah($noise('white').range(0, 1), $pulse('2hz')),
-///    'c(maj)',
-///  ),
-/// )
-/// ```
-#[module(name = "$sah", categories(gate), args(input, trigger))]
+const SAH_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Sample and hold",
+    description: "Grabs its input's value on each trigger and holds it until the next: \
+                  the classic way to turn noise into stepped random melodies and \
+                  modulation.",
+    categories: &[ModuleCategory::Gate],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Random notes in C major",
+            code: r#"
+                $sine(
+                  $quantizer(
+                    $sah(
+                      $noise('white').range('c3', 'c5'),
+                      $clock.beatTrigger,
+                    ),
+                    'C(major)',
+                  ),
+                ).out()
+            "#,
+        },
+        DocExample {
+            title: "Stepped random filter",
+            code: r#"
+                $saw('c2')
+                  .$.lpf(
+                    $sah(
+                      $noise('white').range('c4', 'c7'),
+                      $clock.beatTrigger,
+                    ),
+                    3,
+                  )
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$sah", docs = SAH_DOCS, args(input, trigger))]
 pub struct SampleAndHold {
     outputs: SampleAndHoldOutputs,
     params: SampleAndHoldParams,
@@ -103,17 +129,24 @@ struct TrackAndHoldChannelState {
     held_value: f32,
 }
 
-/// Follows the input while the gate is low, and holds the value when the
-/// gate goes high.
-///
-/// The complement of Sample and Hold: the output continuously tracks
-/// **input** until **gate** rises, then freezes until the gate falls again.
-///
-/// ```js
-/// // hold a slow sine value while the gate is high
-/// $tah($sine('2hz'), $pulse('2hz'))
-/// ```
-#[module(name = "$tah", categories(gate), args(input, gate))]
+const TAH_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Track and hold",
+    description: "Follows its input while the gate is low and freezes it while the \
+                  gate is high: the counterpart of `$sah`, for catching a moving value \
+                  and holding it.",
+    categories: &[ModuleCategory::Gate],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Glide that freezes in steps",
+        code: r#"
+            $sine(
+              $tah($sine('0.3hz').range('c3', 'c5'), $pulse('1hz')),
+            ).out()
+        "#,
+    }],
+};
+
+#[module(name = "$tah", docs = TAH_DOCS, args(input, gate))]
 pub struct TrackAndHold {
     outputs: TrackAndHoldOutputs,
     params: TrackAndHoldParams,

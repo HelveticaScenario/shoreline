@@ -12,6 +12,8 @@ use crate::dsp::utils::dc_blocker::DcBlocker;
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::one_pole::OnePole;
 use crate::dsp::utils::{map_range, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -217,21 +219,28 @@ struct PlateState {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-/// Stereo plate reverb with a dense Glicol-inspired feedback network.
-///
-/// Uses a longer feedback path with distributed damping and more allpass
-/// stages than the standard Dattorro algorithm, producing a thicker,
-/// warmer reverb tail. Always 100% wet — use `.send()` or `$mix` for
-/// dry/wet blending.
-///
-/// ```js
-/// $plate($saw('c3')).out()
-/// $plate($saw('c3'), { decay: 2, bandwidth: 3 }).out()
-/// $plate($saw('c3'), { modulation: $sine('0.1hz') }).out()
-/// ```
+const PLATE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Thick, warm plate reverb",
+    description: "A denser, warmer plate than `$dattorro`, with a thicker tail that sits well \
+                  behind pads and keys. The input is summed to mono and spread into a stereo \
+                  tail. Output is fully wet, so blend it with `.$m.plate(mix)` or send to it \
+                  from a bus.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Warm pad plate",
+        code: r#"
+            $saw($chord('F3[maj9]'))
+              .$.lpf('f5', 1)
+              .$m.plate(2, { decay: 2, damping: 1 })
+              .out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$plate",
-    categories(effect),
+    docs = PLATE_DOCS,
     channels = 2,
     has_init,
     args(input)

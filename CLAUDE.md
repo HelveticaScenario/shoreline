@@ -132,13 +132,25 @@ Use it to verify the "no heap allocation on the audio thread" rule above. Notes:
 ### Adding/Changing Module Params
 
 1. Update param structs + DSP in `crates/modular_core/src/dsp/**/*.rs`.
-   - Put `#[params]` above the params struct's `#[derive(...)]` and document every field with `#[input("description", …)]` (never `///`). Signal fields need `type` (`audio`, `control`, `pitch`, `frequency`, `gate`, `trig`). `range` is the usable range shown in the docs: values past it are clamped, rejected or do nothing more, and either side may be open (`(0.0, ..)`). `control_range` is a control's slider span, required when `range` is open. Outputs are documented only in `#[output("name", "description", …)]`.
+   - Put `#[params]` above the params struct's `#[derive(...)]` and document every field with `#[input("description", …)]` (never `///`). Signal fields need `type` (`audio`, `control`, `pitch`, `frequency`, `gate`, `trig`). `range` is the usable range shown in the docs: values past it are clamped, rejected or do nothing more, and either side may be open (`(0.0, ..)`). `control_range` is a control's slider span, required when `range` is open. A default that depends on other params adds `default_doc`, the default in words (`"0 if decay is set, otherwise 5"`), which the docs show in place of the number. Outputs are documented only in `#[output("name", "description", …)]`.
+   - The docs list params and outputs in declaration order, so declare them in the order a musician reads them, positional params first in call order (`tests/input_metadata.rs` checks the positionals).
    - Descriptions are short and musical. They don't restate what the editor already shows beside them: the range, the default or the V/Oct unit.
 2. Wire schema/validators in category modules (e.g., `oscillators/mod.rs` via `install_constructors` / `install_param_validators`).
 3. Rebuild N-API (`yarn build-native`) to refresh `crates/modular/index.d.ts`.
 4. Adjust DSL factories in `src/main/dsl/factories.ts` if needed.
 
 A param whose edits would click (a gain, a cutoff, a mix amount) glides across patch updates: keep a `SwapGlide` in `state`/`channel_state` and feed it with `glide.update(value, param.glide_mark(ch), sample_rate)`. It glides only when that param's source changed in the swap, so live modulation and unchanged cables pass through untouched; no hook is needed. The per-sample check still costs a few operations per channel, which shows on modules that do little else (`$signal`, `$curve`): give those a block path that returns `None` while `param.glides_pending(glides)` and otherwise reads the param raw and calls `param.settle_glides`, and use `glide.follow` in `update` so both paths agree.
+
+### Module Docs
+
+A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crates/modular_core/src/module_docs.rs`), named in `#[module(name = …, docs = NAME_DOCS)]`. A `///` on a `#[module]` struct is a compile error. It holds:
+- `summary`: 1–6 words;
+- `description`: 1–3 sentences of inline markdown, never explaining individual params, except to flag a param behaviour surprising enough to need a prominent note (`$adsr`'s sustain);
+- `categories`;
+- `sections`: titled body, `DocTable` and examples, only for real reference material such as a syntax guide;
+- `examples`: titled patches that run as written, formatted as the editor's Format Document prints them (Prettier with `DEFAULT_PRETTIER_OPTIONS`). A multi-line example is an indented raw string opening on its own line; the schema strips the indent.
+
+Monaco shows the description, sections and first example; the Reference pane shows everything. `tests/module_docs.rs` checks the shape, and `generatedExampleValidity.test.ts` runs every example, and `referenceDocs.test.ts` checks each is formatted.
 
 ### Reserved Output Names
 

@@ -24,6 +24,8 @@ use super::resample::Resampler;
 use super::voice::VoiceControls;
 use super::wav_load::cached_load;
 use super::{FULL_SCALE_VOLTS, GranularQuality, grain_params, unit};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// A voice fully wet with no feedback: frozen, it records nothing.
 const CONTROLS: VoiceControls = VoiceControls {
@@ -163,28 +165,30 @@ fn sampler_channel_count(params: &GranularSamplerParams) -> usize {
         .clamp(1, PORT_MAX_CHANNELS)
 }
 
-/// `$granular` playing a WAV file instead of a live input: it plays grains
-/// from `wav`, starting one on each rising edge at `trigger`.
-///
-/// Each grain takes `time`, `size`, `shape`, `freq` and `spread` when it
-/// starts, so for grain-to-grain variation modulate them with something
-/// sampled on the same trigger, such as `$sah`. Set `rootFreq` to the pitch
-/// of the file and `freq` plays notes.
-///
-/// Each channel of the file gets its own voice. `output` is a stereo mix of
-/// every voice, and `voices` gives each voice its own channel. `quality`
-/// colours the file as `$granular` colours its recording.
-///
-/// ```js
-/// const grains = $pulse('8hz')
-/// $granularSampler($wavs().pad, grains, {
-///   time: $sah($noise('white').range(0, 5), grains),
-///   width: 4,
-///   spread: 2,
-/// }).out()
-/// ```
+const GRANULAR_SAMPLER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Granular WAV player",
+    description: "Plays grains from a WAV file, one per trigger, the way `$granular` does from \
+                  a live input: turn a sample into a texture, a stretched drone or a pitched \
+                  cloud. For grain-to-grain variation, modulate its settings with something \
+                  sampled on the same trigger, such as `$sah`.",
+    categories: &[ModuleCategory::Sampler],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Scattered pad texture",
+        code: r#"
+            const grains = $pulse('8hz')
+            $granularSampler($wavs().pad, grains, {
+              time: $sah($noise('white').range(0, 5), grains),
+              width: 4,
+              spread: 2,
+            }).out()
+        "#,
+    }],
+};
+
 #[module(
-    name = "$granularSampler", categories(sampler),
+    name = "$granularSampler",
+    docs = GRANULAR_SAMPLER_DOCS,
     channels_derive = sampler_channel_count,
     has_init,
     patch_update,

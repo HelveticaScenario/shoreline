@@ -1,3 +1,5 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         shape::shapers::tanh_driven,
@@ -46,7 +48,7 @@ struct MotionFollowerParams {
     #[deserr(default)]
     smooth: Option<PolySignal>,
     #[input(
-        "volts of output per volt-per-second of movement; negative flips the output below 0",
+        "sensitivity: how much output a given speed of movement gives, in volts per volt-per-second; negative flips the output below 0",
         type = control,
         default = 0.25,
         control_range = (0.0, 10.0),
@@ -118,27 +120,31 @@ struct MotionFollowerChannelState {
     release: Cached<f32>,
 }
 
-/// Turns controller movement into a level, like bowing a string: moving the
-/// input in either direction swells the output, holding it still lets it fade.
-///
-/// The input's speed (volts per second, direction ignored) is averaged over
-/// **smooth** seconds, then followed with separate **attack** and **release**
-/// times. **gain** converts speed to volts and a soft clip keeps the output
-/// below **ceiling**.
-///
-/// **pos** and **neg** are the same level driven only by rising or only by
-/// falling input, so pushing and releasing a controller can steer different
-/// destinations. Both are positive voltages.
-///
-/// Stepped controllers such as 7-bit MIDI CC jump in small increments, so
-/// their raw speed is a train of spikes; a **smooth** time several times longer
-/// than the gap between updates averages them into a steady level.
-///
-/// ```js
-/// // a slowly swinging LFO bows a filter open on every sweep
-/// $lpf($saw('c3'), $motionFollower($sine('0.5hz'), { release: 0.5 }).range('c3', 'c7')).out()
-/// ```
-#[module(name = "$motionFollower", categories(envelope), args(input))]
+const MOTION_FOLLOWER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Movement to level",
+    description: "Turns controller movement into a level, like bowing a string: moving \
+                  the input either way swells the output, and holding it still lets it \
+                  fade. `.pos` and `.neg` follow only rising or only falling movement, \
+                  so pushing and pulling a control can steer different things.",
+    categories: &[ModuleCategory::Envelope],
+    sections: &[],
+    examples: &[DocExample {
+        title: "A swinging LFO bows the filter open",
+        code: r#"
+            $saw('c3')
+              .$.lpf(
+                $motionFollower($sine('0.5hz'), { release: 0.5 }).range(
+                  'c3',
+                  'c7',
+                ),
+                1,
+              )
+              .out()
+        "#,
+    }],
+};
+
+#[module(name = "$motionFollower", docs = MOTION_FOLLOWER_DOCS, args(input))]
 pub struct MotionFollower {
     outputs: MotionFollowerOutputs,
     params: MotionFollowerParams,

@@ -3,6 +3,8 @@ use std::f32::consts::PI;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     Wav,
     dsp::utils::{
@@ -29,20 +31,20 @@ const GRAINS_PER_CHANNEL: usize = 64;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 enum GrainShape {
-    /// Symmetric triangle: linear rise and fall meeting at the centre.
+    /// fades in and straight back out, a soft even blur
     #[default]
     Triangle,
-    /// Linear rise to peak then a sharp 1 ms linear fall at the tail.
+    /// swells in and cuts off, like reversed audio
     Ramp,
-    /// 1 ms linear attack, sustain at peak, 1 ms linear decay.
+    /// full level for the whole grain, choppy and stuttery
     Square,
-    /// 1 ms linear attack followed by exponential decay matching `$perc`.
+    /// a plucked hit that dies away, percussive and ticking
     Decay,
-    /// Gaussian bell curve; endpoints ≈ 0.01 (−40 dB).
+    /// a smooth bell swell, the softest and most cloud-like
     Bell,
-    /// Lanczos-windowed sinc, 3 lobes per side.
+    /// a peaked swell with faint ripples, slightly ringing
     Sinc,
-    /// Cosine-tapered flat-top (Tukey) window, α = 0.5.
+    /// smooth fades around a held middle, full-bodied but click-free
     Tukey,
 }
 
@@ -215,24 +217,42 @@ fn grains_derive_channel_count(params: &GrainsParams) -> usize {
 
 // ── Module ─────────────────────────────────────────────────────────────────────
 
-/// Granular sampler. Continuously spawns short, windowed grains from a WAV
-/// file, enabling time-stretching, pitch-shifting independent of time, and
-/// cloud textures.
-///
-/// Each polyphonic channel maintains up to 64 concurrent grains. Spawned grains
-/// capture their pitch, start position, and length at spawn time, so live
-/// parameter changes only affect new grains.
-///
-/// Amplitude is normalised using the Mutable Instruments Clouds formula:
-/// `gain = 1/√(max(1, smoothed_active_grains − 1))`.
-///
-/// ```js
-/// $grains('c4', $wavs().pad, $pulse('2hz'))
-/// const seq = $cycle($p('c3 e3'))
-/// $grains(seq, $wavs().strings, seq.gate, { density: 3, shape: 'bell', length: 2 })
-/// ```
+const GRAINS_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Granular sampler",
+    description: "Sprays short overlapping grains from a WAV file while the gate is high, for \
+                  time-stretched textures, frozen moments and shimmering clouds. Pitch and \
+                  position are independent, so a sample can be played slowly without dropping \
+                  in pitch.",
+    categories: &[ModuleCategory::Sampler],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Slowly scanned cloud",
+            code: r#"
+                $grains('c4', $wavs().pad, 5, {
+                  start: $ramp('0.02hz').range(0, 5),
+                  density: 4,
+                  shape: 'bell',
+                }).out()
+            "#,
+        },
+        DocExample {
+            title: "Grain chords from a melody",
+            code: r#"
+                const seq = $cycle($p('<[c3, g3] [eb3, bb3]>'))
+                $grains(seq, $wavs().strings, seq.gate, {
+                  length: 2,
+                  density: 3,
+                  shape: 'tukey',
+                }).out()
+            "#,
+        },
+    ],
+};
+
 #[module(
-    name = "$grains", categories(sampler),
+    name = "$grains",
+    docs = GRAINS_DOCS,
     channels_derive = grains_derive_channel_count,
     args(pitch, wav, gate),
     has_init,
