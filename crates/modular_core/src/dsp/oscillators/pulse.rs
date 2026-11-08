@@ -16,34 +16,36 @@ use crate::{
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PulseOscillatorParams {
-    #[input("pitch in V/Oct (0V = C4)", type = pitch)]
+    #[input("oscillator pitch", type = pitch)]
     freq: PolySignal,
-    #[input("pulse width (0-5, 2.5 is square)", type = control, default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "pulse width: 0 a thin high spike, 2.5 square, 5 a thin low notch",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<PolySignal>,
     #[input(
-        "pulse width modulation CV — added to the width parameter",
+        "pulse width modulation, added to `width`",
         type = control,
+        default = 0.0,
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     pwm: Option<PolySignal>,
-    #[input("FM input signal (pre-scaled by user)", type = control, range = (-5.0, 5.0))]
+    #[input("frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)", type = audio)]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    #[input("FM mode: throughZero (default), lin, or exp")]
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    #[input(
-        "hard sync source — rising edges reset the oscillator phase",
-        type = control,
-        range = (-5.0, 5.0),
-    )]
+    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
     #[deserr(default)]
     sync: Option<PolySignal>,
     #[input(
-        "phase offset in [0, 1) added to the internal phase before sampling",
+        "shifts where in the cycle the wave is read, in cycles; wraps around",
         type = control,
         default = 0.0,
         range = (0.0, 1.0),
@@ -55,7 +57,7 @@ struct PulseOscillatorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PulseOscillatorOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the pulse wave", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

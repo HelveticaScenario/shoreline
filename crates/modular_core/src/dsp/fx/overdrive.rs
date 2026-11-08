@@ -20,12 +20,12 @@ use crate::types::SwapGlide;
 #[serde(rename_all = "snake_case")]
 #[deserr(rename_all = lowercase)]
 pub enum OverdriveMode {
-    /// Smooth tanh-style saturation.
+    /// smooth, rounded saturation
     #[default]
     Soft,
-    /// Hard clipping at ±1.
+    /// hard clipping
     Hard,
-    /// Asymmetric tube-style saturation with even harmonics.
+    /// asymmetric tube-style saturation with even harmonics
     Asym,
 }
 
@@ -35,27 +35,26 @@ pub enum OverdriveMode {
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct OverdriveParams {
     #[input(
-        "input signal to overdrive (bipolar, typically -5 to 5)",
-        type = control,
-        range = (-5.0, 5.0),
+        "signal to overdrive",
+        type = audio,
     )]
     pub input: PolySignal,
     #[input(
-        "drive amount (0 = unity gain, 5 = ~30 dB pre-shaper gain)",
+        "how hard the signal hits the saturator: 0 unity gain, 5 about +30 dB",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
     )]
     pub drive: PolySignal,
     #[input(
-        "tone (-5 = dark, 0 = neutral, +5 = bright). Pre-emphasises highs into the shaper at positive values and de-emphasises them after, and vice versa.",
+        "which frequencies distort most: -5 dark, 0 neutral, +5 bright; the overall balance stays flat",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     pub tone: Option<PolySignal>,
-    #[input("saturation mode (defaults to soft)")]
+    #[input("saturation character (default soft)")]
     #[serde(default)]
     #[deserr(default)]
     pub mode: Option<OverdriveMode>,
@@ -64,7 +63,7 @@ pub struct OverdriveParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct OverdriveOutputs {
-    #[output("output", "overdriven signal output", default)]
+    #[output("output", "overdriven signal", default)]
     sample: PolyOutput,
 }
 

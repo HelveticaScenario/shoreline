@@ -17,19 +17,19 @@ use crate::types::SwapGlide;
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SegmentParams {
     #[input(
-        "input signal to shape (bipolar, typically -5 to 5)",
-        type = control,
+        "signal to shape",
+        type = audio,
         range = (-5.0, 5.0),
     )]
     input: PolySignal,
     #[input(
-        "segment shape amount (0-5, morphs between 8 shapes)",
+        "morphs through 8 shapes: 0 clean, higher squares off and then ripples",
         type = control,
         range = (0.0, 5.0),
     )]
     amount: PolySignal,
     #[input(
-        "pitch of the source signal in V/Oct (optional, reduces aliasing at high frequencies)",
+        "pitch of the incoming signal; patch it to reduce aliasing on high notes",
         type = pitch,
     )]
     #[deserr(default)]
@@ -39,7 +39,7 @@ struct SegmentParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SegmentOutputs {
-    #[output("output", "segment-shaped signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "shaped signal", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

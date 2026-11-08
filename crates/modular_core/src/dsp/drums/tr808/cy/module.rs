@@ -13,7 +13,7 @@ struct Cy808Params {
     #[input("rising edges strike the cymbal", type = trig)]
     trigger: PolySignal,
     #[input(
-        "accent, 0–5 V, sampled at each strike and held for the hit: up to twice as loud (default 0)",
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -21,7 +21,7 @@ struct Cy808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "decay control, 0–5 V: how long the cymbal's lower band rings on (default 2.5)",
+        "how long the cymbal's lower band rings on",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -29,7 +29,7 @@ struct Cy808Params {
     #[deserr(default)]
     decay: Option<PolySignal>,
     #[input(
-        "tone control, 0–5 V: from dark, with the high band cut, to bright (default 2.5)",
+        "brightness, from dark with the high band cut to bright",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -37,13 +37,13 @@ struct Cy808Params {
     #[deserr(default)]
     tone: Option<PolySignal>,
     #[input(
-        "fade out a hit still sounding over 2 ms as the next one strikes, so every hit starts from rest; otherwise each hit builds on the last, as on the 808 (default false)"
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
     )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
     #[input(
-        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them (default false)"
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
     )]
     #[serde(default)]
     #[deserr(default)]

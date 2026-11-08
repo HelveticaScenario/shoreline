@@ -16,12 +16,14 @@ const MIN_HZ: f32 = 1e-4;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MulHzParams {
-    #[input("V/Oct pitch signal to scale", type = pitch)]
+    #[input("pitch to scale", type = pitch)]
     input: PolySignal,
     #[input(
-        "frequency multiplier (1 = unity, 2 = octave up, 0.5 = octave down)",
+        "frequency ratio: 1 unchanged, 2 an octave up, 0.5 an octave down, 1.5 a just fifth up",
         type = control,
-        range = (-5.0, 5.0),
+        default = 1.0,
+        range = (0.0, ..),
+        control_range = (0.0, 4.0),
     )]
     factor: PolySignal,
 }
@@ -29,7 +31,7 @@ struct MulHzParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MulHzOutputs {
-    #[output("output", "V/Oct pitch output", default)]
+    #[output("output", "the scaled pitch", default)]
     sample: PolyOutput,
 }
 

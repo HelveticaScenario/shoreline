@@ -128,74 +128,88 @@ impl PlaitsEngine {
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PlaitsParams {
-    #[input("Pitch input in V/Oct (0V = C4)", type = pitch)]
+    #[input("note pitch", type = pitch)]
     freq: PolySignal,
 
-    #[input("Synthesis engine selection")]
+    #[input("synthesis engine")]
     engine: PlaitsEngine,
 
     #[input(
-        "Harmonics parameter (-5V to +5V, bipolar, default 0V) - function varies per engine",
+        "harmonics knob; what it does depends on the engine",
         type = control,
+        default = 0.0,
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     harmonics: Option<PolySignal>,
 
     #[input(
-        "Timbre parameter (-5V to +5V, bipolar, default 0V) - function varies per engine",
+        "timbre knob; what it does depends on the engine",
         type = control,
+        default = 0.0,
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     timbre: Option<PolySignal>,
 
     #[input(
-        "Morph parameter (-5V to +5V, bipolar, default 0V) - function varies per engine",
+        "morph knob; what it does depends on the engine",
         type = control,
+        default = 0.0,
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     morph: Option<PolySignal>,
 
-    #[input("FM input (-5V to +5V) - frequency modulation", type = control, range = (-5.0, 5.0))]
+    #[input("frequency modulation, scaled by `fmAmt`", type = audio)]
     #[deserr(default)]
     fm: Option<PolySignal>,
 
     #[input(
-        "Timbre CV attenuverter (-5 to 5) - scales timbre modulation",
+        "how much the trigger's internal envelope sweeps timbre; negative inverts",
         type = control,
+        default = 0.0,
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     timbre_amt: Option<PolySignal>,
 
     #[input(
-        "FM CV attenuverter (-5 to 5) - scales frequency modulation",
+        "attenuverter for `fm`; with `fm` unpatched it sets how far a trigger's envelope sweeps pitch, or fine-tunes by up to a semitone",
         type = control,
+        default = 0.0,
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     fm_amt: Option<PolySignal>,
 
     #[input(
-        "Morph CV attenuverter (-5 to 5) - scales morph modulation",
+        "how much the trigger's internal envelope sweeps morph; negative inverts",
         type = control,
+        default = 0.0,
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     morph_amt: Option<PolySignal>,
 
-    #[input("Trigger input - gates/triggers the internal envelope", type = trig)]
+    #[input(
+        "strikes the internal envelope and lowpass gate; unpatched, the voice drones",
+        type = trig,
+    )]
     #[deserr(default)]
     trigger: Option<PolySignal>,
 
-    #[input("Level/dynamics input (0-5V) - controls VCA/LPG", type = control, range = (0.0, 5.0))]
+    #[input(
+        "loudness and brightness through the lowpass gate; patching it opens the gate by this level instead of the trigger's ping",
+        type = control,
+        range = (0.0, 8.0),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     level: Option<PolySignal>,
 
     #[input(
-        "LPG color (0-5V) - lowpass gate filter response (low = mellow, high = bright)",
+        "lowpass gate response: low is a mellow filter sweep, high a bright VCA",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -204,7 +218,7 @@ struct PlaitsParams {
     lpg_color: Option<PolySignal>,
 
     #[input(
-        "LPG decay (0-5V) - lowpass gate envelope decay time",
+        "how long the lowpass gate and internal envelope ring after a trigger",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -213,7 +227,7 @@ struct PlaitsParams {
     lpg_decay: Option<PolySignal>,
 
     #[input(
-        "Main/Aux Mix (0-5v) - Crossfade mix between main and aux outputs at the primary output.",
+        "blend at `output`: 0 main, 5 aux",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -225,13 +239,13 @@ struct PlaitsParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PlaitsOutputs {
-    #[output("output", "mixed synthesis output (main/aux crossfade)", default, range = (-5.0, 5.0))]
+    #[output("output", "main and aux blended by `mix`", default, range = (-5.0, 5.0))]
     mix: PolyOutput,
 
-    #[output("main", "main synthesis output", range = (-5.0, 5.0))]
+    #[output("main", "the engine's main output", range = (-5.0, 5.0))]
     main: PolyOutput,
 
-    #[output("aux", "auxiliary output — varies per engine", range = (-5.0, 5.0))]
+    #[output("aux", "the engine's auxiliary output, a variant that depends on the engine", range = (-5.0, 5.0))]
     aux: PolyOutput,
 }
 

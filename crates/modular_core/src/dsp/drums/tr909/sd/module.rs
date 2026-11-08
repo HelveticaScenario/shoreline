@@ -13,7 +13,7 @@ struct Sd909Params {
     #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
     #[input(
-        "accent, 0–5 V, sampled at each strike and held for the hit: up to twice as loud (default 0)",
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -21,15 +21,14 @@ struct Sd909Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "pitch in V/Oct; stock is ≈148 Hz (default -0.8243)",
+        "pitch; stock is ≈148 Hz",
         type = pitch,
         default = -0.8243,
-        range = (-2.3, 0.7),
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
     #[input(
-        "tone control, 0–5 V: how long the noise rings on, from a short snap to a long hiss (default 2.5)",
+        "how long the noise rings on, from a short snap to a long hiss",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -37,7 +36,7 @@ struct Sd909Params {
     #[deserr(default)]
     tone: Option<PolySignal>,
     #[input(
-        "snappy control, 0–5 V: how loud the noise is (default 2.5)",
+        "how loud the noise is",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -45,13 +44,13 @@ struct Sd909Params {
     #[deserr(default)]
     snappy: Option<PolySignal>,
     #[input(
-        "fade out a hit still sounding over 2 ms as the next one strikes, so every hit starts from rest; otherwise each hit builds on the last, as on the 909 (default false)"
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 909"
     )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
     #[input(
-        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them (default false)"
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
     )]
     #[serde(default)]
     #[deserr(default)]

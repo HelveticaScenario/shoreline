@@ -81,18 +81,18 @@ impl<E: DeserializeError> deserr::Deserr<E> for ScaleSignal {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct QuantizerParams {
-    #[input("Input V/Oct signal to quantize", type = pitch)]
+    #[input("pitch to quantize", type = pitch)]
     input: PolySignal,
-    #[input("Offset added to input before quantization (in V/Oct)", type = pitch)]
+    #[input("transposition added to the pitch before it snaps", type = pitch)]
     #[deserr(default)]
     offset: Option<PolySignal>,
     #[input(
-        "Notes to snap to, one V/Oct pitch per channel (octave is ignored), or a spec string like \"C(major)\" / \"C[maj7]\". Snaps to semitones if omitted."
+        "notes to snap to, one pitch per channel in any octave, or a spec like \"C(major)\" or \"C[maj7]\"; snaps to semitones when left out"
     )]
     #[deserr(default)]
     scale: Option<ScaleSignal>,
     #[input(
-        "Per-note gate for **scale**: scale channel N is used only while gate channel N is high. While every gate channel is low the output holds.",
+        "turns notes of the scale on and off: scale channel N is used only while gate channel N is high; with every gate low the output holds",
         type = gate,
     )]
     #[deserr(default)]
@@ -113,9 +113,9 @@ pub fn quantizer_derive_channel_count(params: &QuantizerParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct QuantizerOutputs {
-    #[output("output", "quantized V/Oct output", default)]
+    #[output("output", "the snapped pitch", default)]
     output: PolyOutput,
-    #[output("trig", "trigger pulse on note change", range = (0.0, 5.0))]
+    #[output("trig", "a short trigger each time the snapped note changes", range = (0.0, 5.0))]
     trig: PolyOutput,
 }
 

@@ -23,36 +23,39 @@ fn default_voices() -> usize {
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct SupersawParams {
-    #[input("pitch in V/Oct (0V = C4)", type = control, range = (-5.0, 5.0))]
+    #[input("oscillator pitch", type = pitch)]
     freq: PolySignal,
-    #[input("number of supersaw voices (1–64)")]
+    #[input(
+        "number of detuned saws stacked per note; each is its own output channel",
+        range = (1, 64),
+    )]
     #[serde(default = "default_voices")]
     #[deserr(default = default_voices())]
     voices: usize,
     #[input(
-        "detune spread in semitones (default 0.18)",
+        "spread between the lowest and highest saw, in semitones",
         type = control,
         default = 0.18,
-        range = (0, 12),
+        range = (0.0, ..),
+        control_range = (0.0, 12.0),
     )]
     #[deserr(default)]
     detune: Option<PolySignal>,
-    #[input("FM input signal (pre-scaled by user)", type = control, range = (-5.0, 5.0))]
+    #[input(
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
+        type = audio,
+    )]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    #[input("FM mode: throughZero (default), lin, or exp")]
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    #[input(
-        "hard sync source — rising edges reset every detuned voice's phase",
-        type = control,
-        range = (-5.0, 5.0),
-    )]
+    #[input("hard sync: each rising edge restarts every saw of that note", type = trig)]
     #[deserr(default)]
     sync: Option<PolySignal>,
     #[input(
-        "when true, each freshly started voice stays silent until its output first crosses zero. Because voices start at random phases, this prevents a click when the patch begins. Default true."
+        "each new saw stays silent until it first crosses zero, so random starting phases cannot click"
     )]
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]
@@ -66,7 +69,7 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SupersawOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the stacked saws, one channel per voice", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

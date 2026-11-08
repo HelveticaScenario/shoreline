@@ -87,13 +87,12 @@ fn scale_samples(ref_samples: usize, sample_rate: f32) -> usize {
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PlateParams {
     #[input(
-        "audio input (even channels → left, odd channels → right; with an odd channel count the last channel feeds both sides)",
-        type = control,
-        range = (-5.0, 5.0),
+        "signal to reverberate; all channels are mixed to mono",
+        type = audio,
     )]
     input: PolySignal,
     #[input(
-        "input bandwidth — controls high-frequency content entering the tank. default 2.02V → coeff 0.7 (maps -5V..5V to 0.005..0.9999, clamped)",
+        "how much treble enters the reverb: -5 dull, +5 full bandwidth",
         type = control,
         default = 2.02,
         range = (-5.0, 5.0),
@@ -101,7 +100,7 @@ struct PlateParams {
     #[deserr(default)]
     bandwidth: Option<MonoSignal>,
     #[input(
-        "tank damping — higher values absorb more high frequencies per recirculation. default 4.09V → coeff 0.1 (maps -5V..5V to 0.9999..0.005, inverted, clamped)",
+        "how fast the tail darkens: -5 bright, +5 muffled",
         type = control,
         default = 4.09,
         range = (-5.0, 5.0),
@@ -109,7 +108,7 @@ struct PlateParams {
     #[deserr(default)]
     damping: Option<MonoSignal>,
     #[input(
-        "feedback decay — controls how long the reverb tail sustains. default -2.0V → coeff 0.3 (maps -5V..5V to 0.0..0.9999, clamped)",
+        "how long the tail rings: -5 shortest, +5 almost endless",
         type = control,
         default = -2.0,
         range = (-5.0, 5.0),
@@ -117,10 +116,10 @@ struct PlateParams {
     #[deserr(default)]
     decay: Option<MonoSignal>,
     #[input(
-        "external tank modulation signal. default 0.0V → no modulation (±5V maps to ±5.5 samples excursion at 48kHz)",
+        "wobbles the tank's delay times to soften metallic ringing; patch an LFO here (±5 V sways about ±0.1 ms)",
         type = control,
         default = 0.0,
-        range = (-5.0, 5.0),
+        control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     modulation: Option<MonoSignal>,
@@ -131,7 +130,7 @@ struct PlateParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PlateOutputs {
-    #[output("output", "stereo reverb output (ch0=left, ch1=right)", default)]
+    #[output("output", "stereo reverb, fully wet (left, right)", default)]
     sample: PolyOutput,
 }
 

@@ -30,17 +30,17 @@ const EDGE_FADE_SECONDS: f64 = 0.001;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = media_audio_validate_params -> ModuleParamErrors)]
 struct MediaAudioParams {
-    #[input("TODO")]
+    #[input("the media file whose audio track plays")]
     wav: Wav,
-    #[input("Playback rate: 1 is normal speed, 0 is silent (default 1).")]
+    #[input("playback rate: 1 normal speed, 2 double, 0 silent", range = (0.0, 16.0))]
     #[serde(default = "default_speed")]
     #[deserr(default = default_speed())]
     speed: f64,
-    #[input("Loop start in seconds (default 0).")]
+    #[input("where the loop starts, in seconds", range = (0.0, ..))]
     #[serde(default)]
     #[deserr(default)]
     loop_start: f64,
-    #[input("Loop end in seconds; the end of the file by default.")]
+    #[input("where the loop ends, in seconds; the end of the file when unset")]
     #[serde(default)]
     #[deserr(default)]
     loop_end: Option<f64>,
@@ -81,7 +81,7 @@ fn media_audio_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MediaAudioOutputs {
-    #[output("output", "audio of the media file", default)]
+    #[output("output", "the media file's audio", default)]
     sample: PolyOutput,
 }
 

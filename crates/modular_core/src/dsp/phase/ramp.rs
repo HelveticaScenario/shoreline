@@ -13,14 +13,14 @@ use crate::poly::{PolyOutput, PolySignal};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RampParams {
-    #[input("pitch in V/Oct (0V = C4)", type = pitch)]
+    #[input("how fast the ramp cycles", type = pitch)]
     freq: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct RampOutputs {
-    #[output("output", "phase ramp output (0 to 1)", default, range = (0.0, 1.0))]
+    #[output("output", "phase rising once per cycle", default, range = (0.0, 1.0))]
     sample: PolyOutput,
 }
 

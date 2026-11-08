@@ -31,33 +31,34 @@ const MAX_FADE_MS: f64 = 1000.0;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = sampler_validate_params -> ModuleParamErrors)]
 struct SamplerParams {
-    #[input("TODO")]
+    #[input("the WAV file to play")]
     wav: Wav,
     #[input(
-        "Gate input — rising edge starts playback of the selected window; `mode` sets what the gate does after that.",
+        "starts the selected slice playing; `mode` sets what the gate does after that",
         type = gate,
     )]
     gate: MonoSignal,
     #[input(
-        "Playback speed. 1.0 = normal, 2.0 = double speed, negative = reverse.",
+        "playback speed: 1 normal, 2 double (an octave up), negative plays in reverse",
         type = control,
         default = 1.0,
-        range = (-4.0, 4.0),
+        control_range = (-4.0, 4.0),
     )]
     #[deserr(default)]
     speed: Option<MonoSignal>,
     #[input(
-        "Slice selector: a mono signal (whole file as one slice) or `[points, signal]` where points are fractions of the total length in [0, 1]. Sampled at each gate rising edge and, while looping, once per repeat as the pass comes within a fade width of its end: the integer part picks the slice (wrapping), the fraction offsets the start into it."
+        "which slice plays: a signal (the whole file is one slice) or `[points, signal]`, points marking slice starts as fractions of the file from 0 to 1; read at each gate and each loop repeat, its whole part picks the slice (wrapping) and its fraction starts partway in"
     )]
     #[deserr(default)]
     slice: Option<SliceParam>,
     #[input(
-        "Declick fade in milliseconds: fade-in at onset, fade-out at the window exit edge and on release, and retrigger crossfade. 0 disables."
+        "declick fade in milliseconds, at the start and end of each pass, on release and across retriggers; 0 turns it off",
+        range = (0.0, 1000.0)
     )]
     #[serde(default = "default_fade")]
     #[deserr(default = default_fade())]
     fade: f64,
-    #[input("What the gate does once playback starts (default `'once'`).")]
+    #[input("what the gate does once playback starts (default `'once'`)")]
     #[serde(default)]
     #[deserr(default)]
     mode: SamplerMode,
@@ -68,20 +69,14 @@ struct SamplerParams {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 enum SamplerMode {
-    /// Each rising edge plays the window through; the gate falling does
-    /// nothing.
+    /// each gate plays the slice through; the gate falling does nothing
     #[default]
     Once,
-    /// The window repeats while the gate is high: each time a pass reaches
-    /// its window's end, the slice is picked again and the next pass starts
-    /// on time, so passes never drift. With a fade, the crossfade uses the
-    /// audio just before the next window (after it in reverse), topped up by
-    /// letting the old pass run on past its end. When the gate falls,
-    /// playback fades out over `fade`; when the next slice is empty or the
-    /// mode changes, the current pass plays out.
+    /// the slice repeats in time while the gate is high, picking the slice
+    /// again at each repeat, and fades out over `fade` when the gate falls
     Loop,
-    /// The window plays while the gate is high and fades out over `fade`
-    /// when it falls.
+    /// the slice plays while the gate is high and fades out over `fade` when
+    /// it falls
     Gate,
 }
 
@@ -114,7 +109,7 @@ fn sampler_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SamplerOutputs {
-    #[output("output", "sample playback output", default)]
+    #[output("output", "the played sample", default)]
     sample: PolyOutput,
 }
 

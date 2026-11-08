@@ -3,7 +3,7 @@ use crate::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
         utils::{interpolate, wrap},
     },
-    poly::{PolyOutput, PolySignal, PolySignalExt},
+    poly::{PolyOutput, PolySignal},
 };
 use deserr::Deserr;
 use schemars::JsonSchema;
@@ -14,14 +14,18 @@ use schemars::JsonSchema;
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PSineOscillatorParams {
-    #[input("phasor input (0–1, wraps at boundaries)", type = control, range = (0.0, 1.0))]
+    #[input(
+        "phase to read the wave at, usually from `$ramp`; one cycle per range, wrapping outside it",
+        type = audio,
+        range = (0.0, 1.0),
+    )]
     phase: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PSineOscillatorOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the sine wave", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

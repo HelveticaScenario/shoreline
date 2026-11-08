@@ -339,7 +339,7 @@ filter_module! {
         #[serde(rename = "type")]
         #[deserr(rename = "type")]
         r#type: VintageType,
-        #[input("bass compensation (default false)")]
+        #[input("restore the bass a resonant ladder loses")]
         compensated: bool,
     },
     mode = |p| VintageMode {

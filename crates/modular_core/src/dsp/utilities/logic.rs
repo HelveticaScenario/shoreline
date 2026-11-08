@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RisingEdgeDetectorParams {
-    #[input("signal to detect rising edges in", type = control, range = (-5.0, 5.0))]
+    #[input("signal watched for any rise from one sample to the next", type = audio)]
     input: PolySignal,
 }
 
@@ -19,7 +19,7 @@ struct RisingEdgeDetectorParams {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FallingEdgeDetectorParams {
-    #[input("signal to detect falling edges in", type = control, range = (-5.0, 5.0))]
+    #[input("signal watched for any fall from one sample to the next", type = audio)]
     input: PolySignal,
 }
 
@@ -28,8 +28,9 @@ struct FallingEdgeDetectorParams {
 struct EdgeDetectorOutputs {
     #[output(
         "output",
-        "edge detection pulse (5V when edge detected, 0V otherwise)",
-        default
+        "a short trigger each time the input moves in the watched direction",
+        default,
+        range = (0.0, 5.0)
     )]
     output: PolyOutput,
 }

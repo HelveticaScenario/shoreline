@@ -9,15 +9,15 @@ use crate::types::SwapGlide;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RemapParams {
-    #[input("signal input to remap", type = control, range = (-5.0, 5.0))]
+    #[input("signal to rescale", type = audio)]
     input: PolySignal,
-    #[input("minimum of input range", type = control, default = -5.0, range = (-5.0, 5.0))]
+    #[input("input value that maps to outMin", type = control, default = -5.0, control_range = (-5.0, 5.0))]
     in_min: PolySignal,
-    #[input("maximum of input range", type = control, default = 5.0, range = (-5.0, 5.0))]
+    #[input("input value that maps to outMax", type = control, default = 5.0, control_range = (-5.0, 5.0))]
     in_max: PolySignal,
-    #[input("minimum of output range", type = control, default = -5.0, range = (-5.0, 5.0))]
+    #[input("output value for an input at inMin", type = control, default = -5.0, control_range = (-5.0, 5.0))]
     out_min: PolySignal,
-    #[input("maximum of output range", type = control, default = 5.0, range = (-5.0, 5.0))]
+    #[input("output value for an input at inMax", type = control, default = 5.0, control_range = (-5.0, 5.0))]
     out_max: PolySignal,
 }
 
@@ -32,7 +32,7 @@ struct ChannelState {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct RemapOutputs {
-    #[output("output", "remapped signal output", default)]
+    #[output("output", "the rescaled signal", default)]
     sample: PolyOutput,
 }
 

@@ -19,6 +19,7 @@ import {
     schemaToTypeExpr,
     getEnumVariants,
 } from '../../shared/dsl/schemaTypeResolver';
+import { formatOutputMeta, paramMeta } from '../../shared/dsl/paramRange';
 
 const CARD_GAP_PX = 15;
 const ESTIMATED_CARD_HEIGHT_PX = 320;
@@ -62,6 +63,7 @@ const getParams = (module: Schema) => {
         }
         return {
             description: schema.description as string | undefined,
+            meta: paramMeta(module, name),
             name,
             type,
             variants,
@@ -99,7 +101,7 @@ const ModuleCard = memo<ModuleCardProps>(({ module, onTypeClick }) => {
             </div>
             <h4>Inputs</h4>
             <ul>
-                {params.map(({ name, type, description, variants }) => (
+                {params.map(({ name, type, description, meta, variants }) => (
                     <li key={name}>
                         <strong>
                             {name}
@@ -114,6 +116,7 @@ const ModuleCard = memo<ModuleCardProps>(({ module, onTypeClick }) => {
                             )}
                         </strong>
                         {description && <> &mdash; {description}</>}
+                        {meta && <span className="param-meta">{meta}</span>}
                         {variants &&
                             variants.some((v) => v.description) &&
                             (variants.length > 8 ? (
@@ -136,15 +139,19 @@ const ModuleCard = memo<ModuleCardProps>(({ module, onTypeClick }) => {
             </ul>
             <h4>Outputs</h4>
             <ul>
-                {module.outputs.map((out) => (
-                    <li key={out.name}>
-                        <strong>{out.default ? 'main' : out.name}</strong>:{' '}
-                        <LinkifyTypes
-                            text={out.description}
-                            onTypeClick={onTypeClick}
-                        />
-                    </li>
-                ))}
+                {module.outputs.map((out) => {
+                    const meta = formatOutputMeta(out);
+                    return (
+                        <li key={out.name}>
+                            <strong>{out.default ? 'main' : out.name}</strong>:{' '}
+                            <LinkifyTypes
+                                text={out.description}
+                                onTypeClick={onTypeClick}
+                            />
+                            {meta && <span className="param-meta">{meta}</span>}
+                        </li>
+                    );
+                })}
             </ul>
         </div>
     );

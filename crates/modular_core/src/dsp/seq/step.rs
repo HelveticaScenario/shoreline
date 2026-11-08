@@ -13,11 +13,11 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_step_params -> ModuleParamErrors)]
 struct StepParams {
-    #[input("Steps of the sequence")]
+    #[input("the values to step through, in order")]
     steps: Vec<PolySignal>,
-    #[input("Next step trigger", type = control, range = (-5.0, 5.0))]
+    #[input("advances to the next step, wrapping after the last", type = trig)]
     next: MonoSignal,
-    #[input("Reset trigger", type = control, range = (-5.0, 5.0))]
+    #[input("jumps back to the first step", type = trig)]
     #[deserr(default)]
     reset: Option<MonoSignal>,
 }
@@ -25,7 +25,7 @@ struct StepParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct StepOutputs {
-    #[output("output", "forwarded signal", default)]
+    #[output("output", "the current step's value", default)]
     sample: PolyOutput,
 }
 

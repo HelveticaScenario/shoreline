@@ -14,7 +14,7 @@ struct Rs808Params {
     #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
     #[input(
-        "accent, 0–5 V, sampled at each strike and held for the hit: up to twice as loud (default 0)",
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -22,21 +22,20 @@ struct Rs808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "pitch of the upper tone in V/Oct, the lower one following; stock is ≈1.79 kHz (default 2.771)",
+        "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz, level held steady from 1.5 to 4 V",
         type = pitch,
         default = 2.771,
-        range = (1.5, 4.0),
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
     #[input(
-        "fade out a hit still sounding over 2 ms as the next one strikes, so every hit starts from rest; otherwise each hit builds on the last, as on the 808 (default false)"
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
     )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
     #[input(
-        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them (default false)"
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
     )]
     #[serde(default)]
     #[deserr(default)]
@@ -235,7 +234,7 @@ struct Cl808Params {
     #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
     #[input(
-        "accent, 0–5 V, sampled at each strike and held for the hit: up to twice as loud (default 0)",
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -243,15 +242,14 @@ struct Cl808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "pitch in V/Oct; stock is ≈2.53 kHz (default 3.273)",
+        "pitch; stock is ≈2.53 kHz, level held steady from 1.5 to 4.5 V",
         type = pitch,
         default = 3.273,
-        range = (1.5, 4.5),
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
     #[input(
-        "decay control, 0–5 V: how long the claves ring, from ≈0.025 s to ≈0.23 s (default 2.5, ≈0.075 s as on the 808)",
+        "how long the claves ring, from ≈0.025 s to ≈0.23 s; ≈0.075 s at 2.5, as on the 808",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -259,13 +257,13 @@ struct Cl808Params {
     #[deserr(default)]
     decay: Option<PolySignal>,
     #[input(
-        "fade out a hit still sounding over 2 ms as the next one strikes, so every hit starts from rest; otherwise each hit builds on the last, as on the 808 (default false)"
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
     )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
     #[input(
-        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them (default false)"
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
     )]
     #[serde(default)]
     #[deserr(default)]

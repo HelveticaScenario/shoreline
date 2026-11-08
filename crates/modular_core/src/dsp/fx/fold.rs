@@ -18,20 +18,20 @@ use crate::types::SwapGlide;
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FoldParams {
     #[input(
-        "input signal to fold (bipolar, typically -5 to 5)",
-        type = control,
+        "signal to fold",
+        type = audio,
         range = (-5.0, 5.0),
     )]
     input: PolySignal,
     #[input(
-        "fold amount (0-5, where 0 = bypass, 5 = maximum folding)",
+        "how hard the signal folds: 0 clean, 5 most folds",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
     )]
     amount: PolySignal,
     #[input(
-        "pitch of the source signal in V/Oct (optional, reduces aliasing at high frequencies)",
+        "pitch of the incoming signal; patch it to reduce aliasing on high notes",
         type = pitch,
     )]
     #[deserr(default)]
@@ -41,7 +41,7 @@ struct FoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FoldOutputs {
-    #[output("output", "folded signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "folded signal", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

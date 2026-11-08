@@ -8,13 +8,14 @@ use schemars::JsonSchema;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct HoldParams {
-    #[input("gate/trigger input — a rising edge opens the output", type = gate)]
+    #[input("rising edge opens the output gate", type = gate)]
     input: PolySignal,
     #[input(
-        "hold time in seconds; a rising edge mid-hold retriggers the gate (default 0.05)",
+        "how long the gate stays open, in seconds; a rising edge mid-hold restarts it",
         type = control,
         default = 0.05,
-        range = (0.0, 10.0),
+        range = (0.0, ..),
+        control_range = (0.0, 10.0),
     )]
     #[deserr(default)]
     time: Option<PolySignal>,
@@ -23,7 +24,7 @@ struct HoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct HoldOutputs {
-    #[output("output", "held gate", default, range = (0.0, 5.0))]
+    #[output("output", "the stretched gate", default, range = (0.0, 5.0))]
     sample: PolyOutput,
 }
 

@@ -36,20 +36,21 @@ const MAX_NORMALIZED_CUTOFF: f32 = 0.45;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct LpgParams {
-    #[input("signal input", type = control, range = (-5.0, 5.0))]
+    #[input("the sound to gate", type = audio)]
     input: PolySignal,
-    #[input("trigger input (rising edge pings the vactrol fully open)", type = trig)]
+    #[input("each trigger pings the gate fully open", type = trig)]
     #[deserr(default)]
     trigger: Option<PolySignal>,
     #[input(
-        "level CV (0-5V) - the floor pings rise from and decay back to, on Plaits' compressing curve; 5V fully open",
+        "how open the gate rests, and where pings decay back to; 5 fully open",
         type = control,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
     level: Option<PolySignal>,
     #[input(
-        "filter response (0-5) - low = mellow lowpass gate, high = bright, VCA-like",
+        "tone as the gate closes: low mellow lowpass gate, high bright and VCA-like",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -57,7 +58,7 @@ struct LpgParams {
     #[deserr(default)]
     color: Option<PolySignal>,
     #[input(
-        "vactrol decay (0-5) - low = short pluck, high = long ring",
+        "how long a ping takes to fade: low short pluck, high long ring",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),

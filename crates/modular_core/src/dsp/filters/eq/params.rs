@@ -32,21 +32,35 @@ pub enum EqSectionType {
 }
 
 /// One EQ band. `freq`, `gain`, and `q` can all be modulated.
+#[params]
 #[derive(Clone, Deserr, JsonSchema, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct EqSection {
-    /// kind of band (default peak)
+    #[input("kind of band (default peak)")]
     #[serde(rename = "type", default)]
     #[deserr(rename = "type", default)]
     pub r#type: EqSectionType,
-    /// where the band sits, like '1000hz' or 'c4'
+    #[input(
+        "where the band sits, like '1000hz' or 'c4'; held between 20 Hz and just under half the sample rate",
+        type = frequency,
+        range = (-3.71, ..),
+    )]
     pub freq: MonoSignal,
-    /// boost or cut in dB, -24 to 24 (peaks and shelves only, default 0)
+    #[input(
+        "boost or cut in dB; peaks and shelves only",
+        type = control,
+        default = 0.0,
+        range = (-24.0, 24.0),
+    )]
     #[deserr(default)]
     pub gain: Option<MonoSignal>,
-    /// how narrow the band is, 0.1 to 20 (default 0.707); above 0.707, shelves
-    /// and lowpass/highpass get a resonant bump
+    #[input(
+        "how narrow the band is; above 0.707 shelves, lowpass and highpass get a resonant bump",
+        type = control,
+        default = 0.707107,
+        range = (0.1, 20.0),
+    )]
     #[deserr(default)]
     pub q: Option<MonoSignal>,
 }
@@ -127,19 +141,19 @@ impl JsonSchema for EqSections {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_eq_params -> ModuleParamErrors)]
 pub struct ParametricEqParams {
-    #[input("sound to EQ", type = control, range = (-5.0, 5.0))]
+    #[input("the sound to EQ", type = audio)]
     pub input: PolySignal,
     #[input(
-        "up to 8 bands, or one list of bands per channel (default none: the sound passes through unchanged)"
+        "up to 8 bands, or one list of bands per channel; with none the sound passes through unchanged"
     )]
     #[serde(default)]
     #[deserr(default)]
     pub sections: EqSections,
-    #[input("make peaks narrower the more they boost or cut (default false)")]
+    #[input("make peaks narrower the more they boost or cut")]
     #[serde(default)]
     #[deserr(default)]
     pub adaptive_q: bool,
-    #[input("show an EQ editor under the call (default false)")]
+    #[input("show an EQ editor under the call")]
     #[serde(default)]
     #[deserr(default)]
     pub ui: bool,

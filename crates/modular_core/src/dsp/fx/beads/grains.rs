@@ -24,12 +24,11 @@ use super::{FULL_SCALE_VOLTS, GranularQuality, grain_params, input_value, unit};
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct GranularParams {
     #[input(
-        "audio to record; each channel gets its own voice",
-        type = control,
-        range = (-5.0, 5.0),
+        "signal to record; each channel gets its own voice",
+        type = audio,
     )]
     input: PolySignal,
-    #[input("starts a grain on each rising edge", type = trig)]
+    #[input("starts a grain", type = trig)]
     #[deserr(default)]
     trigger: Option<PolySignal>,
     #[input(
@@ -39,7 +38,7 @@ struct GranularParams {
     #[deserr(default)]
     freeze: Option<PolySignal>,
     #[input(
-        "where grains start: 0 = the most recent audio, 5 = the oldest (default 0)",
+        "where grains start: 0 the most recent audio, 5 the oldest",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -47,7 +46,7 @@ struct GranularParams {
     #[deserr(default)]
     time: Option<PolySignal>,
     #[input(
-        "grain length: 0 = shortest, 5 = longest; negative values play the grains backwards (−5 to 5, default 2.75)",
+        "grain length: 0 shortest, 5 longest; negative values play the grains backwards",
         type = control,
         default = 2.75,
         range = (-5.0, 5.0),
@@ -55,7 +54,7 @@ struct GranularParams {
     #[deserr(default)]
     size: Option<PolySignal>,
     #[input(
-        "grain envelope: 0 = square, 1.67 = sharp attack, 3.33 = smooth, 5 = reverse swell (default 3.33)",
+        "grain envelope: 0 square, 1.67 sharp attack, 3.33 smooth, 5 reverse swell",
         type = control,
         default = 3.33,
         range = (0.0, 5.0),
@@ -63,16 +62,16 @@ struct GranularParams {
     #[deserr(default)]
     shape: Option<PolySignal>,
     #[input(
-        "grain pitch; grains play at the input's own pitch when `freq` equals `rootFreq` (default C4)",
+        "grain pitch; grains keep the input's pitch when `freq` equals `rootFreq`",
         type = pitch,
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    #[input("pitch of the input, so `freq` plays in tune (default C4)", type = pitch)]
+    #[input("pitch of the input, so `freq` plays in tune", type = pitch)]
     #[deserr(default)]
     root_freq: Option<PolySignal>,
     #[input(
-        "random stereo position for each grain (0–5, default 0)",
+        "how far each grain lands at a random stereo position: 0 centred, 5 anywhere",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -80,7 +79,7 @@ struct GranularParams {
     #[deserr(default)]
     spread: Option<PolySignal>,
     #[input(
-        "spreads the voices across the stereo field: 0 = all centred, 5 = first voice hard left to last hard right (default 0)",
+        "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -88,7 +87,7 @@ struct GranularParams {
     #[deserr(default)]
     width: Option<MonoSignal>,
     #[input(
-        "feeds the grains back into the recording, building up dense washes (0–5, default 0)",
+        "feeds the grains back into the recording, building dense washes",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -96,7 +95,7 @@ struct GranularParams {
     #[deserr(default)]
     feedback: Option<PolySignal>,
     #[input(
-        "dry/wet: 0 = input only, 5 = grains only (default 2.5)",
+        "dry/wet blend: 0 dry, 5 grains only",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -119,13 +118,13 @@ struct GranularParams {
 struct GranularOutputs {
     #[output(
         "output",
-        "stereo mix of every voice (ch0=left, ch1=right)",
+        "stereo mix of every voice (left, right)",
         default,
         range = (-5.0, 5.0),
         channels = 2
     )]
     sample: PolyOutput,
-    #[output("voices", "one channel per voice", range = (-5.0, 5.0))]
+    #[output("voices", "each voice on its own channel, mono", range = (-5.0, 5.0))]
     voices: PolyOutput,
 }
 

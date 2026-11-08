@@ -80,13 +80,12 @@ fn scale_delay_f(ref_samples: f32, sample_rate: f32, size: f32) -> f32 {
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct DattorroParams {
     #[input(
-        "audio input (even channels → left, odd channels → right; with an odd channel count the last channel feeds both sides)",
-        type = control,
-        range = (-5.0, 5.0),
+        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        type = audio,
     )]
     input: PolySignal,
     #[input(
-        "reverb decay time (-5 to 5, default 0)",
+        "how long the tail rings: -5 shortest, +5 almost endless",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -94,7 +93,7 @@ struct DattorroParams {
     #[deserr(default)]
     decay: Option<MonoSignal>,
     #[input(
-        "high-frequency damping in the reverb tank (-5 to 5, default 0)",
+        "how fast the tail darkens: -5 bright, +5 muffled",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -102,7 +101,7 @@ struct DattorroParams {
     #[deserr(default)]
     damping: Option<MonoSignal>,
     #[input(
-        "room size — scales all delay line lengths (-5 to 5, default 0)",
+        "room size, from 0.25× (-5) to 2× (+5) the plate's delay lengths",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -110,7 +109,7 @@ struct DattorroParams {
     #[deserr(default)]
     size: Option<MonoSignal>,
     #[input(
-        "predelay time in seconds (0 to 0.5, default 0)",
+        "gap before the reverb starts, in seconds",
         type = control,
         default = 0.0,
         range = (0.0, 0.5),
@@ -118,7 +117,7 @@ struct DattorroParams {
     #[deserr(default)]
     predelay: Option<MonoSignal>,
     #[input(
-        "input diffusion amount (0 to 5, default 3.5)",
+        "how quickly the onset smears into a wash: 0 distinct echoes, 5 smoothest",
         type = control,
         default = 3.5,
         range = (0.0, 5.0),
@@ -126,10 +125,10 @@ struct DattorroParams {
     #[deserr(default)]
     diffusion: Option<MonoSignal>,
     #[input(
-        "external tank modulation signal (-5 to 5, default 0, not clamped)",
+        "wobbles the tank's delay times to soften metallic ringing; patch an LFO here (±5 V sways about ±0.5 ms)",
         type = control,
         default = 0.0,
-        range = (-5.0, 5.0),
+        control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     modulation: Option<MonoSignal>,
@@ -140,7 +139,7 @@ struct DattorroParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct DattorroOutputs {
-    #[output("output", "stereo reverb output (ch0=left, ch1=right)", default)]
+    #[output("output", "stereo reverb, fully wet (left, right)", default)]
     sample: PolyOutput,
 }
 

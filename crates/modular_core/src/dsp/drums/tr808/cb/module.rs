@@ -10,7 +10,7 @@ struct Cb808Params {
     #[input("rising edges strike the bell", type = trig)]
     trigger: PolySignal,
     #[input(
-        "accent, 0–5 V, sampled at each strike and held for the hit: up to twice as loud (default 0)",
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -18,21 +18,20 @@ struct Cb808Params {
     #[deserr(default)]
     accent: Option<PolySignal>,
     #[input(
-        "pitch of the lower tone in V/Oct, the higher one following; stock is 540 Hz against 800 Hz (default 1.0454)",
+        "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz, level held steady from -0.5 to 2.5 V",
         type = pitch,
         default = 1.0454,
-        range = (-0.5, 2.5),
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
     #[input(
-        "fade out a hit still sounding over 2 ms as the next one strikes, so every hit starts from rest; otherwise each hit builds on the last, as on the 808 (default false)"
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
     )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
     #[input(
-        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them (default false)"
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
     )]
     #[serde(default)]
     #[deserr(default)]

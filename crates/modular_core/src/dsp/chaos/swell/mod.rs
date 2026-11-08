@@ -49,8 +49,8 @@ fn default_waves() -> usize {
 )]
 struct SwellParams {
     #[input(
-        "dominant swell frequency in V/Oct (use `$hz()` or a value like `'0.1hz'`)",
-        type = pitch,
+        "rate of the main swell, e.g. `'0.1hz'`",
+        type = frequency,
     )]
     freq: PolySignal,
     #[input(
@@ -62,7 +62,7 @@ struct SwellParams {
     #[deserr(default)]
     steepness: Option<PolySignal>,
     #[input(
-        "spectral width: the other waves sit up to `chop / 2` octaves above `freq`. 0 is one clean, periodic swell; higher values roll in sets and add chop",
+        "spectral width: the other waves sit up to `chop / 2` octaves above `freq`; 0 is one clean, periodic swell, higher rolls in sets and adds chop",
         type = control,
         default = 1.0,
         range = (0, 5),
@@ -78,11 +78,11 @@ struct SwellParams {
     #[deserr(default)]
     spread: Option<PolySignal>,
     #[input(
-        "number of wave components (1–16); waves added or removed by a patch update fade over one swell period"
+        "number of waves in the sea; waves added or removed by a patch update fade over one swell period",
+        range = (1, 16),
     )]
     #[serde(default = "default_waves")]
     #[deserr(default = default_waves())]
-    #[schemars(range(min = 1, max = 16))]
     waves: usize,
     #[input(
         "picks the sea: each seed, and each channel, places the waves at different frequencies and directions"
@@ -110,17 +110,17 @@ fn validate_swell_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SwellOutputs {
-    #[output("height", "surface height at a fixed point, ±5V", default, range = (-5.0, 5.0))]
+    #[output("height", "water height at a fixed point", default, range = (-5.0, 5.0))]
     height: PolyOutput,
     #[output(
         "tilt",
-        "lean along the swell: positive while the water rises, ±5V",
+        "lean along the swell: positive while the water rises",
         range = (-5.0, 5.0)
     )]
     tilt: PolyOutput,
     #[output(
         "roll",
-        "lean across the swell from waves arriving off-axis, ±5V",
+        "lean across the swell, from waves arriving off-axis",
         range = (-5.0, 5.0)
     )]
     roll: PolyOutput,

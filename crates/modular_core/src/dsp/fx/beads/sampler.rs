@@ -38,11 +38,11 @@ const CONTROLS: VoiceControls = VoiceControls {
 struct GranularSamplerParams {
     #[input("the file to play; each of its channels gets its own voice")]
     wav: Wav,
-    #[input("starts a grain on each rising edge", type = trig)]
+    #[input("starts a grain", type = trig)]
     #[deserr(default)]
     trigger: Option<PolySignal>,
     #[input(
-        "where grains start: 0 = the start of the file, 5 = its end (default 0)",
+        "where grains start: 0 the start of the file, 5 its end",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -50,7 +50,7 @@ struct GranularSamplerParams {
     #[deserr(default)]
     time: Option<PolySignal>,
     #[input(
-        "grain length: 0 = shortest, 5 = longest; negative values play the grains backwards (−5 to 5, default 2.75)",
+        "grain length: 0 shortest, 5 longest; negative values play the grains backwards",
         type = control,
         default = 2.75,
         range = (-5.0, 5.0),
@@ -58,7 +58,7 @@ struct GranularSamplerParams {
     #[deserr(default)]
     size: Option<PolySignal>,
     #[input(
-        "grain envelope: 0 = square, 1.67 = sharp attack, 3.33 = smooth, 5 = reverse swell (default 3.33)",
+        "grain envelope: 0 square, 1.67 sharp attack, 3.33 smooth, 5 reverse swell",
         type = control,
         default = 3.33,
         range = (0.0, 5.0),
@@ -66,16 +66,16 @@ struct GranularSamplerParams {
     #[deserr(default)]
     shape: Option<PolySignal>,
     #[input(
-        "grain pitch; grains play at the file's own pitch when `freq` equals `rootFreq` (default C4)",
+        "grain pitch; grains keep the file's pitch when `freq` equals `rootFreq`",
         type = pitch,
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    #[input("pitch of the file, so `freq` plays in tune (default C4)", type = pitch)]
+    #[input("pitch of the file, so `freq` plays in tune", type = pitch)]
     #[deserr(default)]
     root_freq: Option<PolySignal>,
     #[input(
-        "random stereo position for each grain (0–5, default 0)",
+        "how far each grain lands at a random stereo position: 0 centred, 5 anywhere",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -83,7 +83,7 @@ struct GranularSamplerParams {
     #[deserr(default)]
     spread: Option<PolySignal>,
     #[input(
-        "spreads the voices across the stereo field: 0 = all centred, 5 = first voice hard left to last hard right (default 0)",
+        "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -130,13 +130,13 @@ impl crate::types::Connect for Loaded {
 struct GranularSamplerOutputs {
     #[output(
         "output",
-        "stereo mix of every voice (ch0=left, ch1=right)",
+        "stereo mix of every voice (left, right)",
         default,
         range = (-5.0, 5.0),
         channels = 2
     )]
     sample: PolyOutput,
-    #[output("voices", "one channel per voice", range = (-5.0, 5.0))]
+    #[output("voices", "each voice on its own channel, mono", range = (-5.0, 5.0))]
     voices: PolyOutput,
 }
 

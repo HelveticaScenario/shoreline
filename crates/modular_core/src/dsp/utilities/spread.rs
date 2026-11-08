@@ -12,17 +12,17 @@ fn default_count() -> usize {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SpreadParams {
-    #[input("lower bound of the spread range", type = control, range = (-5.0, 5.0))]
+    #[input("value of the first channel", type = control, control_range = (-5.0, 5.0))]
     min: MonoSignal,
-    #[input("upper bound of the spread range", type = control, range = (-5.0, 5.0))]
+    #[input("value of the last channel", type = control, control_range = (-5.0, 5.0))]
     max: MonoSignal,
-    #[input("number of output channels (1–64)")]
+    #[input("number of output channels", range = (1, 64))]
     count: usize,
     #[input(
-        "distribution bias (-5 to 5): positive biases toward max, negative toward min",
+        "bunches the channels toward max (positive) or min (negative); 0 spaces them evenly",
         type = control,
         default = 0.0,
-        range = (-5.0, 5.0),
+        control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     bias: Option<MonoSignal>,
@@ -31,7 +31,7 @@ struct SpreadParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SpreadOutputs {
-    #[output("output", "spread signal output", default)]
+    #[output("output", "one value per channel, from min to max", default)]
     sample: PolyOutput,
 }
 

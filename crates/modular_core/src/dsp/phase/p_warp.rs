@@ -12,12 +12,12 @@ use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PWarpParams {
-    #[input("input phase (0 to 1)", type = control, range = (0.0, 1.0))]
+    #[input("phase to reshape, usually from `$ramp`", type = audio, range = (0.0, 1.0))]
     input: PolySignal,
     #[input("the warp to apply, built with `$phase.*`")]
     phase: PhaseWarp,
     #[input(
-        "pitch of the phase in V/Oct (optional, reduces aliasing of the pulsar and feedback warps at high frequencies)",
+        "pitch of the incoming phase; patch it to cut aliasing from pulsar and feedback warps at high notes",
         type = pitch,
     )]
     #[deserr(default)]
@@ -27,7 +27,7 @@ struct PWarpParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PWarpOutputs {
-    #[output("output", "warped phase output", default, range = (0.0, 1.0))]
+    #[output("output", "the reshaped phase", default, range = (0.0, 1.0))]
     sample: PolyOutput,
 }
 

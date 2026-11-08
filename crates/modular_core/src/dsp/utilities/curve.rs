@@ -12,12 +12,14 @@ use crate::types::SwapGlide;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CurveParams {
-    #[input("signal to apply curve to", type = control, range = (-5.0, 5.0))]
+    #[input("signal to bend", type = audio)]
     input: PolySignal,
     #[input(
-        "exponent for the power curve (0 = step, 1 = linear, >1 = audio taper)",
+        "power the signal is raised to: 0 jumps straight to ±5 V, 1 leaves it unchanged, above 1 pulls the middle toward 0",
         type = control,
-        range = (0.0, 10.0),
+        default = 1.0,
+        range = (0.0, ..),
+        control_range = (0.0, 10.0),
     )]
     exp: PolySignal,
 }
@@ -25,7 +27,7 @@ struct CurveParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CurveOutputs {
-    #[output("output", "curved signal output", default)]
+    #[output("output", "the bent signal", default)]
     sample: PolyOutput,
 }
 

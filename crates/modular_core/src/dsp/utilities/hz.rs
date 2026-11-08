@@ -15,14 +15,14 @@ const MIN_HZ: f32 = 1e-4;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct HzParams {
-    #[input("frequency in Hz", type = control, range = (-5.0, 5.0))]
+    #[input("frequency in Hz", type = control, range = (0.0, ..), control_range = (0.0, 1000.0))]
     input: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct HzOutputs {
-    #[output("output", "V/Oct pitch output", default)]
+    #[output("output", "the frequency as a V/Oct pitch", default)]
     sample: PolyOutput,
 }
 

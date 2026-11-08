@@ -21,28 +21,29 @@ use crate::types::SwapGlide;
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct QuantNoiseParams {
     #[input(
-        "input signal to grit up (bipolar, typically -5 to 5)",
-        type = control,
-        range = (-5.0, 5.0),
+        "signal to grit up",
+        type = audio,
     )]
     input: PolySignal,
     #[input(
-        "grit amount — gain on the differentiated quantization residual that is added to the signal (0 = clean, higher = more fizz)",
+        "how much grit is added: 0 clean, higher more fizz",
         type = control,
         default = 1.0,
-        range = (0.0, 5.0),
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
     )]
     amount: PolySignal,
     #[input(
-        "quantization step in volts: the grid the signal is snapped to. Coarser (larger) steps give bigger, grainier grit.",
+        "size of the voltage grid the signal snaps to, in volts; bigger steps give coarser grit",
         type = control,
         default = 0.25,
-        range = (0.0, 5.0),
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
     )]
     #[deserr(default)]
     step: Option<PolySignal>,
     #[input(
-        "dither depth (0–5). At 0 the grit is a tonal staircase buzz that tracks the signal; at 5 the quantization is fully dithered into broadband noise.",
+        "dither depth: 0 a tonal staircase buzz that tracks the signal, 5 broadband noise",
         type = control,
         default = 5.0,
         range = (0.0, 5.0),
@@ -54,7 +55,7 @@ struct QuantNoiseParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct QuantNoiseOutputs {
-    #[output("output", "input with quantization-noise grit added", default)]
+    #[output("output", "the input with grit added", default)]
     sample: PolyOutput,
 }
 
