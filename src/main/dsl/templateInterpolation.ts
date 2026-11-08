@@ -1,5 +1,5 @@
 /**
- * The patch's top-level `const` bindings, and how template literals
+ * The patch's `const` bindings, and how template literals
  * interpolate them. When `${root} e4 g4` interpolates a const string, the
  * resolution records where the const's value lands in the evaluated text and
  * the span of the const's own literal, so a highlight inside the evaluated
@@ -8,18 +8,20 @@
  */
 import ts from 'typescript';
 
+import { constBindings } from '../../shared/dsl/ast/consts';
 import { signedNumericLiteral } from '../../shared/dsl/ast/literals';
 import type {
     ResolvedInterpolation,
     SourceSpan,
 } from '../../shared/dsl/spanTypes';
 
-/** Top-level `const` initializers by name; a later declaration wins. */
+/** The patch's `const` bindings a reference can be resolved through: see
+ *  `constBindings` for which ones. */
 export interface ConstTable {
     file: ts.SourceFile;
     /** Every initializer. */
     initializers: Map<string, ts.Expression>;
-    /** The latest initializer of each name that was a trackable literal. */
+    /** The initializers that are trackable literals. */
     literals: Map<string, ts.Expression>;
 }
 
@@ -40,31 +42,16 @@ export function spanOf(node: ts.Node, file: ts.SourceFile): SourceSpan {
     return { end: node.getEnd(), start: node.getStart(file) };
 }
 
-/** `const` declarations at the top level only, which is where a flat patch
- *  script declares them. */
 export function buildConstTable(file: ts.SourceFile): ConstTable {
     const initializers = new Map<string, ts.Expression>();
     const literals = new Map<string, ts.Expression>();
-    for (const statement of file.statements) {
-        if (!ts.isVariableStatement(statement)) {
+    for (const [name, init] of constBindings(file)) {
+        if (!init) {
             continue;
         }
-        const { flags } = statement.declarationList;
-        // `await using` sets the Const bit too.
-        const isConst =
-            (flags & ts.NodeFlags.Const) !== 0 &&
-            (flags & ts.NodeFlags.Using) === 0;
-        if (!isConst) {
-            continue;
-        }
-        for (const decl of statement.declarationList.declarations) {
-            if (!decl.initializer || !ts.isIdentifier(decl.name)) {
-                continue;
-            }
-            initializers.set(decl.name.text, decl.initializer);
-            if (isTrackableLiteral(decl.initializer)) {
-                literals.set(decl.name.text, decl.initializer);
-            }
+        initializers.set(name, init);
+        if (isTrackableLiteral(init)) {
+            literals.set(name, init);
         }
     }
     return { file, initializers, literals };

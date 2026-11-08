@@ -91,4 +91,17 @@ describe('template interpolation', () => {
             ),
         ).toEqual(['3@0+1', '-2@2+2', "'c4'@5+2"]);
     });
+
+    test('a const inside a function resolves; a name bound twice does not', () => {
+        expect(
+            resolutions(
+                "function voice() {\n  const inner = 'e4'\n  return $p(`${inner} c4`)\n}",
+            ),
+        ).toEqual(["'e4'@0+2"]);
+        expect(
+            resolutions(
+                "const a = 'c4'\nfunction f() { const a = 'e4'; return $p(`${a}`) }",
+            ),
+        ).toEqual([]);
+    });
 });
