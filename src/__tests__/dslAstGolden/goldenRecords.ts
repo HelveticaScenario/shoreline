@@ -12,7 +12,6 @@ import type { ModuleSchema } from '@modular/core';
 import { analyzeSourceSpans } from '../../main/dsl/analyzeSource';
 import { executePatchScript } from '../../main/dsl/executor';
 import { DOC_EXECUTION_OPTIONS } from '../../main/dsl/__tests__/docExamples';
-import { FIRST_LINE_COLUMN_OFFSET } from '../../shared/dsl/spanTypes';
 import { findControlCalls } from '../../shared/dsl/controlCalls';
 import {
     extractControls,
@@ -126,7 +125,6 @@ function analyzeRecord(source: string) {
             source,
             schemas as ModuleSchema[],
             WRAPPER_LINES,
-            FIRST_LINE_COLUMN_OFFSET,
         );
         return {
             callSiteSpans: [...result.callSiteSpans].map(([key, span]) => [
