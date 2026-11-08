@@ -72,13 +72,10 @@ function calledName(call: ts.CallExpression): string | null {
 /**
  * Walk every call in `file` and record the spans of its trackable
  * arguments, with the interpolations each template argument resolves.
- * `lineOffset` is the number of lines the executor's script wrapper puts
- * before the patch.
  */
 export function analyzeArgumentSpans(
     file: ts.SourceFile,
     schemas: ModuleSchema[],
-    lineOffset: number,
 ): {
     registry: SpanRegistry;
     interpolationResolutions: InterpolationResolutionMap;
@@ -147,7 +144,7 @@ export function analyzeArgumentSpans(
             const anchor = isPs
                 ? v8CallAnchor(call, file)
                 : call.getStart(file);
-            registry.set(callSiteKey(file, anchor, lineOffset), {
+            registry.set(callSiteKey(file, anchor), {
                 args: argsMap,
                 moduleType: isPs ? '$p.s' : '$p',
             });
@@ -161,13 +158,10 @@ export function analyzeArgumentSpans(
             if (args.length < 1 || !record(argsMap, 'rhs', args[0])) {
                 return;
             }
-            registry.set(
-                callSiteKey(file, v8CallAnchor(call, file), lineOffset),
-                {
-                    args: argsMap,
-                    moduleType: '$p.s.chain',
-                },
-            );
+            registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
+                args: argsMap,
+                moduleType: '$p.s.chain',
+            });
             return;
         }
 
@@ -181,10 +175,10 @@ export function analyzeArgumentSpans(
                 record(argsMap, argNames[i], args[i]);
             }
             if (argsMap.size > 0) {
-                registry.set(
-                    callSiteKey(file, v8CallAnchor(call, file), lineOffset),
-                    { args: argsMap, moduleType: `.${patternMethod}` },
-                );
+                registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
+                    args: argsMap,
+                    moduleType: `.${patternMethod}`,
+                });
             }
             return;
         }
@@ -228,13 +222,10 @@ export function analyzeArgumentSpans(
         }
 
         if (argsMap.size > 0) {
-            registry.set(
-                callSiteKey(file, v8CallAnchor(call, file), lineOffset),
-                {
-                    args: argsMap,
-                    moduleType: schema.name,
-                },
-            );
+            registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
+                args: argsMap,
+                moduleType: schema.name,
+            });
         }
     });
 

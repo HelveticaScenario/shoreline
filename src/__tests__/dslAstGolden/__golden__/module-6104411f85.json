@@ -4,9 +4,9 @@
       "callSiteSpans": [["2:33",2,2],["5:4",5,5]],
       "interpolations": [],
       "registry": [
-        ["4:18","$perc",[["decay",48,51]]],
-        ["6:6","$chord",[["chord",105,113]]],
-        ["7:8","$remap",[["outMin",136,137],["outMax",139,140],["inMin",142,143],["inMax",145,146]]]
+        ["1:18","$perc",[["decay",48,51]]],
+        ["3:6","$chord",[["chord",105,113]]],
+        ["4:8","$remap",[["outMin",136,137],["outMax",139,140],["inMin",142,143],["inMax",145,146]]]
       ]
     },
     "controlCalls": [],
@@ -244,7 +244,7 @@
       "setOutputGain": {"end":39,"start":39,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut50": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:18","$perc",[["decay",48,51]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:18","$perc",[["decay",48,51]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -255,7 +255,7 @@
       "analyze": {
         "callSiteSpans": [["2:33",2,2]],
         "interpolations": [],
-        "registry": [["4:18","$perc",[["decay",48,51]]],["6:6","$chord",[["chord",105,113]]]]
+        "registry": [["1:18","$perc",[["decay",48,51]]],["3:6","$chord",[["chord",105,113]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

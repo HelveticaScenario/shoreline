@@ -4,9 +4,9 @@
       "callSiteSpans": [["3:3",3,3]],
       "interpolations": [],
       "registry": [
-        ["5:3","$unison",[["count",34,35]]],
-        ["5:11","$chord",[["chord",23,31]]],
-        ["5:32","$sine",[["freq",43,50]]]
+        ["2:3","$unison",[["count",34,35]]],
+        ["2:11","$chord",[["chord",23,31]]],
+        ["2:32","$sine",[["freq",43,50]]]
       ]
     },
     "controlCalls": [],
@@ -165,7 +165,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["5:3","$unison",[["count",34,35]]],["5:11","$chord",[["chord",23,31]]]]
+        "registry": [["2:3","$unison",[["count",34,35]]],["2:11","$chord",[["chord",23,31]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -178,9 +178,9 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["5:3","$unison",[["count",34,35]]],
-          ["5:11","$chord",[["chord",23,31]]],
-          ["5:32","$sine",[["freq",43,50]]]
+          ["2:3","$unison",[["count",34,35]]],
+          ["2:11","$chord",[["chord",23,31]]],
+          ["2:32","$sine",[["freq",43,50]]]
         ]
       },
       "controlCalls": [],

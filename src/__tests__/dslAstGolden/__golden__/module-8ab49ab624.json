@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["2:46",2,2]],
       "interpolations": [],
-      "registry": [["4:19","$midiCC",[["cc",28,29],["smoothingMs",44,46]]],["5:1","$saw",[["freq",55,59]]]]
+      "registry": [["1:19","$midiCC",[["cc",28,29],["smoothingMs",44,46]]],["2:1","$saw",[["freq",55,59]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -162,7 +162,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:19","$midiCC",[["cc",28,29],["smoothingMs",44,46]]]]
+        "registry": [["1:19","$midiCC",[["cc",28,29],["smoothingMs",44,46]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -174,7 +174,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:19","$midiCC",[["cc",28,29],["smoothingMs",44,46]]],["5:1","$saw",[["freq",55,59]]]]
+        "registry": [["1:19","$midiCC",[["cc",28,29],["smoothingMs",44,46]]],["2:1","$saw",[["freq",55,59]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

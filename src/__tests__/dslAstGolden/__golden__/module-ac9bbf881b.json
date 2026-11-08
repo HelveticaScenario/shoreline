@@ -5,7 +5,7 @@
       "interpolations": [],
       "registry": [
         [
-          "4:20",
+          "1:20",
           "$track",
           [
             ["keyframes.0",31,40],
@@ -14,7 +14,7 @@
             ["interpolationType",103,112]
           ]
         ],
-        ["12:1","$saw",[["freq",123,127]]]
+        ["9:1","$saw",[["freq",123,127]]]
       ]
     },
     "controlCalls": [],
@@ -144,7 +144,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:20","$track",[["keyframes.0",31,37]]]]
+        "registry": [["1:20","$track",[["keyframes.0",31,37]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -156,7 +156,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:20","$track",[["keyframes.0",31,40],["keyframes.1",46,58],["keyframes.2",64,73]]]]
+        "registry": [["1:20","$track",[["keyframes.0",31,40],["keyframes.1",46,58],["keyframes.2",64,73]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -170,7 +170,7 @@
         "interpolations": [],
         "registry": [
           [
-            "4:20",
+            "1:20",
             "$track",
             [
               ["keyframes.0",31,40],

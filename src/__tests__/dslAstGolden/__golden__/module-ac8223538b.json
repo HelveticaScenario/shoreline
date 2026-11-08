@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["3:4",3,3],["2:10",2,2]],
       "interpolations": [],
-      "registry": [["4:5","$saw",[["freq",5,9]]]]
+      "registry": [["1:5","$saw",[["freq",5,9]]]]
     },
     "controlCalls": [{"call":[20,46],"group":[],"kind":"$slider","name":20}],
     "controls": {
@@ -162,7 +162,7 @@
   },
   "variants": {
     "cut25": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:5","$saw",[["freq",5,9]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:5","$saw",[["freq",5,9]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -173,7 +173,7 @@
       "analyze": {
         "callSiteSpans": [["2:10",2,2]],
         "interpolations": [],
-        "registry": [["4:5","$saw",[["freq",5,9]]]]
+        "registry": [["1:5","$saw",[["freq",5,9]]]]
       },
       "controlCalls": [{"call":[20,29],"group":[],"kind":"$slider","name":20}],
       "controls": {
@@ -192,7 +192,7 @@
       "analyze": {
         "callSiteSpans": [["2:10",2,2]],
         "interpolations": [],
-        "registry": [["4:5","$saw",[["freq",5,9]]]]
+        "registry": [["1:5","$saw",[["freq",5,9]]]]
       },
       "controlCalls": [{"call":[20,43],"group":[],"kind":"$slider","name":20}],
       "controls": {

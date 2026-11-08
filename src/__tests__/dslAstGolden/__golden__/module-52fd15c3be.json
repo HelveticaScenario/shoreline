@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["8:4",8,8]],
       "interpolations": [],
-      "registry": [["4:5","$saw",[["freq",5,9]]],["6:5","$swell",[["freq",32,39],["steepness",54,55]]]]
+      "registry": [["1:5","$saw",[["freq",5,9]]],["3:5","$swell",[["freq",32,39],["steepness",54,55]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -263,7 +263,7 @@
   },
   "variants": {
     "cut25": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:5","$saw",[["freq",5,9]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:5","$saw",[["freq",5,9]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -274,7 +274,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:5","$saw",[["freq",5,9]]],["6:5","$swell",[["freq",32,39],["steepness",54,55]]]]
+        "registry": [["1:5","$saw",[["freq",5,9]]],["3:5","$swell",[["freq",32,39],["steepness",54,55]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -286,7 +286,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:5","$saw",[["freq",5,9]]],["6:5","$swell",[["freq",32,39],["steepness",54,55]]]]
+        "registry": [["1:5","$saw",[["freq",5,9]]],["3:5","$swell",[["freq",32,39],["steepness",54,55]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

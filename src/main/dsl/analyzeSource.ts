@@ -35,21 +35,17 @@ export {
  *
  * @param source - The DSL source code to analyze
  * @param schemas - Module schemas to determine which calls to track
- * @param lineOffset - Lines the executor's script wrapper puts before the
- *   patch, added to argument registry keys
  * @returns Analysis result with span registry, interpolation resolution map,
  *          and call site span registry
  */
 export function analyzeSourceSpans(
     source: string,
     schemas: ModuleSchema[],
-    lineOffset: number = 0,
 ): AnalysisResult {
     const file = parseDsl(source);
     const { registry, interpolationResolutions } = analyzeArgumentSpans(
         file,
         schemas,
-        lineOffset,
     );
     const callSiteSpans = analyzeCallSiteSpans(file);
     return { callSiteSpans, interpolationResolutions, registry };

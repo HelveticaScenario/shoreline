@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["6:3",6,6]],
       "interpolations": [],
-      "registry": [["6:5","$sine",[["freq",31,38]]],["7:5","$chord",[["chord",70,80]]]]
+      "registry": [["3:5","$sine",[["freq",31,38]]],["4:5","$chord",[["chord",70,80]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -179,7 +179,7 @@
       "setOutputGain": {"end":23,"start":23,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut50": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["6:5","$sine",[["freq",31,38]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["3:5","$sine",[["freq",31,38]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -190,7 +190,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["6:5","$sine",[["freq",31,38]]],["7:5","$chord",[["chord",70,71]]]]
+        "registry": [["3:5","$sine",[["freq",31,38]]],["4:5","$chord",[["chord",70,71]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

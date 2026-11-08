@@ -5,12 +5,12 @@
       "interpolations": [],
       "registry": [
         [
-          "5:4",
+          "2:4",
           "$unstable.filter.cutoffWarpLp",
           [["resonance",92,93],["drive",108,113],["stages",123,124]]
         ],
-        ["6:5","$saw",[["freq",43,47]]],
-        ["7:5","$sine",[["freq",60,67]]]
+        ["3:5","$saw",[["freq",43,47]]],
+        ["4:5","$sine",[["freq",60,67]]]
       ]
     },
     "controlCalls": [],
@@ -215,7 +215,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["6:5","$saw",[["freq",43,47]]],["7:5","$sine",[["freq",60,67]]]]
+        "registry": [["3:5","$saw",[["freq",43,47]]],["4:5","$sine",[["freq",60,67]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -228,9 +228,9 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["5:4","$unstable.filter.cutoffWarpLp",[["resonance",92,93]]],
-          ["6:5","$saw",[["freq",43,47]]],
-          ["7:5","$sine",[["freq",60,67]]]
+          ["2:4","$unstable.filter.cutoffWarpLp",[["resonance",92,93]]],
+          ["3:5","$saw",[["freq",43,47]]],
+          ["4:5","$sine",[["freq",60,67]]]
         ]
       },
       "controlCalls": [],

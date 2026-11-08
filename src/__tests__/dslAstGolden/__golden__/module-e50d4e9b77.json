@@ -4,10 +4,10 @@
       "callSiteSpans": [["1:41",1,1],["2:52",2,2],["3:55",3,3],["4:55",4,4]],
       "interpolations": [],
       "registry": [
-        ["4:24","$p",[["source",22,27]]],
-        ["5:23","$p",[["source",67,84]]],
-        ["6:22","$p",[["source",123,144]]],
-        ["7:22","$p",[["source",183,204]]]
+        ["1:24","$p",[["source",22,27]]],
+        ["2:23","$p",[["source",67,84]]],
+        ["3:22","$p",[["source",123,144]]],
+        ["4:22","$p",[["source",183,204]]]
       ]
     },
     "controlCalls": [],
@@ -309,7 +309,7 @@
       "analyze": {
         "callSiteSpans": [["1:41",1,1]],
         "interpolations": [],
-        "registry": [["4:24","$p",[["source",22,27]]]]
+        "registry": [["1:24","$p",[["source",22,27]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -333,7 +333,7 @@
       "analyze": {
         "callSiteSpans": [["1:41",1,1],["2:52",2,2]],
         "interpolations": [],
-        "registry": [["4:24","$p",[["source",22,27]]],["5:23","$p",[["source",67,84]]]]
+        "registry": [["1:24","$p",[["source",22,27]]],["2:23","$p",[["source",67,84]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -369,9 +369,9 @@
         "callSiteSpans": [["1:41",1,1],["2:52",2,2],["3:55",3,3]],
         "interpolations": [],
         "registry": [
-          ["4:24","$p",[["source",22,27]]],
-          ["5:23","$p",[["source",67,84]]],
-          ["6:22","$p",[["source",123,144]]]
+          ["1:24","$p",[["source",22,27]]],
+          ["2:23","$p",[["source",67,84]]],
+          ["3:22","$p",[["source",123,144]]]
         ]
       },
       "controlCalls": [],

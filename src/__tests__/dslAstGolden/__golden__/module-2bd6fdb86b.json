@@ -4,10 +4,10 @@
       "callSiteSpans": [["6:54",6,6]],
       "interpolations": [],
       "registry": [
-        ["4:20","$pulse",[["freq",22,27]]],
-        ["5:15","$granular",[["mix",82,83],["quality",96,107]]],
-        ["5:25","$saw",[["freq",58,62]]],
-        ["9:1","$reverb",[["amount",140,141],["size",151,152],["tone",160,161]]]
+        ["1:20","$pulse",[["freq",22,27]]],
+        ["2:15","$granular",[["mix",82,83],["quality",96,107]]],
+        ["2:25","$saw",[["freq",58,62]]],
+        ["6:1","$reverb",[["amount",140,141],["size",151,152],["tone",160,161]]]
       ]
     },
     "controlCalls": [],
@@ -506,7 +506,7 @@
   },
   "variants": {
     "cut25": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:20","$pulse",[["freq",22,27]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:20","$pulse",[["freq",22,27]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -518,9 +518,9 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["4:20","$pulse",[["freq",22,27]]],
-          ["5:15","$granular",[["mix",82,83]]],
-          ["5:25","$saw",[["freq",58,62]]]
+          ["1:20","$pulse",[["freq",22,27]]],
+          ["2:15","$granular",[["mix",82,83]]],
+          ["2:25","$saw",[["freq",58,62]]]
         ]
       },
       "controlCalls": [],
@@ -534,9 +534,9 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["4:20","$pulse",[["freq",22,27]]],
-          ["5:15","$granular",[["mix",82,83],["quality",96,107]]],
-          ["5:25","$saw",[["freq",58,62]]]
+          ["1:20","$pulse",[["freq",22,27]]],
+          ["2:15","$granular",[["mix",82,83],["quality",96,107]]],
+          ["2:25","$saw",[["freq",58,62]]]
         ]
       },
       "controlCalls": [],

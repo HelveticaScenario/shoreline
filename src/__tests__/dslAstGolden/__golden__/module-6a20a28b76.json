@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["1:28",1,1]],
       "interpolations": [],
-      "registry": [["4:5","$multimode",[["input",11,12],["cutoff",14,18],["resonance",20,21]]]]
+      "registry": [["1:5","$multimode",[["input",11,12],["cutoff",14,18],["resonance",20,21]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -113,7 +113,7 @@
       "setOutputGain": {"end":7,"start":7,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut50": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:5","$multimode",[["input",11,12]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:5","$multimode",[["input",11,12]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -124,7 +124,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:5","$multimode",[["input",11,12],["cutoff",14,18],["resonance",20,21]]]]
+        "registry": [["1:5","$multimode",[["input",11,12],["cutoff",14,18],["resonance",20,21]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

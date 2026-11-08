@@ -4,9 +4,9 @@
       "callSiteSpans": [["6:4",6,6]],
       "interpolations": [],
       "registry": [
-        ["5:21","$unstable.shape.trigonometric",[["input",51,57]]],
-        ["4:5","$sine",[["freq",6,10]]],
-        ["7:5","$sine",[["freq",69,76]]]
+        ["2:21","$unstable.shape.trigonometric",[["input",51,57]]],
+        ["1:5","$sine",[["freq",6,10]]],
+        ["4:5","$sine",[["freq",69,76]]]
       ]
     },
     "controlCalls": [],
@@ -173,7 +173,7 @@
   },
   "variants": {
     "cut25": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:5","$sine",[["freq",6,10]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:5","$sine",[["freq",6,10]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -184,7 +184,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["5:21","$unstable.shape.trigonometric",[["input",51,52]]],["4:5","$sine",[["freq",6,10]]]]
+        "registry": [["2:21","$unstable.shape.trigonometric",[["input",51,52]]],["1:5","$sine",[["freq",6,10]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -197,9 +197,9 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["5:21","$unstable.shape.trigonometric",[["input",51,57]]],
-          ["4:5","$sine",[["freq",6,10]]],
-          ["7:5","$sine",[["freq",69,76]]]
+          ["2:21","$unstable.shape.trigonometric",[["input",51,57]]],
+          ["1:5","$sine",[["freq",6,10]]],
+          ["4:5","$sine",[["freq",69,76]]]
         ]
       },
       "controlCalls": [],
