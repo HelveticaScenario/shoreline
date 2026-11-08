@@ -5,13 +5,13 @@ const SHAPES: Record<string, string> = {
     sine: '0.5 + 0.5 * sin(6.28318530718 * p)',
     triangle: 'abs(2.0 * p - 1.0)',
     saw: 'p',
-    square: 'step(vec3f(0.5), p)',
+    square: 'step(0.5, p)',
 };
 
 /**
  * Periodic shaper: `freq` cycles per unit of `input`, offset by `phase`
  * cycles. Red runs `offset` cycles behind and blue `offset` cycles ahead of
- * green, so an offset of 0 is gray.
+ * green; a constant offset of 0 compiles to a single gray wave.
  */
 export const osc: VideoModuleDef = {
     inputs: {
@@ -25,11 +25,17 @@ export const osc: VideoModuleDef = {
         shape: { values: Object.keys(SHAPES), default: 'sine' },
     },
     helpers: ({ shape }) => [
-        `fn osc_${shape}(x: f32, spread: f32) -> vec4f {
-    let p = fract(vec3f(x - spread, x, x + spread));
-    return vec4f(${SHAPES[shape]}, 1.0);
+        `fn osc_${shape}(p: f32) -> f32 {
+    return ${SHAPES[shape]};
+}`,
+        `fn osc_${shape}_split(x: f32, spread: f32) -> vec4f {
+    return vec4f(osc_${shape}(fract(x - spread)), osc_${shape}(fract(x)), osc_${shape}(fract(x + spread)), 1.0);
 }`,
     ],
-    emit: ({ input, freq, phase, offset }, { shape }) =>
-        `osc_${shape}(${input} * ${freq} + ${phase}, ${offset})`,
+    emit: ({ input, freq, phase, offset }, { shape }) => {
+        const x = `${input} * ${freq} + ${phase}`;
+        return offset === '0.0'
+            ? `vec4f(vec3f(osc_${shape}(fract(${x}))), 1.0)`
+            : `osc_${shape}_split(${x}, ${offset})`;
+    },
 };
