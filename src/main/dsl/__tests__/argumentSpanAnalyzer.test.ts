@@ -53,4 +53,10 @@ describe('argument span registry', () => {
             "1:5 $p source='a b'",
         ]);
     });
+
+    test('pattern methods are the ones the analyzer knows, not inherited names', () => {
+        expect(entries("$p('a b').fast(2).constructor(5).toString(3)")).toEqual(
+            ['1:15 .fast factor=2', "1:5 $p source='a b'"],
+        );
+    });
 });
