@@ -326,3 +326,18 @@
 .docs-panel .enum-variants summary:hover {
     color: var(--text-primary);
 }
+
+.docs-panel .module-list {
+    position: relative;
+}
+
+.docs-panel .module-list-item {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+.docs-panel .module-list .module-card {
+    margin-bottom: 0;
+}
