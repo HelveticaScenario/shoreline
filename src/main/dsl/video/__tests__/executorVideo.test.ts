@@ -9,19 +9,19 @@ describe('$v in the DSL executor', () => {
     it('compiles the graph reachable from $v.out', () => {
         const { video } = exec(`
             const x = $v.ramp('horizontal');
-            const wave = $v.osc(4, $v.time, { shape: 'triangle', input: x });
+            const wave = $v.osc(4, $v.time, 0, { shape: 'triangle', input: x });
             $v.ramp('vertical');
             $v.out($v.solid(wave, 0.5, 1));
         `);
         expect(video).not.toBeNull();
-        expect(video!.wgsl).toContain('abs(2.0 * fract(');
+        expect(video!.wgsl).toContain('fn osc_triangle(');
         expect(video!.wgsl).not.toContain('uv.y');
     });
 
     it('draws a generator at the position of each pixel unless told otherwise', () => {
         const implicit = exec(`$v.osc(4).out();`).video!.wgsl;
         const explicit = exec(
-            `$v.osc(4, 0, { input: $v.ramp('horizontal') }).out();`,
+            `$v.osc(4, 0, 0, { input: $v.ramp('horizontal') }).out();`,
         ).video!.wgsl;
         expect(implicit).toBe(explicit);
         expect(implicit).toContain('vec4f(vec3f(uv.x), 1.0)');
