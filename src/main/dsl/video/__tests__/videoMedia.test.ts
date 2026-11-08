@@ -325,48 +325,28 @@ describe('$v media sources', () => {
         });
     });
 
-    describe('network addresses', () => {
-        it('draws an image from an address', () => {
-            const { video } = exec(
-                `$v.image('http://example.com/pictures/photo').out();`,
-            );
-            expect(video!.sources).toEqual([
-                { kind: 'image', path: 'http://example.com/pictures/photo' },
-            ]);
+    describe('addresses', () => {
+        it('loads only workspace files, never a network address', () => {
+            for (const call of [
+                `$v.image('https://example.com/a.png')`,
+                `$v.video('http://a.example/b.mp4')`,
+            ]) {
+                expect(() => exec(`${call};`)).toThrow(
+                    /\$v\.(image|video): https?:\/\/ addresses cannot be loaded; use a file in the workspace folder/,
+                );
+            }
         });
 
-        it('uses one source for an address written two ways', () => {
-            const { video } = exec(`
-                $v.mix($v.image('HTTPS://CDN.example.com/a.png'), $v.image('https://cdn.example.com/a.png'), 2.5).out();
-            `);
-            expect(video!.sources).toHaveLength(1);
-        });
-
-        it('plays only workspace files as video', () => {
-            expect(() => exec(`$v.video('https://a.example/b.mp4');`)).toThrow(
-                /\$v\.video: plays files in the workspace folder, got the network address/,
-            );
-        });
-
-        it('refuses protocols the app cannot load, and says what works', () => {
+        it('refuses any other scheme the same way', () => {
             for (const url of [
                 'rtsp://camera.local/stream',
                 'ftp://files.example/a.png',
                 'file:///etc/a.png',
             ]) {
                 expect(() => exec(`$v.image('${url}');`)).toThrow(
-                    /\$v\.image: [a-z]+:\/\/ addresses cannot be loaded; use an http or https URL/,
+                    /\$v\.image: [a-z]+:\/\/ addresses cannot be loaded; use a file in the workspace folder/,
                 );
             }
-            expect(() => exec(`$v.video('rtmp://live.example/app');`)).toThrow(
-                /\$v\.video: rtmp:\/\/ addresses cannot be loaded; use a file in the workspace folder/,
-            );
-        });
-
-        it('rejects an address that is not a valid URL', () => {
-            expect(() => exec(`$v.image('http://');`)).toThrow(
-                /\$v\.image: "http:\/\/" is not a valid URL/,
-            );
         });
 
         it('still keeps files inside the workspace', () => {
