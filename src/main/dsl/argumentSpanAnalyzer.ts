@@ -31,7 +31,7 @@ import {
     patternMethodCallName,
 } from './patternChains';
 import {
-    buildConstTable,
+    constLiteralOf,
     isTrackableLiteral,
     resolveInterpolations,
     spanOf,
@@ -84,7 +84,6 @@ export function analyzeArgumentSpans(
     const registry: SpanRegistry = new Map();
     const interpolationResolutions: InterpolationResolutionMap = new Map();
     const schemaMap = buildSchemaMap(schemas);
-    const consts = buildConstTable(file);
     const controlKinds = new Map(
         findControlCalls(file).map((c) => [c.call, c.kind]),
     );
@@ -101,14 +100,14 @@ export function analyzeArgumentSpans(
         const literal = isTrackableLiteral(node)
             ? node
             : ts.isIdentifier(node)
-              ? consts.literals.get(node.text)
+              ? constLiteralOf(node)
               : undefined;
         if (!literal) {
             return false;
         }
         const span = spanOf(literal, file);
         args.set(name, span);
-        const resolutions = resolveInterpolations(literal, consts);
+        const resolutions = resolveInterpolations(literal, file);
         if (resolutions) {
             interpolationResolutions.set(
                 `${span.start}:${span.end}`,
@@ -151,7 +150,7 @@ export function analyzeArgumentSpans(
 
         // `.add(rhs)` / `.sub(rhs)` links of a `$p.s` chain, read back by the
         // chain method under `rhs`.
-        if (isSpChainCall(call, consts.initializers)) {
+        if (isSpChainCall(call)) {
             const argsMap = new Map<string, SourceSpan>();
             if (args.length < 1 || !record(argsMap, 'rhs', args[0])) {
                 return;
@@ -165,7 +164,7 @@ export function analyzeArgumentSpans(
 
         // Pattern methods, each argument under the name the method reads it
         // back by.
-        const patternMethod = patternMethodCallName(call, consts.initializers);
+        const patternMethod = patternMethodCallName(call);
         if (patternMethod) {
             const argNames = PATTERN_METHOD_ARGS[patternMethod];
             const argsMap = new Map<string, SourceSpan>();

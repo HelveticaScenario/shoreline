@@ -6,7 +6,7 @@
  */
 import ts from 'typescript';
 
-import { constBindings } from '../../shared/dsl/ast/consts';
+import { constInitializerOf } from '../../shared/dsl/ast/consts';
 import { dottedName } from '../../shared/dsl/ast/names';
 import type { ApiIndex, Family } from './apiSignatures';
 
@@ -20,8 +20,6 @@ export function createFamilyReader(
     file: ts.SourceFile,
     api: ApiIndex,
 ): (expr: ts.Expression) => Family | null {
-    const constInit = (name: string) => constBindings(file).get(name) ?? null;
-
     const familyOf = (expr: ts.Expression, depth: number): Family | null => {
         if (depth > MAX_DEPTH) {
             return null;
@@ -34,7 +32,7 @@ export function createFamilyReader(
             return next(expr.expression);
         }
         if (ts.isIdentifier(expr)) {
-            const init = constInit(expr.text);
+            const init = constInitializerOf(expr);
             if (init) {
                 return next(init);
             }
@@ -70,7 +68,9 @@ export function createFamilyReader(
         }
         if (!chain) {
             // A bare `$` factory (`$saw(...)`) makes an audio module.
-            return fn?.startsWith('$') && !constInit(fn) ? 'audio' : null;
+            const shadowed =
+                ts.isIdentifier(callee) && constInitializerOf(callee) !== null;
+            return fn?.startsWith('$') && !shadowed ? 'audio' : null;
         }
         const receiver = next(chain.receiver);
         if (!receiver) {

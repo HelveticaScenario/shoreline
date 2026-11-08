@@ -92,15 +92,31 @@ describe('template interpolation', () => {
         ).toEqual(['3@0+1', '-2@2+2', "'c4'@5+2"]);
     });
 
-    test('a const inside a function resolves; a name bound twice does not', () => {
+    test('a const inside a function resolves where it is in scope', () => {
         expect(
             resolutions(
                 "function voice() {\n  const inner = 'e4'\n  return $p(`${inner} c4`)\n}",
             ),
         ).toEqual(["'e4'@0+2"]);
+    });
+
+    test('a reference resolves through the nearest binding of its name', () => {
+        // A helper's own const of the same name hides nothing outside it.
         expect(
-            resolutions(
-                "const a = 'c4'\nfunction f() { const a = 'e4'; return $p(`${a}`) }",
+            entries(
+                "const notes = 'c4 e4'\nfunction f() { const notes = 'g4'; return notes }\n$p(notes)",
+            ),
+        ).toEqual(["3:1 $p source='c4 e4'"]);
+        // A `let` is no const, whatever a function elsewhere declares.
+        expect(
+            entries(
+                "let pat = 'x y'\nfunction v() { const pat = 'c4 e4' }\n$p(pat)",
+            ),
+        ).toEqual([]);
+        // A loop variable hides the outer const of its name.
+        expect(
+            entries(
+                "const n = 'c4'\nfor (const n of ['d4']) { $sine(n).out() }",
             ),
         ).toEqual([]);
     });
