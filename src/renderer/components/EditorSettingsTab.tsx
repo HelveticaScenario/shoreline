@@ -161,6 +161,22 @@ export function EditorSettingsTab({
                     </span>
                 </div>
             </div>
+
+            <div className="settings-section">
+                <h3>Sidebar Side</h3>
+                <select
+                    className="device-select"
+                    value={config.sidebarSide ?? 'right'}
+                    onChange={(e) =>
+                        onConfigChange({
+                            sidebarSide: e.target.value as 'left' | 'right',
+                        })
+                    }
+                >
+                    <option value="left">left</option>
+                    <option value="right">right</option>
+                </select>
+            </div>
         </div>
     );
 }

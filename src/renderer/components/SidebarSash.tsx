@@ -7,6 +7,8 @@ import {
     useState,
 } from 'react';
 
+export type SidebarSide = 'left' | 'right';
+
 const WIDTH_STORAGE_KEY = 'modular_sidebar_width';
 const MIN_WIDTH = 160;
 /** Room kept for the editor and the activity bar when the sidebar grows. */
@@ -64,6 +66,7 @@ export function useSidebarWidth(): [
 
 interface SidebarSashProps {
     panelId: string;
+    side: SidebarSide;
     onWidthChange: (width: number | null) => void;
 }
 
@@ -71,7 +74,13 @@ interface SidebarSashProps {
  * The drag handle on the sidebar's editor-facing edge. Dragging toward the
  * editor widens the panel; double-clicking restores the default width.
  */
-export function SidebarSash({ panelId, onWidthChange }: SidebarSashProps) {
+export function SidebarSash({
+    panelId,
+    side,
+    onWidthChange,
+}: SidebarSashProps) {
+    // Moving the pointer this way along x widens the panel.
+    const towardEditor = side === 'right' ? -1 : 1;
     const drag = useRef<{ startX: number; startWidth: number } | null>(null);
     const [dragging, setDragging] = useState(false);
     const [rendered, setRendered] = useState<{ now: number; max: number }>();
@@ -118,7 +127,9 @@ export function SidebarSash({ panelId, onWidthChange }: SidebarSashProps) {
         if (!drag.current) return;
         const { startX, startWidth } = drag.current;
         if (e.clientX === startX) return;
-        onWidthChange(clampWidth(startWidth + startX - e.clientX));
+        onWidthChange(
+            clampWidth(startWidth + (e.clientX - startX) * towardEditor),
+        );
     };
 
     // Fires after pointerup and pointercancel too, and when the window takes
@@ -130,10 +141,11 @@ export function SidebarSash({ panelId, onWidthChange }: SidebarSashProps) {
 
     const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         const step = e.shiftKey ? KEYBOARD_STEP * 4 : KEYBOARD_STEP;
-        if (e.key === 'ArrowLeft') {
-            onWidthChange(clampWidth(renderedWidth() + step));
-        } else if (e.key === 'ArrowRight') {
-            onWidthChange(clampWidth(renderedWidth() - step));
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            const direction = e.key === 'ArrowLeft' ? -1 : 1;
+            onWidthChange(
+                clampWidth(renderedWidth() + step * direction * towardEditor),
+            );
         } else if (e.key === 'Home') {
             onWidthChange(MIN_WIDTH);
         } else if (e.key === 'End') {

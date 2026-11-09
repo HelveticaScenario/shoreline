@@ -110,9 +110,9 @@ export const CONTEXT_KEY_INFO: readonly ContextKeyInfo[] = [
         description: 'The editor find widget is visible.',
     },
     {
-        key: 'inSettingsModal',
+        key: 'settingsVisible',
         type: 'boolean',
-        description: 'The settings modal is open.',
+        description: 'The settings panel is showing in the sidebar.',
     },
     {
         key: 'fileExplorerFocused',
