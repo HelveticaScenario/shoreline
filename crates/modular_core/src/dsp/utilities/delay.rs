@@ -29,7 +29,7 @@ struct DelayReadParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct DelayReadOutputs {
-    #[output("output", "the delayed signal", default)]
+    #[output("output", "the delayed signal", type = cv, default)]
     sample: PolyOutput,
 }
 

@@ -1,7 +1,7 @@
 /**
  * Which control call to offer for a module param, from its schema metadata.
  *
- * The param's `signalType` picks the control: `gate` params get a
+ * The param's `paramType` picks the control: `gate` params get a
  * `$toggleBtn` or momentary `$btn`, `trig` params a `$btn`, `audio` params
  * none, and everything else a `$slider`. A `control` slider spans the param's
  * control range. A slider for a `pitch` param travels in notes and one for a
@@ -19,7 +19,7 @@ import {
 
 /** The schema metadata a control is built from. */
 export interface ParamSpec {
-    signalType: string;
+    paramType: string;
     defaultValue: number;
     /** Usable range; either side may be open. */
     minValue?: number;
@@ -87,7 +87,7 @@ export function wrapChoices(
             },
         ];
     }
-    switch (spec.signalType) {
+    switch (spec.paramType) {
         case 'audio':
             return [];
         case 'gate':
@@ -144,7 +144,7 @@ export function addChoices(
         text,
         title: `Add ${what} for '${name}'`,
     });
-    switch (spec.signalType) {
+    switch (spec.paramType) {
         case 'audio':
             return [];
         case 'pitch': {

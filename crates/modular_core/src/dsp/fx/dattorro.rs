@@ -143,7 +143,7 @@ struct DattorroParams {
 struct DattorroOutputs {
     #[output(
         "output",
-        "stereo reverb, fully wet, as left and right channels",
+        "stereo reverb, fully wet, as left and right channels", type = cv,
         default
     )]
     sample: PolyOutput,

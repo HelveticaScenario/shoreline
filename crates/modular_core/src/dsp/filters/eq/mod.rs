@@ -21,7 +21,7 @@ use svf::SectionRuntime;
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ParametricEqOutputs {
-    #[output("output", "equalized signal", default)]
+    #[output("output", "equalized signal", type = cv, default)]
     sample: PolyOutput,
 }
 

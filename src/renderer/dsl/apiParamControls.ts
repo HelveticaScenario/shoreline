@@ -31,7 +31,7 @@ function closedControl(
         defaultValue,
         maxValue: max,
         minValue: min,
-        signalType: 'control',
+        paramType: 'control',
     };
 }
 
@@ -57,7 +57,7 @@ const GENERIC_SPEC: ParamSpec = {
     controlMax: 5,
     controlMin: 0,
     defaultValue: 0,
-    signalType: 'control',
+    paramType: 'control',
 };
 
 const LEVEL = closedControl(0, 5, 5);
@@ -148,12 +148,12 @@ export function schemaParamRef(
     if (!spec) {
         return null;
     }
-    const signal: { signalType: string; defaultValue?: number } | undefined =
+    const signal: { paramType: string; defaultValue?: number } | undefined =
         schema.signalParams.find((s) => s.name === name);
     const knownDefault =
         (schema.paramsSchema.required ?? []).includes(name) ||
-        signal?.signalType === 'gate' ||
-        signal?.signalType === 'trig' ||
+        signal?.paramType === 'gate' ||
+        signal?.paramType === 'trig' ||
         signal?.defaultValue !== undefined;
     return { knownDefault, label, spec };
 }

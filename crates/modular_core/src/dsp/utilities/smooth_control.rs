@@ -22,7 +22,7 @@ struct SmoothControlParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SmoothControlOutputs {
-    #[output("output", "the value, ramping smoothly to each new setting", default)]
+    #[output("output", "the value, ramping smoothly to each new setting", type = cv, default)]
     sample: f32,
 }
 

@@ -35,7 +35,7 @@ struct BandpassFilterParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BandpassFilterOutputs {
-    #[output("output", "filtered signal", default)]
+    #[output("output", "filtered signal", type = cv, default)]
     sample: PolyOutput,
 }
 

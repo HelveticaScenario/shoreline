@@ -43,7 +43,7 @@ struct FoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FoldOutputs {
-    #[output("output", "folded signal", default, range = (-5.0, 5.0))]
+    #[output("output", "folded signal", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

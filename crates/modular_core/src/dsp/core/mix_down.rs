@@ -38,7 +38,7 @@ pub struct MixDownParams {
 struct MixDownOutputs {
     #[output(
         "output",
-        "the input channels spread evenly across the output channels with equal-power panning",
+        "the input channels spread evenly across the output channels with equal-power panning", type = cv,
         default
     )]
     sample: PolyOutput,

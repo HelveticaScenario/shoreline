@@ -53,7 +53,7 @@ macro_rules! shape_module {
             #[derive(Outputs, schemars::JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", "the shaped signal", default, range = (-5.0, 5.0))]
+                #[output("output", "the shaped signal", type = cv, default, range = (-5.0, 5.0))]
                 sample: crate::poly::PolyOutput,
             }
 
@@ -117,7 +117,7 @@ macro_rules! shape_module {
             #[derive(Outputs, schemars::JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", "the shaped signal", default, range = (-5.0, 5.0))]
+                #[output("output", "the shaped signal", type = cv, default, range = (-5.0, 5.0))]
                 sample: crate::poly::PolyOutput,
             }
 

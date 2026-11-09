@@ -228,7 +228,7 @@ struct CompressorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CompressorOutputs {
-    #[output("sample", "compressed signal", default)]
+    #[output("sample", "compressed signal", type = cv, default)]
     sample: PolyOutput,
 }
 

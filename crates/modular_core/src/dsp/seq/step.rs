@@ -27,7 +27,7 @@ struct StepParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct StepOutputs {
-    #[output("output", "the current step's value", default)]
+    #[output("output", "the current step's value", type = cv, default)]
     sample: PolyOutput,
 }
 

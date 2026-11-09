@@ -167,17 +167,17 @@ fn drum_map_fill_groove(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct DrumMapOutputs {
-    #[output("bd", "bass drum trigger", default, range = (0.0, 5.0))]
+    #[output("bd", "bass drum trigger", type = trig, default, range = (0.0, 5.0))]
     bd: PolyOutput,
-    #[output("sd", "snare drum trigger", range = (0.0, 5.0))]
+    #[output("sd", "snare drum trigger", type = trig, range = (0.0, 5.0))]
     sd: PolyOutput,
-    #[output("hh", "hi-hat trigger", range = (0.0, 5.0))]
+    #[output("hh", "hi-hat trigger", type = trig, range = (0.0, 5.0))]
     hh: PolyOutput,
-    #[output("bdAccent", "bass drum accent trigger", range = (0.0, 5.0))]
+    #[output("bdAccent", "bass drum accent trigger", type = trig, range = (0.0, 5.0))]
     bd_accent: PolyOutput,
-    #[output("sdAccent", "snare drum accent trigger", range = (0.0, 5.0))]
+    #[output("sdAccent", "snare drum accent trigger", type = trig, range = (0.0, 5.0))]
     sd_accent: PolyOutput,
-    #[output("hhAccent", "hi-hat accent trigger", range = (0.0, 5.0))]
+    #[output("hhAccent", "hi-hat accent trigger", type = trig, range = (0.0, 5.0))]
     hh_accent: PolyOutput,
 }
 

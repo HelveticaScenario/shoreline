@@ -18,7 +18,7 @@ describe('formatSignalMeta', () => {
                     defaultValue: 2.5,
                     maxValue: 5,
                     minValue: 0,
-                    signalType: 'control',
+                    paramType: 'control',
                 },
                 false,
             ),
@@ -33,7 +33,7 @@ describe('formatSignalMeta', () => {
                     defaultValue: 5,
                     maxValue: 5,
                     minValue: 0,
-                    signalType: 'control',
+                    paramType: 'control',
                 },
                 false,
             ),
@@ -41,7 +41,7 @@ describe('formatSignalMeta', () => {
     });
 
     test('open and symmetric ranges', () => {
-        const meta = { defaultValue: 0, signalType: 'control' };
+        const meta = { defaultValue: 0, paramType: 'control' };
         expect(formatSignalMeta({ ...meta, minValue: 0 }, true)).toBe('≥ 0');
         expect(formatSignalMeta({ ...meta, maxValue: 5 }, true)).toBe('≤ 5');
         expect(
@@ -52,7 +52,7 @@ describe('formatSignalMeta', () => {
     test('an undeclared default is not shown', () => {
         expect(
             formatSignalMeta(
-                { maxValue: 5, minValue: -5, signalType: 'control' },
+                { maxValue: 5, minValue: -5, paramType: 'control' },
                 false,
             ),
         ).toBe('±5');
@@ -61,13 +61,13 @@ describe('formatSignalMeta', () => {
     test('negative bounds and kilohertz read naturally', () => {
         expect(
             formatSignalMeta(
-                { maxValue: 5.7, minValue: -5, signalType: 'control' },
+                { maxValue: 5.7, minValue: -5, paramType: 'control' },
                 true,
             ),
         ).toBe('−5–5.7');
         expect(
             formatSignalMeta(
-                { defaultValue: 3, minValue: -3.71, signalType: 'frequency' },
+                { defaultValue: 3, minValue: -3.71, paramType: 'frequency' },
                 false,
             ),
         ).toBe('≥ 20 Hz, default 2.09 kHz');
@@ -80,7 +80,7 @@ describe('formatSignalMeta', () => {
                     defaultValue: 0,
                     maxValue: 5,
                     minValue: 0,
-                    signalType: 'control',
+                    paramType: 'control',
                 },
                 true,
             ),
@@ -89,7 +89,7 @@ describe('formatSignalMeta', () => {
 
     test('pitch reads in notes, frequency in hz', () => {
         expect(
-            formatSignalMeta({ defaultValue: 0, signalType: 'pitch' }, false),
+            formatSignalMeta({ defaultValue: 0, paramType: 'pitch' }, false),
         ).toBe('note, default C4');
         expect(
             formatSignalMeta(
@@ -97,7 +97,7 @@ describe('formatSignalMeta', () => {
                     defaultValue: 0,
                     maxValue: 1,
                     minValue: -1,
-                    signalType: 'frequency',
+                    paramType: 'frequency',
                 },
                 false,
             ),
@@ -106,13 +106,13 @@ describe('formatSignalMeta', () => {
 
     test('gate and trig name their convention; audio adds nothing', () => {
         expect(
-            formatSignalMeta({ defaultValue: 0, signalType: 'gate' }, false),
+            formatSignalMeta({ defaultValue: 0, paramType: 'gate' }, false),
         ).toBe('gate');
         expect(
-            formatSignalMeta({ defaultValue: 0, signalType: 'trig' }, false),
+            formatSignalMeta({ defaultValue: 0, paramType: 'trig' }, false),
         ).toBe('trigger');
         expect(
-            formatSignalMeta({ defaultValue: 0, signalType: 'audio' }, true),
+            formatSignalMeta({ defaultValue: 0, paramType: 'audio' }, true),
         ).toBeUndefined();
     });
 });
@@ -138,10 +138,13 @@ describe('formatPlainMeta', () => {
 });
 
 test('formatOutputMeta and withMeta', () => {
-    expect(formatOutputMeta({ maxValue: 5, minValue: 0, name: 'o' })).toBe(
-        '0–5',
-    );
-    expect(formatOutputMeta({ name: 'o' })).toBeUndefined();
+    const out = (outputType: string, minValue?: number, maxValue?: number) =>
+        formatOutputMeta({ maxValue, minValue, name: 'o', outputType });
+    expect(out('cv', 0, 5)).toBe('0–5');
+    expect(out('cv', -5, 5)).toBe('±5');
+    expect(out('cv')).toBeUndefined();
+    expect(out('gate', 0, 5)).toBe('gate');
+    expect(out('trig', 0, 5)).toBe('trigger');
     expect(withMeta('level', '0–5')).toBe('level (0–5)');
     expect(withMeta('level', undefined)).toBe('level');
 });

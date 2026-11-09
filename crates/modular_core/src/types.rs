@@ -2578,7 +2578,7 @@ pub struct SignalParamSchema {
     pub name: String,
     pub description: String,
     /// `audio`, `control`, `pitch`, `frequency`, `gate` or `trig`.
-    pub signal_type: String,
+    pub param_type: String,
     /// What a disconnected input reads, when it reads a fixed value.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_value: Option<f64>,
@@ -2606,6 +2606,8 @@ pub struct SignalParamSchema {
 pub struct OutputSchema {
     pub name: String,
     pub description: String,
+    /// `cv`, `gate` or `trig`.
+    pub output_type: String,
     /// Whether this output is polyphonic (PolyOutput) or monophonic (f32/f64)
     #[serde(default)]
     pub polyphonic: bool,

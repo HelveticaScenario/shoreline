@@ -115,9 +115,9 @@ pub fn quantizer_derive_channel_count(params: &QuantizerParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct QuantizerOutputs {
-    #[output("output", "the snapped pitch", default)]
+    #[output("output", "the snapped pitch", type = cv, default)]
     output: PolyOutput,
-    #[output("trig", "a short trigger each time the snapped note changes", range = (0.0, 5.0))]
+    #[output("trig", "a short trigger each time the snapped note changes", type = trig, range = (0.0, 5.0))]
     trig: PolyOutput,
 }
 

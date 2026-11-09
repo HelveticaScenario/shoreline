@@ -20,7 +20,7 @@ struct PercussionEnvelopeParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PercussionEnvelopeOutputs {
-    #[output("output", "the envelope", default, range = (0.0, 5.0))]
+    #[output("output", "the envelope", type = cv, default, range = (0.0, 5.0))]
     sample: PolyOutput,
 }
 

@@ -52,7 +52,7 @@ struct WowFlutterParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WowFlutterOutputs {
-    #[output("output", "the input with wow and flutter", default, range = (-5.0, 5.0))]
+    #[output("output", "the input with wow and flutter", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

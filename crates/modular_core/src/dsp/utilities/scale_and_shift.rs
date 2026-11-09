@@ -32,7 +32,7 @@ struct ScaleAndShiftParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ScaleAndShiftOutputs {
-    #[output("output", "the scaled and shifted signal", default)]
+    #[output("output", "the scaled and shifted signal", type = cv, default)]
     sample: PolyOutput,
 }
 

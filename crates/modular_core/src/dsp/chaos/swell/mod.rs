@@ -112,17 +112,17 @@ fn validate_swell_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SwellOutputs {
-    #[output("height", "water height at a fixed point", default, range = (-5.0, 5.0))]
+    #[output("height", "water height at a fixed point", type = cv, default, range = (-5.0, 5.0))]
     height: PolyOutput,
     #[output(
         "tilt",
-        "lean along the swell: positive while the water rises; a sine on gentle seas, a sawtooth that snaps down at each crest on steep ones",
+        "lean along the swell: positive while the water rises; a sine on gentle seas, a sawtooth that snaps down at each crest on steep ones", type = cv,
         range = (-5.0, 5.0)
     )]
     tilt: PolyOutput,
     #[output(
         "roll",
-        "lean across the swell, from waves arriving off-axis; silent at `spread` 0",
+        "lean across the swell, from waves arriving off-axis; silent at `spread` 0", type = cv,
         range = (-5.0, 5.0)
     )]
     roll: PolyOutput,

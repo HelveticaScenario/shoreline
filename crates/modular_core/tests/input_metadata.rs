@@ -22,7 +22,7 @@ fn control_inputs_have_a_slider_span() {
     for module in schema() {
         for p in &module.signal_params {
             let ctl = (p.control_min, p.control_max);
-            match p.signal_type.as_str() {
+            match p.param_type.as_str() {
                 "control" => {
                     let (Some(lo), Some(hi)) = ctl else {
                         panic!("{}.{}: control without a slider span", module.name, p.name);

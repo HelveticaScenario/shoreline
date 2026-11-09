@@ -27,7 +27,7 @@ struct PSineOscillatorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PSineOscillatorOutputs {
-    #[output("output", "the sine wave", default, range = (-5.0, 5.0))]
+    #[output("output", "the sine wave", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

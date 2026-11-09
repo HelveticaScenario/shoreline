@@ -50,7 +50,7 @@ pub struct MixParams {
 struct MixOutputs {
     #[output(
         "output",
-        "the mix, keeping each channel separate rather than folding to mono",
+        "the mix, keeping each channel separate rather than folding to mono", type = cv,
         default
     )]
     sample: PolyOutput,
