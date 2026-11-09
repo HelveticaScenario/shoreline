@@ -12,14 +12,22 @@
     font-size: var(--font-size);
 }
 
+/* The activity bar stays on the window's outer edge. */
+.app-sidebar.left {
+    order: -1;
+    flex-direction: row-reverse;
+    border-left: none;
+    border-right: 1px solid var(--border-subtle);
+}
+
 .app-sidebar-panel {
     display: flex;
     flex-direction: column;
     width: 32ch;
 }
 
-/* Covers the sidebar's left border and reaches inward, leaving the editor's
-   scrollbar alone. */
+/* Covers the sidebar's editor-facing border and reaches inward, leaving the
+   editor's scrollbar alone. */
 .app-sidebar-sash {
     position: absolute;
     top: 0;
@@ -40,6 +48,16 @@
     width: 2px;
     background: transparent;
     transition: background-color 0.1s;
+}
+
+.app-sidebar.left .app-sidebar-sash {
+    left: auto;
+    right: -1px;
+}
+
+.app-sidebar.left .app-sidebar-sash::after {
+    left: auto;
+    right: 0;
 }
 
 .app-sidebar-sash:hover::after {
@@ -93,6 +111,16 @@ body.app-sidebar-resizing {
     border-left: 1px solid var(--border-subtle);
 }
 
+.app-sidebar.left .app-activity-bar {
+    border-left: none;
+    border-right: 1px solid var(--border-subtle);
+}
+
+/* Settings sits apart from the panels, at the foot of the bar. */
+.app-activity-bar-item:last-child {
+    margin-top: auto;
+}
+
 .app-activity-bar-item {
     display: flex;
     align-items: center;
@@ -116,7 +144,14 @@ body.app-sidebar-resizing {
 
 .app-activity-bar-item.active {
     color: var(--text-primary);
+}
+
+.app-sidebar.right .app-activity-bar-item.active {
     border-right-color: var(--text-primary);
+}
+
+.app-sidebar.left .app-activity-bar-item.active {
+    border-left-color: var(--text-primary);
 }
 
 .app-activity-bar-item:focus-visible {

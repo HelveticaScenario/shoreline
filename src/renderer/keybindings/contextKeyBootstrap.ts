@@ -3,7 +3,7 @@
  *   - editorFocused          (Monaco editor widget has focus)
  *   - suggestWidgetVisible   (Monaco suggest widget on screen)
  *   - findWidgetVisible      (Monaco find widget on screen)
- *   - inSettingsModal        (settings modal mounted)
+ *   - settingsVisible        (settings panel showing in the sidebar)
  *   - fileExplorerFocused    (file explorer subtree has focus)
  *
  * Surfaces import the helper they need and call it from their existing
@@ -174,11 +174,11 @@ export function bindEditorWidgetVisibility(
     };
 }
 
-/** Set `inSettingsModal` while the modal is open. */
-export function bindSettingsModal(isOpen: boolean): Teardown {
-    contextKeys.set('inSettingsModal', isOpen);
+/** Set `settingsVisible` while the settings panel shows in the sidebar. */
+export function bindSettingsVisible(visible: boolean): Teardown {
+    contextKeys.set('settingsVisible', visible);
     return () => {
-        contextKeys.set('inSettingsModal', false);
+        contextKeys.set('settingsVisible', false);
     };
 }
 
