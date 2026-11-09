@@ -83,7 +83,7 @@ fn media_audio_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MediaAudioOutputs {
-    #[output("output", "the media file's audio", default)]
+    #[output("output", "the media file's audio", type = cv, default)]
     sample: PolyOutput,
 }
 

@@ -93,11 +93,11 @@ struct LorenzParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LorenzOutputs {
-    #[output("x", "x coordinate of the attractor, swinging between its two lobes", default, range = (-5.0, 5.0))]
+    #[output("x", "x coordinate of the attractor, swinging between its two lobes", type = cv, default, range = (-5.0, 5.0))]
     x: PolyOutput,
-    #[output("y", "y coordinate, which x chases, so it leads x slightly", range = (-5.0, 5.0))]
+    #[output("y", "y coordinate, which x chases, so it leads x slightly", type = cv, range = (-5.0, 5.0))]
     y: PolyOutput,
-    #[output("z", "z coordinate, the attractor's height, pulsing once per loop", range = (0.0, 5.0))]
+    #[output("z", "z coordinate, the attractor's height, pulsing once per loop", type = cv, range = (0.0, 5.0))]
     z: PolyOutput,
 }
 

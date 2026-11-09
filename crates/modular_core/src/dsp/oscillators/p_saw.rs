@@ -33,7 +33,7 @@ struct PSawOscillatorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PSawOscillatorOutputs {
-    #[output("output", "the saw/triangle/ramp wave", default, range = (-5.0, 5.0))]
+    #[output("output", "the saw/triangle/ramp wave", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

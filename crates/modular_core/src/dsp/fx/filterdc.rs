@@ -20,7 +20,7 @@ struct FilterDcParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FilterDcOutputs {
-    #[output("output", "the input, centred on 0 V", default)]
+    #[output("output", "the input, centred on 0 V", type = cv, default)]
     sample: PolyOutput,
 }
 

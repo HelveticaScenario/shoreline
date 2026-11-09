@@ -268,13 +268,13 @@ pub fn seq_derive_channel_count(params: &SeqParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SeqOutputs {
-    #[output("cv", "pitch of the current or last note", default)]
+    #[output("cv", "pitch of the current or last note", type = cv, default)]
     cv: PolyOutput,
-    #[output("gate", "high while a note plays", range = (0.0, 5.0))]
+    #[output("gate", "high while a note plays", type = gate, range = (0.0, 5.0))]
     gate: PolyOutput,
-    #[output("trig", "fires at the start of each note", range = (0.0, 5.0))]
+    #[output("trig", "fires at the start of each note", type = trig, range = (0.0, 5.0))]
     trig: PolyOutput,
-    #[output("velocity", "groove velocity of the current or last note", range = (0.0, 5.0))]
+    #[output("velocity", "groove velocity of the current or last note", type = cv, range = (0.0, 5.0))]
     velocity: PolyOutput,
 }
 

@@ -71,7 +71,7 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SupersawOutputs {
-    #[output("output", "the stacked saws, one channel per voice", default, range = (-5.0, 5.0))]
+    #[output("output", "the stacked saws, one channel per voice", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

@@ -24,7 +24,7 @@ use crate::utils::{
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum SignalType {
+enum ParamType {
     Audio,
     Control,
     Pitch,
@@ -33,7 +33,7 @@ enum SignalType {
     Trig,
 }
 
-impl SignalType {
+impl ParamType {
     fn parse(ident: &Ident) -> syn::Result<Self> {
         Ok(match ident.to_string().as_str() {
             "audio" => Self::Audio,
@@ -95,7 +95,7 @@ enum DocumentedDefault {
 
 struct InputAttr {
     description: String,
-    signal_type: Option<(SignalType, Span)>,
+    param_type: Option<(ParamType, Span)>,
     default: Option<(DocumentedDefault, Span)>,
     default_doc: Option<LitStr>,
     range: Option<Bounds>,
@@ -173,7 +173,7 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
         }
         let mut parsed = InputAttr {
             description: description.value(),
-            signal_type: None,
+            param_type: None,
             default: None,
             default_doc: None,
             range: None,
@@ -190,10 +190,10 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
             match key.to_string().as_str() {
                 "type" => {
                     let value = Ident::parse_any(input)?;
-                    if parsed.signal_type.is_some() {
+                    if parsed.param_type.is_some() {
                         return Err(duplicate());
                     }
-                    parsed.signal_type = Some((SignalType::parse(&value)?, value.span()));
+                    parsed.param_type = Some((ParamType::parse(&value)?, value.span()));
                 }
                 "default" => {
                     if parsed.default.is_some() {
@@ -341,7 +341,7 @@ fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
                 "`default_doc` describes a declared `default`",
             ));
         }
-        if let Some((SignalType::Audio | SignalType::Gate, span)) = attr.signal_type {
+        if let Some((ParamType::Audio | ParamType::Gate, span)) = attr.param_type {
             return Err(syn::Error::new(
                 span,
                 "`default_doc` applies to control, pitch and frequency inputs, whose defaults the docs show",
@@ -349,7 +349,7 @@ fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
         }
     }
     if !signal {
-        if let Some((_, span)) = attr.signal_type {
+        if let Some((_, span)) = attr.param_type {
             return Err(syn::Error::new(
                 span,
                 "`type` applies to signal inputs only",
@@ -373,14 +373,14 @@ fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
         }
         return Ok(());
     }
-    let Some((signal_type, type_span)) = attr.signal_type else {
+    let Some((param_type, type_span)) = attr.param_type else {
         return Err(syn::Error::new(
             field.span(),
             "signal inputs need a `type` (audio, control, pitch, frequency, gate or trig)",
         ));
     };
-    match signal_type {
-        SignalType::Gate | SignalType::Trig => {
+    match param_type {
+        ParamType::Gate | ParamType::Trig => {
             if let Some(b) = attr.range.as_ref().or(attr.control_range.as_ref()) {
                 return Err(syn::Error::new(
                     b.span,
@@ -388,7 +388,7 @@ fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
                 ));
             }
         }
-        SignalType::Control => {
+        ParamType::Control => {
             if attr.control_range.is_none() && !attr.range.as_ref().is_some_and(Bounds::is_closed) {
                 return Err(syn::Error::new(
                     attr.range.as_ref().map_or(type_span, |r| r.span),
@@ -404,7 +404,7 @@ fn validate(attr: &InputAttr, field: &syn::Field) -> syn::Result<()> {
                 ));
             }
         }
-        SignalType::Audio | SignalType::Pitch | SignalType::Frequency => {
+        ParamType::Audio | ParamType::Pitch | ParamType::Frequency => {
             if let Some(cr) = &attr.control_range {
                 return Err(syn::Error::new(
                     cr.span,
@@ -498,7 +498,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             .attrs
             .insert(i, syn::parse_quote! { #[doc = #description] });
 
-        let Some((signal_type, _)) = parsed.signal_type else {
+        let Some((param_type, _)) = parsed.param_type else {
             if let Some(range) = &parsed.range {
                 let parts = [
                     range.min.as_ref().map(|n| {
@@ -536,7 +536,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         };
 
         let field_name = ident.to_string().to_case(Case::Camel);
-        let type_str = signal_type.as_str();
+        let type_str = param_type.as_str();
         let declared_default = match &parsed.default {
             Some((DocumentedDefault::Number(n), _)) => Some(n.value),
             _ => None,
@@ -554,8 +554,8 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             Some(r) => (option_f64(&r.min), option_f64(&r.max)),
             None => (quote! { None }, quote! { None }),
         };
-        let control = match signal_type {
-            SignalType::Control => parsed.control_range.as_ref().or(parsed.range.as_ref()),
+        let control = match param_type {
+            ParamType::Control => parsed.control_range.as_ref().or(parsed.range.as_ref()),
             _ => None,
         };
         let (control_min, control_max) = match control {
@@ -566,7 +566,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             crate::types::SignalParamSchema {
                 name: #field_name.to_string(),
                 description: #description.to_string(),
-                signal_type: #type_str.to_string(),
+                param_type: #type_str.to_string(),
                 default_value: #default_schema,
                 default_doc: #default_doc,
                 min_value: #min_value,
@@ -659,7 +659,7 @@ mod tests {
     }
 
     #[test]
-    fn requires_signal_type() {
+    fn requires_param_type() {
         assert!(
             err("#[derive(Clone)] struct P { #[input(\"a\")] a: PolySignal }")
                 .contains("need a `type`")

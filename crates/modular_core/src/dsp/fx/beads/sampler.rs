@@ -132,13 +132,13 @@ impl crate::types::Connect for Loaded {
 struct GranularSamplerOutputs {
     #[output(
         "output",
-        "stereo mix of every voice, as left and right channels",
+        "stereo mix of every voice, as left and right channels", type = cv,
         default,
         range = (-5.0, 5.0),
         channels = 2
     )]
     sample: PolyOutput,
-    #[output("voices", "each voice on its own channel, mono", range = (-5.0, 5.0))]
+    #[output("voices", "each voice on its own channel, mono", type = cv, range = (-5.0, 5.0))]
     voices: PolyOutput,
 }
 

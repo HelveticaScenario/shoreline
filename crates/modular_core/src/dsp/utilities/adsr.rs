@@ -228,7 +228,7 @@ pub struct Adsr {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct AdsrOutputs {
-    #[output("output", "the envelope", default, range = (0.0, 5.0))]
+    #[output("output", "the envelope", type = cv, default, range = (0.0, 5.0))]
     sample: PolyOutput,
 }
 

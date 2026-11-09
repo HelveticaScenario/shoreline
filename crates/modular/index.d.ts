@@ -573,6 +573,8 @@ export interface ModuleSpec {
 export interface OutputSchema {
   name: string
   description: string
+  /** `cv`, `gate` or `trig`. */
+  outputType: string
   /** Whether this output is polyphonic (PolyOutput) or monophonic (f32/f64) */
   polyphonic: boolean
   /** Whether this is the default output for the module */
@@ -650,7 +652,7 @@ export interface SignalParamSchema {
   name: string
   description: string
   /** `audio`, `control`, `pitch`, `frequency`, `gate` or `trig`. */
-  signalType: string
+  paramType: string
   /** What a disconnected input reads, when it reads a fixed value. */
   defaultValue?: number
   /**

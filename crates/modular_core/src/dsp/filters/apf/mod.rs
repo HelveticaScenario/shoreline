@@ -87,7 +87,7 @@ fn validate_allpass_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct AllpassOutputs {
-    #[output("output", "phase-shifted signal", default)]
+    #[output("output", "phase-shifted signal", type = cv, default)]
     sample: PolyOutput,
 }
 

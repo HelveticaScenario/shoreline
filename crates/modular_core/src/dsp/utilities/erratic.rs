@@ -110,7 +110,7 @@ struct ErraticParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ErraticOutputs {
-    #[output("output", "the varied signal", default)]
+    #[output("output", "the varied signal", type = cv, default)]
     sample: PolyOutput,
 }
 

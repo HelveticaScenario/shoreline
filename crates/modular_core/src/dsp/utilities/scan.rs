@@ -35,7 +35,7 @@ struct ScanParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ScanOutputs {
-    #[output("output", "the counter, from 0 to length", default)]
+    #[output("output", "the counter, from 0 to length", type = cv, default)]
     pub output: PolyOutput,
 }
 

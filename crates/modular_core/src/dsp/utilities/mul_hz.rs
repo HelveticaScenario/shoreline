@@ -33,7 +33,7 @@ struct MulHzParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MulHzOutputs {
-    #[output("output", "the scaled pitch", default)]
+    #[output("output", "the scaled pitch", type = cv, default)]
     sample: PolyOutput,
 }
 

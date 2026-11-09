@@ -29,7 +29,7 @@ struct CurveParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CurveOutputs {
-    #[output("output", "the bent signal", default)]
+    #[output("output", "the bent signal", type = cv, default)]
     sample: PolyOutput,
 }
 

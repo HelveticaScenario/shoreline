@@ -145,7 +145,7 @@ struct ClockedDelayParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ClockedDelayOutputs {
-    #[output("output", "the input mixed with its repeats, one channel per delay", default, range = (-5.0, 5.0))]
+    #[output("output", "the input mixed with its repeats, one channel per delay", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

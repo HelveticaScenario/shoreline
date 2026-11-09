@@ -21,7 +21,7 @@ struct SignalParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SignalOutputs {
-    #[output("output", "the input, unchanged", default)]
+    #[output("output", "the input, unchanged", type = cv, default)]
     sample: PolyOutput,
 }
 

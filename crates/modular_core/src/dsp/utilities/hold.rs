@@ -26,7 +26,7 @@ struct HoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct HoldOutputs {
-    #[output("output", "the stretched gate", default, range = (0.0, 5.0))]
+    #[output("output", "the stretched gate", type = gate, default, range = (0.0, 5.0))]
     sample: PolyOutput,
 }
 

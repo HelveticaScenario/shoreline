@@ -60,7 +60,7 @@ struct ArithmeticParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ArithmeticOutputs {
-    #[output("output", "the result", default)]
+    #[output("output", "the result", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -163,7 +163,7 @@ struct RoundParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct RoundOutputs {
-    #[output("output", "the signal in whole volts", default)]
+    #[output("output", "the signal in whole volts", type = cv, default)]
     sample: PolyOutput,
 }
 

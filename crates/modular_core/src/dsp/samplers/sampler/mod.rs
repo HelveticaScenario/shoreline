@@ -111,7 +111,7 @@ fn sampler_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SamplerOutputs {
-    #[output("output", "the played sample", default)]
+    #[output("output", "the played sample", type = cv, default)]
     sample: PolyOutput,
 }
 

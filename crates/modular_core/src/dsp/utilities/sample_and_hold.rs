@@ -19,7 +19,7 @@ struct SampleAndHoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SampleAndHoldOutputs {
-    #[output("output", "the voltage captured at the last trigger", default)]
+    #[output("output", "the voltage captured at the last trigger", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -117,7 +117,7 @@ struct TrackAndHoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct TrackAndHoldOutputs {
-    #[output("output", "the tracked or held voltage", default)]
+    #[output("output", "the tracked or held voltage", type = cv, default)]
     sample: PolyOutput,
 }
 

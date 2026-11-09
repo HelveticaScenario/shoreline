@@ -65,7 +65,7 @@ pub struct OverdriveParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct OverdriveOutputs {
-    #[output("output", "overdriven signal", default)]
+    #[output("output", "overdriven signal", type = cv, default)]
     sample: PolyOutput,
 }
 

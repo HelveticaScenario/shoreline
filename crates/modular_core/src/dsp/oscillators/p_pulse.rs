@@ -41,7 +41,7 @@ struct PPulseOscillatorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PPulseOscillatorOutputs {
-    #[output("output", "the pulse wave", default, range = (-5.0, 5.0))]
+    #[output("output", "the pulse wave", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
