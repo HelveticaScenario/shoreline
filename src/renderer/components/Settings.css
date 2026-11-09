@@ -50,15 +50,6 @@
     min-height: 0;
 }
 
-/* Sticky footer with Save button */
-.settings-footer {
-    flex-shrink: 0;
-    display: flex;
-    justify-content: flex-end;
-    padding: var(--sp-1);
-    border-top: 1px solid var(--border-default, #3c3c3c);
-}
-
 /* Tab content */
 .settings-tab-content {
     padding: var(--sp-1);
@@ -221,7 +212,7 @@
     font-size: 13px;
 }
 
-.settings-actions .action-spacer {
+.action-spacer {
     flex: 1;
 }
 

@@ -17,9 +17,9 @@ import {
 } from './docsCommand';
 import { SettingsPanel } from './SettingsPanel';
 import {
-    type SidebarSide,
     SidebarSash,
     sidebarPanelStyle,
+    useSidebarSide,
     useSidebarWidth,
 } from './SidebarSash';
 import './Sidebar.css';
@@ -56,8 +56,8 @@ export function Sidebar({
     const activeLabel = TABS.find(({ id }) => id === activeTab)?.label;
     const [width, setWidth] = useSidebarWidth();
     const [docsTarget, setDocsTarget] = useState<DocsTarget | null>(null);
-    const [config] = useEditableConfig(true);
-    const side: SidebarSide = config.sidebarSide ?? 'right';
+    const [config, changeConfig, configLoaded] = useEditableConfig(true);
+    const side = useSidebarSide(config.sidebarSide, configLoaded);
 
     useEffect(() => {
         registerCommand(
@@ -107,7 +107,11 @@ export function Sidebar({
                         target={docsTarget}
                         hidden={activeTab !== 'docs'}
                     />
-                    <SettingsPanel hidden={activeTab !== 'settings'} />
+                    <SettingsPanel
+                        hidden={activeTab !== 'settings'}
+                        config={config}
+                        onConfigChange={changeConfig}
+                    />
                 </div>
             </section>
             <nav className="app-activity-bar" aria-label="Sidebar panels">
@@ -117,7 +121,7 @@ export function Sidebar({
                         aria-pressed={activeTab === id}
                         aria-label={label}
                         title={label}
-                        className={`app-activity-bar-item ${activeTab === id ? 'active' : ''}`}
+                        className={`app-activity-bar-item ${id} ${activeTab === id ? 'active' : ''}`}
                         onClick={() => setActiveTab(id)}
                     >
                         <Icon size={22} strokeWidth={1.5} aria-hidden />
