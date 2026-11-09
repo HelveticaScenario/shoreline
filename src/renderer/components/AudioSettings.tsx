@@ -1,22 +1,10 @@
-import React, {
-    forwardRef,
-    useCallback,
-    useEffect,
-    useImperativeHandle,
-    useMemo,
-    useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import electronAPI from '../electronAPI';
 import type {
     AudioDeviceInfo,
     CurrentAudioState,
     DeviceCacheSnapshot,
 } from '../../shared/ipcTypes';
-
-export interface AudioSettingsHandle {
-    apply: () => Promise<void>;
-    isDirty: () => boolean;
-}
 
 interface AudioSettingsTabProps {
     isActive: boolean;
@@ -69,10 +57,11 @@ function computeBufferSizes(
     return powerOf2Sizes.filter((size) => size >= minSize && size <= maxSize);
 }
 
-export const AudioSettingsTab = forwardRef<
-    AudioSettingsHandle,
-    AudioSettingsTabProps
->(function AudioSettingsTab({ isActive }, ref) {
+/**
+ * Audio device choices. They take effect on Apply, since reopening the
+ * streams interrupts the sound.
+ */
+export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
     // Device cache from Rust
     const [deviceCache, setDeviceCache] = useState<DeviceCacheSnapshot | null>(
         null,
@@ -344,8 +333,7 @@ export const AudioSettingsTab = forwardRef<
         selectedInputDeviceId,
     ]);
 
-    // Check if selections differ from current running state
-    const checkIsDirty = useCallback(() => {
+    const isDirty = useMemo(() => {
         if (!currentState) {
             return false;
         }
@@ -364,16 +352,6 @@ export const AudioSettingsTab = forwardRef<
         selectedSampleRate,
         selectedBufferSize,
     ]);
-
-    // Expose apply and isDirty to parent via ref
-    useImperativeHandle(
-        ref,
-        () => ({
-            apply: applyConfig,
-            isDirty: checkIsDirty,
-        }),
-        [applyConfig, checkIsDirty],
-    );
 
     // Only show hosts that have at least one available device
     const hosts =
@@ -521,8 +499,7 @@ export const AudioSettingsTab = forwardRef<
                         </select>
                     </div>
 
-                    {/* Refresh Devices */}
-                    <div className="settings-section">
+                    <div className="settings-section settings-row">
                         <button
                             className="btn btn-secondary"
                             onClick={refreshDevices}
@@ -530,9 +507,17 @@ export const AudioSettingsTab = forwardRef<
                         >
                             ↻ Refresh Devices
                         </button>
+                        <span className="action-spacer" />
+                        <button
+                            className="btn btn-primary"
+                            onClick={applyConfig}
+                            disabled={applying || !isDirty}
+                        >
+                            {applying ? 'Applying…' : 'Apply'}
+                        </button>
                     </div>
                 </>
             )}
         </div>
     );
-});
+}

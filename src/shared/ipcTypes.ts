@@ -125,6 +125,8 @@ export interface AppConfig {
     performanceScrollSpeed?: number;
     /** Theme id for the code's colors in the performance window; absent follows the editor's theme. */
     performanceTheme?: string;
+    /** Which side of the window the sidebar sits on. Default 'right'. */
+    sidebarSide?: 'left' | 'right';
     /** VU meter panel visibility. Default false. */
     vuPanelVisible?: boolean;
     /** VU meter panel height in px (84–480). Default 150. */
