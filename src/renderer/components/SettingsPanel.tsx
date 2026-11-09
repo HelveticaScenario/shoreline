@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from '../themes/ThemeContext';
-import { type AudioSettingsHandle, AudioSettingsTab } from './AudioSettings';
+import { AudioSettingsTab } from './AudioSettings';
 import { EditorSettingsTab } from './EditorSettingsTab';
 import { FormatterSettingsTab } from './FormatterSettingsTab';
 import { bindSettingsVisible } from '../keybindings/contextKeyBootstrap';
-import { useEditableConfig } from '../hooks/useEditableConfig';
+import type { AppConfig } from '../../shared/ipcTypes';
 import './Settings.css';
 
 type SettingsTabId = 'editor' | 'audio' | 'formatter';
@@ -17,30 +17,18 @@ const TABS: { id: SettingsTabId; label: string }[] = [
 
 interface SettingsPanelProps {
     hidden: boolean;
+    config: AppConfig;
+    onConfigChange: (partial: Partial<AppConfig>) => void;
 }
 
-/**
- * The app's settings in the sidebar. Editor and formatter changes save as
- * they are made; audio device changes wait for Apply, since reopening the
- * streams interrupts the sound.
- */
-export function SettingsPanel({ hidden }: SettingsPanelProps) {
+/** The app's settings in the sidebar. Editor and formatter changes save as they are made. */
+export function SettingsPanel({
+    hidden,
+    config,
+    onConfigChange,
+}: SettingsPanelProps) {
     const [activeTab, setActiveTab] = useState<SettingsTabId>('editor');
-    const [config, change] = useEditableConfig(!hidden);
-    const [applying, setApplying] = useState(false);
     const { themes } = useTheme();
-    const audioRef = useRef<AudioSettingsHandle>(null);
-
-    const applyAudio = useCallback(async () => {
-        setApplying(true);
-        try {
-            await audioRef.current?.apply();
-        } catch (err) {
-            console.error('Failed to apply audio settings:', err);
-        } finally {
-            setApplying(false);
-        }
-    }, []);
 
     useEffect(() => bindSettingsVisible(!hidden), [hidden]);
 
@@ -65,31 +53,19 @@ export function SettingsPanel({ hidden }: SettingsPanelProps) {
                     <EditorSettingsTab
                         config={config}
                         themes={themes}
-                        onConfigChange={change}
+                        onConfigChange={onConfigChange}
                     />
                 )}
                 {activeTab === 'audio' && (
-                    <AudioSettingsTab isActive={!hidden} ref={audioRef} />
+                    <AudioSettingsTab isActive={!hidden} />
                 )}
                 {activeTab === 'formatter' && (
                     <FormatterSettingsTab
                         config={config}
-                        onConfigChange={change}
+                        onConfigChange={onConfigChange}
                     />
                 )}
             </div>
-
-            {activeTab === 'audio' && (
-                <div className="settings-footer">
-                    <button
-                        className="btn btn-primary"
-                        onClick={applyAudio}
-                        disabled={applying}
-                    >
-                        {applying ? 'Applying…' : 'Apply'}
-                    </button>
-                </div>
-            )}
         </div>
     );
 }

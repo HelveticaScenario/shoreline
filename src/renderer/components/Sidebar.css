@@ -117,7 +117,7 @@ body.app-sidebar-resizing {
 }
 
 /* Settings sits apart from the panels, at the foot of the bar. */
-.app-activity-bar-item:last-child {
+.app-activity-bar-item.settings {
     margin-top: auto;
 }
 

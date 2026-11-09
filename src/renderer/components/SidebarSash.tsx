@@ -10,6 +10,7 @@ import {
 export type SidebarSide = 'left' | 'right';
 
 const WIDTH_STORAGE_KEY = 'modular_sidebar_width';
+const SIDE_STORAGE_KEY = 'modular_sidebar_side';
 const MIN_WIDTH = 160;
 /** Room kept for the editor and the activity bar when the sidebar grows. */
 const RESERVED_WIDTH = 280;
@@ -62,6 +63,33 @@ export function useSidebarWidth(): [
     }, [width]);
 
     return [width, setWidth];
+}
+
+/**
+ * The configured side, remembered here as well so the sidebar opens on that
+ * side before the config file has been read.
+ */
+export function useSidebarSide(
+    configured: SidebarSide | undefined,
+    loaded: boolean,
+): SidebarSide {
+    const [remembered] = useState<SidebarSide>(() => {
+        try {
+            if (window.localStorage.getItem(SIDE_STORAGE_KEY) === 'left')
+                return 'left';
+        } catch {}
+        return 'right';
+    });
+    const side = loaded ? (configured ?? 'right') : remembered;
+
+    useEffect(() => {
+        if (!loaded) return;
+        try {
+            window.localStorage.setItem(SIDE_STORAGE_KEY, side);
+        } catch {}
+    }, [loaded, side]);
+
+    return side;
 }
 
 interface SidebarSashProps {

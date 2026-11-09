@@ -1,6 +1,7 @@
 import React from 'react';
 import type { AppConfig, MonospaceFont } from '../../shared/ipcTypes';
 import type { AppTheme } from '../themes/types';
+import type { SidebarSide } from './SidebarSash';
 import { BUNDLED_FONTS } from '../../shared/fonts';
 import { useInstalledSystemFonts } from './fonts';
 
@@ -169,7 +170,7 @@ export function EditorSettingsTab({
                     value={config.sidebarSide ?? 'right'}
                     onChange={(e) =>
                         onConfigChange({
-                            sidebarSide: e.target.value as 'left' | 'right',
+                            sidebarSide: e.target.value as SidebarSide,
                         })
                     }
                 >
