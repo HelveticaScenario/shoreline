@@ -10,19 +10,17 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { useEditableConfig } from '../hooks/useEditableConfig';
 import { registerCommand, unregisterCommand } from '../keybindings/commands';
 import { DocsPanel } from './DocsPanel';
-import {
-    type DocsTarget,
-    SHOW_DOCS_COMMAND,
-    toDocsTarget,
-} from './docsCommand';
+import type { DocsState } from '../hooks/useBottomPanel';
+import { Sash } from './Sash';
 import { SettingsPanel } from './SettingsPanel';
 import {
-    SidebarSash,
+    SIDEBAR_MIN_WIDTH,
+    sidebarMaxWidth,
     sidebarPanelStyle,
     useSidebarOpen,
     useSidebarSide,
     useSidebarWidth,
-} from './SidebarSash';
+} from './sidebarLayout';
 import './Sidebar.css';
 
 export type SidebarTab =
@@ -46,41 +44,43 @@ interface SidebarProps {
     explorerContent: ReactNode;
     controlContent: ReactNode;
     performContent: ReactNode;
+    /** The docs show as a tab here while their location is the sidebar. */
+    docs: DocsState;
 }
 
 export function Sidebar({
     explorerContent,
     controlContent,
     performContent,
+    docs,
 }: SidebarProps) {
-    const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
+    const [selectedTab, setSelectedTab] = useState<SidebarTab>('explorer');
     const [open, setOpen] = useSidebarOpen();
+    const docsHere = docs.location === 'sidebar';
+    const [seenReveals, setSeenReveals] = useState(docs.reveals);
+    if (docs.reveals !== seenReveals) {
+        setSeenReveals(docs.reveals);
+        setSelectedTab('docs');
+        setOpen(true);
+    }
+    const tabs = docsHere ? TABS : TABS.filter(({ id }) => id !== 'docs');
+    const activeTab =
+        selectedTab === 'docs' && !docsHere ? 'explorer' : selectedTab;
     const activeLabel = TABS.find(({ id }) => id === activeTab)?.label;
     const [width, setWidth] = useSidebarWidth();
-    const [docsTarget, setDocsTarget] = useState<DocsTarget | null>(null);
     const [config, changeConfig, configLoaded] = useEditableConfig(true);
     const side = useSidebarSide(config.sidebarSide, configLoaded);
 
     useEffect(() => {
         registerCommand(
-            SHOW_DOCS_COMMAND,
-            (target) => {
-                setActiveTab('docs');
-                setOpen(true);
-                setDocsTarget(toDocsTarget(target));
-            },
-            { label: 'Show Docs', category: 'View' },
-        );
-        registerCommand(
             OPEN_SETTINGS_COMMAND,
             () => {
-                setActiveTab('settings');
+                setSelectedTab('settings');
                 setOpen(true);
             },
             { label: 'Open Settings', category: 'Preferences' },
         );
         return () => {
-            unregisterCommand(SHOW_DOCS_COMMAND);
             unregisterCommand(OPEN_SETTINGS_COMMAND);
         };
     }, [setOpen]);
@@ -90,16 +90,21 @@ export function Sidebar({
     // Clicking the shown panel's button closes the sidebar, as in VS Code.
     const onActivityClick = (id: SidebarTab) => {
         setOpen(!open || id !== activeTab);
-        setActiveTab(id);
+        setSelectedTab(id);
     };
 
     return (
         <div className={`app-sidebar ${side} ${open ? '' : 'collapsed'}`}>
             {open && (
-                <SidebarSash
+                <Sash
                     panelId="app-sidebar-panel"
-                    side={side}
-                    onWidthChange={setWidth}
+                    axis="x"
+                    grow={side === 'right' ? -1 : 1}
+                    min={SIDEBAR_MIN_WIDTH}
+                    max={sidebarMaxWidth}
+                    label="Resize sidebar"
+                    className="app-sidebar-sash"
+                    onSizeChange={setWidth}
                 />
             )}
             {/* Stays mounted while closed so panels keep their state. */}
@@ -122,10 +127,12 @@ export function Sidebar({
                             perform: performContent,
                         }[activeTab]}
                     {/* Stays mounted so its page, search and expanded types survive tab switches. */}
-                    <DocsPanel
-                        target={docsTarget}
-                        hidden={shownTab !== 'docs'}
-                    />
+                    {docsHere && (
+                        <DocsPanel
+                            target={docs.target}
+                            hidden={shownTab !== 'docs'}
+                        />
+                    )}
                     <SettingsPanel
                         hidden={shownTab !== 'settings'}
                         config={config}
@@ -134,7 +141,7 @@ export function Sidebar({
                 </div>
             </section>
             <nav className="app-activity-bar" aria-label="Sidebar panels">
-                {TABS.map(({ id, label, icon: Icon }) => {
+                {tabs.map(({ id, label, icon: Icon }) => {
                     const shown = shownTab === id;
                     return (
                         <button

@@ -205,7 +205,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
         }
         const element = document.getElementById(`type-${revealedType.name}`);
         if (element) {
-            // Scroll the docs pane alone; the app containers around the sidebar must not move.
+            // Scroll the docs pane alone; the app containers around it must not move.
             const offset =
                 element.getBoundingClientRect().top -
                 container.getBoundingClientRect().top;

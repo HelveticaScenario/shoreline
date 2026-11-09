@@ -25,7 +25,7 @@ interface TestAPI {
     newUntitledFile: () => void;
     openEngineHealth: () => void;
     openModuleProfile: () => void;
-    setVuPanelVisible: (visible: boolean) => void;
+    setMixerVisible: (visible: boolean) => void;
     toggleVuMute: (key: string, codeOnly?: boolean) => void;
     toggleVuSolo: (key: string, codeOnly?: boolean) => void;
 }

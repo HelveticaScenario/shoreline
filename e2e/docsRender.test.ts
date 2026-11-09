@@ -1,7 +1,7 @@
 /**
  * Renders every module's docs in the real editor and Reference pane and
  * checks the rendered text: no raw markdown, no `undefined`/`NaN`, every
- * declared range shown, and no horizontal overflow at any sidebar width.
+ * declared range shown, and no horizontal overflow at any panel width.
  *
  * Set DOCS_RENDER_SHOTS=<dir> to also save a screenshot of every hover,
  * completion detail, signature help and Reference card.
@@ -290,10 +290,11 @@ test.describe('docs render', () => {
         expect(failures, failures.join('\n')).toEqual([]);
     });
 
-    for (const [label, width] of [
-        ['min', 160],
+    // The docs share the editor column, so a wider sidebar narrows them.
+    for (const [label, sidebarWidth] of [
+        ['wide', 160],
         ['default', null],
-        ['wide', 900],
+        ['narrow', 1320],
     ] as const) {
         test(`reference cards at ${label} width`, async ({ window }) => {
             await window.evaluate((width) => {
@@ -305,7 +306,7 @@ test.describe('docs render', () => {
                         String(width),
                     );
                 }
-            }, width);
+            }, sidebarWidth);
             await window.setViewportSize({ height: 1000, width: 1600 });
             await window.reload();
             await window.waitForLoadState('networkidle');
@@ -401,7 +402,7 @@ test.describe('docs render', () => {
                         .locator('table.doc-table thead')
                         .first()
                         .isVisible();
-                    if (headerShown !== (label === 'wide')) {
+                    if (headerShown !== (label !== 'narrow')) {
                         failures.push(
                             `${module.name}: table ${headerShown ? 'not stacked' : 'stacked'} at ${label} width`,
                         );
