@@ -13,6 +13,7 @@ pub mod modal;
 pub mod phase_distortion;
 pub mod string;
 pub mod two_op;
+pub mod wave_terrain;
 pub mod waveshaper;
 pub mod z_osc;
 
@@ -23,6 +24,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     phase_distortion::PhaseDistortion::install_constructor(map);
     string::MiString::install_constructor(map);
     two_op::TwoOp::install_constructor(map);
+    wave_terrain::WaveTerrain::install_constructor(map);
     waveshaper::Waveshaper::install_constructor(map);
     z_osc::ZOsc::install_constructor(map);
 }
@@ -34,6 +36,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     phase_distortion::PhaseDistortion::install_params_deserializer(map);
     string::MiString::install_params_deserializer(map);
     two_op::TwoOp::install_params_deserializer(map);
+    wave_terrain::WaveTerrain::install_params_deserializer(map);
     waveshaper::Waveshaper::install_params_deserializer(map);
     z_osc::ZOsc::install_params_deserializer(map);
 }
@@ -46,6 +49,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         phase_distortion::PhaseDistortion::get_schema(),
         string::MiString::get_schema(),
         two_op::TwoOp::get_schema(),
+        wave_terrain::WaveTerrain::get_schema(),
         waveshaper::Waveshaper::get_schema(),
         z_osc::ZOsc::get_schema(),
     ]
