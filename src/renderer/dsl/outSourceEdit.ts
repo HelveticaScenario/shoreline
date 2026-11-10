@@ -1,81 +1,23 @@
 /**
- * Utility for editing the `mute` / `solo` properties of `.out(...)` and
- * `.outMono(...)` calls in DSL source code.
+ * Utility for editing the `mute` / `solo` / `pan` / `gain` options of
+ * `.out(...)` and `.outMono(...)` calls, and the `$setOutputGain(...)` level,
+ * in DSL source code.
  *
- * The VU meter panel's M/S buttons anchor each out call with a Monaco tracked
+ * The VU meter panel's buttons anchor each out call with a Monaco tracked
  * decoration; this module turns that anchor (a character offset at the method
- * name) plus the desired property change into a single text edit. It uses
- * lightweight, string/comment-aware scanning rather than a full parse.
+ * name) plus the desired property change into a single text edit, reading
+ * the call, its arguments, its options object and their separating commas
+ * from the syntax tree.
  */
+import ts from 'typescript';
+
+import { booleanLiteral, negatableNumber } from '../../shared/dsl/ast/literals';
+import { propertyName } from '../../shared/dsl/ast/names';
+import { parseDsl } from '../../shared/dsl/ast/parse';
+import { findDescendant, forEachDescendant } from '../../shared/dsl/ast/walk';
+import { callParens, closingTokenStart } from './listEdits';
 
 export type OutOptionProp = 'mute' | 'solo';
-
-/**
- * Scan the source for the character ranges occupied by line comments, block
- * comments, and string/template literals. An `.out(...)` occurrence starting
- * inside any of these is not a live call and must be skipped.
- *
- * The scan is string-aware so a `//` or `/*` inside a string literal (e.g. a
- * URL) does not start a spurious comment, and quote characters inside comments
- * do not start a spurious string.
- *
- * @returns Sorted, non-overlapping `[start, end)` ranges to ignore.
- */
-function findIgnoredRanges(source: string): Array<[number, number]> {
-    const ranges: Array<[number, number]> = [];
-    const n = source.length;
-    let i = 0;
-    while (i < n) {
-        const c = source[i];
-        const next = source[i + 1];
-
-        // String / template literal — consumed whole so its contents can't
-        // start a comment, and so an `.out(` spelled inside it is ignored.
-        if (c === '"' || c === "'" || c === '`') {
-            const start = i;
-            i++;
-            while (i < n) {
-                if (source[i] === '\\') {
-                    i += 2;
-                    continue;
-                }
-                if (source[i] === c) {
-                    i++;
-                    break;
-                }
-                i++;
-            }
-            ranges.push([start, i]);
-            continue;
-        }
-
-        // Line comment — to end of line.
-        if (c === '/' && next === '/') {
-            const start = i;
-            i += 2;
-            while (i < n && source[i] !== '\n') {
-                i++;
-            }
-            ranges.push([start, i]);
-            continue;
-        }
-
-        // Block comment — to closing `*/` (or end of source if unterminated).
-        if (c === '/' && next === '*') {
-            const start = i;
-            i += 2;
-            while (i < n && !(source[i] === '*' && source[i + 1] === '/')) {
-                i++;
-            }
-            i = Math.min(n, i + 2);
-            ranges.push([start, i]);
-            continue;
-        }
-
-        i++;
-    }
-    return ranges;
-}
 
 export interface OutOptionEdit {
     /** Inclusive start character offset */
@@ -86,16 +28,101 @@ export interface OutOptionEdit {
     text: string;
 }
 
-/** A top-level argument's trimmed span within the call's parens. */
-interface ArgSpan {
-    start: number;
-    end: number;
+/** Whether `node` is a literal an option's value may be rewritten from. */
+type LiteralCheck = (node: ts.Node) => boolean;
+
+const isBoolean: LiteralCheck = (node) => booleanLiteral(node) !== null;
+const isNumber: LiteralCheck = (node) => negatableNumber(node) !== null;
+
+/** The `.out` / `.outMono` call whose method name starts at `anchor`. */
+function outCallAt(
+    file: ts.SourceFile,
+    anchor: number,
+): ts.CallExpression | undefined {
+    return findDescendant(
+        file,
+        (node): node is ts.CallExpression =>
+            ts.isCallExpression(node) &&
+            ts.isPropertyAccessExpression(node.expression) &&
+            (node.expression.name.text === 'out' ||
+                node.expression.name.text === 'outMono') &&
+            node.expression.name.getStart(file) === anchor,
+        anchor,
+    );
 }
 
-/** True if `offset` falls within any ignored range. */
-function isIgnored(offset: number, ranges: Array<[number, number]>): boolean {
-    for (const [start, end] of ranges) {
-        if (offset >= start && offset < end) {
+/** The comma tokens on either side of `element` in the argument or
+ *  property list holding it. */
+function commasAround(
+    element: ts.Node,
+    file: ts.SourceFile,
+): { before?: ts.Node; after?: ts.Node } {
+    const list = element.parent
+        .getChildren(file)
+        .find(
+            (c) =>
+                c.kind === ts.SyntaxKind.SyntaxList &&
+                c.pos <= element.pos &&
+                element.end <= c.end,
+        );
+    const items = list?.getChildren(file) ?? [];
+    const i = items.indexOf(element);
+    const comma = (n: ts.Node | undefined) =>
+        n?.kind === ts.SyntaxKind.CommaToken ? n : undefined;
+    return {
+        after: i < 0 ? undefined : comma(items[i + 1]),
+        before: i < 0 ? undefined : comma(items[i - 1]),
+    };
+}
+
+/**
+ * The span that removes `element` from its list along with one separator.
+ * An element on lines of its own goes with those whole lines, its trailing
+ * comment included, so its neighbours keep their comments and layout. An
+ * inline element goes with the comma after it, or else the one before it.
+ */
+function removalSpan(
+    element: ts.Node,
+    file: ts.SourceFile,
+): { start: number; end: number } {
+    const text = file.text;
+    const { before, after } = commasAround(element, file);
+    const start = element.getStart(file);
+    const tail = after ? after.getEnd() : element.getEnd();
+    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd = text.indexOf('\n', tail);
+    if (
+        lineEnd >= 0 &&
+        /^\s*$/.test(text.slice(lineStart, start)) &&
+        /^\s*(\/\/[^\n]*)?$/.test(text.slice(tail, lineEnd))
+    ) {
+        return { end: lineEnd + 1, start: lineStart };
+    }
+    const blank = (i: number) => text[i] === ' ' || text[i] === '\t';
+    if (after) {
+        let end = after.getEnd();
+        while (blank(end)) {
+            end++;
+        }
+        // Last on its line: take the space before it, not a line break.
+        let from = start;
+        if (text[end] === '\n' || text[end] === '\r') {
+            while (blank(from - 1)) {
+                from--;
+            }
+        }
+        return { end, start: from };
+    }
+    return {
+        end: element.getEnd(),
+        start: before ? before.getStart(file) : start,
+    };
+}
+
+/** Whether `node` sits inside a function, where it runs only if called. */
+function insideFunction(node: ts.Node): boolean {
+    for (let n = node.parent; n; n = n.parent) {
+        if (ts.isFunctionLike(n)) {
             return true;
         }
     }
@@ -103,186 +130,11 @@ function isIgnored(offset: number, ranges: Array<[number, number]>): boolean {
 }
 
 /**
- * Find the offset of the closing bracket matching the opener at `open`,
- * respecting nesting and skipping string/comment contents. Returns -1 when
- * unbalanced.
- */
-function findMatching(
-    source: string,
-    open: number,
-    ignored: Array<[number, number]>,
-): number {
-    const openCh = source[open];
-    const closeCh = openCh === '(' ? ')' : openCh === '{' ? '}' : ']';
-    let depth = 0;
-    for (let i = open; i < source.length; i++) {
-        if (isIgnored(i, ignored)) {
-            continue;
-        }
-        const c = source[i];
-        if (c === '(' || c === '{' || c === '[') {
-            depth++;
-        } else if (c === ')' || c === '}' || c === ']') {
-            depth--;
-            if (depth === 0) {
-                return c === closeCh ? i : -1;
-            }
-        }
-    }
-    return -1;
-}
-
-/** Split the span (open, close) into top-level comma-separated trimmed args. */
-function splitArgs(
-    source: string,
-    open: number,
-    close: number,
-    ignored: Array<[number, number]>,
-): ArgSpan[] {
-    const args: ArgSpan[] = [];
-    let depth = 0;
-    let argStart = open + 1;
-    const pushArg = (rawEnd: number) => {
-        let s = argStart;
-        let e = rawEnd;
-        while (s < e && /\s/.test(source[s])) {
-            s++;
-        }
-        while (e > s && /\s/.test(source[e - 1])) {
-            e--;
-        }
-        if (e > s) {
-            args.push({ end: e, start: s });
-        }
-    };
-    for (let i = open + 1; i < close; i++) {
-        if (isIgnored(i, ignored)) {
-            continue;
-        }
-        const c = source[i];
-        if (c === '(' || c === '{' || c === '[') {
-            depth++;
-        } else if (c === ')' || c === '}' || c === ']') {
-            depth--;
-        } else if (c === ',' && depth === 0) {
-            pushArg(i);
-            argStart = i + 1;
-        }
-    }
-    pushArg(close);
-    return args;
-}
-
-/** A `prop: <value>` property found at depth 1 inside an object literal. */
-interface PropSpan {
-    /** Offset of the property key */
-    keyStart: number;
-    /** Trimmed span of the value expression */
-    valueStart: number;
-    valueEnd: number;
-}
-
-/**
- * Find the span of a bare-identifier property named `prop` at depth 1 inside
- * the object literal spanning [open, close].
- */
-function findProperty(
-    source: string,
-    open: number,
-    close: number,
-    prop: string,
-    ignored: Array<[number, number]>,
-): PropSpan | null {
-    let depth = 0;
-    for (let i = open; i <= close; i++) {
-        if (isIgnored(i, ignored)) {
-            continue;
-        }
-        const c = source[i];
-        if (c === '(' || c === '{' || c === '[') {
-            depth++;
-            continue;
-        }
-        if (c === ')' || c === '}' || c === ']') {
-            depth--;
-            continue;
-        }
-        if (depth !== 1 || !source.startsWith(prop, i)) {
-            continue;
-        }
-        // Must be a whole identifier: not preceded or followed by word chars.
-        const before = i > 0 ? source[i - 1] : '';
-        const afterIdx = i + prop.length;
-        if (/[\w$]/.test(before) || /[\w$]/.test(source[afterIdx] ?? '')) {
-            continue;
-        }
-        // Skip whitespace to the `:`.
-        let j = afterIdx;
-        while (j < close && /\s/.test(source[j])) {
-            j++;
-        }
-        if (source[j] !== ':') {
-            continue;
-        }
-        j++;
-        while (j < close && /\s/.test(source[j])) {
-            j++;
-        }
-        // Value runs to the next depth-1 comma or the closing brace.
-        let valueEnd = -1;
-        let d = 0;
-        for (let k = j; k < close; k++) {
-            if (isIgnored(k, ignored)) {
-                continue;
-            }
-            const ck = source[k];
-            if (ck === '(' || ck === '{' || ck === '[') {
-                d++;
-            } else if (ck === ')' || ck === '}' || ck === ']') {
-                d--;
-            } else if (ck === ',' && d === 0) {
-                valueEnd = k;
-                break;
-            }
-        }
-        if (valueEnd === -1) {
-            valueEnd = close;
-        }
-        while (valueEnd > j && /\s/.test(source[valueEnd - 1])) {
-            valueEnd--;
-        }
-        return { keyStart: i, valueEnd, valueStart: j };
-    }
-    return null;
-}
-
-/** True when the object literal spanning [open, close] has no properties. */
-function objectIsEmpty(
-    source: string,
-    open: number,
-    close: number,
-    ignored: Array<[number, number]>,
-): boolean {
-    for (let i = open + 1; i < close; i++) {
-        if (isIgnored(i, ignored)) {
-            continue;
-        }
-        if (!/\s/.test(source[i])) {
-            return false;
-        }
-    }
-    return true;
-}
-
-const BOOLEAN_LITERAL_RE = /^(true|false)$/;
-const NUMERIC_LITERAL_RE = /^-?(\d+\.?\d*|\.\d+)$/;
-
-/**
  * Compute the text edit that sets (`value` true) or removes (`value` false)
  * the `prop` property in the options argument of the `.out(...)` /
  * `.outMono(...)` call whose method name starts at `anchorOffset`.
  *
- * Returns null when the call can't be parsed or the existing property value
+ * Returns null when the call can't be found or the existing property value
  * is not a `true`/`false` literal — callers skip the source edit but still
  * apply the live graph update (the same silent-skip contract as sliders).
  */
@@ -297,7 +149,7 @@ export function computeOutOptionEdit(
         anchorOffset,
         prop,
         value ? 'true' : null,
-        BOOLEAN_LITERAL_RE,
+        isBoolean,
     );
 }
 
@@ -317,45 +169,50 @@ export function computeOutNumericOptionEdit(
         anchorOffset,
         prop,
         value === null ? null : String(Number(value.toPrecision(4))),
-        NUMERIC_LITERAL_RE,
+        isNumber,
     );
 }
 
 /**
  * Compute the text edit that sets the master output gain: updates the
- * numeric literal in an existing `$setOutputGain(...)` call, or appends a
- * new call at the end of the source. Returns null when the existing call's
- * argument is not a numeric literal (signal-driven — the fader is locked).
+ * numeric literal in the last `$setOutputGain(...)` outside any function,
+ * or appends a new call at the end of the source. A call inside a function
+ * is never the one edited: whether and when it runs is the function's
+ * caller's business. Returns null when that call's argument is not a
+ * numeric literal (signal-driven — the fader is locked), or when it is not a
+ * statement of its own at the top of the patch, so whether it runs depends
+ * on a branch or loop.
  */
 export function computeSetOutputGainEdit(
     source: string,
     value: number,
 ): OutOptionEdit | null {
     const newText = String(Number(value.toPrecision(4)));
-    const ignored = findIgnoredRanges(source);
-    const pattern = /\$setOutputGain\s*\(/g;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(source)) !== null) {
-        if (isIgnored(match.index, ignored)) {
-            continue;
+    const file = parseDsl(source);
+    let last: ts.CallExpression | undefined;
+    forEachDescendant(file, (node) => {
+        if (
+            ts.isCallExpression(node) &&
+            ts.isIdentifier(node.expression) &&
+            node.expression.text === '$setOutputGain' &&
+            !insideFunction(node) &&
+            (!last || node.getStart(file) > last.getStart(file))
+        ) {
+            last = node;
         }
-        const open = match.index + match[0].length - 1;
-        const close = findMatching(source, open, ignored);
-        if (close === -1) {
+    });
+    if (last) {
+        const arg = last.arguments[0];
+        if (
+            !ts.isExpressionStatement(last.parent) ||
+            last.parent.parent !== file ||
+            !callParens(last, file) ||
+            last.arguments.length !== 1 ||
+            !isNumber(arg)
+        ) {
             return null;
         }
-        let start = open + 1;
-        while (start < close && /\s/.test(source[start])) {
-            start++;
-        }
-        let end = close;
-        while (end > start && /\s/.test(source[end - 1])) {
-            end--;
-        }
-        if (!NUMERIC_LITERAL_RE.test(source.slice(start, end))) {
-            return null;
-        }
-        return { end, start, text: newText };
+        return { end: arg.getEnd(), start: arg.getStart(file), text: newText };
     }
     // No call yet — append one on its own line at the end.
     const needsNewline = source.length > 0 && !source.endsWith('\n');
@@ -371,46 +228,36 @@ function computeOptionPropertyEdit(
     anchorOffset: number,
     prop: string,
     newText: string | null,
-    literalRe: RegExp,
+    isLiteral: LiteralCheck,
 ): OutOptionEdit | null {
-    const ignored = findIgnoredRanges(source);
-    if (isIgnored(anchorOffset, ignored)) {
+    const file = parseDsl(source);
+    const call = outCallAt(file, anchorOffset);
+    const bounds = call && callParens(call, file);
+    if (!call || !bounds) {
         return null;
     }
+    const method = (call.expression as ts.PropertyAccessExpression).name.text;
+    const { open, close } = bounds;
+    const args = call.arguments;
 
-    const nameMatch = /^(outMono|out)\b/.exec(source.slice(anchorOffset));
-    if (!nameMatch) {
-        return null;
-    }
-    const method = nameMatch[1];
-
-    let open = anchorOffset + method.length;
-    while (open < source.length && /\s/.test(source[open])) {
-        open++;
-    }
-    if (source[open] !== '(') {
-        return null;
-    }
-    const close = findMatching(source, open, ignored);
-    if (close === -1) {
-        return null;
-    }
-
-    const args = splitArgs(source, open, close, ignored);
     // `.out(...)` carries its options object as the sole argument. `.outMono`
     // normally takes a leading positional channel, so its options object is
     // the second argument — unless the single-object overload `.outMono({…})`
     // placed it first (an object as the first argument).
     const firstIsObject =
-        args[0] !== undefined && source[args[0].start] === '{';
+        args[0] !== undefined && ts.isObjectLiteralExpression(args[0]);
     const optionsIndex = method === 'out' || firstIsObject ? 0 : 1;
-    const optionsArg = args[optionsIndex] as ArgSpan | undefined;
-    const optionsIsObject =
-        optionsArg !== undefined && source[optionsArg.start] === '{';
+    const optionsArg = args[optionsIndex] as ts.Expression | undefined;
+    // Arguments past the options are no form these edits know.
+    const optionsLast = args.length === optionsIndex + 1;
+    const options =
+        optionsArg && ts.isObjectLiteralExpression(optionsArg)
+            ? optionsArg
+            : null;
 
     if (newText !== null) {
         // --- Set `prop: <newText>` ---
-        if (!optionsIsObject) {
+        if (!options) {
             if (method === 'out') {
                 // `.out()` — arg list must be empty (a non-object first arg
                 // is not a valid out() call).
@@ -419,7 +266,7 @@ function computeOptionPropertyEdit(
                 }
                 return {
                     end: close,
-                    start: open + 1,
+                    start: open,
                     text: `{ ${prop}: ${newText} }`,
                 };
             }
@@ -427,27 +274,29 @@ function computeOptionPropertyEdit(
             // object, or supply the default channel for a bare call. Setting
             // `gain` itself keeps the positional form.
             if (optionsArg !== undefined) {
-                const gainText = source.slice(optionsArg.start, optionsArg.end);
-                if (prop === 'gain') {
-                    if (!literalRe.test(gainText)) {
-                        return null;
-                    }
-                    return {
-                        end: optionsArg.end,
-                        start: optionsArg.start,
-                        text: newText,
-                    };
+                if (ts.isSpreadElement(optionsArg)) {
+                    return null;
                 }
+                const span = {
+                    end: optionsArg.getEnd(),
+                    start: optionsArg.getStart(file),
+                };
+                if (prop === 'gain') {
+                    return isLiteral(optionsArg)
+                        ? { ...span, text: newText }
+                        : null;
+                }
+                const gainText = optionsArg.getText(file);
                 return {
-                    end: optionsArg.end,
-                    start: optionsArg.start,
+                    ...span,
                     text: `{ gain: ${gainText}, ${prop}: ${newText} }`,
                 };
             }
             if (args.length === 1) {
+                const end = args[0].getEnd();
                 return {
-                    end: args[0].end,
-                    start: args[0].end,
+                    end,
+                    start: end,
                     text:
                         prop === 'gain'
                             ? `, ${newText}`
@@ -456,7 +305,7 @@ function computeOptionPropertyEdit(
             }
             return {
                 end: close,
-                start: open + 1,
+                start: open,
                 text:
                     prop === 'gain'
                         ? `0, ${newText}`
@@ -464,125 +313,108 @@ function computeOptionPropertyEdit(
             };
         }
 
-        const objOpen = optionsArg.start;
-        const objClose = optionsArg.end - 1;
-        if (source[objClose] !== '}') {
+        const objClose = closingTokenStart(
+            options,
+            file,
+            ts.SyntaxKind.CloseBraceToken,
+        );
+        if (objClose === null) {
             return null;
         }
-        const existing = findProperty(source, objOpen, objClose, prop, ignored);
+        const existing = findProperty(options, prop);
         if (existing) {
-            const valueText = source.slice(
-                existing.valueStart,
-                existing.valueEnd,
-            );
-            if (!literalRe.test(valueText)) {
+            if (
+                !ts.isPropertyAssignment(existing) ||
+                !isLiteral(existing.initializer)
+            ) {
                 return null;
             }
+            const init = existing.initializer;
             return {
-                end: existing.valueEnd,
-                start: existing.valueStart,
+                end: init.getEnd(),
+                start: init.getStart(file),
                 text: newText,
             };
         }
-        if (objectIsEmpty(source, objOpen, objClose, ignored)) {
+        const last = options.properties.at(-1);
+        if (!last) {
             return {
                 end: objClose + 1,
-                start: objOpen,
+                start: options.getStart(file),
                 text: `{ ${prop}: ${newText} }`,
             };
         }
-        // Insert before the closing brace, after any trailing comma.
-        let insertAt = objClose;
-        while (insertAt > objOpen + 1 && /\s/.test(source[insertAt - 1])) {
-            insertAt--;
-        }
-        const needsComma = source[insertAt - 1] !== ',';
+        // After the last property's own comma, or after the property with a
+        // comma of its own; either way ahead of any comment on that line.
+        const trailing = commasAround(last, file).after;
+        const at = trailing ? trailing.getEnd() : last.getEnd();
         return {
-            end: objClose,
-            start: insertAt,
-            text: `${needsComma ? ',' : ''} ${prop}: ${newText} `,
+            end: at,
+            start: at,
+            text: `${trailing ? '' : ','} ${prop}: ${newText}`,
         };
     }
 
     // --- Remove the property ---
-    if (!optionsIsObject) {
+    if (!options) {
         // A positional outMono gain literal is removable in place.
         if (
             method === 'outMono' &&
             prop === 'gain' &&
-            optionsArg !== undefined
+            optionsArg !== undefined &&
+            optionsLast &&
+            isLiteral(optionsArg)
         ) {
-            const gainText = source.slice(optionsArg.start, optionsArg.end);
-            if (!literalRe.test(gainText)) {
-                return null;
-            }
-            let argStart = optionsArg.start;
-            while (argStart > open + 1 && /\s/.test(source[argStart - 1])) {
-                argStart--;
-            }
-            if (source[argStart - 1] === ',') {
-                argStart--;
-            }
-            return { end: optionsArg.end, start: argStart, text: '' };
+            return { ...removalSpan(optionsArg, file), text: '' };
         }
         return null;
     }
-    const objOpen = optionsArg.start;
-    const objClose = optionsArg.end - 1;
-    if (source[objClose] !== '}') {
-        return null;
-    }
-    const existing = findProperty(source, objOpen, objClose, prop, ignored);
-    if (!existing) {
-        return null;
-    }
-    const valueText = source.slice(existing.valueStart, existing.valueEnd);
-    if (!literalRe.test(valueText)) {
+    const objClose = closingTokenStart(
+        options,
+        file,
+        ts.SyntaxKind.CloseBraceToken,
+    );
+    const existing = objClose === null ? null : findProperty(options, prop);
+    if (
+        objClose === null ||
+        !existing ||
+        !ts.isPropertyAssignment(existing) ||
+        !isLiteral(existing.initializer)
+    ) {
         return null;
     }
 
-    // Property removal span: through the following depth-1 comma if present,
-    // otherwise back through the preceding comma.
-    let removeStart = existing.keyStart;
-    let removeEnd = existing.valueEnd;
-    let k = removeEnd;
-    while (k < objClose && /\s/.test(source[k])) {
-        k++;
+    // Removing one of a repeated key would leave an earlier one in force.
+    if (
+        options.properties.some(
+            (p) => p !== existing && propertyName(p) === prop,
+        )
+    ) {
+        return null;
     }
-    if (source[k] === ',') {
-        removeEnd = k + 1;
-        while (removeEnd < objClose && /\s/.test(source[removeEnd])) {
-            removeEnd++;
+    const span = removalSpan(existing, file);
+    const leftover =
+        source.slice(options.getStart(file) + 1, span.start) +
+        source.slice(span.end, objClose);
+    // The only property, with no comment beside it to keep: drop the whole
+    // options argument.
+    if (options.properties.length === 1 && leftover.trim() === '') {
+        if (!optionsLast) {
+            return null;
         }
-    } else {
-        let p = removeStart;
-        while (p > objOpen + 1 && /\s/.test(source[p - 1])) {
-            p--;
-        }
-        if (source[p - 1] === ',') {
-            removeStart = p - 1;
-        }
-    }
-
-    // If this was the only property, drop the whole options argument.
-    const remainder =
-        source.slice(objOpen + 1, removeStart) +
-        source.slice(removeEnd, objClose);
-    if (/^\s*$/.test(remainder)) {
         if (method === 'out') {
-            return { end: close, start: open + 1, text: '' };
+            return { end: close, start: open, text: '' };
         }
-        // `.outMono(ch, { prop: true })` — remove the second arg and the
-        // comma separating it from the channel.
-        let argStart = optionsArg.start;
-        while (argStart > open + 1 && /\s/.test(source[argStart - 1])) {
-            argStart--;
-        }
-        if (source[argStart - 1] === ',') {
-            argStart--;
-        }
-        return { end: optionsArg.end, start: argStart, text: '' };
+        return { ...removalSpan(options, file), text: '' };
     }
+    return { ...span, text: '' };
+}
 
-    return { end: removeEnd, start: removeStart, text: '' };
+/** The member of `obj` that sets `prop`. */
+function findProperty(
+    obj: ts.ObjectLiteralExpression,
+    prop: string,
+): ts.ObjectLiteralElementLike | null {
+    // The last of a repeated key is the one the object keeps.
+    return obj.properties.findLast((p) => propertyName(p) === prop) ?? null;
 }
