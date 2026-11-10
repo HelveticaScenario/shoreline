@@ -26,12 +26,12 @@
       "fixes": [
         [
           {
-            "caretOffset": 33,
+            "caretOffset": 22,
             "controlOffset": 10,
             "kind": "add",
-            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "newText": ", { sync: $btn('sync') }",
             "span": {"end":23,"start":23},
-            "title": "Add slider for 'fm'"
+            "title": "Add button for 'sync'"
           },
           {
             "caretOffset": 50,
@@ -40,14 +40,6 @@
             "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
             "span": {"end":23,"start":23},
             "title": "Add slider for 'phaseOffset'"
-          },
-          {
-            "caretOffset": 37,
-            "controlOffset": 12,
-            "kind": "add",
-            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
-            "span": {"end":23,"start":23},
-            "title": "Add slider for 'sync'"
           }
         ],
         [
@@ -61,12 +53,12 @@
             "title": "Wrap 'freq' in an hz $slider"
           },
           {
-            "caretOffset": 33,
+            "caretOffset": 22,
             "controlOffset": 10,
             "kind": "add",
-            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "newText": ", { sync: $btn('sync') }",
             "span": {"end":23,"start":23},
-            "title": "Add slider for 'fm'"
+            "title": "Add button for 'sync'"
           },
           {
             "caretOffset": 50,
@@ -75,14 +67,6 @@
             "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
             "span": {"end":23,"start":23},
             "title": "Add slider for 'phaseOffset'"
-          },
-          {
-            "caretOffset": 37,
-            "controlOffset": 12,
-            "kind": "add",
-            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
-            "span": {"end":23,"start":23},
-            "title": "Add slider for 'sync'"
           }
         ],
         [
@@ -109,14 +93,6 @@
         ],
         [
           {
-            "caretOffset": 52,
-            "controlOffset": 26,
-            "kind": "add",
-            "newText": "{\n  attack: 0.1,\n  curve: $slider('curve', 5, -5, 5),\n}",
-            "span": {"end":156,"start":141},
-            "title": "Add slider for 'curve'"
-          },
-          {
             "caretOffset": 55,
             "controlOffset": 26,
             "kind": "add",
@@ -125,12 +101,28 @@
             "title": "Add slider for 'decay'"
           },
           {
+            "caretOffset": 55,
+            "controlOffset": 28,
+            "kind": "add",
+            "newText": "{\n  attack: 0.1,\n  sustain: $slider('sustain', 5, 0, 5),\n}",
+            "span": {"end":156,"start":141},
+            "title": "Add slider for 'sustain'"
+          },
+          {
             "caretOffset": 59,
             "controlOffset": 28,
             "kind": "add",
             "newText": "{\n  attack: 0.1,\n  release: $slider('release', 0.01, 0, 10),\n}",
             "span": {"end":156,"start":141},
             "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 52,
+            "controlOffset": 26,
+            "kind": "add",
+            "newText": "{\n  attack: 0.1,\n  curve: $slider('curve', 5, -5, 5),\n}",
+            "span": {"end":156,"start":141},
+            "title": "Add slider for 'curve'"
           },
           {
             "caretOffset": 47,
@@ -147,14 +139,6 @@
             "newText": "{\n  attack: 0.1,\n  retrigger: $toggleBtn('retrigger', false),\n}",
             "span": {"end":156,"start":141},
             "title": "Add toggle for 'retrigger'"
-          },
-          {
-            "caretOffset": 55,
-            "controlOffset": 28,
-            "kind": "add",
-            "newText": "{\n  attack: 0.1,\n  sustain: $slider('sustain', 5, 0, 5),\n}",
-            "span": {"end":156,"start":141},
-            "title": "Add slider for 'sustain'"
           }
         ],
         [
@@ -168,14 +152,6 @@
             "title": "Wrap 'attack' in $slider"
           },
           {
-            "caretOffset": 52,
-            "controlOffset": 26,
-            "kind": "add",
-            "newText": "{\n  attack: 0.1,\n  curve: $slider('curve', 5, -5, 5),\n}",
-            "span": {"end":156,"start":141},
-            "title": "Add slider for 'curve'"
-          },
-          {
             "caretOffset": 55,
             "controlOffset": 26,
             "kind": "add",
@@ -184,12 +160,28 @@
             "title": "Add slider for 'decay'"
           },
           {
+            "caretOffset": 55,
+            "controlOffset": 28,
+            "kind": "add",
+            "newText": "{\n  attack: 0.1,\n  sustain: $slider('sustain', 5, 0, 5),\n}",
+            "span": {"end":156,"start":141},
+            "title": "Add slider for 'sustain'"
+          },
+          {
             "caretOffset": 59,
             "controlOffset": 28,
             "kind": "add",
             "newText": "{\n  attack: 0.1,\n  release: $slider('release', 0.01, 0, 10),\n}",
             "span": {"end":156,"start":141},
             "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 52,
+            "controlOffset": 26,
+            "kind": "add",
+            "newText": "{\n  attack: 0.1,\n  curve: $slider('curve', 5, -5, 5),\n}",
+            "span": {"end":156,"start":141},
+            "title": "Add slider for 'curve'"
           },
           {
             "caretOffset": 47,
@@ -206,14 +198,6 @@
             "newText": "{\n  attack: 0.1,\n  retrigger: $toggleBtn('retrigger', false),\n}",
             "span": {"end":156,"start":141},
             "title": "Add toggle for 'retrigger'"
-          },
-          {
-            "caretOffset": 55,
-            "controlOffset": 28,
-            "kind": "add",
-            "newText": "{\n  attack: 0.1,\n  sustain: $slider('sustain', 5, 0, 5),\n}",
-            "span": {"end":156,"start":141},
-            "title": "Add slider for 'sustain'"
           }
         ],
         [
@@ -227,14 +211,6 @@
             "title": "Wrap 'attack' in $slider"
           },
           {
-            "caretOffset": 52,
-            "controlOffset": 26,
-            "kind": "add",
-            "newText": "{\n  attack: 0.1,\n  curve: $slider('curve', 5, -5, 5),\n}",
-            "span": {"end":156,"start":141},
-            "title": "Add slider for 'curve'"
-          },
-          {
             "caretOffset": 55,
             "controlOffset": 26,
             "kind": "add",
@@ -243,12 +219,28 @@
             "title": "Add slider for 'decay'"
           },
           {
+            "caretOffset": 55,
+            "controlOffset": 28,
+            "kind": "add",
+            "newText": "{\n  attack: 0.1,\n  sustain: $slider('sustain', 5, 0, 5),\n}",
+            "span": {"end":156,"start":141},
+            "title": "Add slider for 'sustain'"
+          },
+          {
             "caretOffset": 59,
             "controlOffset": 28,
             "kind": "add",
             "newText": "{\n  attack: 0.1,\n  release: $slider('release', 0.01, 0, 10),\n}",
             "span": {"end":156,"start":141},
             "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 52,
+            "controlOffset": 26,
+            "kind": "add",
+            "newText": "{\n  attack: 0.1,\n  curve: $slider('curve', 5, -5, 5),\n}",
+            "span": {"end":156,"start":141},
+            "title": "Add slider for 'curve'"
           },
           {
             "caretOffset": 47,
@@ -265,14 +257,6 @@
             "newText": "{\n  attack: 0.1,\n  retrigger: $toggleBtn('retrigger', false),\n}",
             "span": {"end":156,"start":141},
             "title": "Add toggle for 'retrigger'"
-          },
-          {
-            "caretOffset": 55,
-            "controlOffset": 28,
-            "kind": "add",
-            "newText": "{\n  attack: 0.1,\n  sustain: $slider('sustain', 5, 0, 5),\n}",
-            "span": {"end":156,"start":141},
-            "title": "Add slider for 'sustain'"
           }
         ],
         [

@@ -9,6 +9,8 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::DcBlocker;
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -74,35 +76,62 @@ fn scale_delay_f(ref_samples: f32, sample_rate: f32, size: f32) -> f32 {
 
 // ─── Params ──────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct DattorroParams {
-    /// audio input (even channels → left, odd channels → right; with an odd
-    /// channel count the last channel feeds both sides)
+    #[input(
+        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        type = audio,
+    )]
     input: PolySignal,
-    /// reverb decay time (-5 to 5, default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "how long the tail rings: -5 shortest, +5 almost endless",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<MonoSignal>,
-    /// high-frequency damping in the reverb tank (-5 to 5, default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "how fast the tail darkens: -5 bright, +5 muffled",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     damping: Option<MonoSignal>,
-    /// room size — scales all delay line lengths (-5 to 5, default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "room size, from 0.25× (-5) to 2× (+5) the plate's delay lengths",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<MonoSignal>,
-    /// predelay time in seconds (0 to 0.5, default 0)
-    #[signal(default = 0.0, range = (0.0, 0.5))]
+    #[input(
+        "gap before the reverb starts, in seconds",
+        type = control,
+        default = 0.0,
+        range = (0.0, 0.5),
+    )]
     #[deserr(default)]
     predelay: Option<MonoSignal>,
-    /// input diffusion amount (0 to 5, default 3.5)
-    #[signal(default = 3.5, range = (0.0, 5.0))]
+    #[input(
+        "how quickly the onset smears into a wash: 0 distinct echoes, 5 smoothest",
+        type = control,
+        default = 3.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     diffusion: Option<MonoSignal>,
-    /// external tank modulation signal (-5 to 5, default 0, not clamped)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.5 ms",
+        type = control,
+        default = 0.0,
+        control_range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     modulation: Option<MonoSignal>,
 }
@@ -112,7 +141,11 @@ struct DattorroParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct DattorroOutputs {
-    #[output("output", "stereo reverb output (ch0=left, ch1=right)", default)]
+    #[output(
+        "output",
+        "stereo reverb, fully wet, as left and right channels",
+        default
+    )]
     sample: PolyOutput,
 }
 
@@ -172,20 +205,28 @@ struct DattorroState {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-/// Stereo plate reverb based on the Dattorro algorithm.
-///
-/// Implements Jon Dattorro's plate reverberator with input diffusion,
-/// a cross-coupled stereo tank, and multi-tap output. Even input
-/// channels are summed to the left input, odd channels to the right;
-/// with an odd channel count the last channel feeds both sides.
-/// Output is always 100% wet.
-///
-/// ```js
-/// $dattorro($saw('c3'), { decay: 3, damping: 1, size: 2 }).out()
-/// ```
+const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Classic plate reverb",
+    description: "The classic Dattorro plate: a bright, smooth stereo tail that suits vocals, \
+                  plucks and drums. Output is fully wet, so blend it with `.$m.dattorro(mix)` or \
+                  send to it from a bus.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Plucks in a big plate",
+        code: r#"
+            const notes = $cycle($p('c4 eb4 g4 bb4'))
+            $sine(notes)
+              .amp($perc(notes.trig, { decay: 0.2 }))
+              .$m.dattorro(2, { decay: 3 })
+              .out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$dattorro",
-    categories(effect),
+    docs = DATTORRO_DOCS,
     channels = 2,
     has_init,
     args(input)

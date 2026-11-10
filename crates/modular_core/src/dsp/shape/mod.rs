@@ -27,20 +27,25 @@ pub mod shapers;
 macro_rules! shape_module {
     // Modules with a `mode` enum selecting the algorithm.
     (
-        $(#[$doc:meta])*
+        docs = $docs:path,
         name = $name:literal, ident = $Struct:ident, mode = $Mode:ty, shaper = $Shaper:ty $(,)?
     ) => {
         paste::paste! {
-            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount, SignalParams)]
+            #[params]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                /// input signal to shape (bipolar, ±5 V)
+                #[input("signal to shape; ±5 V spans the shaper's curve", type = audio)]
                 input: crate::poly::PolySignal,
-                /// shaper algorithm
+                #[input("shaping curve")]
                 mode: $Mode,
-                /// drive amount (-5..5, 0 = unity); higher pushes harder into the shaper
-                #[signal(default = 0.0, range = (-5.0, 5.0))]
+                #[input(
+                    "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
+                    type = control,
+                    default = 0.0,
+                    range = (-5.0, 5.0),
+                )]
                 #[deserr(default)]
                 drive: Option<crate::poly::PolySignal>,
             }
@@ -48,12 +53,11 @@ macro_rules! shape_module {
             #[derive(Outputs, schemars::JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", "shaped signal output", default, range = (-5.0, 5.0))]
+                #[output("output", "the shaped signal", default, range = (-5.0, 5.0))]
                 sample: crate::poly::PolyOutput,
             }
 
-            $(#[$doc])*
-            #[module(name = $name, categories(distortion), args(input, mode, drive), has_init)]
+            #[module(name = $name, docs = $docs, args(input, mode, drive), has_init)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::shape::shape_core::ShapeModuleState,
@@ -88,18 +92,24 @@ macro_rules! shape_module {
 
     // Single-algorithm modules (`digital`, `sine`): no `mode`, drive is positional 2.
     (
-        $(#[$doc:meta])*
-        name = $name:literal, ident = $Struct:ident, shaper = $Shaper:ty $(,)?
+        docs = $docs:path,
+        name = $name:literal, ident = $Struct:ident, shaper = $Shaper:ty,
+        drive_doc = $drive_doc:literal $(,)?
     ) => {
         paste::paste! {
-            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount, SignalParams)]
+            #[params]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                /// input signal to shape (bipolar, ±5 V)
+                #[input("signal to shape; ±5 V spans the shaper's curve", type = audio)]
                 input: crate::poly::PolySignal,
-                /// drive amount (-5..5, 0 = unity); higher pushes harder into the shaper
-                #[signal(default = 0.0, range = (-5.0, 5.0))]
+                #[input(
+                    $drive_doc,
+                    type = control,
+                    default = 0.0,
+                    range = (-5.0, 5.0),
+                )]
                 #[deserr(default)]
                 drive: Option<crate::poly::PolySignal>,
             }
@@ -107,12 +117,11 @@ macro_rules! shape_module {
             #[derive(Outputs, schemars::JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", "shaped signal output", default, range = (-5.0, 5.0))]
+                #[output("output", "the shaped signal", default, range = (-5.0, 5.0))]
                 sample: crate::poly::PolyOutput,
             }
 
-            $(#[$doc])*
-            #[module(name = $name, categories(distortion), args(input, drive), has_init)]
+            #[module(name = $name, docs = $docs, args(input, drive), has_init)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::shape::shape_core::ShapeModuleState,

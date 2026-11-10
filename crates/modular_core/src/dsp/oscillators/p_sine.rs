@@ -1,38 +1,58 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
         utils::{interpolate, wrap},
     },
-    poly::{PolyOutput, PolySignal, PolySignalExt},
+    poly::{PolyOutput, PolySignal},
 };
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PSineOscillatorParams {
-    /// phasor input (0–1, wraps at boundaries)
-    #[signal(range = (0.0, 1.0))]
+    #[input(
+        "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
+        type = audio,
+        range = (0.0, 1.0),
+    )]
     phase: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PSineOscillatorOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the sine wave", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
-/// Phase-driven sine wave oscillator.
-///
-/// Instead of a frequency input, this oscillator is driven by an external
-/// phasor signal (0–1). Connect a `ramp` or other phase source to `phase`
-/// and use phase-distortion modules between them for complex timbres.
-///
-/// Output range is **±5V**.
-#[module(name = "$pSine", categories(oscillator, phase), args(phase))]
+const P_SINE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Phase-driven sine",
+    description: "A sine that follows a phase input instead of running at its \
+                  own pitch. Drive it from `$ramp` through `$pWarp` to bend the \
+                  cycle into new timbres, or share one ramp between phase \
+                  oscillators to keep them locked together.",
+    categories: &[ModuleCategory::Oscillator, ModuleCategory::Phase],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Bending sine",
+        code: r#"
+            $pSine(
+              $pWarp(
+                $ramp('c3'),
+                $phase.bend($sine('0.2hz').range(-3, 3)),
+              ),
+            ).out()
+        "#,
+    }],
+};
+
+#[module(name = "$pSine", docs = P_SINE_DOCS, args(phase))]
 pub struct PSineOscillator {
     outputs: PSineOscillatorOutputs,
     params: PSineOscillatorParams,

@@ -13,6 +13,8 @@ use deserr::Deserr;
 use mi_plaits_dsp::voice::{Modulations, Patch, Voice};
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::{SchmittTrigger, voct_to_midi},
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -39,54 +41,54 @@ const ENGINE_SAMPLE_RATE: f32 = 48000.0;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum PlaitsEngine {
-    /// Virtual analog oscillator with VCF - classic subtractive synthesis
+    /// one analog-style oscillator through a resonant filter, for classic subtractive sounds
     #[default]
     VaVcf,
-    /// Phase distortion synthesis
+    /// phase distortion, the Casio CZ sound of sweeping resonant tones
     PhaseDistortion,
-    /// Six-operator FM synthesis (bank A)
+    /// DX7-style six-operator FM, preset bank A
     SixOpA,
-    /// Six-operator FM synthesis (bank B)
+    /// DX7-style six-operator FM, preset bank B
     SixOpB,
-    /// Six-operator FM synthesis (bank C)
+    /// DX7-style six-operator FM, preset bank C
     SixOpC,
-    /// Wave terrain synthesis
+    /// wave terrain, shifting and evolving digital tones
     WaveTerrain,
-    /// String machine emulation
+    /// string machine, lush ensemble chords
     StringMachine,
-    /// Chiptune waveforms with arpeggiator
+    /// chiptune square waves with a built-in arpeggiator
     Chiptune,
-    /// Virtual analog dual oscillator
+    /// two raw analog-style oscillators with no filter, for detuned saws and pulses
     VirtualAnalog,
-    /// Waveshaping oscillator
+    /// a folded, waveshaped oscillator, bright and buzzy
     Waveshaping,
-    /// Two-operator FM synthesis
+    /// two-operator FM, from bell tones to metallic growls
     TwoOpFm,
-    /// Granular formant oscillator
+    /// formant oscillator, vocal and nasal tones
     GranularFormant,
-    /// Harmonic/additive oscillator
+    /// additive harmonics, organ-like tones
     Additive,
-    /// Wavetable oscillator
+    /// wavetable scanning, classic digital sweeps
     Wavetable,
-    /// Chord generator
+    /// stacked chords from a single pitch
     Chords,
-    /// Vowel and speech synthesis
+    /// vowels and robotic speech
     Speech,
-    /// Swarm oscillator
+    /// a swarm of detuned oscillators, huge and smeary
     Swarm,
-    /// Filtered noise
+    /// noise through a resonant filter, from hiss to whistles
     FilteredNoise,
-    /// Particle noise
+    /// random dust and droplets ringing through filters
     ParticleNoise,
-    /// Inharmonic string modeling
+    /// a plucked string, for guitar and sitar tones
     InharmonicString,
-    /// Modal resonator
+    /// a struck resonator for bells, bars and wood
     ModalResonator,
-    /// Analog bass drum
+    /// analog-style kick drum
     BassDrum,
-    /// Analog snare drum
+    /// analog-style snare drum
     SnareDrum,
-    /// Analog hi-hat
+    /// analog-style hi-hat
     HiHat,
 }
 
@@ -122,68 +124,116 @@ impl PlaitsEngine {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PlaitsParams {
-    /// Pitch input in V/Oct (0V = C4)
-    #[signal(type = pitch)]
+    #[input("note pitch", type = pitch)]
     freq: PolySignal,
 
-    /// Synthesis engine selection
+    #[input("synthesis engine")]
     engine: PlaitsEngine,
 
-    /// Harmonics parameter (-5V to +5V, bipolar, default 0V) - function varies per engine
+    #[input(
+        "harmonics knob; what it does depends on the engine",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     harmonics: Option<PolySignal>,
 
-    /// Timbre parameter (-5V to +5V, bipolar, default 0V) - function varies per engine
+    #[input(
+        "timbre knob; what it does depends on the engine",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     timbre: Option<PolySignal>,
 
-    /// Morph parameter (-5V to +5V, bipolar, default 0V) - function varies per engine
+    #[input(
+        "morph knob; what it does depends on the engine",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     morph: Option<PolySignal>,
 
-    /// FM input (-5V to +5V) - frequency modulation
+    #[input("frequency modulation, scaled by `fmAmt`", type = audio)]
     #[deserr(default)]
     fm: Option<PolySignal>,
 
-    /// Timbre CV attenuverter (-5 to 5) - scales timbre modulation
+    #[input(
+        "how much the trigger's internal envelope sweeps timbre; negative inverts",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     timbre_amt: Option<PolySignal>,
 
-    /// FM CV attenuverter (-5 to 5) - scales frequency modulation
+    #[input(
+        "how much `fm` bends the pitch, negative inverting it. With `fm` unpatched it sets how far each trigger's envelope sweeps the pitch instead, or, with no trigger either, fine-tunes by up to a semitone",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     fm_amt: Option<PolySignal>,
 
-    /// Morph CV attenuverter (-5 to 5) - scales morph modulation
+    #[input(
+        "how much the trigger's internal envelope sweeps morph; negative inverts",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     morph_amt: Option<PolySignal>,
 
-    /// Trigger input - gates/triggers the internal envelope
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input(
+        "strikes the internal envelope and lowpass gate; unpatched, the voice drones",
+        type = trig,
+    )]
     #[deserr(default)]
     trigger: Option<PolySignal>,
 
-    /// Level/dynamics input (0-5V) - controls VCA/LPG
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "loudness and brightness through the lowpass gate; patching it opens the gate by this level instead of the trigger's ping",
+        type = control,
+        range = (0.0, 8.0),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     level: Option<PolySignal>,
 
-    /// LPG color (0-5V) - lowpass gate filter response (low = mellow, high = bright)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "lowpass gate response: low is a mellow filter sweep, high a bright VCA",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     lpg_color: Option<PolySignal>,
 
-    /// LPG decay (0-5V) - lowpass gate envelope decay time
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how long the lowpass gate and internal envelope ring after a trigger",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     lpg_decay: Option<PolySignal>,
 
-    /// Main/Aux Mix (0-5v) - Crossfade mix between main and aux outputs at the primary output.
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "blend at `output` between the engine's `main` sound at 0 and its `aux` variant at 5",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     mix: Option<PolySignal>,
 }
@@ -191,13 +241,13 @@ struct PlaitsParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PlaitsOutputs {
-    #[output("output", "mixed synthesis output (main/aux crossfade)", default, range = (-5.0, 5.0))]
+    #[output("output", "main and aux blended by `mix`", default, range = (-5.0, 5.0))]
     mix: PolyOutput,
 
-    #[output("main", "main synthesis output", range = (-5.0, 5.0))]
+    #[output("main", "the engine's main output", range = (-5.0, 5.0))]
     main: PolyOutput,
 
-    #[output("aux", "auxiliary output — varies per engine", range = (-5.0, 5.0))]
+    #[output("aux", "the engine's auxiliary output, a variant that depends on the engine", range = (-5.0, 5.0))]
     aux: PolyOutput,
 }
 
@@ -247,37 +297,44 @@ impl Default for PlaitsChannelState {
     }
 }
 
-/// Full-featured Plaits macro-oscillator with all 24 engines, LPG, and modulation routing.
-///
-/// For detailed engine descriptions and parameter behavior, see the
-/// [Mutable Instruments Plaits documentation](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/).
-///
-/// Engines (selected via `engine` param):
-/// - Virtual analog VCF (classic subtractive)
-/// - Phase distortion
-/// - Six-op FM (3 banks)
-/// - Wave terrain
-/// - String machine
-/// - Chiptune
-/// - Virtual analog (dual oscillator)
-/// - Waveshaping
-/// - Two-operator FM
-/// - Granular formant
-/// - Harmonic/additive
-/// - Wavetable
-/// - Chords
-/// - Vowel/speech synthesis
-/// - Swarm
-/// - Filtered noise
-/// - Particle noise
-/// - Inharmonic strings
-/// - Modal resonator
-/// - Analog bass drum
-/// - Analog snare drum
-/// - Analog hi-hat
+const MACRO_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Macro oscillator (Plaits)",
+    description: "Mutable Instruments Plaits: 24 engines, from analog and FM to \
+                  chords, speech, strings and drums, each played with the same \
+                  three knobs, `harmonics`, `timbre` and `morph`. Triggers \
+                  strike its built-in envelope and lowpass gate; with no \
+                  trigger it drones. The [Plaits \
+                  manual](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/) \
+                  describes what the knobs do on each engine.",
+    categories: &[ModuleCategory::Oscillator, ModuleCategory::Drum],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Struck modal melody",
+            code: r#"
+                const seq = $cycle($p('c4 g4 eb4 <bb4 f4>'))
+                $macro(seq, 'modalResonator', {
+                  trigger: seq.trig,
+                  timbre: 1,
+                  lpgDecay: 3,
+                }).out()
+            "#,
+        },
+        DocExample {
+            title: "Chord stabs",
+            code: r#"
+                $macro('c3', 'chords', {
+                  trigger: $clock.beatTrigger,
+                  harmonics: 1,
+                }).out()
+            "#,
+        },
+    ],
+};
+
 #[module(
     name = "$macro",
-    categories(oscillator, drum),
+    docs = MACRO_DOCS,
     args(freq, engine),
     has_init
 )]

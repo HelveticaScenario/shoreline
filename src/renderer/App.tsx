@@ -8,7 +8,6 @@ import { performanceOutput } from './video/PerformanceOutput';
 import { AudioControls } from './components/AudioControls';
 import { TransportDisplay } from './components/TransportDisplay';
 import { ErrorDisplay } from './components/ErrorDisplay';
-import { Settings } from './components/Settings';
 import { AudioPanicDialog } from './components/AudioPanicDialog';
 import { EngineHealth } from './components/EngineHealth';
 import { ModuleProfile } from './components/ModuleProfile';
@@ -167,7 +166,6 @@ function App() {
     // Audio state
     const [isClockRunning, setIsClockRunning] = useState(true);
     const [isRecording, setIsRecording] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isEngineHealthOpen, setIsEngineHealthOpen] = useState(false);
     const [isPaletteOpen, setIsPaletteOpen] = useState(false);
     const [isModuleProfileOpen, setIsModuleProfileOpen] = useState(false);
@@ -2347,13 +2345,6 @@ function App() {
             { label: 'Open Workspace…', category: 'File' },
         );
         registerCommand(
-            'shoreline.openSettings',
-            () => {
-                setIsSettingsOpen(true);
-            },
-            { label: 'Open Settings', category: 'Preferences' },
-        );
-        registerCommand(
             'shoreline.showCommandPalette',
             () => {
                 setIsPaletteOpen(true);
@@ -2419,7 +2410,6 @@ function App() {
             unregisterCommand('shoreline.closeBuffer');
             unregisterCommand('shoreline.save');
             unregisterCommand('shoreline.openWorkspace');
-            unregisterCommand('shoreline.openSettings');
             unregisterCommand('shoreline.showCommandPalette');
             unregisterCommand('shoreline.openKeybindings');
         };
@@ -2627,11 +2617,6 @@ function App() {
                 onDismiss={dismissError}
             />
 
-            <Settings
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-            />
-
             <EngineHealth
                 isOpen={isEngineHealthOpen}
                 onClose={() => setIsEngineHealthOpen(false)}
@@ -2661,72 +2646,67 @@ function App() {
                         </button>
                     </div>
                 ) : (
-                    <>
-                        <div className="editor-panel">
-                            <VideoBackdrop
-                                codeBackdropOpacity={codeBackdropOpacity}
-                                performanceScale={performanceScale}
-                            />
-                            <PatchEditor
-                                value={patchCode}
-                                runningBufferId={runningBufferId}
-                                currentFile={activeBufferId}
-                                openFiles={openBufferIds}
-                                onChange={handlePatchChange}
-                                editorRef={editorRef}
-                                onEditorChange={setPaletteEditor}
-                                scopeViews={scopeViews}
-                                videoPreviewDecorations={
-                                    videoPreviews.decorations
-                                }
-                                videoPreviewZones={videoPreviews.zones}
-                                // oxlint-disable-next-line react-hooks-js/refs -- intentional: live Monaco decoration collection mutated outside React
-                                scopeDecorations={scopeDecorationsRef.current}
-                                onRegisterScopeCanvas={registerScopeCanvas}
-                                onUnregisterScopeCanvas={unregisterScopeCanvas}
-                            />
-                            <PerformancePreview />
-                        </div>
-
-                        <Sidebar
-                            explorerContent={
-                                <FileExplorer
-                                    workspaceRoot={workspaceRoot}
-                                    fileTree={fileTree}
-                                    buffers={buffers}
-                                    activeBufferId={activeBufferId}
-                                    runningBufferId={runningBufferId}
-                                    renamingPath={renamingPath}
-                                    formatLabel={formatLabel}
-                                    onSelectBuffer={setActiveBufferId}
-                                    onOpenFile={handleOpenFile}
-                                    onCreateFile={createUntitledFile}
-                                    onSaveFile={handleSaveFileStable}
-                                    onRenameFile={renameFile}
-                                    onDeleteFile={handleDeleteFile}
-                                    onCloseBuffer={closeBuffer}
-                                    onSelectWorkspace={selectWorkspaceFolder}
-                                    onRefreshTree={refreshFileTree}
-                                    onRenameCommit={handleRenameCommitSafe}
-                                    onRenameCancel={() => setRenamingPath(null)}
-                                    onKeepBuffer={keepBuffer}
-                                />
-                            }
-                            performContent={<PerformancePanel />}
-                            controlContent={
-                                <ControlPanel
-                                    sliders={controlViews.sliders}
-                                    buttons={controlViews.buttons}
-                                    groups={codeControls.groups}
-                                    onGroupToggle={handleGroupToggle}
-                                    onSliderChange={handleSliderChange}
-                                    onButtonChange={handleButtonChange}
-                                    onJump={handleControlJump}
-                                />
-                            }
+                    <div className="editor-panel">
+                        <VideoBackdrop
+                            codeBackdropOpacity={codeBackdropOpacity}
+                            performanceScale={performanceScale}
                         />
-                    </>
+                        <PatchEditor
+                            value={patchCode}
+                            runningBufferId={runningBufferId}
+                            currentFile={activeBufferId}
+                            openFiles={openBufferIds}
+                            onChange={handlePatchChange}
+                            editorRef={editorRef}
+                            onEditorChange={setPaletteEditor}
+                            scopeViews={scopeViews}
+                            videoPreviewDecorations={videoPreviews.decorations}
+                            videoPreviewZones={videoPreviews.zones}
+                            // oxlint-disable-next-line react-hooks-js/refs -- intentional: live Monaco decoration collection mutated outside React
+                            scopeDecorations={scopeDecorationsRef.current}
+                            onRegisterScopeCanvas={registerScopeCanvas}
+                            onUnregisterScopeCanvas={unregisterScopeCanvas}
+                        />
+                        <PerformancePreview />
+                    </div>
                 )}
+                <Sidebar
+                    explorerContent={
+                        <FileExplorer
+                            workspaceRoot={workspaceRoot}
+                            fileTree={fileTree}
+                            buffers={buffers}
+                            activeBufferId={activeBufferId}
+                            runningBufferId={runningBufferId}
+                            renamingPath={renamingPath}
+                            formatLabel={formatLabel}
+                            onSelectBuffer={setActiveBufferId}
+                            onOpenFile={handleOpenFile}
+                            onCreateFile={createUntitledFile}
+                            onSaveFile={handleSaveFileStable}
+                            onRenameFile={renameFile}
+                            onDeleteFile={handleDeleteFile}
+                            onCloseBuffer={closeBuffer}
+                            onSelectWorkspace={selectWorkspaceFolder}
+                            onRefreshTree={refreshFileTree}
+                            onRenameCommit={handleRenameCommitSafe}
+                            onRenameCancel={() => setRenamingPath(null)}
+                            onKeepBuffer={keepBuffer}
+                        />
+                    }
+                    performContent={<PerformancePanel />}
+                    controlContent={
+                        <ControlPanel
+                            sliders={controlViews.sliders}
+                            buttons={controlViews.buttons}
+                            groups={codeControls.groups}
+                            onGroupToggle={handleGroupToggle}
+                            onSliderChange={handleSliderChange}
+                            onButtonChange={handleButtonChange}
+                            onJump={handleControlJump}
+                        />
+                    }
+                />
             </main>
             {isVuPanelVisible && workspaceRoot && (
                 <VuMeterPanel

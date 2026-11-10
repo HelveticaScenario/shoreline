@@ -3,6 +3,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::ModuleDocs;
 use crate::{
     Wav,
     param_errors::ModuleParamErrors,
@@ -25,20 +27,22 @@ const MAX_SPEED: f64 = 16.0;
 /// Fade at each end of the loop, in seconds, that keeps the loop point from clicking.
 const EDGE_FADE_SECONDS: f64 = 0.001;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = media_audio_validate_params -> ModuleParamErrors)]
 struct MediaAudioParams {
+    #[input("the media file whose audio track plays")]
     wav: Wav,
-    /// Playback rate: 1 is normal speed, 0 is silent (default 1).
+    #[input("playback rate: 1 normal speed, 2 double, 0 silent", range = (0.0, 16.0))]
     #[serde(default = "default_speed")]
     #[deserr(default = default_speed())]
     speed: f64,
-    /// Loop start in seconds (default 0).
+    #[input("where the loop starts, in seconds", range = (0.0, ..))]
     #[serde(default)]
     #[deserr(default)]
     loop_start: f64,
-    /// Loop end in seconds; the end of the file by default.
+    #[input("where the loop ends, in seconds; the end of the file when unset")]
     #[serde(default)]
     #[deserr(default)]
     loop_end: Option<f64>,
@@ -79,7 +83,7 @@ fn media_audio_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MediaAudioOutputs {
-    #[output("output", "audio of the media file", default)]
+    #[output("output", "the media file's audio", default)]
     sample: PolyOutput,
 }
 
@@ -102,10 +106,16 @@ struct MediaAudioState {
     fade_frames: f64,
 }
 
-/// Plays the audio track of a media file in a loop, at a fixed speed, from
-/// the loop start when the patch starts. The DSL creates one for each
-/// `$v.video(...).audio`.
-#[module(name = "_mediaAudio", categories(sampler), channels_derive = media_audio_derive_channel_count, args(wav), has_init, patch_update)]
+const MEDIA_AUDIO_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Looping media audio track",
+    description: "Loops the audio track of a media file at a fixed speed. Reach it through \
+                  `$v.video(...).audio` rather than creating one directly.",
+    categories: &[ModuleCategory::Sampler],
+    sections: &[],
+    examples: &[],
+};
+
+#[module(name = "_mediaAudio", docs = MEDIA_AUDIO_DOCS, channels_derive = media_audio_derive_channel_count, args(wav), has_init, patch_update)]
 pub struct MediaAudio {
     params: MediaAudioParams,
     outputs: MediaAudioOutputs,

@@ -297,13 +297,15 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
     });
 
     test('stray commas in the edited object are dropped', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { shape: 1,, |}).out()`);
-        expect(apply(source, addFix(fixes, 'fm'))).toBe(
-            `$saw('a3', { shape: 1, fm: $slider('fm', 0, -5, 5) }).out()`,
+        const { source, fixes } = fixesAt(
+            `$pulse('a3', { width: 1,, |}).out()`,
         );
-        const empty = fixesAt(`$saw('a3', {|,}).out()`);
-        expect(apply(empty.source, addFix(empty.fixes, 'fm'))).toBe(
-            `$saw('a3', { fm: $slider('fm', 0, -5, 5) }).out()`,
+        expect(apply(source, addFix(fixes, 'pwm'))).toBe(
+            `$pulse('a3', { width: 1, pwm: $slider('pwm', 0, -5, 5) }).out()`,
+        );
+        const empty = fixesAt(`$pulse('a3', {|,}).out()`);
+        expect(apply(empty.source, addFix(empty.fixes, 'pwm'))).toBe(
+            `$pulse('a3', { pwm: $slider('pwm', 0, -5, 5) }).out()`,
         );
     });
 
@@ -317,9 +319,11 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
     });
 
     test('a stray comma elsewhere in the call does not block the fix', () => {
-        const { source, fixes } = fixesAt(`$saw('a3',, { shape: 2.|5 }).out()`);
+        const { source, fixes } = fixesAt(
+            `$pulse('a3',, { width: 2.|5 }).out()`,
+        );
         expect(apply(source, wrapFix(fixes))).toContain(
-            `{ shape: $slider('shape', 2.5, 0, 5) }`,
+            `{ width: $slider('width', 2.5, 0, 5) }`,
         );
     });
 
@@ -342,27 +346,28 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
     });
 
     test('formatting repairs the separators Prettier would print', async () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { shape: 1,, |}).out()`);
-        const fix = await formatControlQuickFix(
-            source,
-            addFix(fixes, 'fm'),
-            PRETTIER,
+        const { source, fixes } = fixesAt(
+            `$pulse('a3', { width: 1,, |}).out()`,
         );
+        const fix = await formatControlQuickFix(source, addFix(fixes, 'pwm'), {
+            ...PRETTIER,
+            printWidth: 80,
+        });
         expect(apply(source, fix)).toBe(
-            `$saw('a3', { shape: 1, fm: $slider('fm', 0, -5, 5) }).out()`,
+            `$pulse('a3', { width: 1, pwm: $slider('pwm', 0, -5, 5) }).out()`,
         );
     });
 });
 
 describe('control quick-fixes never produce malformed JavaScript', () => {
     const VALID = [
-        `const bus = $bus((m) => m.out())\n$saw('a3', { shape: 2.5, fm: 1 }).$.lpf('100hz', 2,).out({ gain: 2.5 })\n$sine('c4').send(bus, 1).amp(0.5)`,
+        `const bus = $bus((m) => m.out())\n$pulse('a3', { width: 2.5, pwm: 1 }).$.lpf('100hz', 2,).out({ gain: 2.5 })\n$sine('c4').send(bus, 1).amp(0.5)`,
         `$sine(0).$m.lpf(2.5, '100hz', 1.0).outMono(0, 2.5)\n$setOutputGain(2.5)\n$c('a3').erratic(1, { speed: 1.5, })`,
-        `function f() {\n  return $saw(\n    'a3', // pitch\n    { shape: 1 /* x */ },\n  ).out()\n}\n$phase.bend(1.5, $phase.fold(1))`,
+        `function f() {\n  return $saw(\n    'a3', // pitch\n    { width: 1 /* x */ },\n  ).out()\n}\n$phase.bend(1.5, $phase.fold(1))`,
         `$v.out($v.osc(4, $v.time).$.osc(0.1).$m.osc(1, 4))\n$adsr($pulse('2hz'), { attack: 0.1 }).range(0, 5)`,
     ];
     const BROKEN = [
-        `$saw('a3',, { shape: 2.5 },,).out(\n$sine('c4').out({ gain: 2,, })`,
+        `$pulse('a3',, { width: 2.5 },,).out(\n$sine('c4').out({ gain: 2,, })`,
         `$sine(0).$.lpf('100hz' 2).out({ gain: 1 pan: 0 })\n$saw(,).send(bus,)`,
     ];
 

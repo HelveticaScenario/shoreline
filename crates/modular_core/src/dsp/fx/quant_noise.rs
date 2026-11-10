@@ -1,9 +1,7 @@
 //! Quantization-noise grit effect.
 //!
 //! Recreates the bright, granular digital fizz that a coarsely-quantized signal
-//! produces when its quantization error is differentiated — the same character
-//! the DPW saw oscillators emitted at low rates before their differencing was
-//! widened to f64. The signal is snapped to a coarse voltage grid (with dither
+//! produces when its quantization error is differentiated. The signal is snapped to a coarse voltage grid (with dither
 //! so the result is broadband noise rather than a tonal staircase buzz), the
 //! quantized value is differentiated to brighten it, and that grit is added back
 //! onto the dry signal.
@@ -12,27 +10,44 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct QuantNoiseParams {
-    /// input signal to grit up (bipolar, typically -5 to 5)
+    #[input(
+        "signal to grit up",
+        type = audio,
+    )]
     input: PolySignal,
-    /// grit amount — gain on the differentiated quantization residual that is
-    /// added to the signal (0 = clean, higher = more fizz)
-    #[signal(default = 1.0, range = (0.0, 5.0))]
+    #[input(
+        "how much grit is added: 0 clean, higher more fizz",
+        type = control,
+        default = 1.0,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     amount: PolySignal,
-    /// quantization step in volts: the grid the signal is snapped to. Coarser
-    /// (larger) steps give bigger, grainier grit.
-    #[signal(default = 0.25, range = (0.0, 5.0))]
+    #[input(
+        "size of the voltage grid the signal snaps to, in volts; bigger steps give coarser grit",
+        type = control,
+        default = 0.25,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     step: Option<PolySignal>,
-    /// dither depth (0–5). At 0 the grit is a tonal staircase buzz that tracks
-    /// the signal; at 5 the quantization is fully dithered into broadband noise.
-    #[signal(default = 5.0, range = (0.0, 5.0))]
+    #[input(
+        "dither depth: 0 a tonal staircase buzz that tracks the signal, 5 broadband noise",
+        type = control,
+        default = 5.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     dither: Option<PolySignal>,
 }
@@ -40,7 +55,7 @@ struct QuantNoiseParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct QuantNoiseOutputs {
-    #[output("output", "input with quantization-noise grit added", default)]
+    #[output("output", "the input with grit added", default)]
     sample: PolyOutput,
 }
 
@@ -71,23 +86,22 @@ struct QuantNoiseState {
     seeded: bool,
 }
 
-/// Adds bright, granular quantization noise to a signal.
-///
-/// The signal is snapped to a coarse voltage grid (`step`), dithered so the
-/// result is broadband noise instead of a tonal buzz, then the quantized value
-/// is differentiated and scaled by `amount` and summed back onto the dry signal.
-/// Because the grit is the signal's own (dithered) quantization residual, it
-/// tracks the signal's level and motion — feed it a slow LFO for a fizz that
-/// swells with the modulator, or audio for a crunchy digital edge.
-///
-/// ## Example
-///
-/// ```js
-/// $quantNoise($sine('c'), 2).out() // grainy, fizzy sine
-/// ```
+const QUANT_NOISE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Digital grit",
+    description: "Adds a bright, granular digital fizz on top of the signal. The grit follows \
+                  the signal's own level and motion, so it crackles on loud, moving material and \
+                  fades with it: a lo-fi edge for pads, drums or bass.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Fizzy lo-fi pad",
+        code: "$saw($chord('A2[m9]')).$.lpf('a4', 1).$.quantNoise(2).out()",
+    }],
+};
+
 #[module(
     name = "$quantNoise",
-    categories(distortion),
+    docs = QUANT_NOISE_DOCS,
     args(input, amount),
     patch_update
 )]

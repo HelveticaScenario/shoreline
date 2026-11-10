@@ -1,6 +1,6 @@
 /**
  * Golden outputs of every static analysis of patch source, over the
- * generated DSL's documented examples and the fixtures beside this file. A
+ * documented examples and the fixtures beside this file. A
  * change to how patch code is parsed or walked must leave these files
  * untouched unless it means to change what an analyzer reports; such a change
  * updates them with `vitest run dslAstGolden -u` and the diff shows exactly
@@ -17,11 +17,9 @@ import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
-import schemas from '@modular/core/schemas.json';
 
-import { buildLibSource } from '../../main/dsl/typescriptLibGen';
 import {
-    extractDocExamples,
+    allDocExamples,
     isTypeLevelExample,
 } from '../../main/dsl/__tests__/docExamples';
 import { FIXTURES } from './fixtures';
@@ -41,7 +39,7 @@ function hashOf(source: string): string {
 
 function docEntries(): Entry[] {
     const byHash = new Map<string, Entry>();
-    for (const example of extractDocExamples(buildLibSource(schemas))) {
+    for (const example of allDocExamples()) {
         if (isTypeLevelExample(example.code)) {
             continue;
         }

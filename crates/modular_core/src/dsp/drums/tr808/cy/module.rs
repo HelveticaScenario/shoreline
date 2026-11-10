@@ -4,38 +4,49 @@ use super::*;
 use crate::dsp::drums::input::{Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cy808Params {
-    /// rising edges strike the cymbal
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the cymbal", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// decay control, 0–5 V: how long the cymbal's lower band rings on (default
-    /// 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how long the cymbal's lower band rings on",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<PolySignal>,
-    /// tone control, 0–5 V: from dark, with the high band cut, to bright
-    /// (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "brightness, from dark with the high band cut to bright",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     tone: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 808 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike and hold them until the next, as
-    /// accent always is, so changes reach only the hits after them (default
-    /// false)
+    #[input(
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,
@@ -44,26 +55,29 @@ struct Cy808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Cy808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 cymbal.
-///
-/// A circuit model of the 808's cymbal: six detuned square waves filtered into
-/// a shimmering high band and a ringing lower one. **decay** sets how long the
-/// lower band rings, **tone** the balance from dark to bright, and **accent**
-/// how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.cymbal($clock.barTrigger).out()
-/// ```
+const CY808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 cymbal",
+    description: "The 808's cymbal: six detuned square waves filtered into a shimmering \
+                  high band over a ringing lower one, for a crash at the top of a phrase \
+                  or a washy ride.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Crash on the one",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            $tr808.cymbal($clock.barTrigger, { decay: 4 }).out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$tr808.cymbal",
-    categories(drum),
+    docs = CY808_DOCS,
     has_init,
     patch_update,
     args(trigger),

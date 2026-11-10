@@ -10,48 +10,60 @@ use crate::dsp::drums::input::{Held, Hold, Input, Live, each_slot_of};
 use crate::dsp::drums::tr808::metal::MetalFilters;
 use crate::dsp::drums::voice::rails;
 use crate::dsp::utils::rng::seed_base;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal};
 
 /// Scale each hat's output so an unaccented hit peaks near 5 V.
 const CLOSED_GAIN: f32 = 2.996;
 const OPEN_GAIN: f32 = 2.101;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Hh808Params {
-    /// rising edges strike the closed hat, which also cuts off a ringing
-    /// open hat
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input(
+        "rising edges strike the closed hat, which also cuts off a ringing open hat",
+        type = trig,
+    )]
     closed: PolySignal,
-    /// rising edges strike the open hat
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the open hat", type = trig)]
     #[deserr(default)]
     open: Option<PolySignal>,
-    /// accent, 0–5 V, sampled at each strike of either hat and held for the
-    /// hit: up to twice as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike of either hat: up to twice as loud at 5 V",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// decay control, 0–5 V: how long the open hat rings (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how long the open hat rings",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<PolySignal>,
-    /// how hard a closed hit cuts off the open hat, −5 to 5 V: 0 is the 808's
-    /// own cut, silencing it in about 100 ms; −5 lets it ring on, and 5
-    /// silences it in a few milliseconds (default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "how hard a closed hit cuts off the open hat: -5 lets it ring on, 0 is the 808's own cut of about 100 ms, 5 silences it in a few milliseconds",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     cut: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one on the same hat
-    /// strikes, so every hit starts from rest; otherwise each hit builds on the
-    /// last, as on the 808 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding on the same hat over 2 ms; off, each hit builds on the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike of either hat and hold them until
-    /// the next, as accent always is, so changes reach only the hits after
-    /// them (default false)
+    #[input(
+        "sample the controls on each strike of either hat and hold them until the next, as accent always is, so changes reach only the hits after them"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,
@@ -60,7 +72,7 @@ struct Hh808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Hh808Outputs {
-    #[output("output", "both hats", default, range = (-10.0, 10.0))]
+    #[output("output", "both hats; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output("closed", "the closed hat alone", range = (-10.0, 10.0))]
     closed: PolyOutput,
@@ -68,25 +80,28 @@ struct Hh808Outputs {
     open: PolyOutput,
 }
 
-/// TR-808 hi-hats, closed and open.
-///
-/// A circuit model of the 808's hi-hats: the cymbal's six square waves filtered
-/// to a thin, bright band. **closed** strikes a short, tight hat and **open** a
-/// longer one that rings for as long as **decay** sets; **accent** makes either
-/// hit harder.
-///
-/// As on the 808, a closed hit cuts off a ringing open hat. **cut** sets how
-/// hard: below 0 the open hat only ducks, and above 0 it stops dead.
-///
-/// An unaccented hit of either hat peaks near **±5 V** and a fully accented one
-/// near **±10 V**.
-///
-/// ```js
-/// $tr808.hiHat($clock.beatTrigger, { open: $clock.barTrigger, cut: -2 }).out()
-/// ```
+const HH808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 hi-hats",
+    description: "The 808's closed and open hi-hats: the cymbal's square waves filtered \
+                  to a thin, bright band, short and tight when closed and ringing when \
+                  open. As on the 808, a closed hit chokes a ringing open hat.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Hats with open offbeats",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            const open = $cycle($p('~ c ~ c ~ c ~ c')).trig
+            $tr808
+              .hiHat($cycle($p('c ~ c ~ c ~ c ~')).trig, { open })
+              .out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$tr808.hiHat",
-    categories(drum),
+    docs = HH808_DOCS,
     has_init,
     patch_update,
     args(closed),

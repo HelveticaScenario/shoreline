@@ -3,6 +3,8 @@ use schemars::JsonSchema;
 
 use self::voice::{RELEASE_SLOTS, Ramp, Release, Voice, push_release};
 use super::slice::SliceParam;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, DocSection, ModuleDocs};
 use crate::{
     Wav,
     dsp::utils::SchmittTrigger,
@@ -26,33 +28,39 @@ fn default_fade() -> f64 {
 /// Upper bound on the declick fade time.
 const MAX_FADE_MS: f64 = 1000.0;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = sampler_validate_params -> ModuleParamErrors)]
 struct SamplerParams {
+    #[input("the WAV file to play")]
     wav: Wav,
-    /// Gate input — rising edge starts playback of the selected window;
-    /// `mode` sets what the gate does after that.
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input(
+        "starts the selected slice playing; `mode` sets what the gate does after that",
+        type = gate,
+    )]
     gate: MonoSignal,
-    /// Playback speed. 1.0 = normal, 2.0 = double speed, negative = reverse.
-    #[signal(default = 1.0, range = (-4.0, 4.0))]
+    #[input(
+        "playback speed: 1 normal, 2 double (an octave up), negative plays in reverse",
+        type = control,
+        default = 1.0,
+        control_range = (-4.0, 4.0),
+    )]
     #[deserr(default)]
     speed: Option<MonoSignal>,
-    /// Slice selector: a mono signal (whole file as one slice) or
-    /// `[points, signal]` where points are fractions of the total length in
-    /// [0, 1]. Sampled at each gate rising edge and, while looping, once
-    /// per repeat as the pass comes within a fade width of its end: the
-    /// integer part picks the slice (wrapping), the fraction offsets the
-    /// start into it.
+    #[input(
+        "which slice plays, read at each gate and each loop repeat: a signal, or `[points, signal]` to cut the file into slices (see Slicing)"
+    )]
     #[deserr(default)]
     slice: Option<SliceParam>,
-    /// Declick fade in milliseconds: fade-in at onset, fade-out at the window
-    /// exit edge and on release, and retrigger crossfade. 0 disables.
+    #[input(
+        "declick fade in milliseconds, at the start and end of each pass, on release and across retriggers; 0 turns it off",
+        range = (0.0, 1000.0)
+    )]
     #[serde(default = "default_fade")]
     #[deserr(default = default_fade())]
     fade: f64,
-    /// What the gate does once playback starts (default `'once'`).
+    #[input("what the gate does once playback starts", default = "once")]
     #[serde(default)]
     #[deserr(default)]
     mode: SamplerMode,
@@ -63,20 +71,14 @@ struct SamplerParams {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 enum SamplerMode {
-    /// Each rising edge plays the window through; the gate falling does
-    /// nothing.
+    /// each gate plays the slice through; the gate falling does nothing
     #[default]
     Once,
-    /// The window repeats while the gate is high: each time a pass reaches
-    /// its window's end, the slice is picked again and the next pass starts
-    /// on time, so passes never drift. With a fade, the crossfade uses the
-    /// audio just before the next window (after it in reverse), topped up by
-    /// letting the old pass run on past its end. When the gate falls,
-    /// playback fades out over `fade`; when the next slice is empty or the
-    /// mode changes, the current pass plays out.
+    /// the slice repeats in time while the gate is high, picking the slice
+    /// again at each repeat, and fades out over `fade` when the gate falls
     Loop,
-    /// The window plays while the gate is high and fades out over `fade`
-    /// when it falls.
+    /// the slice plays while the gate is high and fades out over `fade` when
+    /// it falls
     Gate,
 }
 
@@ -109,7 +111,7 @@ fn sampler_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SamplerOutputs {
-    #[output("output", "sample playback output", default)]
+    #[output("output", "the played sample", default)]
     sample: PolyOutput,
 }
 
@@ -145,23 +147,40 @@ struct SamplerState {
     playing_out: bool,
 }
 
-/// Sample player. Each gate rising edge starts playback of the whole file,
-/// or of one slice when `slice` is set. The slice signal is sampled at the
-/// edge: integer part picks the slice point (wrapping), fraction offsets the
-/// start into it. `mode` sets what the gate does next: `'once'` plays the
-/// window through, `'gate'` plays it while the gate is high, and `'loop'`
-/// repeats it while the gate is high, picking the slice again for each
-/// repeat. Speed control allows pitch-shifting and reverse playback (a slice
-/// plays the same region backwards). A short `fade` (milliseconds) declicks
-/// onsets, slice ends, releases, and retriggers.
-///
-/// ```js
-/// $sampler($wavs().kick, $clock.beatTrigger)
-/// $sampler($wavs().pad, $pulse('1hz'), { speed: 0.5, mode: 'gate' })
-/// $sampler($wavs().pad, $pulse('2hz'), { slice: [[0, 0.25, 0.5, 0.75], $cycle($p('0 1 2 3')).cv], fade: 2 })
-/// $sampler($wavs().pad, $pulse('0.5hz'), { mode: 'loop', fade: 10 })
-/// ```
-#[module(name = "$sampler", categories(sampler), channels_derive = sampler_derive_channel_count, args(wav, gate), has_init, patch_update)]
+const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Gate-triggered sample player",
+    description: "Plays a WAV file, or one slice of it, each time the gate rises: one-shots, \
+                  held notes or loops depending on `mode`. Change `speed` to pitch it up, down \
+                  or into reverse, and step `slice` through a pattern to chop a break.",
+    categories: &[ModuleCategory::Sampler],
+    sections: &[DocSection {
+        title: "Slicing",
+        body: "Give `slice` a signal and the whole file is one slice. Give it `[points, signal]` \
+               to cut the file, each point a slice start as a fraction of the file from 0 to 1. \
+               Either way the signal's whole part picks the slice, wrapping past the last, and \
+               its fraction starts playback partway into it.",
+        table: None,
+        examples: &[],
+    }],
+    examples: &[
+        DocExample {
+            title: "Chopped and rearranged loop",
+            code: r#"
+                const order = $cycle($p('0 2 1 3 0 0 3 2'))
+                $sampler($wavs().pad, order.trig, {
+                  slice: [[0, 0.25, 0.5, 0.75], order],
+                  fade: 2,
+                }).out()
+            "#,
+        },
+        DocExample {
+            title: "Kick on every beat",
+            code: "$sampler($wavs().kick, $clock.beatTrigger).out()",
+        },
+    ],
+};
+
+#[module(name = "$sampler", docs = SAMPLER_DOCS, channels_derive = sampler_derive_channel_count, args(wav, gate), has_init, patch_update)]
 pub struct Sampler {
     params: SamplerParams,
     outputs: SamplerOutputs,

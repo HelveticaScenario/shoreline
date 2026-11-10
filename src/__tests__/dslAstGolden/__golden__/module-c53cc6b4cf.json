@@ -1,0 +1,239 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["5:4",5,5]],
+      "interpolations": [],
+      "registry": [
+        ["5:4","$unstable.filter.fastSvf",[["resonance",71,72],["mode",86,90]]],
+        ["5:12","$saw",[["freq",33,37]]],
+        ["5:24","$sine",[["freq",46,50]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 100,
+        "gainClear": null,
+        "gainSet": {"end":104,"start":104,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":104,"start":104,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":104,"start":104,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":104,"start":104,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["28-32 0","33-37 1","40-45 2","46-50 3","58-62 4","64-68 5","71-72 6","96-104 7"],
+      "fixes": [
+        [
+          {
+            "caretOffset": 40,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", {\n    shape: $slider('shape', 0, 0, 5),\n  }",
+            "span": {"end":37,"start":37},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 26,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n    sync: $btn('sync'),\n  }",
+            "span": {"end":37,"start":37},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 52,
+            "controlOffset": 21,
+            "kind": "add",
+            "newText": ", {\n    phaseOffset: $slider('phaseOffset', 0, 0, 1),\n  }",
+            "span": {"end":37,"start":37},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'c2', 'c0', 'c4')",
+            "preferred": true,
+            "span": {"end":37,"start":33},
+            "title": "Wrap 'freq' in a note $slider"
+          },
+          {
+            "caretOffset": 40,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", {\n    shape: $slider('shape', 0, 0, 5),\n  }",
+            "span": {"end":37,"start":37},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 26,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n    sync: $btn('sync'),\n  }",
+            "span": {"end":37,"start":37},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 52,
+            "controlOffset": 21,
+            "kind": "add",
+            "newText": ", {\n    phaseOffset: $slider('phaseOffset', 0, 0, 1),\n  }",
+            "span": {"end":37,"start":37},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n    sync: $btn('sync'),\n  }",
+            "span": {"end":50,"start":50},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 52,
+            "controlOffset": 21,
+            "kind": "add",
+            "newText": ", {\n    phaseOffset: $slider('phaseOffset', 0, 0, 1),\n  }",
+            "span": {"end":50,"start":50},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'c3', 'c1', 'c5')",
+            "preferred": true,
+            "span": {"end":50,"start":46},
+            "title": "Wrap 'freq' in a note $slider"
+          },
+          {
+            "caretOffset": 26,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n    sync: $btn('sync'),\n  }",
+            "span": {"end":50,"start":50},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 52,
+            "controlOffset": 21,
+            "kind": "add",
+            "newText": ", {\n    phaseOffset: $slider('phaseOffset', 0, 0, 1),\n  }",
+            "span": {"end":50,"start":50},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 35,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMin', 'c4', 'c2', 'c6')",
+            "preferred": true,
+            "span": {"end":62,"start":58},
+            "title": "Wrap 'outMin' in a note $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 35,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMax', 'c6', 'c4', 'c8')",
+            "preferred": true,
+            "span": {"end":68,"start":64},
+            "title": "Wrap 'outMax' in a note $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 29,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('resonance', 3, 0, 5)",
+            "preferred": true,
+            "span": {"end":72,"start":71},
+            "title": "Wrap 'resonance' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ gain: $slider('gain', 5, 0, 5) }",
+            "span": {"end":104,"start":104},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":104,"start":104},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ width: $slider('width', 0, 0, 5) }",
+            "span": {"end":104,"start":104},
+            "title": "Add slider for 'width'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":105,"start":105,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":26,"start":26,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["5:12","$saw",[["freq",33,37]]],["5:24","$sine",[["freq",46,50]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":52,"start":52,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [
+          ["5:4","$unstable.filter.fastSvf",[["resonance",71,72]]],
+          ["5:12","$saw",[["freq",33,37]]],
+          ["5:24","$sine",[["freq",46,50]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":78,"start":78,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

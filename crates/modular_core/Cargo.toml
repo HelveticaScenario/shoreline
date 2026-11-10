@@ -27,7 +27,7 @@ keyframe = "1.1"
 modular_derive = { version = "*", path = "../modular_derive" }
 parking_lot = "0.12"
 mi-plaits-dsp = { version = "0.1", path = "../mi-plaits-dsp-rs" }
-schemars = "1.1.0"
+schemars = { version = "1.1.0", features = ["preserve_order"] }
 deserr = { version = "0.6", features = ["serde-json"] }
 simple-easing = "1.0.1"
 napi-derive = "3.4.1"

@@ -2,11 +2,12 @@
  * Which control call to offer for a module param, from its schema metadata.
  *
  * The param's `signalType` picks the control: `gate` params get a
- * `$toggleBtn` or momentary `$btn`, `trig` params a `$btn`, and everything
- * else a `$slider`. A slider for a `pitch` param travels in notes and one for
- * a `frequency` param in hz; wrapping an existing note or hz literal keeps
- * the literal's unit. Unit sliders span two octaves either side of their
- * value, within the param's schema range.
+ * `$toggleBtn` or momentary `$btn`, `trig` params a `$btn`, `audio` params
+ * none, and everything else a `$slider`. A `control` slider spans the param's
+ * control range. A slider for a `pitch` param travels in notes and one for a
+ * `frequency` param in hz; wrapping an existing note or hz literal keeps the
+ * literal's unit. Unit sliders span two octaves either side of their value,
+ * within the param's usable range.
  */
 import {
     formatHzLiteral,
@@ -20,10 +21,12 @@ import {
 export interface ParamSpec {
     signalType: string;
     defaultValue: number;
-    minValue: number;
-    maxValue: number;
-    /** The range is a guess, so unit sliders ignore it. */
-    freeUnits?: boolean;
+    /** Usable range; either side may be open. */
+    minValue?: number;
+    maxValue?: number;
+    /** Slider span; set on every `control` param. */
+    controlMin?: number;
+    controlMax?: number;
 }
 
 /** A literal param value a control can take over. */
@@ -85,6 +88,8 @@ export function wrapChoices(
         ];
     }
     switch (spec.signalType) {
+        case 'audio':
+            return [];
         case 'gate':
             return [
                 {
@@ -140,6 +145,8 @@ export function addChoices(
         title: `Add ${what} for '${name}'`,
     });
     switch (spec.signalType) {
+        case 'audio':
+            return [];
         case 'pitch': {
             const note = voltsToNoteName(spec.defaultValue);
             const volts = parseSliderValue(note).volts;
@@ -196,7 +203,8 @@ export function addChoices(
     }
 }
 
-/** A volts slider over the schema range, widened to include the value.
+/** A volts slider over the control range, widened to include the value; a
+ *  param without one (pitch, frequency) spans octaves around the value.
  *  `label` and the value arrive as source text. */
 function numberSlider(
     label: string,
@@ -204,17 +212,34 @@ function numberSlider(
     value: number,
     spec: ParamSpec,
 ): string {
-    const min = fmt(Math.min(spec.minValue, value));
-    const max = fmt(Math.max(spec.maxValue, value));
+    const [lo, hi] =
+        spec.controlMin !== undefined && spec.controlMax !== undefined
+            ? [spec.controlMin, spec.controlMax]
+            : octaveSpan(value, spec);
+    const min = fmt(Math.min(lo, value));
+    const max = fmt(Math.max(hi, value));
     return `$slider(${label}, ${valueText}, ${min}, ${max})`;
 }
 
 /**
- * A note or hz slider spanning UNIT_SPAN_OCTAVES either side of `volts`. A
- * side is clipped at a schema limit only when the value lies within it, so
- * a value past a limit (e.g. an LFO-rate '1hz') still gets its full span,
- * and neither side is clipped for a spec with `freeUnits`.
+ * UNIT_SPAN_OCTAVES either side of `volts`. A side is clipped at a
+ * usable-range limit only when the value lies within it, so a value past a
+ * limit (e.g. an LFO-rate '1hz') still gets its full span.
  */
+function octaveSpan(volts: number, spec: ParamSpec): [number, number] {
+    const { minValue, maxValue } = spec;
+    const lo =
+        minValue !== undefined && volts >= minValue
+            ? Math.max(volts - UNIT_SPAN_OCTAVES, minValue)
+            : volts - UNIT_SPAN_OCTAVES;
+    const hi =
+        maxValue !== undefined && volts <= maxValue
+            ? Math.min(volts + UNIT_SPAN_OCTAVES, maxValue)
+            : volts + UNIT_SPAN_OCTAVES;
+    return [lo, hi];
+}
+
+/** A note or hz slider over the octave span around `volts`. */
 function unitSlider(
     label: string,
     unit: 'note' | 'hz',
@@ -223,15 +248,7 @@ function unitSlider(
     spec: ParamSpec,
     quote: string,
 ): string {
-    const clip = !spec.freeUnits;
-    const lo =
-        clip && volts >= spec.minValue
-            ? Math.max(volts - UNIT_SPAN_OCTAVES, spec.minValue)
-            : volts - UNIT_SPAN_OCTAVES;
-    const hi =
-        clip && volts <= spec.maxValue
-            ? Math.min(volts + UNIT_SPAN_OCTAVES, spec.maxValue)
-            : volts + UNIT_SPAN_OCTAVES;
+    const [lo, hi] = octaveSpan(volts, spec);
     const bound = (v: number) =>
         `${quote}${unit === 'note' ? voltsToNoteName(v) : formatHzLiteral(voltsToHz(v))}${quote}`;
     return `$slider(${label}, ${valueText}, ${bound(lo)}, ${bound(hi)})`;

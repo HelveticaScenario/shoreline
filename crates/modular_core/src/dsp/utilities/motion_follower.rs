@@ -1,3 +1,5 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         shape::shapers::tanh_driven,
@@ -8,31 +10,58 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MotionFollowerParams {
-    /// controller signal whose movement drives the output
+    #[input(
+        "controller signal whose movement drives the output",
+        type = audio,
+    )]
     input: PolySignal,
-    /// seconds for the level to rise toward the current speed (default 0.02)
-    #[signal(default = 0.02, range = (0.0, 5.0))]
+    #[input(
+        "how fast the level swells as movement speeds up, in seconds",
+        type = control,
+        default = 0.02,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     attack: Option<PolySignal>,
-    /// seconds for the level to fall once movement slows or stops (default 0.3)
-    #[signal(default = 0.3, range = (0.0, 10.0))]
+    #[input(
+        "how fast the level fades once movement slows or stops, in seconds",
+        type = control,
+        default = 0.3,
+        range = (0.0, ..),
+        control_range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     release: Option<PolySignal>,
-    /// seconds of averaging applied to the speed before attack/release; set it
-    /// longer than the gap between controller updates to hide stepping (default 0.02)
-    #[signal(default = 0.02, range = (0.0, 1.0))]
+    #[input(
+        "seconds of averaging on the movement speed; set it longer than the gap between controller updates to hide stepping",
+        type = control,
+        default = 0.02,
+        range = (0.0, ..),
+        control_range = (0.0, 1.0),
+    )]
     #[deserr(default)]
     smooth: Option<PolySignal>,
-    /// volts of output per volt-per-second of movement (default 0.25)
-    #[signal(default = 0.25, range = (0.0, 10.0))]
+    #[input(
+        "sensitivity: how much output a given speed of movement gives, in volts per volt-per-second; negative flips the output below 0",
+        type = control,
+        default = 0.25,
+        control_range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     gain: Option<PolySignal>,
-    /// soft-clip ceiling in volts; the output never exceeds it (default 5)
-    #[signal(default = 5.0, range = (0.0, 20.0))]
+    #[input(
+        "level the output softly saturates toward and never passes, in volts",
+        type = control,
+        default = 5.0,
+        range = (0.001, ..),
+        control_range = (0.001, 20.0),
+    )]
     #[deserr(default)]
     ceiling: Option<PolySignal>,
 }
@@ -40,7 +69,7 @@ struct MotionFollowerParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MotionFollowerOutputs {
-    #[output("output", "movement level in either direction (0 V at rest)", default, range = (0.0, 5.0))]
+    #[output("output", "movement level in either direction, 0 V at rest", default, range = (0.0, 5.0))]
     sample: PolyOutput,
     #[output("pos", "movement level from rising input only", range = (0.0, 5.0))]
     pos: PolyOutput,
@@ -91,27 +120,31 @@ struct MotionFollowerChannelState {
     release: Cached<f32>,
 }
 
-/// Turns controller movement into a level, like bowing a string: moving the
-/// input in either direction swells the output, holding it still lets it fade.
-///
-/// The input's speed (volts per second, direction ignored) is averaged over
-/// **smooth** seconds, then followed with separate **attack** and **release**
-/// times. **gain** converts speed to volts and a soft clip keeps the output
-/// below **ceiling**.
-///
-/// **pos** and **neg** are the same level driven only by rising or only by
-/// falling input, so pushing and releasing a controller can steer different
-/// destinations. Both are positive voltages.
-///
-/// Stepped controllers such as 7-bit MIDI CC jump in small increments, so
-/// their raw speed is a train of spikes; a **smooth** time several times longer
-/// than the gap between updates averages them into a steady level.
-///
-/// ```js
-/// // a slowly swinging LFO bows a filter open on every sweep
-/// $lpf($saw('c3'), $motionFollower($sine('0.5hz'), { release: 0.5 }).range('c3', 'c7')).out()
-/// ```
-#[module(name = "$motionFollower", categories(envelope), args(input))]
+const MOTION_FOLLOWER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Movement to level",
+    description: "Turns controller movement into a level, like bowing a string: moving \
+                  the input either way swells the output, and holding it still lets it \
+                  fade. `.pos` and `.neg` follow only rising or only falling movement, \
+                  so pushing and pulling a control can steer different things.",
+    categories: &[ModuleCategory::Envelope],
+    sections: &[],
+    examples: &[DocExample {
+        title: "A swinging LFO bows the filter open",
+        code: r#"
+            $saw('c3')
+              .$.lpf(
+                $motionFollower($sine('0.5hz'), { release: 0.5 }).range(
+                  'c3',
+                  'c7',
+                ),
+                1,
+              )
+              .out()
+        "#,
+    }],
+};
+
+#[module(name = "$motionFollower", docs = MOTION_FOLLOWER_DOCS, args(input))]
 pub struct MotionFollower {
     outputs: MotionFollowerOutputs,
     params: MotionFollowerParams,

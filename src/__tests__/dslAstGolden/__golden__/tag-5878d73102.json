@@ -23,18 +23,8 @@
       }
     ],
     "quickFixes": {
-      "at": ["119-133 0","147-151 1","170-181 2"],
+      "at": ["147-151 0","170-181 1"],
       "fixes": [
-        [
-          {
-            "caretOffset": 45,
-            "controlOffset": 12,
-            "kind": "add",
-            "newText": ", {\n  rate: $slider('rate', 'c4', 'c2', 'c6'),\n}",
-            "span": {"end":133,"start":133},
-            "title": "Add note slider for 'rate'"
-          }
-        ],
         [
           {
             "caretOffset": 27,

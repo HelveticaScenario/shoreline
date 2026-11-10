@@ -3,9 +3,11 @@ import {
     BookOpen,
     Files,
     type LucideIcon,
+    Settings,
     SlidersHorizontal,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
+import { useEditableConfig } from '../hooks/useEditableConfig';
 import { registerCommand, unregisterCommand } from '../keybindings/commands';
 import { DocsPanel } from './DocsPanel';
 import {
@@ -13,16 +15,30 @@ import {
     SHOW_DOCS_COMMAND,
     toDocsTarget,
 } from './docsCommand';
-import { SidebarSash, sidebarPanelStyle, useSidebarWidth } from './SidebarSash';
+import { SettingsPanel } from './SettingsPanel';
+import {
+    SidebarSash,
+    sidebarPanelStyle,
+    useSidebarSide,
+    useSidebarWidth,
+} from './SidebarSash';
 import './Sidebar.css';
 
-export type SidebarTab = 'explorer' | 'control' | 'perform' | 'docs';
+export type SidebarTab =
+    | 'explorer'
+    | 'control'
+    | 'perform'
+    | 'docs'
+    | 'settings';
+
+const OPEN_SETTINGS_COMMAND = 'shoreline.openSettings';
 
 const TABS: { id: SidebarTab; label: string; icon: LucideIcon }[] = [
     { id: 'explorer', label: 'Explorer', icon: Files },
     { id: 'control', label: 'Control', icon: SlidersHorizontal },
     { id: 'perform', label: 'Perform', icon: Activity },
     { id: 'docs', label: 'Docs', icon: BookOpen },
+    { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -40,6 +56,8 @@ export function Sidebar({
     const activeLabel = TABS.find(({ id }) => id === activeTab)?.label;
     const [width, setWidth] = useSidebarWidth();
     const [docsTarget, setDocsTarget] = useState<DocsTarget | null>(null);
+    const [config, changeConfig, configLoaded] = useEditableConfig(true);
+    const side = useSidebarSide(config.sidebarSide, configLoaded);
 
     useEffect(() => {
         registerCommand(
@@ -50,14 +68,23 @@ export function Sidebar({
             },
             { label: 'Show Docs', category: 'View' },
         );
+        registerCommand(OPEN_SETTINGS_COMMAND, () => setActiveTab('settings'), {
+            label: 'Open Settings',
+            category: 'Preferences',
+        });
         return () => {
             unregisterCommand(SHOW_DOCS_COMMAND);
+            unregisterCommand(OPEN_SETTINGS_COMMAND);
         };
     }, []);
 
     return (
-        <div className="app-sidebar">
-            <SidebarSash panelId="app-sidebar-panel" onWidthChange={setWidth} />
+        <div className={`app-sidebar ${side}`}>
+            <SidebarSash
+                panelId="app-sidebar-panel"
+                side={side}
+                onWidthChange={setWidth}
+            />
             <section
                 id="app-sidebar-panel"
                 className="app-sidebar-panel"
@@ -69,6 +96,7 @@ export function Sidebar({
                 </h2>
                 <div className="app-sidebar-content">
                     {activeTab !== 'docs' &&
+                        activeTab !== 'settings' &&
                         {
                             control: controlContent,
                             explorer: explorerContent,
@@ -79,6 +107,11 @@ export function Sidebar({
                         target={docsTarget}
                         hidden={activeTab !== 'docs'}
                     />
+                    <SettingsPanel
+                        hidden={activeTab !== 'settings'}
+                        config={config}
+                        onConfigChange={changeConfig}
+                    />
                 </div>
             </section>
             <nav className="app-activity-bar" aria-label="Sidebar panels">
@@ -88,7 +121,7 @@ export function Sidebar({
                         aria-pressed={activeTab === id}
                         aria-label={label}
                         title={label}
-                        className={`app-activity-bar-item ${activeTab === id ? 'active' : ''}`}
+                        className={`app-activity-bar-item ${id} ${activeTab === id ? 'active' : ''}`}
                         onClick={() => setActiveTab(id)}
                     >
                         <Icon size={22} strokeWidth={1.5} aria-hidden />
