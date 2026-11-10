@@ -218,7 +218,7 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
         code: r#"
             const notes = $cycle($p('c4 eb4 g4 bb4'))
             $sine(notes)
-              .amp($perc(notes.trig, { decay: 0.2 }))
+              .amp($perc(notes, { decay: 0.2 }))
               .$m.dattorro(2, { decay: 3 })
               .out()
         "#,

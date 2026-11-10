@@ -216,7 +216,7 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
                   'C(major)',
                 )
                 $sine(melody)
-                  .amp($perc(melody.trig, { decay: 0.3 }))
+                  .amp($perc(melody, { decay: 0.3 }))
                   .out()
             "#,
         },

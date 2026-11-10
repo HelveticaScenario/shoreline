@@ -80,7 +80,7 @@ const FOLD_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const notes = $cycle($p('c3 g3 eb3 bb2'))
                 $sine(notes)
-                  .$.fold($perc(notes.trig, { decay: 0.4 }), {
+                  .$.fold($perc(notes, { decay: 0.4 }), {
                     freq: notes,
                   })
                   .out()

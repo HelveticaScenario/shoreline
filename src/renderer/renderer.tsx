@@ -81,7 +81,7 @@ import { ThemeProvider } from './themes/ThemeContext';
 
 // Configure Monaco Editor workers for Vite (replaces MonacoWebpackPlugin)
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+import tsWorker from './components/monaco/dslTsWorker?worker';
 import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
 

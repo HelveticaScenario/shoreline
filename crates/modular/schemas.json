@@ -1228,11 +1228,11 @@
       "examples": [
         {
           "title": "Booming four on the floor",
-          "code": "$tr808.kick($cycle($p('c*4')).trig, { decay: 4 }).out()"
+          "code": "$tr808.kick($p('c*4').c, { decay: 4 }).out()"
         },
         {
           "title": "Tuned 808 bassline",
-          "code": "const bass = $cycle($p('g1 ~ ~ g1 ~ ~ bb1 c2'))\n$tr808.kick(bass.trig, { freq: bass, decay: 4.5 }).out()"
+          "code": "const bass = $cycle($p('g1 ~ ~ g1 ~ ~ bb1 c2'))\n$tr808.kick(bass, { freq: bass, decay: 4.5 }).out()"
         }
       ]
     },
@@ -1436,7 +1436,7 @@
       "examples": [
         {
           "title": "Electro backbeat",
-          "code": "$tr808\n  .kick($cycle($p('c ~ ~ c ~ ~ c ~')).trig, { decay: 3 })\n  .out()\n$tr808\n  .snare($cycle($p('~ c ~ c')).trig, { snappy: 4 })\n  .out()"
+          "code": "$tr808.kick($p('c(3,8)').c, { decay: 3 }).out()\n$tr808.snare($p('~ c ~ c').c, { snappy: 4 }).out()"
         }
       ]
     },
@@ -1640,7 +1640,7 @@
       "examples": [
         {
           "title": "Syncopated rim clicks",
-          "code": "$tr808.kick($cycle($p('c*4')).trig).out()\n$tr808.rimShot($cycle($p('c(3,8)')).trig).out()"
+          "code": "$tr808.kick($p('c*4').c).out()\n$tr808.rimShot($p('c(3,8)').c).out()"
         }
       ]
     },
@@ -1802,7 +1802,7 @@
       "examples": [
         {
           "title": "Son clave",
-          "code": "$tr808\n  .claves(\n    $cycle($p('c ~ ~ c ~ ~ c ~ ~ ~ c ~ c ~ ~ ~')).trig,\n  )\n  .out()"
+          "code": "$tr808.claves($p('c ~ ~ c ~ ~ c ~ ~ ~ c ~ c ~ ~ ~').c).out()"
         }
       ]
     },
@@ -1985,11 +1985,11 @@
       "examples": [
         {
           "title": "Cowbell riff",
-          "code": "$tr808.kick($cycle($p('c*4')).trig).out()\n$tr808.cowbell($cycle($p('~ c ~ c c ~ c ~')).trig).out()"
+          "code": "$tr808.kick($p('c*4').c).out()\n$tr808.cowbell($p('~ c ~ c c ~ c ~').c).out()"
         },
         {
           "title": "Tuned cowbell melody",
-          "code": "const bell = $cycle($p('c5 ~ eb5 c5 ~ g4 ~ bb4'))\n$tr808.cowbell(bell.trig, { freq: bell }).out()"
+          "code": "const bell = $cycle($p('c5 ~ eb5 c5 ~ g4 ~ bb4'))\n$tr808.cowbell(bell, { freq: bell }).out()"
         }
       ]
     },
@@ -2151,7 +2151,7 @@
       "examples": [
         {
           "title": "Clap on two and four",
-          "code": "$tr808.kick($cycle($p('c*4')).trig).out()\n$tr808.clap($cycle($p('~ c ~ c')).trig).out()"
+          "code": "$tr808.kick($p('c*4').c).out()\n$tr808.clap($p('~ c ~ c').c).out()"
         }
       ]
     },
@@ -2291,7 +2291,7 @@
       "examples": [
         {
           "title": "Sixteenth shaker",
-          "code": "$tr808.kick($cycle($p('c*4')).trig).out()\n$tr808.maracas($cycle($p('c*16')).trig).out()"
+          "code": "$tr808.kick($p('c*4').c).out()\n$tr808.maracas($p('c*16').c).out()"
         }
       ]
     },
@@ -2431,7 +2431,7 @@
       "examples": [
         {
           "title": "Crash on the one",
-          "code": "$tr808.kick($cycle($p('c*4')).trig).out()\n$tr808.cymbal($clock.barTrigger, { decay: 4 }).out()"
+          "code": "$tr808.kick($p('c*4').c).out()\n$tr808.cymbal($clock.barTrigger, { decay: 4 }).out()"
         }
       ]
     },
@@ -2618,7 +2618,7 @@
       "examples": [
         {
           "title": "Hats with open offbeats",
-          "code": "$tr808.kick($cycle($p('c*4')).trig).out()\nconst open = $cycle($p('~ c ~ c ~ c ~ c')).trig\n$tr808\n  .hiHat($cycle($p('c ~ c ~ c ~ c ~')).trig, { open })\n  .out()"
+          "code": "$tr808.kick($p('c*4').c).out()\nconst open = $p('~ c ~ c ~ c ~ c').c\n$tr808.hiHat($p('c ~ c ~ c ~ c ~').c, { open }).out()"
         }
       ]
     },
@@ -2839,7 +2839,7 @@
       "examples": [
         {
           "title": "Booming tom groove",
-          "code": "$tr808\n  .lowTom($cycle($p('c ~ ~ c ~ ~ c ~')).trig, { decay: 4 })\n  .out()"
+          "code": "$tr808.lowTom($p('c(3,8)').c, { decay: 4 }).out()"
         }
       ]
     },
@@ -3022,7 +3022,7 @@
       "examples": [
         {
           "title": "Tom fill",
-          "code": "$tr808.highTom($cycle($p('~ ~ ~ ~ c c ~ ~')).trig).out()\n$tr808.midTom($cycle($p('~ ~ ~ ~ ~ ~ c ~')).trig).out()\n$tr808.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ c')).trig).out()"
+          "code": "$tr808.highTom($p('~ ~ ~ ~ c c ~ ~').c).out()\n$tr808.midTom($p('~ ~ ~ ~ ~ ~ c ~').c).out()\n$tr808.lowTom($p('~ ~ ~ ~ ~ ~ ~ c').c).out()"
         }
       ]
     },
@@ -3205,7 +3205,7 @@
       "examples": [
         {
           "title": "Tuned tom melody",
-          "code": "const toms = $cycle($p('g3 ~ bb3 c4 ~ g3 f3 ~'))\n$tr808.highTom(toms.trig, { freq: toms }).out()"
+          "code": "const toms = $cycle($p('g3 ~ bb3 c4 ~ g3 f3 ~'))\n$tr808.highTom(toms, { freq: toms }).out()"
         }
       ]
     },
@@ -3388,7 +3388,7 @@
       "examples": [
         {
           "title": "Two-conga pattern",
-          "code": "$tr808.lowConga($cycle($p('~ ~ c ~ ~ c c ~')).trig).out()\n$tr808.highConga($cycle($p('c ~ ~ c ~ ~ ~ ~')).trig).out()"
+          "code": "$tr808.lowConga($p('~ ~ c ~ ~ c c ~').c).out()\n$tr808.highConga($p('c ~ ~ c ~ ~ ~ ~').c).out()"
         }
       ]
     },
@@ -3571,7 +3571,7 @@
       "examples": [
         {
           "title": "Congas and claves",
-          "code": "$tr808.midConga($cycle($p('c ~ c c ~ c ~ ~')).trig).out()\n$tr808.claves($cycle($p('c ~ ~ c ~ ~ c ~')).trig).out()"
+          "code": "$tr808.midConga($p('c ~ c c ~ c ~ ~').c).out()\n$tr808.claves($p('c(3,8)').c).out()"
         }
       ]
     },
@@ -3754,7 +3754,7 @@
       "examples": [
         {
           "title": "Three-conga groove",
-          "code": "$tr808.highConga($cycle($p('c ~ ~ c ~ ~ ~ ~')).trig).out()\n$tr808.midConga($cycle($p('~ ~ c ~ ~ c ~ ~')).trig).out()\n$tr808.lowConga($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()"
+          "code": "$tr808.highConga($p('c ~ ~ c ~ ~ ~ ~').c).out()\n$tr808.midConga($p('~ ~ c ~ ~ c ~ ~').c).out()\n$tr808.lowConga($p('~ ~ ~ ~ ~ ~ c c').c).out()"
         }
       ]
     },
@@ -3937,7 +3937,7 @@
       "examples": [
         {
           "title": "Four on the floor",
-          "code": "$tr909.kick($cycle($p('c*4')).trig, { decay: 4 }).out()"
+          "code": "$tr909.kick($p('c*4').c, { decay: 4 }).out()"
         }
       ]
     },
@@ -4162,7 +4162,7 @@
       "examples": [
         {
           "title": "Backbeat doubled on four",
-          "code": "$tr909.kick($cycle($p('c*4')).trig).out()\n$tr909\n  .snare($cycle($p('~ c ~ [c c]')).trig, { snappy: 4 })\n  .out()"
+          "code": "$tr909.kick($p('c*4').c).out()\n$tr909.snare($p('~ c ~ [c c]').c, { snappy: 4 }).out()"
         }
       ]
     },
@@ -4366,7 +4366,7 @@
       "examples": [
         {
           "title": "Ticking rim shots",
-          "code": "$tr909.kick($cycle($p('c*4')).trig).out()\n$tr909.rimShot($cycle($p('~ c ~ c c ~ ~ c')).trig).out()"
+          "code": "$tr909.kick($p('c*4').c).out()\n$tr909.rimShot($p('~ c ~ c c ~ ~ c').c).out()"
         }
       ]
     },
@@ -4506,7 +4506,7 @@
       "examples": [
         {
           "title": "House clap",
-          "code": "$tr909.kick($cycle($p('c*4')).trig).out()\n$tr909.clap($cycle($p('~ c ~ c')).trig).out()"
+          "code": "$tr909.kick($p('c*4').c).out()\n$tr909.clap($p('~ c ~ c').c).out()"
         }
       ]
     },
@@ -4646,7 +4646,7 @@
       "examples": [
         {
           "title": "Tom fill",
-          "code": "$tr909.kick($cycle($p('c*4')).trig).out()\n$tr909.highTom($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()\n$tr909.midTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [c ~]')).trig).out()\n$tr909.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [~ c]')).trig).out()"
+          "code": "$tr909.kick($p('c*4').c).out()\n$tr909.highTom($p('~ ~ ~ ~ ~ ~ c c').c).out()\n$tr909.midTom($p('~ ~ ~ ~ ~ ~ ~ [c ~]').c).out()\n$tr909.lowTom($p('~ ~ ~ ~ ~ ~ ~ [~ c]').c).out()"
         }
       ]
     },
@@ -4829,7 +4829,7 @@
       "examples": [
         {
           "title": "Rolling tom groove",
-          "code": "$tr909.kick($cycle($p('c*4')).trig).out()\n$tr909.midTom($cycle($p('~ c ~ c c ~ ~ c')).trig).out()"
+          "code": "$tr909.kick($p('c*4').c).out()\n$tr909.midTom($p('~ c ~ c c ~ ~ c').c).out()"
         }
       ]
     },
@@ -5012,7 +5012,7 @@
       "examples": [
         {
           "title": "Tuned tom melody",
-          "code": "const toms = $cycle($p('c3 ~ eb3 f3 ~ c3 bb2 ~'))\n$tr909.highTom(toms.trig, { freq: toms }).out()"
+          "code": "const toms = $cycle($p('c3 ~ eb3 f3 ~ c3 bb2 ~'))\n$tr909.highTom(toms, { freq: toms }).out()"
         }
       ]
     },
@@ -5704,7 +5704,7 @@
         },
         {
           "title": "Folded plucks",
-          "code": "const notes = $cycle($p('c3 g3 eb3 bb2'))\n$sine(notes)\n  .$.fold($perc(notes.trig, { decay: 0.4 }), {\n    freq: notes,\n  })\n  .out()"
+          "code": "const notes = $cycle($p('c3 g3 eb3 bb2'))\n$sine(notes)\n  .$.fold($perc(notes, { decay: 0.4 }), {\n    freq: notes,\n  })\n  .out()"
         }
       ]
     },
@@ -6008,7 +6008,7 @@
       "examples": [
         {
           "title": "Plucks in a big plate",
-          "code": "const notes = $cycle($p('c4 eb4 g4 bb4'))\n$sine(notes)\n  .amp($perc(notes.trig, { decay: 0.2 }))\n  .$m.dattorro(2, { decay: 3 })\n  .out()"
+          "code": "const notes = $cycle($p('c4 eb4 g4 bb4'))\n$sine(notes)\n  .amp($perc(notes, { decay: 0.2 }))\n  .$m.dattorro(2, { decay: 3 })\n  .out()"
         }
       ]
     },
@@ -7187,7 +7187,7 @@
       "examples": [
         {
           "title": "Dark, long-tailed plucks",
-          "code": "const notes = $cycle($p('c5 g4 eb5 ~'))\n$sine(notes)\n  .amp($perc(notes.trig, { decay: 0.15 }))\n  .$m.unstable.reverb2(3, { decay: 4, damping: 4 })\n  .out()"
+          "code": "const notes = $cycle($p('c5 g4 eb5 ~'))\n$sine(notes)\n  .amp($perc(notes, { decay: 0.15 }))\n  .$m.unstable.reverb2(3, { decay: 4, damping: 4 })\n  .out()"
         }
       ]
     },
@@ -7623,7 +7623,7 @@
       "examples": [
         {
           "title": "Plucks in a dirty-tape space",
-          "code": "const notes = $cycle($p('c4 eb4 g4 bb4'))\n$saw(notes)\n  .amp($perc(notes.trig, { decay: 0.2 }))\n  .$.reverb(3, { size: 5, tone: 2 })\n  .out()"
+          "code": "const notes = $cycle($p('c4 eb4 g4 bb4'))\n$saw(notes)\n  .amp($perc(notes, { decay: 0.2 }))\n  .$.reverb(3, { size: 5, tone: 2 })\n  .out()"
         }
       ]
     },
@@ -9055,7 +9055,7 @@
       "examples": [
         {
           "title": "Soft sine melody",
-          "code": "const seq = $cycle($p('c4 e4 g4 <b4 a4>'))\n$sine(seq)\n  .amp($perc(seq.trig, { decay: 0.3 }))\n  .out()"
+          "code": "const seq = $cycle($p('c4 e4 g4 <b4 a4>'))\n$sine(seq)\n  .amp($perc(seq, { decay: 0.3 }))\n  .out()"
         },
         {
           "title": "FM bell",
@@ -9477,7 +9477,7 @@
         },
         {
           "title": "Plucked square bass",
-          "code": "const seq = $cycle($p('c2 c2 eb2 g1'))\n$pulse(seq)\n  .$.lpf(\n    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'),\n    2,\n  )\n  .out()"
+          "code": "const seq = $cycle($p('c2 c2 eb2 g1'))\n$pulse(seq)\n  .$.lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)\n  .out()"
         }
       ]
     },
@@ -11076,7 +11076,7 @@
         },
         {
           "title": "Plucked table sweep",
-          "code": "const seq = $cycle($p('c3 eb3 g3 bb3'))\nconst env = $perc(seq.trig, { decay: 0.5 })\n$wavetable(seq, $wavs().tables.pad, env.range(0, 4))\n  .amp(env)\n  .out()"
+          "code": "const seq = $cycle($p('c3 eb3 g3 bb3'))\nconst env = $perc(seq, { decay: 0.5 })\n$wavetable(seq, $wavs().tables.pad, env.range(0, 4))\n  .amp(env)\n  .out()"
         }
       ]
     },
@@ -11499,7 +11499,7 @@
       "examples": [
         {
           "title": "Plucky acid bass",
-          "code": "const seq = $cycle($p('c2 c2 [eb2 c3] g1'))\n$saw(seq)\n  .$.lpf(\n    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c7'),\n    4,\n  )\n  .out()"
+          "code": "const seq = $cycle($p('c2 c2 [eb2 c3] g1'))\n$saw(seq)\n  .$.lpf($perc(seq, { decay: 0.2 }).range('c3', 'c7'), 4)\n  .out()"
         },
         {
           "title": "Slow pad sweep",
@@ -12169,7 +12169,7 @@
         },
         {
           "title": "Squelchy bandpass bass",
-          "code": "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n$jup6f(\n  $saw(seq),\n  $perc(seq.trig, { decay: 0.15 }).range('c3', 'c6'),\n  4,\n).bp.out()"
+          "code": "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\n$jup6f(\n  $saw(seq),\n  $perc(seq, { decay: 0.15 }).range('c3', 'c6'),\n  4,\n).bp.out()"
         }
       ]
     },
@@ -12349,7 +12349,7 @@
       "examples": [
         {
           "title": "Plucked melody",
-          "code": "const seq = $cycle($p('c4 eb4 g4 [bb4 c5]'))\n$saw(seq).$.lpg(seq.trig, { color: 1.5, decay: 2 }).out()"
+          "code": "const seq = $cycle($p('c4 eb4 g4 [bb4 c5]'))\n$saw(seq).$.lpg(seq, { color: 1.5, decay: 2 }).out()"
         },
         {
           "title": "Woody knock on every beat",
@@ -13055,7 +13055,7 @@
       "examples": [
         {
           "title": "Driven acid line",
-          "code": "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\nconst env = $perc(seq.trig, { decay: 0.2 })\n$unstable.filter\n  .lp($saw(seq), env.range('c3', 'c6'), 4, {\n    drive: 'driven',\n  })\n  .out()"
+          "code": "const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))\nconst env = $perc(seq, { decay: 0.2 })\n$unstable.filter\n  .lp($saw(seq), env.range('c3', 'c6'), 4, {\n    drive: 'driven',\n  })\n  .out()"
         }
       ]
     },
@@ -14000,7 +14000,7 @@
       "examples": [
         {
           "title": "Fat ladder bass",
-          "code": "const seq = $cycle($p('a1 ~ a1 [a2 a1] ~ e2 g1 ~'))\n$unstable.filter\n  .legacyLadder(\n    $saw(seq),\n    $perc(seq.trig, { decay: 0.25 }).range('c3', 'c6'),\n    3,\n  )\n  .out()"
+          "code": "const seq = $cycle($p('a1 ~ a1 [a2 a1] ~ e2 g1 ~'))\n$unstable.filter\n  .legacyLadder(\n    $saw(seq),\n    $perc(seq, { decay: 0.25 }).range('c3', 'c6'),\n    3,\n  )\n  .out()"
         }
       ]
     },
@@ -14182,7 +14182,7 @@
       "examples": [
         {
           "title": "Screaming acid line",
-          "code": "const seq = $cycle($p('c2 c3 [~ c2] eb3 c2 [g2 c3] bb1 c2'))\n$unstable.filter\n  .diodeLadder(\n    $saw(seq),\n    $perc(seq.trig, { decay: 0.15 }).range('c3', 'c7'),\n    4,\n  )\n  .out()"
+          "code": "const seq = $cycle($p('c2 c3 [~ c2] eb3 c2 [g2 c3] bb1 c2'))\n$unstable.filter\n  .diodeLadder(\n    $saw(seq),\n    $perc(seq, { decay: 0.15 }).range('c3', 'c7'),\n    4,\n  )\n  .out()"
         }
       ]
     },
@@ -14920,7 +14920,7 @@
       "examples": [
         {
           "title": "Brassy chord stab",
-          "code": "const seq = $cycle($p('[c3, eb3, g3] ~ ~ [bb2, d3, f3]'))\n$unstable.filter\n  .obxd2Lp(\n    $saw(seq),\n    $perc(seq.trig, { decay: 0.4 }).range('c4', 'c7'),\n    2,\n  )\n  .out()"
+          "code": "const seq = $cycle($p('[c3, eb3, g3] ~ ~ [bb2, d3, f3]'))\n$unstable.filter\n  .obxd2Lp(\n    $saw(seq),\n    $perc(seq, { decay: 0.4 }).range('c4', 'c7'),\n    2,\n  )\n  .out()"
         }
       ]
     },
@@ -16972,7 +16972,7 @@
       "examples": [
         {
           "title": "Rubbery resonant bass",
-          "code": "const seq = $cycle($p('f1 [~ f2] ab1 [c2 eb2]'))\n$unstable.filter\n  .resWarpLp(\n    $saw(seq),\n    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'),\n    4,\n    { stages: 2 },\n  )\n  .out()"
+          "code": "const seq = $cycle($p('f1 [~ f2] ab1 [c2 eb2]'))\n$unstable.filter\n  .resWarpLp(\n    $saw(seq),\n    $perc(seq, { decay: 0.2 }).range('c3', 'c6'),\n    4,\n    { stages: 2 },\n  )\n  .out()"
         }
       ]
     },
@@ -19166,7 +19166,7 @@
       "examples": [
         {
           "title": "Plucky filter envelope",
-          "code": "const notes = $cycle($p('c3 eb3 g3 bb3'))\n$saw(notes)\n  .$.lpf(\n    $adsr(notes.gate, { decay: 0.2 }).range('c4', 'c7'),\n    2,\n  )\n  .out()"
+          "code": "const notes = $cycle($p('c3 eb3 g3 bb3'))\n$saw(notes)\n  .$.lpf($adsr(notes, { decay: 0.2 }).range('c4', 'c7'), 2)\n  .out()"
         },
         {
           "title": "Slow pad swell",
@@ -22852,7 +22852,7 @@
         },
         {
           "title": "Plucked bass",
-          "code": "const notes = $cycle($p('c2 c2 eb2 g1'))\n$saw(notes)\n  .amp($perc(notes.trig, { decay: 0.2 }))\n  .out()"
+          "code": "const notes = $cycle($p('c2 c2 eb2 g1'))\n$saw(notes)\n  .amp($perc(notes, { decay: 0.2 }))\n  .out()"
         }
       ]
     },
@@ -22986,7 +22986,7 @@
       "examples": [
         {
           "title": "LFO melody in C major",
-          "code": "const melody = $quantizer(\n  $sine('0.13hz').range('c3', 'c5'),\n  'C(major)',\n)\n$sine(melody)\n  .amp($perc(melody.trig, { decay: 0.3 }))\n  .out()"
+          "code": "const melody = $quantizer(\n  $sine('0.13hz').range('c3', 'c5'),\n  'C(major)',\n)\n$sine(melody)\n  .amp($perc(melody, { decay: 0.3 }))\n  .out()"
         },
         {
           "title": "Playing only the keys you hold",
@@ -23991,7 +23991,7 @@
           "examples": [
             {
               "title": "Plucked bass line",
-              "code": "const seq = $cycle($p('c2 ~ eb2 g2 ~ c3 bb2 g2'))\n$saw(seq)\n  .$.lpf(\n    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'),\n    2,\n  )\n  .out()"
+              "code": "const seq = $cycle($p('c2 ~ eb2 g2 ~ c3 bb2 g2'))\n$saw(seq)\n  .$.lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)\n  .out()"
             }
           ]
         },
@@ -24025,7 +24025,7 @@
           "examples": [
             {
               "title": "Bass that changes every bar",
-              "code": "const seq = $cycle($p('<c2 ab1 f1 g1> [~ c3] ~ c2'))\n$saw(seq).$.lpf('c5', 1).amp($adsr(seq.gate)).out()"
+              "code": "const seq = $cycle($p('<c2 ab1 f1 g1> [~ c3] ~ c2'))\n$saw(seq).$.lpf('c5', 1).amp($adsr(seq)).out()"
             }
           ]
         },
@@ -24035,7 +24035,7 @@
           "examples": [
             {
               "title": "Melody over a drone",
-              "code": "const seq = $cycle($p('c4 eb4 g4 bb4, c3'))\n$saw(seq).$.lpf('c5', 1).amp($adsr(seq.gate)).out()"
+              "code": "const seq = $cycle($p('c4 eb4 g4 bb4, c3'))\n$saw(seq).$.lpf('c5', 1).amp($adsr(seq)).out()"
             }
           ]
         },
@@ -24045,7 +24045,7 @@
           "examples": [
             {
               "title": "A melody that never quite repeats",
-              "code": "const seq = $cycle($p('c4 [eb4|g4|bb4] f4? [g4|c5]'))\n$sine(seq).amp($adsr(seq.gate)).out()"
+              "code": "const seq = $cycle($p('c4 [eb4|g4|bb4] f4? [g4|c5]'))\n$sine(seq).amp($adsr(seq)).out()"
             }
           ]
         },
@@ -24099,7 +24099,7 @@
           "examples": [
             {
               "title": "Euclidean rhythm",
-              "code": "const seq = $cycle($p('c2(3,8) [g2 c3](5,8,2)'))\n$pulse(seq).$.lpf('c5', 2).amp($adsr(seq.gate)).out()"
+              "code": "const seq = $cycle($p('c2(3,8) [g2 c3](5,8,2)'))\n$pulse(seq).$.lpf('c5', 2).amp($adsr(seq)).out()"
             }
           ]
         }
@@ -24107,7 +24107,7 @@
       "examples": [
         {
           "title": "Swung hats over a straight bass",
-          "code": "$setGroove($swing(0.6))\nconst hats = $cycle($p('c5*8'))\nconst bass = $cycle($p('c2*4'), { groove: 0 })\n$noise('white')\n  .amp($perc(hats.trig, { decay: 0.05 }))\n  .amp(hats.velocity)\n  .out()\n$saw(bass).$.lpf('c4', 1).amp($adsr(bass.gate)).out()"
+          "code": "$setGroove($swing(0.6))\nconst hats = $cycle($p('c5*8'))\nconst bass = $cycle($p('c2*4'), { groove: 0 })\n$noise('white')\n  .amp($perc(hats, { decay: 0.05 }))\n  .amp(hats.velocity)\n  .out()\n$saw(bass).$.lpf('c4', 1).amp($adsr(bass)).out()"
         }
       ]
     },
@@ -27155,7 +27155,7 @@
       "examples": [
         {
           "title": "Shuffled eighths with soft offbeats",
-          "code": "const g = $groove({\n  timing: [0, 0.3],\n  velocity: [1, 0.6],\n  grid: 8,\n})\nconst seq = $cycle($p('c4 e4 g4 c5 g4 e4 c4 g3'), {\n  groove: g,\n  velocity: g.velocity,\n})\n$sine(seq).amp($adsr(seq.gate)).amp(seq.velocity).out()"
+          "code": "const g = $groove({\n  timing: [0, 0.3],\n  velocity: [1, 0.6],\n  grid: 8,\n})\nconst seq = $cycle($p('c4 e4 g4 c5 g4 e4 c4 g3'), {\n  groove: g,\n  velocity: g.velocity,\n})\n$sine(seq).amp($adsr(seq)).amp(seq.velocity).out()"
         }
       ]
     },
@@ -27356,11 +27356,11 @@
       "examples": [
         {
           "title": "Four-voice keyboard synth",
-          "code": "const midi = $midiCV({ channels: 4 })\n$saw(midi)\n  .$.lpf(midi.velocity.range('c4', 'c7'), 1)\n  .amp($adsr(midi.gate, { release: 0.4 }))\n  .out()"
+          "code": "const midi = $midiCV({ channels: 4 })\n$saw(midi)\n  .$.lpf(midi.velocity.range('c4', 'c7'), 1)\n  .amp($adsr(midi, { release: 0.4 }))\n  .out()"
         },
         {
           "title": "Mono lead with a wide pitch bend",
-          "code": "const lead = $midiCV({ pitchBendRange: 12 })\n$pulse(lead)\n  .$.lpf(lead.modWheel.range('c4', 'c7'), 2)\n  .amp($adsr(lead.gate))\n  .out()"
+          "code": "const lead = $midiCV({ pitchBendRange: 12 })\n$pulse(lead)\n  .$.lpf(lead.modWheel.range('c4', 'c7'), 2)\n  .amp($adsr(lead))\n  .out()"
         }
       ]
     },
@@ -29558,7 +29558,7 @@
         },
         {
           "title": "Grain chords from a melody",
-          "code": "const seq = $cycle($p('<[c3, g3] [eb3, bb3]>'))\n$grains(seq, $wavs().strings, seq.gate, {\n  length: 2,\n  density: 3,\n  shape: 'tukey',\n}).out()"
+          "code": "const seq = $cycle($p('<[c3, g3] [eb3, bb3]>'))\n$grains(seq, $wavs().strings, seq, {\n  length: 2,\n  density: 3,\n  shape: 'tukey',\n}).out()"
         }
       ]
     },
@@ -30735,7 +30735,7 @@
       "examples": [
         {
           "title": "West-coast pluck",
-          "code": "const seq = $cycle($p('c3 eb3 g3 bb2'))\nconst env = $perc(seq.trig, { decay: 0.4 })\n$sine(seq)\n  .$.unstable.shape.fold('westcoast', env.range(-2, 4))\n  .amp(env)\n  .out()"
+          "code": "const seq = $cycle($p('c3 eb3 g3 bb2'))\nconst env = $perc(seq, { decay: 0.4 })\n$sine(seq)\n  .$.unstable.shape.fold('westcoast', env.range(-2, 4))\n  .amp(env)\n  .out()"
         }
       ]
     },

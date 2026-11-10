@@ -109,7 +109,7 @@ const LEGACY_LADDER_DOCS: ModuleDocs = ModuleDocs {
             $unstable.filter
               .legacyLadder(
                 $saw(seq),
-                $perc(seq.trig, { decay: 0.25 }).range('c3', 'c6'),
+                $perc(seq, { decay: 0.25 }).range('c3', 'c6'),
                 3,
               )
               .out()
@@ -324,7 +324,7 @@ const DIODE_LADDER_DOCS: ModuleDocs = ModuleDocs {
             $unstable.filter
               .diodeLadder(
                 $saw(seq),
-                $perc(seq.trig, { decay: 0.15 }).range('c3', 'c7'),
+                $perc(seq, { decay: 0.15 }).range('c3', 'c7'),
                 4,
               )
               .out()

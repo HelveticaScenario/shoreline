@@ -156,7 +156,7 @@ const OBXD2_LP_DOCS: ModuleDocs = ModuleDocs {
             $unstable.filter
               .obxd2Lp(
                 $saw(seq),
-                $perc(seq.trig, { decay: 0.4 }).range('c4', 'c7'),
+                $perc(seq, { decay: 0.4 }).range('c4', 'c7'),
                 2,
               )
               .out()

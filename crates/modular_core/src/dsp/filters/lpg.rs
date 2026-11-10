@@ -139,7 +139,7 @@ const LPG_DOCS: ModuleDocs = ModuleDocs {
             title: "Plucked melody",
             code: r#"
                 const seq = $cycle($p('c4 eb4 g4 [bb4 c5]'))
-                $saw(seq).$.lpg(seq.trig, { color: 1.5, decay: 2 }).out()
+                $saw(seq).$.lpg(seq, { color: 1.5, decay: 2 }).out()
             "#,
         },
         DocExample {

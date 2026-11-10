@@ -278,7 +278,7 @@ const REVERB2_DOCS: ModuleDocs = ModuleDocs {
         code: r#"
             const notes = $cycle($p('c5 g4 eb5 ~'))
             $sine(notes)
-              .amp($perc(notes.trig, { decay: 0.15 }))
+              .amp($perc(notes, { decay: 0.15 }))
               .$m.unstable.reverb2(3, { decay: 4, damping: 4 })
               .out()
         "#,

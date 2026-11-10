@@ -1,0 +1,177 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["7:4",7,7]],
+      "interpolations": [],
+      "registry": [
+        ["4:24","$p",[["source",22,47]]],
+        ["5:13","$perc",[["decay",82,85]]],
+        ["7:4","$unstable.filter.lp",[["resonance",146,147],["drive",162,170]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 180,
+        "gainClear": null,
+        "gainSet": {"end":184,"start":184,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":184,"start":184,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":184,"start":184,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":184,"start":184,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["75-81 0","82-85 1","112-120 2","133-137 3","139-143 4","146-147 5","176-184 6"],
+      "fixes": [
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 0.2, 0.001, 10)",
+            "preferred": false,
+            "span": {"end":85,"start":82},
+            "title": "Wrap 'decay' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 0.2, 0.001, 10)",
+            "preferred": true,
+            "span": {"end":85,"start":82},
+            "title": "Wrap 'decay' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 40,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", {\n    shape: $slider('shape', 0, 0, 5),\n  }",
+            "span": {"end":120,"start":120},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 22,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $btn('sync') }",
+            "span": {"end":120,"start":120},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 52,
+            "controlOffset": 21,
+            "kind": "add",
+            "newText": ", {\n    phaseOffset: $slider('phaseOffset', 0, 0, 1),\n  }",
+            "span": {"end":120,"start":120},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 35,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMin', 'c3', 'c1', 'c5')",
+            "preferred": true,
+            "span": {"end":137,"start":133},
+            "title": "Wrap 'outMin' in a note $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 35,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMax', 'c6', 'c4', 'c8')",
+            "preferred": true,
+            "span": {"end":143,"start":139},
+            "title": "Wrap 'outMax' in a note $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 29,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('resonance', 4, 0, 5)",
+            "preferred": true,
+            "span": {"end":147,"start":146},
+            "title": "Wrap 'resonance' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ gain: $slider('gain', 5, 0, 5) }",
+            "span": {"end":184,"start":184},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":184,"start":184},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ width: $slider('width', 0, 0, 5) }",
+            "span": {"end":184,"start":184},
+            "title": "Add slider for 'width'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":185,"start":185,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:24","$p",[["source",22,46]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":46,"start":46,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:24","$p",[["source",22,47]]],["5:13","$perc",[["decay",82,85]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":92,"start":92,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:24","$p",[["source",22,47]]],["5:13","$perc",[["decay",82,85]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":138,"start":138,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

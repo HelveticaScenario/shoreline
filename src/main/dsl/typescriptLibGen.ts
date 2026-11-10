@@ -267,8 +267,8 @@ type Signal = number | Note | HZ | ModuleOutput;
  *
  * Can be:
  * - A single {@link Signal}
- * - An array of {@link Signal}s (creates multiple voices)
  * - An iterable of {@link ModuleOutput}s
+ * - An array of any of these (creates multiple voices)
  * - A {@link SignalGroup} from \`$g1\`/\`$g2\`/\`$g3\` (cartesian voice expansion)
  *
  * @example $saw(["C3", "E3", "G3"]).out()                    // 3-voice chord
@@ -276,7 +276,7 @@ type Signal = number | Note | HZ | ModuleOutput;
  * @see {@link Signal} - for single-channel signals
  * @see {@link Collection} - for grouping outputs
  */
-type Poly<T extends Signal = Signal> = OrArray<T> | Iterable<ModuleOutput> | SignalGroup;
+type Poly<T extends Signal = Signal> = OrArray<T | Iterable<ModuleOutput>> | SignalGroup;
 
 /**
  * An axis of an XY scope: signals and collections, or an array mixing
@@ -309,7 +309,7 @@ interface SignalGroup {
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
  * @see {@link Signal} - for single-channel signals
  */
-type Mono<T extends Signal = Signal> = OrArray<T> | Iterable<ModuleOutput>;
+type Mono<T extends Signal = Signal> = OrArray<T | Iterable<ModuleOutput>>;
 
 /**
  * A phase warp produced by the \`$phase.*\` helpers.
@@ -2425,9 +2425,29 @@ function getOutputType(output: {
 }
 
 /**
+ * The multi-output interface of `moduleSchema` as the type checker names it:
+ * qualified by the namespaces the module is declared in. `_clock` is declared
+ * at the top level.
+ */
+export function qualifiedMultiOutputInterfaceName(moduleSchema: {
+    name: string;
+}): string {
+    const namespaces = moduleSchema.name
+        .split('.')
+        .filter((p: string) => p.length > 0)
+        .slice(0, -1);
+    return [...namespaces, getMultiOutputInterfaceName(moduleSchema)].join('.');
+}
+
+/** The property an output has on its module's multi-output interface. */
+export function outputPropertyName(name: string): string {
+    return sanitizeOutputName(name);
+}
+
+/**
  * Generate interface name for multi-output modules
  */
-function getMultiOutputInterfaceName(moduleSchema: Schema): string {
+function getMultiOutputInterfaceName(moduleSchema: { name: string }): string {
     const parts = moduleSchema.name
         .split('.')
         .filter((p: string) => p.length > 0);
@@ -2440,7 +2460,7 @@ function getMultiOutputInterfaceName(moduleSchema: Schema): string {
 
 /**
  * Generate interface definition for multi-output modules.
- * The interface extends from the default output's type and includes properties for other outputs.
+ * The interface extends the default output's type and has a property for every output.
  */
 function generateMultiOutputInterface(
     moduleSchema: Schema,
@@ -2461,19 +2481,18 @@ function generateMultiOutputInterface(
     lines.push(`${indent}/**`);
     lines.push(`${indent} * Output type for ${moduleSchema.name} module.`);
     lines.push(
-        `${indent} * Extends ${baseType} (default output: ${defaultOutput.name})`,
+        `${indent} * Used directly, it stands for the output that fits the input it`,
     );
+    lines.push(
+        `${indent} * is plugged into (\`${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); a named output is`,
+    );
+    lines.push(`${indent} * always that output.`);
     lines.push(`${indent} */`);
     lines.push(
         `${indent}export interface ${interfaceName} extends ${baseType} {`,
     );
 
-    // Add properties for non-default outputs
     for (const output of outputs) {
-        if (output.name === defaultOutput.name) {
-            continue;
-        }
-
         const outputType = getOutputType(output);
         const safeName = sanitizeOutputName(output.name);
 

@@ -78,13 +78,13 @@ const BD808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Booming four on the floor",
-            code: "$tr808.kick($cycle($p('c*4')).trig, { decay: 4 }).out()",
+            code: "$tr808.kick($p('c*4').c, { decay: 4 }).out()",
         },
         DocExample {
             title: "Tuned 808 bassline",
             code: r#"
                 const bass = $cycle($p('g1 ~ ~ g1 ~ ~ bb1 c2'))
-                $tr808.kick(bass.trig, { freq: bass, decay: 4.5 }).out()
+                $tr808.kick(bass, { freq: bass, decay: 4.5 }).out()
             "#,
         },
     ],

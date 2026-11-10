@@ -99,10 +99,7 @@ const PULSE_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const seq = $cycle($p('c2 c2 eb2 g1'))
                 $pulse(seq)
-                  .$.lpf(
-                    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'),
-                    2,
-                  )
+                  .$.lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)
                   .out()
             "#,
         },

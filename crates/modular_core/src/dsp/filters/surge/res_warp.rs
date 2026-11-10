@@ -190,7 +190,7 @@ const RES_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
             $unstable.filter
               .resWarpLp(
                 $saw(seq),
-                $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'),
+                $perc(seq, { decay: 0.2 }).range('c3', 'c6'),
                 4,
                 { stages: 2 },
               )

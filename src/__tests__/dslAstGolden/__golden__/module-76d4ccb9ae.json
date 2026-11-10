@@ -1,0 +1,168 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["10:46",10,10]],
+      "interpolations": [],
+      "registry": [["4:15","$groove",[["template",18,74]]],["9:20","$p",[["source",98,123]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 213,
+        "gainClear": null,
+        "gainSet": {"end":217,"start":217,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":217,"start":217,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":217,"start":217,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":217,"start":217,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["168-177 0","183-192 1","212-217 2"],
+      "fixes": [
+        [
+          {
+            "caretOffset": 22,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $btn('sync') }",
+            "span": {"end":177,"start":177},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":177,"start":177},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 45,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  attack: $slider('attack', 0.001, 0, 10),\n}",
+            "span": {"end":192,"start":192},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", {\n  decay: $slider('decay', 0.05, 0, 10),\n}",
+            "span": {"end":192,"start":192},
+            "title": "Add slider for 'decay'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", {\n  sustain: $slider('sustain', 5, 0, 5),\n}",
+            "span": {"end":192,"start":192},
+            "title": "Add slider for 'sustain'"
+          },
+          {
+            "caretOffset": 46,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", {\n  release: $slider('release', 0.01, 0, 10),\n}",
+            "span": {"end":192,"start":192},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 39,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", {\n  curve: $slider('curve', 5, -5, 5),\n}",
+            "span": {"end":192,"start":192},
+            "title": "Add slider for 'curve'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", {\n  retrigger: $btn('retrigger'),\n}",
+            "span": {"end":192,"start":192},
+            "title": "Add button for 'retrigger'"
+          },
+          {
+            "caretOffset": 47,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", {\n  retrigger: $toggleBtn('retrigger', false),\n}",
+            "span": {"end":192,"start":192},
+            "title": "Add toggle for 'retrigger'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":217,"start":217},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":217,"start":217},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":217,"start":217},
+            "title": "Add slider for 'width'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":218,"start":218,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:15","$groove",[["template",18,54]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":54,"start":54,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:15","$groove",[["template",18,74]]],["9:20","$p",[["source",98,109]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":109,"start":109,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:15","$groove",[["template",18,74]]],["9:20","$p",[["source",98,123]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":163,"start":163,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

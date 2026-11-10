@@ -1,5 +1,6 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+import type { SignalSiteTables } from '../shared/dsl/signalSites';
 import { contextBridge, ipcRenderer } from 'electron/renderer';
 import {
     AppConfig,
@@ -56,6 +57,7 @@ export interface ElectronAPI {
         trigger?: QueuedTrigger,
     ) => Promise<DSLExecuteResult>;
     getDslLibSource: () => Promise<string>;
+    getSignalSiteTables: () => Promise<SignalSiteTables>;
 
     // Synthesizer operations
     synthesizer: {
@@ -313,6 +315,7 @@ const electronAPI: ElectronAPI = {
     executeDSL: (source, sourceId, trigger) =>
         invokeIPC('DSL_EXECUTE', source, sourceId, trigger),
     getDslLibSource: () => invokeIPC('GET_DSL_LIB_SOURCE'),
+    getSignalSiteTables: () => invokeIPC('GET_SIGNAL_SITE_TABLES'),
 
     // Synthesizer operations
     synthesizer: {

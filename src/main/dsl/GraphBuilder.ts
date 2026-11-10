@@ -25,6 +25,7 @@ import {
     qualifiesForDollarChain,
 } from './paramsSchema';
 import { captureSourceLocation } from './captureSourceLocation';
+import { OutputResolver } from './outputResolution';
 import { isPatternValue } from './patternKinds';
 import {
     assertSignalGroupsTopLevelOnly,
@@ -61,6 +62,8 @@ export interface ScopeConfig {
 export interface OutputSchemaWithRange {
     name: string;
     description: string;
+    outputType: string;
+    default?: boolean;
     polyphonic?: boolean;
     minValue?: number;
     maxValue?: number;
@@ -1027,6 +1030,8 @@ export interface SourceLocation {
  * consistency across all module creation paths.
  */
 export class GraphBuilder {
+    /** Resolves multi-output module roots and records each choice. */
+    readonly outputResolver = new OutputResolver();
     private modules = new Map<string, ModuleSpec>();
     private counters = new Map<string, number>();
     private schemas: ProcessedModuleSchema[] = [];
@@ -3097,4 +3102,71 @@ function valueToSignal(value: unknown): unknown {
     }
     // It's a number
     return value;
+}
+
+/**
+ * Methods a user calls on an output or collection that read it, and their
+ * signal arguments, as `cv`. `pipe` and `pipeMix` are absent: they run user
+ * code, whose own calls are separate call sites.
+ */
+export const CHAIN_METHODS = [
+    'amplitude',
+    'amp',
+    'shift',
+    'addHz',
+    'mulHz',
+    'gain',
+    'exp',
+    'add',
+    'sub',
+    'mul',
+    'div',
+    'round',
+    'floor',
+    'ceil',
+    'erratic',
+    'scope',
+    'out',
+    'outMono',
+    'send',
+    'mix',
+    'withRange',
+    'range',
+] as const;
+
+type ChainMethod = (this: unknown, ...args: unknown[]) => unknown;
+
+function builderOf(receiver: unknown): GraphBuilder | undefined {
+    if (receiver instanceof ModuleOutput) {
+        return receiver.builder;
+    }
+    if (receiver instanceof BaseCollection) {
+        return receiver.items[0]?.builder;
+    }
+    return undefined;
+}
+
+// Each chain method runs as one user-facing call, so a module root used as
+// its receiver or as an argument is recorded against that call.
+for (const proto of [
+    ModuleOutput.prototype,
+    ModuleOutputWithRange.prototype,
+    BaseCollection.prototype,
+    Collection.prototype,
+    CollectionWithRange.prototype,
+] as object[]) {
+    for (const name of CHAIN_METHODS) {
+        if (!Object.hasOwn(proto, name)) {
+            continue;
+        }
+        const method = (proto as Record<string, ChainMethod>)[name];
+        (proto as Record<string, ChainMethod>)[name] = function (...args) {
+            const builder = builderOf(this);
+            return builder
+                ? builder.outputResolver.withChainCall(this, args, () =>
+                      method.apply(this, args),
+                  )
+                : method.apply(this, args);
+        };
+    }
 }

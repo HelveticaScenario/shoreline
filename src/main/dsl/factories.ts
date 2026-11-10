@@ -9,10 +9,15 @@ import {
 } from './GraphBuilder';
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
+import type {
+    OutputClass,
+    ResolvableOutput,
+} from '../../shared/dsl/outputResolutionRule';
+import { markRoot } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
 import { isPatternValue } from './patternKinds';
 import { isSignalGroupLike } from './signalGroups';
-import { buildSignalMapper } from './signalSchemaMapper';
+import { signalParamsOf } from './signalParams';
 import {
     captureSourceLocation,
     getDSLWrapperLineOffset,
@@ -387,71 +392,71 @@ export class DSLContext {
     }
 
     /**
-     * A signal param's value with the collections inside an array, or inside
-     * a `$gN` group's array, spread into its elements. A pattern anywhere in
-     * it is refused: a pattern becomes a signal by playing it, with `.c` or
-     * `.cycle()`.
+     * Prepare a signal param's value for an input of class `inputClass`:
+     * resolve every module root in the value itself, array elements, and the
+     * contents of a `$gN` group, and spread the collections inside an array.
+     * A pattern anywhere in it is refused: a pattern becomes a signal by
+     * playing it, with `.c` or `.cycle()`. `slot` names the value in
+     * resolution records, `label` in the error.
      */
-    private signalParam(value: unknown, module: string, name: string): unknown {
+    private signalParam(
+        value: unknown,
+        inputClass: OutputClass,
+        sourceLocation: SourceLocation | undefined,
+        slot: string,
+        label: string,
+    ): unknown {
         if (isSignalGroupLike(value)) {
-            const signals = this.signalParam(value.signals, module, name);
+            const signals = this.signalParam(
+                value.signals,
+                inputClass,
+                sourceLocation,
+                slot,
+                label,
+            );
             return {
                 ...value,
                 signals:
                     signals instanceof BaseCollection ? [...signals] : signals,
             };
         }
-        const refuse = (v: unknown): unknown => {
+        const resolve = (v: unknown, s: string): unknown => {
             if (isPatternValue(v)) {
                 throw new Error(
-                    `${module}: ${name} is a pattern, not a signal — play it with .c or .cycle()`,
+                    `${label} is a pattern, not a signal — play it with .c or .cycle()`,
                 );
             }
-            return v;
+            return this.builder.outputResolver.resolve(
+                v,
+                inputClass,
+                sourceLocation,
+                s,
+            );
         };
         if (Array.isArray(value)) {
-            return value.flatMap((v) =>
-                refuse(v) instanceof BaseCollection ? [...v] : [v],
-            );
+            return value.flatMap((v, i) => {
+                const resolved = resolve(v, `${slot}.${i}`);
+                return resolved instanceof BaseCollection
+                    ? [...resolved]
+                    : [resolved];
+            });
         }
-        return refuse(value);
+        return resolve(value, slot);
     }
 
     private createInstantiator(schema: ModuleSchema): Instantiator {
         const outputs = schema.outputs || [];
+        const defaultOutput = outputs.find((o) => o.default) ?? outputs[0];
+        const resolvableOutputs: ResolvableOutput[] = outputs.map((o) => ({
+            default: o === defaultOutput,
+            name: sanitizeOutputName(o.name),
+            outputType: o.outputType,
+        }));
         const processed = processModuleSchema(schema);
         const scaleParamNames = processed.params
             .filter((p) => p.isScaleSignalInput)
             .map((p) => p.name);
-        const signalParamNames = processed.params
-            .filter(
-                (p) =>
-                    !p.isScaleSignalInput &&
-                    (p.kind === 'signal' ||
-                        p.kind === 'polySignal' ||
-                        p.isPolySignalInput ||
-                        p.isMonoSignalInput),
-            )
-            .map((p) => p.name);
-
-        // Params that nest signals inside arrays or tuples, which the flat
-        // signal list above does not cover.
-        const paramsSchema = schema.paramsSchema as {
-            properties?: Record<string, Record<string, unknown>>;
-            $defs?: Record<string, Record<string, unknown>>;
-        };
-        const nestedSignalParams = processed.params
-            .filter(
-                (p) =>
-                    !p.isScaleSignalInput && !signalParamNames.includes(p.name),
-            )
-            .flatMap((p) => {
-                const property = paramsSchema.properties?.[p.name];
-                const mapper = property
-                    ? buildSignalMapper(property, paramsSchema.$defs)
-                    : null;
-                return mapper ? [{ mapper, name: p.name }] : [];
-            });
+        const signalParams = signalParamsOf(schema, processed);
 
         return (args, sourceLocation, argumentSpans): ModuleReturn => {
             const positionalArgs = schema.positionalArgs || [];
@@ -480,17 +485,25 @@ export class DSLContext {
                 }
             }
 
-            for (const name of signalParamNames) {
+            for (const { inputClass, name } of signalParams.flat) {
                 params[name] = this.signalParam(
                     params[name],
-                    schema.name,
+                    inputClass,
+                    sourceLocation,
                     name,
+                    `${schema.name}: ${name}`,
                 );
             }
-            for (const { mapper, name } of nestedSignalParams) {
+            for (const { mapper, name } of signalParams.nested) {
                 if (params[name] !== undefined) {
-                    params[name] = mapper(params[name], name, (value) =>
-                        this.signalParam(value, schema.name, name),
+                    params[name] = mapper(params[name], name, (value, path) =>
+                        this.signalParam(
+                            value,
+                            'cv',
+                            sourceLocation,
+                            path,
+                            `${schema.name}: ${name}`,
+                        ),
                     );
                 }
             }
@@ -587,30 +600,25 @@ export class DSLContext {
                 const output = outputs[0];
                 return node._output(output.name, output.polyphonic ?? false);
             }
-            // Multiple outputs - create hybrid object extending the default output
-            // Find the default output (or use first if none marked)
-            const defaultOutput = outputs.find((o) => o.default) || outputs[0];
-            const defaultValue = node._output(
+            // Multiple outputs: the root is a default output that also
+            // carries every output, the default included, as a named
+            // property. The named ones are separate untagged objects.
+            const root = node._output(
                 defaultOutput.name,
                 defaultOutput.polyphonic ?? false,
             );
-
-            // Create the additional output properties
-            const additionalOutputs: Record<
+            const named: Record<
                 string,
                 ModuleOutput | Collection | CollectionWithRange
             > = {};
             for (const output of outputs) {
-                if (output.name === defaultOutput.name) continue;
-                const safeName = sanitizeOutputName(output.name);
-                additionalOutputs[safeName] = node._output(
+                named[sanitizeOutputName(output.name)] = node._output(
                     output.name,
                     output.polyphonic ?? false,
                 );
             }
-
-            // Return hybrid object: default output with additional properties
-            return Object.assign(defaultValue, additionalOutputs);
+            markRoot(root, { outputs: resolvableOutputs, values: named });
+            return Object.assign(root, named);
         };
     }
 

@@ -44,6 +44,7 @@ import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
 import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { assertControlsPlaced, createControls } from './controls';
+import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
 import { $p, setActiveCycleFactory, type CycleFactory } from './miniNotation';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
@@ -83,6 +84,8 @@ export interface DSLExecutionResult {
     video: CompiledVideoShader | null;
     /** One entry per `$v.preview` call, in the order the shader draws them */
     videoPreviews: VideoPreviewSite[];
+    /** Every contextual output choice made while the script ran */
+    outputResolutions: OutputResolutionRecord[];
 }
 
 export interface WavsFolderNode {
@@ -1086,6 +1089,7 @@ export function executePatchScript(
             callSiteSpans,
             eqPanels: resultBuilder.getEqPanels(),
             interpolationResolutions,
+            outputResolutions: resultBuilder.outputResolver.records,
             patch,
             sliders: controls.sliders,
             sourceLocationMap,
