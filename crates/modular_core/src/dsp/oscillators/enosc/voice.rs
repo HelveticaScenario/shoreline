@@ -52,18 +52,31 @@ type ChainFn = fn(&WarpChain, f32, f32) -> f32;
 
 /// The fold/cheby/segment chain applied to every oscillator's sine. Each amount
 /// is a 0–1 knob; a stage at 0 is the identity and is skipped.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub(super) struct WarpChain {
     /// The chain compiled for exactly the active stages in order; `None` when
     /// every stage is off.
     run: Option<ChainFn>,
+    order: EffectOrder,
     fold: f32,
     cheby: f32,
     segment: f32,
 }
 
 impl WarpChain {
-    pub fn new(order: EffectOrder, fold: f32, cheby: f32, segment: f32) -> Self {
+    /// Recompile the chain if any setting differs from the one it was built for.
+    #[inline]
+    pub fn set(&mut self, order: EffectOrder, fold: f32, cheby: f32, segment: f32) {
+        if order != self.order
+            || fold != self.fold
+            || cheby != self.cheby
+            || segment != self.segment
+        {
+            *self = Self::new(order, fold, cheby, segment);
+        }
+    }
+
+    fn new(order: EffectOrder, fold: f32, cheby: f32, segment: f32) -> Self {
         let amount = |stage| match stage {
             FOLD => fold,
             CHEBY => cheby,
@@ -79,6 +92,7 @@ impl WarpChain {
         }
         Self {
             run: select(active),
+            order,
             fold,
             cheby,
             segment,
@@ -177,6 +191,10 @@ pub(super) struct Oscillator {
     /// the cross-FM depth rolloff.
     nyquist_fade: f32,
     fm_rolloff: f32,
+    /// This sample's cross-FM rolloff, ramping linearly to `fm_rolloff` by
+    /// `fm_rolloff_step` per sample over the block.
+    fm_rolloff_now: f32,
+    fm_rolloff_step: f32,
 }
 
 #[derive(Clone, Copy)]
@@ -268,14 +286,20 @@ impl Voice {
         self.crossfade_step = (to - from) / CONTROL_BLOCK as f32;
 
         for (osc, pitch) in self.osc.iter_mut().zip(pitches) {
+            let fresh = osc.pitch.is_nan();
+            let from = osc.fm_rolloff;
             if pitch != osc.pitch {
-                let f = voct_to_hz(pitch) * ctx.inv_sample_rate;
+                // An oscillator at or above Nyquist is silent, so the cap only
+                // keeps an overflowing pitch from making the phase non-finite.
+                let f = (voct_to_hz(pitch) * ctx.inv_sample_rate).min(0.5);
                 let rolloff = (1.0 - 2.0 * f).max(0.0);
                 osc.pitch = pitch;
                 osc.freq_norm = f;
                 osc.nyquist_fade = (1.0 - 4.0 * f * f).max(0.0);
                 osc.fm_rolloff = rolloff * rolloff;
             }
+            osc.fm_rolloff_now = if fresh { osc.fm_rolloff } else { from };
+            osc.fm_rolloff_step = (osc.fm_rolloff - osc.fm_rolloff_now) / CONTROL_BLOCK as f32;
         }
     }
 
@@ -303,7 +327,8 @@ impl Voice {
             osc.phase -= osc.phase.floor();
 
             let fade = fade * osc.nyquist_fade;
-            let depth = ctx.cross_fm * osc.fm_rolloff;
+            osc.fm_rolloff_now += osc.fm_rolloff_step;
+            let depth = ctx.cross_fm * osc.fm_rolloff_now;
 
             let mut s = 0.0;
             if fade > 0.0 {
@@ -322,5 +347,68 @@ impl Voice {
             sample += s;
         }
         (sample * self.fade.advance(ctx.fade_inc), mod_out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn control_ctx() -> ControlContext {
+        ControlContext {
+            inv_sample_rate: 1.0 / 48_000.0,
+            crossfade_factor: 0.0,
+            crossfade_coef: 1.0,
+        }
+    }
+
+    fn voice_ctx(cross_fm: f32) -> VoiceContext<'static> {
+        VoiceContext {
+            phase: None,
+            warps: WarpChain::default(),
+            cross_fm,
+            fade_inc: 1.0,
+        }
+    }
+
+    #[test]
+    fn an_overflowing_pitch_keeps_the_phase_finite() {
+        let mut voice = Voice::default();
+        voice.control([440.0, f32::INFINITY], 0.5, &control_ctx());
+        for _ in 0..CONTROL_BLOCK {
+            voice.process(0.0, &voice_ctx(0.0));
+        }
+        assert!(voice.osc.iter().all(|osc| osc.phase.is_finite()));
+    }
+
+    #[test]
+    fn cross_fm_depth_ramps_across_a_retune() {
+        let ctx = voice_ctx(1.0);
+        let mut voice = Voice::default();
+        voice.control([0.0, 0.0], 0.0, &control_ctx());
+        // With no crossfade to oscillator 1 it is silent, so its share of the
+        // cross-FM output is its depth alone.
+        let depth = |voice: &mut Voice| {
+            let before = voice.osc[0];
+            let (_, both) = voice.process(0.0, &ctx);
+            let mut alone = Voice::default();
+            alone.osc[0] = before;
+            alone.osc[1].fm_rolloff_now = 0.0;
+            alone.crossfade_now = 0.0;
+            both - alone.process(0.0, &ctx).1
+        };
+        let settled = depth(&mut voice);
+
+        voice.control([0.0, 5.0], 0.0, &control_ctx());
+        let mut previous = settled;
+        let mut largest_step = 0.0f32;
+        for _ in 0..CONTROL_BLOCK {
+            let now = depth(&mut voice);
+            largest_step = largest_step.max((now - previous).abs());
+            previous = now;
+        }
+        let total = (previous - settled).abs();
+        assert!(total > 0.1, "retune moved the depth by {total}");
+        assert!(largest_step < total / CONTROL_BLOCK as f32 * 1.01);
     }
 }

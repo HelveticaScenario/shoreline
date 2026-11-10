@@ -6,7 +6,7 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::dsp::fx::enosc_tables::{aa_fold, fold_amount, lookup_fold};
+use crate::dsp::fx::enosc_tables::{self, aa_fold, fold_amount, lookup_fold};
 use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
 use crate::dsp::utils::voct_to_hz;
 use crate::module_category::ModuleCategory;
@@ -103,6 +103,7 @@ impl Fold {
     /// so it stays correct even though `transfer_state_from` swaps the whole
     /// `state` struct on a patch update.
     fn init(&mut self, sample_rate: f32) {
+        enosc_tables::prime();
         self.state.fade_inc = FadeIn::increment(DEFAULT_FADE_IN_SECS, sample_rate);
     }
 
@@ -205,7 +206,8 @@ mod tests {
         // Stepping `amount` from 0 to a low setting crosses the bypass hand-off
         // without a jump. Worst-case input is full-scale (input_norm = -1).
         for &input in &[-5.0f32, -2.5, 2.5, 5.0] {
-            for &target in &[0.05f32, 0.1, 0.2] {
+            // The hand-off spans params 0.17 to 0.41.
+            for &target in &[0.3f32, 0.45, 1.0] {
                 let step = max_step_through_threshold(input, target);
                 assert!(
                     step < 0.2,

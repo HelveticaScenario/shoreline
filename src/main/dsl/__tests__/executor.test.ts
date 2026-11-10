@@ -1904,9 +1904,17 @@ describe('fx modules', () => {
         expect(scales).toEqual(presets.map(({ name }) => ({ type: name })));
     });
 
+    test('$enosc.scale.custom rejects a missing repeatsOctave', () => {
+        expect(() =>
+            execPatch('$enosc("c2", $enosc.scale.custom("0 3 7")).out()'),
+        ).toThrow(/repeatsOctave must be true or false/);
+    });
+
     test('$enosc.scale.custom rejects non-numeric notes', () => {
         expect(() =>
-            execPatch('$enosc("c2", $enosc.scale.custom("0 b3 7", true)).out()'),
+            execPatch(
+                '$enosc("c2", $enosc.scale.custom("0 b3 7", true)).out()',
+            ),
         ).toThrow(/not a space-separated list of numbers/);
     });
 

@@ -208,6 +208,14 @@ pub fn fold_amount(knob: f32) -> f32 {
     knob * knob * 0.9 + 0.004
 }
 
+/// Build every table now (main thread) so the audio thread never triggers it.
+pub fn prime() {
+    LazyLock::force(&FOLD_TABLE);
+    LazyLock::force(&FOLD_MAX_TABLE);
+    LazyLock::force(&CHEBY_TABLES);
+    LazyLock::force(&TRIANGLE_TABLES);
+}
+
 /// Lookup folded value from table.
 /// `x` is input signal in [-1, 1].
 /// `amount` scales the folding intensity [0, 1]; see [`fold_amount`].

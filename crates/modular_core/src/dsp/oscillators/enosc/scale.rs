@@ -324,8 +324,11 @@ impl ScaleNotes {
         let crossfade = ((target - lo) / (hi - lo)).clamp(0.0, 1.0);
         let (p1, p2) = (lo + offset, hi + offset);
 
-        let interval = j as i64 + period as i64 * self.len as i64;
-        if interval.rem_euclid(2) == 1 {
+        // Wrapping keeps the parity exact for any `root`.
+        let interval = (period as i64)
+            .wrapping_mul(self.len as i64)
+            .wrapping_add(j as i64);
+        if interval & 1 == 1 {
             PitchPair {
                 p1: p2,
                 p2: p1,
@@ -490,5 +493,14 @@ mod tests {
     fn every_scale_is_its_own_generation() {
         assert_ne!(preset("major").generation, preset("major").generation);
         assert_ne!(preset("major").generation, ScaleNotes::CHROMATIC.generation);
+    }
+
+    #[test]
+    fn a_huge_root_still_resolves_to_a_pair() {
+        let scale = preset("major");
+        for root in [1e19f32, -1e19, f32::MAX, f32::MIN] {
+            let pair = scale.pitch_pair(root);
+            assert!((0.0..=1.0).contains(&pair.crossfade), "root {root}");
+        }
     }
 }

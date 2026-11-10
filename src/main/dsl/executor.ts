@@ -961,7 +961,7 @@ export function executePatchScript(
             enumerable: true,
         });
     }
-    enoscScale.custom = (notes: string, repeatsOctave: boolean) => {
+    enoscScale.custom = (notes: string, repeatsOctave: unknown) => {
         if (typeof notes !== 'string') {
             throw new TypeError(
                 '$enosc.scale.custom: notes must be a space-separated string of semitones, e.g. "0 3 7"',
@@ -973,11 +973,12 @@ export function executePatchScript(
                 `$enosc.scale.custom: "${notes}" is not a space-separated list of numbers`,
             );
         }
-        return {
-            type: 'custom',
-            notes: values,
-            repeatsOctave: repeatsOctave === true,
-        };
+        if (typeof repeatsOctave !== 'boolean') {
+            throw new TypeError(
+                '$enosc.scale.custom: repeatsOctave must be true or false',
+            );
+        }
+        return { type: 'custom', notes: values, repeatsOctave };
     };
     const enoscFactory = userNamespaceTree['$enosc'];
     if (typeof enoscFactory === 'function') {

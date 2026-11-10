@@ -12,12 +12,15 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 use serde::Serialize;
 
+use crate::dsp::fx::enosc_tables;
 use crate::dsp::phase_warp::shapes::knob;
 use crate::dsp::phase_warp::{PhaseWarp, PhaseWarpGlides};
 use crate::dsp::utils::dc_blocker::DcBlocker;
 use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::sanitize;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
@@ -78,71 +81,80 @@ fn default_count() -> usize {
     8
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct EnoscParams {
-    /// pitch in V/Oct of the scale's first note; every voice moves with it
-    #[signal(type = pitch)]
+    #[input("pitch of the scale's first note; every voice moves with it", type = pitch)]
     pitch: PolySignal,
-    /// the scale the voices sit on, built with `$enosc.scale.*`. Every
-    /// semitone if omitted.
+    #[input("the scale the voices sit on, built with `$enosc.scale.*`; every semitone if omitted")]
     #[deserr(default)]
     scale: Option<EnoscScale>,
-    /// position of the lowest voice in V above **pitch**, quantized to
-    /// **scale**; each voice above adds **spread**
-    #[signal(default = 0.0)]
+    #[input(
+        "lowest voice's offset from `pitch`, one octave per volt, quantized to `scale`; each voice above adds `spread`",
+        type = control,
+        default = 0.0,
+        control_range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     root: Option<PolySignal>,
-    /// root distance between neighbouring voices (0–5, up to 7.5 semitones)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "distance between neighbouring voices, up to 7.5 semitones",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     spread: Option<PolySignal>,
-    /// unquantized detuning that grows and alternates in sign up the voices
-    /// (0–5, up to 0.625 semitones between the first two)
-    #[signal(default = 1.5, range = (0.0, 5.0))]
+    #[input(
+        "unquantized detuning that grows and alternates in sign up the voices",
+        type = control,
+        default = 1.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     detune: Option<PolySignal>,
-    /// how much of each step between scale notes crossfades rather than jumps
-    /// (0 = hard steps, 5 = always crossfading)
-    #[signal(default = 4.33, range = (0.0, 5.0))]
+    #[input(
+        "how much of each step between scale notes crossfades rather than jumps: 0 hard steps, 5 always crossfading",
+        type = control,
+        default = 4.33,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     crossfade: Option<PolySignal>,
-    /// cross-FM depth (0–5)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input("cross-FM depth", type = control, default = 0.0, range = (0.0, 5.0))]
     #[deserr(default)]
     cross_fm: Option<PolySignal>,
-    /// cross-FM routing: up (default), chain, or down
+    #[input("how each voice's cross FM reaches the others")]
     #[serde(default)]
     #[deserr(default)]
     cross_fm_mode: CrossFmMode,
-    /// level tilt across the voices: negative favours the lowest, positive the
-    /// highest, 0 is even
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "level tilt across the voices: negative favours the lowest, positive the highest",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     balance: Option<PolySignal>,
-    /// phase warp applied to every oscillator before its sine, built with
-    /// `$phase.*`
+    #[input("phase warp applied to every oscillator before its sine, built with `$phase.*`")]
     #[deserr(default)]
     phase: Option<PhaseWarp>,
-    /// wavefold amount (0–5)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input("wavefold amount", type = control, default = 0.0, range = (0.0, 5.0))]
     #[deserr(default)]
     fold: Option<PolySignal>,
-    /// Chebyshev waveshaping amount (0–5)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input("Chebyshev waveshaping amount", type = control, default = 0.0, range = (0.0, 5.0))]
     #[deserr(default)]
     cheby: Option<PolySignal>,
-    /// triangle-segment waveshaping amount (0–5)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input("triangle-segment waveshaping amount", type = control, default = 0.0, range = (0.0, 5.0))]
     #[deserr(default)]
     segment: Option<PolySignal>,
-    /// order of the fold (f), cheby (c) and segment (s) warps, e.g. "fcs"
-    /// (default) or "scf"
+    #[input("order of the fold (f), cheby (c) and segment (s) warps, e.g. \"fcs\" or \"scf\"")]
     #[serde(default)]
     #[deserr(default)]
     effect_order: EffectOrder,
-    /// voices per channel (1–16, default 8)
+    #[input("voices per channel", range = (1, 16))]
     #[serde(default = "default_count")]
     #[deserr(default = default_count())]
     count: usize,
@@ -171,19 +183,19 @@ pub fn enosc_derive_channel_count(params: &EnoscParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct EnoscOutputs {
-    #[output("output", "mix of every voice", default, range = (-5.0, 5.0))]
+    #[output("output", "mix of every voice", type = cv, default, range = (-5.0, 5.0))]
     output: PolyOutput,
-    #[output("odd", "mix of voices 1, 3, 5, …", range = (-5.0, 5.0))]
+    #[output("odd", "mix of voices 1, 3, 5, …", type = cv, range = (-5.0, 5.0))]
     odd: PolyOutput,
-    #[output("even", "mix of voices 2, 4, 6, …", range = (-5.0, 5.0))]
+    #[output("even", "mix of voices 2, 4, 6, …", type = cv, range = (-5.0, 5.0))]
     even: PolyOutput,
-    #[output("low", "mix of the lower half of the voices", range = (-5.0, 5.0))]
+    #[output("low", "mix of the lower half of the voices", type = cv, range = (-5.0, 5.0))]
     low: PolyOutput,
-    #[output("high", "mix of the upper half of the voices", range = (-5.0, 5.0))]
+    #[output("high", "mix of the upper half of the voices", type = cv, range = (-5.0, 5.0))]
     high: PolyOutput,
-    #[output("root", "the lowest voice alone", range = (-5.0, 5.0))]
+    #[output("root", "the lowest voice alone", type = cv, range = (-5.0, 5.0))]
     root: PolyOutput,
-    #[output("other", "mix of every voice but the lowest", range = (-5.0, 5.0))]
+    #[output("other", "mix of every voice but the lowest", type = cv, range = (-5.0, 5.0))]
     other: PolyOutput,
 }
 
@@ -203,10 +215,41 @@ struct ChannelState {
     dc: [DcBlocker; OUTPUTS],
     cross_fm: SwapGlide,
     balance: SwapGlide,
+    balance_ratio: BalanceRatio,
+    warps: WarpChain,
     fold: SwapGlide,
     cheby: SwapGlide,
     segment: SwapGlide,
     phase: PhaseWarpGlides,
+}
+
+/// The level ratio between neighbouring voices for a `balance` setting,
+/// recomputed only when the setting changes.
+#[derive(Clone, Copy)]
+struct BalanceRatio {
+    volts: f32,
+    ratio: f32,
+}
+
+impl Default for BalanceRatio {
+    fn default() -> Self {
+        Self {
+            volts: 0.0,
+            ratio: 1.0,
+        }
+    }
+}
+
+impl BalanceRatio {
+    #[inline]
+    fn get(&mut self, volts: f32) -> f32 {
+        if volts != self.volts {
+            let tilt = (volts / 5.0).clamp(-1.0, 1.0);
+            self.volts = volts;
+            self.ratio = f32::exp2(4.0 * tilt * tilt * tilt);
+        }
+        self.ratio
+    }
 }
 
 #[derive(Default)]
@@ -222,51 +265,53 @@ struct EnoscState {
     fade_inc: f32,
 }
 
-/// A bank of sine voices on a scale, after the 4ms Ensemble Oscillator.
-///
-/// Each channel is a whole ensemble of **count** voices playing **scale** from
-/// **pitch**. The lowest voice sits **root** above it, quantized to the scale;
-/// each voice above adds **spread** to the root before quantizing, so the
-/// voices stack up the scale. **detune** pulls the voices apart by small,
-/// growing, alternating amounts.
-///
-/// **scale** takes the hardware's 12-TET and Octave scale banks from
-/// `$enosc.scale.*`, or `$enosc.scale.custom` for your own. A scale repeats at
-/// its last note, so some (`fifths`, `harmOdd`) repeat at intervals other than
-/// the octave.
-///
-/// A voice whose root falls between two scale notes crossfades between them, so
-/// sweeping **root** or **spread** morphs smoothly from chord to chord;
-/// **crossfade** narrows the fade until the voices step from note to note.
-///
-/// **crossFm** routes each voice's output into the others' phase (see
-/// **crossFmMode**), **phase** warps every oscillator's phase with a `$phase.*`
-/// warp, and **fold**, **cheby** and **segment** shape every voice's waveform in
-/// the order **effectOrder** gives. **balance** tilts the mix toward the low or
-/// high voices.
-///
-/// **output** is the mix of every voice; the other outputs split the voices the
-/// way the hardware's stereo modes do.
-///
-/// ```js
-/// $enosc('c3', $enosc.scale.minor).out()
-/// $enosc('c2', $enosc.scale.harm4to7, { spread: 1, count: 6 }).out()
-/// $enosc('c2', $enosc.scale.custom('0 2 3 7 9', true)).out()
-/// ```
-///
-/// ```js
-/// // Stereo: odd voices left, even voices right, with pulsar and cross FM
-/// const e = $enosc('a2', $enosc.scale.just6, {
-///   spread: $sine('0.05hz').range(1, 3),
-///   crossFm: 1.5,
-///   phase: $phase.pulsar(2),
-///   fold: 1,
-/// })
-/// e.odd.out({ pan: -5 })
-/// e.even.out({ pan: 5 })
-/// ```
+const ENOSC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Ensemble of sines on a scale",
+    description: "A bank of sine voices stacked up a scale, after the 4ms Ensemble \
+                  Oscillator. Sweeping `root` or `spread` morphs smoothly from chord \
+                  to chord, and cross FM, phase warps and the fold, cheby and segment \
+                  shapers turn the sines into anything from glassy pads to snarling \
+                  drones. The other outputs split the voices the way the hardware's \
+                  stereo modes do.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Minor chord",
+            code: "$enosc('c3', $enosc.scale.minor).out()",
+        },
+        DocExample {
+            title: "Harmonic stack",
+            code: r#"
+                $enosc('c2', $enosc.scale.harm4to7, {
+                  spread: 1,
+                  count: 6,
+                }).out()
+            "#,
+        },
+        DocExample {
+            title: "Custom scale",
+            code: "$enosc('c2', $enosc.scale.custom('0 2 3 7 9', true)).out()",
+        },
+        DocExample {
+            title: "Stereo pulsar drone",
+            code: r#"
+                const e = $enosc('a2', $enosc.scale.just6, {
+                  spread: $sine('0.05hz').range(1, 3),
+                  crossFm: 1.5,
+                  phase: $phase.pulsar(2),
+                  fold: 1,
+                })
+                e.odd.out({ pan: -5 })
+                e.even.out({ pan: 5 })
+            "#,
+        },
+    ],
+};
+
 #[module(
     name = "$enosc",
+    docs = ENOSC_DOCS,
     channels_derive = enosc_derive_channel_count,
     has_init,
     patch_update,
@@ -284,6 +329,7 @@ impl Enosc {
     /// `channel_state`, which a patch update carries over channel by channel, so
     /// only fresh channels keep these.
     fn init(&mut self, sample_rate: f32) {
+        enosc_tables::prime();
         self.state.inv_sample_rate = 1.0 / sample_rate;
         // The reference's DC blocker pole is 0.995 at 48 kHz.
         self.state.dc_coeff = 0.995f32.powf(48_000.0 / sample_rate);
@@ -330,9 +376,16 @@ impl Enosc {
                 cs.control_left = CONTROL_BLOCK;
                 let pitch = sanitize(params.pitch.get_value(ch));
                 let root = sanitize(params.root.value_or_zero(ch));
-                let spread = knob(params.spread.value_or(ch, 2.5)) * 7.5 / 12.0;
-                let detune = knob(params.detune.value_or(ch, 1.5)).powi(4) * (10.0 / 16.0) / 12.0;
-                let crossfade = knob(params.crossfade.value_or(ch, 4.33));
+                let spread =
+                    knob(params.spread.value_or(ch, EnoscParams::SPREAD_DEFAULT)) * 7.5 / 12.0;
+                let detune = knob(params.detune.value_or(ch, EnoscParams::DETUNE_DEFAULT)).powi(4)
+                    * (10.0 / 16.0)
+                    / 12.0;
+                let crossfade = knob(
+                    params
+                        .crossfade
+                        .value_or(ch, EnoscParams::CROSSFADE_DEFAULT),
+                );
                 let ctx = ControlContext {
                     inv_sample_rate: state.inv_sample_rate,
                     crossfade_factor: 0.5 * (1.0 - crossfade * crossfade),
@@ -365,13 +418,12 @@ impl Enosc {
                 params.balance.glide_mark(ch),
                 sample_rate,
             );
-            let tilt = (balance / 5.0).clamp(-1.0, 1.0);
-            let balance = f32::exp2(4.0 * tilt * tilt * tilt);
+            let balance = cs.balance_ratio.get(balance);
 
             let glided = |glide: &mut SwapGlide, signal: &Option<PolySignal>| {
                 knob(glide.follow(signal.value_or_zero(ch), signal.glide_mark(ch), sample_rate))
             };
-            let warps = WarpChain::new(
+            cs.warps.set(
                 params.effect_order,
                 glided(&mut cs.fold, &params.fold),
                 glided(&mut cs.cheby, &params.cheby),
@@ -385,7 +437,7 @@ impl Enosc {
 
             let ctx = VoiceContext {
                 phase,
-                warps,
+                warps: cs.warps,
                 cross_fm,
                 fade_inc: state.fade_inc,
             };
