@@ -61,7 +61,13 @@ fn z_osc_paths_agree() {
 
 #[test]
 fn allocation_free() {
-    for module in ["$mi.formant", "$mi.twoOp", "$mi.waveshaper", "$mi.zOsc"] {
+    for module in [
+        "$mi.formant",
+        "$mi.phaseDistortion",
+        "$mi.twoOp",
+        "$mi.waveshaper",
+        "$mi.zOsc",
+    ] {
         assert_eq!(
             allocations_while_rendering(
                 module,
