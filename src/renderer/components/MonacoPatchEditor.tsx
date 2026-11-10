@@ -27,7 +27,7 @@ import { registerMidiCompletionProvider } from './monaco/midiCompletionProvider'
 import { trackCodeBacking } from './monaco/codeBacking';
 import { createModelValueSync } from './monaco/modelValueSync';
 import { registerControlQuickFixProvider } from './monaco/controlQuickFixProvider';
-import { codeStyleFromPrettier } from '../dsl/objectPropertyInsert';
+import { apiIndexFor } from '../dsl/apiSignatures';
 import { registerKeybindingsCompletionProvider } from './monaco/keybindingsCompletion';
 import { registerKeybindingsDiagnostics } from './monaco/keybindingsDiagnostics';
 import {
@@ -456,22 +456,20 @@ export function MonacoPatchEditor({
         return () => midiProvider.dispose();
     }, [monaco]);
 
-    // Quick fix: wrap a module param in a control call chosen from its
-    // schema metadata.
+    // Quick fix: turn an API param into a control call chosen from its
+    // metadata.
     useEffect(() => {
         if (!monaco || schemas.length === 0) {
             return;
         }
-        const layout = codeStyleFromPrettier(
-            resolvePrettierOptions(prettierConfig),
-        );
+        const formatOptions = resolvePrettierOptions(prettierConfig);
         const provider = registerControlQuickFixProvider(
             monaco,
-            () => schemas,
-            () => layout,
+            () => ({ index: apiIndexFor(libSource), schemas }),
+            () => formatOptions,
         );
         return () => provider.dispose();
-    }, [monaco, schemas, prettierConfig]);
+    }, [monaco, schemas, libSource, prettierConfig]);
 
     // Autocomplete command ids and `when` context keys in the keybindings.json
     // buffer, and flag unsupported `when` operators as warnings. Both scope

@@ -2,23 +2,32 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::core::mix::MixMode;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal};
 
 fn default_channels() -> usize {
     1
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct MixDownParams {
-    /// Polyphonic input whose channels are folded down.
+    #[input(
+        "the polyphonic signal to fold down",
+        type = audio,
+    )]
     pub input: PolySignal,
-    /// Target output channel count (1–64). Defaults to 1 (mono).
+    #[input("number of output channels", range = (1, 64))]
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
     pub channels: usize,
-    /// How channels that land on the same output channel are combined.
+    #[input(
+        "how channels landing on the same output combine when folding down",
+        default = "sum"
+    )]
     #[serde(default)]
     #[deserr(default)]
     mode: MixMode,
@@ -27,38 +36,31 @@ pub struct MixDownParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MixDownOutputs {
-    /// Folded-down output: the input channels are panned evenly across the
-    /// output field with an equal-power law (e.g. 3→2 ⇒ inputs at -1/0/+1).
     #[output(
         "output",
-        "fold-down output: input channels panned evenly across the output channels",
+        "the input channels spread evenly across the output channels with equal-power panning",
+        type = cv,
         default
     )]
     sample: PolyOutput,
 }
 
-/// Folds a polyphonic input down to an arbitrary target channel count.
-///
-/// Unlike `$mix` (which mixes channel `n` of every input into output channel
-/// `n`), `$mixDown` takes a single poly signal and distributes its `N` channels
-/// across `M` output channels by panning them evenly over the output field with
-/// an equal-power crossfade. With the default `channels = 1` it is a plain mono
-/// sum; `channels = 2` produces an equal-power stereo fold-down. When the target
-/// exceeds the input channel count, the input is instead spread to fill every
-/// output channel (equal-power interpolation) so no channel is left silent.
-///
-/// - **channels** — target output channel count (1–64, default 1)
-/// - **mode** — how channels landing on the same output combine (sum / average /
-///   max / min); applies only when folding down (target ≤ input channels)
-///
-/// ## Example
-///
-/// ```js
-/// // Fold a 3-voice spread down to stereo
-/// $saw($spread(0, 5, 3)).mix(2).out()
-/// ```
+const MIX_DOWN_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Fold channels to fewer outputs",
+    description: "Folds a polyphonic signal down to a set number of channels, panning the \
+                  voices evenly across them: 1 for a mono sum, 2 for a stereo spread. With more \
+                  outputs than inputs it spreads the input to fill every output instead.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Detuned saws spread across stereo",
+        code: "$mixDown($saw($spread(-0.02, 0.02, 5)), 2).out()",
+    }],
+};
+
 #[module(
     name = "$mixDown",
+    docs = MIX_DOWN_DOCS,
     channels_param = "channels",
     args(input, channels),
     has_init,

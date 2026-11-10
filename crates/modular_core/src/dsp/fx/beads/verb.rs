@@ -10,6 +10,8 @@ use super::primitives::{Frame, Limiter};
 use super::reverb::{Reverb, ReverbSettings};
 use super::{FULL_SCALE_VOLTS, fold_input, unit};
 use crate::dsp::utils::sanitize;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
 
 /// Hardware rate the reverb's delays are tuned to at `size` 0.
 const HARDWARE_RATE: f32 = 48000.0;
@@ -93,25 +95,38 @@ impl OutputStage {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BeadsReverbParams {
-    /// audio input; even channels feed the left side and odd channels the
-    /// right
+    #[input(
+        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        type = audio,
+    )]
     input: PolySignal,
-    /// how much reverb, and how long it rings (0–5, default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how much reverb you hear and how long it rings: 0 dry, 5 most",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     amount: Option<MonoSignal>,
-    /// room size; moving it while the reverb rings bends the tail's pitch
-    /// (0–5, default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "room size; moving it while the tail rings bends its pitch",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<MonoSignal>,
-    /// how quickly the tail darkens, from bright at 0 to muffled at 5
-    /// (default 1)
-    #[signal(default = 1.0, range = (0.0, 5.0))]
+    #[input(
+        "how fast the tail darkens: 0 bright, 5 muffled",
+        type = control,
+        default = 1.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     tone: Option<MonoSignal>,
 }
@@ -119,7 +134,7 @@ struct BeadsReverbParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BeadsReverbOutputs {
-    #[output("output", "stereo output (ch0=left, ch1=right)", default, range = (-5.0, 5.0))]
+    #[output("output", "the input plus reverb, as left and right channels", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -135,20 +150,47 @@ struct BeadsReverbState {
     started: bool,
 }
 
-/// Reverb from Mutable Instruments Beads, with a stereo output.
-///
-/// `amount` sets both how much reverb you hear and how long it rings; at 0
-/// the input passes through untouched. `size` makes the space bigger and
-/// `tone` makes the tail darken faster as it fades. Beads' own settings are
-/// `size` 0 and `tone` 1 for digital, 0 and 2 for clean tape, 2.5 and 2 for
-/// vintage, and 5 and 2 for dirty tape. The input passes through clean, so
-/// put `$granular` or `$wowFlutter` before it for their colour. Peaks above
-/// ±5 V are limited.
-///
-/// ```js
-/// $reverb($saw('c3'), 4, { size: 5, tone: 2 }).out()
-/// ```
-#[module(name = "$reverb", channels = 2, has_init, args(input, amount))]
+const BEADS_REVERB_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Beads reverb",
+    description: "The reverb from Mutable Instruments Beads, with a stereo output: a \
+                  single knob from dry to a long, loud wash, so it needs no separate dry/wet \
+                  blend. Put \
+                  `$granular` or `$wowFlutter` before it for the rest of Beads' colour.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[DocSection {
+        title: "Matching a Beads quality",
+        body: "Beads sets its reverb to these `size` and `tone` values for each `quality` of \
+               `$granular`, so use them to match its sound.",
+        table: Some(DocTable {
+            columns: &["Quality", "Size", "Tone"],
+            rows: &[
+                &["`'digital'`", "0", "1"],
+                &["`'vintage'`", "2.5", "2"],
+                &["`'cleanTape'`", "0", "2"],
+                &["`'dirtyTape'`", "5", "2"],
+            ],
+        }),
+        examples: &[],
+    }],
+    examples: &[DocExample {
+        title: "Plucks in a dirty-tape space",
+        code: r#"
+            const notes = $cycle($p('c4 eb4 g4 bb4'))
+            $saw(notes)
+              .amp($perc(notes.trig, { decay: 0.2 }))
+              .$.reverb(3, { size: 5, tone: 2 })
+              .out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$reverb",
+    docs = BEADS_REVERB_DOCS,
+    channels = 2,
+    has_init,
+    args(input, amount)
+)]
 pub struct BeadsReverb {
     outputs: BeadsReverbOutputs,
     state: BeadsReverbState,

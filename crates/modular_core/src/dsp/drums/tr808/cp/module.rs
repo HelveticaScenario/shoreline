@@ -4,22 +4,27 @@ use super::*;
 use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cp808Params {
-    /// rising edges clap
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges clap", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the clap: up to twice
-    /// as loud, with a longer tail (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the clap lands, read at each strike: up to twice as loud at 5 V, with a longer tail",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// fade out a clap still sounding over 2 ms as the next one strikes, so
-    /// every clap starts from rest; otherwise each clap runs into the last, as
-    /// on the 808 (default false)
+    #[input(
+        "start every clap from rest, fading out one still sounding over 2 ms; off, each clap runs into the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
@@ -28,23 +33,33 @@ struct Cp808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Cp808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 hand clap.
-///
-/// A circuit model of the 808's hand clap: bursts of filtered noise in quick
-/// succession, like several hands clapping at once, over a softer noise tail.
-/// **accent** makes it louder and its tail longer.
-///
-/// An unaccented clap peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.clap($clock.beatTrigger).out()
-/// ```
-#[module(name = "$tr808.clap", has_init, patch_update, args(trigger), block)]
+const CP808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 hand clap",
+    description: "The 808's hand clap: bursts of filtered noise in quick succession, \
+                  like several hands clapping at once, over a softer noise tail.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Clap on two and four",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            $tr808.clap($cycle($p('~ c ~ c')).trig).out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$tr808.clap",
+    docs = CP808_DOCS,
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Cp808 {
     outputs: Cp808Outputs,
     params: Cp808Params,

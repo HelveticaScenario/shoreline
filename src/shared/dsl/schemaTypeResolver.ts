@@ -2,7 +2,7 @@
  * Shared JSON Schema → TypeScript type expression resolver.
  *
  * Used by both the main-process type generation (typescriptLibGen)
- * and the renderer help window to display human-readable param types.
+ * and the renderer Docs panel to display human-readable param types.
  */
 
 import type schemas from '@modular/core/schemas.json';
@@ -63,7 +63,7 @@ export function resolveRef(
     | 'Poly<Signal>'
     | 'Mono<Signal>'
     | 'Buffer'
-    | 'Table'
+    | 'PhaseWarp'
     | 'ParsedPattern'
     | 'SpPattern'
     | 'ArrangePattern'
@@ -71,6 +71,7 @@ export function resolveRef(
     | 'SlowPattern'
     | 'StructPattern'
     | 'BeatPattern'
+    | 'GlidePattern'
     | 'ScaleSpec' {
     if (ref === 'Signal') {
         return 'Signal';
@@ -78,8 +79,8 @@ export function resolveRef(
     if (ref === 'Buffer') {
         return 'Buffer';
     }
-    if (ref === 'Table') {
-        return 'Table';
+    if (ref === 'PhaseWarp') {
+        return 'PhaseWarp';
     }
     if (ref === 'ParsedPatternPayload') {
         return 'ParsedPattern';
@@ -102,6 +103,9 @@ export function resolveRef(
     if (ref === 'BeatPatternPayload') {
         return 'BeatPattern';
     }
+    if (ref === 'GlidePatternPayload') {
+        return 'GlidePattern';
+    }
 
     const defsPrefix = '#/$defs/';
     if (!ref.startsWith(defsPrefix)) {
@@ -121,8 +125,8 @@ export function resolveRef(
     if (defName === 'Buffer') {
         return 'Buffer';
     }
-    if (defName === 'Table') {
-        return 'Table';
+    if (defName === 'PhaseWarp') {
+        return 'PhaseWarp';
     }
     // A scale/chord spec string ("C(major)", "C3[maj7]"); the DSL exposes it
     // as the named `ScaleSpec` template-literal type.
@@ -147,8 +151,8 @@ export function resolveRef(
     if (defName === 'ArrangePatternPayload') {
         return 'ArrangePattern';
     }
-    // The `.fast(...)` / `.slow(...)` / `.struct(...)` / `.beat(...)` wrapper
-    // payloads recurse (the wrapped `pattern` is a `SeqPatternSource`), so the
+    // The `.fast(...)` / `.slow(...)` / `.struct(...)` / `.beat(...)` /
+    // `.glide(...)` wrapper payloads recurse (the wrapped `pattern` is a `SeqPatternSource`), so the
     // DSL exposes them as named types like the others above.
     if (defName === 'FastPatternPayload') {
         return 'FastPattern';
@@ -161,6 +165,9 @@ export function resolveRef(
     }
     if (defName === 'BeatPatternPayload') {
         return 'BeatPattern';
+    }
+    if (defName === 'GlidePatternPayload') {
+        return 'GlidePattern';
     }
 
     const defs = rootSchema?.$defs;
@@ -185,8 +192,8 @@ export function resolveRef(
     if (resolved?.title === 'Buffer') {
         return 'Buffer';
     }
-    if (resolved?.title === 'Table') {
-        return 'Table';
+    if (resolved?.title === 'PhaseWarp') {
+        return 'PhaseWarp';
     }
     if (resolved?.title === 'ParsedPatternPayload') {
         return 'ParsedPattern';
@@ -208,6 +215,9 @@ export function resolveRef(
     }
     if (resolved?.title === 'BeatPatternPayload') {
         return 'BeatPattern';
+    }
+    if (resolved?.title === 'GlidePatternPayload') {
+        return 'GlidePattern';
     }
     return resolved;
 }
@@ -382,8 +392,8 @@ export function schemaToTypeExpr(
         if (resolved === 'Buffer') {
             return 'BufferOutputRef';
         }
-        if (resolved === 'Table') {
-            return 'Table';
+        if (resolved === 'PhaseWarp') {
+            return 'PhaseWarp';
         }
         if (resolved === 'ParsedPattern') {
             return 'ParsedPattern';
@@ -405,6 +415,9 @@ export function schemaToTypeExpr(
         }
         if (resolved === 'BeatPattern') {
             return 'BeatPattern';
+        }
+        if (resolved === 'GlidePattern') {
+            return 'GlidePattern';
         }
         if (resolved === 'ScaleSpec') {
             return 'ScaleSpec';

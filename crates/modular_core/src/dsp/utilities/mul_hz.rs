@@ -5,40 +5,56 @@ use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
 use crate::dsp::utils::{hz_to_voct, voct_to_hz};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 /// Lower bound for the post-scale frequency, keeping `hz_to_voct` away from log2(≤0).
 const MIN_HZ: f32 = 1e-4;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MulHzParams {
-    /// V/Oct pitch signal to scale
-    #[signal(type = pitch)]
+    #[input("pitch to scale", type = pitch)]
     input: PolySignal,
-    /// frequency multiplier (1 = unity, 2 = octave up, 0.5 = octave down)
+    #[input(
+        "frequency ratio: 1 unchanged, 2 an octave up, 0.5 an octave down, 1.5 a just fifth up",
+        type = control,
+        default = 1.0,
+        range = (0.0, ..),
+        control_range = (0.0, 4.0),
+    )]
     factor: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MulHzOutputs {
-    #[output("output", "V/Oct pitch output", default)]
+    #[output("output", "the scaled pitch", type = cv, default)]
     sample: PolyOutput,
 }
 
-/// Multiplies a pitch's frequency by a factor.
-///
-/// The input V/Oct pitch is converted to Hz, multiplied by **factor**, then the
-/// result is converted back to V/Oct. A factor of 1.5 is a just perfect fifth.
-///
-/// ```js
-/// // up a just fifth
-/// $mulHz($saw('C4'), 1.5)
-/// ```
-#[module(name = "$mulHz", args(input, factor), block)]
+const MUL_HZ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Multiply a pitch's frequency",
+    description: "Multiplies a pitch's frequency by a ratio, for pure just intervals \
+                  and harmonics that equal-tempered transposition misses. A ratio of \
+                  1.5 is a beatless fifth.",
+    categories: &[ModuleCategory::Pitch],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Just-tuned fifths",
+        code: r#"
+            const root = $cycle($p('c3 a2 f2 g2'))
+            $saw(root).out()
+            $saw($mulHz(root, 1.5)).out()
+        "#,
+    }],
+};
+
+#[module(name = "$mulHz", docs = MUL_HZ_DOCS, args(input, factor), block)]
 pub struct MulHz {
     outputs: MulHzOutputs,
     params: MulHzParams,

@@ -2031,6 +2031,7 @@ __metadata:
     "@strudel/mini": "npm:1.2.5"
     "@stylistic/eslint-plugin": "npm:^5.10.0"
     "@tanstack/react-table": "npm:^8.21.3"
+    "@tanstack/react-virtual": "npm:^3.13.12"
     "@types/electron-squirrel-startup": "npm:^1.0.2"
     "@types/react": "npm:^19.2.14"
     "@types/react-dom": "npm:^19.2.3"
@@ -2040,12 +2041,12 @@ __metadata:
     electron: "npm:39.2.7"
     electron-squirrel-startup: "npm:^1.0.1"
     eslint-plugin-react-hooks: "npm:^7.0.1"
-    hls.js: "npm:^1.7.3"
     husky: "npm:^9.1.7"
     jsdom: "npm:^29.1.1"
     jsonc-parser: "npm:^3.3.1"
     knip: "npm:^6.1.1"
     lint-staged: "npm:^16.2.7"
+    lucide-react: "npm:^1.70.0"
     monaco-editor: "npm:^0.55.1"
     oxlint: "npm:^1.58.0"
     oxlint-tsgolint: "npm:^0.19.0"
@@ -2061,6 +2062,7 @@ __metadata:
     uuid: "npm:^13.0.0"
     vite: "npm:^7.3.1"
     vitest: "npm:^4.0.18"
+    webgpu: "npm:^0.6.2"
     zod: "npm:^4.3.5"
   languageName: unknown
   linkType: soft
@@ -4326,10 +4328,29 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tanstack/react-virtual@npm:^3.13.12":
+  version: 3.14.26
+  resolution: "@tanstack/react-virtual@npm:3.14.26"
+  dependencies:
+    "@tanstack/virtual-core": "npm:3.19.11"
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 10c0/71291177ac4c4b067a40351d46c69af0d5fc9dfcc6cb328cb87717b29209501a7193e92e75e599273ee423fff6c55c88157bd238684846b0d926dfa73b5d6dac
+  languageName: node
+  linkType: hard
+
 "@tanstack/table-core@npm:8.21.3":
   version: 8.21.3
   resolution: "@tanstack/table-core@npm:8.21.3"
   checksum: 10c0/40e3560e6d55e07cc047024aa7f83bd47a9323d21920d4adabba8071fd2d21230c48460b26cedf392588f8265b9edc133abb1b0d6d0adf4dae0970032900a8c9
+  languageName: node
+  linkType: hard
+
+"@tanstack/virtual-core@npm:3.19.11":
+  version: 3.19.11
+  resolution: "@tanstack/virtual-core@npm:3.19.11"
+  checksum: 10c0/61558882fd09f64020104ecd94bacaa2a6ccbb0745247610ede7683d709cf8d134cc3f6d1ee2d22203cb881e531bc4a3bb92e4657c08edf923ab6d5c39a958ec
   languageName: node
   linkType: hard
 
@@ -4850,7 +4871,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@webgpu/types@npm:^0.1.74":
+"@webgpu/types@npm:^0.1.72, @webgpu/types@npm:^0.1.74":
   version: 0.1.74
   resolution: "@webgpu/types@npm:0.1.74"
   checksum: 10c0/590d475d81f8468e207d1cc8230aa6444d5b2d96dff81279e2a864f3b9197b94bf9572043f9726ca7108ad305e3f5c6b3c86e8ee9b2b652bc83e050dc6bf69fe
@@ -7099,13 +7120,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hls.js@npm:^1.7.3":
-  version: 1.7.3
-  resolution: "hls.js@npm:1.7.3"
-  checksum: 10c0/c44c0098b9f4b53cb0c2cc2301d4cad907a77c60f470fa344b8cfc5077da4ccab9590d47e5cf81100a958d4aa43d7dc7bcb6566197fd9ae170ec10cea8af3e8c
-  languageName: node
-  linkType: hard
-
 "hosted-git-info@npm:^2.1.4":
   version: 2.8.9
   resolution: "hosted-git-info@npm:2.8.9"
@@ -7834,6 +7848,19 @@ __metadata:
   version: 7.18.3
   resolution: "lru-cache@npm:7.18.3"
   checksum: 10c0/b3a452b491433db885beed95041eb104c157ef7794b9c9b4d647be503be91769d11206bb573849a16b4cc0d03cbd15ffd22df7960997788b74c1d399ac7a4fed
+  languageName: node
+  linkType: hard
+
+"lucide-react@npm:^1.70.0":
+  version: 1.70.0
+  resolution: "lucide-react@npm:1.70.0"
+  peerDependencies:
+    "@types/react": "*"
+    react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  peerDependenciesMeta:
+    "@types/react":
+      optional: true
+  checksum: 10c0/bce0a8b5f77c78933a4b6c2037d4ce371d1eaff8986849ef7fb28da131be3fa6964e4d2459ff40c9ac719402cddced55311af3d34397b178449817d312dfa4c5
   languageName: node
   linkType: hard
 
@@ -11282,6 +11309,16 @@ __metadata:
   dependencies:
     defaults: "npm:^1.0.3"
   checksum: 10c0/5b61ca583a95e2dd85d7078400190efd452e05751a64accb8c06ce4db65d7e0b0cde9917d705e826a2e05cc2548f61efde115ffa374c3e436d04be45c889e5b4
+  languageName: node
+  linkType: hard
+
+"webgpu@npm:^0.6.2":
+  version: 0.6.2
+  resolution: "webgpu@npm:0.6.2"
+  dependencies:
+    "@webgpu/types": "npm:^0.1.72"
+    debug: "npm:^4.4.0"
+  checksum: 10c0/ec956e96b2fb3d80a256a7284dec5d526e27e4030c056f17ad4490009bf1394e499acfc69dba4d9b506f95282a8121caecd774108f003cbc03feb22398261f31
   languageName: node
   linkType: hard
 

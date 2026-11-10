@@ -45,7 +45,7 @@ const THEMES = [
 export const configSchema = {
     $schema: 'http://json-schema.org/draft-07/schema#',
     additionalProperties: false,
-    description: 'Configuration file for the Operator synthesizer application',
+    description: 'Configuration file for the Shoreline synthesizer application',
     properties: {
         audioConfig: audioConfigSchema,
         codeBackdropOpacity: {
@@ -215,6 +215,12 @@ export const configSchema = {
                 'Release version whose update prompt was dismissed (managed automatically)',
             type: 'string',
         },
+        sidebarSide: {
+            default: 'right',
+            description: 'Which side of the window the sidebar sits on',
+            enum: ['left', 'right'],
+            type: 'string',
+        },
         vuPanelVisible: {
             default: false,
             description: 'Show the VU meter panel at the bottom of the window',
@@ -234,6 +240,6 @@ export const configSchema = {
             type: 'string',
         },
     },
-    title: 'Operator Configuration',
+    title: 'Shoreline Configuration',
     type: 'object',
 };

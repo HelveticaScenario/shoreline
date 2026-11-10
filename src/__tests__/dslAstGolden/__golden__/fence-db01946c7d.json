@@ -1,0 +1,66 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [],
+      "interpolations": [],
+      "registry": [
+        ["4:36","$p.s.chain",[["rhs",35,40]]],
+        ["4:15","$p.s",[["source",12,19]]],
+        ["5:37","$p.s.chain",[["rhs",124,131]]],
+        ["5:11","$p.s",[["source",97,104]]],
+        ["6:36","$p.s.chain",[["rhs",177,184]]],
+        ["6:11","$p.s",[["source",146,153]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [],
+    "quickFixes": {"at":[],"fixes":[]},
+    "setOutputGain": {"end":186,"start":186,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:36","$p.s.chain",[["rhs",35,40]]],["4:15","$p.s",[["source",12,19]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":46,"start":46,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:36","$p.s.chain",[["rhs",35,40]]],["4:15","$p.s",[["source",12,19]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":93,"start":93,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [
+          ["4:36","$p.s.chain",[["rhs",35,40]]],
+          ["4:15","$p.s",[["source",12,19]]],
+          ["5:37","$p.s.chain",[["rhs",124,131]]],
+          ["5:11","$p.s",[["source",97,104]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":139,"start":139,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

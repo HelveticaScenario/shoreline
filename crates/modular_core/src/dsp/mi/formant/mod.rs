@@ -5,6 +5,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
@@ -24,32 +26,44 @@ use grainlet::{GrainletControls, GrainletPair};
 /// Plaits' output gain for this engine, at ±5 V full scale.
 const OUTPUT_GAIN: f32 = -0.7 * 5.0;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FormantParams {
-    /// pitch in V/Oct (0V = C4): how often the grains repeat
-    #[signal(type = pitch)]
+    #[input("pitch: how often the grains repeat", type = pitch)]
     freq: PolySignal,
-    /// formant frequency in V/Oct, independent of `freq` (default 0.5, ≈370 Hz)
-    #[signal(type = frequency, default = 0.5, range = (-3.0, 4.0))]
+    #[input(
+        "first formant, independent of the pitch",
+        type = frequency,
+        default = 0.5,
+        range = (-3.0, 4.0),
+    )]
     #[deserr(default)]
     formant: Option<PolySignal>,
-    /// second formant, 0–5: two octaves below the first (0) to two octaves
-    /// above (5); below 2.5 the bare window bleeds in (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "second formant, from two octaves below the first (0) to two above (5); below 2.5 the bare window bleeds in",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     ratio: Option<PolySignal>,
-    /// window shape, 0–5: narrow pulse (0) to broad and flat-topped (5);
-    /// narrows on its own at high pitches (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "window shape, from a narrow pulse (0) to broad and flat-topped (5); narrows by itself at high pitches",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user)
-    #[signal(default = 0.0)]
+    #[input(
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero plays each grain's window backward",
+        type = audio,
+    )]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
@@ -58,29 +72,27 @@ struct FormantParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FormantOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the paired grains", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
-/// Granular formant oscillator, from Mutable Instruments Plaits.
-///
-/// Every cycle of **freq** starts a short grain: a sine at the **formant**
-/// frequency inside a window. Two of these grains sound together, the second
-/// at a **ratio** of the first's formant, giving vowel-like and resonant
-/// timbres whose formants stay put as the pitch moves.
-///
-/// - **formant** — V/Oct, the first formant's frequency.
-/// - **ratio** — 0–5, the second formant from two octaves below (0) to two
-///   above (5). Below 2.5 the window itself bleeds in, adding the fundamental.
-/// - **width** — 0–5, the window's shape, from a narrow pulse to a broad,
-///   flat-topped one. It narrows by itself as the pitch rises past ≈2 kHz.
-///
-/// Through-zero FM plays each grain's window backward.
-///
-/// ```js
-/// $mi.formant('c2', { formant: $sine('0.1hz').range(0, 2) }).out()
-/// ```
-#[module(name = "$mi.formant", args(freq), has_init, block)]
+const FORMANT_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Granular formant oscillator",
+    description: "Mutable Instruments Plaits' granular formant oscillator. Every \
+                  cycle starts a pair of short sine grains, giving vowel-like, \
+                  resonant timbres whose formants stay put as the pitch moves.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Sweeping vowel bass",
+        code: r#"
+            const vowel = $sine('0.1hz').range(0, 2)
+            $mi.formant('c2', { formant: vowel }).out()
+        "#,
+    }],
+};
+
+#[module(name = "$mi.formant", docs = FORMANT_DOCS, args(freq), has_init, block)]
 pub struct Formant {
     outputs: FormantOutputs,
     state: FormantState,

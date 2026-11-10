@@ -3,17 +3,23 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{GATE_HIGH_VOLTAGE, GATE_LOW_VOLTAGE, SchmittTrigger};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CoinFlipParams {
-    /// triggers or gates to flip
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("triggers or gates to flip", type = trig)]
     input: PolySignal,
-    /// chance of heads: 0 = never, 2.5 = half the time, 5 = always
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "chance of heads: 0 never, 2.5 half the time, 5 always",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     probability: Option<PolySignal>,
 }
@@ -21,9 +27,9 @@ struct CoinFlipParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CoinFlipOutputs {
-    #[output("heads", "triggers that land heads", default)]
+    #[output("heads", "triggers and gates that land heads", type = gate, default)]
     heads: PolyOutput,
-    #[output("tails", "triggers that land tails")]
+    #[output("tails", "triggers and gates that land tails", type = gate)]
     tails: PolyOutput,
 }
 
@@ -59,23 +65,30 @@ impl CoinFlipChannelState {
     }
 }
 
-/// Sends each trigger to heads or tails at random.
-///
-/// Each trigger on **input** flips a weighted coin, and **probability** sets
-/// the chance of heads. The module itself is the heads output; `.tails`
-/// carries the rest. Gates keep their length, and each channel flips on its
-/// own.
-///
-/// Place it after `$clockDivider` to turn a steady clock into a loose rhythm,
-/// or use both outputs to split one stream between two sounds.
-///
-/// ```js
-/// // Each beat lands on the kick or the snare, 75/25:
-/// const flip = $coinFlip($clock.beatTrigger, 3.75)
-/// $tr808.kick(flip).out()
-/// $tr808.snare(flip.tails).out()
-/// ```
-#[module(name = "$coinFlip", patch_update, args(input, probability))]
+const COIN_FLIP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Random trigger router",
+    description: "Sends each trigger to heads or tails at random, weighted by the \
+                  probability: thin a steady clock into a loose rhythm, or split one \
+                  stream between two sounds. The module itself is the heads output; \
+                  `.tails` carries the rest.",
+    categories: &[ModuleCategory::Gate, ModuleCategory::Random],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Kick or snare, 75/25",
+        code: r#"
+            const flip = $coinFlip($clock.beatTrigger, 3.75)
+            $tr808.kick(flip).out()
+            $tr808.snare(flip.tails).out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$coinFlip",
+    docs = COIN_FLIP_DOCS,
+    patch_update,
+    args(input, probability)
+)]
 pub struct CoinFlip {
     outputs: CoinFlipOutputs,
     params: CoinFlipParams,

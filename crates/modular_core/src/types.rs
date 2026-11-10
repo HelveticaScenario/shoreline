@@ -48,10 +48,9 @@ use std::ptr::NonNull;
 use std::result::Result as StdResult;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::dsp::tables::warp;
 use crate::dsp::utils::{hz_to_voct, midi_to_voct};
+use crate::module_category::ModuleCategory;
 use crate::patch::Patch;
-use crate::poly::PolySignal;
 
 // ============================================================================
 // Well-known module IDs and ports
@@ -556,7 +555,7 @@ pub trait Connect {
     fn connect(&mut self, patch: &Patch);
 
     /// Walk this value and push every producer module ID it references
-    /// (cables, buffer sources, table-internal signals) into `sink`.
+    /// (cables, buffer sources, signals inside phase warps) into `sink`.
     ///
     /// Used by graph_analysis to build SCC adjacency before module
     /// construction.
@@ -933,8 +932,15 @@ pub trait PolySignalFields {
     }
 }
 
+/// `skip_serializing_if` predicate `#[params]` puts on a param with a
+/// documented default, so the JSON schema shows that value instead of the
+/// field type's own default.
+pub fn documented_schema_default<T>(_: &T) -> bool {
+    true
+}
+
 /// Trait for params structs to expose signal parameter metadata.
-/// Auto-derived by the `SignalParams` derive macro.
+/// Emitted by the `#[params]` attribute.
 pub trait SignalParamMeta {
     fn signal_param_schemas() -> Vec<SignalParamSchema>
     where
@@ -1082,14 +1088,6 @@ impl SampleBuffer {
         f(&mut self.samples)
     }
 
-    /// Hermite (4-point cubic) interpolation at a fractional frame position.
-    /// Out-of-bounds indices are clamped — suitable for one-shot sample playback.
-    /// Allocation-free; safe for the audio thread.
-    #[inline]
-    pub fn read_hermite_clamped(&self, channel: usize, frame: f32) -> f32 {
-        hermite_clamped(self.channel(channel), frame)
-    }
-
     /// One channel's samples; empty for a channel the buffer does not have.
     #[inline]
     pub fn channel(&self, channel: usize) -> &[f32] {
@@ -1136,22 +1134,46 @@ impl SampleBuffer {
     }
 }
 
+/// Hermite (4-point cubic) read of `samples` as a ring of `len` frames: the
+/// position and its neighbours wrap, so the last frame interpolates into the
+/// first. The frame is f64 for the same reason as [`hermite_clamped`].
+#[inline]
+pub fn hermite_wrapped(samples: &[f32], frame: f64) -> f32 {
+    let n = samples.len();
+    if !frame.is_finite() || n == 0 {
+        return 0.0;
+    }
+    let frame = frame.rem_euclid(n as f64);
+    // rem_euclid can round up to exactly n for tiny negative inputs.
+    let left = (frame as usize).min(n - 1);
+    let frac = (frame - left as f64) as f32;
+    if frac <= f32::EPSILON {
+        return samples[left];
+    }
+    hermite4(
+        samples[(left + n - 1) % n],
+        samples[left],
+        samples[(left + 1) % n],
+        samples[(left + 2) % n],
+        frac,
+    )
+}
+
 /// Hermite (4-point cubic) read of `samples` at a fractional frame position,
 /// silent outside `[0, len - 1]` and clamping the neighbours at the ends.
+/// The frame is f64 and only the fraction narrows to f32: past 2^24 frames
+/// (about six minutes at 48 kHz) an f32 frame cannot hold a fraction, and
+/// its rounding can carry a bounds check past the last frame.
 #[inline]
-pub fn hermite_clamped(samples: &[f32], frame: f32) -> f32 {
+pub fn hermite_clamped(samples: &[f32], frame: f64) -> f32 {
     let frame_count = samples.len();
-    if !frame.is_finite() || frame_count == 0 {
+    // Also rejects NaN and an empty buffer.
+    if !(frame >= 0.0 && frame <= frame_count as f64 - 1.0) {
         return 0.0;
     }
 
-    let max_frame = (frame_count - 1) as f32;
-    if frame < 0.0 || frame > max_frame {
-        return 0.0;
-    }
-
-    let left = frame.floor() as usize;
-    let frac = frame - left as f32;
+    let left = frame as usize;
+    let frac = (frame - left as f64) as f32;
     if frac <= f32::EPSILON {
         return samples[left];
     }
@@ -1216,12 +1238,6 @@ impl WavData {
 
     pub fn read(&self, channel: usize, frame: usize) -> f32 {
         self.buffer.read(channel, frame)
-    }
-
-    /// Hermite-interpolated read with clamping (for one-shot sample playback).
-    #[inline]
-    pub fn read_hermite_clamped(&self, channel: usize, frame: f32) -> f32 {
-        self.buffer.read_hermite_clamped(channel, frame)
     }
 
     /// One channel's samples; empty for a channel the file does not have.
@@ -1291,13 +1307,6 @@ impl Wav {
         self.cached_data
             .as_ref()
             .map(|d| d.read(channel, frame))
-            .unwrap_or(0.0)
-    }
-
-    pub fn read_hermite_clamped(&self, channel: usize, frame: f32) -> f32 {
-        self.cached_data
-            .as_ref()
-            .map(|d| d.read_hermite_clamped(channel, frame))
             .unwrap_or(0.0)
     }
 
@@ -1955,324 +1964,6 @@ impl PartialEq for Buffer {
     }
 }
 
-// ============================================================================
-// Table — function-object param type for phase warping
-// ============================================================================
-
-/// A function-object param type used by modules (e.g., `$wavetable`) that need a
-/// parameterized phase-warp. Each variant holds `PolySignal` fields for dynamic
-/// parameters; the consuming module resolves signals via `connect()` and calls
-/// `evaluate(x, channel)` per-sample.
-///
-/// JSON shape (serialized/deserialized):
-/// ```json
-/// { "type": "identity" }
-/// { "type": "mirror", "amount": <signal> }
-/// { "type": "bend",   "amount": <signal> }
-/// { "type": "sync",   "ratio":  <signal> }
-/// { "type": "fold",   "amount": <signal> }
-/// { "type": "pwm",    "width":  <signal> }
-/// { "type": "pipe",   "first":  <table>, "second": <table> }
-/// ```
-#[derive(Clone, Debug, Connect)]
-pub enum Table {
-    Identity,
-    Mirror {
-        amount: PolySignal,
-    },
-    Bend {
-        amount: PolySignal,
-    },
-    Sync {
-        ratio: PolySignal,
-    },
-    Fold {
-        amount: PolySignal,
-    },
-    Pwm {
-        width: PolySignal,
-    },
-    /// Compose two tables: output phase of `first` becomes input phase of `second`.
-    Pipe {
-        first: Box<Table>,
-        second: Box<Table>,
-    },
-}
-
-impl Table {
-    /// Evaluate the table warp at position `x` for the given channel.
-    ///
-    /// Must be cheap and allocation-free — called per-sample on the audio thread.
-    #[inline]
-    pub fn evaluate(&self, x: f32, channel: usize) -> f32 {
-        match self {
-            Table::Identity => x,
-            Table::Mirror { amount } => warp::mirror(x, amount.get_value(channel)),
-            Table::Bend { amount } => warp::bend(x, amount.get_value(channel)),
-            Table::Sync { ratio } => warp::sync(x, ratio.get_value(channel)),
-            Table::Fold { amount } => warp::fold(x, amount.get_value(channel)),
-            Table::Pwm { width } => warp::pwm(x, width.get_value(channel)),
-            Table::Pipe { first, second } => second.evaluate(first.evaluate(x, channel), channel),
-        }
-    }
-
-    pub fn channels(&self) -> usize {
-        match self {
-            Table::Identity => 0,
-            Table::Mirror { amount } => amount.channels(),
-            Table::Bend { amount } => amount.channels(),
-            Table::Sync { ratio } => ratio.channels(),
-            Table::Fold { amount } => amount.channels(),
-            Table::Pwm { width } => width.channels(),
-            Table::Pipe { first, second } => first.channels().max(second.channels()),
-        }
-    }
-}
-
-// --- Serde Serialize / Deserialize (internally-tagged on "type") ---
-
-#[derive(Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum TableSerde {
-    Identity,
-    Mirror {
-        amount: PolySignal,
-    },
-    Bend {
-        amount: PolySignal,
-    },
-    Sync {
-        ratio: PolySignal,
-    },
-    Fold {
-        amount: PolySignal,
-    },
-    Pwm {
-        width: PolySignal,
-    },
-    Pipe {
-        first: Box<TableSerde>,
-        second: Box<TableSerde>,
-    },
-}
-
-impl From<TableSerde> for Table {
-    fn from(s: TableSerde) -> Self {
-        match s {
-            TableSerde::Identity => Table::Identity,
-            TableSerde::Mirror { amount } => Table::Mirror { amount },
-            TableSerde::Bend { amount } => Table::Bend { amount },
-            TableSerde::Sync { ratio } => Table::Sync { ratio },
-            TableSerde::Fold { amount } => Table::Fold { amount },
-            TableSerde::Pwm { width } => Table::Pwm { width },
-            TableSerde::Pipe { first, second } => Table::Pipe {
-                first: Box::new(Table::from(*first)),
-                second: Box::new(Table::from(*second)),
-            },
-        }
-    }
-}
-
-impl<'a> From<&'a Table> for TableSerdeRef<'a> {
-    fn from(t: &'a Table) -> Self {
-        match t {
-            Table::Identity => TableSerdeRef::Identity,
-            Table::Mirror { amount } => TableSerdeRef::Mirror { amount },
-            Table::Bend { amount } => TableSerdeRef::Bend { amount },
-            Table::Sync { ratio } => TableSerdeRef::Sync { ratio },
-            Table::Fold { amount } => TableSerdeRef::Fold { amount },
-            Table::Pwm { width } => TableSerdeRef::Pwm { width },
-            Table::Pipe { first, second } => TableSerdeRef::Pipe {
-                first: Box::new(TableSerdeRef::from(first.as_ref())),
-                second: Box::new(TableSerdeRef::from(second.as_ref())),
-            },
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum TableSerdeRef<'a> {
-    Identity,
-    Mirror {
-        amount: &'a PolySignal,
-    },
-    Bend {
-        amount: &'a PolySignal,
-    },
-    Sync {
-        ratio: &'a PolySignal,
-    },
-    Fold {
-        amount: &'a PolySignal,
-    },
-    Pwm {
-        width: &'a PolySignal,
-    },
-    Pipe {
-        first: Box<TableSerdeRef<'a>>,
-        second: Box<TableSerdeRef<'a>>,
-    },
-}
-
-impl<'de> Deserialize<'de> for Table {
-    fn deserialize<D>(deserializer: D) -> StdResult<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        TableSerde::deserialize(deserializer).map(Table::from)
-    }
-}
-
-impl Serialize for Table {
-    fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        TableSerdeRef::from(self).serialize(serializer)
-    }
-}
-
-// --- deserr impl (mirrors the serde shape: object with "type" discriminant) ---
-
-impl<E: DeserializeError> deserr::Deserr<E> for Table {
-    fn deserialize_from_value<V: IntoValue>(
-        value: deserr::Value<V>,
-        location: ValuePointerRef<'_>,
-    ) -> StdResult<Self, E> {
-        let mut map = match value {
-            deserr::Value::Map(m) => m,
-            _ => {
-                return Err(deserr::take_cf_content(E::error::<V>(
-                    None,
-                    ErrorKind::Unexpected {
-                        msg: "Table must be an object with a \"type\" field".to_string(),
-                    },
-                    location,
-                )));
-            }
-        };
-
-        let type_val = map.remove("type").and_then(|v| match v.into_value() {
-            deserr::Value::String(s) => Some(s),
-            _ => None,
-        });
-
-        let type_str = type_val.ok_or_else(|| {
-            deserr::take_cf_content(E::error::<V>(
-                None,
-                ErrorKind::MissingField { field: "type" },
-                location,
-            ))
-        })?;
-
-        // Helper: pull a named PolySignal field out of the remaining map.
-        fn take_signal<E2: DeserializeError, V2: IntoValue>(
-            map: &mut impl DeserrMap<Value = V2>,
-            field: &'static str,
-            location: ValuePointerRef<'_>,
-        ) -> StdResult<PolySignal, E2> {
-            let raw = map.remove(field).ok_or_else(|| {
-                deserr::take_cf_content(E2::error::<V2>(
-                    None,
-                    ErrorKind::MissingField { field },
-                    location,
-                ))
-            })?;
-            PolySignal::deserialize_from_value(raw.into_value(), location)
-        }
-
-        match type_str.as_str() {
-            "identity" => Ok(Table::Identity),
-            "mirror" => {
-                let amount = take_signal::<E, V>(&mut map, "amount", location)?;
-                Ok(Table::Mirror { amount })
-            }
-            "bend" => {
-                let amount = take_signal::<E, V>(&mut map, "amount", location)?;
-                Ok(Table::Bend { amount })
-            }
-            "sync" => {
-                let ratio = take_signal::<E, V>(&mut map, "ratio", location)?;
-                Ok(Table::Sync { ratio })
-            }
-            "fold" => {
-                let amount = take_signal::<E, V>(&mut map, "amount", location)?;
-                Ok(Table::Fold { amount })
-            }
-            "pwm" => {
-                let width = take_signal::<E, V>(&mut map, "width", location)?;
-                Ok(Table::Pwm { width })
-            }
-            "pipe" => {
-                let first_raw = map.remove("first").ok_or_else(|| {
-                    deserr::take_cf_content(E::error::<V>(
-                        None,
-                        ErrorKind::MissingField { field: "first" },
-                        location,
-                    ))
-                })?;
-                let second_raw = map.remove("second").ok_or_else(|| {
-                    deserr::take_cf_content(E::error::<V>(
-                        None,
-                        ErrorKind::MissingField { field: "second" },
-                        location,
-                    ))
-                })?;
-                let first = Table::deserialize_from_value(first_raw.into_value(), location)?;
-                let second = Table::deserialize_from_value(second_raw.into_value(), location)?;
-                Ok(Table::Pipe {
-                    first: Box::new(first),
-                    second: Box::new(second),
-                })
-            }
-            other => Err(deserr::take_cf_content(E::error::<V>(
-                None,
-                ErrorKind::Unexpected {
-                    msg: format!("unknown table type: {}", other),
-                },
-                location,
-            ))),
-        }
-    }
-}
-
-impl JsonSchema for Table {
-    fn schema_name() -> Cow<'static, str> {
-        Cow::Borrowed("Table")
-    }
-
-    fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        // Schema matches the serialized form: internally-tagged on "type", camelCase.
-        #[derive(JsonSchema)]
-        #[serde(tag = "type", rename_all = "camelCase")]
-        #[allow(dead_code)]
-        enum TableSchema {
-            Identity,
-            Mirror {
-                amount: PolySignal,
-            },
-            Bend {
-                amount: PolySignal,
-            },
-            Sync {
-                ratio: PolySignal,
-            },
-            Fold {
-                amount: PolySignal,
-            },
-            Pwm {
-                width: PolySignal,
-            },
-            Pipe {
-                first: Box<Table>,
-                second: Box<Table>,
-            },
-        }
-        TableSchema::json_schema(r#gen)
-    }
-}
-
 /// A single-channel signal value.
 ///
 /// This represents either a constant voltage or a cable connection to a specific
@@ -2886,10 +2577,52 @@ pub enum Seq {
 pub struct SignalParamSchema {
     pub name: String,
     pub description: String,
-    pub signal_type: String,
-    pub default_value: f64,
-    pub min_value: f64,
-    pub max_value: f64,
+    /// A `ParamType` value.
+    #[napi(ts_type = "string")]
+    pub param_type: ParamType,
+    /// What a disconnected input reads, when it reads a fixed value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<f64>,
+    /// The default in words, for one that depends on other params; the docs
+    /// show it in place of `default_value`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_doc: Option<String>,
+    /// Lower bound of the usable range; `None` when unbounded below.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_value: Option<f64>,
+    /// Upper bound of the usable range; `None` when unbounded above.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_value: Option<f64>,
+    /// Slider span of a `control` input; set for every control, `None`
+    /// otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control_min: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control_max: Option<f64>,
+}
+
+/// The kind of voltage a signal input reads, named in `#[input(type = …)]`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[napi(string_enum = "lowercase")]
+pub enum ParamType {
+    Audio,
+    Control,
+    Pitch,
+    Frequency,
+    Gate,
+    Trig,
+}
+
+/// What an output emits, named in `#[output(type = …)]`: a continuous
+/// voltage, or a gate or trigger on the 0–5 V convention.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[napi(string_enum = "lowercase")]
+pub enum OutputType {
+    Cv,
+    Gate,
+    Trig,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2898,6 +2631,9 @@ pub struct SignalParamSchema {
 pub struct OutputSchema {
     pub name: String,
     pub description: String,
+    /// An `OutputType` value.
+    #[napi(ts_type = "string")]
+    pub output_type: OutputType,
     /// Whether this output is polyphonic (PolyOutput) or monophonic (f32/f64)
     #[serde(default)]
     pub polyphonic: bool,
@@ -2997,8 +2733,7 @@ pub struct PositionalArg {
 #[napi(object)]
 pub struct ModuleSchema {
     pub name: String,
-    /// Documentation extracted from `///` doc comments on the module struct.
-    pub documentation: String,
+    pub docs: crate::module_docs::ModuleDocsSchema,
     #[napi(ts_type = "Record<string, unknown>")]
     pub params_schema: SchemaContainer,
     pub outputs: Vec<OutputSchema>,
@@ -3900,6 +3635,33 @@ mod sample_buffer_tests {
         let sum: f32 = buf.with_data(|data| data[0].iter().sum());
         assert_eq!(sum, 30.0);
     }
+
+    /// Longer than 2^24 frames, with a length whose last index rounds up to
+    /// the length itself in f32.
+    const LONG_FILE_FRAMES: usize = (1 << 24) + 4;
+
+    #[test]
+    fn hermite_reads_stay_in_bounds_and_precise_past_f32_range() {
+        let n = LONG_FILE_FRAMES;
+        assert_eq!((n - 1) as f32, n as f32, "setup: last index must round up");
+        let samples: Vec<f32> = (0..n).map(|i| (i % 7) as f32).collect();
+        let last = (n - 1) as f64;
+        assert_eq!(hermite_clamped(&samples, last), samples[n - 1]);
+        assert_eq!(hermite_clamped(&samples, last + 0.5), 0.0);
+        assert_eq!(hermite_wrapped(&samples, last), samples[n - 1]);
+        // The fraction survives far into the file.
+        let frame = (1u64 << 24) as f64 + 0.25;
+        let left = 1 << 24;
+        let want = hermite4(
+            samples[left - 1],
+            samples[left],
+            samples[left + 1],
+            samples[left + 2],
+            0.25,
+        );
+        assert_eq!(hermite_clamped(&samples, frame), want);
+        assert_eq!(hermite_wrapped(&samples, frame), want);
+    }
 }
 
 #[cfg(test)]
@@ -4001,337 +3763,6 @@ mod wav_tests {
         assert_eq!(w.path(), "kick");
         assert_eq!(w.channel_count(), 2);
         assert_eq!(w.mtime(), None);
-    }
-}
-
-#[cfg(test)]
-mod table_tests {
-    use super::*;
-    use crate::poly::PolySignal;
-
-    fn constant(v: f32) -> PolySignal {
-        PolySignal::mono(Signal::Volts(v))
-    }
-
-    // ---------- evaluate() ----------
-
-    #[test]
-    fn identity_evaluates_as_passthrough() {
-        let t = Table::Identity;
-        for i in 0..=10 {
-            let x = i as f32 / 10.0;
-            assert!((t.evaluate(x, 0) - x).abs() < 1e-6);
-        }
-    }
-
-    #[test]
-    fn mirror_evaluates_with_constant_signal() {
-        let t = Table::Mirror {
-            amount: constant(0.0),
-        };
-        // amount=0 => identity.
-        for i in 0..=10 {
-            let x = i as f32 / 10.0;
-            assert!((t.evaluate(x, 0) - x).abs() < 1e-6);
-        }
-        // amount=1 at midpoint => 1.0.
-        let t = Table::Mirror {
-            amount: constant(1.0),
-        };
-        assert!((t.evaluate(0.5, 0) - 1.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn bend_evaluates_with_constant_signal() {
-        let t = Table::Bend {
-            amount: constant(0.0),
-        };
-        for i in 0..=10 {
-            let x = i as f32 / 10.0;
-            assert!((t.evaluate(x, 0) - x).abs() < 1e-6);
-        }
-        // Endpoints preserved even under bend.
-        let t = Table::Bend {
-            amount: constant(0.7),
-        };
-        assert!(t.evaluate(0.0, 0).abs() < 1e-6);
-        assert!((t.evaluate(1.0, 0) - 1.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn sync_evaluates_with_constant_signal() {
-        // ratio=0 => 1x (identity on [0, 1)).
-        let t = Table::Sync {
-            ratio: constant(0.0),
-        };
-        for i in 0..100 {
-            let x = i as f32 / 100.0;
-            assert!((t.evaluate(x, 0) - x).abs() < 1e-6);
-        }
-    }
-
-    #[test]
-    fn fold_evaluates_with_constant_signal() {
-        // amount=0 => identity.
-        let t = Table::Fold {
-            amount: constant(0.0),
-        };
-        for i in 0..=10 {
-            let x = i as f32 / 10.0;
-            assert!((t.evaluate(x, 0) - x).abs() < 1e-6);
-        }
-    }
-
-    #[test]
-    fn pwm_evaluates_with_constant_signal() {
-        let t = Table::Pwm {
-            width: constant(0.5),
-        };
-        assert!(t.evaluate(0.0, 0).abs() < 1e-6);
-        assert!((t.evaluate(1.0, 0) - 1.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn evaluate_output_in_range_across_sweep() {
-        let cases: Vec<Table> = vec![
-            Table::Identity,
-            Table::Mirror {
-                amount: constant(0.5),
-            },
-            Table::Bend {
-                amount: constant(0.5),
-            },
-            Table::Sync {
-                ratio: constant(0.5),
-            },
-            Table::Fold {
-                amount: constant(0.5),
-            },
-            Table::Pwm {
-                width: constant(0.3),
-            },
-        ];
-        for t in &cases {
-            for i in 0..=100 {
-                let x = i as f32 / 100.0;
-                let y = t.evaluate(x, 0);
-                assert!(
-                    (0.0..=1.0).contains(&y),
-                    "table variant output {} out of range for x={}",
-                    y,
-                    x
-                );
-            }
-        }
-    }
-
-    // ---------- connect() ----------
-
-    #[test]
-    fn connect_identity_is_noop() {
-        let patch = Patch::new();
-        let mut t = Table::Identity;
-        t.connect(&patch);
-        assert!(matches!(t, Table::Identity));
-    }
-
-    #[test]
-    fn connect_resolves_polysignal_for_every_variant() {
-        // With PolySignal::mono(Signal::Volts(x)), `connect()` is a no-op on Volts,
-        // so we mostly assert that it runs without panic and evaluates sensibly.
-        let patch = Patch::new();
-
-        let mut mirror = Table::Mirror {
-            amount: constant(0.25),
-        };
-        mirror.connect(&patch);
-        // At x=0.5 the reflection is 1.0; interpolated at amount=0.25: 0.5 + 0.5*0.25 = 0.625.
-        assert!((mirror.evaluate(0.5, 0) - 0.625).abs() < 1e-4);
-
-        let mut bend = Table::Bend {
-            amount: constant(0.0),
-        };
-        bend.connect(&patch);
-        assert!((bend.evaluate(0.5, 0) - 0.5).abs() < 1e-6);
-
-        let mut sync = Table::Sync {
-            ratio: constant(0.0),
-        };
-        sync.connect(&patch);
-        assert!((sync.evaluate(0.25, 0) - 0.25).abs() < 1e-6);
-
-        let mut fold = Table::Fold {
-            amount: constant(0.0),
-        };
-        fold.connect(&patch);
-        assert!((fold.evaluate(0.5, 0) - 0.5).abs() < 1e-6);
-
-        let mut pwm = Table::Pwm {
-            width: constant(0.5),
-        };
-        pwm.connect(&patch);
-        assert!((pwm.evaluate(0.5, 0) - 0.5).abs() < 1e-6);
-    }
-
-    // ---------- (de)serialization round trip ----------
-
-    #[test]
-    fn table_deserializes_identity() {
-        let t: Table = serde_json::from_str(r#"{"type":"identity"}"#).unwrap();
-        assert!(matches!(t, Table::Identity));
-    }
-
-    #[test]
-    fn table_deserializes_mirror_with_scalar_signal() {
-        let t: Table = serde_json::from_str(r#"{"type":"mirror","amount":0.5}"#).unwrap();
-        match t {
-            Table::Mirror { amount } => {
-                assert!((amount.get_value(0) - 0.5).abs() < 1e-6);
-            }
-            _ => panic!("expected Mirror"),
-        }
-    }
-
-    #[test]
-    fn table_deserializes_pwm_with_scalar_signal() {
-        let t: Table = serde_json::from_str(r#"{"type":"pwm","width":0.25}"#).unwrap();
-        match t {
-            Table::Pwm { width } => {
-                assert!((width.get_value(0) - 0.25).abs() < 1e-6);
-            }
-            _ => panic!("expected Pwm"),
-        }
-    }
-
-    #[test]
-    fn table_roundtrips_identity() {
-        let t = Table::Identity;
-        let json = serde_json::to_string(&t).unwrap();
-        assert_eq!(json, r#"{"type":"identity"}"#);
-    }
-
-    #[test]
-    fn table_roundtrips_sync() {
-        let t = Table::Sync {
-            ratio: constant(0.75),
-        };
-        let json = serde_json::to_string(&t).unwrap();
-        let back: Table = serde_json::from_str(&json).unwrap();
-        match back {
-            Table::Sync { ratio } => {
-                assert!((ratio.get_value(0) - 0.75).abs() < 1e-6);
-            }
-            _ => panic!("expected Sync"),
-        }
-    }
-
-    // ---------- deserr parity ----------
-
-    #[test]
-    fn table_deserr_parses_mirror() {
-        use deserr::deserialize;
-
-        let value: serde_json::Value =
-            serde_json::from_str(r#"{"type":"mirror","amount":0.5}"#).unwrap();
-        let t: Table = deserialize::<Table, _, deserr::errors::JsonError>(value).unwrap();
-        match t {
-            Table::Mirror { amount } => {
-                assert!((amount.get_value(0) - 0.5).abs() < 1e-6);
-            }
-            _ => panic!("expected Mirror"),
-        }
-    }
-
-    #[test]
-    fn table_deserr_parses_identity() {
-        use deserr::deserialize;
-        let value: serde_json::Value = serde_json::from_str(r#"{"type":"identity"}"#).unwrap();
-        let t: Table = deserialize::<Table, _, deserr::errors::JsonError>(value).unwrap();
-        assert!(matches!(t, Table::Identity));
-    }
-
-    #[test]
-    fn table_deserr_rejects_unknown_type() {
-        use deserr::deserialize;
-        let value: serde_json::Value = serde_json::from_str(r#"{"type":"bogus"}"#).unwrap();
-        let res: StdResult<Table, deserr::errors::JsonError> = deserialize(value);
-        assert!(res.is_err());
-    }
-
-    // ---------- Pipe composition ----------
-
-    #[test]
-    fn pipe_chains_evaluate_first_then_second() {
-        // mirror(0.5) at x=0.5 → reflected to 1.0 (full mirror).
-        // Then bend(0.0) at 1.0 → 1.0 (identity at amount=0).
-        let t = Table::Pipe {
-            first: Box::new(Table::Mirror {
-                amount: constant(1.0),
-            }),
-            second: Box::new(Table::Bend {
-                amount: constant(0.0),
-            }),
-        };
-        // At x=0.5, mirror with amount=1 maps 0.5→1.0; bend with 0 maps 1.0→1.0.
-        let out = t.evaluate(0.5, 0);
-        assert!((out - 1.0).abs() < 1e-4, "expected ~1.0 got {out}");
-    }
-
-    #[test]
-    fn pipe_channels_is_max_of_both() {
-        let t = Table::Pipe {
-            first: Box::new(Table::Mirror {
-                amount: constant(0.5),
-            }),
-            second: Box::new(Table::Identity),
-        };
-        assert_eq!(t.channels(), 1); // Mirror has 1, Identity has 0
-    }
-
-    #[test]
-    fn pipe_serializes_and_deserializes_via_serde() {
-        let t = Table::Pipe {
-            first: Box::new(Table::Mirror {
-                amount: constant(0.5),
-            }),
-            second: Box::new(Table::Bend {
-                amount: constant(0.3),
-            }),
-        };
-        let json = serde_json::to_string(&t).unwrap();
-        assert!(
-            json.contains("\"type\":\"pipe\""),
-            "missing pipe tag: {json}"
-        );
-        assert!(
-            json.contains("\"type\":\"mirror\""),
-            "missing first: {json}"
-        );
-        assert!(json.contains("\"type\":\"bend\""), "missing second: {json}");
-        let back: Table = serde_json::from_str(&json).unwrap();
-        match back {
-            Table::Pipe { first, second } => {
-                assert!(matches!(*first, Table::Mirror { .. }));
-                assert!(matches!(*second, Table::Bend { .. }));
-            }
-            _ => panic!("expected Pipe"),
-        }
-    }
-
-    #[test]
-    fn pipe_parses_via_deserr() {
-        use deserr::deserialize;
-        let value: serde_json::Value = serde_json::from_str(
-            r#"{"type":"pipe","first":{"type":"mirror","amount":0.5},"second":{"type":"fold","amount":0.2}}"#,
-        ).unwrap();
-        let t: Table = deserialize::<Table, _, deserr::errors::JsonError>(value).unwrap();
-        match t {
-            Table::Pipe { first, second } => {
-                assert!(matches!(*first, Table::Mirror { .. }));
-                assert!(matches!(*second, Table::Fold { .. }));
-            }
-            _ => panic!("expected Pipe"),
-        }
     }
 }
 

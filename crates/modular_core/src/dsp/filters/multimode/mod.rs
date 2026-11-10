@@ -23,6 +23,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::rng::seed_base,
     poly::{PolyOutput, PolySignal},
@@ -32,34 +34,57 @@ use controls::{ControlInputs, update_controls};
 use group::{GroupOutputs, GroupState, Tables, process_block_group, process_group, step};
 use lanes::{HalfbandDown, LANES, f32x4};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MultimodeParams {
-    /// signal input (DC-coupled)
+    #[input("the sound to filter; DC-coupled, so CV passes too", type = audio)]
     input: PolySignal,
-    /// cutoff frequency in V/Oct (0V = C4), capped at ~21 kHz
-    #[signal(type = frequency, default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "cutoff frequency; the top of the range sounds near 21 kHz",
+        type = frequency,
+        default = 0.0,
+        range = (-10.08, 6.53),
+    )]
     cutoff: PolySignal,
-    /// resonance (0-5). Self-oscillates from ~4.3.
-    #[signal(type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "filter resonance; self-oscillates from about 4.3",
+        type = control,
+        default = 0.0,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
-    /// response: 0 = lowpass, 2.5 = bandpass, 5 = highpass, crossfading between
-    #[signal(type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "response: 0 lowpass, 2.5 bandpass, 5 highpass, crossfading between",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     mode: Option<PolySignal>,
-    /// input drive (0 = unity, 5 = +18 dB), cubic response
-    #[signal(type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "input level into the clipper: 0 unity, 5 +18 dB, -5 silent; maxes out at +20 dB",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.7),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     drive: Option<PolySignal>,
-    /// drive response (0 = soft clipping, 5 = two-stage wavefolder)
-    #[signal(type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "drive character: 0 soft clipping, 5 two-stage wavefolder",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     fold: Option<PolySignal>,
-    /// when true (default), the circuit runs at twice the engine rate, which
-    /// reduces aliasing from the clipper, wavefolder and self-oscillation and
-    /// keeps the highpass accurate at high cutoffs; false costs less CPU
+    #[input(
+        "run at twice the engine rate: less aliasing from clipping, folding and self-oscillation, and a truer highpass at high cutoffs; false costs less CPU"
+    )]
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]
     high_res: bool,
@@ -72,55 +97,55 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MultimodeOutputs {
-    #[output("output", "response selected by mode", default, range = (-10.0, 10.0))]
+    #[output("output", "response selected by mode", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
-    #[output("lp", "lowpass (the output at mode 0)", range = (-10.0, 10.0))]
+    #[output("lp", "lowpass, the output at mode 0", type = cv, range = (-10.0, 10.0))]
     lp: PolyOutput,
-    #[output("bp", "bandpass (the output near mode 2.5)", range = (-10.0, 10.0))]
+    #[output("bp", "bandpass, the output near mode 2.5", type = cv, range = (-10.0, 10.0))]
     bp: PolyOutput,
-    #[output("hp", "highpass (the output at mode 5)", range = (-10.0, 10.0))]
+    #[output("hp", "highpass, the output at mode 5", type = cv, range = (-10.0, 10.0))]
     hp: PolyOutput,
 }
 
-/// Mutable Instruments Blades–style multimode filter with drive and wavefolder.
-///
-/// A circuit model of one channel of Blades: a 2164 VCA state-variable filter
-/// that morphs continuously from lowpass through bandpass to highpass, preceded
-/// by a drive VCA into a zener soft clipper and a two-stage diode wavefolder.
-/// The signal path is DC-coupled, so it can process CVs too.
-///
-/// - **cutoff** — V/Oct. Tracks exactly at low cutoffs and runs progressively
-///   flat in the top octaves (−15 cents at 1 kHz, about half a semitone at
-///   5 kHz), topping out near 21 kHz, as the circuit does. Responds at audio
-///   rate, so an oscillator patched in gives exponential FM.
-/// - **resonance** — 0–5. Self-oscillates above ~4.3; the bandpass is then
-///   held near ±4 V by the soft knee of the integrator's zeners. With no input,
-///   `mode` shifts the phase of the sine.
-/// - **mode** — 0 lowpass, 2.5 bandpass, 5 highpass; values between crossfade.
-/// - **drive** — input gain ahead of everything else: 0 is unity, 5 is about
-///   +18 dB. The zeners' soft knee already rounds a ±5 V input at 0.
-/// - **fold** — 0 soft clipping only, 5 the two-stage wavefolder.
-/// - **highRes** — on by default. Off runs the circuit at the engine rate for
-///   less CPU, with more aliasing from hot drive, folding and self-oscillation,
-///   and a highpass that attenuates more below the cutoff once the cutoff is
-///   above ~8 kHz (about 2 dB more at 15 kHz).
-///
-/// Passband gain in lowpass mode is about +2.8 dB at unity drive, rolling off
-/// above ~20 kHz at the output amp, whose zeners compress the output softly
-/// above about 6 V.
-///
-/// ```js
-/// // resonant sweep that morphs from lowpass to highpass
-/// $multimode($saw('c2'), $sine('0.1hz').range(-1, 2), 3.8, $sine('0.07hz').range(0, 5)).out()
-/// // wavefolded sine through a gentle lowpass
-/// $multimode($sine('c3'), 'c6', 1, 0, { drive: 3, fold: 3 }).out()
-/// // no input: a self-oscillating sine at A3
-/// $multimode(0, 'a3', 5).out()
-/// // without oversampling, for less CPU
-/// $multimode($saw('c2'), 'c5', 2, 0, { highRes: false }).out()
-/// ```
+const MULTIMODE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Blades-style multimode filter",
+    description: "A circuit model of one channel of Mutable Instruments Blades: a filter that \
+                  morphs from lowpass through bandpass to highpass, after a drive stage that \
+                  soft-clips or wavefolds. It self-oscillates into a sine, takes audio-rate \
+                  cutoff modulation for FM, and is DC-coupled, so it can shape CV too.",
+    categories: &[ModuleCategory::Filter, ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Resonant sweep morphing from lowpass to highpass",
+            code: r#"
+                $saw('c2')
+                  .$.multimode(
+                    $sine('0.1hz').range(-1, 2),
+                    3.8,
+                    $sine('0.07hz').range(0, 5),
+                  )
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Wavefolded sine",
+            code: r#"
+                $sine('c3')
+                  .$.multimode('c6', 1, 0, { drive: 3, fold: 3 })
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Self-oscillating sine at A3",
+            code: "$multimode(0, 'a3', 5).out()",
+        },
+    ],
+};
+
 #[module(
     name = "$multimode",
+    docs = MULTIMODE_DOCS,
     args(input, cutoff, resonance, mode),
     has_init,
     patch_update,

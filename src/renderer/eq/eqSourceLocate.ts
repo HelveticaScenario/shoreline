@@ -5,10 +5,10 @@
  * panel's tracked anchor) — then the config object holding `ui` and its
  * `sections`: the array itself, or one channel's nested array.
  */
-import { ts } from 'ts-morph';
+import ts from 'typescript';
 
 import type { EqField } from './eqPanelModel';
-import { eolOf, indentAt, lineEnd } from '../dsl/objectPropertyInsert';
+import type { ListEdit } from '../dsl/listEdits';
 
 export interface TextEdit {
     /** Half-open [start, end) replacement span. */
@@ -231,43 +231,9 @@ export function diffEdit(before: string, after: string): TextEdit | null {
     return { end: endBefore, start, text: after.slice(start, endAfter) };
 }
 
-/** Append `text` as the array's last element, matching its layout. */
-export function appendElement(
-    sf: ts.SourceFile,
-    array: ts.ArrayLiteralExpression,
-    text: string,
-): TextEdit {
-    const source = sf.text;
-    const elements = array.elements;
-    const close = array.getEnd() - 1;
-    if (elements.length === 0) {
-        return { end: close, start: array.getStart(sf) + 1, text };
-    }
-    const last = elements[elements.length - 1];
-    const comma = /^\s*,/.exec(source.slice(last.getEnd(), close));
-    const expanded = source
-        .slice(array.getStart(sf) + 1, elements[0].getStart(sf))
-        .includes('\n');
-    if (expanded) {
-        const nl = eolOf(source);
-        const indent = indentAt(source, last.getStart(sf));
-        if (comma) {
-            const afterComma = last.getEnd() + comma[0].length;
-            const eol = lineEnd(source, afterComma);
-            const at = eol < close ? eol : afterComma;
-            return { end: at, start: at, text: `${nl}${indent}${text},` };
-        }
-        return {
-            end: last.getEnd(),
-            start: last.getEnd(),
-            text: `,${nl}${indent}${text}`,
-        };
-    }
-    if (comma) {
-        const at = last.getEnd() + comma[0].length;
-        return { end: at, start: at, text: ` ${text}` };
-    }
-    return { end: last.getEnd(), start: last.getEnd(), text: `, ${text}` };
+/** `edit` in this module's start/end/text shape. */
+export function asTextEdit(edit: ListEdit): TextEdit {
+    return { end: edit.span.end, start: edit.span.start, text: edit.newText };
 }
 
 /**

@@ -14,10 +14,10 @@ pub mod mi;
 pub mod midi;
 pub mod oscillators;
 pub mod phase;
+pub mod phase_warp;
 pub mod samplers;
 pub mod seq;
 pub mod shape;
-pub mod tables;
 pub mod utilities;
 pub mod utils;
 

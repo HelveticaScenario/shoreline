@@ -24,6 +24,8 @@ use super::resample::Resampler;
 use super::voice::VoiceControls;
 use super::wav_load::cached_load;
 use super::{FULL_SCALE_VOLTS, GranularQuality, grain_params, unit};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// A voice fully wet with no feedback: frozen, it records nothing.
 const CONTROLS: VoiceControls = VoiceControls {
@@ -31,51 +33,66 @@ const CONTROLS: VoiceControls = VoiceControls {
     dry_wet: 1.0,
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct GranularSamplerParams {
-    /// the file to play; each of its channels gets its own voice
+    #[input("the file to play; each of its channels gets its own voice")]
     wav: Wav,
-    /// starts a grain on each rising edge
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("starts a grain", type = trig)]
     #[deserr(default)]
     trigger: Option<PolySignal>,
-    /// where grains start: 0 = the start of the file, 5 = its end
-    /// (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "where grains start: 0 the start of the file, 5 its end",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     time: Option<PolySignal>,
-    /// grain length: 0 = shortest, 5 = longest; negative values play the
-    /// grains backwards (−5 to 5, default 2.75)
-    #[signal(default = 2.75, range = (-5.0, 5.0))]
+    #[input(
+        "grain length: 0 shortest, 5 longest; negative values play the grains backwards",
+        type = control,
+        default = 2.75,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<PolySignal>,
-    /// grain envelope: 0 = square, 1.67 = sharp attack, 3.33 = smooth,
-    /// 5 = reverse swell (default 3.33)
-    #[signal(default = 3.33, range = (0.0, 5.0))]
+    #[input(
+        "grain envelope: 0 square, 1.67 sharp attack, 3.33 smooth, 5 reverse swell",
+        type = control,
+        default = 3.33,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     shape: Option<PolySignal>,
-    /// grain pitch; grains play at the file's own pitch when `freq` equals
-    /// `rootFreq` (default C4)
-    #[signal(type = pitch)]
+    #[input(
+        "grain pitch; grains keep the file's pitch when `freq` equals `rootFreq`",
+        type = pitch,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// pitch of the file, so `freq` plays in tune (default C4)
-    #[signal(type = pitch)]
+    #[input("pitch of the file, so `freq` plays in tune", type = pitch)]
     #[deserr(default)]
     root_freq: Option<PolySignal>,
-    /// random stereo position for each grain (0–5, default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how far each grain lands at a random stereo position: 0 centred, 5 anywhere",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     spread: Option<PolySignal>,
-    /// spreads the voices across the stereo field: 0 = all centred, 5 =
-    /// first voice hard left to last hard right (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<MonoSignal>,
-    /// sound character: digital, vintage, cleanTape or dirtyTape (default
-    /// digital)
+    #[input("sound character: how clean it sounds", default = "digital")]
     #[serde(default)]
     #[deserr(default)]
     quality: GranularQuality,
@@ -115,13 +132,14 @@ impl crate::types::Connect for Loaded {
 struct GranularSamplerOutputs {
     #[output(
         "output",
-        "stereo mix of every voice (ch0=left, ch1=right)",
+        "stereo mix of every voice, as left and right channels",
+        type = cv,
         default,
         range = (-5.0, 5.0),
         channels = 2
     )]
     sample: PolyOutput,
-    #[output("voices", "one channel per voice", range = (-5.0, 5.0))]
+    #[output("voices", "each voice on its own channel, mono", type = cv, range = (-5.0, 5.0))]
     voices: PolyOutput,
 }
 
@@ -148,28 +166,30 @@ fn sampler_channel_count(params: &GranularSamplerParams) -> usize {
         .clamp(1, PORT_MAX_CHANNELS)
 }
 
-/// `$granular` playing a WAV file instead of a live input: it plays grains
-/// from `wav`, starting one on each rising edge at `trigger`.
-///
-/// Each grain takes `time`, `size`, `shape`, `freq` and `spread` when it
-/// starts, so for grain-to-grain variation modulate them with something
-/// sampled on the same trigger, such as `$sah`. Set `rootFreq` to the pitch
-/// of the file and `freq` plays notes.
-///
-/// Each channel of the file gets its own voice. `output` is a stereo mix of
-/// every voice, and `voices` gives each voice its own channel. `quality`
-/// colours the file as `$granular` colours its recording.
-///
-/// ```js
-/// const grains = $pulse('8hz')
-/// $granularSampler($wavs().pad, grains, {
-///   time: $sah($noise('white').range(0, 5), grains),
-///   width: 4,
-///   spread: 2,
-/// }).out()
-/// ```
+const GRANULAR_SAMPLER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Granular WAV player",
+    description: "Plays grains from a WAV file, one per trigger, the way `$granular` does from \
+                  a live input: turn a sample into a texture, a stretched drone or a pitched \
+                  cloud. For grain-to-grain variation, modulate its settings with something \
+                  sampled on the same trigger, such as `$sah`.",
+    categories: &[ModuleCategory::Sampler],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Scattered pad texture",
+        code: r#"
+            const grains = $pulse('8hz')
+            $granularSampler($wavs().pad, grains, {
+              time: $sah($noise('white').range(0, 5), grains),
+              width: 4,
+              spread: 2,
+            }).out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$granularSampler",
+    docs = GRANULAR_SAMPLER_DOCS,
     channels_derive = sampler_channel_count,
     has_init,
     patch_update,

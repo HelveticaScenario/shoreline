@@ -5,6 +5,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
@@ -23,33 +25,44 @@ use z::{ZControls, ZOscillator};
 /// Plaits' output gain for this engine, at ±5 V full scale.
 const OUTPUT_GAIN: f32 = -0.6 * 5.0;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ZOscParams {
-    /// pitch in V/Oct (0V = C4)
-    #[signal(type = pitch)]
+    #[input("oscillator pitch", type = pitch)]
     freq: PolySignal,
-    /// resonance frequency, 0–5: at the pitch (0) up to eight octaves above
-    /// (5) (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "resonance, from the pitch itself (0) up to eight octaves above it (5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     cutoff: Option<PolySignal>,
-    /// carrier contour, 0–5: from an unshaped pulse train (0) through a
-    /// smooth window (2.5) to phase-shifted sines (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "carrier contour, from an unshaped pulse train (0) through a smooth window (2.5) to phase-shifted sines (5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     shape: Option<PolySignal>,
-    /// filter response, 0–5: low-pass, peaking, band-pass and high-pass
-    /// characters in turn (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "response, through low-pass, peaking, band-pass and high-pass characters in turn",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     mode: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user)
-    #[signal(default = 0.0)]
+    #[input(
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
+        type = audio,
+    )]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
@@ -58,29 +71,28 @@ struct ZOscParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ZOscOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the filtered-sounding waveform", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
-/// Z oscillator, the filtered-waveform half of Mutable Instruments Plaits'
-/// granular formant engine.
-///
-/// A sine at the **cutoff** frequency restarts every half cycle of **freq** and
-/// is shaped by a decaying ramp, so it sounds like a waveform through a
-/// resonant filter without any filter, and the resonance follows the pitch.
-///
-/// - **cutoff** — 0–5, the resonance from the pitch itself up to eight octaves
-///   above it.
-/// - **shape** — 0–5, the carrier's contour.
-/// - **mode** — 0–5, the response, through low-pass, peaking, band-pass and
-///   high-pass characters.
-///
-/// Through-zero FM runs the waveform backward.
-///
-/// ```js
-/// $mi.zOsc('c2', { cutoff: $sine('0.2hz').range(1, 4), mode: 1 }).out()
-/// ```
-#[module(name = "$mi.zOsc", args(freq), has_init, block)]
+const Z_OSC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Resonant-filter-like oscillator",
+    description: "The Z oscillator from Mutable Instruments Plaits' granular \
+                  formant engine. A sine restarts every half cycle under a \
+                  decaying ramp, so it sounds like a waveform through a resonant \
+                  filter whose resonance tracks the pitch, with no filter at all.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Resonant sweep",
+        code: r#"
+            const sweep = $sine('0.2hz').range(1, 4)
+            $mi.zOsc('c2', { cutoff: sweep, mode: 1 }).out()
+        "#,
+    }],
+};
+
+#[module(name = "$mi.zOsc", docs = Z_OSC_DOCS, args(freq), has_init, block)]
 pub struct ZOsc {
     outputs: ZOscOutputs,
     state: ZOscState,

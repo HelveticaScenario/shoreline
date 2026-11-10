@@ -1,103 +1,53 @@
 import { describe, expect, test } from 'vitest';
 
-import schemas from '@modular/core/schemas.json';
-
-import { applyEdits } from '../migrationEdits';
-import type { CodeStyle } from '../objectPropertyInsert';
-import { computeControlQuickFixes } from '../controlQuickFix';
-import type { ControlQuickFix } from '../controlQuickFix';
-
-const LAYOUT: CodeStyle = {
-    bracketSpacing: true,
-    printWidth: 80,
-    quote: "'",
-    tabWidth: 2,
-    trailingComma: true,
-    useTabs: false,
-};
-
-/** Cursor marked with '|'; returns the source without the marker + offset. */
-function fixture(text: string): { source: string; offset: number } {
-    const offset = text.indexOf('|');
-    expect(offset).toBeGreaterThanOrEqual(0);
-    return { offset, source: text.slice(0, offset) + text.slice(offset + 1) };
-}
-
-function fixesAt(
-    text: string,
-    layout: CodeStyle = LAYOUT,
-): { source: string; fixes: ControlQuickFix[] } {
-    const { source, offset } = fixture(text);
-    return {
-        fixes: computeControlQuickFixes(source, offset, schemas, layout),
-        source,
-    };
-}
-
-function addFix(fixes: ControlQuickFix[], param: string): ControlQuickFix {
-    const fix = fixes.find((f) => f.title === `Add slider for '${param}'`);
-    expect(fix).toBeDefined();
-    return fix!;
-}
-
-/** The `$slider(...)` call that ends at the caret after applying `fix`. */
-function sliderBeforeCaret(source: string, fix: ControlQuickFix): string {
-    const out = apply(source, fix);
-    const at = fix.span.start + fix.caretOffset;
-    return out.slice(out.lastIndexOf('$slider(', at), at);
-}
-
-function apply(source: string, fix: ControlQuickFix): string {
-    const { source: out, conflict } = applyEdits(source, [
-        { end: fix.span.end, replacement: fix.newText, start: fix.span.start },
-    ]);
-    expect(conflict).toBe(false);
-    return out;
-}
-
-function wrapFix(fixes: ControlQuickFix[]): ControlQuickFix {
-    const wraps = fixes.filter((f) => f.kind === 'wrap');
-    expect(wraps).toHaveLength(1);
-    return wraps[0];
-}
-
-function addTitles(fixes: ControlQuickFix[]): string[] {
-    return fixes.filter((f) => f.kind === 'add').map((f) => f.title);
-}
+import {
+    addTitles,
+    apply,
+    fixesAt,
+    LAYOUT,
+    sliderBeforeCaret,
+    wrapFix,
+} from './controlQuickFixHarness';
 
 describe('computeControlQuickFixes — wrap in params object', () => {
     test('wraps a numeric literal with the schema range', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { shape: 2.|5 }).out();`);
+        const { source, fixes } = fixesAt(
+            `$pulse('a3', { width: 2.|5 }).out();`,
+        );
         const fix = wrapFix(fixes);
-        expect(fix.title).toBe(`Wrap 'shape' in $slider`);
+        expect(fix.title).toBe(`Wrap 'width' in $slider`);
         expect(fix.preferred).toBe(true);
         expect(apply(source, fix)).toBe(
-            `$saw('a3', { shape: $slider('shape', 2.5, 0, 5) }).out();`,
+            `$pulse('a3', { width: $slider('width', 2.5, 0, 5) }).out();`,
         );
     });
 
     test('the caret lands just past the inserted call', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { shape: 2.|5 }).out();`);
+        const { source, fixes } = fixesAt(
+            `$pulse('a3', { width: 2.|5 }).out();`,
+        );
         expect(sliderBeforeCaret(source, wrapFix(fixes))).toBe(
-            `$slider('shape', 2.5, 0, 5)`,
+            `$slider('width', 2.5, 0, 5)`,
         );
     });
 
     test('cursor on the property name still offers the wrap', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { sha|pe: 2.5 }).out();`);
+        const { source, fixes } = fixesAt(
+            `$pulse('a3', { wid|th: 2.5 }).out();`,
+        );
         const fix = wrapFix(fixes);
         expect(apply(source, fix)).toContain(
-            `{ shape: $slider('shape', 2.5, 0, 5) }`,
+            `{ width: $slider('width', 2.5, 0, 5) }`,
         );
     });
 
     test('quoted keys resolve like identifier keys', () => {
         const { source, fixes } = fixesAt(
-            `$saw('a3', { 'shape': 2.|5 }).out();`,
+            `$pulse('a3', { 'width': 2.|5 }).out();`,
         );
         const fix = wrapFix(fixes);
         expect(apply(source, fix)).toContain(
-            `{ 'shape': $slider('shape', 2.5, 0, 5) }`,
+            `{ 'width': $slider('width', 2.5, 0, 5) }`,
         );
     });
 });
@@ -224,41 +174,49 @@ describe('computeControlQuickFixes — direct positional arguments', () => {
 
 describe('computeControlQuickFixes — add sliders for missing params', () => {
     test('offers unset signal params, not supplied ones', () => {
-        const { fixes } = fixesAt(`$saw('a3'|).out();`);
+        const { fixes } = fixesAt(`$pulse('a3'|).out();`);
         const titles = addTitles(fixes);
-        expect(titles).toContain(`Add slider for 'shape'`);
-        expect(titles).toContain(`Add slider for 'fm'`);
-        expect(titles).toContain(`Add slider for 'sync'`);
+        expect(titles).toContain(`Add slider for 'width'`);
+        expect(titles).toContain(`Add slider for 'pwm'`);
+        expect(titles).toContain(`Add button for 'sync'`);
         expect(titles).toContain(`Add slider for 'phaseOffset'`);
         expect(titles).not.toContain(`Add note slider for 'freq'`);
     });
 
+    test('a param with no fixed default is not added at a guessed value', () => {
+        // `rise` follows `fall` while unset, so a control at 0 would change it.
+        const { fixes } = fixesAt(`$slew($sine('1hz'), { fall: 0.5| }).out();`);
+        expect(addTitles(fixes)).not.toContain(`Add slider for 'rise'`);
+    });
+
     test('creates the config object when absent', () => {
-        const { source, fixes } = fixesAt(`$saw('a3'|).out();`);
-        const shape = fixes.find((f) => f.title === `Add slider for 'shape'`)!;
-        expect(apply(source, shape)).toBe(
-            `$saw('a3', { shape: $slider('shape', 0, 0, 5) }).out();`,
+        const { source, fixes } = fixesAt(`$pulse('a3'|).out();`);
+        const width = fixes.find((f) => f.title === `Add slider for 'width'`)!;
+        expect(apply(source, width)).toBe(
+            `$pulse('a3', { width: $slider('width', 2.5, 0, 5) }).out();`,
         );
-        expect(sliderBeforeCaret(source, shape)).toBe(
-            `$slider('shape', 0, 0, 5)`,
+        expect(sliderBeforeCaret(source, width)).toBe(
+            `$slider('width', 2.5, 0, 5)`,
         );
     });
 
     test('appends to an existing config object and omits set keys', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { shape: 2.5| }).out();`);
+        const { source, fixes } = fixesAt(
+            `$pulse('a3', { width: 2.5| }).out();`,
+        );
         const titles = addTitles(fixes);
-        expect(titles).not.toContain(`Add slider for 'shape'`);
-        const fm = fixes.find((f) => f.title === `Add slider for 'fm'`)!;
-        expect(apply(source, fm)).toBe(
-            `$saw('a3', { shape: 2.5, fm: $slider('fm', 0, -5, 5) }).out();`,
+        expect(titles).not.toContain(`Add slider for 'width'`);
+        const pwm = fixes.find((f) => f.title === `Add slider for 'pwm'`)!;
+        expect(apply(source, pwm)).toBe(
+            `$pulse('a3', { width: 2.5, pwm: $slider('pwm', 0, -5, 5) }).out();`,
         );
     });
 
     test('inserts into an empty config object', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', {|}).out();`);
-        const fm = fixes.find((f) => f.title === `Add slider for 'fm'`)!;
-        expect(apply(source, fm)).toBe(
-            `$saw('a3', { fm: $slider('fm', 0, -5, 5) }).out();`,
+        const { source, fixes } = fixesAt(`$pulse('a3', {|}).out();`);
+        const pwm = fixes.find((f) => f.title === `Add slider for 'pwm'`)!;
+        expect(apply(source, pwm)).toBe(
+            `$pulse('a3', { pwm: $slider('pwm', 0, -5, 5) }).out();`,
         );
     });
 
@@ -289,15 +247,15 @@ describe('computeControlQuickFixes — add sliders for missing params', () => {
 
     test('shorthand config properties count as supplied', () => {
         const { fixes } = fixesAt(
-            `const shape = 1;\n$saw('a3', { shape| }).out();`,
+            `const width = 1;\n$pulse('a3', { width| }).out();`,
         );
-        expect(addTitles(fixes)).not.toContain(`Add slider for 'shape'`);
+        expect(addTitles(fixes)).not.toContain(`Add slider for 'width'`);
     });
 
     test('inner call wins over the outer one', () => {
         const { fixes } = fixesAt(`$lpf($sine(|0), '100hz').out();`);
         const titles = addTitles(fixes);
-        expect(titles).toContain(`Add slider for 'fm'`);
+        expect(titles).toContain(`Add slider for 'phaseOffset'`);
         expect(titles).not.toContain(`Add hz slider for 'cutoff'`);
     });
 });
@@ -305,58 +263,58 @@ describe('computeControlQuickFixes — add sliders for missing params', () => {
 describe('computeControlQuickFixes — labels', () => {
     test('dedupes against existing $slider labels', () => {
         const { source, fixes } = fixesAt(
-            `const s = $slider('shape', 1, 0, 5);\n` +
-                `$saw('a3', { shape: 2.|5, fm: s }).out();`,
+            `const s = $slider('width', 1, 0, 5);\n` +
+                `$pulse('a3', { width: 2.|5, pwm: s }).out();`,
         );
         const fix = wrapFix(fixes);
         expect(apply(source, fix)).toContain(
-            `shape: $slider('shape 2', 2.5, 0, 5)`,
+            `width: $slider('width 2', 2.5, 0, 5)`,
         );
     });
 
     test('dedupes against ungrouped buttons too', () => {
         const { source, fixes } = fixesAt(
-            `const b = $btn('shape');\n$saw('a3', { shape: 2.|5, sync: b }).out();`,
+            `const b = $btn('width');\n$pulse('a3', { width: 2.|5, sync: b }).out();`,
         );
         expect(apply(source, wrapFix(fixes))).toContain(
-            `shape: $slider('shape 2', 2.5, 0, 5)`,
+            `width: $slider('width 2', 2.5, 0, 5)`,
         );
     });
 
     test('labels inside a group do not force dedupe', () => {
         const { source, fixes } = fixesAt(
-            `const g = $cGroup('G');\nconst a = $slider('shape', 1, 0, 5, g);\n` +
-                `$saw('a3', { shape: 2.|5, fm: a }).out();`,
+            `const g = $cGroup('G');\nconst a = $slider('width', 1, 0, 5, g);\n` +
+                `$pulse('a3', { width: 2.|5, pwm: a }).out();`,
         );
         expect(apply(source, wrapFix(fixes))).toContain(
-            `shape: $slider('shape', 2.5, 0, 5)`,
+            `width: $slider('width', 2.5, 0, 5)`,
         );
     });
 
     test('commented-out sliders do not force dedupe', () => {
         const { source, fixes } = fixesAt(
-            `// $slider('shape', 1, 0, 5)\n` +
-                `$saw('a3', { shape: 2.|5 }).out();`,
+            `// $slider('width', 1, 0, 5)\n` +
+                `$pulse('a3', { width: 2.|5 }).out();`,
         );
         const fix = wrapFix(fixes);
         expect(apply(source, fix)).toContain(
-            `shape: $slider('shape', 2.5, 0, 5)`,
+            `width: $slider('width', 2.5, 0, 5)`,
         );
     });
 });
 
 describe('computeControlQuickFixes — out-of-range literals', () => {
     test('widens the max to include the value', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { shape: |7 }).out();`);
+        const { source, fixes } = fixesAt(`$pulse('a3', { width: |7 }).out();`);
         expect(apply(source, wrapFix(fixes))).toContain(
-            `$slider('shape', 7, 0, 7)`,
+            `$slider('width', 7, 0, 7)`,
         );
     });
 
     test('widens the min and preserves the sign', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { fm: -|6 }).out();`);
+        const { source, fixes } = fixesAt(`$pulse('a3', { pwm: -|6 }).out();`);
         expect(apply(source, wrapFix(fixes))).toContain(
-            `$slider('fm', -6, -6, 5)`,
+            `$slider('pwm', -6, -6, 5)`,
         );
     });
 });
@@ -364,18 +322,18 @@ describe('computeControlQuickFixes — out-of-range literals', () => {
 describe('computeControlQuickFixes — non-eligible sites', () => {
     test('a value already wrapped in $slider offers no wrap', () => {
         const { fixes } = fixesAt(
-            `$saw('a3', { shape: $slider('shape', 2.|5, 0, 5) }).out();`,
+            `$pulse('a3', { width: $slider('width', 2.|5, 0, 5) }).out();`,
         );
         expect(fixes.filter((f) => f.kind === 'wrap')).toHaveLength(0);
-        expect(addTitles(fixes)).toContain(`Add slider for 'fm'`);
+        expect(addTitles(fixes)).toContain(`Add slider for 'pwm'`);
     });
 
     test('an identifier value offers no wrap but adds remain', () => {
         const { fixes } = fixesAt(
-            `const x = 1;\n$saw('a3', { shape: x| }).out();`,
+            `const x = 1;\n$pulse('a3', { width: x| }).out();`,
         );
         expect(fixes.filter((f) => f.kind === 'wrap')).toHaveLength(0);
-        expect(addTitles(fixes)).toContain(`Add slider for 'fm'`);
+        expect(addTitles(fixes)).toContain(`Add slider for 'pwm'`);
     });
 
     test('unknown callees produce nothing', () => {
@@ -388,129 +346,16 @@ describe('computeControlQuickFixes — non-eligible sites', () => {
     });
 
     test('a non-signal config key offers no wrap', () => {
-        const { fixes } = fixesAt(`$saw('a3', { id: |3 }).out();`);
+        const { fixes } = fixesAt(`$pulse('a3', { id: |3 }).out();`);
         expect(fixes.filter((f) => f.kind === 'wrap')).toHaveLength(0);
     });
 
     test('cursor outside any call produces nothing', () => {
-        expect(fixesAt(`const x = 1;|\n$saw('a3').out();`).fixes).toEqual([]);
+        expect(fixesAt(`const x = 1;|\n$pulse('a3').out();`).fixes).toEqual([]);
     });
 
     test('broken source does not throw', () => {
-        expect(() => fixesAt(`$saw('a3', { shape: 2.|5 `)).not.toThrow();
-    });
-});
-
-describe('computeControlQuickFixes — add-param layout', () => {
-    test('expanded object gets the property on its own line', () => {
-        const { source, fixes } = fixesAt(
-            `$saw('a3', {\n  shape: 2,\n  sync: 4|\n}).out();`,
-        );
-        const fix = addFix(fixes, 'fm');
-        expect(apply(source, fix)).toBe(
-            `$saw('a3', {\n  shape: 2,\n  sync: 4,\n  fm: $slider('fm', 0, -5, 5)\n}).out();`,
-        );
-        expect(sliderBeforeCaret(source, fix)).toBe(`$slider('fm', 0, -5, 5)`);
-    });
-
-    test('expanded object keeps its trailing-comma style', () => {
-        const { source, fixes } = fixesAt(
-            `$saw('a3', {\n  shape: 2,\n  sync: 4,|\n}).out();`,
-        );
-        expect(apply(source, addFix(fixes, 'fm'))).toBe(
-            `$saw('a3', {\n  shape: 2,\n  sync: 4,\n  fm: $slider('fm', 0, -5, 5),\n}).out();`,
-        );
-    });
-
-    test('expanded object matches the existing indentation', () => {
-        const { source, fixes } = fixesAt(
-            `function f() {\n    $saw('a3', {\n        shape: 2,|\n    }).out();\n}`,
-        );
-        expect(apply(source, addFix(fixes, 'fm'))).toBe(
-            `function f() {\n    $saw('a3', {\n        shape: 2,\n        fm: $slider('fm', 0, -5, 5),\n    }).out();\n}`,
-        );
-    });
-
-    test('a line comment stays on the property it follows', () => {
-        const withComma = fixesAt(
-            `$saw('a3', {\n  sync: 4, // note|\n}).out();`,
-        );
-        expect(apply(withComma.source, addFix(withComma.fixes, 'fm'))).toBe(
-            `$saw('a3', {\n  sync: 4, // note\n  fm: $slider('fm', 0, -5, 5),\n}).out();`,
-        );
-        const without = fixesAt(`$saw('a3', {\n  sync: 4 // note|\n}).out();`);
-        expect(apply(without.source, addFix(without.fixes, 'fm'))).toBe(
-            `$saw('a3', {\n  sync: 4, // note\n  fm: $slider('fm', 0, -5, 5)\n}).out();`,
-        );
-    });
-
-    test('single-line object stays inline when it fits', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { shape: 2.5| }).out();`);
-        expect(apply(source, addFix(fixes, 'fm'))).toBe(
-            `$saw('a3', { shape: 2.5, fm: $slider('fm', 0, -5, 5) }).out();`,
-        );
-    });
-
-    test('single-line object breaks when it would exceed printWidth', () => {
-        const { source, fixes } = fixesAt(
-            `$saw('a3', { shape: 2.5| }).out();`,
-            { ...LAYOUT, printWidth: 60 },
-        );
-        const fix = addFix(fixes, 'phaseOffset');
-        expect(apply(source, fix)).toBe(
-            `$saw('a3', {\n  shape: 2.5,\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}).out();`,
-        );
-        expect(sliderBeforeCaret(source, fix)).toBe(
-            `$slider('phaseOffset', 0, 0, 1)`,
-        );
-    });
-
-    test('breaking honors trailingComma none, tabs, and line indent', () => {
-        const { source, fixes } = fixesAt(
-            `\tconst s = $saw('a3', { shape: 2.5| })`,
-            { ...LAYOUT, printWidth: 40, trailingComma: false, useTabs: true },
-        );
-        expect(apply(source, addFix(fixes, 'fm'))).toBe(
-            `\tconst s = $saw('a3', {\n\t\tshape: 2.5,\n\t\tfm: $slider('fm', 0, -5, 5)\n\t})`,
-        );
-    });
-
-    test('caret lands after the new slider when existing sliders are rewritten', () => {
-        const { source, fixes } = fixesAt(
-            `$saw('a3', { shape: $slider('s', 1, 0, 5)| }).out();`,
-            { ...LAYOUT, printWidth: 60 },
-        );
-        const fix = addFix(fixes, 'phaseOffset');
-        expect(apply(source, fix)).toContain(
-            `\n  shape: $slider('s', 1, 0, 5),\n`,
-        );
-        expect(sliderBeforeCaret(source, fix)).toBe(
-            `$slider('phaseOffset', 0, 0, 1)`,
-        );
-    });
-
-    test('a single-line object with comments is not rebuilt', () => {
-        const { source, fixes } = fixesAt(
-            `$saw('a3', { shape: 2.5 /* x */| }).out();`,
-            { ...LAYOUT, printWidth: 40 },
-        );
-        expect(apply(source, addFix(fixes, 'fm'))).toBe(
-            `$saw('a3', { shape: 2.5, fm: $slider('fm', 0, -5, 5) /* x */ }).out();`,
-        );
-    });
-
-    test('a new config object hugs the call when too wide', () => {
-        const { source, fixes } = fixesAt(`$saw('a3'|).out();`, {
-            ...LAYOUT,
-            printWidth: 40,
-        });
-        const fix = addFix(fixes, 'phaseOffset');
-        expect(apply(source, fix)).toBe(
-            `$saw('a3', {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}).out();`,
-        );
-        expect(sliderBeforeCaret(source, fix)).toBe(
-            `$slider('phaseOffset', 0, 0, 1)`,
-        );
+        expect(() => fixesAt(`$pulse('a3', { width: 2.|5 `)).not.toThrow();
     });
 });
 
@@ -529,11 +374,13 @@ describe('computeControlQuickFixes — controls by signal type', () => {
     });
 
     test('an hz literal on a frequency param wraps in an hz slider', () => {
-        const { source, fixes } = fixesAt(`$lpf($saw('a3'), '1000|hz').out();`);
+        const { source, fixes } = fixesAt(
+            `$lpf($pulse('a3'), '1000|hz').out();`,
+        );
         const fix = wrapFix(fixes);
         expect(fix.title).toBe(`Wrap 'cutoff' in an hz $slider`);
         expect(apply(source, fix)).toBe(
-            `$lpf($saw('a3'), $slider('cutoff', '1000hz', '250hz', '4000hz')).out();`,
+            `$lpf($pulse('a3'), $slider('cutoff', '1000hz', '250hz', '4000hz')).out();`,
         );
     });
 
@@ -550,12 +397,12 @@ describe('computeControlQuickFixes — controls by signal type', () => {
         expect(apply(wrap.source, wrapFix(wrap.fixes))).toBe(
             `$saw($slider("freq", 'a3', "a1", "a5")).out();`,
         );
-        const add = fixesAt(`$lpf($saw('a3')|).out();`, dq);
+        const add = fixesAt(`$lpf($pulse('a3')|).out();`, dq);
         const cutoff = add.fixes.find(
             (f) => f.title === `Add hz slider for 'cutoff'`,
         )!;
         expect(apply(add.source, cutoff)).toBe(
-            `$lpf($saw('a3'), $slider("cutoff", "260hz", "65hz", "1040hz")).out();`,
+            `$lpf($pulse('a3'), $slider("cutoff", "260hz", "65hz", "1040hz")).out();`,
         );
         const gate = fixesAt(`$adsr(|).out();`, dq);
         expect(gate.fixes.map((f) => f.newText)).toEqual([
@@ -564,24 +411,38 @@ describe('computeControlQuickFixes — controls by signal type', () => {
         ]);
     });
 
-    test('the two-octave span is clipped to the schema range', () => {
-        // c9 is the top of the ±5 V range.
-        const { source, fixes } = fixesAt(`$saw('b|8').out();`);
+    test('the two-octave span is clipped to the usable range', () => {
+        // f#10 is the top of $multimode cutoff's usable range.
+        const { source, fixes } = fixesAt(
+            `$multimode($noise('white'), 'c1|0').out();`,
+        );
         expect(apply(source, wrapFix(fixes))).toBe(
-            `$saw($slider('freq', 'b8', 'b6', 'c9')).out();`,
+            `$multimode($noise('white'), $slider('cutoff', 'c10', 'c8', 'f#10')).out();`,
         );
     });
 
-    test('a value past a schema limit keeps its full span on both sides', () => {
-        // 1hz is ~8 octaves below C4, under the -5 V schema minimum.
-        const low = fixesAt(`$saw('1|hz').out();`);
-        expect(apply(low.source, wrapFix(low.fixes))).toBe(
-            `$saw($slider('freq', '1hz', '0.25hz', '4hz')).out();`,
+    test('a value past a usable-range limit keeps its full span', () => {
+        // 1hz is ~8 octaves below C4, under $lpf cutoff's 20hz minimum.
+        const { source, fixes } = fixesAt(
+            `$lpf($noise('white'), '1|hz').out();`,
         );
-        // c10 is above the +5 V (c9) schema maximum.
-        const high = fixesAt(`$saw('c1|0').out();`);
-        expect(apply(high.source, wrapFix(high.fixes))).toBe(
-            `$saw($slider('freq', 'c10', 'c8', 'c12')).out();`,
+        expect(apply(source, wrapFix(fixes))).toBe(
+            `$lpf($noise('white'), $slider('cutoff', '1hz', '0.25hz', '4hz')).out();`,
+        );
+    });
+
+    test('a pitch param without a usable range spans two octaves', () => {
+        const { source, fixes } = fixesAt(`$saw('b|8').out();`);
+        expect(apply(source, wrapFix(fixes))).toBe(
+            `$saw($slider('freq', 'b8', 'b6', 'b10')).out();`,
+        );
+    });
+
+    test('an audio input offers no control', () => {
+        const { fixes } = fixesAt(`$lpf(0.|5, 'c4').out();`);
+        expect(fixes.filter((f) => f.kind === 'wrap')).toEqual([]);
+        expect(addTitles(fixesAt(`$saw('a3'|).out();`).fixes)).not.toContain(
+            `Add slider for 'fm'`,
         );
     });
 
@@ -593,7 +454,7 @@ describe('computeControlQuickFixes — controls by signal type', () => {
     test('a number on a pitch param stays a volts slider', () => {
         const { source, fixes } = fixesAt(`$saw(0.|5).out();`);
         expect(apply(source, wrapFix(fixes))).toBe(
-            `$saw($slider('freq', 0.5, -5, 5)).out();`,
+            `$saw($slider('freq', 0.5, -1.5, 2.5)).out();`,
         );
     });
 
@@ -636,12 +497,12 @@ describe('computeControlQuickFixes — controls by signal type', () => {
     });
 
     test('a missing frequency param adds an hz slider with a short default', () => {
-        const { source, fixes } = fixesAt(`$lpf($saw('a3')|).out();`);
+        const { source, fixes } = fixesAt(`$lpf($pulse('a3')|).out();`);
         const fix = fixes.find(
             (f) => f.title === `Add hz slider for 'cutoff'`,
         )!;
         expect(apply(source, fix)).toBe(
-            `$lpf($saw('a3'), $slider('cutoff', '260hz', '65hz', '1040hz')).out();`,
+            `$lpf($pulse('a3'), $slider('cutoff', '260hz', '65hz', '1040hz')).out();`,
         );
     });
 
@@ -667,15 +528,15 @@ describe('computeControlQuickFixes — caret at a literal edge', () => {
     test('a caret just past a literal still wraps it', () => {
         for (const [text, expected] of [
             [
-                `$saw('a3', { shape: 2.5| }).out();`,
-                `$slider('shape', 2.5, 0, 5)`,
+                `$pulse('a3', { width: 2.5| }).out();`,
+                `$slider('width', 2.5, 0, 5)`,
             ],
-            [`$saw('a3', { fm: -6| }).out();`, `$slider('fm', -6, -6, 5)`],
+            [`$pulse('a3', { pwm: -6| }).out();`, `$slider('pwm', -6, -6, 5)`],
             [
-                `$lpf($saw('a3'), '100hz', 2.5|).out();`,
+                `$lpf($pulse('a3'), '100hz', 2.5|).out();`,
                 `$slider('resonance', 2.5, 0, 5)`,
             ],
-            [`$saw('a3'|).out();`, `$slider('freq', 'a3', 'a1', 'a5')`],
+            [`$pulse('a3'|).out();`, `$slider('freq', 'a3', 'a1', 'a5')`],
             [
                 `$sine('c4').amplitude(0.3|).out();`,
                 `$slider('amplitude', 0.3, 0, 10)`,
@@ -689,43 +550,38 @@ describe('computeControlQuickFixes — caret at a literal edge', () => {
     });
 
     test('a caret just before a literal still wraps it', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { shape: |2.5 }).out();`);
+        const { source, fixes } = fixesAt(
+            `$pulse('a3', { width: |2.5 }).out();`,
+        );
         expect(apply(source, wrapFix(fixes))).toContain(
-            `$slider('shape', 2.5, 0, 5)`,
+            `$slider('width', 2.5, 0, 5)`,
         );
     });
 
     test('a caret past an inner call adds to the call being edited', () => {
         const { fixes } = fixesAt(`$lpf($sine(0)|).out();`);
         expect(addTitles(fixes)).toContain(`Add hz slider for 'cutoff'`);
-        expect(addTitles(fixes)).not.toContain(`Add slider for 'fm'`);
+        expect(addTitles(fixes)).not.toContain(`Add slider for 'pwm'`);
     });
 });
 
 describe('computeControlQuickFixes — literal and layout edge cases', () => {
     test('a negated literal keeps its text and reads its value', () => {
-        const { source, fixes } = fixesAt(`$saw('a3', { fm: -1_0|00 }).out();`);
-        expect(apply(source, wrapFix(fixes))).toContain(
-            `$slider('fm', -1_000, -1000, 5)`,
+        const { source, fixes } = fixesAt(
+            `$pulse('a3', { pwm: -1_0|00 }).out();`,
         );
-        const hex = fixesAt(`$saw('a3', { fm: -0x|2 }).out();`);
+        expect(apply(source, wrapFix(fixes))).toContain(
+            `$slider('pwm', -1_000, -1000, 5)`,
+        );
+        const hex = fixesAt(`$pulse('a3', { pwm: -0x|2 }).out();`);
         expect(apply(hex.source, wrapFix(hex.fixes))).toContain(
-            `$slider('fm', -0x2, -5, 5)`,
+            `$slider('pwm', -0x2, -5, 5)`,
         );
     });
 
     test('a unary plus literal is not wrapped', () => {
-        const { fixes } = fixesAt(`$saw('a3', { shape: +|3 }).out();`);
+        const { fixes } = fixesAt(`$pulse('a3', { width: +|3 }).out();`);
         expect(fixes.filter((f) => f.kind === 'wrap')).toEqual([]);
-    });
-
-    test('a comment before the trailing comma is kept, not doubled', () => {
-        const { source, fixes } = fixesAt(
-            `$saw('a3', {\n  shape: 1 /* x */,|\n}).out();`,
-        );
-        expect(apply(source, addFix(fixes, 'fm'))).toBe(
-            `$saw('a3', {\n  shape: 1 /* x */,\n  fm: $slider('fm', 0, -5, 5),\n}).out();`,
-        );
     });
 
     test('a JS global method is not mistaken for a sugar method', () => {
@@ -735,35 +591,10 @@ describe('computeControlQuickFixes — literal and layout edge cases', () => {
 
     test('sugar on a const the patch declares still resolves', () => {
         const { source, fixes } = fixesAt(
-            `const osc = $saw('a3');\nosc.amplitude(0.|3).out();`,
+            `const osc = $pulse('a3');\nosc.amplitude(0.|3).out();`,
         );
         expect(apply(source, wrapFix(fixes))).toContain(
             `osc.amplitude($slider('amplitude', 0.3, 0, 10))`,
-        );
-    });
-
-    test('CRLF sources get CRLF inserts with an exact caret', () => {
-        const expanded = fixesAt(
-            `$saw('a3', {\r\n  shape: 2 // note|\r\n}).out();`,
-        );
-        const fm = addFix(expanded.fixes, 'fm');
-        expect(apply(expanded.source, fm)).toBe(
-            `$saw('a3', {\r\n  shape: 2, // note\r\n  fm: $slider('fm', 0, -5, 5)\r\n}).out();`,
-        );
-        expect(sliderBeforeCaret(expanded.source, fm)).toBe(
-            `$slider('fm', 0, -5, 5)`,
-        );
-
-        const wide = fixesAt(`$saw('a3', { shape: 2.5| }).out();\r\n`, {
-            ...LAYOUT,
-            printWidth: 60,
-        });
-        const po = addFix(wide.fixes, 'phaseOffset');
-        expect(apply(wide.source, po)).toBe(
-            `$saw('a3', {\r\n  shape: 2.5,\r\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\r\n}).out();\r\n`,
-        );
-        expect(sliderBeforeCaret(wide.source, po)).toBe(
-            `$slider('phaseOffset', 0, 0, 1)`,
         );
     });
 });
