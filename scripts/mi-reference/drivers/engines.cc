@@ -1,17 +1,18 @@
 // Each ported Plaits engine, unmodified, through its own Render in Plaits'
 // 12-sample blocks with the trigger unpatched, followed only by the output
 // stage the `$mi.*` module includes: the engine's out and aux gains from
-// voice.cc, and Plaits' limiter where that gain is negative. This pins the
-// knob mappings and output levels, which the per-sample fixtures leave to
-// the ports. Each case is a header (engine, MIDI note, harmonics, timbre,
-// morph, sample count) then that many samples of `out` and `aux` in volts
-// (±5 V full scale, the sign Plaits' output stage gives). Each case starts
-// stmlib's random generator from the seed the modules derive for channel 0
-// when a test pins `TEST_SEED_BASE` to 1, so string and modal draw the same
-// grains as the modules; string's cases keep dispersion off, where only the
-// sounding string draws.
-// build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/swarm_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/engine2/wave_terrain_engine.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc
+// voice.cc, Plaits' limiter where that gain is negative, and the clip at
+// full scale. This pins the knob mappings and output levels, which the
+// per-sample fixtures leave to the ports. Each case is a header (engine,
+// MIDI note, harmonics, timbre, morph, sample count) then that many samples
+// of `out` and `aux` in volts (±5 V full scale, the sign Plaits' output stage
+// gives). Each case starts stmlib's random generator from the seed the
+// modules derive for channel 0 when a test pins `TEST_SEED_BASE` to 1, so the
+// random engines draw the same values as the modules; string's cases keep
+// dispersion off, where only the sounding string draws.
+// build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/particle_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/swarm_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/engine2/wave_terrain_engine.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc
 
+#include <algorithm>
 #include <cstdio>
 
 #include "stmlib/dsp/limiter.h"
@@ -20,6 +21,7 @@
 #include "plaits/dsp/engine/fm_engine.h"
 #include "plaits/dsp/engine/grain_engine.h"
 #include "plaits/dsp/engine/modal_engine.h"
+#include "plaits/dsp/engine/particle_engine.h"
 #include "plaits/dsp/engine/string_engine.h"
 #include "plaits/dsp/engine/swarm_engine.h"
 #include "plaits/dsp/engine/waveshaping_engine.h"
@@ -43,6 +45,7 @@ static const Case kCases[] = {
     {11, 43.0f, 0.3f, 0.5f, 0.4f}, {11, 59.0f, 0.7f, 0.25f, 0.85f},
     {12, 48.0f, 0.0f, 0.4f, 0.6f}, {12, 55.0f, 0.5f, 0.7f, 0.3f},
     {16, 48.0f, 0.5f, 0.5f, 0.5f}, {16, 60.0f, 0.2f, 0.7f, 0.9f},
+    {18, 52.0f, 0.4f, 0.8f, 0.8f}, {18, 64.0f, 0.7f, 0.6f, 0.2f},
     {19, 40.0f, 0.1f, 0.6f, 0.7f}, {19, 52.0f, 0.25f, 0.4f, 0.9f},
     {20, 45.0f, 0.4f, 0.6f, 0.7f}, {20, 57.0f, 0.75f, 0.3f, 0.5f},
 };
@@ -60,6 +63,7 @@ static Engine* Select(int index, float* out_gain, float* aux_gain) {
   static StringEngine string;
   static SwarmEngine swarm;
   static ModalEngine modal;
+  static ParticleEngine particle;
   switch (index) {
     case 1: *out_gain = 0.7f; *aux_gain = 0.7f; return &phase_distortion;
     case 5: *out_gain = 0.7f; *aux_gain = 0.7f; return &wave_terrain;
@@ -68,17 +72,21 @@ static Engine* Select(int index, float* out_gain, float* aux_gain) {
     case 11: *out_gain = 0.7f; *aux_gain = 0.6f; return &grain;
     case 12: *out_gain = 0.8f; *aux_gain = 0.8f; return &additive;
     case 16: *out_gain = -3.0f; *aux_gain = 1.0f; return &swarm;
+    case 18: *out_gain = -2.0f; *aux_gain = 1.0f; return &particle;
     case 19: *out_gain = -1.0f; *aux_gain = 0.8f; return &string;
     case 20: *out_gain = -1.0f; *aux_gain = 0.8f; return &modal;
   }
   return NULL;
 }
 
-// Plaits' output stage short of the int16 conversion, in volts.
+// Plaits' output stage in volts: the int16 conversion's clip at full scale,
+// without its quantisation.
 static void Output(float gain, stmlib::Limiter* limiter, float* x, size_t size) {
   if (gain < 0.0f) limiter->Process(-gain, x, size);
   const float post_gain = (gain < 0.0f ? 1.0f : gain) * -5.0f;
-  for (size_t i = 0; i < size; ++i) x[i] *= post_gain;
+  for (size_t i = 0; i < size; ++i) {
+    x[i] = std::min(std::max(x[i] * post_gain, -5.0f), 5.0f);
+  }
 }
 
 int main(int argc, char** argv) {

@@ -66,6 +66,7 @@ fn allocation_free() {
         "$mi.additive",
         "$mi.formant",
         "$mi.modal",
+        "$mi.particles",
         "$mi.phaseDistortion",
         "$mi.string",
         "$mi.swarm",

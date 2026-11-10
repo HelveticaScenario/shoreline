@@ -317,6 +317,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.additive"
         | "$mi.formant"
         | "$mi.modal"
+        | "$mi.particles"
         | "$mi.phaseDistortion"
         | "$mi.string"
         | "$mi.swarm"
