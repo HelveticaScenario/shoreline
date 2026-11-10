@@ -13,7 +13,9 @@ test.describe('sidebar activity bar', () => {
         await explorer.click();
         await expect(panel).toBeHidden();
         await expect(explorer).toHaveAttribute('aria-pressed', 'false');
-        await expect(window.getByRole('separator')).toHaveCount(0);
+        await expect(
+            window.getByRole('separator', { name: 'Resize sidebar' }),
+        ).toHaveCount(0);
 
         await explorer.click();
         await expect(panel).toBeVisible();
