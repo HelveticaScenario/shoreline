@@ -200,4 +200,16 @@ describe('a literal without its closing bracket', () => {
         const arr = first(arrFile, ts.isArrayLiteralExpression);
         expect(appendArrayElement(arrFile, arr, '3')).toBeNull();
     });
+
+    test('is told apart from a nested literal that is closed', () => {
+        const objFile = parse('f({ a: { b: 1 }');
+        const obj = first(objFile, ts.isObjectLiteralExpression);
+        expect(appendObjectProperty(objFile, obj, 'z: 9', LAYOUT)).toBeNull();
+        const arrFile = parse('f([[1, 2]');
+        const arr = first(arrFile, ts.isArrayLiteralExpression);
+        expect(appendArrayElement(arrFile, arr, '9')).toBeNull();
+        const indexFile = parse('f([1, x[0]');
+        const indexed = first(indexFile, ts.isArrayLiteralExpression);
+        expect(appendArrayElement(indexFile, indexed, '9')).toBeNull();
+    });
 });
