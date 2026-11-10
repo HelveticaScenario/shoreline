@@ -13,6 +13,8 @@ OUT = HERE.parents[1] / "crates/modular_core/src/dsp/mi/core/tables.rs"
 # (C name, element type) for every table a module reads.
 TABLES = [
     ("lut_sine", "f32"),
+    ("lut_fm_frequency_quantizer", "f32"),
+    ("lut_4x_downsampler_fir", "f32"),
 ]
 
 
