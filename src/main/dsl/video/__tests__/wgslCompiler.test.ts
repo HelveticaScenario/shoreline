@@ -37,6 +37,14 @@ describe('compileVideoGraph', () => {
               return dot(c.rgb, vec3f(0.299, 0.587, 0.114));
           }
 
+          fn osc_triangle(p: f32) -> f32 {
+              return abs(2.0 * p - 1.0);
+          }
+
+          fn osc_triangle_split(x: f32, spread: f32) -> vec4f {
+              return vec4f(osc_triangle(fract(x - spread)), osc_triangle(fract(x)), osc_triangle(fract(x + spread)), 1.0);
+          }
+
           fn video_display(c: vec4f) -> vec4f {
               let clipped = clamp(c, vec4f(0.0), vec4f(1.0));
               return vec4f(clipped.rgb * clipped.a, 1.0);
@@ -52,7 +60,7 @@ describe('compileVideoGraph', () => {
           fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
               let uv = vec2f(frag.x / u.resolution.x, 1.0 - frag.y / u.resolution.y);
               let v0: vec4f = vec4f(vec3f(uv.x), 1.0);
-              let v1: vec4f = vec4f(vec3f(abs(2.0 * fract(video_luma(v0) * u.slots[0][0] + u.time) - 1.0)), 1.0);
+              let v1: vec4f = vec4f(vec3f(osc_triangle(fract(video_luma(v0) * u.slots[0][0] + u.time))), 1.0);
               let v2: vec4f = vec4f(video_luma(v1), 0.5, 1.0, 1.0);
               let v3: vec4f = v2;
               return video_display(v3);
@@ -98,7 +106,7 @@ describe('compileVideoGraph', () => {
         const { wgsl } = compileVideoGraph(stripes);
         expect(wgsl).toContain('fn video_luma(c: vec4f) -> f32');
         expect(wgsl).toContain(
-            'let v1: vec4f = vec4f(vec3f(abs(2.0 * fract(video_luma(v0)',
+            'let v1: vec4f = vec4f(vec3f(osc_triangle(fract(video_luma(v0)',
         );
         expect(wgsl).toContain('let v3: vec4f = v2;');
     });
@@ -185,6 +193,7 @@ describe('compileVideoGraph', () => {
                             input: { kind: 'node', id: 'x' },
                             freq: { kind: 'uniform', slot: 3 },
                             phase: { kind: 'const', value: 0 },
+                            offset: { kind: 'const', value: 0 },
                         },
                     },
                 ],
@@ -204,6 +213,7 @@ describe('compileVideoGraph', () => {
                             input: { kind: 'node', id: 'x' },
                             freq: { kind: 'const', value: Number.NaN },
                             phase: { kind: 'const', value: 0 },
+                            offset: { kind: 'const', value: 0 },
                         },
                     },
                 ],
@@ -223,6 +233,7 @@ describe('compileVideoGraph', () => {
                             input: { kind: 'node', id: 'x' },
                             freq: { kind: 'const', value: 1e39 },
                             phase: { kind: 'const', value: 0 },
+                            offset: { kind: 'const', value: 0 },
                         },
                     },
                 ],

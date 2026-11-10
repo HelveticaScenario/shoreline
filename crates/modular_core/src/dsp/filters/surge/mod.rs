@@ -20,24 +20,29 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 /// only writes the parts that differ — its enums and the `mode` they select.
 macro_rules! filter_module {
     (
-        $(#[$doc:meta])*
+        docs = $docs:path,
         name = $name:literal, ident = $Struct:ident, kernel = $Kernel:ty,
         output_doc = $output_doc:literal,
+        cutoff_doc = $cutoff_doc:literal,
         params = { $( $(#[$fdoc:meta])* $field:ident : $ftype:ty ),* $(,)? },
         mode = |$p:ident| $mode:expr $(,)?
     ) => {
         paste::paste! {
-            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount, SignalParams)]
+            #[params]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                /// signal input (bipolar, ±5 V)
+                #[input("the sound to filter", type = audio)]
                 input: crate::poly::PolySignal,
-                /// cutoff frequency in V/Oct (0V = C4)
-                #[signal(type = frequency, default = 0.0, range = (-5.0, 5.0))]
+                #[input($cutoff_doc, type = frequency, default = 0.0)]
                 cutoff: crate::poly::PolySignal,
-                /// filter resonance (0–5); high values approach self-oscillation
-                #[signal(type = control, default = 0.0, range = (0.0, 5.0))]
+                #[input(
+                    "filter resonance; high values approach self-oscillation",
+                    type = control,
+                    default = 0.0,
+                    range = (0.0, 5.0),
+                )]
                 #[deserr(default)]
                 resonance: Option<crate::poly::PolySignal>,
                 $(
@@ -51,12 +56,11 @@ macro_rules! filter_module {
             #[derive(Outputs, schemars::JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", $output_doc, default, range = (-5.0, 5.0))]
+                #[output("output", $output_doc, type = cv, default, range = (-5.0, 5.0))]
                 sample: crate::poly::PolyOutput,
             }
 
-            $(#[$doc])*
-            #[module(name = $name, args(input, cutoff, resonance), patch_update)]
+            #[module(name = $name, docs = $docs, args(input, cutoff, resonance), patch_update)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::filters::surge::filter_core::FilterModuleState<

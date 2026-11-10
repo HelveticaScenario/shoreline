@@ -1,44 +1,54 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
         utils::{SchmittTrigger, wrap_phase_f64},
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
-    types::Clickless,
+    types::SwapGlide,
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct SawOscillatorParams {
-    /// pitch in V/Oct (0V = C4)
-    #[signal(type = pitch)]
+    #[input("oscillator pitch", type = pitch)]
     freq: PolySignal,
-    /// waveform shape: 0=saw, 2.5=triangle, 5=ramp
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "waveform: 0 saw, 2.5 triangle, 5 ramp, morphing in between",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     shape: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user)
+    #[input("frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)", type = audio)]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    /// hard sync source — rising edges reset the oscillator phase
+    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
     #[deserr(default)]
     sync: Option<PolySignal>,
-    /// phase offset in [0, 1) added to the internal phase before sampling
-    #[signal(default = 0.0, range = (0.0, 1.0))]
+    #[input(
+        "shifts where in the cycle the wave is read, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
     #[deserr(default)]
     phase_offset: Option<PolySignal>,
-    /// when true, a freshly started voice stays silent until its output first
-    /// crosses zero. This prevents a click when a phase offset starts the
-    /// voice away from a zero crossing. Default true.
+    #[input(
+        "a new voice stays silent until its wave first crosses zero, so a phase offset cannot start it with a click"
+    )]
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]
     wait_for_zero_cross: bool,
@@ -51,7 +61,7 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SawOscillatorOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the saw/triangle/ramp wave", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -62,7 +72,7 @@ struct ChannelState {
     /// (which divides a difference of near-equal integral values by the phase
     /// increment) stays well-conditioned at low, LFO-rate frequencies.
     phase: f64,
-    shape: Clickless,
+    shape: SwapGlide,
     /// False until the voice has seeded its starting phase to a zero crossing
     /// (done on the first `update`). A voice whose state was carried over by
     /// `transfer_state_from` arrives with this already set, so it keeps its
@@ -84,23 +94,30 @@ struct ChannelState {
     blep_carry: f32,
 }
 
-/// A variable-symmetry triangle oscillator that morphs between saw, triangle, and ramp.
-///
-/// The `shape` parameter shifts the peak position of a triangle wave,
-/// smoothly morphing between waveforms by adjusting attack/release time:
-/// - **0** — Saw (all rise, instant drop)
-/// - **2.5** — Triangle (symmetric)
-/// - **5** — Ramp (instant rise, all fall)
-///
-/// The `freq` input follows the **V/Oct** standard (0V = C4).
-/// Output range is **±5V**.
-///
-/// ## Example
-///
-/// ```js
-/// $saw('a3', { shape: 2.5 }).out() // triangle wave
-/// ```
-#[module(name = "$saw", args(freq))]
+const SAW_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Saw, triangle and ramp oscillator",
+    description: "A bright sawtooth that morphs through a mellow triangle to a \
+                  ramp: the workhorse for basses, leads and pads under a \
+                  filter. Moving the shape slowly gives a breathing, \
+                  filter-like sweep on its own.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Acid bass sweep",
+            code: r#"
+                const seq = $cycle($p('c2 c2 [c3 c2] eb2'))
+                $saw(seq).$.lpf($sine('0.25hz').range('c3', 'c6'), 4).out()
+            "#,
+        },
+        DocExample {
+            title: "Breathing triangle",
+            code: "$saw('a3', { shape: $sine('0.2hz').range(1, 4) }).out()",
+        },
+    ],
+};
+
+#[module(name = "$saw", docs = SAW_DOCS, args(freq))]
 pub struct SawOscillator {
     outputs: SawOscillatorOutputs,
     channel_state: Box<[ChannelState]>,
@@ -119,9 +136,10 @@ impl SawOscillator {
         for ch in 0..num_channels {
             let state = &mut self.channel_state[ch];
 
-            // Update shape with smoothing - clamp to valid range
             let shape_val = self.params.shape.value_or(ch, 0.0).clamp(0.0, 5.0);
-            state.shape.update(shape_val);
+            state
+                .shape
+                .update(shape_val, self.params.shape.glide_mark(ch), sample_rate);
 
             let pitch = self.params.freq.get_value(ch);
             let fm = self.params.fm.value_or(ch, 0.0);
