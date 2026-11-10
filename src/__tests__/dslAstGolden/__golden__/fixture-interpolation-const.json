@@ -30,37 +30,7 @@
         "soloOn": {"end":98,"start":98,"text":"{ solo: true }"}
       }
     ],
-    "quickFixes": {
-      "at": ["49-79 0"],
-      "fixes": [
-        [
-          {
-            "caretOffset": 41,
-            "controlOffset": 14,
-            "kind": "add",
-            "newText": ", {\n  groove: $slider('groove', 0, -5, 5),\n}",
-            "span": {"end":81,"start":81},
-            "title": "Add slider for 'groove'"
-          },
-          {
-            "caretOffset": 44,
-            "controlOffset": 16,
-            "kind": "add",
-            "newText": ", {\n  playhead: $slider('playhead', 0, 0, 1),\n}",
-            "span": {"end":81,"start":81},
-            "title": "Add slider for 'playhead'"
-          },
-          {
-            "caretOffset": 44,
-            "controlOffset": 16,
-            "kind": "add",
-            "newText": ", {\n  velocity: $slider('velocity', 0, 0, 5),\n}",
-            "span": {"end":81,"start":81},
-            "title": "Add slider for 'velocity'"
-          }
-        ]
-      ]
-    },
+    "quickFixes": {"at":[],"fixes":[]},
     "setOutputGain": {"end":100,"start":100,"text":"$setOutputGain(0.5)\n"}
   },
   "variants": {

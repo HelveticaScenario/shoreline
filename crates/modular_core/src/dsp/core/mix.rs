@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
@@ -11,31 +13,34 @@ use crate::{
 #[serde(rename_all = "snake_case")]
 #[deserr(rename_all = lowercase)]
 pub enum MixMode {
-    /// Sum all inputs.
+    /// every signal added together, getting louder as more stack up
     #[default]
     Sum,
-    /// Average all inputs.
+    /// the average of the signals, staying at one signal's level however many stack up
     Average,
-    /// Keep the strongest input.
+    /// only the loudest signal at each moment
     Max,
-    /// Keep the weakest non-zero input.
+    /// only the quietest signal that isn't silent at each moment
     Min,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct MixParams {
-    /// Input signals to mix channel-by-channel.
-    ///
-    /// Channel `n` from every input is mixed into output channel `n`.
+    #[input("the signals to mix; channel n of each input mixes into output channel n")]
     pub inputs: Vec<PolySignal>,
-    /// How inputs are combined.
+    #[input("how the inputs combine", default = "sum")]
     #[serde(default)]
     #[deserr(default)]
     pub mode: MixMode,
-    /// Final output level (perceptual curve, exponent 3).
-    #[signal(default = 5.0, range = (0.0, 10.0))]
+    #[input(
+        "output level on a cubic curve: 0 silent, 5 unity, 10 eight times louder; negative flips polarity",
+        type = control,
+        default = 5.0,
+        control_range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     pub gain: Option<PolySignal>,
 }
@@ -43,10 +48,9 @@ pub struct MixParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MixOutputs {
-    /// Mixed multichannel output.
     #[output(
         "output",
-        "multichannel mix: each output channel mixes the same channel index from all inputs (not a mono fold-down)",
+        "the mix, keeping each channel separate rather than folding to mono",
         default
     )]
     sample: PolyOutput,
@@ -78,12 +82,24 @@ pub fn mix_derive_channel_count(params: &MixParams) -> usize {
     .min(PORT_MAX_CHANNELS)
 }
 
-/// Mix module for combining multiple signals into a single mix bus.
-///
-/// Use this when you want to blend several multichannel modulation/audio sources.
-/// It mixes channel `n` across all inputs into output channel `n`, rather than
-/// folding all channels into a single mono channel.
-#[module(name = "$mix", categories(mixer), channels_derive = mix_derive_channel_count, args(inputs))]
+const MIX_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Channel-by-channel mixer",
+    description: "Mixes several signals into one, keeping their channels apart: channel n of \
+                  every input lands on output channel n, so mixing two four-voice signals \
+                  still gives four voices. Use `$mixDown` to fold channels together instead.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Saw and sub-octave square layered",
+        code: r#"
+            $mix([$saw('c3'), $pulse('c2')], { gain: 3 })
+              .$.lpf('c5', 1)
+              .out()
+        "#,
+    }],
+};
+
+#[module(name = "$mix", docs = MIX_DOCS, channels_derive = mix_derive_channel_count, args(inputs))]
 pub struct Mix {
     outputs: MixOutputs,
     params: MixParams,
@@ -213,11 +229,9 @@ impl Mix {
             }
         }
 
-        // Apply gain with cycling on pre_gain_values. `powf(3.0)` is
-        // replaced with `n * n * n` — the exponent is a compile-time
-        // integer so the multiplication form gives identical bit-pattern
-        // results for finite inputs while sidestepping the generic powf
-        // dispatch.
+        // Apply gain with cycling on pre_gain_values. `n * n * n` matches
+        // `powf(3.0)` bit for bit on finite inputs without the generic powf
+        // call.
         for i in 0..output_channels {
             let pre_gain_index = i % max_input_channels;
             let pre_gain_value = pre_gain_values[pre_gain_index];

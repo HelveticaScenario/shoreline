@@ -10,37 +10,7 @@
     "eq": [],
     "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [],
-    "quickFixes": {
-      "at": ["0-141 0"],
-      "fixes": [
-        [
-          {
-            "caretOffset": 39,
-            "controlOffset": 12,
-            "kind": "add",
-            "newText": ", { groove: $slider('groove', 0, -5, 5) }",
-            "span": {"end":141,"start":141},
-            "title": "Add slider for 'groove'"
-          },
-          {
-            "caretOffset": 42,
-            "controlOffset": 14,
-            "kind": "add",
-            "newText": ", { playhead: $slider('playhead', 0, 0, 1) }",
-            "span": {"end":141,"start":141},
-            "title": "Add slider for 'playhead'"
-          },
-          {
-            "caretOffset": 42,
-            "controlOffset": 14,
-            "kind": "add",
-            "newText": ", { velocity: $slider('velocity', 0, 0, 5) }",
-            "span": {"end":141,"start":141},
-            "title": "Add slider for 'velocity'"
-          }
-        ]
-      ]
-    },
+    "quickFixes": {"at":[],"fixes":[]},
     "setOutputGain": {"end":142,"start":142,"text":"\n$setOutputGain(0.5)\n"}
   },
   "variants": {

@@ -7,42 +7,44 @@ use schemars::JsonSchema;
 
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Trigonometric shaping algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum TrigonometricMode {
-    /// Adds a single sine ripple to the signal.
+    /// adds a single sine ripple to the signal
     #[default]
     SinPlusX,
-    /// Adds 2 sine ripples riding on the signal.
+    /// adds 2 sine ripples riding on the signal
     #[serde(rename = "sin2x")]
     #[deserr(rename = "sin2x")]
     Sin2x,
-    /// Adds 3 sine ripples riding on the signal.
+    /// adds 3 sine ripples riding on the signal
     #[serde(rename = "sin3x")]
     #[deserr(rename = "sin3x")]
     Sin3x,
-    /// Adds 7 sine ripples riding on the signal.
+    /// adds 7 sine ripples riding on the signal
     #[serde(rename = "sin7x")]
     #[deserr(rename = "sin7x")]
     Sin7x,
-    /// Adds 10 sine ripples riding on the signal.
+    /// adds 10 sine ripples riding on the signal
     #[serde(rename = "sin10x")]
     #[deserr(rename = "sin10x")]
     Sin10x,
-    /// Maps the signal through 2 sine cycles — dense harmonics.
+    /// maps the signal through 2 sine cycles, dense harmonics
     Cyc2,
-    /// Maps the signal through 7 sine cycles — denser harmonics.
+    /// maps the signal through 7 sine cycles, denser harmonics
     Cyc7,
-    /// Maps the signal through 10 sine cycles — densest harmonics.
+    /// maps the signal through 10 sine cycles, densest harmonics
     Cyc10,
-    /// 2 sine cycles, tapered toward the edges.
+    /// 2 sine cycles, tapered toward the edges
     Cyc2Bound,
-    /// 7 sine cycles, tapered toward the edges.
+    /// 7 sine cycles, tapered toward the edges
     Cyc7Bound,
-    /// 10 sine cycles, tapered toward the edges.
+    /// 10 sine cycles, tapered toward the edges
     Cyc10Bound,
 }
 
@@ -72,15 +74,28 @@ impl Shaper for TrigonometricShaper {
     }
 }
 
+const TRIGONOMETRIC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Metallic sine-ripple shaper",
+    description: "Many-cycle sine shapes for dense, ringing, metallic \
+                  harmonics that change sharply with level, so a slowly swept \
+                  drive makes one oscillator glitter. Modelled on \
+                  the Surge XT trigonometric shapes.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Ringing sweep",
+        code: r#"
+            $sine('c3')
+              .$.unstable.shape.trigonometric(
+                'cyc7',
+                $sine('0.2hz').range(-3, 2),
+              )
+              .out()
+        "#,
+    }],
+};
+
 shape_module! {
-    /// Sine-based shaping, from Surge XT's Trigonometric waveshapers — reshapes
-    /// the signal through sine curves for dense, ringing harmonics. `mode`
-    /// selects the pattern (sinPlusX, sin2x…sin10x, cyc2…cyc10, and edge-tapered
-    /// variants); `drive` sets the level going in (−5..5, 0 = unity).
-    ///
-    /// ## Example
-    /// ```js
-    /// $unstable.shape.trigonometric($sine('c3'), 'cyc7', 2).out()
-    /// ```
+    docs = TRIGONOMETRIC_DOCS,
     name = "$unstable.shape.trigonometric", ident = Trigonometric, mode = TrigonometricMode, shaper = TrigonometricShaper
 }

@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
 // --- Scaling constants ---
@@ -41,34 +43,49 @@ const MAX_SUBSTEPS: u32 = 16;
 // a diverging trajectory (e.g. extreme params). The channel is reseeded.
 const STATE_CLAMP: f32 = 500.0;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct LorenzParams {
-    /// Sigma (σ) — rate of divergence between the x and y variables.
-    /// Input 0–5 maps to σ 0–30; default 1.667 → σ=10.
-    #[signal(type = control, default = 1.6667, range = (0, 5))]
+    #[input(
+        "how tightly the voltages chase each other: higher makes the swings snappier and more jittery, chaotic at any value above 0 (σ; the default is σ = 10, 5 is σ = 30)",
+        type = control,
+        default = 1.6667,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     sigma: Option<PolySignal>,
 
-    /// Rho (ρ) — distance from the origin to the critical points.
-    /// Input 0–5 maps to ρ 0–60; default 2.333 → ρ=28.
-    /// Chaos requires ρ > 24.74 (→ CV > ~2.06V); below that the system spirals to a fixed point.
-    #[signal(type = control, default = 2.3333, range = (0, 5))]
+    #[input(
+        "how wide and wild the swings are: higher roams further; below about 2.06 the motion settles to still voltages (ρ; the default is ρ = 28, 5 is ρ = 60)",
+        type = control,
+        default = 2.3333,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     rho: Option<PolySignal>,
 
-    /// Beta (β) — geometry of the attractor.
-    /// Input 0–5 maps to β 0–10; default 1.333 → β=8/3 ≈ 2.667.
-    #[signal(type = control, default = 1.3333, range = (0, 5))]
+    #[input(
+        "the shape of the loops the voltages trace; the default is the classic butterfly (β = 8/3; 5 is β = 10)",
+        type = control,
+        default = 1.3333,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     beta: Option<PolySignal>,
 
-    /// Simulation speed — Lorenz time-units advanced per second of audio.
-    /// Input 0–5 maps to 0–200 t/s; default 0.1 → 4 t/s (slow LFO-rate butterfly).
-    /// Higher values push outputs toward audio-rate chaos.
-    #[signal(type = control, default = 0.1, range = (0, 5))]
+    #[input(
+        "simulation speed: 0 freezes and 5 is fastest; the default traces a slow butterfly, and from about 1.25 the chaos runs at audio rate",
+        type = control,
+        default = 0.1,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     rate: Option<PolySignal>,
 }
@@ -76,14 +93,11 @@ struct LorenzParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LorenzOutputs {
-    /// X coordinate of the Lorenz attractor, normalized to ±5V.
-    #[output("x", "X coordinate, normalized to ±5V", default, range = (-5.0, 5.0))]
+    #[output("x", "x coordinate of the attractor, swinging between its two lobes", default, range = (-5.0, 5.0))]
     x: PolyOutput,
-    /// Y coordinate of the Lorenz attractor, normalized to ±5V.
-    #[output("y", "Y coordinate, normalized to ±5V", range = (-5.0, 5.0))]
+    #[output("y", "y coordinate, which x chases, so it leads x slightly", range = (-5.0, 5.0))]
     y: PolyOutput,
-    /// Z coordinate of the Lorenz attractor, normalized to 0–5V (Z is always positive).
-    #[output("z", "Z coordinate, normalized to 0–5V", range = (0.0, 5.0))]
+    #[output("z", "z coordinate, the attractor's height, pulsing once per loop", range = (0.0, 5.0))]
     z: PolyOutput,
 }
 
@@ -120,38 +134,34 @@ struct LorenzState {
     inv_sample_rate: f32,
 }
 
-/// Chaotic signal source based on the Lorenz strange attractor.
-///
-/// Simulates the Lorenz system continuously — changing any parameter pulls the
-/// trajectory in a new direction rather than restarting from scratch. Outputs x
-/// (default) and y coordinates normalized to **±5V**, and z normalized to **0–5V**
-/// (z is always positive in the Lorenz system).
-///
-/// ## Parameters (all 0–5 CV)
-///
-/// | param | mapped range | default | chaotic butterfly |
-/// |-------|-------------|---------|-------------------|
-/// | sigma | σ 0–30      | 1.667 → σ=10   | stays chaotic for σ > 0 |
-/// | rho   | ρ 0–60      | 2.333 → ρ=28   | chaos requires ρ > ~24.74 (CV > ~2.06V) |
-/// | beta  | β 0–10      | 1.333 → β=8/3  | classic shape near 2.667 |
-/// | rate  | 0–200 t/s   | 0.1   → 4 t/s  | audio-rate at ≥ ~50 t/s |
-///
-/// ## Example
-///
-/// ```js
-/// // Classic Lorenz butterfly at default params
-/// $lorenz()
-///
-/// // Access all three outputs
-/// const l = $lorenz()
-/// l    // x coordinate (±5V)
-/// l.y  // y coordinate (±5V)
-/// l.z  // z coordinate (0–5V)
-///
-/// // Modulate rho — nudges the attractor without resetting it
-/// $lorenz({ rho: $sine('1hz').range(0, 5), rate: 0.5 }).out()
-/// ```
-#[module(name = "$lorenz", categories(modulation, random), has_init)]
+const LORENZ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Chaotic three-voltage drift",
+    description: "Three voltages that swirl around each other and never repeat, from the \
+                  Lorenz attractor: organic modulation for anything that should wander \
+                  without looping. Changing a param bends the path rather than restarting it.",
+    categories: &[ModuleCategory::Modulation, ModuleCategory::Random],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Wandering filter sweep",
+            code: r#"
+                $saw('c2')
+                  .$.lpf($lorenz({ rate: 0.2 }).range('c3', 'c6'), 3)
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Two voices drifting together",
+            code: r#"
+                const chaos = $lorenz({ rate: 0.1 })
+                $sine(chaos.range('a3', 'a4')).out()
+                $sine(chaos.y.range('e4', 'e5')).out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$lorenz", docs = LORENZ_DOCS, has_init)]
 pub struct Lorenz {
     outputs: LorenzOutputs,
     params: LorenzParams,

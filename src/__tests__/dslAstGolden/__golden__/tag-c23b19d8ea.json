@@ -56,12 +56,12 @@
       "fixes": [
         [
           {
-            "caretOffset": 33,
-            "controlOffset": 10,
+            "caretOffset": 24,
+            "controlOffset": 12,
             "kind": "add",
-            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "newText": ", {\n  sync: $btn('sync'),\n}",
             "span": {"end":77,"start":77},
-            "title": "Add slider for 'fm'"
+            "title": "Add button for 'sync'"
           },
           {
             "caretOffset": 50,
@@ -70,14 +70,6 @@
             "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
             "span": {"end":77,"start":77},
             "title": "Add slider for 'phaseOffset'"
-          },
-          {
-            "caretOffset": 37,
-            "controlOffset": 12,
-            "kind": "add",
-            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
-            "span": {"end":77,"start":77},
-            "title": "Add slider for 'sync'"
           }
         ],
         [
@@ -91,12 +83,12 @@
             "title": "Wrap 'freq' in a note $slider"
           },
           {
-            "caretOffset": 33,
-            "controlOffset": 10,
+            "caretOffset": 24,
+            "controlOffset": 12,
             "kind": "add",
-            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
+            "newText": ", {\n  sync: $btn('sync'),\n}",
             "span": {"end":77,"start":77},
-            "title": "Add slider for 'fm'"
+            "title": "Add button for 'sync'"
           },
           {
             "caretOffset": 50,
@@ -105,14 +97,6 @@
             "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
             "span": {"end":77,"start":77},
             "title": "Add slider for 'phaseOffset'"
-          },
-          {
-            "caretOffset": 37,
-            "controlOffset": 12,
-            "kind": "add",
-            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
-            "span": {"end":77,"start":77},
-            "title": "Add slider for 'sync'"
           }
         ],
         [
@@ -125,14 +109,6 @@
             "title": "Add slider for 'attack'"
           },
           {
-            "caretOffset": 39,
-            "controlOffset": 13,
-            "kind": "add",
-            "newText": ", {\n  curve: $slider('curve', 5, -5, 5),\n}",
-            "span": {"end":118,"start":118},
-            "title": "Add slider for 'curve'"
-          },
-          {
             "caretOffset": 42,
             "controlOffset": 13,
             "kind": "add",
@@ -141,12 +117,28 @@
             "title": "Add slider for 'decay'"
           },
           {
+            "caretOffset": 42,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", {\n  sustain: $slider('sustain', 5, 0, 5),\n}",
+            "span": {"end":118,"start":118},
+            "title": "Add slider for 'sustain'"
+          },
+          {
             "caretOffset": 46,
             "controlOffset": 15,
             "kind": "add",
             "newText": ", {\n  release: $slider('release', 0.01, 0, 10),\n}",
             "span": {"end":118,"start":118},
             "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 39,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", {\n  curve: $slider('curve', 5, -5, 5),\n}",
+            "span": {"end":118,"start":118},
+            "title": "Add slider for 'curve'"
           },
           {
             "caretOffset": 34,
@@ -163,14 +155,6 @@
             "newText": ", {\n  retrigger: $toggleBtn('retrigger', false),\n}",
             "span": {"end":118,"start":118},
             "title": "Add toggle for 'retrigger'"
-          },
-          {
-            "caretOffset": 42,
-            "controlOffset": 15,
-            "kind": "add",
-            "newText": ", {\n  sustain: $slider('sustain', 5, 0, 5),\n}",
-            "span": {"end":118,"start":118},
-            "title": "Add slider for 'sustain'"
           }
         ],
         [

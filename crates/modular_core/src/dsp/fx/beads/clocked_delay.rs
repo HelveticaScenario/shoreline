@@ -14,6 +14,8 @@ use super::fresh::FreshBuffers;
 use super::resample::Resampler;
 use super::wav_load::silent_buffer;
 use super::{FULL_SCALE_VOLTS, GranularQuality, input_value, unit};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Engine samples over which the playhead's speed is measured.
 const TEMPO_WINDOW: u32 = 256;
@@ -24,11 +26,12 @@ const DEFAULT_BAR_LENGTH: f32 = 4.0;
 /// Shortest `bars`, keeping the window period positive.
 const MIN_BARS: f32 = 1e-3;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ClockedDelayParams {
-    /// audio to delay; each channel gets its own delay
+    #[input("signal to delay; each channel gets its own delay", type = audio)]
     input: PolySignal,
     /// Transport playhead in bars, setting the tempo and the phase of the
     /// repeats' windows.
@@ -53,55 +56,82 @@ struct ClockedDelayParams {
     #[deserr(skip)]
     #[schemars(skip)]
     groove: Option<MonoSignal>,
-    /// base delay time in bars (default 0.25)
-    #[signal(default = 0.25, range = (0.0, 4.0))]
+    #[input(
+        "delay time in bars: `1 / 4` a quarter note in 4/4, `3 / 16` a dotted eighth; the longest time depends on the tempo and `quality`",
+        type = control,
+        default = 0.25,
+        range = (0.0, ..),
+        control_range = (0.0, 4.0),
+    )]
     #[deserr(default)]
     bars: Option<PolySignal>,
-    /// multiplies the base delay time from ×1 at 0 to ×16 at 5; while
-    /// frozen, picks the slice of the held audio to loop instead (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "multiplies the base delay time from ×1 at 0 to ×16 at 5; while frozen, picks which slice of the held audio loops",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     time: Option<PolySignal>,
-    /// window over each repeat: 0 = none, 1 = sharp attack, 2.5 = triangle,
-    /// 5 = ramp up (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "envelope over each repeat: 0 none, 1 sharp attack, 2.5 triangle, 5 ramp up",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     shape: Option<PolySignal>,
-    /// how far the `shape` windows follow the global groove: 0 = straight,
-    /// 5 = fully grooved; the repeats themselves stay straight (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how far the `shape` envelopes swing with the global groove: 0 straight, 5 fully grooved; the repeats themselves stay straight",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     groove_amount: Option<PolySignal>,
-    /// while high, recording stops and the delay loops slices of the audio
-    /// it holds
-    #[signal(type = gate, range = (0.0, 5.0))]
+    #[input(
+        "while high, recording stops and the delay loops slices of the audio it holds",
+        type = gate,
+    )]
     #[deserr(default)]
     freeze: Option<PolySignal>,
-    /// pitch of the repeats; they play at the input's own pitch when `freq`
-    /// equals `rootFreq` (default C4)
-    #[signal(type = pitch)]
+    #[input(
+        "pitch of the repeats; they keep the input's pitch when `freq` equals `rootFreq`",
+        type = pitch,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// pitch of the input, so `freq` shifts the repeats in tune (default C4)
-    #[signal(type = pitch)]
+    #[input("pitch of the input, so `freq` shifts the repeats in tune", type = pitch)]
     #[deserr(default)]
     root_freq: Option<PolySignal>,
-    /// filters the repeats: below 2.5 low-passes, above 2.5 high-passes
-    /// (default 2.5, unfiltered)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "filters the repeats: below 2.5 low-pass, 2.5 unfiltered, above 2.5 high-pass",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     tone: Option<PolySignal>,
-    /// feeds the repeats back into the delay, for more of them (0–5,
-    /// default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how long the echoes go on: 0 a single repeat, higher for longer trails; above about 4 they build up instead of dying away",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     feedback: Option<PolySignal>,
-    /// dry/wet: 0 = input only, 5 = repeats only (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "dry/wet blend: 0 dry, 5 repeats only",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     mix: Option<PolySignal>,
-    /// recording character: digital, vintage, cleanTape or dirtyTape
-    /// (default digital)
+    #[input(
+        "recording character: `'digital'` holds 4 s of audio, `'vintage'` 8 s, `'cleanTape'` 10.7 s, `'dirtyTape'` 16 s",
+        default = "digital"
+    )]
     #[serde(default)]
     #[deserr(default)]
     quality: GranularQuality,
@@ -115,7 +145,7 @@ struct ClockedDelayParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ClockedDelayOutputs {
-    #[output("output", "delayed signal, one channel per delay", default, range = (-5.0, 5.0))]
+    #[output("output", "the input mixed with its repeats, one channel per delay", default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -197,30 +227,44 @@ struct ClockedDelayState {
     tempo: TempoTracker,
 }
 
-/// Tempo-synced delay from Mutable Instruments Beads' delay mode. Its repeats
-/// come from feedback inside the module, so it needs no feedback loop in the
-/// patch.
-///
-/// The delay time is `bars` of the playhead, which follows the transport,
-/// times a multiplier set by `time`. When the time or the tempo changes, the
-/// old repeats crossfade into the new ones at an unchanged pitch.
-/// `shape` windows each repeat with an envelope one delay time long, locked
-/// to the playhead, so the repeats come back as rhythmic slices;
-/// `grooveAmount` swings the windows with the global groove. `freq`
-/// shifts their pitch against `rootFreq`, and `tone` filters them. While
-/// `freeze` is high the delay stops recording and loops slices of what it
-/// holds, one base delay time long; `time` then picks the slice.
-///
-/// Each input channel gets its own delay. Follow it with `$wowFlutter` and
-/// `$reverb` for the rest of Beads' sound.
-///
-/// ```js
-/// const pluck = $saw('c3').amplitude($perc($clock.beatTrigger, { decay: 0.1 }))
-/// $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()
-/// ```
+const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Tempo-synced delay",
+    description: "The delay mode of Mutable Instruments Beads, locked to the transport. \
+                  Changing the time or the tempo crossfades to the new repeats without a pitch \
+                  warble. The repeats can also come back as rhythmic slices, or loop what the \
+                  delay holds while frozen.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Dotted-eighth echoes",
+            code: r#"
+                const pluck = $saw('c3').amp(
+                  $perc($clock.beatTrigger, { decay: 0.1 }),
+                )
+                $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()
+            "#,
+        },
+        DocExample {
+            title: "Sliced sixteenth repeats",
+            code: r#"
+                const pluck = $saw($cycle($p('c3 eb3 g3 bb3'))).amp(
+                  $perc($clock.beatTrigger, { decay: 0.3 }),
+                )
+                $clockedDelay(pluck, {
+                  bars: 1 / 16,
+                  shape: 1,
+                  feedback: 2,
+                  mix: 3,
+                }).out()
+            "#,
+        },
+    ],
+};
+
 #[module(
     name = "$clockedDelay",
-    categories(effect),
+    docs = CLOCKED_DELAY_DOCS,
     has_init,
     patch_update,
     args(input)

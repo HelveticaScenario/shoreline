@@ -1,13 +1,19 @@
 /**
- * Code examples embedded in the generated DSL type definitions: `@example`
- * JSDoc tags and ```js fenced blocks carried from each module's Rust doc
- * comment. Shared by the tests that run every documented example.
+ * Every documented code example: each module's structured docs
+ * (`docs.examples` and section examples, declared in its Rust `ModuleDocs`
+ * const and carried by `schemas.json`), plus the `@example` tags and ```js
+ * fences in the hand-written JSDoc of the generated DSL lib. Shared by the
+ * tests that run every documented example.
  */
+import schemas from '@modular/core/schemas.json';
+
 import type { DSLExecutionOptions, WavsFolderNode } from '../executor';
+import { buildLibSource } from '../typescriptLibGen';
 
 export interface DocExample {
-    /** Where the example came from: an `@example` tag or a ```js fence. */
-    kind: 'tag' | 'fence';
+    /** Where the example came from: a module's docs, an `@example` tag, or
+     *  a ```js fence in hand-written JSDoc. */
+    kind: 'module' | 'tag' | 'fence';
     /** Ordinal within the generated source, for stable test labels. */
     ordinal: number;
     /** The example source code. */
@@ -92,6 +98,34 @@ export function extractDocExamples(generated: string): DocExample[] {
     }
 
     return examples;
+}
+
+/** Every example in the modules' structured docs, sections included. */
+function moduleExamples(): DocExample[] {
+    return schemas.flatMap((module) =>
+        [
+            ...module.docs.examples,
+            ...module.docs.sections.flatMap((s) => s.examples),
+        ].map((e, ordinal) => ({
+            code: e.code,
+            kind: 'module' as const,
+            label: `${module.name}: ${e.title}`,
+            ordinal,
+        })),
+    );
+}
+
+/** Every documented example, each counted once: the generated JSDoc repeats
+ *  each module's first example. */
+export function allDocExamples(): DocExample[] {
+    const fromModules = moduleExamples();
+    const moduleCode = new Set(fromModules.map((e) => e.code));
+    return [
+        ...fromModules,
+        ...extractDocExamples(buildLibSource(schemas)).filter(
+            (e) => !moduleCode.has(e.code.replace(/^\/\/.*\n/, '')),
+        ),
+    ];
 }
 
 /**

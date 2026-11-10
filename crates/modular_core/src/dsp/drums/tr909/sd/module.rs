@@ -4,41 +4,56 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr909::circuit::TRIG_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Sd909Params {
-    /// rising edges strike the drum
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// pitch in V/Oct; stock is ≈148 Hz (default -0.8243)
-    #[signal(type = pitch, default = -0.8243, range = (-2.3, 0.7))]
+    #[input(
+        "pitch; stock is ≈148 Hz",
+        type = pitch,
+        default = -0.8243,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// tone control, 0–5 V: how long the noise rings on, from a short snap to a
-    /// long hiss (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how long the noise rings on, from a short snap to a long hiss",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     tone: Option<PolySignal>,
-    /// snappy control, 0–5 V: how loud the noise is (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how loud the noise is",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     snappy: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 909 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 909"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike and hold them until the next, as
-    /// accent always is, so changes reach only the hits after them (default
-    /// false)
+    #[input(
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,
@@ -47,25 +62,30 @@ struct Sd909Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Sd909Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-909 snare drum.
-///
-/// A circuit model of the 909's snare: a drum tone that bends up at the strike,
-/// under a burst of noise. **freq** sets the pitch, **snappy** how loud the
-/// noise is, **tone** how long it rings on, and **accent** how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr909.snare($clock.beatTrigger).out()
-/// ```
+const SD909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 snare drum",
+    description: "The 909's snare: a drum tone that bends up at the strike under a burst \
+                  of noise, which `tone` stretches from a tight crack to a long hiss.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Backbeat doubled on four",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909
+              .snare($cycle($p('~ c ~ [c c]')).trig, { snappy: 4 })
+              .out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$tr909.snare",
-    categories(drum),
+    docs = SD909_DOCS,
     has_init,
     patch_update,
     args(trigger),

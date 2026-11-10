@@ -1,23 +1,33 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::filters::resonant_svf::{CutoffResonance, hand_over, params_mono},
     dsp::utils::{changed, sanitize, voct_to_hz},
     poly::{PolyOutput, PolySignal},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Jup6fParams {
-    /// signal input
+    #[input("the sound to filter", type = audio)]
     input: PolySignal,
-    /// cutoff frequency in V/Oct (0V = C4)
-    #[signal(type = frequency)]
+    #[input(
+        "cutoff frequency; tops out just under half the sample rate",
+        type = frequency,
+        range = (-3.71, ..),
+    )]
     cutoff: PolySignal,
-    /// filter resonance (0-5). High values produce self-oscillation.
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "filter resonance; self-oscillates at 5",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
 }
@@ -25,9 +35,9 @@ struct Jup6fParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Jup6fOutputs {
-    #[output("output", "4-pole (24dB/oct) lowpass", default, range = (-5.0, 5.0))]
+    #[output("output", "4-pole (24 dB/oct) lowpass", default, range = (-5.0, 5.0))]
     lp24: PolyOutput,
-    #[output("lp12", "2-pole (12dB/oct) lowpass", range = (-5.0, 5.0))]
+    #[output("lp12", "2-pole (12 dB/oct) lowpass", range = (-5.0, 5.0))]
     lp12: PolyOutput,
     #[output("bp", "bandpass", range = (-5.0, 5.0))]
     bp: PolyOutput,
@@ -51,29 +61,39 @@ struct LadderState {
     k: f32,
 }
 
-/// Jupiter-6–style multimode ladder filter.
-///
-/// Models the IR3109 4-pole OTA cascade found in the Roland Jupiter-6.
-/// Each stage applies `tanh` saturation for the warm, harmonically rich
-/// character of the original analog circuit. Resonance drives the feedback
-/// path and self-oscillates at high values.
-///
-/// The default output is a 24 dB/oct lowpass. Additional taps provide
-/// 12 dB/oct lowpass, bandpass, and highpass responses derived from the
-/// same ladder core.
-///
-/// - **cutoff** — set in V/Oct (0 V = C4). Accepts modulation for filter sweeps.
-/// - **resonance** — feedback amount (0–5). Above ~4 the filter self-oscillates,
-///   producing a clean sine at the cutoff frequency.
-///
-/// ```js
-/// // classic Jupiter pad: saw through the ladder with slow envelope
-/// let env = $adsr($pPulse($clock[0]), { attack: 0.4, decay: 0.6, sustain: 0.3, release: 1.0 })
-/// $jup6f($saw('c2'), env.range('200hz', '4000hz'), 2.5)
-/// ```
+const JUP6F_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Jupiter-6 style ladder filter",
+    description: "A warm, saturating 4-pole lowpass modelled on the Roland Jupiter-6, with \
+                  extra outputs for a 12 dB lowpass, a bandpass and a highpass from the same core. Turned up, \
+                  the resonance self-oscillates into a clean sine at the cutoff.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Breathing analog pad",
+            code: r#"
+                $saw($chord('C3[maj9]'))
+                  .$.jup6f($sine('0.1hz').range('c4', 'c7'), 2.5)
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Squelchy bandpass bass",
+            code: r#"
+                const seq = $cycle($p('c2 [c2 c3] eb2 [g1 bb1]'))
+                $jup6f(
+                  $saw(seq),
+                  $perc(seq.trig, { decay: 0.15 }).range('c3', 'c6'),
+                  4,
+                ).bp.out()
+            "#,
+        },
+    ],
+};
+
 #[module(
     name = "$jup6f",
-    categories(filter),
+    docs = JUP6F_DOCS,
     patch_update,
     args(input, cutoff, resonance)
 )]

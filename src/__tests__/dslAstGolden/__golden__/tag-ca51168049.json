@@ -11,35 +11,9 @@
     "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
     "out": [],
     "quickFixes": {
-      "at": ["0-10 0","11-15 1","16-20 2","21-24 0","25-31 3","32-35 4","36-37 0"],
+      "at": ["11-15 0","16-20 1","25-31 2","32-35 3"],
       "fixes": [
         [
-          {
-            "caretOffset": 47,
-            "controlOffset": 23,
-            "kind": "add",
-            "newText": "{\n  width: 0.8,\n  pan: $slider('pan', 0, -5, 5),\n}",
-            "span": {"end":37,"start":23},
-            "title": "Add slider for 'pan'"
-          }
-        ],
-        [
-          {
-            "caretOffset": 33,
-            "controlOffset": 10,
-            "kind": "add",
-            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
-            "span": {"end":20,"start":20},
-            "title": "Add slider for 'fm'"
-          },
-          {
-            "caretOffset": 50,
-            "controlOffset": 19,
-            "kind": "add",
-            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
-            "span": {"end":20,"start":20},
-            "title": "Add slider for 'phaseOffset'"
-          },
           {
             "caretOffset": 38,
             "controlOffset": 13,
@@ -49,12 +23,20 @@
             "title": "Add slider for 'shape'"
           },
           {
-            "caretOffset": 37,
+            "caretOffset": 24,
             "controlOffset": 12,
             "kind": "add",
-            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "newText": ", {\n  sync: $btn('sync'),\n}",
             "span": {"end":20,"start":20},
-            "title": "Add slider for 'sync'"
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":20,"start":20},
+            "title": "Add slider for 'phaseOffset'"
           }
         ],
         [
@@ -68,22 +50,6 @@
             "title": "Wrap 'freq' in a note $slider"
           },
           {
-            "caretOffset": 33,
-            "controlOffset": 10,
-            "kind": "add",
-            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
-            "span": {"end":20,"start":20},
-            "title": "Add slider for 'fm'"
-          },
-          {
-            "caretOffset": 50,
-            "controlOffset": 19,
-            "kind": "add",
-            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
-            "span": {"end":20,"start":20},
-            "title": "Add slider for 'phaseOffset'"
-          },
-          {
             "caretOffset": 38,
             "controlOffset": 13,
             "kind": "add",
@@ -92,12 +58,20 @@
             "title": "Add slider for 'shape'"
           },
           {
-            "caretOffset": 37,
+            "caretOffset": 24,
             "controlOffset": 12,
             "kind": "add",
-            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "newText": ", {\n  sync: $btn('sync'),\n}",
             "span": {"end":20,"start":20},
-            "title": "Add slider for 'sync'"
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":20,"start":20},
+            "title": "Add slider for 'phaseOffset'"
           }
         ],
         [
@@ -109,14 +83,6 @@
             "preferred": false,
             "span": {"end":35,"start":32},
             "title": "Wrap 'width' in $slider"
-          },
-          {
-            "caretOffset": 47,
-            "controlOffset": 23,
-            "kind": "add",
-            "newText": "{\n  width: 0.8,\n  pan: $slider('pan', 0, -5, 5),\n}",
-            "span": {"end":37,"start":23},
-            "title": "Add slider for 'pan'"
           }
         ],
         [
@@ -128,14 +94,6 @@
             "preferred": true,
             "span": {"end":35,"start":32},
             "title": "Wrap 'width' in $slider"
-          },
-          {
-            "caretOffset": 47,
-            "controlOffset": 23,
-            "kind": "add",
-            "newText": "{\n  width: 0.8,\n  pan: $slider('pan', 0, -5, 5),\n}",
-            "span": {"end":37,"start":23},
-            "title": "Add slider for 'pan'"
           }
         ]
       ]

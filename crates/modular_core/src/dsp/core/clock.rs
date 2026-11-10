@@ -5,20 +5,23 @@ use schemars::JsonSchema;
 use crate::PolyOutput;
 use crate::dsp::seq::groove::{GrooveFollower, GrooveTemplate};
 use crate::dsp::utils::{SchmittTrigger, TempGate, TempGateState, min_gate_samples};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::ModuleDocs;
 use crate::param_errors::ModuleParamErrors;
 use crate::types::{ClockMessages, ExternalClockState};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_clock_params -> ModuleParamErrors)]
 struct ClockParams {
-    /// Tempo in BPM.
+    #[input("tempo in beats per minute", range = (1.0, ..))]
     tempo: f64,
-    /// Time signature numerator (beats per bar). Must be a positive integer.
+    #[input("beats per bar: the top of the time signature", range = (1, ..))]
     numerator: u32,
-    /// Time signature denominator (beat value). Must be a positive integer.
+    #[input("beat value: the bottom of the time signature", range = (1, ..))]
     denominator: u32,
-    /// Global groove reported by `grooveOffset`, `grooveVelocity` and `grooveTrigger`.
+    #[input("the global groove, reported on `grooveOffset`, `grooveVelocity` and `grooveTrigger`")]
     #[serde(default = "GrooveTemplate::straight")]
     #[deserr(default = GrooveTemplate::straight())]
     groove: GrooveTemplate,
@@ -84,10 +87,19 @@ impl Default for ClockState {
     }
 }
 
-/// Tempo-synced transport clock for driving sequencers, envelopes, and synced modulation.
+const CLOCK_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Transport clock",
+    description: "The patch's tempo and bar clock, which sequencers, envelopes and synced \
+                  modulation follow. Read it through the global `$clock` rather than \
+                  creating one.",
+    categories: &[ModuleCategory::Sequencer],
+    sections: &[],
+    examples: &[],
+};
+
 #[module(
     name = "_clock",
-    categories(sequencer),
+    docs = CLOCK_DOCS,
     channels = 2,
     args(tempo, numerator, denominator),
     clock_sync,
@@ -104,29 +116,32 @@ pub struct Clock {
 struct ClockOutputs {
     #[output(
         "playhead",
-        "Bar playhead: channel 0 is bar phase (0..1), channel 1 is completed bar count",
+        "bar playhead: channel 0 is the position within the bar (0 to 1), channel 1 the count of completed bars",
         default
     )]
     playhead: PolyOutput,
-    #[output("barTrigger", "5V trigger at the start of each bar", range = (0.0, 5.0))]
+    #[output("barTrigger", "fires at the start of each bar", range = (0.0, 5.0))]
     bar_trigger: f32,
-    #[output("beatTrigger", "5V trigger at the start of each beat", range = (0.0, 5.0))]
+    #[output("beatTrigger", "fires at the start of each beat", range = (0.0, 5.0))]
     beat_trigger: f32,
-    #[output("ramp", "0..5V ramp that resets every bar", range = (0.0, 5.0))]
+    #[output("ramp", "rises across each bar, then resets", range = (0.0, 5.0))]
     ramp: f32,
-    #[output("ppqTrigger", "5V trigger at 48 pulses per quarter note", range = (0.0, 5.0))]
+    #[output("ppqTrigger", "fires 48 times per quarter note", range = (0.0, 5.0))]
     ppq_trigger: f32,
-    #[output("beatInBar", "Current beat within the bar (0-indexed)")]
+    #[output("beatInBar", "the current beat within the bar, counting from 0")]
     beat_in_bar: f32,
-    #[output("tempo", "Current tempo in beats per minute")]
+    #[output("tempo", "the current tempo in beats per minute")]
     tempo: f32,
-    #[output("barLength", "Quarter notes per bar: 4 in 4/4, 3 in 6/8")]
+    #[output("barLength", "quarter notes per bar: 4 in 4/4, 3 in 6/8")]
     bar_length: f32,
-    #[output("grooveOffset", "Global groove position minus the playhead, in bars")]
+    #[output(
+        "grooveOffset",
+        "how far the global groove shifts the playhead, in bars"
+    )]
     groove_offset: f32,
-    #[output("grooveVelocity", "Velocity of the current global groove step (0-5V)", range = (0.0, 5.0))]
+    #[output("grooveVelocity", "velocity of the current global groove step", range = (0.0, 5.0))]
     groove_velocity: f32,
-    #[output("grooveTrigger", "5V trigger at the start of each global groove step", range = (0.0, 5.0))]
+    #[output("grooveTrigger", "fires at the start of each global groove step", range = (0.0, 5.0))]
     groove_trigger: f32,
 }
 

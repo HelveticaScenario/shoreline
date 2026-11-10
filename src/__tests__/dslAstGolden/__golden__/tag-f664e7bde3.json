@@ -23,20 +23,12 @@
       "fixes": [
         [
           {
-            "caretOffset": 30,
-            "controlOffset": 7,
-            "kind": "add",
-            "newText": "\n  fm: $slider('fm', 0, -5, 5),",
-            "span": {"end":125,"start":125},
-            "title": "Add slider for 'fm'"
-          },
-          {
-            "caretOffset": 34,
+            "caretOffset": 21,
             "controlOffset": 9,
             "kind": "add",
-            "newText": "\n  sync: $slider('sync', 0, -5, 5),",
+            "newText": "\n  sync: $btn('sync'),",
             "span": {"end":125,"start":125},
-            "title": "Add slider for 'sync'"
+            "title": "Add button for 'sync'"
           }
         ],
         [

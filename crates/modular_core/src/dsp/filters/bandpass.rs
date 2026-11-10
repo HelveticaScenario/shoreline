@@ -1,22 +1,33 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::filters::resonant_svf::{self, Response, SvfChannel, SvfFilterState},
     poly::{PolyOutput, PolySignal},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BandpassFilterParams {
-    /// signal input
+    #[input("the sound to filter", type = audio)]
     input: PolySignal,
-    /// center frequency in V/Oct (0V = C4)
-    #[signal(type = frequency)]
+    #[input(
+        "centre frequency; tops out just under half the sample rate",
+        type = frequency,
+        range = (-3.71, ..),
+    )]
     center: PolySignal,
-    /// filter resonance — controls bandwidth (0–5)
-    #[signal(default = 1.0, range = (0.0, 5.0))]
+    #[input(
+        "higher narrows the band, and keeps narrowing past 5",
+        type = control,
+        default = 1.0,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
 }
@@ -28,23 +39,32 @@ struct BandpassFilterOutputs {
     sample: PolyOutput,
 }
 
-/// Bandpass filter that passes frequencies near the center frequency and
-/// attenuates everything else.
-///
-/// Use it to isolate a frequency region, create vowel-like tones, or
-/// build resonant "wah" effects by sweeping the center frequency.
-///
-/// - **center** — center frequency in V/Oct (0 V = C4).
-/// - **resonance** — controls bandwidth (0–5). Higher values narrow the
-///   passband for a more pronounced, ringing sound.
-///
-/// ```js
-/// // resonant bandpass sweep on noise
-/// $bpf($noise("white"), $sine('0.5hz').range('440hz', '1200hz'), 3)
-/// ```
+const BPF_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Resonant bandpass filter",
+    description: "Passes a band around the centre frequency and cuts both sides. Narrow it \
+                  with resonance for vocal, wah-like tones, or sweep it over noise for wind \
+                  and whooshes.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Auto-wah saw",
+            code: "$saw('c2').$.bpf($sine('2hz').range('c4', 'c6'), 3).out()",
+        },
+        DocExample {
+            title: "Whistling wind",
+            code: r#"
+                $noise('white')
+                  .$.bpf($lorenz({ rate: 0.1 }).range('c5', 'c7'), 4.5)
+                  .out()
+            "#,
+        },
+    ],
+};
+
 #[module(
     name = "$bpf",
-    categories(filter),
+    docs = BPF_DOCS,
     patch_update,
     args(input, center, resonance)
 )]

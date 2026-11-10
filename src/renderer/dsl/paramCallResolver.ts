@@ -19,7 +19,7 @@ import {
     controlRef,
     hintedRef,
     mixRef,
-    paramSpec,
+    schemaParamRef,
 } from './apiParamControls';
 import type { ParamRef, SchemaEntry } from './apiParamControls';
 import type { ApiParam, ApiSignature, DocHints } from './apiTypeReader';
@@ -75,10 +75,8 @@ export function createCallResolver(
         declared ??= declaredNames(file);
         return declared.has(root.text);
     };
-    const schemaRef = (schema: SchemaEntry, name: string): ParamRef | null => {
-        const spec = paramSpec(schema, name);
-        return spec ? { knownDefault: true, label: name, spec } : null;
-    };
+    const schemaRef = (schema: SchemaEntry, name: string): ParamRef | null =>
+        schemaParamRef(schema, name, name);
     const moduleCall = (
         schema: SchemaEntry,
         argToPositional: (i: number) => number | null,

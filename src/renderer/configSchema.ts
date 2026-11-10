@@ -215,6 +215,12 @@ export const configSchema = {
                 'Release version whose update prompt was dismissed (managed automatically)',
             type: 'string',
         },
+        sidebarSide: {
+            default: 'right',
+            description: 'Which side of the window the sidebar sits on',
+            enum: ['left', 'right'],
+            type: 'string',
+        },
         vuPanelVisible: {
             default: false,
             description: 'Show the VU meter panel at the bottom of the window',

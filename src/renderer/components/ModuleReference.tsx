@@ -1,155 +1,20 @@
 import type { RefObject } from 'react';
 import React, {
-    memo,
     useCallback,
     useLayoutEffect,
     useMemo,
     useRef,
     useState,
 } from 'react';
-import Markdown from 'react-markdown';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
-import { LinkifyTypes } from './DocsTypeLinks';
+import { ReferenceCard } from './ReferenceCard';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
-import type {
-    EnumVariantInfo,
-    Schema,
-} from '../../shared/dsl/schemaTypeResolver';
-import {
-    schemaToTypeExpr,
-    getEnumVariants,
-} from '../../shared/dsl/schemaTypeResolver';
+import type { Schema } from '../../shared/dsl/schemaTypeResolver';
+import type { ReferenceEntry } from '../../shared/dsl/referenceDocs';
+import { moduleToReferenceEntry } from '../../shared/dsl/referenceDocs';
 
 const CARD_GAP_PX = 15;
 const ESTIMATED_CARD_HEIGHT_PX = 320;
-
-const getSignature = (module: Schema): string => {
-    const { positionalArgs } = module;
-    const positionalKeys = new Set(positionalArgs.map((a) => a.name));
-    const schemaRequired: string[] = module.paramsSchema.required ?? [];
-
-    const parts: string[] = positionalArgs.map((a) =>
-        schemaRequired.includes(a.name) ? a.name : `${a.name}?`,
-    );
-
-    const configKeys = Object.keys(module.paramsSchema.properties).filter(
-        (k) => !positionalKeys.has(k),
-    );
-
-    if (configKeys.length > 0) {
-        parts.push(
-            `{ ${configKeys.map((k) => (schemaRequired.includes(k) ? k : `${k}?`)).join(', ')} }`,
-        );
-    }
-
-    return `${module.name}(${parts.join(', ')})`;
-};
-
-const getParams = (module: Schema) => {
-    const properties = Object.entries(module.paramsSchema.properties);
-    return properties.map(([name, schema]) => {
-        let type: string | undefined;
-        try {
-            type = schemaToTypeExpr(schema, module.paramsSchema);
-        } catch {
-            // Fall back to no type annotation for unsupported schemas
-        }
-        let variants: EnumVariantInfo[] | null = null;
-        try {
-            variants = getEnumVariants(schema, module.paramsSchema);
-        } catch {
-            // Fall back to no variant info
-        }
-        return {
-            description: schema.description as string | undefined,
-            name,
-            type,
-            variants,
-        };
-    });
-};
-
-const VariantItems: React.FC<{ variants: EnumVariantInfo[] }> = ({
-    variants,
-}) => (
-    <>
-        {variants.map((v) => (
-            <li key={v.value}>
-                <code>{v.rawValue as string}</code>
-                {v.description && <> &mdash; {v.description}</>}
-            </li>
-        ))}
-    </>
-);
-
-interface ModuleCardProps {
-    module: Schema;
-    onTypeClick: (typeName: DslTypeName) => void;
-}
-
-const ModuleCard = memo<ModuleCardProps>(({ module, onTypeClick }) => {
-    const params = useMemo(() => getParams(module), [module]);
-    return (
-        <div className="module-card">
-            <h3>
-                <code>{getSignature(module)}</code>
-            </h3>
-            <div className="module-documentation">
-                <Markdown>{module.documentation}</Markdown>
-            </div>
-            <h4>Inputs</h4>
-            <ul>
-                {params.map(({ name, type, description, variants }) => (
-                    <li key={name}>
-                        <strong>
-                            {name}
-                            {type && (
-                                <>
-                                    {': '}
-                                    <LinkifyTypes
-                                        text={type}
-                                        onTypeClick={onTypeClick}
-                                    />
-                                </>
-                            )}
-                        </strong>
-                        {description && <> &mdash; {description}</>}
-                        {variants &&
-                            variants.some((v) => v.description) &&
-                            (variants.length > 8 ? (
-                                <details className="enum-variants">
-                                    <summary>
-                                        {variants.length} values (click to
-                                        expand)
-                                    </summary>
-                                    <ul>
-                                        <VariantItems variants={variants} />
-                                    </ul>
-                                </details>
-                            ) : (
-                                <ul className="enum-variants">
-                                    <VariantItems variants={variants} />
-                                </ul>
-                            ))}
-                    </li>
-                ))}
-            </ul>
-            <h4>Outputs</h4>
-            <ul>
-                {module.outputs.map((out) => (
-                    <li key={out.name}>
-                        <strong>{out.default ? 'main' : out.name}</strong>:{' '}
-                        <LinkifyTypes
-                            text={out.description}
-                            onTypeClick={onTypeClick}
-                        />
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
-});
-ModuleCard.displayName = 'ModuleCard';
 
 interface ModuleReferenceProps {
     /** Already sorted in display order. */
@@ -175,14 +40,41 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
     // The list's offset within the scrolling pane, below the heading and search box.
     const [scrollMargin, setScrollMargin] = useState(0);
 
+    const entries = useMemo(
+        () => modules.map(moduleToReferenceEntry),
+        [modules],
+    );
+
     const filteredModules = useMemo(() => {
         const query = searchQuery.toLowerCase();
-        return modules.filter(
-            (schema) =>
-                schema.name.toLowerCase().includes(query) ||
-                schema.documentation.toLowerCase().includes(query),
-        );
-    }, [modules, searchQuery]);
+        // Name matches lead, best first; then entries whose summary or
+        // description mention the query; then those whose params or examples
+        // do. Each group keeps the display order.
+        const rankOf = (entry: ReferenceEntry): number => {
+            const name = entry.name.toLowerCase();
+            if (name === query) return 0;
+            if (name.startsWith(query)) return 1;
+            if (name.includes(query)) return 2;
+            const { summary, description, sections, examples } = entry.docs;
+            if (`${summary}\n${description}`.toLowerCase().includes(query)) {
+                return 3;
+            }
+            const rest = [
+                ...entry.params.flatMap((p) => [p.name, p.description ?? '']),
+                ...sections.flatMap((s) => [s.title, s.body]),
+                ...[
+                    ...examples,
+                    ...sections.flatMap((s) => s.examples),
+                ].flatMap((e) => [e.title, e.code]),
+            ];
+            return rest.join('\n').toLowerCase().includes(query) ? 4 : -1;
+        };
+        return entries
+            .map((entry) => ({ entry, rank: rankOf(entry) }))
+            .filter(({ rank }) => rank >= 0)
+            .sort((a, b) => a.rank - b.rank)
+            .map(({ entry }) => entry);
+    }, [entries, searchQuery]);
 
     useLayoutEffect(() => {
         const scrollElement = scrollRef.current;
@@ -273,8 +165,8 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
                             transform: `translateY(${item.start - scrollMargin}px)`,
                         }}
                     >
-                        <ModuleCard
-                            module={filteredModules[item.index]}
+                        <ReferenceCard
+                            entry={filteredModules[item.index]}
                             onTypeClick={onTypeClick}
                         />
                     </div>

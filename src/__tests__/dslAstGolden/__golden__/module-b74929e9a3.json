@@ -1,0 +1,395 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["5:4",5,5]],
+      "interpolations": [],
+      "registry": [
+        ["4:26","$p",[["source",24,37]]],
+        ["7:16","$unstable.reverb2",[["input",119,120],["decay",131,132],["damping",143,144]]],
+        ["6:8","$perc",[["decay",87,91]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 151,
+        "gainClear": null,
+        "gainSet": {"end":155,"start":155,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":155,"start":155,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":155,"start":155,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":155,"start":155,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": [
+        "40-51 0",
+        "80-86 1",
+        "87-91 2",
+        "95-118 3",
+        "119-120 4",
+        "121-123 3",
+        "124-130 5",
+        "131-132 6",
+        "133-133 3",
+        "134-142 7",
+        "143-144 8",
+        "145-146 3",
+        "147-155 9"
+      ],
+      "fixes": [
+        [
+          {
+            "caretOffset": 22,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $btn('sync') }",
+            "span": {"end":51,"start":51},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":51,"start":51},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 0.15, 0.001, 10)",
+            "preferred": false,
+            "span": {"end":91,"start":87},
+            "title": "Wrap 'decay' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 0.15, 0.001, 10)",
+            "preferred": true,
+            "span": {"end":91,"start":87},
+            "title": "Wrap 'decay' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 67,
+            "controlOffset": 42,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    size: $slider('size', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'size'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    width: $slider('width', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'width'"
+          },
+          {
+            "caretOffset": 76,
+            "controlOffset": 46,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    predelay: $slider('predelay', 0, 0, 0.5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'predelay'"
+          },
+          {
+            "caretOffset": 79,
+            "controlOffset": 48,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    modulation: $slider('modulation', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'modulation'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 23,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('mix', 3, 0, 5)",
+            "preferred": true,
+            "span": {"end":120,"start":119},
+            "title": "Wrap 'mix' in $slider"
+          },
+          {
+            "caretOffset": 67,
+            "controlOffset": 42,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    size: $slider('size', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'size'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    width: $slider('width', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'width'"
+          },
+          {
+            "caretOffset": 76,
+            "controlOffset": 46,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    predelay: $slider('predelay', 0, 0, 0.5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'predelay'"
+          },
+          {
+            "caretOffset": 79,
+            "controlOffset": 48,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    modulation: $slider('modulation', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'modulation'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 4, -5, 5)",
+            "preferred": false,
+            "span": {"end":132,"start":131},
+            "title": "Wrap 'decay' in $slider"
+          },
+          {
+            "caretOffset": 67,
+            "controlOffset": 42,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    size: $slider('size', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'size'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    width: $slider('width', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'width'"
+          },
+          {
+            "caretOffset": 76,
+            "controlOffset": 46,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    predelay: $slider('predelay', 0, 0, 0.5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'predelay'"
+          },
+          {
+            "caretOffset": 79,
+            "controlOffset": 48,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    modulation: $slider('modulation', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'modulation'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 4, -5, 5)",
+            "preferred": true,
+            "span": {"end":132,"start":131},
+            "title": "Wrap 'decay' in $slider"
+          },
+          {
+            "caretOffset": 67,
+            "controlOffset": 42,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    size: $slider('size', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'size'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    width: $slider('width', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'width'"
+          },
+          {
+            "caretOffset": 76,
+            "controlOffset": 46,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    predelay: $slider('predelay', 0, 0, 0.5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'predelay'"
+          },
+          {
+            "caretOffset": 79,
+            "controlOffset": 48,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    modulation: $slider('modulation', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'modulation'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('damping', 4, -5, 5)",
+            "preferred": false,
+            "span": {"end":144,"start":143},
+            "title": "Wrap 'damping' in $slider"
+          },
+          {
+            "caretOffset": 67,
+            "controlOffset": 42,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    size: $slider('size', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'size'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    width: $slider('width', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'width'"
+          },
+          {
+            "caretOffset": 76,
+            "controlOffset": 46,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    predelay: $slider('predelay', 0, 0, 0.5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'predelay'"
+          },
+          {
+            "caretOffset": 79,
+            "controlOffset": 48,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    modulation: $slider('modulation', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'modulation'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('damping', 4, -5, 5)",
+            "preferred": true,
+            "span": {"end":144,"start":143},
+            "title": "Wrap 'damping' in $slider"
+          },
+          {
+            "caretOffset": 67,
+            "controlOffset": 42,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    size: $slider('size', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'size'"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 43,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    width: $slider('width', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'width'"
+          },
+          {
+            "caretOffset": 76,
+            "controlOffset": 46,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    predelay: $slider('predelay', 0, 0, 0.5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'predelay'"
+          },
+          {
+            "caretOffset": 79,
+            "controlOffset": 48,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    damping: 4,\n    modulation: $slider('modulation', 0, -5, 5),\n  }",
+            "span": {"end":146,"start":122},
+            "title": "Add slider for 'modulation'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ gain: $slider('gain', 5, 0, 5) }",
+            "span": {"end":155,"start":155},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":155,"start":155},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ width: $slider('width', 0, 0, 5) }",
+            "span": {"end":155,"start":155},
+            "title": "Add slider for 'width'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":156,"start":156,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:26","$p",[["source",24,37]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":39,"start":39,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:26","$p",[["source",24,37]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":78,"start":78,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:26","$p",[["source",24,37]]],["6:8","$perc",[["decay",87,91]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":117,"start":117,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

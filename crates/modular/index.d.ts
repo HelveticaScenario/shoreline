@@ -458,10 +458,26 @@ export interface WavTimeSignature {
   num: number
   den: number
 }
+export interface DocExampleSchema {
+  title: string
+  code: string
+}
+
+export interface DocSectionSchema {
+  title: string
+  body: string
+  table?: DocTableSchema
+  examples: Array<DocExampleSchema>
+}
+
+export interface DocTableSchema {
+  columns: Array<string>
+  rows: Array<Array<string>>
+}
+
 /**
- * A grouping for the module reference. Every module declares at least one
- * with `categories(...)` in its `#[module(...)]` attribute, and may belong
- * to several.
+ * A grouping for the module reference. Every module lists at least one in
+ * its `ModuleDocs`, and may belong to several.
  */
 export type ModuleCategory = /** Oscillators and other sound sources. */
 'oscillator'|
@@ -500,6 +516,18 @@ export type ModuleCategory = /** Oscillators and other sound sources. */
 /** General signal plumbing such as routing and smoothing. */
 'utility';
 
+export interface ModuleDocsSchema {
+  summary: string
+  description: string
+  /**
+   * Typed as strings in TypeScript so `schemas.json` imports, whose string
+   * literals widen, still satisfy this interface.
+   */
+  categories: Array<string>
+  sections: Array<DocSectionSchema>
+  examples: Array<DocExampleSchema>
+}
+
 export interface ModuleIdRemap {
   from: string
   to: string
@@ -507,14 +535,7 @@ export interface ModuleIdRemap {
 
 export interface ModuleSchema {
   name: string
-  /** Documentation extracted from `///` doc comments on the module struct. */
-  documentation: string
-  /**
-   * The module's reference categories, in declaration order; never empty.
-   * Typed as strings in TypeScript so `schemas.json` imports, whose string
-   * literals widen, still satisfy this interface.
-   */
-  categories: Array<string>
+  docs: ModuleDocsSchema
   paramsSchema: Record<string, unknown>
   outputs: Array<OutputSchema>
   /**
@@ -628,10 +649,25 @@ export interface ScopeStats {
 export interface SignalParamSchema {
   name: string
   description: string
+  /** `audio`, `control`, `pitch`, `frequency`, `gate` or `trig`. */
   signalType: string
-  defaultValue: number
-  minValue: number
-  maxValue: number
+  /** What a disconnected input reads, when it reads a fixed value. */
+  defaultValue?: number
+  /**
+   * The default in words, for one that depends on other params; the docs
+   * show it in place of `default_value`.
+   */
+  defaultDoc?: string
+  /** Lower bound of the usable range; `None` when unbounded below. */
+  minValue?: number
+  /** Upper bound of the usable range; `None` when unbounded above. */
+  maxValue?: number
+  /**
+   * Slider span of a `control` input; set for every control, `None`
+   * otherwise.
+   */
+  controlMin?: number
+  controlMax?: number
 }
 
 /** One VU meter's loudness snapshot, joined to its `VuMeterSpec` by `module_id`. */

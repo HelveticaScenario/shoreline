@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields, LitStr, Token, Type, punctuated::Punctuated};
 
-use crate::utils::{extract_doc_comments, unwrap_attr};
+use crate::utils::unwrap_attr;
 
 /// Parsed module attribute data
 struct ModuleAttr {
@@ -15,8 +15,8 @@ struct ModuleAttr {
     /// Custom function to derive channel count from params struct.
     /// The function must have signature: fn(&ParamsStruct) -> Option<usize>
     channels_derive: Option<syn::Path>,
-    /// Variant names of `crate::module_category::ModuleCategory`, written in snake_case.
-    categories: Vec<Ident>,
+    /// Path to the module's `crate::module_docs::ModuleDocs` const.
+    docs: syn::Path,
 }
 
 struct ArgAttr {
@@ -40,7 +40,7 @@ impl syn::parse::Parse for ArgAttr {
 /// ```text
 /// #[module(
 ///     name = "$sine",
-///     categories(oscillator),
+///     docs = SINE_DOCS,
 ///     channels = 2,
 ///     args(freq, engine),
 ///     stateful,
@@ -67,7 +67,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
         let mut channels_param_default: Option<u8> = None;
         let mut channels_derive: Option<syn::Path> = None;
         let mut args: Vec<ArgAttr> = Vec::new();
-        let mut categories: Option<Vec<Ident>> = None;
+        let mut docs: Option<syn::Path> = None;
         let mut stateful = false;
         let mut patch_update = false;
         let mut has_init = false;
@@ -116,34 +116,9 @@ impl syn::parse::Parse for ModuleAttrArgs {
                         Punctuated::parse_terminated(&content)?;
                     args = parsed.into_iter().collect();
                 }
-                "categories" => {
-                    let content;
-                    syn::parenthesized!(content in input);
-                    let parsed: Punctuated<Ident, Token![,]> =
-                        Punctuated::parse_terminated(&content)?;
-                    let mut list: Vec<Ident> = Vec::new();
-                    for category in parsed {
-                        if category.to_string() != category.to_string().to_case(Case::Snake) {
-                            return Err(syn::Error::new(
-                                category.span(),
-                                format!("category '{category}' must be written in snake_case"),
-                            ));
-                        }
-                        if list.contains(&category) {
-                            return Err(syn::Error::new(
-                                category.span(),
-                                format!("duplicate category '{category}'"),
-                            ));
-                        }
-                        list.push(category);
-                    }
-                    if list.is_empty() {
-                        return Err(syn::Error::new(
-                            ident.span(),
-                            "`categories(...)` must list at least one category",
-                        ));
-                    }
-                    categories = Some(list);
+                "docs" => {
+                    input.parse::<Token![=]>()?;
+                    docs = Some(input.parse()?);
                 }
                 "stateful" => {
                     stateful = true;
@@ -168,7 +143,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
                         ident.span(),
                         format!(
                             "Unknown module attribute '{other}'. Expected one of: \
-                             name, categories, channels, channels_param, \
+                             name, docs, channels, channels_param, \
                              channels_param_default, channels_derive, args, \
                              stateful, patch_update, has_init, has_prepare_resources, clock_sync, block"
                         ),
@@ -186,10 +161,10 @@ impl syn::parse::Parse for ModuleAttrArgs {
                 "missing `name` in #[module(...)]",
             )
         })?;
-        let categories = categories.ok_or_else(|| {
+        let docs = docs.ok_or_else(|| {
             syn::Error::new(
                 proc_macro2::Span::call_site(),
-                "missing `categories(...)` in #[module(...)]: every module belongs to at least one",
+                "missing `docs = …` in #[module(...)]: name the module's `ModuleDocs` const",
             )
         })?;
 
@@ -200,7 +175,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
                 channels_param,
                 channels_param_default,
                 channels_derive,
-                categories,
+                docs,
             },
             args,
             stateful,
@@ -220,7 +195,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
 /// ```rust,ignore
 /// #[module(
 ///     name = "$sine",
-///     categories(oscillator),                   // one or more ModuleCategory variants
+///     docs = SINE_DOCS,                        // the module's ModuleDocs const
 ///     // Channel count configuration (at most one):
 ///     // channels = 2,                         // hardcoded
 ///     // channels_param = "channels",           // read from param field
@@ -305,27 +280,18 @@ fn impl_module_macro_attr(
     let name = &ast.ident;
     let module_name = &attr_args.module.name;
 
-    // Extract /// doc comments from the module struct for documentation (required)
-    let module_documentation = extract_doc_comments(&ast.attrs).ok_or_else(|| {
-        syn::Error::new(
-            name.span(),
-            format!(
-                "Module struct `{}` must have `///` doc comments for documentation",
-                name
-            ),
-        )
-    })?;
-    let module_documentation_token = quote! { #module_documentation.to_string() };
-
-    let category_exprs: Vec<TokenStream2> = attr_args
-        .module
-        .categories
+    // The `docs` const is the module's only user-facing documentation.
+    if let Some(doc) = ast
+        .attrs
         .iter()
-        .map(|category| {
-            let variant = Ident::new(&category.to_string().to_case(Case::Pascal), category.span());
-            quote! { crate::module_category::ModuleCategory::#variant }
-        })
-        .collect();
+        .find(|a| a.path().is_ident("doc") && matches!(a.meta, syn::Meta::NameValue(_)))
+    {
+        return Err(syn::Error::new_spanned(
+            doc,
+            "module docs live in the `ModuleDocs` const named by `docs = …`, not `///`",
+        ));
+    }
+    let docs_path = &attr_args.module.docs;
 
     // Store channels info for channel_count generation
     let hardcoded_channels = attr_args.module.channels;
@@ -1140,8 +1106,7 @@ fn impl_module_macro_attr(
 
                 crate::types::ModuleSchema {
                     name: Self::MODULE_TYPE.to_string(),
-                    documentation: #module_documentation_token,
-                    categories: vec![#(#category_exprs),*],
+                    docs: crate::module_docs::ModuleDocsSchema::from(&#docs_path),
                     params_schema: crate::types::SchemaContainer {
                         schema: params_schema,
                     },

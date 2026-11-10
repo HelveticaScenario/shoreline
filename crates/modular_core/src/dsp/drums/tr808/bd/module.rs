@@ -4,42 +4,56 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Bd808Params {
-    /// rising edges strike the drum
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud, with more pitch sigh (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V, with a deeper pitch drop",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// tone control, 0–5 V: from a dull thud to a bright click at the attack
-    /// (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "brightness of the attack, from a dull thud to a bright click",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     tone: Option<PolySignal>,
-    /// decay control, 0–5 V: how long the drum rings, from ≈0.09 s to
-    /// ≈3.8 s (default 2.5, ≈0.6 s)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how long the drum rings, from ≈0.09 s to ≈3.8 s; ≈0.6 s at 2.5",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<PolySignal>,
-    /// pitch in V/Oct; stock is ≈49.5 Hz (default -2.4035)
-    #[signal(type = pitch, default = -2.4035, range = (-3.5, -1.0))]
+    #[input(
+        "pitch; stock is ≈49.5 Hz; its level shifts as you tune far from stock",
+        type = pitch,
+        default = -2.4035,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 808 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike and hold them until the next, as
-    /// accent always is, so changes reach only the hits after them (default
-    /// false)
+    #[input(
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,
@@ -48,31 +62,37 @@ struct Bd808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Bd808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 bass drum.
-///
-/// A circuit model of the 808's deep, booming kick: a low, round ring at ≈49.5
-/// Hz with a click at the attack and a pitch that sighs down as it rings.
-/// **decay** sets how long it booms, **tone** how much click comes through,
-/// **freq** its pitch, and **accent** how hard it hits.
-///
-/// As on the 808, a hit that lands on a still-ringing one builds on it, so long
-/// decays at fast tempos swing in level from hit to hit; **restart** starts
-/// every hit from rest instead.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**. Near the top of the **freq** range the drum overdrives, so accent adds
-/// less there.
-///
-/// ```js
-/// $tr808.kick($clock.beatTrigger, { decay: 4 }).out()
-/// ```
+const BD808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 bass drum",
+    description: "The 808's deep, booming kick: a round, low ring with a click at the \
+                  attack and a pitch that sighs down as it fades. Long decays turn it \
+                  into a tuned sub bass. As on the 808, a hit that lands on a \
+                  still-ringing one builds on it, so long decays at fast tempos swing in \
+                  level from hit to hit.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Booming four on the floor",
+            code: "$tr808.kick($cycle($p('c*4')).trig, { decay: 4 }).out()",
+        },
+        DocExample {
+            title: "Tuned 808 bassline",
+            code: r#"
+                const bass = $cycle($p('g1 ~ ~ g1 ~ ~ bb1 c2'))
+                $tr808.kick(bass.trig, { freq: bass, decay: 4.5 }).out()
+            "#,
+        },
+    ],
+};
+
 #[module(
     name = "$tr808.kick",
-    categories(drum),
+    docs = BD808_DOCS,
     has_init,
     patch_update,
     args(trigger),

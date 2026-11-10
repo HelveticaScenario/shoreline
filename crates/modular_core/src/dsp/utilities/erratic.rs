@@ -5,6 +5,8 @@ use std::ops::Range;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{CatmullRom, SchmittState, SchmittTrigger};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
 /// Top of the speed curve, in Hz. `speed = 5` itself draws a fresh point every
@@ -44,53 +46,62 @@ fn speed_to_increment(speed: f32, sample_rate: f32) -> f32 {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 enum ErraticMode {
-    /// Add a random offset.
+    /// add a random offset
     #[default]
     Shift,
-    /// Add a random offset, then clamp to [min, max].
+    /// add a random offset, then clamp to [min, max]
     Clamp,
-    /// Move toward a random value in [min, max], clamped to it.
+    /// move toward a random value in [min, max], clamped to it
     Blend,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ErraticParams {
-    /// signal to vary
+    #[input("signal to vary", type = audio)]
     input: PolySignal,
-    /// depth (0–5); at 5, shift moves up to half the range either way and
-    /// blend jumps all the way to the random value
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "how far the variation reaches: at 5, shift moves up to half the range either way and blend jumps all the way to the random value; blend stops deepening past 5",
+        type = control,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     amount: PolySignal,
-    /// rising edge samples and holds the current random value
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edge samples and holds the current random value", type = trig)]
     #[block_input(optional)]
     #[deserr(default)]
     trigger: Option<PolySignal>,
-    /// how fast the variation wanders: 0 = frozen, 5 = a fresh value every sample
-    #[signal(default = 2.0, range = (0.0, 5.0))]
+    #[input(
+        "how fast the variation wanders: 0 frozen, 5 a fresh value every sample",
+        type = control,
+        default = 2.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     speed: Option<PolySignal>,
-    /// leans the variation upward (positive) or downward (negative); ±5 makes it one-sided
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "leans the variation upward (positive) or downward (negative); ±5 makes it one-sided",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     bias: Option<PolySignal>,
-    /// minimum of the input's range
-    #[signal(default = -5.0)]
+    #[input("bottom of the input's range", type = control, default = -5.0, control_range = (-5.0, 5.0))]
     #[deserr(default)]
     min: Option<PolySignal>,
-    /// maximum of the input's range
-    #[signal(default = 5.0)]
+    #[input("top of the input's range", type = control, default = 5.0, control_range = (-5.0, 5.0))]
     #[deserr(default)]
     max: Option<PolySignal>,
-    /// shift adds a random offset; clamp also clamps it to [min, max]; blend
-    /// moves toward a random value in [min, max]
+    #[input("how the random value moves the input", default = "shift")]
     #[serde(default)]
     #[deserr(default)]
     mode: ErraticMode,
-    /// draw a random depth per value: low amounts mostly stay near the input
-    /// with rare big jumps, high amounts mostly jump
+    #[input(
+        "draw a random depth per value: low amounts mostly stay near the input with rare big jumps, high amounts mostly jump"
+    )]
     #[serde(default)]
     #[deserr(default)]
     sparse: bool,
@@ -99,7 +110,7 @@ struct ErraticParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ErraticOutputs {
-    #[output("output", "randomly shifted signal", default)]
+    #[output("output", "the varied signal", default)]
     sample: PolyOutput,
 }
 
@@ -226,24 +237,31 @@ impl ErraticChannelState {
     }
 }
 
-/// Applies a wandering random variation to a signal.
-///
-/// **shift** mode adds an offset of up to ±**amount**, scaled to the width of
-/// [**min**, **max**]: 5 moves up to half the range either way. **clamp** mode
-/// shifts the same way, then clamps to the range. **blend** mode moves toward a
-/// random value in [**min**, **max**] by **amount** / 5 and stays in the range.
-/// **bias** makes the variation lean upward (+)
-/// or downward (−); ±5 makes it one-sided. **sparse** draws a random depth per
-/// value: low amounts mostly stay near the input with rare big jumps, high
-/// amounts mostly jump. **speed** runs from frozen at 0 to a
-/// fresh random value every sample at 5. A **trigger** holds the variation
-/// between rising edges.
-///
-/// Backs the DSL's `.erratic()` signal method, which fills **min**/**max**
-/// from a ranged signal's range.
+const ERRATIC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Wandering random variation",
+    description: "Adds a wandering random variation to a signal, shifting it or \
+                  pulling it toward random values within its range, for movement that \
+                  never quite repeats. Backs the `.erratic()` signal method, which \
+                  takes the range from a ranged signal.",
+    categories: &[ModuleCategory::Random, ModuleCategory::Modulation],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Tremolo that changes depth each beat",
+        code: r#"
+            $saw('c3')
+              .amp(
+                $sine('4hz')
+                  .range(2, 5)
+                  .erratic(2, { trigger: $clock.beatTrigger }),
+              )
+              .out()
+        "#,
+    }],
+};
+
 #[module(
     name = "_erratic",
-    categories(random, modulation),
+    docs = ERRATIC_DOCS,
     patch_update,
     args(input, amount),
     block

@@ -49,22 +49,21 @@
         "34-38 6",
         "39-43 7",
         "44-45 5",
-        "46-60 8",
         "61-62 5",
         "63-66 4",
-        "67-73 9",
-        "74-75 10",
+        "67-73 8",
+        "74-75 9",
         "76-76 4",
-        "77-85 11",
-        "86-87 12",
+        "77-85 10",
+        "86-87 11",
         "88-88 4",
-        "89-98 13",
-        "99-100 14",
+        "89-98 12",
+        "99-100 13",
         "101-101 4",
-        "102-112 15",
-        "113-116 16",
+        "102-112 14",
+        "113-116 15",
         "117-118 4",
-        "119-124 17"
+        "119-124 16"
       ],
       "fixes": [
         [
@@ -151,22 +150,6 @@
         ],
         [
           {
-            "caretOffset": 31,
-            "controlOffset": 8,
-            "kind": "add",
-            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
-            "span": {"end":14,"start":14},
-            "title": "Add slider for 'fm'"
-          },
-          {
-            "caretOffset": 48,
-            "controlOffset": 17,
-            "kind": "add",
-            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
-            "span": {"end":14,"start":14},
-            "title": "Add slider for 'phaseOffset'"
-          },
-          {
             "caretOffset": 36,
             "controlOffset": 11,
             "kind": "add",
@@ -175,12 +158,20 @@
             "title": "Add slider for 'shape'"
           },
           {
-            "caretOffset": 35,
+            "caretOffset": 22,
             "controlOffset": 10,
             "kind": "add",
-            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "newText": ", { sync: $btn('sync') }",
             "span": {"end":14,"start":14},
-            "title": "Add slider for 'sync'"
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":14,"start":14},
+            "title": "Add slider for 'phaseOffset'"
           }
         ],
         [
@@ -194,22 +185,6 @@
             "title": "Wrap 'freq' in a note $slider"
           },
           {
-            "caretOffset": 31,
-            "controlOffset": 8,
-            "kind": "add",
-            "newText": ", { fm: $slider('fm', 0, -5, 5) }",
-            "span": {"end":14,"start":14},
-            "title": "Add slider for 'fm'"
-          },
-          {
-            "caretOffset": 48,
-            "controlOffset": 17,
-            "kind": "add",
-            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
-            "span": {"end":14,"start":14},
-            "title": "Add slider for 'phaseOffset'"
-          },
-          {
             "caretOffset": 36,
             "controlOffset": 11,
             "kind": "add",
@@ -218,12 +193,20 @@
             "title": "Add slider for 'shape'"
           },
           {
-            "caretOffset": 35,
+            "caretOffset": 22,
             "controlOffset": 10,
             "kind": "add",
-            "newText": ", { sync: $slider('sync', 0, -5, 5) }",
+            "newText": ", { sync: $btn('sync') }",
             "span": {"end":14,"start":14},
-            "title": "Add slider for 'sync'"
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":14,"start":14},
+            "title": "Add slider for 'phaseOffset'"
           }
         ],
         [
@@ -314,22 +297,6 @@
         ],
         [
           {
-            "caretOffset": 33,
-            "controlOffset": 10,
-            "kind": "add",
-            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
-            "span": {"end":43,"start":43},
-            "title": "Add slider for 'fm'"
-          },
-          {
-            "caretOffset": 50,
-            "controlOffset": 19,
-            "kind": "add",
-            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
-            "span": {"end":43,"start":43},
-            "title": "Add slider for 'phaseOffset'"
-          },
-          {
             "caretOffset": 38,
             "controlOffset": 13,
             "kind": "add",
@@ -338,12 +305,20 @@
             "title": "Add slider for 'shape'"
           },
           {
-            "caretOffset": 37,
+            "caretOffset": 24,
             "controlOffset": 12,
             "kind": "add",
-            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "newText": ", {\n  sync: $btn('sync'),\n}",
             "span": {"end":43,"start":43},
-            "title": "Add slider for 'sync'"
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":43,"start":43},
+            "title": "Add slider for 'phaseOffset'"
           }
         ],
         [
@@ -357,22 +332,6 @@
             "title": "Wrap 'freq' in a note $slider"
           },
           {
-            "caretOffset": 33,
-            "controlOffset": 10,
-            "kind": "add",
-            "newText": ", {\n  fm: $slider('fm', 0, -5, 5),\n}",
-            "span": {"end":43,"start":43},
-            "title": "Add slider for 'fm'"
-          },
-          {
-            "caretOffset": 50,
-            "controlOffset": 19,
-            "kind": "add",
-            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
-            "span": {"end":43,"start":43},
-            "title": "Add slider for 'phaseOffset'"
-          },
-          {
             "caretOffset": 38,
             "controlOffset": 13,
             "kind": "add",
@@ -381,22 +340,20 @@
             "title": "Add slider for 'shape'"
           },
           {
-            "caretOffset": 37,
+            "caretOffset": 24,
             "controlOffset": 12,
             "kind": "add",
-            "newText": ", {\n  sync: $slider('sync', 0, -5, 5),\n}",
+            "newText": ", {\n  sync: $btn('sync'),\n}",
             "span": {"end":43,"start":43},
-            "title": "Add slider for 'sync'"
-          }
-        ],
-        [
+            "title": "Add button for 'sync'"
+          },
           {
-            "caretOffset": 45,
-            "controlOffset": 12,
+            "caretOffset": 50,
+            "controlOffset": 19,
             "kind": "add",
-            "newText": ", {\n  rate: $slider('rate', 'c4', 'c2', 'c6'),\n}",
-            "span": {"end":60,"start":60},
-            "title": "Add note slider for 'rate'"
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":43,"start":43},
+            "title": "Add slider for 'phaseOffset'"
           }
         ],
         [

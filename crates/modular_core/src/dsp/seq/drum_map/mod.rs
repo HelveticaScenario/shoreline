@@ -12,6 +12,8 @@ use crate::dsp::seq::FRESH_WINDOW_SECS;
 use crate::dsp::seq::groove::{GrooveHold, before_first_step, fill_groove_inputs};
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{GATE_HIGH_VOLTAGE, TempGate, TempGateState, min_gate_samples};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::param_errors::ModuleParamErrors;
 use crate::poly::{MonoSignalExt, PolyOutput, PolySignal, PolySignalExt};
 use crate::types::ClockMessages;
@@ -84,53 +86,71 @@ impl JsonSchema for DrumMapResolution {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = drum_map_fill_groove -> ModuleParamErrors)]
 struct DrumMapParams {
-    /// playhead position; one cycle plays the 32-step pattern once
+    #[input(
+        "playhead position in cycles; one cycle plays the 32-step pattern once; follows the global clock by default",
+        type = control,
+        range = (0.0, ..),
+        control_range = (0.0, 1.0),
+    )]
     #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
-    #[signal(range = (0.0, 1.0))]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
-    /// groove offset added to the playhead to time each step; follows the
-    /// global groove by default, and is 0 when `playhead` is set without it
+    #[input(
+        "groove shift of each step, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
+        type = control,
+        control_range = (-5.0, 5.0),
+    )]
     #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
     #[deserr(default)]
     groove: Option<MonoSignal>,
-    /// groove velocity (0-5V), sampled at each step: scales each hit's level
-    /// for the accent threshold only, so lower velocities accent less; follows
-    /// the global groove by default, and is full (5V) when `playhead` or
-    /// `groove` is set without it
+    #[input(
+        "how readily each step accents: lower accents less, 0 never. Follows the global groove, unless you set your own `playhead` or `groove`: then it is full until given a velocity too",
+        type = control,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[default_connection(module = RootClock, port = "grooveVelocity", channel = 0)]
-    #[signal(range = (0.0, 5.0))]
     #[deserr(default)]
     velocity: Option<MonoSignal>,
-    /// horizontal position in the pattern map
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "horizontal position in the map of drum patterns",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     x: Option<PolySignal>,
-    /// vertical position in the pattern map
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "vertical position in the map of drum patterns",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     y: Option<PolySignal>,
-    /// random perturbation of hit levels, re-rolled at the start of each cycle
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "random variation of the pattern, re-rolled each cycle",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     chaos: Option<PolySignal>,
-    /// bass drum fill density
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input("how many bass drum hits play: none at 0, all at 5", type = control, default = 2.5, range = (0.0, 5.0))]
     #[deserr(default)]
     bd_density: Option<PolySignal>,
-    /// snare drum fill density
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input("how many snare drum hits play: none at 0, all at 5", type = control, default = 2.5, range = (0.0, 5.0))]
     #[deserr(default)]
     sd_density: Option<PolySignal>,
-    /// hi-hat fill density
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input("how many hi-hat hits play: none at 0, all at 5", type = control, default = 2.5, range = (0.0, 5.0))]
     #[deserr(default)]
     hh_density: Option<PolySignal>,
-    /// step resolution
+    #[input("steps per cycle; 32 adds ghost notes", default = 16)]
     #[serde(default)]
     #[deserr(default)]
     resolution: DrumMapResolution,
@@ -203,30 +223,30 @@ struct ChannelState {
     accents: [TempGate; NUM_PARTS],
 }
 
-/// Topographic drum sequencer: a port of Mutable Instruments Grids.
-///
-/// Three trigger streams — bass drum, snare and hi-hat — are read from a
-/// 5×5 map of drum patterns. **x** and **y** (0–5 V) move smoothly through
-/// the map, interpolating between neighbouring patterns. Each part's
-/// **density** sets how many of its possible hits play, from silence at 0 V
-/// to every hit at 5 V. **chaos** adds random variation, re-rolled each
-/// cycle. Strong hits also fire the matching accent output.
-///
-/// One cycle of the **playhead** plays the 32-step pattern once.
-///
-/// Steps follow the global groove set with `$setGroove`, and the groove's
-/// step **velocity** decides how readily each hit accents: at full velocity
-/// accents are as in Grids, and quieter steps accent only their strongest
-/// hits. Pass a `$groove` as `groove` (with its `velocity`) to use a
-/// different groove, or `groove: 0` to play straight.
-///
-/// ```js
-/// const drums = $drumMap({ x: 1, y: 3, chaos: 0.5 })
-/// // the bass drum is the default output
-/// $sine('c1').amplitude($perc(drums, { decay: 0.3 })).out()
-/// $noise('white').amplitude($perc(drums.hh, { decay: 0.05 })).out()
-/// ```
-#[module(name = "$drumMap", categories(sequencer, drum), args(), patch_update)]
+const DRUM_MAP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Topographic drum pattern generator",
+    description: "Bass drum, snare and hi-hat triggers read from a map of drum patterns, \
+                  modelled on Mutable Instruments Grids. Move `x` and `y` to morph between \
+                  grooves, turn up each part's density for busier fills, and add `chaos` for \
+                  variation; strong hits also fire the matching accent output.",
+    categories: &[ModuleCategory::Sequencer, ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Morphing drum loop",
+        code: r#"
+            const drums = $drumMap({
+              x: $sine('0.05hz').range(0, 5),
+              y: 3,
+              chaos: 0.5,
+            })
+            $tr808.kick(drums).out()
+            $tr808.snare(drums.sd).out()
+            $tr808.hiHat(drums.hh).out()
+        "#,
+    }],
+};
+
+#[module(name = "$drumMap", docs = DRUM_MAP_DOCS, args(), patch_update)]
 pub struct DrumMap {
     outputs: DrumMapOutputs,
     params: DrumMapParams,

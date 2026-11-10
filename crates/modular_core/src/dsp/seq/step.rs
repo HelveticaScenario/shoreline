@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     MonoSignal,
     dsp::utils::SchmittTrigger,
@@ -8,15 +10,16 @@ use crate::{
     poly::{PolyOutput, PolySignal},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_step_params -> ModuleParamErrors)]
 struct StepParams {
-    /// Steps of the sequence
+    #[input("the values to step through, in order")]
     steps: Vec<PolySignal>,
-    /// Next step trigger
+    #[input("advances to the next step, wrapping after the last", type = trig)]
     next: MonoSignal,
-    /// Reset trigger
+    #[input("jumps back to the first step", type = trig)]
     #[deserr(default)]
     reset: Option<MonoSignal>,
 }
@@ -24,7 +27,7 @@ struct StepParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct StepOutputs {
-    #[output("output", "forwarded signal", default)]
+    #[output("output", "the current step's value", default)]
     sample: PolyOutput,
 }
 
@@ -47,8 +50,38 @@ fn step_derive_channel_count(params: &StepParams) -> usize {
     params.steps.iter().map(|s| s.channels()).max().unwrap_or(0)
 }
 
-/// Step sequencer
-#[module(name = "$step", categories(sequencer), channels_derive = step_derive_channel_count, args(steps, next))]
+const STEP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Trigger-advanced step sequencer",
+    description: "Holds one value from a list and moves to the next on each `next` trigger, \
+                  wrapping after the last. The steps can be notes, voltages or live signals, \
+                  so it doubles as a clocked switch between sources.",
+    categories: &[ModuleCategory::Sequencer],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Four-note riff on the beat",
+            code: r#"
+                $saw($step(['c2', 'eb2', 'g2', 'bb1'], $clock.beatTrigger))
+                  .$.lpf('c4', 2)
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Switching between modulators each bar",
+            code: r#"
+                const sweeps = [
+                  $sine('2hz').range('c3', 'c6'),
+                  $saw('0.5hz').range('c6', 'c3'),
+                  'c5',
+                ]
+                const cutoff = $step(sweeps, $clock.barTrigger)
+                $pulse('c3').$.lpf(cutoff, 1).out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$step", docs = STEP_DOCS, channels_derive = step_derive_channel_count, args(steps, next))]
 pub struct Step {
     outputs: StepOutputs,
     params: StepParams,

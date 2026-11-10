@@ -49,16 +49,16 @@ describe('formatControlQuickFix — layout', () => {
 
     test('the edited statement matches Format Document', async () => {
         const { out } = await formattedAdd(
-            `$saw('a3', {\n  shape: 2,\n  sync: 4|\n}).out();`,
-            'fm',
+            `$pulse('a3', {\n  width: 2,\n  sync: 4|\n}).out();`,
+            'pwm',
         );
         expect(out).toBe(await documentFormat(out));
-        expect(out).toContain(`  fm: $slider('fm', 0, -5, 5),\n`);
+        expect(out).toContain(`  pwm: $slider('pwm', 0, -5, 5),\n`);
     });
 
     test('the caret lands just past the inserted control', async () => {
         const { out, fix } = await formattedAdd(
-            `$saw('a3', { shape: 2.5| }).out();`,
+            `$pulse('a3', { width: 2.5| }).out();`,
             'phaseOffset',
             { printWidth: 40 },
         );
@@ -70,18 +70,18 @@ describe('formatControlQuickFix — layout', () => {
 
     test('a nested statement keeps its indentation', async () => {
         const { out } = await formattedAdd(
-            `function f() {\n    $saw('a3', {\n        shape: 2,|\n    }).out();\n}`,
-            'fm',
+            `function f() {\n    $pulse('a3', {\n        width: 2,|\n    }).out();\n}`,
+            'pwm',
             { tabWidth: 4 },
         );
         expect(out).toBe(
-            `function f() {\n    $saw('a3', {\n        shape: 2,\n        fm: $slider('fm', 0, -5, 5),\n    }).out();\n}`,
+            `function f() {\n    $pulse('a3', {\n        width: 2,\n        pwm: $slider('pwm', 0, -5, 5),\n    }).out();\n}`,
         );
     });
 
     test('tabs and trailingComma none follow the options', async () => {
         const { out } = await formattedAdd(
-            `function f() {\n\tconst s = $saw('a3', { shape: 2.5| });\n}`,
+            `function f() {\n\tconst s = $pulse('a3', { width: 2.5| });\n}`,
             'phaseOffset',
             { printWidth: 40, trailingComma: 'none', useTabs: true },
         );
@@ -97,51 +97,51 @@ describe('formatControlQuickFix — layout', () => {
 
     test('comments in the edited object survive', async () => {
         const { out } = await formattedAdd(
-            `$saw('a3', {\n  sync: 4, // note|\n  shape: 1 /* x */,\n}).out();`,
-            'fm',
+            `$pulse('a3', {\n  sync: 4, // note|\n  width: 1 /* x */,\n}).out();`,
+            'pwm',
         );
         expect(out).toContain('// note');
         expect(out).toContain('/* x */');
-        expect(out).toContain(`fm: $slider('fm', 0, -5, 5)`);
+        expect(out).toContain(`pwm: $slider('pwm', 0, -5, 5)`);
     });
 
     test('only the edited statement is reformatted', async () => {
         const { out } = await formattedAdd(
-            `const   a  =  1\n$saw('a3', {shape: 2.5|}).out()\nconst   b  =  2`,
-            'fm',
+            `const   a  =  1\n$pulse('a3', {width: 2.5|}).out()\nconst   b  =  2`,
+            'pwm',
         );
         expect(out).toBe(
-            `const   a  =  1\n$saw('a3', { shape: 2.5, fm: $slider('fm', 0, -5, 5) }).out();\nconst   b  =  2`,
+            `const   a  =  1\n$pulse('a3', { width: 2.5, pwm: $slider('pwm', 0, -5, 5) }).out();\nconst   b  =  2`,
         );
     });
 
     test('CRLF sources keep CRLF and an exact caret', async () => {
         const { out, fix } = await formattedAdd(
-            `$saw('a3', {\r\n  shape: 2 // note|\r\n}).out();\r\n`,
-            'fm',
+            `$pulse('a3', {\r\n  width: 2 // note|\r\n}).out();\r\n`,
+            'pwm',
         );
         expect(out).not.toMatch(/[^\r]\n/);
         const at = fix.span.start + fix.caretOffset;
         expect(out.slice(out.lastIndexOf('$slider(', at), at)).toBe(
-            `$slider('fm', 0, -5, 5)`,
+            `$slider('pwm', 0, -5, 5)`,
         );
     });
 
     test('a statement with a syntax error keeps the checked raw edit', async () => {
-        const text = `$saw('a3', { shape: 2.5| }).out(\n$noise('white').out();`;
+        const text = `$pulse('a3', { width: 2.5| }).out(\n$noise('white').out();`;
         const { source, fixes } = fixesAt(text);
-        const raw = addFix(fixes, 'fm');
+        const raw = addFix(fixes, 'pwm');
         const fix = await formatControlQuickFix(source, raw, PRETTIER);
         expect(fix).toBe(raw);
         expect(apply(source, fix)).toContain(
-            `{ shape: 2.5, fm: $slider('fm', 0, -5, 5) }`,
+            `{ width: 2.5, pwm: $slider('pwm', 0, -5, 5) }`,
         );
     });
 
     test('a multi-line template literal is never reindented', async () => {
-        const text = `function f() {\n  $saw('a3', { shape: 2.5| }).out(\`a\nb\`);\n}`;
+        const text = `function f() {\n  $pulse('a3', { width: 2.5| }).out(\`a\nb\`);\n}`;
         const { source, fixes } = fixesAt(text);
-        const raw = addFix(fixes, 'fm');
+        const raw = addFix(fixes, 'pwm');
         const fix = await formatControlQuickFix(source, raw, PRETTIER);
         expect(apply(source, fix)).toContain('`a\nb`');
     });
