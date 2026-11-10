@@ -1,6 +1,6 @@
 //! The `$mi.*` oscillators render identically on the block and per-sample
 //! paths: held and modulated controls, audio-rate and through-zero FM, mono and
-//! poly inputs, with control ticks falling inside and across render steps.
+//! poly inputs.
 
 mod block_common;
 

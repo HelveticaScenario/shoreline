@@ -7,7 +7,7 @@ use crate::dsp::mi::core::phase::{fraction, wrap_below};
 use crate::dsp::mi::core::polyblep::{next_blep_sample, this_blep_sample};
 use crate::dsp::mi::core::sine::sine;
 
-/// Control targets for one tick.
+/// Control targets the oscillator ramps to.
 pub struct ZControls {
     /// Formant (cutoff) frequency in cycles per sample.
     pub formant: f32,
@@ -29,12 +29,18 @@ pub struct ZOscillator {
 }
 
 impl ZOscillator {
-    /// Ramps to `controls` over a tick of `length` samples, or jumps there when
+    /// Ramps to `controls` over `length` samples, or jumps there when
     /// `length` is `None`.
     pub fn set(&mut self, controls: &ZControls, length: Option<f32>) {
         self.formant_frequency.set(controls.formant, length);
         self.shape.set(controls.shape, length);
         self.mode.set(controls.mode, length);
+    }
+
+    /// Whether every control has reached its target.
+    #[inline(always)]
+    pub fn settled(&self) -> bool {
+        self.formant_frequency.settled() && self.shape.settled() && self.mode.settled()
     }
 
     /// One sample at carrier frequency `f0` (cycles per sample, finite;

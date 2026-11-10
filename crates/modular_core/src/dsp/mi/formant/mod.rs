@@ -10,12 +10,11 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
-            control::{CONTROL_RATE, ControlClock, for_each_stretch},
             filter::{OnePole, tan_dirty},
             phase::{limit_frequency, max_frequency},
         },
         oscillators::{FmMode, apply_fm},
-        utils::voct_to_hz,
+        utils::{changed, voct_to_hz},
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
     types::{GlideMark, SwapGlide},
@@ -37,7 +36,6 @@ struct FormantParams {
         "first formant, independent of the pitch",
         type = frequency,
         default = 0.5,
-        range = (-3.0, 4.0),
     )]
     #[deserr(default)]
     formant: Option<PolySignal>,
@@ -102,7 +100,6 @@ pub struct Formant {
 
 #[derive(Default)]
 struct FormantState {
-    clock: ControlClock,
     inv_sample_rate: f32,
     /// Reciprocal of the pitch, in cycles per sample, at which `width` has
     /// fully narrowed.
@@ -114,7 +111,6 @@ struct FormantState {
 impl FormantState {
     fn new(sample_rate: f32) -> Self {
         Self {
-            clock: ControlClock::default(),
             inv_sample_rate: 1.0 / sample_rate,
             narrowing: sample_rate / 2000.0,
             max_carrier: 0.5 * max_frequency(sample_rate),
@@ -123,18 +119,47 @@ impl FormantState {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 struct Voice {
     osc: GrainletPair,
     dc_blocker: OnePole,
-    /// Set by the first tick, which jumps the controls to their targets.
+    /// Set by the first `control`, which jumps the controls to their targets.
     started: bool,
     formant: SwapGlide,
     ratio: SwapGlide,
     width: SwapGlide,
+    /// Formant frequencies and bleed for the cached `formant`/`ratio` pair;
+    /// `NaN` = never computed.
+    last_formant: f32,
+    last_ratio: f32,
+    formants: [f32; 2],
+    bleed: f32,
+    /// Pitch the DC blocker is tuned to; `NaN` = never tuned.
+    last_f0: f32,
+    /// The raw pitch and knobs of the last `control`; `NaN` = never set.
+    last_inputs: [f32; 4],
 }
 
-/// The control inputs at a tick: the raw signals and their glide marks.
+impl Default for Voice {
+    fn default() -> Self {
+        Self {
+            osc: GrainletPair::default(),
+            dc_blocker: OnePole::default(),
+            started: false,
+            formant: SwapGlide::default(),
+            ratio: SwapGlide::default(),
+            width: SwapGlide::default(),
+            last_formant: f32::NAN,
+            last_ratio: f32::NAN,
+            formants: [0.0; 2],
+            bleed: 0.0,
+            last_f0: f32::NAN,
+            last_inputs: [f32::NAN; 4],
+        }
+    }
+}
+
+/// The control inputs for a sample: the raw signals and their glide marks.
 struct Knobs {
     formant: (f32, GlideMark),
     ratio: (f32, GlideMark),
@@ -142,40 +167,66 @@ struct Knobs {
 }
 
 impl Voice {
-    fn tick(&mut self, f0: f32, knobs: Knobs, length: f32, state: &FormantState) {
+    /// Sets the controls the oscillator ramps to over the next `length`
+    /// samples, recomputing the costly ones only when their inputs move.
+    #[inline(always)]
+    fn control(
+        &mut self,
+        f0: f32,
+        knobs: Knobs,
+        length: f32,
+        sample_rate: f32,
+        state: &FormantState,
+    ) {
+        // Unchanged inputs on settled ramps would leave every control as it is.
+        let inputs = [f0, knobs.formant.0, knobs.ratio.0, knobs.width.0];
+        if inputs == self.last_inputs
+            && self.osc.settled()
+            && !self.formant.will_glide(knobs.formant.1)
+            && !self.ratio.will_glide(knobs.ratio.1)
+            && !self.width.will_glide(knobs.width.1)
+        {
+            return;
+        }
+        self.last_inputs = inputs;
         // Bounded at Nyquist, so an extreme pitch cannot destabilise the DC
         // blocker.
         let f0 = limit_frequency(f0, 0.5);
         let formant = self
             .formant
-            .follow(knobs.formant.0, knobs.formant.1, CONTROL_RATE);
-        let ratio = self
-            .ratio
-            .follow(knobs.ratio.0, knobs.ratio.1, CONTROL_RATE);
-        let width = self
-            .width
-            .follow(knobs.width.0, knobs.width.1, CONTROL_RATE);
+            .follow(knobs.formant.0, knobs.formant.1, sample_rate);
+        let ratio = self.ratio.follow(knobs.ratio.0, knobs.ratio.1, sample_rate);
+        let width = self.width.follow(knobs.width.0, knobs.width.1, sample_rate);
 
-        let f1 = voct_to_hz(formant) * state.inv_sample_rate;
-        let harmonics = (ratio * 0.2).clamp(0.0, 1.0);
-        let morph = (width * 0.2).clamp(0.0, 1.0);
-        let ratio = (4.0 * harmonics - 2.0).exp2();
-        let bleed = if harmonics < 0.5 {
-            1.0 - 2.0 * harmonics
-        } else {
-            0.0
-        };
-        let controls = GrainletControls {
-            formant: [
+        if changed(formant, self.last_formant) || changed(ratio, self.last_ratio) {
+            let f1 = voct_to_hz(formant) * state.inv_sample_rate;
+            let harmonics = (ratio * 0.2).clamp(0.0, 1.0);
+            let multiplier = (4.0 * harmonics - 2.0).exp2();
+            let bleed = if harmonics < 0.5 {
+                1.0 - 2.0 * harmonics
+            } else {
+                0.0
+            };
+            self.formants = [
                 f1.min(state.max_formant),
-                (f1 * ratio).min(state.max_formant),
-            ],
+                (f1 * multiplier).min(state.max_formant),
+            ];
+            self.bleed = bleed * (2.0 - bleed);
+            self.last_formant = formant;
+            self.last_ratio = ratio;
+        }
+        let morph = (width * 0.2).clamp(0.0, 1.0);
+        let controls = GrainletControls {
+            formant: self.formants,
             shape: 0.33 + (morph - 0.33) * (1.0 - f0.abs() * state.narrowing).max(0.0),
-            bleed: bleed * (2.0 - bleed),
+            bleed: self.bleed,
         };
         self.osc.set(&controls, self.started.then_some(length));
         self.started = true;
-        self.dc_blocker.set_g(tan_dirty(0.3 * f0.abs()));
+        if changed(f0, self.last_f0) {
+            self.dc_blocker.set_g(tan_dirty(0.3 * f0.abs()));
+            self.last_f0 = f0;
+        }
     }
 
     #[inline(always)]
@@ -192,7 +243,6 @@ impl Formant {
 
     fn update(&mut self, sample_rate: f32) {
         let channels = self.channel_count();
-        let (tick, _) = self.state.clock.advance(1, sample_rate);
         let p = &self.params;
         for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
             let f0 = apply_fm(
@@ -200,23 +250,21 @@ impl Formant {
                 p.fm.value_or(ch, FormantParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
-            if let Some(length) = tick {
-                let knobs = Knobs {
-                    formant: (
-                        p.formant.value_or(ch, FormantParams::FORMANT_DEFAULT),
-                        p.formant.glide_mark(ch),
-                    ),
-                    ratio: (
-                        p.ratio.value_or(ch, FormantParams::RATIO_DEFAULT),
-                        p.ratio.glide_mark(ch),
-                    ),
-                    width: (
-                        p.width.value_or(ch, FormantParams::WIDTH_DEFAULT),
-                        p.width.glide_mark(ch),
-                    ),
-                };
-                voice.tick(f0, knobs, length, &self.state);
-            }
+            let knobs = Knobs {
+                formant: (
+                    p.formant.value_or(ch, FormantParams::FORMANT_DEFAULT),
+                    p.formant.glide_mark(ch),
+                ),
+                ratio: (
+                    p.ratio.value_or(ch, FormantParams::RATIO_DEFAULT),
+                    p.ratio.glide_mark(ch),
+                ),
+                width: (
+                    p.width.value_or(ch, FormantParams::WIDTH_DEFAULT),
+                    p.width.glide_mark(ch),
+                ),
+            };
+            voice.control(f0, knobs, 1.0, sample_rate, &self.state);
             self.outputs.sample.set(ch, voice.step(f0, &self.state));
         }
     }
@@ -231,30 +279,25 @@ impl Formant {
         let p = &self.params;
         let mut scratch = Default::default();
         let inputs = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let mut clock = self.state.clock;
         let state = &self.state;
-        let voices = &mut self.channel_state[..channels];
-        let inv_sample_rate = state.inv_sample_rate;
-        let f0 = |i: usize, ch: usize| {
-            apply_fm(inputs.freq.row(i)[ch], inputs.fm.row(i)[ch], p.fm_mode) * inv_sample_rate
-        };
-        for_each_stretch(&mut clock, range, sample_rate, |tick, stretch| {
-            for (ch, voice) in voices.iter_mut().enumerate() {
-                if let Some(length) = tick {
-                    let i = stretch.start;
-                    let knobs = Knobs {
-                        formant: (inputs.formant.row(i)[ch], p.formant.glide_mark(ch)),
-                        ratio: (inputs.ratio.row(i)[ch], p.ratio.glide_mark(ch)),
-                        width: (inputs.width.row(i)[ch], p.width.glide_mark(ch)),
-                    };
-                    voice.tick(f0(i, ch), knobs, length, state);
-                }
-                for i in stretch.clone() {
-                    outputs.sample.slot_mut(i)[ch] = voice.step(f0(i, ch), state);
-                }
+        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+            let marks = (
+                p.formant.glide_mark(ch),
+                p.ratio.glide_mark(ch),
+                p.width.glide_mark(ch),
+            );
+            for i in range.clone() {
+                let f0 = apply_fm(inputs.freq.row(i)[ch], inputs.fm.row(i)[ch], p.fm_mode)
+                    * state.inv_sample_rate;
+                let knobs = Knobs {
+                    formant: (inputs.formant.row(i)[ch], marks.0),
+                    ratio: (inputs.ratio.row(i)[ch], marks.1),
+                    width: (inputs.width.row(i)[ch], marks.2),
+                };
+                voice.control(f0, knobs, 1.0, sample_rate, state);
+                outputs.sample.slot_mut(i)[ch] = voice.step(f0, state);
             }
-        });
-        self.state.clock = clock;
+        }
         Some(())
     }
 }

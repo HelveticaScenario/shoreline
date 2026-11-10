@@ -10,11 +10,11 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
-            control::{CONTROL_RATE, ControlClock, for_each_stretch},
             filter::{OnePole, tan_dirty},
             phase::{limit_frequency, max_frequency},
         },
         oscillators::{FmMode, apply_fm},
+        utils::changed,
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
     types::{GlideMark, SwapGlide},
@@ -102,7 +102,6 @@ pub struct ZOsc {
 
 #[derive(Default)]
 struct ZOscState {
-    clock: ControlClock,
     inv_sample_rate: f32,
     max_carrier: f32,
     max_formant: f32,
@@ -111,7 +110,6 @@ struct ZOscState {
 impl ZOscState {
     fn new(sample_rate: f32) -> Self {
         Self {
-            clock: ControlClock::default(),
             inv_sample_rate: 1.0 / sample_rate,
             max_carrier: 0.5 * max_frequency(sample_rate),
             max_formant: max_frequency(sample_rate),
@@ -119,18 +117,42 @@ impl ZOscState {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 struct Voice {
     osc: ZOscillator,
     dc_blocker: OnePole,
-    /// Set by the first tick, which jumps the controls to their targets.
+    /// Set by the first `control`, which jumps the controls to their targets.
     started: bool,
     cutoff: SwapGlide,
     shape: SwapGlide,
     mode: SwapGlide,
+    /// Formant-to-pitch ratio for the cached `cutoff`; `NaN` = never computed.
+    last_cutoff: f32,
+    multiplier: f32,
+    /// Pitch the DC blocker is tuned to; `NaN` = never tuned.
+    last_f0: f32,
+    /// The raw pitch and knobs of the last `control`; `NaN` = never set.
+    last_inputs: [f32; 4],
 }
 
-/// The control inputs at a tick: the raw signals and their glide marks.
+impl Default for Voice {
+    fn default() -> Self {
+        Self {
+            osc: ZOscillator::default(),
+            dc_blocker: OnePole::default(),
+            started: false,
+            cutoff: SwapGlide::default(),
+            shape: SwapGlide::default(),
+            mode: SwapGlide::default(),
+            last_cutoff: f32::NAN,
+            multiplier: 0.0,
+            last_f0: f32::NAN,
+            last_inputs: [f32::NAN; 4],
+        }
+    }
+}
+
+/// The control inputs for a sample: the raw signals and their glide marks.
 struct Knobs {
     cutoff: (f32, GlideMark),
     shape: (f32, GlideMark),
@@ -138,26 +160,44 @@ struct Knobs {
 }
 
 impl Voice {
-    fn tick(&mut self, f0: f32, knobs: Knobs, length: f32, state: &ZOscState) {
+    /// Sets the controls the oscillator ramps to over the next `length`
+    /// samples, recomputing the costly ones only when their inputs move.
+    #[inline(always)]
+    fn control(&mut self, f0: f32, knobs: Knobs, length: f32, sample_rate: f32, state: &ZOscState) {
+        // Unchanged inputs on settled ramps would leave every control as it is.
+        let inputs = [f0, knobs.cutoff.0, knobs.shape.0, knobs.mode.0];
+        if inputs == self.last_inputs
+            && self.osc.settled()
+            && !self.cutoff.will_glide(knobs.cutoff.1)
+            && !self.shape.will_glide(knobs.shape.1)
+            && !self.mode.will_glide(knobs.mode.1)
+        {
+            return;
+        }
+        self.last_inputs = inputs;
         // Bounded at Nyquist, so an extreme pitch cannot destabilise the DC
         // blocker.
         let f0 = limit_frequency(f0, 0.5);
         let cutoff = self
             .cutoff
-            .follow(knobs.cutoff.0, knobs.cutoff.1, CONTROL_RATE);
-        let shape = self
-            .shape
-            .follow(knobs.shape.0, knobs.shape.1, CONTROL_RATE);
-        let mode = self.mode.follow(knobs.mode.0, knobs.mode.1, CONTROL_RATE);
+            .follow(knobs.cutoff.0, knobs.cutoff.1, sample_rate);
+        let shape = self.shape.follow(knobs.shape.0, knobs.shape.1, sample_rate);
+        let mode = self.mode.follow(knobs.mode.0, knobs.mode.1, sample_rate);
+        if changed(cutoff, self.last_cutoff) {
+            self.multiplier = (8.0 * (cutoff * 0.2).clamp(0.0, 1.0)).exp2();
+            self.last_cutoff = cutoff;
+        }
         let controls = ZControls {
-            formant: (f0.abs() * (8.0 * (cutoff * 0.2).clamp(0.0, 1.0)).exp2())
-                .min(state.max_formant),
+            formant: (f0.abs() * self.multiplier).min(state.max_formant),
             shape: (shape * 0.2).clamp(0.0, 1.0),
             mode: (mode * 0.2).clamp(0.0, 1.0),
         };
         self.osc.set(&controls, self.started.then_some(length));
         self.started = true;
-        self.dc_blocker.set_g(tan_dirty(0.3 * f0.abs()));
+        if changed(f0, self.last_f0) {
+            self.dc_blocker.set_g(tan_dirty(0.3 * f0.abs()));
+            self.last_f0 = f0;
+        }
     }
 
     #[inline(always)]
@@ -174,7 +214,6 @@ impl ZOsc {
 
     fn update(&mut self, sample_rate: f32) {
         let channels = self.channel_count();
-        let (tick, _) = self.state.clock.advance(1, sample_rate);
         let p = &self.params;
         for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
             let f0 = apply_fm(
@@ -182,23 +221,21 @@ impl ZOsc {
                 p.fm.value_or(ch, ZOscParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
-            if let Some(length) = tick {
-                let knobs = Knobs {
-                    cutoff: (
-                        p.cutoff.value_or(ch, ZOscParams::CUTOFF_DEFAULT),
-                        p.cutoff.glide_mark(ch),
-                    ),
-                    shape: (
-                        p.shape.value_or(ch, ZOscParams::SHAPE_DEFAULT),
-                        p.shape.glide_mark(ch),
-                    ),
-                    mode: (
-                        p.mode.value_or(ch, ZOscParams::MODE_DEFAULT),
-                        p.mode.glide_mark(ch),
-                    ),
-                };
-                voice.tick(f0, knobs, length, &self.state);
-            }
+            let knobs = Knobs {
+                cutoff: (
+                    p.cutoff.value_or(ch, ZOscParams::CUTOFF_DEFAULT),
+                    p.cutoff.glide_mark(ch),
+                ),
+                shape: (
+                    p.shape.value_or(ch, ZOscParams::SHAPE_DEFAULT),
+                    p.shape.glide_mark(ch),
+                ),
+                mode: (
+                    p.mode.value_or(ch, ZOscParams::MODE_DEFAULT),
+                    p.mode.glide_mark(ch),
+                ),
+            };
+            voice.control(f0, knobs, 1.0, sample_rate, &self.state);
             self.outputs.sample.set(ch, voice.step(f0, &self.state));
         }
     }
@@ -213,30 +250,25 @@ impl ZOsc {
         let p = &self.params;
         let mut scratch = Default::default();
         let inputs = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let mut clock = self.state.clock;
         let state = &self.state;
-        let voices = &mut self.channel_state[..channels];
-        let inv_sample_rate = state.inv_sample_rate;
-        let f0 = |i: usize, ch: usize| {
-            apply_fm(inputs.freq.row(i)[ch], inputs.fm.row(i)[ch], p.fm_mode) * inv_sample_rate
-        };
-        for_each_stretch(&mut clock, range, sample_rate, |tick, stretch| {
-            for (ch, voice) in voices.iter_mut().enumerate() {
-                if let Some(length) = tick {
-                    let i = stretch.start;
-                    let knobs = Knobs {
-                        cutoff: (inputs.cutoff.row(i)[ch], p.cutoff.glide_mark(ch)),
-                        shape: (inputs.shape.row(i)[ch], p.shape.glide_mark(ch)),
-                        mode: (inputs.mode.row(i)[ch], p.mode.glide_mark(ch)),
-                    };
-                    voice.tick(f0(i, ch), knobs, length, state);
-                }
-                for i in stretch.clone() {
-                    outputs.sample.slot_mut(i)[ch] = voice.step(f0(i, ch), state);
-                }
+        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+            let marks = (
+                p.cutoff.glide_mark(ch),
+                p.shape.glide_mark(ch),
+                p.mode.glide_mark(ch),
+            );
+            for i in range.clone() {
+                let f0 = apply_fm(inputs.freq.row(i)[ch], inputs.fm.row(i)[ch], p.fm_mode)
+                    * state.inv_sample_rate;
+                let knobs = Knobs {
+                    cutoff: (inputs.cutoff.row(i)[ch], marks.0),
+                    shape: (inputs.shape.row(i)[ch], marks.1),
+                    mode: (inputs.mode.row(i)[ch], marks.2),
+                };
+                voice.control(f0, knobs, 1.0, sample_rate, state);
+                outputs.sample.slot_mut(i)[ch] = voice.step(f0, state);
             }
-        });
-        self.state.clock = clock;
+        }
         Some(())
     }
 }

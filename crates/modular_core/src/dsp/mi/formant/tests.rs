@@ -26,7 +26,7 @@ fn matches_plaits() {
             ratio: (record[2], mark()),
             width: (record[3], mark()),
         };
-        voice.tick(record[0], knobs, 12.0, &state);
+        voice.control(record[0], knobs, 12.0, 48000.0, &state);
         // Plaits ramps to a limited pitch, so the replayed ramp limits its targets.
         f0.set(record[0].min(0.125), Some(12.0));
         for &plaits in &record[7..19] {
@@ -50,10 +50,10 @@ fn runs_backward() {
             ratio: (1.0, mark()),
             width: (4.0, mark()),
         };
-        voice.tick(f0, knobs(), 12.0, &state);
+        voice.control(f0, knobs(), 1.0, 48000.0, &state);
         let out: Vec<f32> = (0..4800).map(|_| voice.step(f0, &state)).collect();
         let mut forward = Voice::default();
-        forward.tick(-f0, knobs(), 12.0, &state);
+        forward.control(-f0, knobs(), 1.0, 48000.0, &state);
         let reference: Vec<f32> = (0..4800).map(|_| forward.step(-f0, &state)).collect();
         let peak = |x: &[f32]| x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
         let jump = |x: &[f32]| x.windows(2).fold(0.0f32, |m, w| m.max((w[1] - w[0]).abs()));
@@ -68,19 +68,17 @@ fn sounds_the_same_at_any_rate() {
     for (pitch, formant, ratio, width) in [(-1.0, 1.0, 1.0, 1.0), (3.0, 2.0, 4.0, 4.0)] {
         assert_rate_independent(
             |sample_rate| {
-                let mut state = FormantState::new(sample_rate);
+                let state = FormantState::new(sample_rate);
                 let mut voice = Voice::default();
                 let f0 = voct_to_hz(pitch) / sample_rate;
                 (0..(sample_rate * 0.5) as usize)
                     .map(|_| {
-                        if let (Some(length), _) = state.clock.advance(1, sample_rate) {
-                            let knobs = Knobs {
-                                formant: (formant, mark()),
-                                ratio: (ratio, mark()),
-                                width: (width, mark()),
-                            };
-                            voice.tick(f0, knobs, length, &state);
-                        }
+                        let knobs = Knobs {
+                            formant: (formant, mark()),
+                            ratio: (ratio, mark()),
+                            width: (width, mark()),
+                        };
+                        voice.control(f0, knobs, 1.0, sample_rate, &state);
                         voice.step(f0, &state)
                     })
                     .collect()
@@ -88,5 +86,36 @@ fn sounds_the_same_at_any_rate() {
             voct_to_hz(pitch),
             0.02,
         );
+    }
+}
+
+/// A knob change is heard on the very next sample.
+#[test]
+fn knobs_take_effect_on_the_next_sample() {
+    let state = FormantState::new(48000.0);
+    let f0 = 0.01;
+    let knobs = |formant: f32| Knobs {
+        formant: (formant, mark()),
+        ratio: (1.0, mark()),
+        width: (2.0, mark()),
+    };
+    let mut held = Voice::default();
+    let mut moved = Voice::default();
+    for n in 0..52 {
+        held.control(f0, knobs(1.0), 1.0, 48000.0, &state);
+        moved.control(
+            f0,
+            knobs(if n < 50 { 1.0 } else { 3.0 }),
+            1.0,
+            48000.0,
+            &state,
+        );
+        let (a, b) = (held.step(f0, &state), moved.step(f0, &state));
+        // The output runs one sample behind for its band-limited restarts.
+        if n <= 50 {
+            assert_eq!(a, b, "sample {n}");
+        } else if n == 51 {
+            assert_ne!(a, b);
+        }
     }
 }
