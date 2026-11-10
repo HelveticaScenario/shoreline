@@ -50,6 +50,13 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
                 port("$mi.phaseDistortion", knobs(false), "output"),
             ]
         }
+        5 => {
+            let knobs = json!({ "terrain": 5.0 * h, "radius": 5.0 * t, "offset": 5.0 * m });
+            [
+                port("$mi.waveTerrain", knobs.clone(), "output"),
+                port("$mi.waveTerrain", knobs, "pm"),
+            ]
+        }
         9 => {
             let knobs = json!({ "shape": 5.0 * h, "fold": 5.0 * t, "asymmetry": 5.0 * m });
             [
@@ -294,7 +301,6 @@ fn matches_plaits_engines() {
                 port.module, port.port
             );
             let inverted: Vec<f32> = actual.iter().map(|v| -v).collect();
-            let level = 20.0 * (rms(&actual[SETTLE..]) / rms(&expected[SETTLE..])).log10();
             assert_sounds_alike(&name, &actual, &expected, 0.1, 0.6, 3.0);
             assert!(
                 aligned_error(&actual, &expected) < aligned_error(&inverted, &expected),

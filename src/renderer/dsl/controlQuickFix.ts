@@ -17,6 +17,8 @@
  */
 import ts from 'typescript';
 
+import { propertyName } from '../../shared/dsl/ast/names';
+import { parseDsl } from '../../shared/dsl/ast/parse';
 import { findControlCalls } from '../../shared/dsl/controlCalls';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import type { ParamRef } from './apiParamControls';
@@ -58,13 +60,7 @@ export function computeControlQuickFixes(
     layout: CodeStyle,
 ): ControlQuickFix[] {
     const { quote } = layout;
-    const file = ts.createSourceFile(
-        'quickfix.js',
-        source,
-        ts.ScriptTarget.Latest,
-        true,
-        ts.ScriptKind.JS,
-    );
+    const file = parseDsl(source);
     const chainAt = (pos: number): ts.Node[] => {
         const chain: ts.Node[] = [];
         for (let n = tokenAt(file, pos); n; n = n.parent) {
@@ -151,7 +147,7 @@ export function computeControlQuickFixes(
             if (!members) {
                 continue;
             }
-            const key = propertyKeyName(node, file);
+            const key = propertyName(node);
             const param = key ? members.get(key) : null;
             const init = node.initializer;
             const literal = asLiteral(init, file);
@@ -240,7 +236,7 @@ function addFixes(
     if (members) {
         const supplied = new Set(resolved.positionalNames(args.length));
         for (const prop of obj?.properties ?? []) {
-            const key = propertyKeyName(prop, file);
+            const key = optionKey(prop);
             if (key) {
                 supplied.add(key);
             }
@@ -316,18 +312,12 @@ function propertyKey(key: string, quote: string): string {
     return /^[A-Za-z_$][\w$]*$/.test(key) ? key : `${quote}${key}${quote}`;
 }
 
-function propertyKeyName(node: ts.Node, file: ts.SourceFile): string | null {
-    if (ts.isShorthandPropertyAssignment(node)) {
-        return node.name.text;
-    }
-    if (!ts.isPropertyAssignment(node)) {
-        return null;
-    }
-    const name = node.name;
-    if (ts.isStringLiteral(name) || ts.isNoSubstitutionTemplateLiteral(name)) {
-        return name.text;
-    }
-    return name.getText(file);
+/** The key an option object member sets, or null for a method, accessor,
+ *  spread, or computed key. */
+function optionKey(p: ts.ObjectLiteralElementLike): string | null {
+    return ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)
+        ? propertyName(p)
+        : null;
 }
 
 /**

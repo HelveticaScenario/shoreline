@@ -7,6 +7,9 @@
  */
 import ts from 'typescript';
 
+import { signedNumericLiteral } from '../../shared/dsl/ast/literals';
+import { propertyName } from '../../shared/dsl/ast/names';
+import { parseDsl } from '../../shared/dsl/ast/parse';
 import type { EqField } from './eqPanelModel';
 import type { ListEdit } from '../dsl/listEdits';
 
@@ -38,16 +41,6 @@ export type EqSourceEditResult =
      * list is not an array literal.
      */
     | { ok: false; reason: 'stale' | 'unsupported' };
-
-function parse(source: string): ts.SourceFile {
-    return ts.createSourceFile(
-        'patch.js',
-        source,
-        ts.ScriptTarget.Latest,
-        true,
-        ts.ScriptKind.JS,
-    );
-}
 
 function findEqCall(
     sf: ts.SourceFile,
@@ -102,7 +95,7 @@ export function locateSections(
     source: string,
     anchor: number,
 ): LocatedSections {
-    const sf = parse(source);
+    const sf = parseDsl(source);
     const call = findEqCall(sf, anchor);
     if (!call) {
         return { ok: false, reason: 'stale' };
@@ -165,13 +158,6 @@ export function locate(
     return { ok: true, sections: list, sf };
 }
 
-function propertyNameText(name: ts.PropertyName): string | null {
-    if (ts.isIdentifier(name) || ts.isStringLiteral(name)) {
-        return name.text;
-    }
-    return null;
-}
-
 export function findProperty(
     obj: ts.ObjectLiteralExpression,
     name: string,
@@ -180,7 +166,7 @@ export function findProperty(
         if (
             (ts.isPropertyAssignment(p) ||
                 ts.isShorthandPropertyAssignment(p)) &&
-            propertyNameText(p.name) === name
+            propertyName(p) === name
         ) {
             return p;
         }
@@ -189,18 +175,10 @@ export function findProperty(
 }
 
 export function isRewritableLiteral(node: ts.Expression): boolean {
-    if (
-        ts.isNumericLiteral(node) ||
-        ts.isStringLiteral(node) ||
-        ts.isNoSubstitutionTemplateLiteral(node)
-    ) {
-        return true;
-    }
     return (
-        ts.isPrefixUnaryExpression(node) &&
-        (node.operator === ts.SyntaxKind.MinusToken ||
-            node.operator === ts.SyntaxKind.PlusToken) &&
-        ts.isNumericLiteral(node.operand)
+        ts.isStringLiteral(node) ||
+        ts.isNoSubstitutionTemplateLiteral(node) ||
+        signedNumericLiteral(node) !== null
     );
 }
 
@@ -234,6 +212,14 @@ export function diffEdit(before: string, after: string): TextEdit | null {
 /** `edit` in this module's start/end/text shape. */
 export function asTextEdit(edit: ListEdit): TextEdit {
     return { end: edit.span.end, start: edit.span.start, text: edit.newText };
+}
+
+/** The result of an op that appends to a list: unsupported when the list
+ *  has no closing bracket to append before. */
+export function appendResult(edit: ListEdit | null): EqSourceEditResult {
+    return edit
+        ? { edit: asTextEdit(edit), ok: true, skipped: [] }
+        : { ok: false, reason: 'unsupported' };
 }
 
 /**

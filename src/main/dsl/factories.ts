@@ -15,7 +15,6 @@ import { isSignalGroupLike } from './signalGroups';
 import { buildSignalMapper } from './signalSchemaMapper';
 import {
     captureSourceLocation,
-    getDSLWrapperLineOffset,
     setDSLWrapperLineOffset,
 } from './captureSourceLocation';
 
@@ -131,9 +130,7 @@ function captureArgumentSpans(
         return undefined;
     }
 
-    // Build the call site key matching what ts-morph produced.
-    // Both ts-morph and V8 stack traces use 1-based lines and columns.
-    const key: CallSiteKey = `${sourceLocation.line + getDSLWrapperLineOffset()}:${sourceLocation.column}`;
+    const key: CallSiteKey = `${sourceLocation.line}:${sourceLocation.column}`;
 
     const entry = activeSpanRegistry.get(key);
     if (!entry) {
