@@ -8,6 +8,7 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 
 pub mod core;
 pub mod formant;
+pub mod modal;
 pub mod phase_distortion;
 pub mod two_op;
 pub mod waveshaper;
@@ -15,6 +16,7 @@ pub mod z_osc;
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     formant::Formant::install_constructor(map);
+    modal::Modal::install_constructor(map);
     phase_distortion::PhaseDistortion::install_constructor(map);
     two_op::TwoOp::install_constructor(map);
     waveshaper::Waveshaper::install_constructor(map);
@@ -23,6 +25,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
 
 pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer>) {
     formant::Formant::install_params_deserializer(map);
+    modal::Modal::install_params_deserializer(map);
     phase_distortion::PhaseDistortion::install_params_deserializer(map);
     two_op::TwoOp::install_params_deserializer(map);
     waveshaper::Waveshaper::install_params_deserializer(map);
@@ -32,6 +35,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
 pub fn schemas() -> Vec<ModuleSchema> {
     vec![
         formant::Formant::get_schema(),
+        modal::Modal::get_schema(),
         phase_distortion::PhaseDistortion::get_schema(),
         two_op::TwoOp::get_schema(),
         waveshaper::Waveshaper::get_schema(),

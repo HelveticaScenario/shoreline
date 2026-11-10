@@ -10,7 +10,12 @@ mkdir -p "$here/build" "$out"
 
 for driver in "$here"/drivers/*.cc; do
   name="$(basename "$driver" .cc)"
+  # A driver lists any sources it needs beyond Plaits' resources on a
+  # `// build:` line, relative to the eurorack checkout.
+  extra=()
+  for path in $(sed -n 's|^// build: ||p' "$driver"); do extra+=("$src/$path"); done
   c++ -std=c++11 -O2 -ffp-contract=off -DTEST -include initializer_list \
-    -I"$src" -o "$here/build/$name" "$driver" "$src/plaits/resources.cc"
+    -I"$src" -o "$here/build/$name" "$driver" "$src/plaits/resources.cc" \
+    ${extra[@]+"${extra[@]}"}
   "$here/build/$name" "$out/$name.f32"
 done
