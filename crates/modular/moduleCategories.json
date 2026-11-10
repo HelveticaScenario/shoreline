@@ -1,0 +1,74 @@
+[
+  {
+    "name": "oscillator",
+    "description": "Oscillators and other sound sources."
+  },
+  {
+    "name": "phase",
+    "description": "Phase ramps and warps plus the oscillators they drive."
+  },
+  {
+    "name": "filter",
+    "description": "Filters and EQs that shape a signal's spectrum."
+  },
+  {
+    "name": "distortion",
+    "description": "Waveshapers and saturators."
+  },
+  {
+    "name": "effect",
+    "description": "Audio effects such as reverb and delay."
+  },
+  {
+    "name": "dynamics",
+    "description": "Compressors and other level control."
+  },
+  {
+    "name": "envelope",
+    "description": "Envelope generators and followers."
+  },
+  {
+    "name": "modulation",
+    "description": "Slowly moving control sources."
+  },
+  {
+    "name": "random",
+    "description": "Random and chaotic sources."
+  },
+  {
+    "name": "sequencer",
+    "description": "Patterns and clocks for transport-synced sequencing."
+  },
+  {
+    "name": "gate",
+    "description": "Gate and trigger processing."
+  },
+  {
+    "name": "pitch",
+    "description": "V/Oct pitch conversion plus scales and chords."
+  },
+  {
+    "name": "drum",
+    "description": "Drum voices and drum pattern generators."
+  },
+  {
+    "name": "sampler",
+    "description": "Playback of recorded audio and media files."
+  },
+  {
+    "name": "mixer",
+    "description": "Combining and panning channels."
+  },
+  {
+    "name": "math",
+    "description": "Arithmetic and range transforms on signals."
+  },
+  {
+    "name": "midi",
+    "description": "MIDI input."
+  },
+  {
+    "name": "utility",
+    "description": "General signal plumbing such as routing and smoothing."
+  }
+]

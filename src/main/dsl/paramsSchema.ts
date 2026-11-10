@@ -47,9 +47,16 @@ export type ParamKind =
     | 'boolean'
     | 'unknown';
 
-export type SignalType = 'pitch' | 'frequency' | 'gate' | 'trig' | 'control';
+export type ParamType =
+    | 'audio'
+    | 'pitch'
+    | 'frequency'
+    | 'gate'
+    | 'trig'
+    | 'control';
 
-const SIGNAL_TYPES = new Set<string>([
+const PARAM_TYPES = new Set<string>([
+    'audio',
     'pitch',
     'frequency',
     'gate',
@@ -57,8 +64,8 @@ const SIGNAL_TYPES = new Set<string>([
     'control',
 ]);
 
-function isSignalType(s: string): s is SignalType {
-    return SIGNAL_TYPES.has(s);
+function isParamType(s: string): s is ParamType {
+    return PARAM_TYPES.has(s);
 }
 
 export interface ParamDescriptor {
@@ -67,10 +74,14 @@ export interface ParamDescriptor {
     description?: string;
     optional: boolean;
     enumValues?: string[];
-    signalType?: SignalType;
+    paramType?: ParamType;
     defaultValue?: number;
+    /** Usable range; either side may be open. */
     minValue?: number;
     maxValue?: number;
+    /** Slider span of a `control` param. */
+    controlMin?: number;
+    controlMax?: number;
     /**
      * True polyphonic signal input (PolySignal, required or optional).
      * Unlike `kind`, this also covers `Option<PolySignal>` params, which
@@ -543,11 +554,13 @@ export function processModuleSchema(
                 ...(isMonoSignalInput && { isMonoSignalInput }),
                 ...(isScaleSignalInput && { isScaleSignalInput }),
                 ...(signalMeta && {
+                    controlMax: signalMeta.controlMax,
+                    controlMin: signalMeta.controlMin,
                     defaultValue: signalMeta.defaultValue,
                     maxValue: signalMeta.maxValue,
                     minValue: signalMeta.minValue,
-                    signalType: isSignalType(signalMeta.signalType)
-                        ? signalMeta.signalType
+                    paramType: isParamType(signalMeta.paramType)
+                        ? signalMeta.paramType
                         : 'control',
                 }),
             };

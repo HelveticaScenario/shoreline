@@ -1,42 +1,57 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
         utils::{SchmittTrigger, wrap_phase},
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
-    types::Clickless,
+    types::SwapGlide,
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PulseOscillatorParams {
-    /// pitch in V/Oct (0V = C4)
-    #[signal(type = pitch)]
+    #[input("oscillator pitch", type = pitch)]
     freq: PolySignal,
-    /// pulse width (0-5, 2.5 is square)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "pulse width: 0 a thin high spike, 2.5 square, 5 a thin low notch",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<PolySignal>,
-    /// pulse width modulation CV — added to the width parameter
+    #[input(
+        "pulse width modulation, added to `width`",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pwm: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user)
+    #[input("frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)", type = audio)]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    /// hard sync source — rising edges reset the oscillator phase
+    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
     #[deserr(default)]
     sync: Option<PolySignal>,
-    /// phase offset in [0, 1) added to the internal phase before sampling
-    #[signal(default = 0.0, range = (0.0, 1.0))]
+    #[input(
+        "shifts where in the cycle the wave is read, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
     #[deserr(default)]
     phase_offset: Option<PolySignal>,
 }
@@ -44,14 +59,15 @@ struct PulseOscillatorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PulseOscillatorOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the pulse wave", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
 #[derive(Default, Clone, Copy)]
 struct PulseChannelState {
     phase: f32,
-    width: Clickless,
+    width: SwapGlide,
+    pwm: SwapGlide,
     /// Edge detector for the sync input.
     sync_schmitt: SchmittTrigger,
     /// Previous sync-input sample, for subsample edge interpolation.
@@ -60,21 +76,40 @@ struct PulseChannelState {
     blep_carry: f32,
 }
 
-/// Pulse/square wave oscillator with pulse width modulation.
-///
-/// The `freq` input follows the **V/Oct** standard (0V = C4).
-/// The `width` parameter sets the duty cycle: 0 = narrow pulse,
-/// 2.5 = square wave, 5 = inverted narrow pulse.
-/// `pwm` is added to `width` for modulation.
-///
-/// Output range is **±5V**.
-///
-/// ## Example
-///
-/// ```js
-/// $pulse('c3', { width: 2.5 }).out()
-/// ```
-#[module(name = "$pulse", args(freq))]
+const PULSE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Pulse wave oscillator",
+    description: "A pulse wave that is hollow and woody as a square and grows \
+                  nasal and reedy as the pulse narrows. Sweeping the width with \
+                  a slow LFO gives the classic chorused PWM string sound.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "PWM chord pad",
+            code: r#"
+                $pulse($chord('C3[m]'), {
+                  pwm: $sine('0.3hz').range(-2, 2),
+                })
+                  .$.lpf('c6')
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Plucked square bass",
+            code: r#"
+                const seq = $cycle($p('c2 c2 eb2 g1'))
+                $pulse(seq)
+                  .$.lpf(
+                    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'),
+                    2,
+                  )
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$pulse", docs = PULSE_DOCS, args(freq))]
 pub struct PulseOscillator {
     outputs: PulseOscillatorOutputs,
     channel_state: Box<[PulseChannelState]>,
@@ -88,9 +123,17 @@ impl PulseOscillator {
         for ch in 0..num_channels {
             let state = &mut self.channel_state[ch];
 
-            let base_width = self.params.width.value_or(ch, 2.5);
-            let pwm = self.params.pwm.value_or(ch, 0.0);
-            state.width.update((base_width + pwm).clamp(0.0, 5.0));
+            state.width.update(
+                self.params.width.value_or(ch, 2.5),
+                self.params.width.glide_mark(ch),
+                sample_rate,
+            );
+            state.pwm.update(
+                self.params.pwm.value_or(ch, 0.0),
+                self.params.pwm.glide_mark(ch),
+                sample_rate,
+            );
+            let width = (*state.width + *state.pwm).clamp(0.0, 5.0);
 
             let pitch = self.params.freq.get_value(ch);
             let fm = self.params.fm.value_or(ch, 0.0);
@@ -98,7 +141,7 @@ impl PulseOscillator {
             let phase_increment = frequency / sample_rate;
 
             // Pulse width (0.0 to 1.0, 0.5 is square wave)
-            let pulse_width = (*state.width / 5.0).clamp(0.01, 0.99);
+            let pulse_width = (width / 5.0).clamp(0.01, 0.99);
 
             state.phase = wrap_phase(state.phase + phase_increment);
 

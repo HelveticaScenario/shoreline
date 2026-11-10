@@ -77,7 +77,6 @@ class ErrorBoundary extends Component<
         return this.props.children;
     }
 }
-import { HelpWindow } from './components/HelpWindow';
 import { ThemeProvider } from './themes/ThemeContext';
 
 // Configure Monaco Editor workers for Vite (replaces MonacoWebpackPlugin)
@@ -135,7 +134,7 @@ window.addEventListener(
 (window as any).monaco = monaco;
 
 // Pin monaco's process-global hover-delegate factory to an immortal anchor
-// editor so transient editors (the migration DiffEditor) can't dangle it on
+// editor so transient editors (the save-conflict DiffEditor) can't dangle it on
 // dispose, which otherwise throws "InstantiationService has been disposed" on
 // the next suggest/hover. monaco-editor#4612.
 installHoverDelegateAnchor(monaco);
@@ -186,13 +185,11 @@ if (!root) {
     throw new Error('Failed to find the root element');
 }
 
-const isHelpWindow = window.location.hash === '#help';
-
 createRoot(root).render(
     <StrictMode>
         <ErrorBoundary>
             <ThemeProvider>
-                {isHelpWindow ? <HelpWindow /> : <App />}
+                <App />
             </ThemeProvider>
         </ErrorBoundary>
     </StrictMode>,

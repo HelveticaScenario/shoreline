@@ -1,24 +1,34 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput};
 
 fn default_count() -> usize {
     2
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SpreadParams {
-    /// lower bound of the spread range
+    #[input("value of the first channel", type = control, control_range = (-5.0, 5.0))]
     min: MonoSignal,
-    /// upper bound of the spread range
+    #[input("value of the last channel", type = control, control_range = (-5.0, 5.0))]
     max: MonoSignal,
-    /// number of output channels (1–64)
+    #[input(
+        "number of output channels; with 1, a single value between min and max placed by bias",
+        range = (1, 64),
+    )]
     count: usize,
-    /// distribution bias (-5 to 5): positive biases toward max, negative toward min
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "bunches the channels toward max (positive) or min (negative); 0 spaces them evenly",
+        type = control,
+        default = 0.0,
+        control_range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     bias: Option<MonoSignal>,
 }
@@ -26,32 +36,34 @@ struct SpreadParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SpreadOutputs {
-    #[output("output", "spread signal output", default)]
+    #[output("output", "one value per channel, from min to max", type = cv, default)]
     sample: PolyOutput,
 }
 
-/// Produces a multi-channel output by linearly interpolating between a
-/// minimum and maximum value, with an optional bias to skew the
-/// distribution.
-///
-/// Each output channel gets an evenly spaced value between **min** and
-/// **max**. The **bias** control reshapes the distribution: positive
-/// values push channels toward **max**, negative values toward **min**.
-///
-/// | count | behaviour |
-/// |-------|-----------|
-/// | 1     | single value between min and max, positioned by bias |
-/// | 2     | channel 0 = min, channel 1 = max (with bias = 0) |
-/// | N     | N evenly spaced values from min to max (with bias = 0) |
-///
-/// ```js
-/// // spread 4 oscillators across a frequency range
-/// $sine($spread(0, 5, 4))
-///
-/// // 8 channels biased toward the minimum
-/// $spread(0, 5, 8, { bias: -3 })
-/// ```
-#[module(name = "$spread", channels_param = "count", args(min, max, count))]
+const SPREAD_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Evenly spaced channel values",
+    description: "Fills a set of channels with values spaced from `min` to `max`, for \
+                  fanning pitches, pans or detunes across a polyphonic patch.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Octave stack",
+            code: "$sine($spread('c3', 'c6', 4)).out()",
+        },
+        DocExample {
+            title: "Cluster bunched toward the top",
+            code: "$saw($spread('c3', 'c4', 6, { bias: 3 })).out()",
+        },
+    ],
+};
+
+#[module(
+    name = "$spread",
+    docs = SPREAD_DOCS,
+    channels_param = "count",
+    args(min, max, count)
+)]
 pub struct Spread {
     outputs: SpreadOutputs,
     params: SpreadParams,

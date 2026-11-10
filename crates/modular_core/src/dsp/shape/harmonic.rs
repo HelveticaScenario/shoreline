@@ -8,34 +8,36 @@ use schemars::JsonSchema;
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers::{self, ADDITIVE_SCALE};
 use crate::dsp::utils::dc_blocker::DcBlocker;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Harmonic-generating algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum HarmonicMode {
-    /// Adds a soft 2nd harmonic.
+    /// adds a soft 2nd harmonic
     #[default]
     Cheby2,
-    /// Adds a soft 3rd harmonic.
+    /// adds a soft 3rd harmonic
     Cheby3,
-    /// Adds a soft 4th harmonic.
+    /// adds a soft 4th harmonic
     Cheby4,
-    /// Adds a soft 5th harmonic.
+    /// adds a soft 5th harmonic
     Cheby5,
-    /// Blend of the 1st and 2nd harmonics.
+    /// blend of the 1st and 2nd harmonics
     Add12,
-    /// Blend of the 1st and 3rd harmonics.
+    /// blend of the 1st and 3rd harmonics
     Add13,
-    /// Blend of the 1st and 4th harmonics.
+    /// blend of the 1st and 4th harmonics
     Add14,
-    /// Blend of the 1st and 5th harmonics.
+    /// blend of the 1st and 5th harmonics
     Add15,
-    /// Blend of the 1st through 5th harmonics.
+    /// blend of the 1st through 5th harmonics
     Add12345,
-    /// Sawtooth-like blend of the first three harmonics.
+    /// sawtooth-like blend of the first three harmonics
     AddSaw3,
-    /// Square-like blend of odd harmonics.
+    /// square-like blend of odd harmonics
     AddSqr3,
 }
 
@@ -105,14 +107,20 @@ impl Shaper for HarmonicShaper {
     }
 }
 
+const HARMONIC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Harmonic exciter",
+    description: "Adds chosen harmonics to brighten or thicken a tone; on a \
+                  sine it turns a pure tone organ-like or reedy. Modelled on \
+                  the Surge XT harmonic shapes.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Sine to organ",
+        code: "$sine('c3').$.unstable.shape.harmonic('add12345', 2).out()",
+    }],
+};
+
 shape_module! {
-    /// Adds extra harmonics to brighten or thicken a tone, from Surge XT's
-    /// Harmonic waveshapers. `mode` picks which harmonics (a single 2nd–5th, or
-    /// an additive blend) and `drive` sets the intensity (−5..5, 0 = unity).
-    ///
-    /// ## Example
-    /// ```js
-    /// $unstable.shape.harmonic($sine('c3'), 'cheby3', 2).out()
-    /// ```
+    docs = HARMONIC_DOCS,
     name = "$unstable.shape.harmonic", ident = Harmonic, mode = HarmonicMode, shaper = HarmonicShaper
 }
