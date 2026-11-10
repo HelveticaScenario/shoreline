@@ -10,7 +10,7 @@
 // when a test pins `TEST_SEED_BASE` to 1, so string and modal draw the same
 // grains as the modules; string's cases keep dispersion off, where only the
 // sounding string draws.
-// build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc
+// build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/engine2/wave_terrain_engine.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc
 
 #include <cstdio>
 
@@ -23,6 +23,7 @@
 #include "plaits/dsp/engine/string_engine.h"
 #include "plaits/dsp/engine/waveshaping_engine.h"
 #include "plaits/dsp/engine2/phase_distortion_engine.h"
+#include "plaits/dsp/engine2/wave_terrain_engine.h"
 
 using namespace plaits;
 
@@ -34,6 +35,7 @@ struct Case {
 // Two settings per ported engine, numbered as in Plaits' voice.cc.
 static const Case kCases[] = {
     {1, 48.0f, 0.3f, 0.6f, 0.2f},  {1, 62.0f, 0.75f, 0.35f, 0.8f},
+    {5, 43.0f, 0.2f, 0.6f, 0.4f},  {5, 58.0f, 0.85f, 0.8f, 0.7f},
     {9, 45.0f, 0.2f, 0.7f, 0.4f},  {9, 60.0f, 0.8f, 0.3f, 0.9f},
     {10, 41.0f, 0.4f, 0.5f, 0.3f}, {10, 57.0f, 0.65f, 0.7f, 0.8f},
     {11, 43.0f, 0.3f, 0.5f, 0.4f}, {11, 59.0f, 0.7f, 0.25f, 0.85f},
@@ -47,6 +49,7 @@ const uint32_t kModuleSeed = 0x910a2deb;
 // The engine for `index`, its out and aux gains as voice.cc registers them.
 static Engine* Select(int index, float* out_gain, float* aux_gain) {
   static PhaseDistortionEngine phase_distortion;
+  static WaveTerrainEngine wave_terrain;
   static WaveshapingEngine waveshaping;
   static FMEngine fm;
   static GrainEngine grain;
@@ -55,6 +58,7 @@ static Engine* Select(int index, float* out_gain, float* aux_gain) {
   static ModalEngine modal;
   switch (index) {
     case 1: *out_gain = 0.7f; *aux_gain = 0.7f; return &phase_distortion;
+    case 5: *out_gain = 0.7f; *aux_gain = 0.7f; return &wave_terrain;
     case 9: *out_gain = 0.7f; *aux_gain = 0.6f; return &waveshaping;
     case 10: *out_gain = 0.6f; *aux_gain = 0.6f; return &fm;
     case 11: *out_gain = 0.7f; *aux_gain = 0.6f; return &grain;

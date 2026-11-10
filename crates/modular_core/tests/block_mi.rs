@@ -69,6 +69,7 @@ fn allocation_free() {
         "$mi.phaseDistortion",
         "$mi.string",
         "$mi.twoOp",
+        "$mi.waveTerrain",
         "$mi.waveshaper",
         "$mi.zOsc",
     ] {
