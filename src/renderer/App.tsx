@@ -8,19 +8,13 @@ import { performanceOutput } from './video/PerformanceOutput';
 import { AudioControls } from './components/AudioControls';
 import { TransportDisplay } from './components/TransportDisplay';
 import { ErrorDisplay } from './components/ErrorDisplay';
-import { Settings } from './components/Settings';
 import { AudioPanicDialog } from './components/AudioPanicDialog';
 import { EngineHealth } from './components/EngineHealth';
 import { ModuleProfile } from './components/ModuleProfile';
-import { MigrationDiffModal } from './components/MigrationDiffModal';
 import {
     SaveConflictDiff,
     SaveConflictNotification,
 } from './components/SaveConflict';
-import type { MigrationModalSummary } from './components/MigrationDiffModal';
-import { migrateChebyBlockDC } from './dsl/migrateChebyBlockDC';
-import { migrateCycleCalls } from './dsl/migrateCycleCalls';
-import { migrateWavetableArgs } from './dsl/migrateWavetableArgs';
 import type { UpdateNotificationState } from './components/UpdateNotification';
 import { UpdateNotification } from './components/UpdateNotification';
 import { CommandPalette } from './components/CommandPalette';
@@ -32,7 +26,7 @@ import { Sidebar } from './components/Sidebar';
 import { ControlPanel } from './components/ControlPanel';
 import electronAPI from './electronAPI';
 import type { ValidationError } from '@modular/core';
-import type { QueuedTrigger } from '@modular/core';
+import type { QueuedTrigger, ScopeStats } from '@modular/core';
 import type { FileTreeEntry, UpdateAvailableInfo } from '../shared/ipcTypes';
 import type { SliderDefinition } from '../shared/dsl/sliderTypes';
 import type { ButtonDefinition } from '../shared/dsl/buttonTypes';
@@ -47,7 +41,7 @@ import type { EditorBuffer } from './types/editor';
 import { applySliderChange } from './app/sliderChange';
 import { applyButtonChange, applyGroupCollapse } from './app/buttonChange';
 import { resolvePrettierOptions } from './components/monaco/formattingProvider';
-import { codeStyleFromPrettier } from './dsl/objectPropertyInsert';
+import { codeStyleFromPrettier } from './dsl/listEdits';
 import { bindControls } from './app/controlBinding';
 import { performanceControls } from './app/performanceControls';
 import { formatPath } from './components/monaco/monacoHelpers';
@@ -136,7 +130,7 @@ function App() {
     const keybindingsPathRef = useRef<string | null>(null);
     const handleFileSaved = useCallback((filePath: string) => {
         if (filePath === keybindingsPathRef.current) {
-            window.dispatchEvent(new Event('operator:keybindings-changed'));
+            window.dispatchEvent(new Event('shoreline:keybindings-changed'));
         }
     }, []);
 
@@ -172,18 +166,9 @@ function App() {
     // Audio state
     const [isClockRunning, setIsClockRunning] = useState(true);
     const [isRecording, setIsRecording] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isEngineHealthOpen, setIsEngineHealthOpen] = useState(false);
     const [isPaletteOpen, setIsPaletteOpen] = useState(false);
     const [isModuleProfileOpen, setIsModuleProfileOpen] = useState(false);
-    const [migrationState, setMigrationState] = useState<{
-        bufferId: string;
-        original: string;
-        migrated: string;
-        summary: MigrationModalSummary;
-        title?: string;
-        skippedLabel?: string;
-    } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<
         ValidationError[] | null
@@ -414,9 +399,18 @@ function App() {
     );
 
     // The performance window shows the playing buffer, from when its patch
-    // starts playing until another buffer's does, stop included. Before any
-    // patch has played it shows the visible buffer.
+    // starts playing until another buffer's does, stop included. It finds the
+    // buffer by id, which survives renames. Once no tab holds that id, it
+    // shows the buffer's file while another tab has it open, and otherwise the
+    // visible buffer; a closed untitled buffer is gone for good, since a new
+    // one reuses its id. Before any patch has played it shows the visible
+    // buffer.
     const [performanceSourceId, setPerformanceSourceId] = useState<
+        string | null
+    >(null);
+    const [performanceSourceClosed, setPerformanceSourceClosed] =
+        useState(false);
+    const [lastPerformanceFile, setLastPerformanceFile] = useState<
         string | null
     >(null);
     if (
@@ -424,14 +418,40 @@ function App() {
         runningControlsSource !== performanceSourceId
     ) {
         setPerformanceSourceId(runningControlsSource);
+        setPerformanceSourceClosed(false);
+        setLastPerformanceFile(null);
     }
     const performanceBuffer =
-        performanceSourceId === null
+        performanceSourceId === null || performanceSourceClosed
             ? undefined
             : buffers.find((b) => b.id === performanceSourceId);
+    if (
+        performanceSourceId !== null &&
+        (runningControlsSource === null ||
+            runningControlsSource === performanceSourceId) &&
+        !performanceSourceClosed &&
+        performanceBuffer === undefined
+    ) {
+        setPerformanceSourceClosed(true);
+    }
+    const performanceFile =
+        performanceBuffer?.kind === 'file'
+            ? formatPath(performanceBuffer.filePath)
+            : null;
+    if (performanceFile !== null && performanceFile !== lastPerformanceFile) {
+        setLastPerformanceFile(performanceFile);
+    }
+    const performanceBufferPath =
+        performanceBuffer === undefined
+            ? lastPerformanceFile !== null &&
+              openBufferIds.some((id) => formatPath(id) === lastPerformanceFile)
+                ? lastPerformanceFile
+                : null
+            : formatPath(getBufferId(performanceBuffer));
     const performanceShowsVisible =
-        performanceBuffer === undefined ||
-        performanceSourceId === visibleCode.bufferId;
+        performanceBufferPath === null ||
+        (!!activeBufferId &&
+            performanceBufferPath === formatPath(activeBufferId));
     const performanceCodeControls = useMemo(() => {
         const views =
             performanceShowsVisible || performanceSourceId === null
@@ -460,9 +480,7 @@ function App() {
     ]);
     const revealInPerformance = usePerformanceCode(
         paletteEditor,
-        performanceBuffer === undefined
-            ? null
-            : formatPath(getBufferId(performanceBuffer)),
+        performanceBufferPath,
         performanceView,
         performanceTheme,
         performanceCodeControls,
@@ -1490,10 +1508,17 @@ function App() {
         patchCodeRef.current = patchCode;
     }, [patchCode]);
 
+    const runningBufferIdRef = useRef(runningBufferId);
+    useEffect(() => {
+        runningBufferIdRef.current = runningBufferId;
+    }, [runningBufferId]);
+
     // Keep runningBufferId pointing at the running buffer's current path
     // identity: saving an untitled buffer or renaming a file changes
     // getBufferId, and comparisons against activeBufferId (slider source
-    // rewriting, running indicators) must keep matching afterwards.
+    // rewriting, running indicators) must keep matching afterwards. An untitled
+    // buffer's path identity is its id, which a new untitled buffer reuses, so
+    // once the running one closes no buffer holds the running patch.
     useEffect(() => {
         const sourceId = runningSourceIdRef.current;
         if (sourceId === null) {
@@ -1502,13 +1527,11 @@ function App() {
         const running = buffers.find((b) => b.id === sourceId);
         if (running) {
             setRunningBufferId(getBufferId(running));
+        } else if (runningBufferIdRef.current === sourceId) {
+            runningSourceIdRef.current = null;
+            setRunningBufferId(null);
         }
     }, [buffers]);
-
-    const runningBufferIdRef = useRef(runningBufferId);
-    useEffect(() => {
-        runningBufferIdRef.current = runningBufferId;
-    }, [runningBufferId]);
 
     const isClockRunningRef = useRef(isClockRunning);
     useEffect(() => {
@@ -1538,12 +1561,7 @@ function App() {
                         string,
                         {
                             data: Float32Array;
-                            stats: {
-                                min: number;
-                                max: number;
-                                peakToPeak: number;
-                                readOffset: number;
-                            };
+                            stats: ScopeStats;
                         }
                     >();
                     for (const [bufferKey, data, stats] of scopeData) {
@@ -1576,6 +1594,7 @@ function App() {
                         ) as string[];
                         const channels: Float32Array[] = [];
                         const readOffsets: number[] = [];
+                        const triggerOffsets: number[] = [];
                         let globalMin = Infinity;
                         let globalMax = -Infinity;
 
@@ -1584,6 +1603,7 @@ function App() {
                             if (entry) {
                                 channels.push(entry.data);
                                 readOffsets.push(entry.stats.readOffset);
+                                triggerOffsets.push(entry.stats.triggerOffset);
                                 if (entry.stats.min < globalMin) {
                                     globalMin = entry.stats.min;
                                 }
@@ -1602,6 +1622,7 @@ function App() {
                                     min: globalMin,
                                     peakToPeak: globalMax - globalMin,
                                     readOffset: readOffsets,
+                                    triggerOffset: triggerOffsets,
                                 },
                             });
                         }
@@ -1765,7 +1786,7 @@ function App() {
         eqController,
     ]);
 
-    // Keep Link phase indicator live while Link is enabled but Operator is stopped.
+    // Keep Link phase indicator live while Link is enabled but Shoreline is stopped.
     // The main tick loop only runs when isClockRunning; this fills the gap so
     // the phase indicator stays animated even before the user presses play.
     useEffect(() => {
@@ -1979,6 +2000,7 @@ function App() {
                         file: activeBufferId,
                         key: scopeKey,
                         range: scope.range ?? [-5, 5],
+                        split: scope.split ?? null,
                     });
 
                     if (range) {
@@ -2164,7 +2186,7 @@ function App() {
             getVuOutputs: () => vuOutputsRef.current,
             getEqPanels: () => eqController.snapshot(),
             isClockRunning: () => isClockRunningRef.current,
-            newUntitledFile: () => executeCommand('operator.newFile'),
+            newUntitledFile: () => executeCommand('shoreline.newFile'),
             openEngineHealth: () => setIsEngineHealthOpen(true),
             openModuleProfile: () => setIsModuleProfileOpen(true),
             setEditorValue: (code: string) => editorRef.current?.setValue(code),
@@ -2197,28 +2219,6 @@ function App() {
         setValidationErrors(null);
     }, []);
 
-    const handleCloseBuffer = useCallback(
-        async (id: string) => {
-            setMigrationState(null);
-            await closeBuffer(id);
-        },
-        [closeBuffer],
-    );
-
-    const handleSelectBuffer = useCallback(
-        (id: string) => {
-            setMigrationState(null);
-            setActiveBufferId(id);
-        },
-        [setActiveBufferId],
-    );
-
-    useEffect(() => {
-        setMigrationState((prev) =>
-            prev && prev.bufferId !== activeBufferId ? null : prev,
-        );
-    }, [activeBufferId]);
-
     // Refs keep command handlers stable across renders so the registration
     // effect below only needs to run once. Anything captured by closure must
     // funnel through a ref or it goes stale between renders.
@@ -2227,10 +2227,10 @@ function App() {
         activeBufferIdRef.current = activeBufferId;
     }, [activeBufferId]);
 
-    const handleCloseBufferRef = useRef(handleCloseBuffer);
+    const closeBufferRef = useRef(closeBuffer);
     useEffect(() => {
-        handleCloseBufferRef.current = handleCloseBuffer;
-    }, [handleCloseBuffer]);
+        closeBufferRef.current = closeBuffer;
+    }, [closeBuffer]);
 
     const createUntitledFileRef = useRef(createUntitledFile);
     useEffect(() => {
@@ -2264,13 +2264,13 @@ function App() {
             .catch(() => {});
     }, []);
 
-    // Register operator.* commands in the global registry. The Electron menu
+    // Register shoreline.* commands in the global registry. The Electron menu
     // IPC dispatchers below, the cmdk palette, the editor context menu, and
     // the tinykeys keymap all dispatch through `executeCommand` — single
     // source of truth for what each command does.
     useEffect(() => {
         registerCommand(
-            'operator.updatePatch',
+            'shoreline.updatePatch',
             () => {
                 handleSubmitRef.current('NextBar');
             },
@@ -2281,7 +2281,7 @@ function App() {
             },
         );
         registerCommand(
-            'operator.updatePatchNextBeat',
+            'shoreline.updatePatchNextBeat',
             () => {
                 handleSubmitRef.current('NextBeat');
             },
@@ -2292,7 +2292,7 @@ function App() {
             },
         );
         registerCommand(
-            'operator.stop',
+            'shoreline.stop',
             () => {
                 handleStopRef.current();
             },
@@ -2303,7 +2303,7 @@ function App() {
             },
         );
         registerCommand(
-            'operator.cancelQueuedUpdate',
+            'shoreline.cancelQueuedUpdate',
             () => {
                 void electronAPI.synthesizer.cancelQueuedUpdate();
             },
@@ -2314,45 +2314,38 @@ function App() {
             },
         );
         registerCommand(
-            'operator.newFile',
+            'shoreline.newFile',
             () => {
                 createUntitledFileRef.current();
             },
             { label: 'New File', category: 'File' },
         );
         registerCommand(
-            'operator.closeBuffer',
+            'shoreline.closeBuffer',
             () => {
                 const id = activeBufferIdRef.current;
                 if (id) {
-                    void handleCloseBufferRef.current(id);
+                    void closeBufferRef.current(id);
                 }
             },
             { label: 'Close Buffer', category: 'File' },
         );
         registerCommand(
-            'operator.save',
+            'shoreline.save',
             () => {
                 handleSaveFileRef.current();
             },
             { label: 'Save', category: 'File' },
         );
         registerCommand(
-            'operator.openWorkspace',
+            'shoreline.openWorkspace',
             () => {
                 handleOpenWorkspaceRef.current();
             },
             { label: 'Open Workspace…', category: 'File' },
         );
         registerCommand(
-            'operator.openSettings',
-            () => {
-                setIsSettingsOpen(true);
-            },
-            { label: 'Open Settings', category: 'Preferences' },
-        );
-        registerCommand(
-            'operator.showCommandPalette',
+            'shoreline.showCommandPalette',
             () => {
                 setIsPaletteOpen(true);
             },
@@ -2363,7 +2356,7 @@ function App() {
             },
         );
         registerCommand(
-            'operator.openKeybindings',
+            'shoreline.openKeybindings',
             () => {
                 void handleOpenKeybindingsRef.current();
             },
@@ -2373,7 +2366,7 @@ function App() {
             },
         );
         registerCommand(
-            'operator.toggleVuMeters',
+            'shoreline.toggleVuMeters',
             () => {
                 setIsVuPanelVisible((visible) => {
                     void electronAPI.config.write({
@@ -2385,14 +2378,14 @@ function App() {
             { label: 'Toggle VU Meters', category: 'View' },
         );
         registerCommand(
-            'operator.togglePerformanceWindow',
+            'shoreline.togglePerformanceWindow',
             () => {
                 performanceOutput.toggle();
             },
             { label: 'Toggle Performance Window', category: 'View' },
         );
         registerCommand(
-            'operator.togglePerformanceCode',
+            'shoreline.togglePerformanceCode',
             () => {
                 void electronAPI.config.read().then((config) =>
                     electronAPI.config.write({
@@ -2406,20 +2399,19 @@ function App() {
         );
 
         return () => {
-            unregisterCommand('operator.togglePerformanceWindow');
-            unregisterCommand('operator.togglePerformanceCode');
-            unregisterCommand('operator.toggleVuMeters');
-            unregisterCommand('operator.updatePatch');
-            unregisterCommand('operator.updatePatchNextBeat');
-            unregisterCommand('operator.stop');
-            unregisterCommand('operator.cancelQueuedUpdate');
-            unregisterCommand('operator.newFile');
-            unregisterCommand('operator.closeBuffer');
-            unregisterCommand('operator.save');
-            unregisterCommand('operator.openWorkspace');
-            unregisterCommand('operator.openSettings');
-            unregisterCommand('operator.showCommandPalette');
-            unregisterCommand('operator.openKeybindings');
+            unregisterCommand('shoreline.togglePerformanceWindow');
+            unregisterCommand('shoreline.togglePerformanceCode');
+            unregisterCommand('shoreline.toggleVuMeters');
+            unregisterCommand('shoreline.updatePatch');
+            unregisterCommand('shoreline.updatePatchNextBeat');
+            unregisterCommand('shoreline.stop');
+            unregisterCommand('shoreline.cancelQueuedUpdate');
+            unregisterCommand('shoreline.newFile');
+            unregisterCommand('shoreline.closeBuffer');
+            unregisterCommand('shoreline.save');
+            unregisterCommand('shoreline.openWorkspace');
+            unregisterCommand('shoreline.showCommandPalette');
+            unregisterCommand('shoreline.openKeybindings');
         };
     }, []);
 
@@ -2432,7 +2424,7 @@ function App() {
         void electronAPI.syphon.isSupported().then((supported) => {
             if (!active || !supported) return;
             registerCommand(
-                'operator.toggleSyphon',
+                'shoreline.toggleSyphon',
                 () => {
                     void electronAPI.syphon.toggle();
                 },
@@ -2441,7 +2433,7 @@ function App() {
         });
         return () => {
             active = false;
-            unregisterCommand('operator.toggleSyphon');
+            unregisterCommand('shoreline.toggleSyphon');
         };
     }, []);
 
@@ -2451,32 +2443,32 @@ function App() {
         // toggling it reads render-state isRecording directly, hence this
         // effect's dependency on it.
         const cleanupNewFile = electronAPI.onMenuNewFile(() => {
-            executeCommand('operator.newFile');
+            executeCommand('shoreline.newFile');
         });
         const cleanupSave = electronAPI.onMenuSave(() => {
-            executeCommand('operator.save');
+            executeCommand('shoreline.save');
         });
         const cleanupStop = electronAPI.onMenuStop(() => {
-            executeCommand('operator.stop');
+            executeCommand('shoreline.stop');
         });
         const cleanupCancelQueuedUpdate = electronAPI.onMenuCancelQueuedUpdate(
             () => {
-                executeCommand('operator.cancelQueuedUpdate');
+                executeCommand('shoreline.cancelQueuedUpdate');
             },
         );
         const cleanupUpdate = electronAPI.onMenuUpdatePatch(() => {
-            executeCommand('operator.updatePatch');
+            executeCommand('shoreline.updatePatch');
         });
         const cleanupUpdateNextBeat = electronAPI.onMenuUpdatePatchNextBeat(
             () => {
-                executeCommand('operator.updatePatchNextBeat');
+                executeCommand('shoreline.updatePatchNextBeat');
             },
         );
         const cleanupOpenWorkspace = electronAPI.onMenuOpenWorkspace(() => {
-            executeCommand('operator.openWorkspace');
+            executeCommand('shoreline.openWorkspace');
         });
         const cleanupCloseBuffer = electronAPI.onMenuCloseBuffer(() => {
-            executeCommand('operator.closeBuffer');
+            executeCommand('shoreline.closeBuffer');
         });
         const cleanupToggleRecording = electronAPI.onMenuToggleRecording(() => {
             if (isRecording) {
@@ -2489,16 +2481,16 @@ function App() {
         });
 
         const cleanupToggleVuMeters = electronAPI.onMenuToggleVuMeters(() => {
-            executeCommand('operator.toggleVuMeters');
+            executeCommand('shoreline.toggleVuMeters');
         });
         const cleanupTogglePerformanceWindow =
             electronAPI.onMenuTogglePerformanceWindow(() => {
-                executeCommand('operator.togglePerformanceWindow');
+                executeCommand('shoreline.togglePerformanceWindow');
             });
 
         // Handle opening settings from menu (Cmd+,)
         const cleanupOpenSettings = electronAPI.onMenuOpenSettings(() => {
-            executeCommand('operator.openSettings');
+            executeCommand('shoreline.openSettings');
         });
         const cleanupOpenEngineHealth = electronAPI.onMenuOpenEngineHealth(
             () => {
@@ -2510,129 +2502,6 @@ function App() {
                 setIsModuleProfileOpen(true);
             },
         );
-        const cleanupMigrateBuffer = electronAPI.onMenuMigrateBuffer(() => {
-            const ed = editorRef.current;
-            // Read the live id from the ref: this listener is registered once
-            // (deps below), so closing over the `activeBufferId` state would
-            // migrate a stale buffer after the user switches buffers.
-            const activeId = activeBufferIdRef.current;
-            if (!ed || !activeId) {
-                console.warn('Migrate buffer: no editor available');
-                setMigrationState({
-                    bufferId: activeId ?? '',
-                    original: '',
-                    migrated: '',
-                    summary: {
-                        callsChanged: 0,
-                        assignmentsChanged: 0,
-                        commentsChanged: 0,
-                        skippedVariables: [],
-                        error: 'No editor available',
-                    },
-                });
-                return;
-            }
-            const original = ed.getValue();
-            const result = migrateCycleCalls(original);
-            setMigrationState({
-                bufferId: activeId,
-                original,
-                migrated: result.migrated,
-                summary: {
-                    callsChanged: result.callsChanged,
-                    assignmentsChanged: result.assignmentsChanged,
-                    commentsChanged: result.commentsChanged,
-                    skippedVariables: result.skippedVariables,
-                    error: result.error,
-                },
-            });
-        });
-
-        const cleanupMigrateWavetable = electronAPI.onMenuMigrateWavetable(
-            () => {
-                const ed = editorRef.current;
-                // Read the live id from the ref: this listener is registered
-                // once (deps below), so closing over the `activeBufferId` state
-                // would migrate a stale buffer after the user switches buffers.
-                const activeId = activeBufferIdRef.current;
-                const wavetableTitle =
-                    'Migrate $wavetable to pitch-first order';
-                if (!ed || !activeId) {
-                    console.warn('Migrate wavetable: no editor available');
-                    setMigrationState({
-                        bufferId: activeId ?? '',
-                        original: '',
-                        migrated: '',
-                        title: wavetableTitle,
-                        summary: {
-                            callsChanged: 0,
-                            commentsChanged: 0,
-                            skippedVariables: [],
-                            error: 'No editor available',
-                        },
-                    });
-                    return;
-                }
-                const original = ed.getValue();
-                const result = migrateWavetableArgs(original);
-                setMigrationState({
-                    bufferId: activeId,
-                    original,
-                    migrated: result.migrated,
-                    title: wavetableTitle,
-                    skippedLabel: 'Needs manual review:',
-                    summary: {
-                        callsChanged: result.callsChanged,
-                        commentsChanged: result.commentsChanged,
-                        skippedVariables: result.skipped,
-                        error: result.error,
-                    },
-                });
-            },
-        );
-
-        const cleanupMigrateChebyBlockDC =
-            electronAPI.onMenuMigrateChebyBlockDC(() => {
-                const ed = editorRef.current;
-                // Read the live id from the ref: this listener is registered
-                // once (deps below), so closing over the `activeBufferId` state
-                // would migrate a stale buffer after the user switches buffers.
-                const activeId = activeBufferIdRef.current;
-                const chebyTitle =
-                    'Migrate $cheby to preserve pre-DC-blocker output';
-                if (!ed || !activeId) {
-                    console.warn('Migrate $cheby: no editor available');
-                    setMigrationState({
-                        bufferId: activeId ?? '',
-                        original: '',
-                        migrated: '',
-                        title: chebyTitle,
-                        summary: {
-                            callsChanged: 0,
-                            commentsChanged: 0,
-                            skippedVariables: [],
-                            error: 'No editor available',
-                        },
-                    });
-                    return;
-                }
-                const original = ed.getValue();
-                const result = migrateChebyBlockDC(original);
-                setMigrationState({
-                    bufferId: activeId,
-                    original,
-                    migrated: result.migrated,
-                    title: chebyTitle,
-                    skippedLabel: 'Needs manual review:',
-                    summary: {
-                        callsChanged: result.callsChanged,
-                        commentsChanged: 0,
-                        skippedVariables: result.skipped,
-                        error: result.error,
-                    },
-                });
-            });
-
         return () => {
             cleanupNewFile();
             cleanupSave();
@@ -2648,13 +2517,10 @@ function App() {
             cleanupOpenSettings();
             cleanupOpenEngineHealth();
             cleanupOpenModuleProfile();
-            cleanupMigrateBuffer();
-            cleanupMigrateWavetable();
-            cleanupMigrateChebyBlockDC();
         };
     }, [isRecording]);
 
-    // Install the window-level tinykeys keymap. Runs after the operator.*
+    // Install the window-level tinykeys keymap. Runs after the shoreline.*
     // commands above have been registered (effects fire in declaration order),
     // so dispatch always finds a handler. The loader merges user overrides
     // from `<userData>/keybindings.json` on top of `DEFAULT_KEYMAP`.
@@ -2682,11 +2548,11 @@ function App() {
         install();
         // Re-read and re-install when the user saves keybindings.json.
         const onChanged = () => install();
-        window.addEventListener('operator:keybindings-changed', onChanged);
+        window.addEventListener('shoreline:keybindings-changed', onChanged);
         return () => {
             disposed = true;
             window.removeEventListener(
-                'operator:keybindings-changed',
+                'shoreline:keybindings-changed',
                 onChanged,
             );
             disposer?.();
@@ -2751,11 +2617,6 @@ function App() {
                 onDismiss={dismissError}
             />
 
-            <Settings
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-            />
-
             <EngineHealth
                 isOpen={isEngineHealthOpen}
                 onClose={() => setIsEngineHealthOpen(false)}
@@ -2774,44 +2635,6 @@ function App() {
                 editor={paletteEditor}
             />
 
-            {migrationState && (
-                <MigrationDiffModal
-                    isOpen
-                    original={migrationState.original}
-                    migrated={migrationState.migrated}
-                    summary={migrationState.summary}
-                    title={migrationState.title}
-                    skippedLabel={migrationState.skippedLabel}
-                    onCancel={() => setMigrationState(null)}
-                    onApply={() => {
-                        const ed = editorRef.current;
-                        const model = ed?.getModel();
-                        if (!ed || !model) {
-                            setMigrationState(null);
-                            return;
-                        }
-                        if (migrationState.bufferId !== activeBufferId) {
-                            console.warn(
-                                'Migrate apply: active buffer changed since modal opened; aborting',
-                            );
-                            setMigrationState(null);
-                            return;
-                        }
-                        model.pushEditOperations(
-                            [],
-                            [
-                                {
-                                    range: model.getFullModelRange(),
-                                    text: migrationState.migrated,
-                                },
-                            ],
-                            () => null,
-                        );
-                        setMigrationState(null);
-                    }}
-                />
-            )}
-
             <main className="app-main">
                 {!workspaceRoot ? (
                     <div className="empty-state">
@@ -2823,72 +2646,67 @@ function App() {
                         </button>
                     </div>
                 ) : (
-                    <>
-                        <div className="editor-panel">
-                            <VideoBackdrop
-                                codeBackdropOpacity={codeBackdropOpacity}
-                                performanceScale={performanceScale}
-                            />
-                            <PatchEditor
-                                value={patchCode}
-                                runningBufferId={runningBufferId}
-                                currentFile={activeBufferId}
-                                openFiles={openBufferIds}
-                                onChange={handlePatchChange}
-                                editorRef={editorRef}
-                                onEditorChange={setPaletteEditor}
-                                scopeViews={scopeViews}
-                                videoPreviewDecorations={
-                                    videoPreviews.decorations
-                                }
-                                videoPreviewZones={videoPreviews.zones}
-                                // oxlint-disable-next-line react-hooks-js/refs -- intentional: live Monaco decoration collection mutated outside React
-                                scopeDecorations={scopeDecorationsRef.current}
-                                onRegisterScopeCanvas={registerScopeCanvas}
-                                onUnregisterScopeCanvas={unregisterScopeCanvas}
-                            />
-                            <PerformancePreview />
-                        </div>
-
-                        <Sidebar
-                            explorerContent={
-                                <FileExplorer
-                                    workspaceRoot={workspaceRoot}
-                                    fileTree={fileTree}
-                                    buffers={buffers}
-                                    activeBufferId={activeBufferId}
-                                    runningBufferId={runningBufferId}
-                                    renamingPath={renamingPath}
-                                    formatLabel={formatLabel}
-                                    onSelectBuffer={handleSelectBuffer}
-                                    onOpenFile={handleOpenFile}
-                                    onCreateFile={createUntitledFile}
-                                    onSaveFile={handleSaveFileStable}
-                                    onRenameFile={renameFile}
-                                    onDeleteFile={handleDeleteFile}
-                                    onCloseBuffer={handleCloseBuffer}
-                                    onSelectWorkspace={selectWorkspaceFolder}
-                                    onRefreshTree={refreshFileTree}
-                                    onRenameCommit={handleRenameCommitSafe}
-                                    onRenameCancel={() => setRenamingPath(null)}
-                                    onKeepBuffer={keepBuffer}
-                                />
-                            }
-                            performContent={<PerformancePanel />}
-                            controlContent={
-                                <ControlPanel
-                                    sliders={controlViews.sliders}
-                                    buttons={controlViews.buttons}
-                                    groups={codeControls.groups}
-                                    onGroupToggle={handleGroupToggle}
-                                    onSliderChange={handleSliderChange}
-                                    onButtonChange={handleButtonChange}
-                                    onJump={handleControlJump}
-                                />
-                            }
+                    <div className="editor-panel">
+                        <VideoBackdrop
+                            codeBackdropOpacity={codeBackdropOpacity}
+                            performanceScale={performanceScale}
                         />
-                    </>
+                        <PatchEditor
+                            value={patchCode}
+                            runningBufferId={runningBufferId}
+                            currentFile={activeBufferId}
+                            openFiles={openBufferIds}
+                            onChange={handlePatchChange}
+                            editorRef={editorRef}
+                            onEditorChange={setPaletteEditor}
+                            scopeViews={scopeViews}
+                            videoPreviewDecorations={videoPreviews.decorations}
+                            videoPreviewZones={videoPreviews.zones}
+                            // oxlint-disable-next-line react-hooks-js/refs -- intentional: live Monaco decoration collection mutated outside React
+                            scopeDecorations={scopeDecorationsRef.current}
+                            onRegisterScopeCanvas={registerScopeCanvas}
+                            onUnregisterScopeCanvas={unregisterScopeCanvas}
+                        />
+                        <PerformancePreview />
+                    </div>
                 )}
+                <Sidebar
+                    explorerContent={
+                        <FileExplorer
+                            workspaceRoot={workspaceRoot}
+                            fileTree={fileTree}
+                            buffers={buffers}
+                            activeBufferId={activeBufferId}
+                            runningBufferId={runningBufferId}
+                            renamingPath={renamingPath}
+                            formatLabel={formatLabel}
+                            onSelectBuffer={setActiveBufferId}
+                            onOpenFile={handleOpenFile}
+                            onCreateFile={createUntitledFile}
+                            onSaveFile={handleSaveFileStable}
+                            onRenameFile={renameFile}
+                            onDeleteFile={handleDeleteFile}
+                            onCloseBuffer={closeBuffer}
+                            onSelectWorkspace={selectWorkspaceFolder}
+                            onRefreshTree={refreshFileTree}
+                            onRenameCommit={handleRenameCommitSafe}
+                            onRenameCancel={() => setRenamingPath(null)}
+                            onKeepBuffer={keepBuffer}
+                        />
+                    }
+                    performContent={<PerformancePanel />}
+                    controlContent={
+                        <ControlPanel
+                            sliders={controlViews.sliders}
+                            buttons={controlViews.buttons}
+                            groups={codeControls.groups}
+                            onGroupToggle={handleGroupToggle}
+                            onSliderChange={handleSliderChange}
+                            onButtonChange={handleButtonChange}
+                            onJump={handleControlJump}
+                        />
+                    }
+                />
             </main>
             {isVuPanelVisible && workspaceRoot && (
                 <VuMeterPanel

@@ -1,4 +1,4 @@
-//! `$remap` smooths its range and maps its input identically on the block and
+//! `$remap` maps its input through its range identically on the block and
 //! per-sample paths.
 
 mod block_common;
@@ -10,8 +10,7 @@ use serde_json::json;
 static GLOBAL: CountingAllocator = CountingAllocator;
 
 #[test]
-fn remap_smooths_its_range_per_channel() {
-    use modular_core::types::Clickless;
+fn remap_through_a_per_channel_range() {
     check_module(
         "$remap",
         json!({
@@ -22,26 +21,32 @@ fn remap_smooths_its_range_per_channel() {
             "outMax": cable("lfo", 2),
         }),
         |src, lfo| {
-            let mut states = [[Clickless::default(); 4]; CHANNELS];
+            let out_min: Vec<f32> = (0..src.len())
+                .map(|k| [-1.0, -2.0, 0.0, 1.0][k % CHANNELS])
+                .collect();
+            let out_max: Vec<f32> = (0..src.len()).map(|k| lfo[k - k % CHANNELS + 2]).collect();
             src.iter()
-                .enumerate()
-                .map(|(k, &x)| {
-                    let ch = k % CHANNELS;
-                    let range = [-5.0, 5.0, [-1.0, -2.0, 0.0, 1.0][ch], lfo[k - ch + 2]];
-                    for (state, target) in states[ch].iter_mut().zip(range) {
-                        state.update(target);
-                    }
-                    let [in_min, in_max, out_min, out_max] = states[ch].map(|s| *s);
-                    let denom = in_max - in_min;
-                    let v = if denom.abs() < f32::EPSILON {
-                        out_min
-                    } else {
-                        (x - in_min) * (out_max - out_min) / denom + out_min
-                    };
+                .zip(out_min.iter().zip(&out_max))
+                .map(|(&x, (&out_min, &out_max))| {
+                    let v = (x + 5.0) * (out_max - out_min) / 10.0 + out_min;
                     if v.is_finite() { v } else { 0.0 }
                 })
                 .collect()
         },
+    );
+}
+
+#[test]
+fn paths_agree() {
+    check_paths_agree(
+        "$remap",
+        json!({
+            "input": poly_cable("src", CHANNELS),
+            "inMin": cable("lfo", 1),
+            "inMax": 5.0,
+            "outMin": poly_cable("lfo", CHANNELS),
+            "outMax": [3.0, 4.0],
+        }),
     );
 }
 

@@ -33,7 +33,7 @@ export interface CallSiteSpans {
 
 /**
  * Call site key using line:column format (both 1-based).
- * This matches the format produced by both ts-morph and V8 Error.captureStackTrace.
+ * This matches the format V8's Error.captureStackTrace reports.
  */
 export type CallSiteKey = `${number}:${number}`;
 

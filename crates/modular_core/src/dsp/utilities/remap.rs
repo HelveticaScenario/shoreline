@@ -3,89 +3,101 @@ use schemars::JsonSchema;
 
 use std::ops::Range;
 
-use crate::dsp::utils::{map_range, sanitize};
+use crate::block_input;
+use crate::dsp::utils::map_range;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
-use crate::types::Clickless;
+use crate::types::SwapGlide;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RemapParams {
-    /// signal input to remap
+    #[input("signal to rescale", type = audio)]
     input: PolySignal,
-    /// minimum of input range
-    #[signal(default = -5.0)]
-    in_min: PolySignal,
-    /// maximum of input range
-    #[signal(default = 5.0)]
-    in_max: PolySignal,
-    /// minimum of output range
-    #[signal(default = -5.0)]
+    #[input("output value for an input at inMin", type = control, default = -5.0, control_range = (-5.0, 5.0))]
     out_min: PolySignal,
-    /// maximum of output range
-    #[signal(default = 5.0)]
+    #[input("output value for an input at inMax", type = control, default = 5.0, control_range = (-5.0, 5.0))]
     out_max: PolySignal,
+    #[input("input value that maps to outMin", type = control, default = -5.0, control_range = (-5.0, 5.0))]
+    in_min: PolySignal,
+    #[input("input value that maps to outMax", type = control, default = 5.0, control_range = (-5.0, 5.0))]
+    in_max: PolySignal,
 }
 
 #[derive(Default, Clone, Copy)]
 struct ChannelState {
-    in_min: Clickless,
-    in_max: Clickless,
-    out_min: Clickless,
-    out_max: Clickless,
+    in_min: SwapGlide,
+    in_max: SwapGlide,
+    out_min: SwapGlide,
+    out_max: SwapGlide,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct RemapOutputs {
-    #[output("output", "remapped signal output", default)]
+    #[output("output", "the rescaled signal", type = cv, default)]
     sample: PolyOutput,
 }
 
-/// Linearly rescales a signal from one voltage range to another.
-///
-/// Maps **input** from \[inMin, inMax\] to \[outMin, outMax\]. Useful for
-/// converting between different voltage standards or reshaping control
-/// signals.
-///
-/// ```js
-/// // convert a 0–5 V envelope to a -5–5 V bipolar signal
-/// $remap($adsr($clock.beatTrigger, {attack: 0.3, decay: 0.2, sustain: 4, release: 0.5}), -5, 5, 0, 5)
-///
-/// // convert a -5–5 V signal to 0–1 V
-/// $remap($sine('1hz'), 0, 1, -5, 5)
-/// ```
-#[module(name = "$remap", args(input, outMin, outMax, inMin, inMax), block)]
+const REMAP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Rescale between ranges",
+    description: "Maps a signal from one voltage range onto another, stretching, \
+                  shifting or flipping it on the way. It is what `.range()` uses; \
+                  reach for it directly to flip a signal or to stretch just part of \
+                  its swing over the target.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Pad ducked by an upside-down envelope",
+        code: r#"
+            const duck = $perc($clock.beatTrigger, { decay: 0.3 })
+            $tr808.kick($clock.beatTrigger).out()
+            $saw($chord('C3[m7]'))
+              .amp($remap(duck, 5, 0, 0, 5))
+              .out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$remap",
+    docs = REMAP_DOCS,
+    args(input, outMin, outMax, inMin, inMax),
+    block
+)]
 pub struct Remap {
     outputs: RemapOutputs,
     channel_state: Box<[ChannelState]>,
     params: RemapParams,
 }
 
-impl ChannelState {
-    /// Smooth the range toward its targets, so changes do not click, and map
-    /// `x` through it.
-    #[inline(always)]
-    fn step(&mut self, x: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f32) -> f32 {
-        self.in_min.update(in_min);
-        self.in_max.update(in_max);
-        self.out_min.update(out_min);
-        self.out_max.update(out_max);
-        map_range(x, *self.in_min, *self.in_max, *self.out_min, *self.out_max)
-    }
-}
-
 impl Remap {
-    fn update(&mut self, _sample_rate: f32) {
+    /// Outside a glide, reads each range param raw, exactly as `process_block`
+    /// does.
+    fn update(&mut self, sample_rate: f32) {
         let p = &self.params;
-        for (i, state) in self.channel_state.iter_mut().enumerate() {
-            let value = state.step(
-                p.input.get_value(i),
-                p.in_min.get_value(i),
-                p.in_max.get_value(i),
-                p.out_min.get_value(i),
-                p.out_max.get_value(i),
-            );
+        for i in 0..self.channel_count() {
+            let state = &mut self.channel_state[i];
+            let in_min =
+                state
+                    .in_min
+                    .follow(p.in_min.get_value(i), p.in_min.glide_mark(i), sample_rate);
+            let in_max =
+                state
+                    .in_max
+                    .follow(p.in_max.get_value(i), p.in_max.glide_mark(i), sample_rate);
+            let out_min =
+                state
+                    .out_min
+                    .follow(p.out_min.get_value(i), p.out_min.glide_mark(i), sample_rate);
+            let out_max =
+                state
+                    .out_max
+                    .follow(p.out_max.get_value(i), p.out_max.glide_mark(i), sample_rate);
+            let value = map_range(p.input.get_value(i), in_min, in_max, out_min, out_max);
             self.outputs.sample.set(i, value);
         }
     }
@@ -96,28 +108,44 @@ impl Remap {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
+        let channels = self.channel_count();
+        let p = &self.params;
+        let gliding = self.channel_state[..channels]
+            .iter()
+            .enumerate()
+            .any(|(i, cs)| {
+                cs.in_min.will_glide(p.in_min.glide_mark(i))
+                    || cs.in_max.will_glide(p.in_max.glide_mark(i))
+                    || cs.out_min.will_glide(p.out_min.glide_mark(i))
+                    || cs.out_max.will_glide(p.out_max.glide_mark(i))
+            });
+        if gliding {
+            return None;
+        }
         let mut scratch = Default::default();
-        let inputs = self
-            .params
-            .block_inputs(range.clone(), self.channel_count(), &mut scratch)?;
-        for i in range {
-            let rows = inputs
-                .input
-                .row(i)
-                .iter()
-                .zip(inputs.in_min.row(i))
-                .zip(inputs.in_max.row(i))
-                .zip(inputs.out_min.row(i))
-                .zip(inputs.out_max.row(i));
-            let slots = outputs
-                .sample
-                .slot_mut(i)
-                .iter_mut()
-                .zip(self.channel_state.iter_mut());
-            for ((out, state), ((((&x, &in_min), &in_max), &out_min), &out_max)) in slots.zip(rows)
-            {
-                *out = sanitize(state.step(x, in_min, in_max, out_min, out_max));
-            }
+        let inputs = p.block_inputs(range.clone(), channels, &mut scratch)?;
+        let last = range.end - 1;
+        block_input::map(
+            &mut outputs.sample,
+            range,
+            [
+                inputs.input,
+                inputs.in_min,
+                inputs.in_max,
+                inputs.out_min,
+                inputs.out_max,
+            ],
+            |[x, in_min, in_max, out_min, out_max]| map_range(x, in_min, in_max, out_min, out_max),
+        );
+        for (i, cs) in self.channel_state[..channels].iter_mut().enumerate() {
+            cs.in_min
+                .settle(inputs.in_min.row(last)[i], p.in_min.glide_mark(i));
+            cs.in_max
+                .settle(inputs.in_max.row(last)[i], p.in_max.glide_mark(i));
+            cs.out_min
+                .settle(inputs.out_min.row(last)[i], p.out_min.glide_mark(i));
+            cs.out_max
+                .settle(inputs.out_max.row(last)[i], p.out_max.glide_mark(i));
         }
         Some(())
     }

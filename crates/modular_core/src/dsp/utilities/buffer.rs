@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     Buffer, BufferData, MonoSignal,
     poly::{PolyOutput, PolySignal},
@@ -8,15 +10,16 @@ use crate::{
 
 // ─── $buffer (BufferWrite) ────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BufferWriteParams {
+    #[input("signal recorded into the buffer", type = audio)]
     input: PolySignal,
     #[serde(default = "default_buffer_length")]
     #[deserr(default = default_buffer_length())]
     #[schemars(skip)]
-    #[signal(skip)]
     length: f64,
 }
 
@@ -36,6 +39,11 @@ struct BufferWriteOutputs {
     #[serde(skip)]
     #[schemars(skip)]
     buffer: BufferData,
+    /// A sample has been written, so each block start advances the cursor
+    /// past the previous block.
+    #[serde(skip)]
+    #[schemars(skip)]
+    started: bool,
 }
 
 impl Default for BufferWriteOutputs {
@@ -43,6 +51,7 @@ impl Default for BufferWriteOutputs {
         Self {
             sample: PolyOutput::default(),
             buffer: BufferData::new_zeroed(1, 1),
+            started: false,
         }
     }
 }
@@ -55,16 +64,19 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
     fn schemas() -> Vec<crate::types::OutputSchema> {
         vec![crate::types::OutputSchema {
             name: "output".to_string(),
-            description: "input signal passthrough".to_string(),
+            description: "the input, passed through".to_string(),
+            output_type: crate::types::OutputType::Cv,
             polyphonic: true,
             default: true,
             min_value: None,
             max_value: None,
+            channels: None,
         }]
     }
 
     fn transfer_buffers_from(&mut self, old: &mut Self) {
         self.buffer.copy_overlap_from(&old.buffer);
+        self.started = old.started;
     }
 
     fn get_buffer_output(&self, port: &str) -> Option<&BufferData> {
@@ -78,14 +90,15 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
         vec!["buffer".to_string()]
     }
 
-    /// Advance the circular buffer write position by `block_size` once per
-    /// internal block. Called from the wrapper's `start_block()` before
-    /// any per-sample `update()` runs, so `read_write_index()` becomes the
-    /// base offset for the new block — `BufferWrite::update` adds
-    /// `current_block_index()` for the per-slot write position.
+    /// Advance the circular buffer write position past the previous block
+    /// at each block start, before any per-sample `update()` runs, so
+    /// `read_write_index()` is the absolute sample position of the new
+    /// block's first slot (0 for the first block written) whatever the block
+    /// size. `BufferWrite::update` adds `current_block_index()` for the
+    /// per-slot write position.
     fn tick_buffers(&mut self, block_size: usize) {
         let frame_count = self.buffer.frame_count();
-        if frame_count == 0 {
+        if frame_count == 0 || !self.started {
             return;
         }
         let new_index = self.buffer.read_write_index().wrapping_add(block_size);
@@ -151,10 +164,31 @@ impl BufferWriteBlockOutputs {
 #[derive(Default)]
 struct BufferWriteState {}
 
-/// Writes an input signal into a circular buffer each sample tick.
-/// The buffer is owned by this module and exposed as a buffer output.
-/// Readers ($delayRead, $bufRead) connect to it via buffer params.
-#[module(name = "$buffer", has_init, args(input, length))]
+const BUFFER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Recording loop for delays",
+    description: "Continuously records a signal into a loop the given number of \
+                  seconds long, for `$delayRead` and `$bufRead` to play back. On its \
+                  own it makes no sound.",
+    categories: &[ModuleCategory::Effect, ModuleCategory::Utility],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Echo tap",
+        code: r#"
+            const voice = $saw($cycle($p('c3 eb3 g3 ~'))).amp(
+              $perc($clock.beatTrigger, { decay: 0.15 }),
+            )
+            voice.out()
+            $delayRead($buffer(voice, 1), 0.375).amp(2.5).out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$buffer",
+    docs = BUFFER_DOCS,
+    has_init,
+    args(input, length)
+)]
 pub struct BufferWrite {
     params: BufferWriteParams,
     outputs: BufferWriteOutputs,
@@ -181,9 +215,9 @@ impl BufferWrite {
             return;
         }
 
-        // `tick_buffers` advanced the write cursor by `block_size` at the
-        // block boundary. Inside the per-sample loop the effective write
-        // position for slot `i` is `read_write_index() + i`.
+        // `tick_buffers` set the write cursor to this block's first slot at
+        // the block boundary, so slot `i` writes at `read_write_index() + i`.
+        self.outputs.started = true;
         let base = self.outputs.buffer.read_write_index();
         let offset = self.current_block_index();
         let frame = base.wrapping_add(offset) % frame_count;
@@ -244,25 +278,51 @@ fn read_interpolated(buffer: &Buffer, channel: usize, frame: f32) -> f32 {
     ((c3 * frac + c2) * frac + c1) * frac + c0
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BufReadParams {
+    #[input("buffer to read, from a `$buffer`")]
     buffer: Buffer,
-    /// read position (0 to 5V scales to 0 to buffer length)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "read position: 0 the start of the buffer, 5 the end; wraps past either end",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     frame: MonoSignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BufReadOutputs {
-    #[output("output", "buffer sample output", default)]
+    #[output(
+        "output",
+        "one channel per buffer channel, read at the position",
+        type = cv,
+        default
+    )]
     sample: PolyOutput,
 }
 
-/// Reads a sample frame from a buffer and outputs its channels as a poly signal.
-#[module(name = "$bufRead", channels_derive = buf_read_derive_channel_count, args(buffer, frame))]
+const BUF_READ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Read a buffer by position",
+    description: "Plays a `$buffer` from a position you choose rather than a fixed \
+                  time behind the recording. Sweep the position to scrub through what \
+                  was recorded, like moving a tape by hand.",
+    categories: &[ModuleCategory::Utility],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Scrubbing a recorded phrase",
+        code: r#"
+            const phrase = $buffer($saw($cycle($p('c3 e3 g3 b3'))), 2)
+            $bufRead(phrase, $sine('0.1hz').range(0, 5)).out()
+        "#,
+    }],
+};
+
+#[module(name = "$bufRead", docs = BUF_READ_DOCS, channels_derive = buf_read_derive_channel_count, args(buffer, frame))]
 pub struct BufRead {
     outputs: BufReadOutputs,
     params: BufReadParams,
@@ -506,8 +566,8 @@ mod tests {
             .expect("no buffer output");
         assert_eq!(
             buffer.read_write_index(),
-            n,
-            "write_index should equal number of steps"
+            n - TEST_BLOCK_SIZE,
+            "write_index should be the current block's first sample position"
         );
     }
 
@@ -556,11 +616,13 @@ mod tests {
             s.tick(module.as_ref());
         }
 
-        // write_index should keep incrementing past frame_count (no modular reset)
+        // write_index keeps counting past frame_count (no modular reset): the
+        // absolute position of the current block's first sample.
         let write_index = buffer.read_write_index();
+        let expected = total_steps - TEST_BLOCK_SIZE;
         assert_eq!(
-            write_index, total_steps,
-            "write_index should be {total_steps}, got {write_index}"
+            write_index, expected,
+            "write_index should be {expected}, got {write_index}"
         );
 
         let last_frame = write_index % frame_count;
