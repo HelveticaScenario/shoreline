@@ -116,17 +116,18 @@ pub struct Clock {
 struct ClockOutputs {
     #[output(
         "playhead",
-        "bar playhead: channel 0 is the position within the bar (0 to 1), channel 1 the count of completed bars", type = cv,
+        "bar playhead: channel 0 is the position within the bar (0 to 1), channel 1 the count of completed bars",
+        type = cv,
         default
     )]
     playhead: PolyOutput,
-    #[output("barTrigger", "fires at the start of each bar", type = trig, range = (0.0, 5.0))]
+    #[output("barTrigger", "fires at the start of each bar", type = trig)]
     bar_trigger: f32,
-    #[output("beatTrigger", "fires at the start of each beat", type = trig, range = (0.0, 5.0))]
+    #[output("beatTrigger", "fires at the start of each beat", type = trig)]
     beat_trigger: f32,
     #[output("ramp", "rises across each bar, then resets", type = cv, range = (0.0, 5.0))]
     ramp: f32,
-    #[output("ppqTrigger", "fires 48 times per quarter note", type = trig, range = (0.0, 5.0))]
+    #[output("ppqTrigger", "fires 48 times per quarter note", type = trig)]
     ppq_trigger: f32,
     #[output("beatInBar", "the current beat within the bar, counting from 0", type = cv)]
     beat_in_bar: f32,
@@ -136,12 +137,13 @@ struct ClockOutputs {
     bar_length: f32,
     #[output(
         "grooveOffset",
-        "how far the global groove shifts the playhead, in bars", type = cv
+        "how far the global groove shifts the playhead, in bars",
+        type = cv
     )]
     groove_offset: f32,
     #[output("grooveVelocity", "velocity of the current global groove step", type = cv, range = (0.0, 5.0))]
     groove_velocity: f32,
-    #[output("grooveTrigger", "fires at the start of each global groove step", type = trig, range = (0.0, 5.0))]
+    #[output("grooveTrigger", "fires at the start of each global groove step", type = trig)]
     groove_trigger: f32,
 }
 

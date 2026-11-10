@@ -573,7 +573,7 @@ export interface ModuleSpec {
 export interface OutputSchema {
   name: string
   description: string
-  /** `cv`, `gate` or `trig`. */
+  /** An `OutputType` value. */
   outputType: string
   /** Whether this output is polyphonic (PolyOutput) or monophonic (f32/f64) */
   polyphonic: boolean
@@ -589,6 +589,22 @@ export interface OutputSchema {
    */
   channels?: number
 }
+
+/**
+ * What an output emits, named in `#[output(type = …)]`: a continuous
+ * voltage, or a gate or trigger on the 0–5 V convention.
+ */
+export type OutputType =  'cv'|
+'gate'|
+'trig';
+
+/** The kind of voltage a signal input reads, named in `#[input(type = …)]`. */
+export type ParamType =  'audio'|
+'control'|
+'pitch'|
+'frequency'|
+'gate'|
+'trig';
 
 export interface PatchGraph {
   modules: Array<ModuleSpec>
@@ -651,7 +667,7 @@ export interface ScopeStats {
 export interface SignalParamSchema {
   name: string
   description: string
-  /** `audio`, `control`, `pitch`, `frequency`, `gate` or `trig`. */
+  /** A `ParamType` value. */
   paramType: string
   /** What a disconnected input reads, when it reads a fixed value. */
   defaultValue?: number

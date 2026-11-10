@@ -29,7 +29,7 @@ struct ClockDividerParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ClockDividerOutputs {
-    #[output("output", "a short trigger every `division` ticks", type = trig, default, range = (0.0, 5.0))]
+    #[output("output", "fires every `division` ticks", type = trig, default)]
     pub output: PolyOutput,
 }
 

@@ -27,9 +27,9 @@ struct CoinFlipParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CoinFlipOutputs {
-    #[output("heads", "triggers and gates that land heads", type = trig, default, range = (0.0, 5.0))]
+    #[output("heads", "triggers and gates that land heads", type = gate, default)]
     heads: PolyOutput,
-    #[output("tails", "triggers and gates that land tails", type = trig, range = (0.0, 5.0))]
+    #[output("tails", "triggers and gates that land tails", type = gate)]
     tails: PolyOutput,
 }
 

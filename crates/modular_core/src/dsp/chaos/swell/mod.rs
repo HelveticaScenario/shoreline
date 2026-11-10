@@ -116,13 +116,15 @@ struct SwellOutputs {
     height: PolyOutput,
     #[output(
         "tilt",
-        "lean along the swell: positive while the water rises; a sine on gentle seas, a sawtooth that snaps down at each crest on steep ones", type = cv,
+        "lean along the swell: positive while the water rises; a sine on gentle seas, a sawtooth that snaps down at each crest on steep ones",
+        type = cv,
         range = (-5.0, 5.0)
     )]
     tilt: PolyOutput,
     #[output(
         "roll",
-        "lean across the swell, from waves arriving off-axis; silent at `spread` 0", type = cv,
+        "lean across the swell, from waves arriving off-axis; silent at `spread` 0",
+        type = cv,
         range = (-5.0, 5.0)
     )]
     roll: PolyOutput,

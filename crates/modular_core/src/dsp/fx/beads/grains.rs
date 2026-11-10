@@ -123,7 +123,8 @@ struct GranularParams {
 struct GranularOutputs {
     #[output(
         "output",
-        "stereo mix of every voice, as left and right channels", type = cv,
+        "stereo mix of every voice, as left and right channels",
+        type = cv,
         default,
         range = (-5.0, 5.0),
         channels = 2

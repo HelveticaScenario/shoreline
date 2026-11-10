@@ -2577,8 +2577,9 @@ pub enum Seq {
 pub struct SignalParamSchema {
     pub name: String,
     pub description: String,
-    /// `audio`, `control`, `pitch`, `frequency`, `gate` or `trig`.
-    pub param_type: String,
+    /// A `ParamType` value.
+    #[napi(ts_type = "string")]
+    pub param_type: ParamType,
     /// What a disconnected input reads, when it reads a fixed value.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_value: Option<f64>,
@@ -2600,14 +2601,39 @@ pub struct SignalParamSchema {
     pub control_max: Option<f64>,
 }
 
+/// The kind of voltage a signal input reads, named in `#[input(type = …)]`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[napi(string_enum = "lowercase")]
+pub enum ParamType {
+    Audio,
+    Control,
+    Pitch,
+    Frequency,
+    Gate,
+    Trig,
+}
+
+/// What an output emits, named in `#[output(type = …)]`: a continuous
+/// voltage, or a gate or trigger on the 0–5 V convention.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[napi(string_enum = "lowercase")]
+pub enum OutputType {
+    Cv,
+    Gate,
+    Trig,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[napi(object)]
 pub struct OutputSchema {
     pub name: String,
     pub description: String,
-    /// `cv`, `gate` or `trig`.
-    pub output_type: String,
+    /// An `OutputType` value.
+    #[napi(ts_type = "string")]
+    pub output_type: OutputType,
     /// Whether this output is polyphonic (PolyOutput) or monophonic (f32/f64)
     #[serde(default)]
     pub polyphonic: bool,

@@ -182,7 +182,8 @@ struct ReverbParams {
 struct ReverbOutputs {
     #[output(
         "output",
-        "stereo reverb, fully wet, as left and right channels", type = cv,
+        "stereo reverb, fully wet, as left and right channels",
+        type = cv,
         default
     )]
     sample: PolyOutput,

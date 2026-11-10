@@ -65,7 +65,7 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
         vec![crate::types::OutputSchema {
             name: "output".to_string(),
             description: "the input, passed through".to_string(),
-            output_type: "cv".to_string(),
+            output_type: crate::types::OutputType::Cv,
             polyphonic: true,
             default: true,
             min_value: None,
@@ -299,7 +299,8 @@ struct BufReadParams {
 struct BufReadOutputs {
     #[output(
         "output",
-        "one channel per buffer channel, read at the position", type = cv,
+        "one channel per buffer channel, read at the position",
+        type = cv,
         default
     )]
     sample: PolyOutput,

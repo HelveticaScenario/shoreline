@@ -39,7 +39,8 @@ fn derive_track_channel_count(params: &TrackParams) -> usize {
 struct TrackOutputs {
     #[output(
         "output",
-        "the value at the current position, curved between keyframes", type = cv,
+        "the value at the current position, curved between keyframes",
+        type = cv,
         default
     )]
     sample: PolyOutput,

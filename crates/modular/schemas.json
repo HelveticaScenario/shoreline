@@ -20348,7 +20348,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "a short trigger every `division` ticks",
+        "description": "fires every `division` ticks",
         "outputType": "trig",
         "polyphonic": true,
         "default": true,
@@ -20483,7 +20483,7 @@
       {
         "name": "heads",
         "description": "triggers and gates that land heads",
-        "outputType": "trig",
+        "outputType": "gate",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -20492,7 +20492,7 @@
       {
         "name": "tails",
         "description": "triggers and gates that land tails",
-        "outputType": "trig",
+        "outputType": "gate",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -21333,7 +21333,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the stretched gate",
+        "description": "high for `time` after each rising edge",
         "outputType": "gate",
         "polyphonic": true,
         "default": true,
@@ -23123,7 +23123,7 @@
       },
       {
         "name": "trig",
-        "description": "a short trigger each time the snapped note changes",
+        "description": "fires each time the snapped note changes",
         "outputType": "trig",
         "polyphonic": true,
         "default": false,
@@ -26960,7 +26960,7 @@
     "outputs": [
       {
         "name": "bd",
-        "description": "bass drum trigger",
+        "description": "bass drum",
         "outputType": "trig",
         "polyphonic": true,
         "default": true,
@@ -26969,7 +26969,7 @@
       },
       {
         "name": "sd",
-        "description": "snare drum trigger",
+        "description": "snare drum",
         "outputType": "trig",
         "polyphonic": true,
         "default": false,
@@ -26978,7 +26978,7 @@
       },
       {
         "name": "hh",
-        "description": "hi-hat trigger",
+        "description": "hi-hat",
         "outputType": "trig",
         "polyphonic": true,
         "default": false,
@@ -26987,7 +26987,7 @@
       },
       {
         "name": "bdAccent",
-        "description": "bass drum accent trigger",
+        "description": "bass drum accent",
         "outputType": "trig",
         "polyphonic": true,
         "default": false,
@@ -26996,7 +26996,7 @@
       },
       {
         "name": "sdAccent",
-        "description": "snare drum accent trigger",
+        "description": "snare drum accent",
         "outputType": "trig",
         "polyphonic": true,
         "default": false,
@@ -27005,7 +27005,7 @@
       },
       {
         "name": "hhAccent",
-        "description": "hi-hat accent trigger",
+        "description": "hi-hat accent",
         "outputType": "trig",
         "polyphonic": true,
         "default": false,

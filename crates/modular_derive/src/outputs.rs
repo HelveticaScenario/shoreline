@@ -37,11 +37,12 @@ impl OutputType {
         })
     }
 
-    fn as_str(self) -> &'static str {
+    /// The matching `crate::types::OutputType` variant.
+    fn variant(self) -> TokenStream2 {
         match self {
-            Self::Cv => "cv",
-            Self::Gate => "gate",
-            Self::Trig => "trig",
+            Self::Cv => quote! { crate::types::OutputType::Cv },
+            Self::Gate => quote! { crate::types::OutputType::Gate },
+            Self::Trig => quote! { crate::types::OutputType::Trig },
         }
     }
 }
@@ -83,7 +84,8 @@ struct OutputField {
 /// - #[output("name", "description", type = cv, range = (-1.0, 1.0))]
 /// - #[output("name", "description", type = cv, channels = 2)]
 ///
-/// `type` is required.
+/// `type` is required. Gate and trig outputs emit 0–5 V, so they take no
+/// `range`.
 fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
     use syn::Result as SynResult;
     use syn::parse::{Parse, ParseStream};
@@ -185,6 +187,18 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                     name.span(),
                     format!("output '{name_value}' needs a `type` (cv, gate or trig)"),
                 ));
+            };
+            let range = match output_type {
+                OutputType::Cv => range,
+                OutputType::Gate | OutputType::Trig => {
+                    if range.is_some() {
+                        return Err(syn::Error::new(
+                            name.span(),
+                            "gate and trig outputs take no range; they emit 0–5 V",
+                        ));
+                    }
+                    Some((0.0, 5.0))
+                }
             };
 
             Ok(OutputAttrParser {
@@ -392,7 +406,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .map(|o| {
             let output_name = &o.output_name;
             let description = &o.description;
-            let output_type = o.output_type.as_str();
+            let output_type = o.output_type.variant();
             let is_polyphonic = o.precision == OutputPrecision::PolySignal;
             let is_default = o.is_default;
             let min_value = match o.range {
@@ -411,7 +425,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 crate::types::OutputSchema {
                     name: #output_name.to_string(),
                     description: #description,
-                    output_type: #output_type.to_string(),
+                    output_type: #output_type,
                     polyphonic: #is_polyphonic,
                     default: #is_default,
                     min_value: #min_value,
@@ -669,8 +683,7 @@ mod tests {
 
     #[test]
     fn reads_the_output_type() {
-        let attr =
-            parse(r#""gate", "high while a note plays", type = gate, range = (0.0, 5.0)"#).unwrap();
+        let attr = parse(r#""gate", "high while a note plays", type = gate"#).unwrap();
         assert_eq!(attr.output_type, OutputType::Gate);
         assert_eq!(attr.range, Some((0.0, 5.0)));
         let attr = parse(r#""output", "the mix", default, type = cv"#).unwrap();
@@ -682,5 +695,6 @@ mod tests {
         assert!(err(r#""output", "the mix", default"#).contains("needs a `type`"));
         assert!(err(r#""output", "the mix", type = audio"#).contains("unknown output type"));
         assert!(err(r#""output", "the mix", type = cv, type = gate"#).contains("duplicate"));
+        assert!(err(r#""gate", "held", type = gate, range = (0.0, 5.0)"#).contains("no range"));
     }
 }
