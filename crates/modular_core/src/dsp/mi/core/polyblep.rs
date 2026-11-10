@@ -27,3 +27,14 @@ pub fn next_integrated_blep_sample(t: f32) -> f32 {
 pub fn this_integrated_blep_sample(t: f32) -> f32 {
     next_integrated_blep_sample(1.0 - t)
 }
+
+/// When within the sample an edge `distance` cycles back fell, at `speed`
+/// cycles per sample. A threshold that moves across the phase lands it outside
+/// 0–1, slightly as the pitch sweeps and far when a knob jumps; bounding it to
+/// −1–2 keeps Plaits' sweeps exact and the correction small, and a standstill
+/// (0/0) reads as 0.
+#[inline(always)]
+pub fn edge_time(distance: f32, speed: f32) -> f32 {
+    let t = distance / speed;
+    if t.is_nan() { 0.0 } else { t.clamp(-1.0, 2.0) }
+}
