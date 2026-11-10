@@ -267,8 +267,8 @@ type Signal = number | Note | HZ | ModuleOutput;
  *
  * Can be:
  * - A single {@link Signal}
- * - An array of {@link Signal}s (creates multiple voices)
  * - An iterable of {@link ModuleOutput}s
+ * - An array of any of these (creates multiple voices)
  * - A {@link SignalGroup} from \`$g1\`/\`$g2\`/\`$g3\` (cartesian voice expansion)
  *
  * @example $saw(["C3", "E3", "G3"]).out()                    // 3-voice chord
@@ -276,7 +276,7 @@ type Signal = number | Note | HZ | ModuleOutput;
  * @see {@link Signal} - for single-channel signals
  * @see {@link Collection} - for grouping outputs
  */
-type Poly<T extends Signal = Signal> = OrArray<T> | Iterable<ModuleOutput> | SignalGroup;
+type Poly<T extends Signal = Signal> = OrArray<T | Iterable<ModuleOutput>> | SignalGroup;
 
 /**
  * An axis of an XY scope: signals and collections, or an array mixing
@@ -309,7 +309,7 @@ interface SignalGroup {
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
  * @see {@link Signal} - for single-channel signals
  */
-type Mono<T extends Signal = Signal> = OrArray<T> | Iterable<ModuleOutput>;
+type Mono<T extends Signal = Signal> = OrArray<T | Iterable<ModuleOutput>>;
 
 /**
  * A phase warp produced by the \`$phase.*\` helpers.

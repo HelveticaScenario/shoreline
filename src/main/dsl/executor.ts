@@ -42,7 +42,8 @@ import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { createControls } from './controls';
 import { assertControlsPlaced } from './controlPlacement';
-import { $p, setActiveCycleFactory, type CycleFactory } from './miniNotation';
+import { $p, setActiveCycleFactory } from './miniNotation';
+import { refusePattern } from './patternKinds';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
 import type {
@@ -397,7 +398,6 @@ export function executePatchScript(
             'DSL execution error: "$cycle" module not found in schemas',
         );
     }
-    const cycleFactory: CycleFactory = $cycle;
     // Numbers convert here; a frequency that includes a signal converts on the
     // audio thread through `_hz`. Note and Hz strings are already pitches, so
     // they are rejected rather than read as a frequency.
@@ -918,6 +918,7 @@ export function executePatchScript(
 
     const warpHelper =
         (type: string, field: string) => (value: unknown, next?: unknown) => {
+            refusePattern(value, `$phase.${type}: ${field}`);
             const t = wrapWarp({ type, [field]: replaceSignals(value) });
             return next !== undefined
                 ? wrapWarp({ type: 'pipe', first: t, second: next })
@@ -1012,7 +1013,7 @@ export function executePatchScript(
     } = analyzeSourceSpans(source, schemas);
     setActiveSpanRegistry(spanRegistry);
     setActiveInterpolationResolutions(interpolationResolutions);
-    setActiveCycleFactory(cycleFactory);
+    setActiveCycleFactory($cycle);
 
     // The user source runs as a function body (an IIFE), not at the script's
     // top level, so top-level `return` is legal in a patch script.

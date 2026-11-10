@@ -25,7 +25,7 @@ import {
     qualifiesForDollarChain,
 } from './paramsSchema';
 import { captureSourceLocation } from './captureSourceLocation';
-import { isPatternValue } from './patternKinds';
+import { isPatternValue, refusePattern } from './patternKinds';
 import {
     assertSignalGroupsTopLevelOnly,
     expandSignalGroups,
@@ -1386,6 +1386,7 @@ export class GraphBuilder {
         // needs no factory.
         let signal: FactoryFunction | undefined;
         const lift = (value: unknown): ModuleOutput[] => {
+            refusePattern(value, '$c: an argument');
             // Scalar literal checked before the iterable branch so a string is
             // one signal rather than spread into characters.
             if (typeof value === 'number' || typeof value === 'string') {

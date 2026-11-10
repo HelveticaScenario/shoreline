@@ -10,7 +10,7 @@ import {
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
 import { processModuleSchema } from './paramsSchema';
-import { isPatternValue } from './patternKinds';
+import { refusePattern } from './patternKinds';
 import { isSignalGroupLike } from './signalGroups';
 import { buildSignalMapper } from './signalSchemaMapper';
 import {
@@ -231,15 +231,6 @@ type ModuleReturn = SingleOutput | PolyOutput | MultiOutput;
 
 type FactoryFunction = (...args: any[]) => ModuleReturn;
 
-type SourceLocation = { line: number; column: number };
-
-/** Builds one module from call args at an explicit source location. */
-type Instantiator = (
-    args: any[],
-    sourceLocation: SourceLocation | undefined,
-    argumentSpans: ArgumentSpans | undefined,
-) => ModuleReturn;
-
 interface NamespaceTree {
     [key: string]: NamespaceTree | FactoryFunction;
 }
@@ -340,7 +331,6 @@ export class DSLContext {
     factories: Record<string, FactoryFunction> = {};
     namespaceTree: NamespaceTree = {};
     private builder: GraphBuilder;
-    private instantiators = new Map<string, Instantiator>();
 
     constructor(schemas: ModuleSchema[]) {
         this.builder = new GraphBuilder(schemas);
@@ -367,54 +357,27 @@ export class DSLContext {
     }
 
     /**
-     * Create a module factory function that returns outputs directly
+     * A signal param's value with the collections inside an array spread into
+     * its elements. `what` names the param when a pattern in it is refused.
      */
-    private createFactory(schema: ModuleSchema): FactoryFunction {
-        const instantiate = this.createInstantiator(schema);
-        this.instantiators.set(schema.name, instantiate);
-        return (...args: any[]): ModuleReturn => {
-            // Capture source location from stack trace
-            const sourceLocation = captureSourceLocation();
-
-            // Capture argument spans from the pre-analyzed registry
-            const argumentSpans = captureArgumentSpans(sourceLocation);
-
-            return instantiate(args, sourceLocation, argumentSpans);
-        };
+    private signalParam(value: unknown, what: string): unknown {
+        if (isSignalGroupLike(value)) {
+            return { ...value, signals: this.signalParam(value.signals, what) };
+        }
+        if (Array.isArray(value)) {
+            return value.flatMap((v) => {
+                refusePattern(v, what);
+                return v instanceof BaseCollection ? [...v] : [v];
+            });
+        }
+        refusePattern(value, what);
+        return value;
     }
 
     /**
-     * A signal param's value with the collections inside an array, or inside
-     * a `$gN` group's array, spread into its elements. A pattern anywhere in
-     * it is refused: a pattern becomes a signal by playing it, with `.c` or
-     * `.cycle()`.
+     * Create a module factory function that returns outputs directly
      */
-    private signalParam(value: unknown, module: string, name: string): unknown {
-        if (isSignalGroupLike(value)) {
-            const signals = this.signalParam(value.signals, module, name);
-            return {
-                ...value,
-                signals:
-                    signals instanceof BaseCollection ? [...signals] : signals,
-            };
-        }
-        const refuse = (v: unknown): unknown => {
-            if (isPatternValue(v)) {
-                throw new Error(
-                    `${module}: ${name} is a pattern, not a signal — play it with .c or .cycle()`,
-                );
-            }
-            return v;
-        };
-        if (Array.isArray(value)) {
-            return value.flatMap((v) =>
-                refuse(v) instanceof BaseCollection ? [...v] : [v],
-            );
-        }
-        return refuse(value);
-    }
-
-    private createInstantiator(schema: ModuleSchema): Instantiator {
+    private createFactory(schema: ModuleSchema): FactoryFunction {
         const outputs = schema.outputs || [];
         const processed = processModuleSchema(schema);
         const scaleParamNames = processed.params
@@ -450,7 +413,9 @@ export class DSLContext {
                 return mapper ? [{ mapper, name: p.name }] : [];
             });
 
-        return (args, sourceLocation, argumentSpans): ModuleReturn => {
+        return (...args: any[]): ModuleReturn => {
+            const sourceLocation = captureSourceLocation();
+            const argumentSpans = captureArgumentSpans(sourceLocation);
             const positionalArgs = schema.positionalArgs || [];
             const params: Record<string, any> = {};
             let config: any = {};
@@ -480,14 +445,13 @@ export class DSLContext {
             for (const name of signalParamNames) {
                 params[name] = this.signalParam(
                     params[name],
-                    schema.name,
-                    name,
+                    `${schema.name}: ${name}`,
                 );
             }
             for (const { mapper, name } of nestedSignalParams) {
                 if (params[name] !== undefined) {
-                    params[name] = mapper(params[name], name, (value) =>
-                        this.signalParam(value, schema.name, name),
+                    params[name] = mapper(params[name], name, (value, path) =>
+                        this.signalParam(value, `${schema.name}: ${path}`),
                     );
                 }
             }

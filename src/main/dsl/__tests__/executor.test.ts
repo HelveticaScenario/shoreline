@@ -551,21 +551,43 @@ describe('sequencing', () => {
         expect(sine.params.freq).toMatchObject([
             { module: cycle.id, port: 'cv', type: 'cable' },
         ]);
-        expect(
-            (cycle.params as { pattern: { argument_span?: unknown } }).pattern
-                .argument_span,
-        ).toEqual(expect.any(Object));
     });
 
-    test('every pattern kind has .c', () => {
+    test.each([
+        '$p("c4 e4")',
+        '$p.s("0 2 4", "C(major)")',
+        '$p.arrange([2, $p("c4")], [1, $p("e4")])',
+        '$p("c4").fast(2)',
+        '$p("c4").slow(2)',
+        '$p("c4").struct("x ~")',
+        '$p("c4").beat("0,7", 16)',
+        '$p("c4 e4").glide(0.25)',
+    ])('%s has .c', (pattern) => {
+        const patch = execPatch(`const p = ${pattern}; $sine(p.c).out(); p.c`);
+        expect(findModules(patch, '$cycle').length).toBe(1);
+    });
+
+    test('.cycle() and separately built patterns make their own $cycle', () => {
         const patch = execPatch(`
-            $sine($p.s("0 2 4", "C(major)").c).out();
-            $sine($p.arrange([2, $p("c4")], [1, $p("e4")]).c).out();
-            $sine($p("c4").fast(2).struct("x ~").c).out();
-            $sine([$p("c4").c, "e4", $p("g4").c]).out();
-            $stereoMix($saw("c3"), { width: $p("0 5").c }).out();
+            const p = $p("c4 e4");
+            $sine(p.c).out();
+            $sine(p.cycle()).out();
+            $sine(p.fast(2).c).out();
+            $sine(p.fast(2).c).out();
         `);
-        expect(findModules(patch, '$cycle').length).toBe(6);
+        expect(findModules(patch, '$cycle').length).toBe(4);
+    });
+
+    test('.c is made again for each run of a pattern kept between runs', () => {
+        const source = '$p.kept ??= $p("c4 e4"); $sine($p.kept.c).out()';
+        execPatch(source);
+        expect(findModules(execPatch(source), '$cycle').length).toBe(1);
+    });
+
+    test('an array in a signal param spreads the collections inside it', () => {
+        const patch = execPatch('$sine([$p("c4, g4").c, "e4"]).out()');
+        const [sine] = findModules(patch, '$sine');
+        expect(sine.params.freq).toHaveLength(3);
     });
 
     test.each([
@@ -580,6 +602,8 @@ describe('sequencing', () => {
         '$sine("c3").outMono(1, $p("0.5 1"))',
         '$signal(1).range($p("0 1"), 5, -5, 5).out()',
         '$c($sine("c3")).range(0, $p("2 3")).out()',
+        '$c($p("c4 e4")).out()',
+        '$pWarp($sine("c3"), $phase.mirror($p("0 1"))).out()',
     ])('a pattern is not a signal: %s', (source) => {
         expect(() => execPatch(source)).toThrow(/is a pattern, not a signal/);
     });
@@ -606,9 +630,6 @@ describe('sequencing', () => {
 
     test('$c rejects values that are not signals', () => {
         expect(() => execPatch('$c({}).out()')).toThrow(/\$c: cannot make/);
-        expect(() => execPatch('$c($p("c4 e4")).out()')).toThrow(
-            /\$c: cannot make/,
-        );
         expect(() => execPatch('$c(undefined).out()')).toThrow(
             /\$c: cannot make/,
         );
