@@ -11,6 +11,7 @@ export type SidebarSide = 'left' | 'right';
 
 const WIDTH_STORAGE_KEY = 'modular_sidebar_width';
 const SIDE_STORAGE_KEY = 'modular_sidebar_side';
+const OPEN_STORAGE_KEY = 'modular_sidebar_open';
 const MIN_WIDTH = 160;
 /** Room kept for the editor and the activity bar when the sidebar grows. */
 const RESERVED_WIDTH = 280;
@@ -63,6 +64,24 @@ export function useSidebarWidth(): [
     }, [width]);
 
     return [width, setWidth];
+}
+
+/** Whether the sidebar panel is open, remembered across launches. */
+export function useSidebarOpen(): [boolean, (open: boolean) => void] {
+    const [open, setOpen] = useState(() => {
+        try {
+            return window.localStorage.getItem(OPEN_STORAGE_KEY) !== 'false';
+        } catch {}
+        return true;
+    });
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(OPEN_STORAGE_KEY, String(open));
+        } catch {}
+    }, [open]);
+
+    return [open, setOpen];
 }
 
 /**
