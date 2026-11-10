@@ -125,8 +125,10 @@ impl PdOscillator {
             let mut reset_time = 0.0;
             let mut restart = 0.0;
             self.master_phase += master_frequency;
+            // Wrapping by the floor keeps up with a frequency past a whole cycle
+            // per substep, which engine rates below 12 kHz allow.
             if self.master_phase >= 1.0 {
-                self.master_phase -= 1.0;
+                self.master_phase -= self.master_phase.floor();
                 if sync {
                     reset_time = edge_time(self.master_phase, master_frequency);
                     let mut at_reset = self.slave_phase + (1.0 - reset_time) * slave_frequency;
@@ -160,7 +162,7 @@ impl PdOscillator {
                     this_sample += jump * this_blep_sample(reset_time);
                     next_sample += jump * next_blep_sample(reset_time);
                 }
-                self.master_phase += 1.0;
+                self.master_phase -= self.master_phase.floor();
             }
 
             self.slave_phase += slave_frequency;

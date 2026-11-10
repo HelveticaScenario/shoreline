@@ -44,7 +44,7 @@ struct PhaseDistortionParams {
     #[deserr(default)]
     ratio: Option<PolySignal>,
     #[input(
-        "how far the phase is bent: from a pure sine (0) to bright, resonant and harsh",
+        "how far the triangle bends the phase: from none (0) to bright, resonant and harsh",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -60,7 +60,7 @@ struct PhaseDistortionParams {
     #[deserr(default)]
     asymmetry: Option<PolySignal>,
     #[input(
-        "restart the distorting oscillator every cycle, for a stable, resonant-filter-like sweep; off, it runs free for a beating, inharmonic tone"
+        "restart the distorting oscillator every cycle, for a stable, resonant-filter-like sweep; off, it runs free, beating and inharmonic between the harmonic ratios"
     )]
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]

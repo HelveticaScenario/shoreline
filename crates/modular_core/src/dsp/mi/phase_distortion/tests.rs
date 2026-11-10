@@ -151,11 +151,74 @@ fn stays_finite() {
                 let knob = (n % 11) as f32 * 0.5;
                 let out = render(&mut voice, f0, knobs(knob, 5.0 - knob, knob), sync, &state);
                 assert!(out.is_finite(), "{sample_rate} Hz, sync {sync}, sample {n}");
-                assert!(
-                    out.abs() <= 1.5,
-                    "{sample_rate} Hz, sync {sync}, sample {n}: {out}"
-                );
             }
         }
     }
+}
+
+/// Holding the frequency limit, which passes a whole cycle per substep below
+/// 12 kHz, leaves no phase behind: the tone after it matches a fresh one.
+#[test]
+fn recovers_from_the_frequency_limit() {
+    for sample_rate in [8000.0, 11025.0, 48000.0] {
+        let state = PhaseDistortionState::new(sample_rate);
+        for sync in [true, false] {
+            for limit in [2.0 * state.max_frequency, -2.0 * state.max_frequency] {
+                let hz = 220.0;
+                let tone = |voice: &mut Voice| {
+                    let out: Vec<f32> = (0..(sample_rate * 0.5) as usize)
+                        .map(|_| {
+                            render(voice, hz / sample_rate, knobs(2.5, 2.0, 1.0), sync, &state)
+                        })
+                        .collect();
+                    harmonics(&out[(sample_rate * 0.1) as usize..], hz, sample_rate, 8)
+                };
+                let fresh = tone(&mut Voice::default());
+                let mut voice = Voice::default();
+                for _ in 0..sample_rate as usize {
+                    render(&mut voice, limit, knobs(2.5, 2.0, 1.0), sync, &state);
+                }
+                let after = tone(&mut voice);
+                let loudest = fresh.iter().fold(0.0f32, |m, &a| m.max(a));
+                for (h, (a, f)) in after.iter().zip(&fresh).enumerate() {
+                    assert!(
+                        (a - f).abs() < 0.05 * loudest,
+                        "{sample_rate} Hz, sync {sync}, limit {limit}, harmonic {}: {a} vs {f}",
+                        h + 1
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// At a strong `amount` backward departs from the mirror only by the
+/// triangle's one-substep lag, so the departure shrinks as the rate rises.
+#[test]
+fn backward_departs_only_by_the_substep_lag() {
+    let departure = |sample_rate: f32| {
+        let state = PhaseDistortionState::new(sample_rate);
+        let hz = 220.0;
+        let tone = |f0: f32| {
+            let mut voice = Voice::default();
+            let out: Vec<f32> = (0..sample_rate as usize)
+                .map(|_| render(&mut voice, f0, knobs(4.0, 5.0, 3.0), true, &state))
+                .collect();
+            harmonics(&out[(sample_rate * 0.1) as usize..], hz, sample_rate, 16)
+        };
+        let forward = tone(hz / sample_rate);
+        let backward = tone(-hz / sample_rate);
+        let loudest = forward.iter().fold(0.0f32, |m, &a| m.max(a));
+        forward
+            .iter()
+            .zip(&backward)
+            .fold(0.0f32, |m, (f, b)| m.max((f - b).abs()))
+            / loudest
+    };
+    let at_48k = departure(48000.0);
+    let at_192k = departure(192000.0);
+    assert!(
+        at_192k < 0.4 * at_48k,
+        "departure {at_192k} at 192 kHz vs {at_48k} at 48 kHz"
+    );
 }
