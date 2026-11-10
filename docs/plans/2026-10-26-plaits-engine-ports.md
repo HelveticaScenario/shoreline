@@ -67,7 +67,7 @@ Rule: **split** when the two outputs are different algorithms that only share kn
 | Six-op           | One output (aux = main).                                                                                                       |
 | Wave terrain     | Outputs `output` + `pm` (sine phase-modulated by path + height; needs the internal path).                                      |
 | Waveshaping      | Outputs `output` + `overtones` (triangle → sine ↔ second folder; one cheap oscillator and a LUT read).                          |
-| Two-op FM        | Outputs `output` + `sub` (sub-octave sine PM'd by the carrier, computed in the same oversampled loop).                          |
+| Two-op FM        | Outputs `output` + `subOctave` (sub-octave sine PM'd by the carrier, computed in the same oversampled loop; `sub` is reserved). |
 | Granular formant | Split: `$mi.formant` (grainlet pair) and `$mi.zOsc` (windowed-sine "filtered waveform", peak/LP/BP/HP morph).                  |
 | Additive         | Param `series: 'integer' \| 'organ'` (24 vs 8 harmonics, separate oscillator banks).                                            |
 | Speech           | Split by model: `$mi.vowel` (formant → SAM → LPC blend) and `$mi.speak` (LPC word banks). Each keeps `excitation` (byproduct). |
@@ -84,7 +84,7 @@ Parameter names are semantic (no harmonics/timbre/morph). Absolute frequencies (
 
 - Phase-accumulator oscillators (`formant`, `zOsc`, `twoOp`, `phaseDistortion`, `waveshaper`, `waveTerrain`, `additive`, `divideDown`, `swarm`, `vowel`, `speak`, `sixOp`): frequency is read every sample, so audio-rate FM works (Plaits only interpolates per block). Through-zero runs the phase backward; oscillators that reset on wrap (grainlet, Z, SAM, BLEP saws) detect the wrap in both directions and mirror `reset_time`, so the BLEP correction stays valid. Synced inner oscillators (the grainlet's and Z's formant sine) run with the carrier's direction and restart at the phase a forward cycle ends on, so a steady backward waveform is the forward one mirrored.
 - Oversampled cores (`twoOp` 4×, `phaseDistortion` 2×, `waveTerrain` 2×): the frequency is held across the substeps of one output sample.
-- Resonators and drums (`string`, `modal`, `particles`, drums): frequency sets filter/delay coefficients, which are recomputed at the control rate (§6), so FM there is control-rate. Negative frequency has no meaning for a resonator; `throughZero` behaves as `lin` and this is documented on those modules.
+- Resonators and drums (`string`, `modal`, `particles`, drums): frequency sets filter/delay coefficients, recomputed per sample when it changes (§6). Negative frequency has no meaning for a resonator; `throughZero` behaves as `lin` and this is documented on those modules.
 
 **Excitation and accent.** Modules whose Plaits engine used `level` as accent (six-op velocity, string, modal, speech word replay, drums) take `accent` (0–5 V, default 4 V = Plaits' unpatched 0.8), matching `$tr808.*`. Plaits' unpatched-trigger "sustain" modes (string/modal bowed excitation, drum drones, six-op envelope scrubbing, swarm continuous mode) keep that behaviour when `trigger`/`gate` is disconnected, documented per module.
 
@@ -94,7 +94,7 @@ Parameter names are semantic (no harmonics/timbre/morph). Absolute frequencies (
 | `$mi.sixOp`            | `engine2/six_op_engine` + `fm/*`                 | `bank` (0–2 built-in), `patch` (0–31), `brightness`, `envelope` (time scale / scrub)         | `freq`, `fm`, `gate`, `accent`           | `output`             |
 | `$mi.waveTerrain`      | `engine2/wave_terrain_engine`                    | `terrain` (morph across 8), `radius`, `offset`                                              | `freq`, `fm`                             | `output`, `pm`       |
 | `$mi.waveshaper`       | `engine/waveshaping_engine` + `lut_ws_*`, `lut_fold*` | `shape` (4-table morph), `fold`, `asymmetry`                                            | `freq`, `fm`                             | `output`, `overtones` |
-| `$mi.twoOp`            | `engine/fm_engine`                               | `ratio` (quantised), `index`, `feedback` (bipolar: phase ↔ self feedback)                   | `freq`, `fm`                             | `output`, `sub`      |
+| `$mi.twoOp`            | `engine/fm_engine`                               | `ratio` (quantised), `index`, `feedback` (−5…5: phase ↔ self feedback)                      | `freq`, `fm`                             | `output`, `subOctave` |
 | `$mi.formant`          | `oscillator/grainlet_oscillator` ×2              | `formant`, `ratio`, `width`                                                                 | `freq`, `fm`                             | `output`             |
 | `$mi.zOsc`             | `oscillator/z_oscillator`                        | `cutoff`, `shape`, `mode`                                                                   | `freq`, `fm`                             | `output`             |
 | `$mi.additive`         | `engine/additive_engine` + `harmonic_oscillator` | `centroid`, `slope`, `bumps`, `series`                                                      | `freq`, `fm`                             | `output`             |
@@ -142,15 +142,17 @@ Port `ChordBank::ComputeChordInversion` generalised from 4 notes to N:
 
 ## 6. Execution model
 
-### Control clock + per-sample state, with a block path
+### Per-sample controls, with a block path where it pays
 
-Plaits computes control values once per 12-sample block at 48 kHz (4 kHz) and ramps them with `ParameterInterpolator`; `$macro` therefore buffers 12 samples of output. The ports instead run Operator-style:
+Plaits computes control values once per 12-sample block at 48 kHz (4 kHz) and ramps them with `ParameterInterpolator`; `$macro` therefore buffers 12 samples of output. The ports instead read every input every sample:
 
-- Each channel holds a **control clock** at a fixed 4 kHz (`phase += 4000 / sample_rate`). When it wraps, `tick()` reads the control inputs at that sample, recomputes control-rate state (filter coefficients, envelope steps, LPC frames, swarm envelopes, harmonic amplitudes, DX envelopes and LFO), and sets per-sample increments that ramp each interpolated value to its new target by the next tick — the `ParameterInterpolator` behaviour without a buffer.
-- `step()` produces one output sample from per-sample state. Frequency/FM are read here, every sample.
-- `update` = `if due { tick() }; step()`. No output latency (`$macro` has 12 samples).
-- `process_block` splits its range at tick boundaries and runs `tick()` + a chunk loop. Heavy multi-stage cores run **stage-major** within the chunk (all six DX operators one after another over the chunk; all modal SVF modes over the chunk; hi-hat noise → VCA → filter as passes), which keeps state in registers and vectorises, while each sample still sees the same arithmetic in the same order, so the paths agree bit for bit (checked by `tests/block_<module>.rs` with `tests/block_common`).
-- At 48 kHz the tick lands every 12 samples from sample 0, aligned with Plaits' blocks, so the reference tests (§8) compare against C++ directly.
+- `control()` reads the knobs and pitch for the sample and derives the engine's controls (filter coefficients, envelope steps, harmonic amplitudes, modulator ratios). Costly derivations (`exp2`, `log2`, coefficient sets) are cached and rerun only when their inputs move (`changed()`, as in the filters' `CoeffCache::refresh`). A voice whose raw inputs are bitwise unchanged, with settled ramps and no pending glide, may skip `control()` entirely.
+- Where an engine's oscillator reads a control between two samples (a BLEP restart's sub-sample value), the control steps to its new target over one sample with `Ramp`.
+- `step()` produces one output sample from per-sample state.
+- `update` = `control()` + `step()`. No output latency (`$macro` has 12 samples), and knobs take audio-rate modulation without aliasing.
+- Plaits' block control rate is a last resort: only when a module measured with per-sample controls (offline interleaved A/B) has no better way to decent performance. State that genuinely evolves per block in Plaits (LPC frames, DX envelope stages, swarm grain scheduling) keeps its own timebase converted to seconds.
+- `process_block` (where measured to pay) runs the same `control()` + `step()` per sample over resolved block inputs. Heavy multi-stage cores may run **stage-major** within a range (all six DX operators one after another; all modal SVF modes; hi-hat noise → VCA → filter as passes) as long as each sample sees the same arithmetic in the same order, so the paths agree bit for bit (checked by `tests/block_<module>.rs` with `tests/block_common`).
+- Reference drivers (§8) render the C++ with the same per-sample control model, so the tests compare against C++ directly.
 
 Per-module feasibility — every core decomposes this way; none needs an output buffer:
 
@@ -179,7 +181,7 @@ Block paths are added only where `cargo bench -p modular_core --bench patch_benc
 Running cores at 48 kHz behind a resampler would cost a polyphase kernel per channel per module, so instead every rate-dependent constant is converted at port time. Categories to audit in each file:
 
 - `kSampleRate` / `kCorrectedSampleRate` uses (`NoteToFrequency`, SAM formant increments, click/consonant durations, LPC frame length) → `sample_rate`.
-- Per-block coefficients (one-pole rates, envelope decays, `short_decay`-style constants) → stay per tick; the 4 kHz control clock keeps their meaning at any rate.
+- Per-block coefficients (one-pole rates, envelope decays, `short_decay`-style constants) → converted to per-sample time constants for the rate.
 - Per-sample coefficients written as numbers (`ONE_POLE(x, y, 0.05f)` in audio loops, pulse colouring filters, DC blockers) → converted to time constants and recomputed for the rate in `init`.
 - Delay lengths in samples (diffuser, ensemble, string) → scaled by `sample_rate / 48000` and allocated in `init`.
 - Oversampling FIRs (`lut_4x_downsampler_fir`) are rate-relative and stay as is.
@@ -189,7 +191,7 @@ At 48 kHz the converted constants reproduce the C++ values exactly, so the refer
 
 ### Efficiency
 
-- Control-rate work only on ticks, and skipped when its inputs haven't changed (`changed()` caching as in `$lpg`).
+- Derived controls recomputed only when their inputs change (`changed()` caching as in `$lpg` and the filters).
 - Plaits' `Sine` LUT ported as-is (needed for bit-near output, and cheaper than `sin`).
 - Work Plaits repeats across parallel oscillators with identical inputs is done once (the granular engine's two grainlets share one carrier window).
 - Tables as generated `static` arrays; the three six-op banks are unpacked on the main thread (in `init`, into a process-wide cache shared by all instances), so selecting a patch on the audio thread is a pointer swap.
@@ -203,8 +205,8 @@ At 48 kHz the converted constants reproduce the C++ values exactly, so the refer
 
 ## 8. Verification
 
-1. `scripts/mi-reference/`: `fetch.sh` checks out `pichenettes/eurorack` and `stmlib` at pinned commits; `generate_tables.py` writes `mi/core/tables.rs`; `build.sh` compiles each `drivers/*.cc` (48 kHz, 12-sample blocks, `-ffp-contract=off`) and writes `crates/modular_core/tests/fixtures/mi/<driver>.f32`. A driver is the engine's `Render` with Operator's control mapping (knobs in volts, exact pitch conversions), and each record holds a block's inputs then its outputs, so the Rust test replays the record without restating the sequence. Fixtures are committed; the C++ is not.
-2. Rust tests drive each voice at 48 kHz with the same sequences (ramping the pitch per block as Plaits does) and compare: ≤1e-5 per sample. Random-driven modules use the stmlib LCG with the same seed, so they are deterministic too.
+1. `scripts/mi-reference/`: `fetch.sh` checks out `pichenettes/eurorack` and `stmlib` at pinned commits; `generate_tables.py` writes `mi/core/tables.rs`; `build.sh` compiles each `drivers/*.cc` (48 kHz, 12-sample blocks, `-ffp-contract=off`) and writes `crates/modular_core/tests/fixtures/mi/<driver>.f32`. A driver is the engine's `Render` with Operator's control model (controls set every sample, knobs in volts, exact pitch conversions, signed phase increments for through-zero FM), and each record holds a sample's or block's inputs then its outputs, so the Rust test replays the record without restating the sequence. Fixtures are committed; the C++ is not.
+2. Rust tests drive each voice at 48 kHz with the same sequences and compare: ≤1e-5 per sample. Random-driven modules use the stmlib LCG with the same seed, so they are deterministic too.
 3. Block/sample agreement and allocation-free tests per block module.
 4. Rate checks: renders at 44.1 and 96 kHz against the 48 kHz render — the first 16 harmonics (pitched modules) and envelope times within tolerance.
 5. Listen against VCV Plaits at matched settings before calling each module done.

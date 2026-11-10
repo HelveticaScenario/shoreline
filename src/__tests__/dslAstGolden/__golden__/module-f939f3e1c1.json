@@ -1,0 +1,208 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["1:59",1,1]],
+      "interpolations": [],
+      "registry": [["4:9","$mi.twoOp",[["freq",10,14],["index",25,26],["feedback",38,40]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 54,
+        "gainClear": null,
+        "gainSet": {"end":58,"start":58,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":58,"start":58,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":58,"start":58,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":58,"start":58,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": [
+        "0-9 0",
+        "10-14 1",
+        "15-17 0",
+        "18-24 2",
+        "25-26 3",
+        "27-27 0",
+        "28-37 4",
+        "38-40 5",
+        "41-42 0",
+        "43-58 6"
+      ],
+      "fixes": [
+        [
+          {
+            "caretOffset": 66,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n  index: 3,\n  feedback: -3,\n  ratio: $slider('ratio', 2.5, 0, 5),\n}",
+            "span": {"end":42,"start":16},
+            "title": "Add slider for 'ratio'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'c1', 'c-1', 'c3')",
+            "preferred": true,
+            "span": {"end":14,"start":10},
+            "title": "Wrap 'freq' in a note $slider"
+          },
+          {
+            "caretOffset": 66,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n  index: 3,\n  feedback: -3,\n  ratio: $slider('ratio', 2.5, 0, 5),\n}",
+            "span": {"end":42,"start":16},
+            "title": "Add slider for 'ratio'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('index', 3, 0, 5)",
+            "preferred": false,
+            "span": {"end":26,"start":25},
+            "title": "Wrap 'index' in $slider"
+          },
+          {
+            "caretOffset": 66,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n  index: 3,\n  feedback: -3,\n  ratio: $slider('ratio', 2.5, 0, 5),\n}",
+            "span": {"end":42,"start":16},
+            "title": "Add slider for 'ratio'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('index', 3, 0, 5)",
+            "preferred": true,
+            "span": {"end":26,"start":25},
+            "title": "Wrap 'index' in $slider"
+          },
+          {
+            "caretOffset": 66,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n  index: 3,\n  feedback: -3,\n  ratio: $slider('ratio', 2.5, 0, 5),\n}",
+            "span": {"end":42,"start":16},
+            "title": "Add slider for 'ratio'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('feedback', -3, -5, 5)",
+            "preferred": false,
+            "span": {"end":40,"start":38},
+            "title": "Wrap 'feedback' in $slider"
+          },
+          {
+            "caretOffset": 66,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n  index: 3,\n  feedback: -3,\n  ratio: $slider('ratio', 2.5, 0, 5),\n}",
+            "span": {"end":42,"start":16},
+            "title": "Add slider for 'ratio'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('feedback', -3, -5, 5)",
+            "preferred": true,
+            "span": {"end":40,"start":38},
+            "title": "Wrap 'feedback' in $slider"
+          },
+          {
+            "caretOffset": 66,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n  index: 3,\n  feedback: -3,\n  ratio: $slider('ratio', 2.5, 0, 5),\n}",
+            "span": {"end":42,"start":16},
+            "title": "Add slider for 'ratio'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":58,"start":58},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":58,"start":58},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":58,"start":58},
+            "title": "Add slider for 'width'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":59,"start":59,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:9","$mi.twoOp",[["freq",10,14]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":14,"start":14,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:9","$mi.twoOp",[["freq",10,14],["index",25,26]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":29,"start":29,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:9","$mi.twoOp",[["freq",10,14],["index",25,26],["feedback",38,40]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":44,"start":44,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

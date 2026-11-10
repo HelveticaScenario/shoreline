@@ -61,7 +61,7 @@ fn z_osc_paths_agree() {
 
 #[test]
 fn allocation_free() {
-    for module in ["$mi.formant", "$mi.zOsc"] {
+    for module in ["$mi.formant", "$mi.twoOp", "$mi.zOsc"] {
         assert_eq!(
             allocations_while_rendering(
                 module,

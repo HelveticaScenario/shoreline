@@ -27826,6 +27826,237 @@
     ]
   },
   {
+    "name": "$mi.twoOp",
+    "docs": {
+      "summary": "Two-operator FM oscillator",
+      "description": "Mutable Instruments Plaits' two-operator FM: one sine phase-modulating another, 4× oversampled, for bells, electric pianos, metallic basses and clangorous leads.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Evolving FM bass",
+          "code": "const bright = $sine('0.2hz').range(0, 4)\n$mi.twoOp('c2', { index: bright }).out()"
+        },
+        {
+          "title": "Sub-octave growl",
+          "code": "$mi.twoOp('c1', { index: 3, feedback: -3 }).subOctave.out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "TwoOpParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "oscillator pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "ratio": {
+          "description": "modulator frequency against the carrier, from an octave below (0) to three octaves above (5), lingering on harmonic ratios",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index": {
+          "description": "modulation depth: how bright and clangorous the tone gets; eased off at high pitches to keep it from aliasing",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "feedback": {
+          "description": "feedback: positive feeds the modulator into itself for a harsher, noisier tone; negative feeds the output back into the modulator's pitch for a growl",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs both operators backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the FM tone",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "subOctave",
+        "description": "a sine an octave down, phase-modulated by the FM tone",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "oscillator pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "ratio",
+        "description": "modulator frequency against the carrier, from an octave below (0) to three octaves above (5), lingering on harmonic ratios",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "index",
+        "description": "modulation depth: how bright and clangorous the tone gets; eased off at high pitches to keep it from aliasing",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "feedback",
+        "description": "feedback: positive feeds the modulator into itself for a harsher, noisier tone; negative feeds the output back into the modulator's pitch for a growl",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "controlMin": -5.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs both operators backward",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.zOsc",
     "docs": {
       "summary": "Resonant-filter-like oscillator",
