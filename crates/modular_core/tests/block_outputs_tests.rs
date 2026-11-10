@@ -17,9 +17,9 @@ use modular_core::poly::PolyOutput;
 
 #[derive(modular_derive::Outputs)]
 struct SimpleOutputs {
-    #[output("value", "A value", default)]
+    #[output("value", "A value", type = cv, default)]
     value: f32,
-    #[output("poly", "Poly out")]
+    #[output("poly", "Poly out", type = cv)]
     poly: PolyOutput,
 }
 

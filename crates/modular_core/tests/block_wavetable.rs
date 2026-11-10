@@ -1,5 +1,5 @@
 //! `$wavetable` renders identically on the block and per-sample paths: held and
-//! modulated pitch and position, FM, phase offset and hard sync.
+//! modulated pitch and position, FM, phase offset, hard sync and phase warps.
 
 mod block_common;
 
@@ -29,6 +29,15 @@ fn wavetable_paths_agree() {
     check_paths_agree(
         "$wavetable",
         json!({ "wav": wav, "pitch": 0.5, "sync": poly_cable("src", CHANNELS) }),
+    );
+    check_paths_agree(
+        "$wavetable",
+        json!({
+            "wav": wav,
+            "pitch": 0.5,
+            "sync": cable("src", 0),
+            "phase": { "type": "mirror", "amount": cable("lfo", 1) },
+        }),
     );
 }
 

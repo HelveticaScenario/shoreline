@@ -3,6 +3,8 @@ use std::sync::atomic::{AtomicU32, Ordering, fence};
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{param_errors::ModuleParamErrors, poly::MonoSignal};
 
 /// Number of tap slots the video renderer can read.
@@ -67,13 +69,14 @@ pub fn read_video_since(slot: usize, since: Option<u32>) -> Option<VideoTapChunk
     Some(VideoTapChunk { head, samples })
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = video_tap_validate_params -> ModuleParamErrors)]
 struct VideoTapParams {
-    /// signal published to the video renderer
+    #[input("signal published to the video renderer", type = audio)]
     input: MonoSignal,
-    /// index of the tap slot the renderer reads (0–63)
+    #[input("tap slot the renderer reads it from", range = (0, 63))]
     slot: usize,
 }
 
@@ -95,14 +98,26 @@ fn video_tap_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct VideoTapOutputs {
-    #[output("output", "input signal passthrough", default)]
+    #[output("output", "the input, passed through", type = cv, default)]
     sample: f32,
 }
 
-/// Publishes its input to the video renderer, which polls the latest value
-/// and the recent samples of each tap slot. The DSL inserts one per audio
-/// signal a `$v` input reads.
-#[module(name = "_videoTap", args(input, slot))]
+const VIDEO_TAP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Audio signal for video",
+    description: "Publishes an audio signal to the video renderer. The DSL inserts one \
+                  for each audio signal a `$v` input reads.",
+    categories: &[ModuleCategory::Utility],
+    sections: &[],
+    examples: &[DocExample {
+        title: "LFO driving a video oscillator",
+        code: r#"
+            const lfo = $sine('0.5hz')
+            $v.out($v.solid($v.osc(lfo.range(1, 10)), 0, 0))
+        "#,
+    }],
+};
+
+#[module(name = "_videoTap", docs = VIDEO_TAP_DOCS, args(input, slot))]
 pub struct VideoTap {
     outputs: VideoTapOutputs,
     params: VideoTapParams,

@@ -175,6 +175,11 @@ impl PreparedWavetable {
         }
     }
 
+    /// Whether there is anything to read: at least one frame of nonzero size.
+    pub fn is_playable(&self) -> bool {
+        self.frame_count > 0 && self.frame_size > 0
+    }
+
     /// Read an interpolated sample from the prepared wavetable.
     ///
     /// - `level` is clamped to `[0, mipmap_count - 1]`.
@@ -185,11 +190,6 @@ impl PreparedWavetable {
     ///
     /// Allocation-free; safe to call from the audio thread.
     #[inline]
-    /// Whether there is anything to read: at least one frame of nonzero size.
-    pub fn is_playable(&self) -> bool {
-        self.frame_count > 0 && self.frame_size > 0
-    }
-
     pub fn read_sample(&self, level: usize, frame: f32, phase: f32) -> f32 {
         if self.frame_count == 0 || self.table_size == 0 {
             return 0.0;

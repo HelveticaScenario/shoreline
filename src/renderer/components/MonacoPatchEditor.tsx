@@ -27,7 +27,7 @@ import { registerMidiCompletionProvider } from './monaco/midiCompletionProvider'
 import { trackCodeBacking } from './monaco/codeBacking';
 import { createModelValueSync } from './monaco/modelValueSync';
 import { registerControlQuickFixProvider } from './monaco/controlQuickFixProvider';
-import { codeStyleFromPrettier } from '../dsl/objectPropertyInsert';
+import { apiIndexFor } from '../dsl/apiSignatures';
 import { registerKeybindingsCompletionProvider } from './monaco/keybindingsCompletion';
 import { registerKeybindingsDiagnostics } from './monaco/keybindingsDiagnostics';
 import {
@@ -127,27 +127,23 @@ export function MonacoPatchEditor({
         };
     }, [editor, onEditorChange]);
 
-    // Decoration collection for active module state highlighting (seq steps, etc.)
-    const activeDecorationRef =
-        useRef<editor.IEditorDecorationsCollection | null>(null);
-
     // Poll module states for active step highlighting using the generic system
     // This uses argument_spans from Rust to know where arguments are in the document,
-    // Combined with source_spans for internal highlighting (like mini-notation spans)
+    // Combined with source_spans for internal highlighting (like mini-notation spans).
+    // The highlights go on the running buffer's model whether or not the editor
+    // shows it, so the performance window shows them too.
     useEffect(() => {
-        if (!editor || !monaco) {
+        if (!monaco || !runningBufferId) {
             return;
         }
+        const uri = monaco.Uri.parse(formatPath(runningBufferId));
         return startModuleStatePolling({
-            activeDecorationRef,
-            currentFile,
-            editor,
+            getModel: () => monaco.editor.getModel(uri),
             getModuleStates: () =>
                 window.electronAPI.synthesizer.getModuleStates(),
             monaco,
-            runningBufferId,
         });
-    }, [editor, monaco, currentFile, runningBufferId]);
+    }, [monaco, runningBufferId]);
 
     // Ref to hold the current scope view zone handle for repositioning
     const scopeZoneHandleRef = useRef<ScopeViewZoneHandle | null>(null);
@@ -460,22 +456,20 @@ export function MonacoPatchEditor({
         return () => midiProvider.dispose();
     }, [monaco]);
 
-    // Quick fix: wrap a module param in a control call chosen from its
-    // schema metadata.
+    // Quick fix: turn an API param into a control call chosen from its
+    // metadata.
     useEffect(() => {
         if (!monaco || schemas.length === 0) {
             return;
         }
-        const layout = codeStyleFromPrettier(
-            resolvePrettierOptions(prettierConfig),
-        );
+        const formatOptions = resolvePrettierOptions(prettierConfig);
         const provider = registerControlQuickFixProvider(
             monaco,
-            () => schemas,
-            () => layout,
+            () => ({ index: apiIndexFor(libSource), schemas }),
+            () => formatOptions,
         );
         return () => provider.dispose();
-    }, [monaco, schemas, prettierConfig]);
+    }, [monaco, schemas, libSource, prettierConfig]);
 
     // Autocomplete command ids and `when` context keys in the keybindings.json
     // buffer, and flag unsupported `when` operators as warnings. Both scope
