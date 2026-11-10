@@ -55,20 +55,25 @@ fn render(sample_rate: f32, hz: f32, knobs: [f32; 3], seconds: f32) -> (Vec<f32>
     (out, impulses)
 }
 
-/// Particles fire as often, and ring as loud, at any rate: the impulse rate
-/// within its random spread, the level within 1.5 dB.
+/// Particles fire as often, and ring and diffuse as loud, at any rate: the
+/// impulse rate within its random spread, the level within 1.5 dB.
 #[test]
 fn sounds_the_same_at_any_rate() {
-    for knobs in [[3.5, 2.0, 4.0], [4.5, 3.0, 1.0], [4.0, 1.0, 2.5]] {
+    for knobs in [
+        [3.5, 2.0, 4.0],
+        [4.5, 3.0, 1.0],
+        [4.0, 1.0, 2.5],
+        [4.5, 2.0, 0.0],
+    ] {
         let (reference, reference_impulses) = render(48000.0, 261.63, knobs, 4.0);
-        for sample_rate in [2000.0, 44100.0, 96000.0] {
+        for sample_rate in [2000.0, 8000.0, 44100.0, 96000.0] {
             let (out, impulses) = render(sample_rate, 261.63, knobs, 4.0);
             let ratio = impulses / reference_impulses;
             assert!(
                 (0.85..1.15).contains(&ratio),
                 "{knobs:?} at {sample_rate} Hz: {impulses} impulses vs {reference_impulses}"
             );
-            if sample_rate > 40000.0 {
+            if sample_rate > 4000.0 {
                 let level = 20.0 * (rms(&out) / rms(&reference)).log10();
                 assert!(
                     level.abs() < 1.5,
