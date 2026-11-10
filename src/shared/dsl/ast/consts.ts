@@ -2,10 +2,11 @@
  * Resolving a name to the `const` it refers to, by lexical scope: the
  * nearest enclosing block, function, loop or catch clause that binds the
  * name decides. A `let`, `var`, parameter, loop or catch variable, function
- * or class of that name hides any outer `const`.
+ * or class of that name hides any outer `const`. A `var` binds in its
+ * enclosing function or the file, wherever in it it is declared.
  *
- * A `var` is read as bound in the block that declares it, and every binding
- * as visible throughout its scope; patches do not lean on hoisting.
+ * Every binding is read as visible throughout its scope, ahead of its
+ * declaration too.
  */
 import ts from 'typescript';
 
@@ -45,6 +46,24 @@ function bindList(list: ts.VariableDeclarationList, out: Bindings): void {
     }
 }
 
+/** The names `var` declares anywhere in `node` outside nested functions. */
+function bindHoistedVars(node: ts.Node, out: Bindings): void {
+    ts.forEachChild(node, (child) => {
+        if (ts.isFunctionLike(child)) {
+            return;
+        }
+        if (
+            ts.isVariableDeclarationList(child) &&
+            (child.flags & ts.NodeFlags.BlockScoped) === 0
+        ) {
+            for (const decl of child.declarations) {
+                bindNames(decl.name, out);
+            }
+        }
+        bindHoistedVars(child, out);
+    });
+}
+
 /** What `node` binds as a scope, or null when it opens no scope. */
 function bindingsOf(node: ts.Node): Bindings | null {
     const known = scopes.get(node);
@@ -59,6 +78,14 @@ function bindingsOf(node: ts.Node): Bindings | null {
         for (const param of node.parameters) {
             bindNames(param.name, out);
         }
+        if ('body' in node && node.body) {
+            bindHoistedVars(node.body, out);
+        }
+    } else if (ts.isClassExpression(node)) {
+        if (!node.name) {
+            return null;
+        }
+        out.set(node.name.text, null);
     } else if (
         ts.isForStatement(node) ||
         ts.isForInStatement(node) ||
@@ -80,6 +107,9 @@ function bindingsOf(node: ts.Node): Bindings | null {
         ts.isModuleBlock(node) ||
         ts.isCaseBlock(node)
     ) {
+        if (ts.isSourceFile(node)) {
+            bindHoistedVars(node, out);
+        }
         const statements = ts.isCaseBlock(node)
             ? node.clauses.flatMap((c) => [...c.statements])
             : node.statements;

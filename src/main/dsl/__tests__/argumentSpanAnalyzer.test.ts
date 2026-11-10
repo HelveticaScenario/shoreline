@@ -119,5 +119,17 @@ describe('template interpolation', () => {
                 "const n = 'c4'\nfor (const n of ['d4']) { $sine(n).out() }",
             ),
         ).toEqual([]);
+        // A `var` binds in its whole function, from inside any block.
+        expect(
+            entries(
+                "const x = 'c4'\nfunction f(c) { if (c) { var x = 'd4' } $sine(x).out() }",
+            ),
+        ).toEqual([]);
+        // A named class expression binds its own name inside itself.
+        expect(
+            entries(
+                "const x = 'c4'\nconst C = class x { m() { $sine(x).out() } }",
+            ),
+        ).toEqual([]);
     });
 });
