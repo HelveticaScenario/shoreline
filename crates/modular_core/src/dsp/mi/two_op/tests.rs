@@ -58,22 +58,29 @@ fn runs_backward() {
 
 #[test]
 fn sounds_the_same_at_any_rate() {
-    for (pitch, ratio, index, feedback) in [(-1.0, 2.5, 2.0, 0.0), (1.0, 4.0, 3.0, 2.0)] {
-        assert_rate_independent(
-            |sample_rate| {
-                let state = TwoOpState::new(sample_rate);
-                let mut voice = Voice::default();
-                let f0 = voct_to_hz(pitch) / sample_rate;
-                (0..(sample_rate * 0.5) as usize)
-                    .map(|_| {
-                        let controls = voice.control(f0, knobs(ratio, index, feedback), &state);
-                        voice.step(controls, &state).0
-                    })
-                    .collect()
-            },
-            voct_to_hz(pitch),
-            0.02,
-        );
+    for (pitch, ratio, index, feedback) in [
+        (-1.0, 2.5, 2.0, 0.0),
+        (1.0, 4.0, 3.0, 2.0),
+        (0.0, 2.0, 2.5, -3.0),
+    ] {
+        for sub in [false, true] {
+            assert_rate_independent(
+                |sample_rate| {
+                    let state = TwoOpState::new(sample_rate);
+                    let mut voice = Voice::default();
+                    let f0 = voct_to_hz(pitch) / sample_rate;
+                    (0..(sample_rate * 0.5) as usize)
+                        .map(|_| {
+                            let controls = voice.control(f0, knobs(ratio, index, feedback), &state);
+                            let (out, sub_octave) = voice.step(controls, &state);
+                            if sub { sub_octave } else { out }
+                        })
+                        .collect()
+                },
+                voct_to_hz(pitch) * if sub { 0.5 } else { 1.0 },
+                0.02,
+            );
+        }
     }
 }
 
@@ -96,21 +103,40 @@ fn knobs_take_effect_on_the_next_sample() {
     }
 }
 
-/// A NaN knob holds the sound where it is.
+/// A NaN or infinite knob holds the sound where it is.
 #[test]
-fn nan_knobs_hold() {
+fn non_finite_knobs_hold() {
     let state = TwoOpState::new(48000.0);
     let mut held = Voice::default();
     let mut glitched = Voice::default();
     for n in 0..200 {
-        let v = if (100..103).contains(&n) {
-            f32::NAN
-        } else {
-            1.0
+        let v = match n {
+            100 => f32::NAN,
+            101 => f32::INFINITY,
+            102 => f32::NEG_INFINITY,
+            _ => 1.0,
         };
         let a = held.control(0.01, knobs(1.0, 1.0, 1.0), &state);
         let b = glitched.control(0.01, knobs(v, v, v), &state);
         let (a, b) = (held.step(a, &state).0, glitched.step(b, &state).0);
         assert!((a - b).abs() < 1e-4, "sample {n}: {a} vs {b}");
+    }
+}
+
+/// A NaN or infinite pitch leaves the output finite.
+#[test]
+fn non_finite_pitch_stays_finite() {
+    let state = TwoOpState::new(48000.0);
+    let mut voice = Voice::default();
+    for n in 0..300 {
+        let f0 = match n {
+            100 => f32::NAN,
+            150 => f32::INFINITY,
+            200 => f32::NEG_INFINITY,
+            _ => 0.01,
+        };
+        let controls = voice.control(f0, knobs(2.5, 3.0, -3.0), &state);
+        let (out, sub) = voice.step(controls, &state);
+        assert!(out.is_finite() && sub.is_finite(), "sample {n}");
     }
 }
