@@ -113,19 +113,19 @@ fn default_pitch_bend_range() -> u8 {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MidiCvOutputs {
-    #[output("pitch", "pitch of the voice's note, including pitch bend", default)]
+    #[output("pitch", "pitch of the voice's note, including pitch bend", type = cv, default)]
     pitch: PolyOutput,
-    #[output("gate", "high while the voice's note is held", range = (0.0, 5.0))]
+    #[output("gate", "high while the voice's note is held", type = gate)]
     gate: PolyOutput,
-    #[output("velocity", "how hard the note was struck", range = (0.0, 5.0))]
+    #[output("velocity", "how hard the note was struck", type = cv, range = (0.0, 5.0))]
     velocity: PolyOutput,
-    #[output("aftertouch", "pressure on the held keys, from channel or polyphonic aftertouch", range = (0.0, 5.0))]
+    #[output("aftertouch", "pressure on the held keys, from channel or polyphonic aftertouch", type = cv, range = (0.0, 5.0))]
     aftertouch: PolyOutput,
-    #[output("retrigger", "fires at the start of each new note, even when gate stays high", range = (0.0, 5.0))]
+    #[output("retrigger", "fires at the start of each new note, even when gate stays high", type = trig)]
     retrigger: PolyOutput,
-    #[output("pitchWheel", "pitch wheel position: 0 centred, ±5 at either end", range = (-5.0, 5.0))]
+    #[output("pitchWheel", "pitch wheel position: 0 centred, ±5 at either end", type = cv, range = (-5.0, 5.0))]
     pitch_wheel: PolyOutput,
-    #[output("modWheel", "mod wheel (CC 1) position", range = (0.0, 5.0))]
+    #[output("modWheel", "mod wheel (CC 1) position", type = cv, range = (0.0, 5.0))]
     mod_wheel: PolyOutput,
 }
 

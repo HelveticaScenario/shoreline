@@ -22,7 +22,7 @@ struct RampParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct RampOutputs {
-    #[output("output", "phase rising once per cycle", default, range = (0.0, 1.0))]
+    #[output("output", "phase rising once per cycle", type = cv, default, range = (0.0, 1.0))]
     sample: PolyOutput,
 }
 

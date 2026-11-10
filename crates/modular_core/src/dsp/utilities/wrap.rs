@@ -28,7 +28,7 @@ struct WrapParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WrapOutputs {
-    #[output("output", "the wrapped signal", default)]
+    #[output("output", "the wrapped signal", type = cv, default)]
     sample: PolyOutput,
 }
 

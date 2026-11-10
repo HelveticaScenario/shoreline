@@ -36,7 +36,7 @@ struct LagProcessorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LagProcessorOutputs {
-    #[output("output", "the smoothed signal", default)]
+    #[output("output", "the smoothed signal", type = cv, default)]
     sample: PolyOutput,
 }
 

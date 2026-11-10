@@ -118,7 +118,7 @@ struct MathParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MathOutputs {
-    #[output("output", "the expression's result", default)]
+    #[output("output", "the expression's result", type = cv, default)]
     output: PolyOutput,
 }
 

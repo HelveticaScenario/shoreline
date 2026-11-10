@@ -55,7 +55,7 @@ struct QuantNoiseParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct QuantNoiseOutputs {
-    #[output("output", "the input with grit added", default)]
+    #[output("output", "the input with grit added", type = cv, default)]
     sample: PolyOutput,
 }
 

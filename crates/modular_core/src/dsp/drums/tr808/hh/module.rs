@@ -72,11 +72,11 @@ struct Hh808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Hh808Outputs {
-    #[output("output", "both hats; an unaccented hit peaks near ±5 V", default, range = (-10.0, 10.0))]
+    #[output("output", "both hats; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
-    #[output("closed", "the closed hat alone", range = (-10.0, 10.0))]
+    #[output("closed", "the closed hat alone", type = cv, range = (-10.0, 10.0))]
     closed: PolyOutput,
-    #[output("open", "the open hat alone", range = (-10.0, 10.0))]
+    #[output("open", "the open hat alone", type = cv, range = (-10.0, 10.0))]
     open: PolyOutput,
 }
 

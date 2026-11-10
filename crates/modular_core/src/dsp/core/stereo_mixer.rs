@@ -34,7 +34,7 @@ struct StereoMixerParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct StereoMixerOutputs {
-    #[output("output", "stereo mix: left on channel 0, right on channel 1", default)]
+    #[output("output", "stereo mix: left on channel 0, right on channel 1", type = cv, default)]
     sample: PolyOutput,
 }
 

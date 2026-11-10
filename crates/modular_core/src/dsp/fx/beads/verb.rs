@@ -134,7 +134,7 @@ struct BeadsReverbParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BeadsReverbOutputs {
-    #[output("output", "the input plus reverb, as left and right channels", default, range = (-5.0, 5.0))]
+    #[output("output", "the input plus reverb, as left and right channels", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

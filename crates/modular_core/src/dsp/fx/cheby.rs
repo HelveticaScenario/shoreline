@@ -51,7 +51,7 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ChebyOutputs {
-    #[output("output", "waveshaped signal", default, range = (-5.0, 5.0))]
+    #[output("output", "waveshaped signal", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

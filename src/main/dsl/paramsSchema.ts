@@ -47,7 +47,7 @@ export type ParamKind =
     | 'boolean'
     | 'unknown';
 
-export type SignalType =
+export type ParamType =
     | 'audio'
     | 'pitch'
     | 'frequency'
@@ -55,7 +55,7 @@ export type SignalType =
     | 'trig'
     | 'control';
 
-const SIGNAL_TYPES = new Set<string>([
+const PARAM_TYPES = new Set<string>([
     'audio',
     'pitch',
     'frequency',
@@ -64,8 +64,8 @@ const SIGNAL_TYPES = new Set<string>([
     'control',
 ]);
 
-function isSignalType(s: string): s is SignalType {
-    return SIGNAL_TYPES.has(s);
+function isParamType(s: string): s is ParamType {
+    return PARAM_TYPES.has(s);
 }
 
 export interface ParamDescriptor {
@@ -74,7 +74,7 @@ export interface ParamDescriptor {
     description?: string;
     optional: boolean;
     enumValues?: string[];
-    signalType?: SignalType;
+    paramType?: ParamType;
     defaultValue?: number;
     /** Usable range; either side may be open. */
     minValue?: number;
@@ -559,8 +559,8 @@ export function processModuleSchema(
                     defaultValue: signalMeta.defaultValue,
                     maxValue: signalMeta.maxValue,
                     minValue: signalMeta.minValue,
-                    signalType: isSignalType(signalMeta.signalType)
-                        ? signalMeta.signalType
+                    paramType: isParamType(signalMeta.paramType)
+                        ? signalMeta.paramType
                         : 'control',
                 }),
             };

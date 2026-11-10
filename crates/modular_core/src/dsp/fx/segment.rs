@@ -41,7 +41,7 @@ struct SegmentParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SegmentOutputs {
-    #[output("output", "shaped signal", default, range = (-5.0, 5.0))]
+    #[output("output", "shaped signal", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

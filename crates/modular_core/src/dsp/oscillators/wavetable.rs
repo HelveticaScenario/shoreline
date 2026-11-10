@@ -84,7 +84,7 @@ pub(crate) struct WavetableOscParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WavetableOscOutputs {
-    #[output("output", "the wavetable oscillator", default, range = (-5.0, 5.0))]
+    #[output("output", "the wavetable oscillator", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

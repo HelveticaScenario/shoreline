@@ -241,13 +241,13 @@ struct PlaitsParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PlaitsOutputs {
-    #[output("output", "main and aux blended by `mix`", default, range = (-5.0, 5.0))]
+    #[output("output", "main and aux blended by `mix`", type = cv, default, range = (-5.0, 5.0))]
     mix: PolyOutput,
 
-    #[output("main", "the engine's main output", range = (-5.0, 5.0))]
+    #[output("main", "the engine's main output", type = cv, range = (-5.0, 5.0))]
     main: PolyOutput,
 
-    #[output("aux", "the engine's auxiliary output, a variant that depends on the engine", range = (-5.0, 5.0))]
+    #[output("aux", "the engine's auxiliary output, a variant that depends on the engine", type = cv, range = (-5.0, 5.0))]
     aux: PolyOutput,
 }
 

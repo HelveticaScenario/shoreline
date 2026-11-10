@@ -56,7 +56,7 @@ macro_rules! filter_module {
             #[derive(Outputs, schemars::JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", $output_doc, default, range = (-5.0, 5.0))]
+                #[output("output", $output_doc, type = cv, default, range = (-5.0, 5.0))]
                 sample: crate::poly::PolyOutput,
             }
 

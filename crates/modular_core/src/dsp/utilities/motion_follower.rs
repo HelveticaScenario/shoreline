@@ -69,11 +69,11 @@ struct MotionFollowerParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MotionFollowerOutputs {
-    #[output("output", "movement level in either direction, 0 V at rest", default, range = (0.0, 5.0))]
+    #[output("output", "movement level in either direction, 0 V at rest", type = cv, default, range = (0.0, 5.0))]
     sample: PolyOutput,
-    #[output("pos", "movement level from rising input only", range = (0.0, 5.0))]
+    #[output("pos", "movement level from rising input only", type = cv, range = (0.0, 5.0))]
     pos: PolyOutput,
-    #[output("neg", "movement level from falling input only", range = (0.0, 5.0))]
+    #[output("neg", "movement level from falling input only", type = cv, range = (0.0, 5.0))]
     neg: PolyOutput,
 }
 

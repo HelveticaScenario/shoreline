@@ -72,7 +72,7 @@ struct LpgParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LpgOutputs {
-    #[output("output", "gated signal", default)]
+    #[output("output", "gated signal", type = cv, default)]
     sample: PolyOutput,
 }
 

@@ -31,7 +31,7 @@ struct ClampParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ClampOutputs {
-    #[output("output", "the clamped signal", default)]
+    #[output("output", "the clamped signal", type = cv, default)]
     sample: PolyOutput,
 }
 

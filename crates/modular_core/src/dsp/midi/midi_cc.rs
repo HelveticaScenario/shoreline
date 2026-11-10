@@ -41,7 +41,7 @@ struct MidiCcParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MidiCcOutputs {
-    #[output("output", "the controller's value: 0 at its minimum, 5 at its maximum", default, range = (0.0, 5.0))]
+    #[output("output", "the controller's value: 0 at its minimum, 5 at its maximum", type = cv, default, range = (0.0, 5.0))]
     output: f32,
 }
 

@@ -200,7 +200,7 @@ struct GrainsOutputs {
     // No declared range: the Clouds-style normalisation is power-based, so
     // correlated grains (a sustained tone, DC) can sum above the ±5 V nominal
     // level, and a declared range would be a contract the output cannot keep.
-    #[output("output", "the mix of all playing grains", default)]
+    #[output("output", "the mix of all playing grains", type = cv, default)]
     sample: PolyOutput,
 }
 

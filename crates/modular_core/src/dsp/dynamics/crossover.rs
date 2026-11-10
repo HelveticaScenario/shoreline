@@ -50,13 +50,13 @@ struct CrossoverParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CrossoverOutputs {
-    #[output("output", "input passed through unchanged", default)]
+    #[output("output", "input passed through unchanged", type = cv, default)]
     sample: PolyOutput,
-    #[output("low", "frequencies below lowMidFreq")]
+    #[output("low", "frequencies below lowMidFreq", type = cv)]
     low: PolyOutput,
-    #[output("mid", "frequencies between lowMidFreq and midHighFreq")]
+    #[output("mid", "frequencies between lowMidFreq and midHighFreq", type = cv)]
     mid: PolyOutput,
-    #[output("high", "frequencies above midHighFreq")]
+    #[output("high", "frequencies above midHighFreq", type = cv)]
     high: PolyOutput,
 }
 

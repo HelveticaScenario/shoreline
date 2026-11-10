@@ -134,6 +134,7 @@
       {
         "name": "x",
         "description": "x coordinate of the attractor, swinging between its two lobes",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -142,6 +143,7 @@
       {
         "name": "y",
         "description": "y coordinate, which x chases, so it leads x slightly",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -150,6 +152,7 @@
       {
         "name": "z",
         "description": "z coordinate, the attractor's height, pulsing once per loop",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -161,7 +164,7 @@
       {
         "name": "sigma",
         "description": "how tightly the voltages chase each other: higher makes the swings snappier and more jittery, chaotic at any value above 0 (σ; the default is σ = 10, 5 is σ = 30)",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.6667,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -170,7 +173,7 @@
       {
         "name": "rho",
         "description": "how wide and wild the swings are: higher roams further; below about 2.06 the motion settles to still voltages (ρ; the default is ρ = 28, 5 is ρ = 60)",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.3333,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -179,7 +182,7 @@
       {
         "name": "beta",
         "description": "the shape of the loops the voltages trace; the default is the classic butterfly (β = 8/3; 5 is β = 10)",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.3333,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -188,7 +191,7 @@
       {
         "name": "rate",
         "description": "simulation speed: 0 freezes and 5 is fastest; the default traces a slow butterfly, and from about 1.25 the chaos runs at audio rate",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.1,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -342,6 +345,7 @@
       {
         "name": "height",
         "description": "water height at a fixed point",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -350,6 +354,7 @@
       {
         "name": "tilt",
         "description": "lean along the swell: positive while the water rises; a sine on gentle seas, a sawtooth that snaps down at each crest on steep ones",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -358,6 +363,7 @@
       {
         "name": "roll",
         "description": "lean across the swell, from waves arriving off-axis; silent at `spread` 0",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -369,12 +375,12 @@
       {
         "name": "freq",
         "description": "rate of the main swell, e.g. `'0.1hz'`",
-        "signalType": "frequency"
+        "paramType": "frequency"
       },
       {
         "name": "steepness",
         "description": "crest sharpness: 0 rolls as a sine, 5 peaks into sharp crests over wide, flat troughs",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 3.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -384,7 +390,7 @@
       {
         "name": "chop",
         "description": "how rough the sea is: 0 is one clean, repeating swell; higher mixes in faster waves, up to `chop / 2` octaves above `freq`, so the swell rolls in sets with choppy ripples",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -394,7 +400,7 @@
       {
         "name": "spread",
         "description": "directional spread: 0 sends every wave the same way, 5 brings them from every direction, a confused sea",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -501,6 +507,7 @@
       {
         "name": "output",
         "description": "the input, unchanged",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -510,7 +517,7 @@
       {
         "name": "value",
         "description": "the signal or value to pass on",
-        "signalType": "audio"
+        "paramType": "audio"
       }
     ],
     "positionalArgs": [
@@ -656,6 +663,7 @@
       {
         "name": "output",
         "description": "the mix, keeping each channel separate rather than folding to mono",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -665,7 +673,7 @@
       {
         "name": "gain",
         "description": "output level on a cubic curve: 0 silent, 5 unity, 10 eight times louder; negative flips polarity",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 10.0
@@ -808,6 +816,7 @@
       {
         "name": "output",
         "description": "the input channels spread evenly across the output channels with equal-power panning",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -817,7 +826,7 @@
       {
         "name": "input",
         "description": "the polyphonic signal to fold down",
-        "signalType": "audio"
+        "paramType": "audio"
       }
     ],
     "positionalArgs": [
@@ -958,6 +967,7 @@
       {
         "name": "output",
         "description": "stereo mix: left on channel 0, right on channel 1",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -967,12 +977,12 @@
       {
         "name": "input",
         "description": "the signal to place in the stereo field",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "pan",
         "description": "pan position of each channel: -5 left, 0 centre, +5 right",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": -5.0,
         "maxValue": 5.0,
         "controlMin": -5.0,
@@ -981,7 +991,7 @@
       {
         "name": "width",
         "description": "how far the channels fan out around their pan positions: 0 none, 5 widest",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -1104,12 +1114,14 @@
       {
         "name": "playhead",
         "description": "bar playhead: channel 0 is the position within the bar (0 to 1), channel 1 the count of completed bars",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       },
       {
         "name": "barTrigger",
         "description": "fires at the start of each bar",
+        "outputType": "trig",
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
@@ -1118,6 +1130,7 @@
       {
         "name": "beatTrigger",
         "description": "fires at the start of each beat",
+        "outputType": "trig",
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
@@ -1126,6 +1139,7 @@
       {
         "name": "ramp",
         "description": "rises across each bar, then resets",
+        "outputType": "cv",
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
@@ -1134,6 +1148,7 @@
       {
         "name": "ppqTrigger",
         "description": "fires 48 times per quarter note",
+        "outputType": "trig",
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
@@ -1142,30 +1157,35 @@
       {
         "name": "beatInBar",
         "description": "the current beat within the bar, counting from 0",
+        "outputType": "cv",
         "polyphonic": false,
         "default": false
       },
       {
         "name": "tempo",
         "description": "the current tempo in beats per minute",
+        "outputType": "cv",
         "polyphonic": false,
         "default": false
       },
       {
         "name": "barLength",
         "description": "quarter notes per bar: 4 in 4/4, 3 in 6/8",
+        "outputType": "cv",
         "polyphonic": false,
         "default": false
       },
       {
         "name": "grooveOffset",
         "description": "how far the global groove shifts the playhead, in bars",
+        "outputType": "cv",
         "polyphonic": false,
         "default": false
       },
       {
         "name": "grooveVelocity",
         "description": "velocity of the current global groove step",
+        "outputType": "cv",
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
@@ -1174,6 +1194,7 @@
       {
         "name": "grooveTrigger",
         "description": "fires at the start of each global groove step",
+        "outputType": "trig",
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
@@ -1346,6 +1367,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -1357,12 +1379,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, with a deeper pitch drop",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -1372,7 +1394,7 @@
       {
         "name": "tone",
         "description": "brightness of the attack, from a dull thud to a bright click",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -1382,7 +1404,7 @@
       {
         "name": "decay",
         "description": "how long the drum rings, from ≈0.09 s to ≈3.8 s; ≈0.6 s at 2.5",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -1392,7 +1414,7 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈49.5 Hz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -2.4035
       }
     ],
@@ -1549,6 +1571,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -1560,12 +1583,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -1575,7 +1598,7 @@
       {
         "name": "tone",
         "description": "blend from the low tone to the high one",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -1585,7 +1608,7 @@
       {
         "name": "snappy",
         "description": "how loud and long the noise rattles over the tones",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -1595,7 +1618,7 @@
       {
         "name": "freq",
         "description": "pitch of the low tone, the high one following; stock is ≈250 Hz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -0.0678
       }
     ],
@@ -1730,6 +1753,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -1741,12 +1765,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -1756,7 +1780,7 @@
       {
         "name": "freq",
         "description": "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": 2.771
       }
     ],
@@ -1902,6 +1926,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -1913,12 +1938,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -1928,13 +1953,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈2.53 kHz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": 3.273
       },
       {
         "name": "decay",
         "description": "how long the claves ring, from ≈0.025 s to ≈0.23 s; ≈0.075 s at 2.5, as on the 808",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -2077,6 +2102,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -2088,12 +2114,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the bell",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -2103,7 +2129,7 @@
       {
         "name": "freq",
         "description": "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": 1.0454
       }
     ],
@@ -2222,6 +2248,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -2233,12 +2260,12 @@
       {
         "name": "trigger",
         "description": "rising edges clap",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the clap lands, read at each strike: up to twice as loud at 5 V, with a longer tail",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -2361,6 +2388,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -2372,12 +2400,12 @@
       {
         "name": "trigger",
         "description": "rising edges shake the maracas",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the shake lands, read at each strike: up to twice as loud at 5 V, and drawn out",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -2527,6 +2555,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -2538,12 +2567,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the cymbal",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -2553,7 +2582,7 @@
       {
         "name": "decay",
         "description": "how long the cymbal's lower band rings on",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -2563,7 +2592,7 @@
       {
         "name": "tone",
         "description": "brightness, from dark with the high band cut to bright",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -2724,6 +2753,7 @@
       {
         "name": "output",
         "description": "both hats; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -2732,6 +2762,7 @@
       {
         "name": "closed",
         "description": "the closed hat alone",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -10.0,
@@ -2740,6 +2771,7 @@
       {
         "name": "open",
         "description": "the open hat alone",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -10.0,
@@ -2751,17 +2783,17 @@
       {
         "name": "closed",
         "description": "rising edges strike the closed hat, which also cuts off a ringing open hat",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "open",
         "description": "rising edges strike the open hat",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike of either hat: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -2771,7 +2803,7 @@
       {
         "name": "decay",
         "description": "how long the open hat rings",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -2781,7 +2813,7 @@
       {
         "name": "cut",
         "description": "how hard a closed hit cuts off the open hat: -5 lets it ring on, 0 is the 808's own cut of about 100 ms, 5 silences it in a few milliseconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -2931,6 +2963,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -2942,12 +2975,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, starting sharper",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -2957,13 +2990,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈87 Hz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -1.5959
       },
       {
         "name": "decay",
         "description": "how long the drum rings, from ≈0.21 s to ≈1.9 s; ≈0.63 s at 2.5, as on the 808",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -3113,6 +3146,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -3124,12 +3158,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, starting sharper",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -3139,13 +3173,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈134 Hz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -0.9623
       },
       {
         "name": "decay",
         "description": "how long the drum rings, from ≈0.13 s to ≈1.2 s; ≈0.4 s at 2.5, as on the 808",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -3295,6 +3329,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -3306,12 +3341,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, starting sharper",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -3321,13 +3356,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈182 Hz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -0.5216
       },
       {
         "name": "decay",
         "description": "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -3477,6 +3512,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -3488,12 +3524,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, starting sharper",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -3503,13 +3539,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈192 Hz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -0.4471
       },
       {
         "name": "decay",
         "description": "how long the drum rings, from ≈0.21 s to ≈1.9 s; ≈0.63 s at 2.5, as on the 808",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -3659,6 +3695,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -3670,12 +3707,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, starting sharper",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -3685,13 +3722,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈276 Hz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": 0.0792
       },
       {
         "name": "decay",
         "description": "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -3841,6 +3878,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -3852,12 +3890,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V, starting sharper",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -3867,13 +3905,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈405 Hz; its level shifts as you tune far from stock",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": 0.629
       },
       {
         "name": "decay",
         "description": "how long the drum rings, from ≈0.1 s to ≈0.92 s; ≈0.31 s at 2.5, as on the 808",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4045,6 +4083,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -4056,12 +4095,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4071,13 +4110,13 @@
       {
         "name": "freq",
         "description": "settled pitch, the sweep following; stock is ≈56 Hz",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -2.2235
       },
       {
         "name": "sweep",
         "description": "how long the pitch takes to fall to rest; the 909's tune knob",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4087,7 +4126,7 @@
       {
         "name": "attack",
         "description": "how loud the click is",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4097,7 +4136,7 @@
       {
         "name": "decay",
         "description": "how long the drum booms",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4258,6 +4297,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -4269,12 +4309,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4284,13 +4324,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈148 Hz",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -0.8243
       },
       {
         "name": "tone",
         "description": "how long the noise rings on, from a short snap to a long hiss",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4300,7 +4340,7 @@
       {
         "name": "snappy",
         "description": "how loud the noise is",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4423,6 +4463,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -4434,12 +4475,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the rim",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4562,6 +4603,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -4573,12 +4615,12 @@
       {
         "name": "trigger",
         "description": "rising edges clap",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the clap lands, read at each strike: up to twice as loud at 5 V, with a fuller tail",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4728,6 +4770,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -4739,12 +4782,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4754,13 +4797,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈61 Hz",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -2.0993
       },
       {
         "name": "decay",
         "description": "how long the drum rings",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4910,6 +4953,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -4921,12 +4965,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -4936,13 +4980,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈75 Hz",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -1.8098
       },
       {
         "name": "decay",
         "description": "how long the drum rings",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -5092,6 +5136,7 @@
       {
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -5103,12 +5148,12 @@
       {
         "name": "trigger",
         "description": "rising edges strike the drum",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "accent",
         "description": "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -5118,13 +5163,13 @@
       {
         "name": "freq",
         "description": "pitch; stock is ≈92 Hz",
-        "signalType": "pitch",
+        "paramType": "pitch",
         "defaultValue": -1.5143
       },
       {
         "name": "decay",
         "description": "how long the drum rings",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -5356,6 +5401,7 @@
       {
         "name": "sample",
         "description": "compressed signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -5365,17 +5411,17 @@
       {
         "name": "input",
         "description": "the sound to compress",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "sidechain",
         "description": "when patched, the compressor listens to this instead of the input, but still turns the input down; for ducking and pumping",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "threshold",
         "description": "level above which the signal is compressed, in volts",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -5384,7 +5430,7 @@
       {
         "name": "ratio",
         "description": "compression ratio above the threshold, as X:1: above 1 compresses, 1 passes through, below 1 makes loud parts louder",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 4.0,
         "minValue": 0.001,
         "controlMin": 1.0,
@@ -5393,7 +5439,7 @@
       {
         "name": "upwardThreshold",
         "description": "level below which upwardRatio acts, in volts; 0 turns the upward stage off",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -5402,7 +5448,7 @@
       {
         "name": "upwardRatio",
         "description": "ratio below upwardThreshold, as X:1: above 1 lifts quiet parts, 1 passes through, below 1 gates them",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 0.001,
         "controlMin": 0.1,
@@ -5411,7 +5457,7 @@
       {
         "name": "attack",
         "description": "how fast the compressor reacts to rising level, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.01,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -5420,7 +5466,7 @@
       {
         "name": "release",
         "description": "how fast the compressor lets go as level falls, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.1,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -5429,7 +5475,7 @@
       {
         "name": "makeup",
         "description": "gain after compression: -5 V = -24 dB, +5 V = +24 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -5439,7 +5485,7 @@
       {
         "name": "inputGain",
         "description": "gain into the compressor: -5 V = -24 dB, +5 V = +24 dB; more pushes harder into compression",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -5449,7 +5495,7 @@
       {
         "name": "outputGain",
         "description": "final output level: -5 V = -24 dB, +5 V = +24 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -5459,7 +5505,7 @@
       {
         "name": "mix",
         "description": "dry/wet blend: 0 dry, 5 wet; the dry signal skips inputGain",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -5588,24 +5634,28 @@
       {
         "name": "output",
         "description": "input passed through unchanged",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       },
       {
         "name": "low",
         "description": "frequencies below lowMidFreq",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false
       },
       {
         "name": "mid",
         "description": "frequencies between lowMidFreq and midHighFreq",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false
       },
       {
         "name": "high",
         "description": "frequencies above midHighFreq",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false
       }
@@ -5615,19 +5665,19 @@
       {
         "name": "input",
         "description": "the sound to split",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "lowMidFreq",
         "description": "where the low band ends and the mid band begins",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": -0.389,
         "minValue": -3.71
       },
       {
         "name": "midHighFreq",
         "description": "where the mid band ends and the high band begins",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 2.935,
         "minValue": -3.71
       }
@@ -5751,6 +5801,7 @@
       {
         "name": "output",
         "description": "folded signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -5762,14 +5813,14 @@
       {
         "name": "input",
         "description": "signal to fold",
-        "signalType": "audio",
+        "paramType": "audio",
         "minValue": -5.0,
         "maxValue": 5.0
       },
       {
         "name": "amount",
         "description": "how hard the signal folds: 0 clean, 5 most folds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -5779,7 +5830,7 @@
       {
         "name": "freq",
         "description": "pitch of the incoming signal; patch it to reduce aliasing on high notes",
-        "signalType": "pitch"
+        "paramType": "pitch"
       }
     ],
     "positionalArgs": [
@@ -5905,6 +5956,7 @@
       {
         "name": "output",
         "description": "waveshaped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -5916,14 +5968,14 @@
       {
         "name": "input",
         "description": "signal to shape",
-        "signalType": "audio",
+        "paramType": "audio",
         "minValue": -5.0,
         "maxValue": 5.0
       },
       {
         "name": "amount",
         "description": "harmonic richness: 0 clean, 5 dominated by the highest harmonics",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -5932,7 +5984,7 @@
       {
         "name": "freq",
         "description": "pitch of the incoming signal; patch it to reduce aliasing on high notes",
-        "signalType": "pitch"
+        "paramType": "pitch"
       }
     ],
     "positionalArgs": [
@@ -6116,6 +6168,7 @@
       {
         "name": "output",
         "description": "stereo reverb, fully wet, as left and right channels",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -6125,12 +6178,12 @@
       {
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "decay",
         "description": "how long the tail rings: -5 shortest, +5 almost endless",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -6140,7 +6193,7 @@
       {
         "name": "damping",
         "description": "how fast the tail darkens: -5 bright, +5 muffled",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -6150,7 +6203,7 @@
       {
         "name": "size",
         "description": "room size, from 0.25× (-5) to 2× (+5) the plate's delay lengths",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -6160,7 +6213,7 @@
       {
         "name": "predelay",
         "description": "gap before the reverb starts, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 0.5,
@@ -6170,7 +6223,7 @@
       {
         "name": "diffusion",
         "description": "how quickly the onset smears into a wash: 0 distinct echoes, 5 smoothest",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 3.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -6180,7 +6233,7 @@
       {
         "name": "modulation",
         "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.5 ms",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -6338,6 +6391,7 @@
       {
         "name": "output",
         "description": "overdriven signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -6347,12 +6401,12 @@
       {
         "name": "input",
         "description": "signal to overdrive",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "drive",
         "description": "how hard the signal hits the saturator: 0 unity gain, 5 about +30 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -6362,7 +6416,7 @@
       {
         "name": "tone",
         "description": "which frequencies distort most: -5 dark, 0 neutral, +5 bright; the overall balance stays flat",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -6472,6 +6526,7 @@
       {
         "name": "output",
         "description": "the input, centred on 0 V",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -6481,7 +6536,7 @@
       {
         "name": "input",
         "description": "signal to strip of DC offset and sub-audio rumble",
-        "signalType": "audio"
+        "paramType": "audio"
       }
     ],
     "positionalArgs": [
@@ -6640,6 +6695,7 @@
       {
         "name": "output",
         "description": "stereo reverb, fully wet, as left and right channels",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -6649,12 +6705,12 @@
       {
         "name": "input",
         "description": "signal to reverberate; all channels are mixed to mono",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "bandwidth",
         "description": "how much treble enters the reverb: -5 dull, +5 full bandwidth",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.02,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -6664,7 +6720,7 @@
       {
         "name": "damping",
         "description": "how fast the tail darkens: -5 bright, +5 muffled",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 4.09,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -6674,7 +6730,7 @@
       {
         "name": "decay",
         "description": "how long the tail rings: -5 shortest, +5 almost endless",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": -2.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -6684,7 +6740,7 @@
       {
         "name": "modulation",
         "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.1 ms",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -6817,6 +6873,7 @@
       {
         "name": "output",
         "description": "the input with grit added",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -6826,12 +6883,12 @@
       {
         "name": "input",
         "description": "signal to grit up",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "amount",
         "description": "how much grit is added: 0 clean, higher more fizz",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -6840,7 +6897,7 @@
       {
         "name": "step",
         "description": "size of the voltage grid the signal snaps to, in volts; bigger steps give coarser grit",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.25,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -6849,7 +6906,7 @@
       {
         "name": "dither",
         "description": "dither depth: 0 a tonal staircase buzz that tracks the signal, 5 broadband noise",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -7038,6 +7095,7 @@
       {
         "name": "output",
         "description": "stereo reverb, fully wet, as left and right channels",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -7047,12 +7105,12 @@
       {
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "decay",
         "description": "how long the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -7062,7 +7120,7 @@
       {
         "name": "damping",
         "description": "how fast the tail darkens: -5 bright, +5 muffled",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -7072,7 +7130,7 @@
       {
         "name": "size",
         "description": "room size, from 0.5× (-5) to 2× (+5); bigger rooms space the echoes further apart",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -7082,7 +7140,7 @@
       {
         "name": "width",
         "description": "stereo width: -5 narrow, pulling panned sources toward the centre; +5 widest",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -7092,7 +7150,7 @@
       {
         "name": "predelay",
         "description": "gap before the reverb starts, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 0.5,
@@ -7102,7 +7160,7 @@
       {
         "name": "modulation",
         "description": "gentle chorusing inside the tail that softens metallic ringing: -5 off, +5 deepest",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -7289,6 +7347,7 @@
       {
         "name": "output",
         "description": "stereo reverb, fully wet, as left and right channels",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -7298,12 +7357,12 @@
       {
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "decay",
         "description": "how long the low end of the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -7313,7 +7372,7 @@
       {
         "name": "damping",
         "description": "how much faster the treble dies than the bass: -5 equally fast, +5 ten times faster",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -7323,7 +7382,7 @@
       {
         "name": "size",
         "description": "room size, from 0.5× (-5) to 2× (+5); bigger rooms space the echoes further apart",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -7333,7 +7392,7 @@
       {
         "name": "width",
         "description": "stereo width: -5 narrow, pulling panned sources toward the centre; +5 widest",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -7343,7 +7402,7 @@
       {
         "name": "predelay",
         "description": "gap before the reverb starts, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 0.5,
@@ -7353,7 +7412,7 @@
       {
         "name": "modulation",
         "description": "gentle chorusing inside the tail that softens metallic ringing: -5 off, +5 deepest",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -7477,6 +7536,7 @@
       {
         "name": "output",
         "description": "shaped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -7488,14 +7548,14 @@
       {
         "name": "input",
         "description": "signal to shape",
-        "signalType": "audio",
+        "paramType": "audio",
         "minValue": -5.0,
         "maxValue": 5.0
       },
       {
         "name": "amount",
         "description": "morphs through 8 shapes: 0 clean, higher squares off and then ripples",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -7504,7 +7564,7 @@
       {
         "name": "freq",
         "description": "pitch of the incoming signal; patch it to reduce aliasing on high notes",
-        "signalType": "pitch"
+        "paramType": "pitch"
       }
     ],
     "positionalArgs": [
@@ -7690,6 +7750,7 @@
       {
         "name": "output",
         "description": "the input plus reverb, as left and right channels",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -7701,12 +7762,12 @@
       {
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "amount",
         "description": "how much reverb you hear and how long it rings: 0 dry, 5 most",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -7716,7 +7777,7 @@
       {
         "name": "size",
         "description": "room size; moving it while the tail rings bends its pitch",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -7726,7 +7787,7 @@
       {
         "name": "tone",
         "description": "how fast the tail darkens: 0 bright, 5 muffled",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8001,6 +8062,7 @@
       {
         "name": "output",
         "description": "stereo mix of every voice, as left and right channels",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -8010,6 +8072,7 @@
       {
         "name": "voices",
         "description": "each voice on its own channel, mono",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -8021,22 +8084,22 @@
       {
         "name": "input",
         "description": "signal to record; each channel gets its own voice",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "trigger",
         "description": "starts a grain",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "freeze",
         "description": "while high, recording stops and grains keep playing the audio already held",
-        "signalType": "gate"
+        "paramType": "gate"
       },
       {
         "name": "time",
         "description": "where grains start: 0 the most recent audio, 5 the oldest",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8046,7 +8109,7 @@
       {
         "name": "size",
         "description": "grain length: 0 shortest, 5 longest; negative values play the grains backwards",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.75,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -8056,7 +8119,7 @@
       {
         "name": "shape",
         "description": "grain envelope: 0 square, 1.67 sharp attack, 3.33 smooth, 5 reverse swell",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 3.33,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8066,17 +8129,17 @@
       {
         "name": "freq",
         "description": "grain pitch; grains keep the input's pitch when `freq` equals `rootFreq`",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "rootFreq",
         "description": "pitch of the input, so `freq` plays in tune",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "spread",
         "description": "how far each grain lands at a random stereo position: 0 centred, 5 anywhere",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8086,7 +8149,7 @@
       {
         "name": "width",
         "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8096,7 +8159,7 @@
       {
         "name": "feedback",
         "description": "feeds the grains back into the recording, building dense washes",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8106,7 +8169,7 @@
       {
         "name": "mix",
         "description": "dry/wet blend: 0 dry, 5 grains only",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8371,6 +8434,7 @@
       {
         "name": "output",
         "description": "stereo mix of every voice, as left and right channels",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -8380,6 +8444,7 @@
       {
         "name": "voices",
         "description": "each voice on its own channel, mono",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -8391,12 +8456,12 @@
       {
         "name": "trigger",
         "description": "starts a grain",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "time",
         "description": "where grains start: 0 the start of the file, 5 its end",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8406,7 +8471,7 @@
       {
         "name": "size",
         "description": "grain length: 0 shortest, 5 longest; negative values play the grains backwards",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.75,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -8416,7 +8481,7 @@
       {
         "name": "shape",
         "description": "grain envelope: 0 square, 1.67 sharp attack, 3.33 smooth, 5 reverse swell",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 3.33,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8426,17 +8491,17 @@
       {
         "name": "freq",
         "description": "grain pitch; grains keep the file's pitch when `freq` equals `rootFreq`",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "rootFreq",
         "description": "pitch of the file, so `freq` plays in tune",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "spread",
         "description": "how far each grain lands at a random stereo position: 0 centred, 5 anywhere",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8446,7 +8511,7 @@
       {
         "name": "width",
         "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8595,6 +8660,7 @@
       {
         "name": "output",
         "description": "the input with wow and flutter",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -8606,12 +8672,12 @@
       {
         "name": "input",
         "description": "signal to run through the tape; each channel wobbles in step",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "speed",
         "description": "how fast the tape wobbles; each volt doubles it, and 2.5 is Beads' dirty tape",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8621,7 +8687,7 @@
       {
         "name": "intensity",
         "description": "how deep the wobble is: 0 none, 2.5 Beads' dirty tape, 5 twice as deep",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8872,6 +8938,7 @@
       {
         "name": "output",
         "description": "the input mixed with its repeats, one channel per delay",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -8883,12 +8950,12 @@
       {
         "name": "input",
         "description": "signal to delay; each channel gets its own delay",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "bars",
         "description": "delay time in bars: `1 / 4` a quarter note in 4/4, `3 / 16` a dotted eighth; the longest time depends on the tempo and `quality`",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.25,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -8897,7 +8964,7 @@
       {
         "name": "time",
         "description": "multiplies the base delay time from ×1 at 0 to ×16 at 5; while frozen, picks which slice of the held audio loops",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8907,7 +8974,7 @@
       {
         "name": "shape",
         "description": "envelope over each repeat: 0 none, 1 sharp attack, 2.5 triangle, 5 ramp up",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8917,7 +8984,7 @@
       {
         "name": "grooveAmount",
         "description": "how far the `shape` envelopes swing with the global groove: 0 straight, 5 fully grooved; the repeats themselves stay straight",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8927,22 +8994,22 @@
       {
         "name": "freeze",
         "description": "while high, recording stops and the delay loops slices of the audio it holds",
-        "signalType": "gate"
+        "paramType": "gate"
       },
       {
         "name": "freq",
         "description": "pitch of the repeats; they keep the input's pitch when `freq` equals `rootFreq`",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "rootFreq",
         "description": "pitch of the input, so `freq` shifts the repeats in tune",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "tone",
         "description": "filters the repeats: below 2.5 low-pass, 2.5 unfiltered, above 2.5 high-pass",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8952,7 +9019,7 @@
       {
         "name": "feedback",
         "description": "how long the echoes go on: 0 a single repeat, higher for longer trails; above about 4 they build up instead of dying away",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -8962,7 +9029,7 @@
       {
         "name": "mix",
         "description": "dry/wet blend: 0 dry, 5 repeats only",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -9131,6 +9198,7 @@
       {
         "name": "output",
         "description": "the sine wave",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -9142,22 +9210,22 @@
       {
         "name": "freq",
         "description": "oscillator pitch",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "phaseOffset",
         "description": "shifts where in the cycle the wave is read, in cycles; wraps around",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 1.0,
@@ -9342,6 +9410,7 @@
       {
         "name": "output",
         "description": "the saw/triangle/ramp wave",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -9353,12 +9422,12 @@
       {
         "name": "freq",
         "description": "oscillator pitch",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "shape",
         "description": "waveform: 0 saw, 2.5 triangle, 5 ramp, morphing in between",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -9368,17 +9437,17 @@
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "phaseOffset",
         "description": "shifts where in the cycle the wave is read, in cycles; wraps around",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 1.0,
@@ -9569,6 +9638,7 @@
       {
         "name": "output",
         "description": "the pulse wave",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -9580,12 +9650,12 @@
       {
         "name": "freq",
         "description": "oscillator pitch",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "width",
         "description": "pulse width: 0 a thin high spike, 2.5 square, 5 a thin low notch",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -9595,7 +9665,7 @@
       {
         "name": "pwm",
         "description": "pulse width modulation, added to `width`",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -9605,17 +9675,17 @@
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "phaseOffset",
         "description": "shifts where in the cycle the wave is read, in cycles; wraps around",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 1.0,
@@ -9723,6 +9793,7 @@
       {
         "name": "output",
         "description": "the sine wave",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -9734,7 +9805,7 @@
       {
         "name": "phase",
         "description": "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
-        "signalType": "audio",
+        "paramType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0
       }
@@ -9850,6 +9921,7 @@
       {
         "name": "output",
         "description": "the saw/triangle/ramp wave",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -9861,14 +9933,14 @@
       {
         "name": "phase",
         "description": "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
-        "signalType": "audio",
+        "paramType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0
       },
       {
         "name": "shape",
         "description": "waveform: 0 saw, 2.5 triangle, 5 ramp, morphing in between",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -9998,6 +10070,7 @@
       {
         "name": "output",
         "description": "the pulse wave",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -10009,14 +10082,14 @@
       {
         "name": "phase",
         "description": "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
-        "signalType": "audio",
+        "paramType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0
       },
       {
         "name": "width",
         "description": "pulse width: 0 a thin high spike, 2.5 square, 5 a thin low notch",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -10026,7 +10099,7 @@
       {
         "name": "pwm",
         "description": "pulse width modulation, added to `width`",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -10247,6 +10320,7 @@
       {
         "name": "output",
         "description": "the noise",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -10258,7 +10332,7 @@
       {
         "name": "rate",
         "description": "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop. Unpatched, a new value every sample",
-        "signalType": "frequency"
+        "paramType": "frequency"
       }
     ],
     "positionalArgs": [
@@ -10627,6 +10701,7 @@
       {
         "name": "output",
         "description": "main and aux blended by `mix`",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -10635,6 +10710,7 @@
       {
         "name": "main",
         "description": "the engine's main output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -10643,6 +10719,7 @@
       {
         "name": "aux",
         "description": "the engine's auxiliary output, a variant that depends on the engine",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -10654,12 +10731,12 @@
       {
         "name": "freq",
         "description": "note pitch",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "harmonics",
         "description": "harmonics knob; what it does depends on the engine",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -10669,7 +10746,7 @@
       {
         "name": "timbre",
         "description": "timbre knob; what it does depends on the engine",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -10679,7 +10756,7 @@
       {
         "name": "morph",
         "description": "morph knob; what it does depends on the engine",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -10689,12 +10766,12 @@
       {
         "name": "fm",
         "description": "frequency modulation, scaled by `fmAmt`",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "timbreAmt",
         "description": "how much the trigger's internal envelope sweeps timbre; negative inverts",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -10704,7 +10781,7 @@
       {
         "name": "fmAmt",
         "description": "how much `fm` bends the pitch, negative inverting it. With `fm` unpatched it sets how far each trigger's envelope sweeps the pitch instead, or, with no trigger either, fine-tunes by up to a semitone",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -10714,7 +10791,7 @@
       {
         "name": "morphAmt",
         "description": "how much the trigger's internal envelope sweeps morph; negative inverts",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -10724,12 +10801,12 @@
       {
         "name": "trigger",
         "description": "strikes the internal envelope and lowpass gate; unpatched, the voice drones",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "level",
         "description": "loudness and brightness through the lowpass gate; patching it opens the gate by this level instead of the trigger's ping",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "maxValue": 8.0,
         "controlMin": 0.0,
@@ -10738,7 +10815,7 @@
       {
         "name": "lpgColor",
         "description": "lowpass gate response: low is a mellow filter sweep, high a bright VCA",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -10748,7 +10825,7 @@
       {
         "name": "lpgDecay",
         "description": "how long the lowpass gate and internal envelope ring after a trigger",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -10758,7 +10835,7 @@
       {
         "name": "mix",
         "description": "blend at `output` between the engine's `main` sound at 0 and its `aux` variant at 5",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -10943,6 +11020,7 @@
       {
         "name": "output",
         "description": "the stacked saws, one channel per voice",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -10954,12 +11032,12 @@
       {
         "name": "freq",
         "description": "oscillator pitch",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "detune",
         "description": "spread between the lowest and highest saw, in semitones",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.18,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -10968,12 +11046,12 @@
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts every saw of that note",
-        "signalType": "trig"
+        "paramType": "trig"
       }
     ],
     "positionalArgs": [
@@ -11352,6 +11430,7 @@
       {
         "name": "output",
         "description": "the wavetable oscillator",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -11363,12 +11442,12 @@
       {
         "name": "pitch",
         "description": "oscillator pitch",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "position",
         "description": "which frame plays: 0 the first, 5 the last, blending between neighbours",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -11378,17 +11457,17 @@
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "phaseOffset",
         "description": "shifts where in the cycle the table is read, in cycles; wraps around",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 1.0,
@@ -11521,6 +11600,7 @@
       {
         "name": "output",
         "description": "filtered signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -11530,19 +11610,19 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency; tops out just under half the sample rate",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0,
         "minValue": -3.71
       },
       {
         "name": "resonance",
         "description": "resonant peak at the cutoff; keeps sharpening past 5",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -11709,6 +11789,7 @@
       {
         "name": "output",
         "description": "phase-shifted signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -11718,18 +11799,18 @@
       {
         "name": "input",
         "description": "the sound to smear",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "the frequency the stages delay most",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "stages",
         "description": "number of stages: more stages, longer smear; fractions fade the next stage in",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 1.0,
         "maxValue": 50.0,
@@ -11739,7 +11820,7 @@
       {
         "name": "resonance",
         "description": "how sharply the smear rings at the cutoff's pitch",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -11749,7 +11830,7 @@
       {
         "name": "feedback",
         "description": "repeats of the smear: rings never fade at ±5 and self-oscillate beyond; negative flips every other repeat",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -6.0,
         "maxValue": 6.0,
@@ -11879,6 +11960,7 @@
       {
         "name": "output",
         "description": "filtered signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -11888,18 +11970,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency; tops out just under half the sample rate",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "minValue": -3.71
       },
       {
         "name": "resonance",
         "description": "resonant peak at the cutoff; keeps sharpening past 5",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -12031,6 +12113,7 @@
       {
         "name": "output",
         "description": "filtered signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -12040,18 +12123,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "center",
         "description": "centre frequency; tops out just under half the sample rate",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "minValue": -3.71
       },
       {
         "name": "resonance",
         "description": "higher narrows the band, and keeps narrowing past 5",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -12183,6 +12266,7 @@
       {
         "name": "output",
         "description": "4-pole (24 dB/oct) lowpass",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -12191,6 +12275,7 @@
       {
         "name": "lp12",
         "description": "2-pole (12 dB/oct) lowpass",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -12199,6 +12284,7 @@
       {
         "name": "bp",
         "description": "bandpass",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -12207,6 +12293,7 @@
       {
         "name": "hp",
         "description": "highpass",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -12218,18 +12305,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency; tops out just under half the sample rate",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "minValue": -3.71
       },
       {
         "name": "resonance",
         "description": "filter resonance; self-oscillates at 5",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -12391,6 +12478,7 @@
       {
         "name": "output",
         "description": "gated signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -12400,17 +12488,17 @@
       {
         "name": "input",
         "description": "the sound to gate",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "trigger",
         "description": "each trigger pings the gate fully open",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "level",
         "description": "how open the gate rests, and where pings decay back to; about 0.9 is half open, 5 fully open",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -12420,7 +12508,7 @@
       {
         "name": "color",
         "description": "tone as the gate closes: low mellow lowpass gate, high bright and VCA-like",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -12430,7 +12518,7 @@
       {
         "name": "decay",
         "description": "how long a ping takes to fade: low short pluck, high long ring",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -12603,6 +12691,7 @@
       {
         "name": "output",
         "description": "response selected by mode",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
@@ -12611,6 +12700,7 @@
       {
         "name": "lp",
         "description": "lowpass, the output at mode 0",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -10.0,
@@ -12619,6 +12709,7 @@
       {
         "name": "bp",
         "description": "bandpass, the output near mode 2.5",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -10.0,
@@ -12627,6 +12718,7 @@
       {
         "name": "hp",
         "description": "highpass, the output at mode 5",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -10.0,
@@ -12638,12 +12730,12 @@
       {
         "name": "input",
         "description": "the sound to filter; DC-coupled, so CV passes too",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency; the top of the range sounds near 21 kHz",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0,
         "minValue": -10.08,
         "maxValue": 6.53
@@ -12651,7 +12743,7 @@
       {
         "name": "resonance",
         "description": "filter resonance; self-oscillates from about 4.3",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -12660,7 +12752,7 @@
       {
         "name": "mode",
         "description": "response: 0 lowpass, 2.5 bandpass, 5 highpass, crossfading between",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -12670,7 +12762,7 @@
       {
         "name": "drive",
         "description": "input level into the clipper: 0 unity, 5 +18 dB, -5 silent; maxes out at +20 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.7,
@@ -12680,7 +12772,7 @@
       {
         "name": "fold",
         "description": "drive character: 0 soft clipping, 5 two-stage wavefolder",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -12932,6 +13024,7 @@
       {
         "name": "output",
         "description": "equalized signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -12941,7 +13034,7 @@
       {
         "name": "input",
         "description": "the sound to EQ",
-        "signalType": "audio"
+        "paramType": "audio"
       }
     ],
     "positionalArgs": [
@@ -13104,6 +13197,7 @@
       {
         "name": "output",
         "description": "lowpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -13115,18 +13209,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -13300,6 +13394,7 @@
       {
         "name": "output",
         "description": "highpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -13311,18 +13406,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -13506,6 +13601,7 @@
       {
         "name": "output",
         "description": "bandpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -13517,18 +13613,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the band",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -13697,6 +13793,7 @@
       {
         "name": "output",
         "description": "notch output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -13708,18 +13805,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the notch",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -13848,6 +13945,7 @@
       {
         "name": "output",
         "description": "allpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -13859,18 +13957,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "frequency the phase shift centres on",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -14029,6 +14127,7 @@
       {
         "name": "output",
         "description": "lowpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -14040,18 +14139,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -14210,6 +14309,7 @@
       {
         "name": "output",
         "description": "lowpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -14221,18 +14321,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -14391,6 +14491,7 @@
       {
         "name": "output",
         "description": "lowpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -14402,18 +14503,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -14577,6 +14678,7 @@
       {
         "name": "output",
         "description": "lowpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -14588,18 +14690,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -14763,6 +14865,7 @@
       {
         "name": "output",
         "description": "highpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -14774,18 +14877,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -14934,6 +15037,7 @@
       {
         "name": "output",
         "description": "lowpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -14945,18 +15049,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -15105,6 +15209,7 @@
       {
         "name": "output",
         "description": "bandpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -15116,18 +15221,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the band",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -15276,6 +15381,7 @@
       {
         "name": "output",
         "description": "highpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -15287,18 +15393,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -15447,6 +15553,7 @@
       {
         "name": "output",
         "description": "notch output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -15458,18 +15565,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the notch",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -15633,6 +15740,7 @@
       {
         "name": "output",
         "description": "lowpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -15644,18 +15752,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -15869,6 +15977,7 @@
       {
         "name": "output",
         "description": "filter output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -15880,18 +15989,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency, or the centre for the bandpass, notch and phaser modes",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -16056,6 +16165,7 @@
       {
         "name": "output",
         "description": "lowpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -16067,18 +16177,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -16243,6 +16353,7 @@
       {
         "name": "output",
         "description": "highpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -16254,18 +16365,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -16430,6 +16541,7 @@
       {
         "name": "output",
         "description": "bandpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -16441,18 +16553,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the band",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -16617,6 +16729,7 @@
       {
         "name": "output",
         "description": "notch output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -16628,18 +16741,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the notch",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -16804,6 +16917,7 @@
       {
         "name": "output",
         "description": "allpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -16815,18 +16929,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "frequency the phase shift centres on",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -16986,6 +17100,7 @@
       {
         "name": "output",
         "description": "lowpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -16997,18 +17112,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -17168,6 +17283,7 @@
       {
         "name": "output",
         "description": "highpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -17179,18 +17295,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -17350,6 +17466,7 @@
       {
         "name": "output",
         "description": "bandpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -17361,18 +17478,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the band",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -17532,6 +17649,7 @@
       {
         "name": "output",
         "description": "notch output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -17543,18 +17661,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the notch",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -17714,6 +17832,7 @@
       {
         "name": "output",
         "description": "allpass output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -17725,18 +17844,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "frequency the phase shift centres on",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -17906,6 +18025,7 @@
       {
         "name": "output",
         "description": "filter output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -17917,18 +18037,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -18097,6 +18217,7 @@
       {
         "name": "output",
         "description": "filter output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -18108,18 +18229,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency, or the centre of the band, notch or peak",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -18248,6 +18369,7 @@
       {
         "name": "output",
         "description": "sampled output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -18259,18 +18381,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "sample clock: how often the input is sampled; lower is crunchier",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -18439,6 +18561,7 @@
       {
         "name": "output",
         "description": "comb output",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -18450,18 +18573,18 @@
       {
         "name": "input",
         "description": "the sound to filter",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "cutoff",
         "description": "pitch the comb rings at",
-        "signalType": "frequency",
+        "paramType": "frequency",
         "defaultValue": 0.0
       },
       {
         "name": "resonance",
         "description": "filter resonance; high values approach self-oscillation",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -18758,6 +18881,7 @@
       {
         "name": "output",
         "description": "the reshaped phase",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -18769,14 +18893,14 @@
       {
         "name": "input",
         "description": "phase to reshape, usually from `$ramp`",
-        "signalType": "audio",
+        "paramType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0
       },
       {
         "name": "freq",
         "description": "pitch of the incoming phase; patch it to cut aliasing from pulsar and feedback warps at high notes",
-        "signalType": "pitch"
+        "paramType": "pitch"
       }
     ],
     "positionalArgs": [
@@ -18882,6 +19006,7 @@
       {
         "name": "output",
         "description": "phase rising once per cycle",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -18893,7 +19018,7 @@
       {
         "name": "freq",
         "description": "how fast the ramp cycles",
-        "signalType": "pitch"
+        "paramType": "pitch"
       }
     ],
     "positionalArgs": [
@@ -19000,6 +19125,7 @@
       {
         "name": "output",
         "description": "the detuned pitch",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -19009,12 +19135,12 @@
       {
         "name": "input",
         "description": "pitch to detune",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "offset",
         "description": "frequency added to the pitch, in Hz; small amounts give slow beating",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -19196,6 +19322,7 @@
       {
         "name": "output",
         "description": "the envelope",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -19207,12 +19334,12 @@
       {
         "name": "gate",
         "description": "rising edge starts the envelope, falling edge starts the release",
-        "signalType": "gate"
+        "paramType": "gate"
       },
       {
         "name": "attack",
         "description": "how long the envelope takes to rise to full level, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.001,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -19221,7 +19348,7 @@
       {
         "name": "decay",
         "description": "how long the envelope takes to fall from full level to the sustain level, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.05,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -19230,7 +19357,7 @@
       {
         "name": "sustain",
         "description": "level held while the gate stays high, in volts",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "defaultDoc": "0 if decay is set, otherwise 5",
         "minValue": 0.0,
@@ -19241,7 +19368,7 @@
       {
         "name": "release",
         "description": "how long the envelope takes to fall to 0 after the gate closes, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.01,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -19250,7 +19377,7 @@
       {
         "name": "curve",
         "description": "shape of the ramps: 0 linear, +5 logarithmic attack with exponential decay and release, -5 the reverse",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -19260,7 +19387,7 @@
       {
         "name": "retrigger",
         "description": "rising edge restarts the attack from the current level, without a jump; follows the gate when not patched",
-        "signalType": "gate"
+        "paramType": "gate"
       }
     ],
     "positionalArgs": [
@@ -19391,6 +19518,7 @@
       {
         "name": "output",
         "description": "the result",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -19400,12 +19528,12 @@
       {
         "name": "input",
         "description": "signal on the left of the operation",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "operand",
         "description": "signal or amount on the right of the operation",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -19537,6 +19665,7 @@
       {
         "name": "output",
         "description": "the signal in whole volts",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -19546,7 +19675,7 @@
       {
         "name": "input",
         "description": "signal to round",
-        "signalType": "audio"
+        "paramType": "audio"
       }
     ],
     "positionalArgs": [
@@ -19679,6 +19808,7 @@
       {
         "name": "output",
         "description": "one channel per buffer channel, read at the position",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -19688,7 +19818,7 @@
       {
         "name": "frame",
         "description": "read position: 0 the start of the buffer, 5 the end; wraps past either end",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -19799,6 +19929,7 @@
       {
         "name": "output",
         "description": "the input, passed through",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -19810,7 +19941,7 @@
       {
         "name": "input",
         "description": "signal recorded into the buffer",
-        "signalType": "audio"
+        "paramType": "audio"
       }
     ],
     "positionalArgs": [
@@ -19941,6 +20072,7 @@
       {
         "name": "output",
         "description": "one pitch per note, lowest first",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -20072,6 +20204,7 @@
       {
         "name": "output",
         "description": "the clamped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -20081,19 +20214,19 @@
       {
         "name": "input",
         "description": "signal to clamp",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "min",
         "description": "lowest value let through; leave out to keep the bottom unclamped",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       },
       {
         "name": "max",
         "description": "highest value let through; leave out to keep the top unclamped",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -20215,7 +20348,8 @@
     "outputs": [
       {
         "name": "output",
-        "description": "a short trigger every `division` ticks",
+        "description": "fires every `division` ticks",
+        "outputType": "trig",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -20227,12 +20361,12 @@
       {
         "name": "input",
         "description": "clock to divide",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "reset",
         "description": "rising edge restarts the count, so the next tick fires",
-        "signalType": "trig"
+        "paramType": "trig"
       }
     ],
     "positionalArgs": [
@@ -20349,6 +20483,7 @@
       {
         "name": "heads",
         "description": "triggers and gates that land heads",
+        "outputType": "gate",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -20357,6 +20492,7 @@
       {
         "name": "tails",
         "description": "triggers and gates that land tails",
+        "outputType": "gate",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -20368,12 +20504,12 @@
       {
         "name": "input",
         "description": "triggers or gates to flip",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "probability",
         "description": "chance of heads: 0 never, 2.5 half the time, 5 always",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -20509,6 +20645,7 @@
       {
         "name": "output",
         "description": "the counter, from 0 to length",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -20518,7 +20655,7 @@
       {
         "name": "length",
         "description": "span the counter wraps within, read at each trigger",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -20527,19 +20664,19 @@
       {
         "name": "distance",
         "description": "amount added to the counter on each trigger; negative steps backwards",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       },
       {
         "name": "trigger",
         "description": "rising edges step the counter by `distance`",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "reset",
         "description": "rising edge sets the counter to 0, winning over a trigger in the same sample",
-        "signalType": "trig"
+        "paramType": "trig"
       }
     ],
     "positionalArgs": [
@@ -20652,6 +20789,7 @@
       {
         "name": "output",
         "description": "the bent signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -20661,12 +20799,12 @@
       {
         "name": "input",
         "description": "signal to bend",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "exp",
         "description": "power the signal is raised to: 0 jumps straight to ±5 V, 1 leaves it unchanged, above 1 pulls the middle toward 0",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -20811,6 +20949,7 @@
       {
         "name": "output",
         "description": "the delayed signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -20820,7 +20959,7 @@
       {
         "name": "time",
         "description": "how far behind the newest recorded sample to read, in seconds; capped at the buffer's length",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.1,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -21020,6 +21159,7 @@
       {
         "name": "output",
         "description": "the varied signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -21029,12 +21169,12 @@
       {
         "name": "input",
         "description": "signal to vary",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "amount",
         "description": "how far the variation reaches: at 5, shift moves up to half the range either way and blend jumps all the way to the random value; blend stops deepening past 5",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0
@@ -21042,12 +21182,12 @@
       {
         "name": "trigger",
         "description": "rising edge samples and holds the current random value",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "speed",
         "description": "how fast the variation wanders: 0 frozen, 5 a fresh value every sample",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -21057,7 +21197,7 @@
       {
         "name": "bias",
         "description": "leans the variation upward (positive) or downward (negative); ±5 makes it one-sided",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -21067,7 +21207,7 @@
       {
         "name": "min",
         "description": "bottom of the input's range",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": -5.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -21075,7 +21215,7 @@
       {
         "name": "max",
         "description": "top of the input's range",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -21193,7 +21333,8 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the stretched gate",
+        "description": "high for `time` after each rising edge",
+        "outputType": "gate",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -21205,12 +21346,12 @@
       {
         "name": "input",
         "description": "rising edge opens the output gate",
-        "signalType": "gate"
+        "paramType": "gate"
       },
       {
         "name": "time",
         "description": "how long the gate stays open, in seconds; a rising edge mid-hold restarts it",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.05,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -21345,6 +21486,7 @@
       {
         "name": "output",
         "description": "the smoothed signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -21354,12 +21496,12 @@
       {
         "name": "input",
         "description": "signal to smooth",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "rise",
         "description": "seconds the output takes to climb 1 V; follows fall when not patched",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.001,
         "controlMin": 0.001,
         "controlMax": 10.0
@@ -21367,7 +21509,7 @@
       {
         "name": "fall",
         "description": "seconds the output takes to drop 1 V",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.01,
         "minValue": 0.001,
         "controlMin": 0.001,
@@ -21473,6 +21615,7 @@
       {
         "name": "output",
         "description": "high while the input keeps rising, and for a trigger's length after",
+        "outputType": "gate",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -21484,7 +21627,7 @@
       {
         "name": "input",
         "description": "signal watched for any rise from one sample to the next",
-        "signalType": "audio"
+        "paramType": "audio"
       }
     ],
     "positionalArgs": [
@@ -21586,6 +21729,7 @@
       {
         "name": "output",
         "description": "high while the input keeps falling, and for a trigger's length after",
+        "outputType": "gate",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -21597,7 +21741,7 @@
       {
         "name": "input",
         "description": "signal watched for any fall from one sample to the next",
-        "signalType": "audio"
+        "paramType": "audio"
       }
     ],
     "positionalArgs": [
@@ -21758,6 +21902,7 @@
       {
         "name": "output",
         "description": "the expression's result",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -21767,17 +21912,17 @@
       {
         "name": "x",
         "description": "signal read as `x` in the expression; 0 when not patched",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "y",
         "description": "signal read as `y` in the expression; 0 when not patched",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "z",
         "description": "signal read as `z` in the expression; 0 when not patched",
-        "signalType": "audio"
+        "paramType": "audio"
       }
     ],
     "positionalArgs": [
@@ -21934,6 +22079,7 @@
       {
         "name": "output",
         "description": "movement level in either direction, 0 V at rest",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -21942,6 +22088,7 @@
       {
         "name": "pos",
         "description": "movement level from rising input only",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -21950,6 +22097,7 @@
       {
         "name": "neg",
         "description": "movement level from falling input only",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -21961,12 +22109,12 @@
       {
         "name": "input",
         "description": "controller signal whose movement drives the output",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "attack",
         "description": "how fast the level swells as movement speeds up, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.02,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -21975,7 +22123,7 @@
       {
         "name": "release",
         "description": "how fast the level fades once movement slows or stops, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.3,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -21984,7 +22132,7 @@
       {
         "name": "smooth",
         "description": "seconds of averaging on the movement speed; set it longer than the gap between controller updates to hide stepping",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.02,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -21993,7 +22141,7 @@
       {
         "name": "gain",
         "description": "sensitivity: how much output a given speed of movement gives, in volts per volt-per-second; negative flips the output below 0",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.25,
         "controlMin": 0.0,
         "controlMax": 10.0
@@ -22001,7 +22149,7 @@
       {
         "name": "ceiling",
         "description": "level the output softly saturates toward and never passes, in volts",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "minValue": 0.001,
         "controlMin": 0.001,
@@ -22112,6 +22260,7 @@
       {
         "name": "output",
         "description": "the scaled pitch",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -22121,12 +22270,12 @@
       {
         "name": "input",
         "description": "pitch to scale",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "factor",
         "description": "frequency ratio: 1 unchanged, 2 an octave up, 0.5 an octave down, 1.5 a just fifth up",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 0.0,
         "controlMin": 0.0,
@@ -22235,6 +22384,7 @@
       {
         "name": "output",
         "description": "the frequency as a V/Oct pitch",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -22244,7 +22394,7 @@
       {
         "name": "input",
         "description": "frequency in Hz",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1000.0
@@ -22369,6 +22519,7 @@
       {
         "name": "output",
         "description": "the rescaled signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -22378,12 +22529,12 @@
       {
         "name": "input",
         "description": "signal to rescale",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "outMin",
         "description": "output value for an input at inMin",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": -5.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -22391,7 +22542,7 @@
       {
         "name": "outMax",
         "description": "output value for an input at inMax",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -22399,7 +22550,7 @@
       {
         "name": "inMin",
         "description": "input value that maps to outMin",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": -5.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -22407,7 +22558,7 @@
       {
         "name": "inMax",
         "description": "input value that maps to outMax",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -22533,6 +22684,7 @@
       {
         "name": "output",
         "description": "the voltage captured at the last trigger",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -22542,12 +22694,12 @@
       {
         "name": "input",
         "description": "signal to sample",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "trigger",
         "description": "rising edge captures the current input value",
-        "signalType": "trig"
+        "paramType": "trig"
       }
     ],
     "positionalArgs": [
@@ -22657,6 +22809,7 @@
       {
         "name": "output",
         "description": "the tracked or held voltage",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -22666,12 +22819,12 @@
       {
         "name": "input",
         "description": "signal to track",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "gate",
         "description": "output follows the input while low and holds its last value while high",
-        "signalType": "gate"
+        "paramType": "gate"
       }
     ],
     "positionalArgs": [
@@ -22791,6 +22944,7 @@
       {
         "name": "output",
         "description": "the envelope",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -22802,12 +22956,12 @@
       {
         "name": "trigger",
         "description": "rising edge restarts the envelope from its current level",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "decay",
         "description": "how long the envelope takes to die away, in seconds",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.1,
         "minValue": 0.001,
         "controlMin": 0.001,
@@ -22963,12 +23117,14 @@
       {
         "name": "output",
         "description": "the snapped pitch",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       },
       {
         "name": "trig",
-        "description": "a short trigger each time the snapped note changes",
+        "description": "fires each time the snapped note changes",
+        "outputType": "trig",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -22980,17 +23136,17 @@
       {
         "name": "input",
         "description": "pitch to quantize",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "offset",
         "description": "transposition added to the pitch before it snaps",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "gate",
         "description": "turns notes of the scale on and off: scale channel N is used only while gate channel N is high; with every gate low the output holds",
-        "signalType": "gate"
+        "paramType": "gate"
       }
     ],
     "positionalArgs": [
@@ -23117,6 +23273,7 @@
       {
         "name": "output",
         "description": "the scaled and shifted signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -23126,12 +23283,12 @@
       {
         "name": "input",
         "description": "signal to scale and shift",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "scale",
         "description": "gain: 5 unity, 0 silence, 10 double, negative inverts",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 10.0
@@ -23139,7 +23296,7 @@
       {
         "name": "shift",
         "description": "offset added after scaling, in volts",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -23191,6 +23348,7 @@
       {
         "name": "output",
         "description": "the value, ramping smoothly to each new setting",
+        "outputType": "cv",
         "polyphonic": false,
         "default": true
       }
@@ -23324,6 +23482,7 @@
       {
         "name": "output",
         "description": "one value per channel, from min to max",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -23333,21 +23492,21 @@
       {
         "name": "min",
         "description": "value of the first channel",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       },
       {
         "name": "max",
         "description": "value of the last channel",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       },
       {
         "name": "bias",
         "description": "bunches the channels toward max (positive) or min (negative); 0 spaces them evenly",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -23482,6 +23641,7 @@
       {
         "name": "output",
         "description": "the detuned copies, each a full set of the input channels",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -23491,12 +23651,12 @@
       {
         "name": "input",
         "description": "pitch to fan out into detuned copies",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "spread",
         "description": "detune width, finer near 0: 0 none, 10 puts the outer copies an octave above and below",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "maxValue": 10.0,
         "controlMin": 0.0,
@@ -23616,6 +23776,7 @@
       {
         "name": "output",
         "description": "the input, passed through",
+        "outputType": "cv",
         "polyphonic": false,
         "default": true
       }
@@ -23625,7 +23786,7 @@
       {
         "name": "input",
         "description": "signal published to the video renderer",
-        "signalType": "audio"
+        "paramType": "audio"
       }
     ],
     "positionalArgs": [
@@ -23745,6 +23906,7 @@
       {
         "name": "output",
         "description": "the wrapped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -23754,12 +23916,12 @@
       {
         "name": "input",
         "description": "signal to wrap",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "min",
         "description": "bottom of the range; swaps with max when above it",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -23767,7 +23929,7 @@
       {
         "name": "max",
         "description": "top of the range",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -26173,12 +26335,14 @@
       {
         "name": "cv",
         "description": "pitch of the current or last note",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       },
       {
         "name": "gate",
         "description": "high while a note plays",
+        "outputType": "gate",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -26187,6 +26351,7 @@
       {
         "name": "trig",
         "description": "fires at the start of each note",
+        "outputType": "trig",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -26195,6 +26360,7 @@
       {
         "name": "velocity",
         "description": "groove velocity of the current or last note",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -26206,7 +26372,7 @@
       {
         "name": "playhead",
         "description": "playhead position in cycles; follows the global clock by default",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1.0
@@ -26214,14 +26380,14 @@
       {
         "name": "groove",
         "description": "groove shift of note starts, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       },
       {
         "name": "velocity",
         "description": "velocity held from each note start onto the `velocity` output. Follows the global groove, unless you set your own `playhead` or `groove`: then every note is full velocity until given a velocity too",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": 0.0,
         "controlMax": 5.0
       }
@@ -26400,6 +26566,7 @@
       {
         "name": "output",
         "description": "the value at the current position, curved between keyframes",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -26409,7 +26576,7 @@
       {
         "name": "playhead",
         "description": "position along the keyframes",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "maxValue": 1.0,
         "controlMin": 0.0,
@@ -26551,6 +26718,7 @@
       {
         "name": "output",
         "description": "the current step's value",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -26560,12 +26728,12 @@
       {
         "name": "next",
         "description": "advances to the next step, wrapping after the last",
-        "signalType": "trig"
+        "paramType": "trig"
       },
       {
         "name": "reset",
         "description": "jumps back to the first step",
-        "signalType": "trig"
+        "paramType": "trig"
       }
     ],
     "positionalArgs": [
@@ -26792,7 +26960,8 @@
     "outputs": [
       {
         "name": "bd",
-        "description": "bass drum trigger",
+        "description": "bass drum",
+        "outputType": "trig",
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
@@ -26800,7 +26969,8 @@
       },
       {
         "name": "sd",
-        "description": "snare drum trigger",
+        "description": "snare drum",
+        "outputType": "trig",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -26808,7 +26978,8 @@
       },
       {
         "name": "hh",
-        "description": "hi-hat trigger",
+        "description": "hi-hat",
+        "outputType": "trig",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -26816,7 +26987,8 @@
       },
       {
         "name": "bdAccent",
-        "description": "bass drum accent trigger",
+        "description": "bass drum accent",
+        "outputType": "trig",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -26824,7 +26996,8 @@
       },
       {
         "name": "sdAccent",
-        "description": "snare drum accent trigger",
+        "description": "snare drum accent",
+        "outputType": "trig",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -26832,7 +27005,8 @@
       },
       {
         "name": "hhAccent",
-        "description": "hi-hat accent trigger",
+        "description": "hi-hat accent",
+        "outputType": "trig",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -26844,7 +27018,7 @@
       {
         "name": "playhead",
         "description": "playhead position in cycles; one cycle plays the 32-step pattern once; follows the global clock by default",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1.0
@@ -26852,14 +27026,14 @@
       {
         "name": "groove",
         "description": "groove shift of each step, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
-        "signalType": "control",
+        "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
       },
       {
         "name": "velocity",
         "description": "how readily each step accents: lower accents less, 0 never. Follows the global groove, unless you set your own `playhead` or `groove`: then it is full until given a velocity too",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0
@@ -26867,7 +27041,7 @@
       {
         "name": "x",
         "description": "horizontal position in the map of drum patterns",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -26877,7 +27051,7 @@
       {
         "name": "y",
         "description": "vertical position in the map of drum patterns",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -26887,7 +27061,7 @@
       {
         "name": "chaos",
         "description": "random variation of the pattern, re-rolled each cycle",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -26897,7 +27071,7 @@
       {
         "name": "bdDensity",
         "description": "how many bass drum hits play: none at 0, all at 5",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -26907,7 +27081,7 @@
       {
         "name": "sdDensity",
         "description": "how many snare drum hits play: none at 0, all at 5",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -26917,7 +27091,7 @@
       {
         "name": "hhDensity",
         "description": "how many hi-hat hits play: none at 0, all at 5",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -27130,12 +27304,14 @@
       {
         "name": "offset",
         "description": "how far the groove shifts the playhead, in cycles; pass to a sequencer's `groove`",
+        "outputType": "cv",
         "polyphonic": false,
         "default": true
       },
       {
         "name": "velocity",
         "description": "velocity of the current groove step; pass to a sequencer's `velocity`",
+        "outputType": "cv",
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
@@ -27144,6 +27320,7 @@
       {
         "name": "trigger",
         "description": "fires at the start of each grooved step",
+        "outputType": "trig",
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
@@ -27155,7 +27332,7 @@
       {
         "name": "playhead",
         "description": "straight playhead to groove, in cycles; follows the global clock (without its groove) by default",
-        "signalType": "control",
+        "paramType": "control",
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1.0
@@ -27293,12 +27470,14 @@
       {
         "name": "pitch",
         "description": "pitch of the voice's note, including pitch bend",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       },
       {
         "name": "gate",
         "description": "high while the voice's note is held",
+        "outputType": "gate",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -27307,6 +27486,7 @@
       {
         "name": "velocity",
         "description": "how hard the note was struck",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -27315,6 +27495,7 @@
       {
         "name": "aftertouch",
         "description": "pressure on the held keys, from channel or polyphonic aftertouch",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -27323,6 +27504,7 @@
       {
         "name": "retrigger",
         "description": "fires at the start of each new note, even when gate stays high",
+        "outputType": "trig",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -27331,6 +27513,7 @@
       {
         "name": "pitchWheel",
         "description": "pitch wheel position: 0 centred, ±5 at either end",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
@@ -27339,6 +27522,7 @@
       {
         "name": "modWheel",
         "description": "mod wheel (CC 1) position",
+        "outputType": "cv",
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
@@ -27416,6 +27600,7 @@
       {
         "name": "output",
         "description": "the controller's value: 0 at its minimum, 5 at its maximum",
+        "outputType": "cv",
         "polyphonic": false,
         "default": true,
         "minValue": 0.0,
@@ -27655,6 +27840,7 @@
       {
         "name": "output",
         "description": "the mix of all playing grains",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -27664,17 +27850,17 @@
       {
         "name": "pitch",
         "description": "pitch of new grains: 0 plays at the file's own speed, each volt an octave",
-        "signalType": "pitch"
+        "paramType": "pitch"
       },
       {
         "name": "gate",
         "description": "grains spawn while high; each new gate restarts the `loopCount` tally",
-        "signalType": "gate"
+        "paramType": "gate"
       },
       {
         "name": "start",
         "description": "where in the file new grains start: 0 the beginning, 5 the end",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -27684,7 +27870,7 @@
       {
         "name": "length",
         "description": "grain length: 1 is 100 ms, 10 is 1 s, up to the length of the file",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 0.01,
         "controlMin": 0.01,
@@ -27693,7 +27879,7 @@
       {
         "name": "density",
         "description": "how often grains spawn: 10 grains per second per volt",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0001,
         "maxValue": 100.0,
@@ -27703,7 +27889,7 @@
       {
         "name": "directionBias",
         "description": "chance a grain plays in reverse: 0 never, 5 always",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
@@ -27802,6 +27988,7 @@
       {
         "name": "output",
         "description": "the media file's audio",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -28022,6 +28209,7 @@
       {
         "name": "output",
         "description": "the played sample",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true
       }
@@ -28031,12 +28219,12 @@
       {
         "name": "gate",
         "description": "starts the selected slice playing; `mode` sets what the gate does after that",
-        "signalType": "gate"
+        "paramType": "gate"
       },
       {
         "name": "speed",
         "description": "playback speed: 1 normal, 2 double (an octave up), negative plays in reverse",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 1.0,
         "controlMin": -4.0,
         "controlMax": 4.0
@@ -28190,6 +28378,7 @@
       {
         "name": "output",
         "description": "the shaped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -28201,12 +28390,12 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "drive",
         "description": "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -28395,6 +28584,7 @@
       {
         "name": "output",
         "description": "the shaped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -28406,12 +28596,12 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "drive",
         "description": "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -28565,6 +28755,7 @@
       {
         "name": "output",
         "description": "the shaped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -28576,12 +28767,12 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "drive",
         "description": "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -28745,6 +28936,7 @@
       {
         "name": "output",
         "description": "the shaped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -28756,12 +28948,12 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "drive",
         "description": "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -28920,6 +29112,7 @@
       {
         "name": "output",
         "description": "the shaped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -28931,12 +29124,12 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "drive",
         "description": "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -29125,6 +29318,7 @@
       {
         "name": "output",
         "description": "the shaped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -29136,12 +29330,12 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "drive",
         "description": "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -29265,6 +29459,7 @@
       {
         "name": "output",
         "description": "the shaped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -29276,12 +29471,12 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "drive",
         "description": "step size: -5 fine, about 128 levels across ±5 V; 0 about 32; +5 coarse, about 8",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -29402,6 +29597,7 @@
       {
         "name": "output",
         "description": "the shaped signal",
+        "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
@@ -29413,12 +29609,12 @@
       {
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
-        "signalType": "audio"
+        "paramType": "audio"
       },
       {
         "name": "drive",
         "description": "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
-        "signalType": "control",
+        "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,

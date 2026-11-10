@@ -36,7 +36,7 @@ struct SpreadParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SpreadOutputs {
-    #[output("output", "one value per channel, from min to max", default)]
+    #[output("output", "one value per channel, from min to max", type = cv, default)]
     sample: PolyOutput,
 }
 

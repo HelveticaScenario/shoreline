@@ -35,13 +35,13 @@ struct Jup6fParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Jup6fOutputs {
-    #[output("output", "4-pole (24 dB/oct) lowpass", default, range = (-5.0, 5.0))]
+    #[output("output", "4-pole (24 dB/oct) lowpass", type = cv, default, range = (-5.0, 5.0))]
     lp24: PolyOutput,
-    #[output("lp12", "2-pole (12 dB/oct) lowpass", range = (-5.0, 5.0))]
+    #[output("lp12", "2-pole (12 dB/oct) lowpass", type = cv, range = (-5.0, 5.0))]
     lp12: PolyOutput,
-    #[output("bp", "bandpass", range = (-5.0, 5.0))]
+    #[output("bp", "bandpass", type = cv, range = (-5.0, 5.0))]
     bp: PolyOutput,
-    #[output("hp", "highpass", range = (-5.0, 5.0))]
+    #[output("hp", "highpass", type = cv, range = (-5.0, 5.0))]
     hp: PolyOutput,
 }
 

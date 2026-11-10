@@ -34,7 +34,7 @@ struct ChannelState {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct RemapOutputs {
-    #[output("output", "the rescaled signal", default)]
+    #[output("output", "the rescaled signal", type = cv, default)]
     sample: PolyOutput,
 }
 
