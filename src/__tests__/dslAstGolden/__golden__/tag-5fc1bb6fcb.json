@@ -1,0 +1,112 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 3,
+        "gainClear": null,
+        "gainSet": null,
+        "muteOff": null,
+        "muteOn": null,
+        "panClear": null,
+        "panSet": null,
+        "soloOff": null,
+        "soloOn": null
+      }
+    ],
+    "quickFixes": {
+      "at": ["25-26 0","28-29 1"],
+      "fixes": [
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('saturation', 1, 0, 1)",
+            "preferred": true,
+            "span": {"end":26,"start":25},
+            "title": "Wrap 'saturation' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('value', 1, 0, 1)",
+            "preferred": true,
+            "span": {"end":29,"start":28},
+            "title": "Wrap 'value' in $slider"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":31,"start":31,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":7,"start":7,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":15,"start":15,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":23,"start":23,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

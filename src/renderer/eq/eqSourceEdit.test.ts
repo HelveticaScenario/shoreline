@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CodeStyle } from '../dsl/objectPropertyInsert';
+import type { CodeStyle } from '../dsl/listEdits';
 import { computeEqSourceEdit, type EqSourceOp } from './eqSourceEdit';
 import type { EqListTarget } from './eqSourceLocate';
 

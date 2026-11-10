@@ -1,6 +1,8 @@
 use std::ops::Range;
 
 use super::*;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// The inputs every channel of the rim shot reads.
 struct RsInputs<I> {
@@ -26,21 +28,24 @@ struct RsState {
     groups: Groups<RimDrum>,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Rs909Params {
-    /// rising edges strike the rim
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the rim", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 909 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 909"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
@@ -49,22 +54,33 @@ struct Rs909Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Rs909Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-909 rim shot.
-///
-/// A circuit model of the 909's rim shot: a short, sharp, metallic click from
-/// three tones rung together and clipped. **accent** makes it hit harder.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr909.rimShot($clock.beatTrigger).out()
-/// ```
-#[module(name = "$tr909.rimShot", has_init, patch_update, args(trigger), block)]
+const RS909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 rim shot",
+    description: "The 909's rim shot: a short, sharp, metallic click, for ticking \
+                  syncopation over a kick.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Ticking rim shots",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.rimShot($cycle($p('~ c ~ c c ~ ~ c')).trig).out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$tr909.rimShot",
+    docs = RS909_DOCS,
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Rs909 {
     outputs: Rs909Outputs,
     params: Rs909Params,

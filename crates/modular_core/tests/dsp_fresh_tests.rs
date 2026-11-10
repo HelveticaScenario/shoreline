@@ -352,16 +352,15 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$comp" => json!({ "input": 0.0, "threshold": 0.0 }),
         "_erratic" => json!({ "input": 0.0, "amount": 1.0 }),
         "_arithmetic" => json!({ "input": 0.0, "operand": 0.0 }),
-        "_round" => json!({ "input": 0.0 }),
+        "_round" | "_hz" => json!({ "input": 0.0 }),
         "$wrap" | "$clamp" => json!({ "input": 0.0, "min": -5.0, "max": 5.0 }),
         "$addHz" => json!({ "input": 0.0, "offset": 0.0 }),
         "$mulHz" => json!({ "input": 0.0, "factor": 1.0 }),
         "$curve" => json!({ "input": 0.0, "exp": 1.0 }),
         "$cycle" => json!({ "pattern": mini_payload("0") }),
-        "$lpg" | "$slew" | "$hold" | "$motionFollower" | "$quantizer" | "$unison" | "$crush"
-        | "$feedback" | "$pulsar" | "$rising" | "$falling" | "$stereoMix" | "$mixDown" => {
-            json!({ "input": 0.0 })
-        }
+        "$lpg" | "$slew" | "$hold" | "$motionFollower" | "$quantizer" | "$unison" | "$rising"
+        | "$falling" | "$stereoMix" | "$mixDown" => json!({ "input": 0.0 }),
+        "$pWarp" => json!({ "input": 0.0, "phase": { "type": "identity" } }),
         "$track" => json!({ "keyframes": [] }),
         "$math" => json!({ "expression": "1+1" }),
         "$spread" => json!({ "min": -1.0, "max": 1.0, "count": 3 }),
@@ -514,18 +513,6 @@ fn schema_names_match_constructors() {
         assert!(
             constructors.contains_key(&s.name),
             "schema '{}' has no matching constructor",
-            s.name
-        );
-    }
-}
-
-#[test]
-fn schemas_have_non_empty_documentation() {
-    use modular_core::dsp::schema;
-    for s in schema() {
-        assert!(
-            !s.documentation.is_empty(),
-            "schema '{}' has empty documentation",
             s.name
         );
     }

@@ -1,0 +1,217 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 3,
+        "gainClear": null,
+        "gainSet": null,
+        "muteOff": null,
+        "muteOn": null,
+        "panClear": null,
+        "panSet": null,
+        "soloOff": null,
+        "soloOn": null
+      }
+    ],
+    "quickFixes": {
+      "at": [
+        "7-13 0",
+        "14-15 1",
+        "16-23 2",
+        "24-32 3",
+        "33-36 4",
+        "37-37 3",
+        "38-41 5",
+        "42-42 3",
+        "43-44 6",
+        "45-53 7"
+      ],
+      "fixes": [
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('phase', 0, 0, 5)",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'phase'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 24,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 5, 0, 5)",
+            "preferred": true,
+            "span": {"end":15,"start":14},
+            "title": "Wrap 'freq' in $slider"
+          },
+          {
+            "caretOffset": 27,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('phase', 0, 0, 5)",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'phase'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "add",
+            "newText": "$slider('saturation', 1, 0, 1)",
+            "span": {"end":23,"start":23},
+            "title": "Add slider for 'saturation'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 23,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('a', 0, 0, 5)",
+            "span": {"end":44,"start":44},
+            "title": "Add slider for 'a'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 23,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('r', 0.2, 0, 5)",
+            "preferred": true,
+            "span": {"end":36,"start":33},
+            "title": "Wrap 'r' in $slider"
+          },
+          {
+            "caretOffset": 23,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('a', 0, 0, 5)",
+            "span": {"end":44,"start":44},
+            "title": "Add slider for 'a'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 23,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('g', 0.4, 0, 5)",
+            "preferred": true,
+            "span": {"end":41,"start":38},
+            "title": "Wrap 'g' in $slider"
+          },
+          {
+            "caretOffset": 23,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('a', 0, 0, 5)",
+            "span": {"end":44,"start":44},
+            "title": "Add slider for 'a'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 21,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('b', 0, 0, 5)",
+            "preferred": true,
+            "span": {"end":44,"start":43},
+            "title": "Wrap 'b' in $slider"
+          },
+          {
+            "caretOffset": 23,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('a', 0, 0, 5)",
+            "span": {"end":44,"start":44},
+            "title": "Add slider for 'a'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 24,
+            "controlOffset": 0,
+            "kind": "add",
+            "newText": "$slider('gain', 1, 0, 5)",
+            "span": {"end":53,"start":53},
+            "title": "Add slider for 'gain'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":55,"start":55,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":13,"start":13,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":27,"start":27,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":41,"start":41,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

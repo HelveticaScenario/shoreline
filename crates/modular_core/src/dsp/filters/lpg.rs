@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::filter::{Svf, tan_dirty},
@@ -33,26 +35,38 @@ const SVF_Q: f32 = 0.4;
 /// Plaits frequency curve below Nyquist at low engine rates.
 const MAX_NORMALIZED_CUTOFF: f32 = 0.45;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct LpgParams {
-    /// signal input
+    #[input("the sound to gate", type = audio)]
     input: PolySignal,
-    /// trigger input (rising edge pings the vactrol fully open)
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("each trigger pings the gate fully open", type = trig)]
     #[deserr(default)]
     trigger: Option<PolySignal>,
-    /// level CV (0-5V) - the floor pings rise from and decay back to, on Plaits' compressing curve; 5V fully open
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "how open the gate rests, and where pings decay back to; about 0.9 is half open, 5 fully open",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     level: Option<PolySignal>,
-    /// filter response (0-5) - low = mellow lowpass gate, high = bright, VCA-like
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "tone as the gate closes: low mellow lowpass gate, high bright and VCA-like",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     color: Option<PolySignal>,
-    /// vactrol decay (0-5) - low = short pluck, high = long ring
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how long a ping takes to fade: low short pluck, high long ring",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<PolySignal>,
 }
@@ -60,7 +74,7 @@ struct LpgParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LpgOutputs {
-    #[output("output", "gated signal", default)]
+    #[output("output", "gated signal", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -112,31 +126,39 @@ struct LpgState {
     bypass_fade_step: f32,
 }
 
-/// Vactrol low pass gate modeled on the one built into Mutable Instruments Plaits.
-///
-/// The gate is a filter and VCA driven together by a simulated vactrol: as it
-/// opens, the signal gets both louder and brighter, and it closes with the
-/// slow, non-linear tail that gives plucked and struck sounds their bounce.
-///
-/// - **trigger** — each rising edge pings the vactrol fully open, then it
-///   decays back to **level**.
-/// - **level** — the floor the vactrol rests at, 0–5 V on Plaits' compressing
-///   curve: about 0.9 V opens it halfway, 2.5 V about 80%, 5 V fully. With no
-///   trigger it works as a CV-controlled gate; with a trigger, each ping
-///   swings the gate from the floor to fully open and back.
-/// - **color** — low values close the filter as the gate closes (mellow,
-///   woody); high values let highs through, approaching a plain VCA.
-/// - **decay** — length of the vactrol's release.
-///
-/// With neither **trigger** nor **level** patched the gate is bypassed and
-/// the input passes through unchanged; patching or unpatching them
-/// crossfades over 5 ms.
-///
-/// ```js
-/// // plucked saw pinged on every beat
-/// $lpg($saw('c3'), $clock.beatTrigger, { color: 1.5, decay: 2 }).out()
-/// ```
-#[module(name = "$lpg", args(input, trigger), has_init)]
+const LPG_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Vactrol lowpass gate",
+    description: "A filter and VCA moved together by a simulated vactrol, modelled on the gate \
+                  in Mutable Instruments Plaits: each ping opens it louder and brighter, then \
+                  it closes with the slow, bouncy tail of plucked and struck sounds. With \
+                  neither `trigger` nor `level` patched, the sound passes straight through.",
+    categories: &[ModuleCategory::Filter, ModuleCategory::Dynamics],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Plucked melody",
+            code: r#"
+                const seq = $cycle($p('c4 eb4 g4 [bb4 c5]'))
+                $saw(seq).$.lpg(seq.trig, { color: 1.5, decay: 2 }).out()
+            "#,
+        },
+        DocExample {
+            title: "Woody knock on every beat",
+            code: r#"
+                $saw('c3')
+                  .$.lpg($clock.beatTrigger, { color: 0.5, decay: 1 })
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(
+    name = "$lpg",
+    docs = LPG_DOCS,
+    args(input, trigger),
+    has_init
+)]
 pub struct Lpg {
     outputs: LpgOutputs,
     state: LpgState,

@@ -5,40 +5,54 @@ use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
 use crate::dsp::utils::{hz_to_voct, voct_to_hz};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 /// Lower bound for the post-offset frequency, keeping `hz_to_voct` away from log2(≤0).
 const MIN_HZ: f32 = 1e-4;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct AddHzParams {
-    /// V/Oct pitch signal to detune
-    #[signal(type = pitch)]
+    #[input("pitch to detune", type = pitch)]
     input: PolySignal,
-    /// frequency offset added to the input pitch, in Hz
+    #[input(
+        "frequency added to the pitch, in Hz; small amounts give slow beating",
+        type = control,
+        control_range = (-5.0, 5.0),
+    )]
     offset: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct AddHzOutputs {
-    #[output("output", "V/Oct pitch output", default)]
+    #[output("output", "the detuned pitch", type = cv, default)]
     sample: PolyOutput,
 }
 
-/// Offsets a pitch by an absolute frequency amount, in Hz.
-///
-/// The input V/Oct pitch is converted to Hz, **offset** Hz is added, then the
-/// result is converted back to V/Oct. Useful for audible beating detune.
-///
-/// ```js
-/// // detune a saw by +0.5 Hz for slow beating
-/// $addHz($saw('C4'), 0.5)
-/// ```
-#[module(name = "$addHz", args(input, offset), block)]
+const ADD_HZ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Detune a pitch by Hz",
+    description: "Shifts a pitch by a fixed number of Hz rather than by cents, so a \
+                  detuned copy beats at the same steady rate whatever note plays. \
+                  Layer it against the original for slow, even chorusing.",
+    categories: &[ModuleCategory::Pitch],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Slow, even beating",
+        code: r#"
+            const pitch = $cycle($p('c3 eb3 g3 bb2'))
+            $saw(pitch).out()
+            $saw($addHz(pitch, 0.7)).out()
+        "#,
+    }],
+};
+
+#[module(name = "$addHz", docs = ADD_HZ_DOCS, args(input, offset), block)]
 pub struct AddHz {
     outputs: AddHzOutputs,
     params: AddHzParams,

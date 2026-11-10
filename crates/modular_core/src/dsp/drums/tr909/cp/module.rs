@@ -4,22 +4,27 @@ use super::*;
 use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::tr909::circuit::TRIG_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cp909Params {
-    /// rising edges clap
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges clap", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the clap: up to twice
-    /// as loud, with a fuller tail (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the clap lands, read at each strike: up to twice as loud at 5 V, with a fuller tail",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// fade out a clap still sounding over 2 ms as the next one strikes, so
-    /// every clap starts from rest; otherwise each clap runs into the last, as
-    /// on the 909 (default false)
+    #[input(
+        "start every clap from rest, fading out one still sounding over 2 ms; off, each clap runs into the last, as on the 909"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
@@ -28,23 +33,33 @@ struct Cp909Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Cp909Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-909 hand clap.
-///
-/// A circuit model of the 909's hand clap: bursts of filtered noise in quick
-/// succession, like several hands clapping at once, over a swelling noise tail.
-/// **accent** makes it louder and swells the tail.
-///
-/// An unaccented clap peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr909.clap($clock.beatTrigger).out()
-/// ```
-#[module(name = "$tr909.clap", has_init, patch_update, args(trigger), block)]
+const CP909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 hand clap",
+    description: "The 909's hand clap: bursts of filtered noise in quick succession, \
+                  like several hands clapping at once, over a swelling noise tail.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "House clap",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.clap($cycle($p('~ c ~ c')).trig).out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$tr909.clap",
+    docs = CP909_DOCS,
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Cp909 {
     outputs: Cp909Outputs,
     params: Cp909Params,

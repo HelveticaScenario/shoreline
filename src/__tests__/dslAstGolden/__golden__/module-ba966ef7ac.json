@@ -1,0 +1,217 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["3:4",3,3]],
+      "interpolations": [],
+      "registry": [["4:5","$noise",[["color",7,14]]],["5:10","$lorenz",[["rate",41,44]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 75,
+        "gainClear": null,
+        "gainSet": {"end":79,"start":79,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":79,"start":79,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":79,"start":79,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":79,"start":79,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["25-34 0","35-40 1","41-44 2","45-46 0","54-58 3","60-64 4","67-70 5","71-79 6"],
+      "fixes": [
+        [
+          {
+            "caretOffset": 58,
+            "controlOffset": 28,
+            "kind": "add",
+            "newText": "{\n    rate: 0.1,\n    sigma: $slider('sigma', 1.6667, 0, 5),\n  }",
+            "span": {"end":46,"start":33},
+            "title": "Add slider for 'sigma'"
+          },
+          {
+            "caretOffset": 54,
+            "controlOffset": 26,
+            "kind": "add",
+            "newText": "{\n    rate: 0.1,\n    rho: $slider('rho', 2.3333, 0, 5),\n  }",
+            "span": {"end":46,"start":33},
+            "title": "Add slider for 'rho'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 27,
+            "kind": "add",
+            "newText": "{\n    rate: 0.1,\n    beta: $slider('beta', 1.3333, 0, 5),\n  }",
+            "span": {"end":46,"start":33},
+            "title": "Add slider for 'beta'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('rate', 0.1, 0, 5)",
+            "preferred": false,
+            "span": {"end":44,"start":41},
+            "title": "Wrap 'rate' in $slider"
+          },
+          {
+            "caretOffset": 58,
+            "controlOffset": 28,
+            "kind": "add",
+            "newText": "{\n    rate: 0.1,\n    sigma: $slider('sigma', 1.6667, 0, 5),\n  }",
+            "span": {"end":46,"start":33},
+            "title": "Add slider for 'sigma'"
+          },
+          {
+            "caretOffset": 54,
+            "controlOffset": 26,
+            "kind": "add",
+            "newText": "{\n    rate: 0.1,\n    rho: $slider('rho', 2.3333, 0, 5),\n  }",
+            "span": {"end":46,"start":33},
+            "title": "Add slider for 'rho'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 27,
+            "kind": "add",
+            "newText": "{\n    rate: 0.1,\n    beta: $slider('beta', 1.3333, 0, 5),\n  }",
+            "span": {"end":46,"start":33},
+            "title": "Add slider for 'beta'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('rate', 0.1, 0, 5)",
+            "preferred": true,
+            "span": {"end":44,"start":41},
+            "title": "Wrap 'rate' in $slider"
+          },
+          {
+            "caretOffset": 58,
+            "controlOffset": 28,
+            "kind": "add",
+            "newText": "{\n    rate: 0.1,\n    sigma: $slider('sigma', 1.6667, 0, 5),\n  }",
+            "span": {"end":46,"start":33},
+            "title": "Add slider for 'sigma'"
+          },
+          {
+            "caretOffset": 54,
+            "controlOffset": 26,
+            "kind": "add",
+            "newText": "{\n    rate: 0.1,\n    rho: $slider('rho', 2.3333, 0, 5),\n  }",
+            "span": {"end":46,"start":33},
+            "title": "Add slider for 'rho'"
+          },
+          {
+            "caretOffset": 56,
+            "controlOffset": 27,
+            "kind": "add",
+            "newText": "{\n    rate: 0.1,\n    beta: $slider('beta', 1.3333, 0, 5),\n  }",
+            "span": {"end":46,"start":33},
+            "title": "Add slider for 'beta'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 35,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMin', 'c5', 'c3', 'c7')",
+            "preferred": true,
+            "span": {"end":58,"start":54},
+            "title": "Wrap 'outMin' in a note $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 35,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMax', 'c7', 'c5', 'c9')",
+            "preferred": true,
+            "span": {"end":64,"start":60},
+            "title": "Wrap 'outMax' in a note $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('resonance', 4.5, 0, 5)",
+            "preferred": true,
+            "span": {"end":70,"start":67},
+            "title": "Wrap 'resonance' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ gain: $slider('gain', 5, 0, 5) }",
+            "span": {"end":79,"start":79},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":79,"start":79},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ width: $slider('width', 0, 0, 5) }",
+            "span": {"end":79,"start":79},
+            "title": "Add slider for 'width'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":80,"start":80,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:5","$noise",[["color",7,14]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":20,"start":20,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:5","$noise",[["color",7,14]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":40,"start":40,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [["4:5","$noise",[["color",7,14]]],["5:10","$lorenz",[["rate",41,44]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":60,"start":60,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

@@ -1,0 +1,204 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:98",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 93,
+        "gainClear": null,
+        "gainSet": {"end":97,"start":97,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":97,"start":97,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":97,"start":97,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":97,"start":97,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": [
+        "0-6 0",
+        "7-9 1",
+        "10-18 0",
+        "19-26 2",
+        "27-30 3",
+        "47-50 4",
+        "52-53 5",
+        "55-63 6",
+        "64-67 7",
+        "77-85 8",
+        "86-89 9"
+      ],
+      "fixes": [
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('offset', 0, 0, 5)",
+            "span": {"end":18,"start":18},
+            "title": "Add slider for 'offset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 20, 0, 20)",
+            "preferred": true,
+            "span": {"end":9,"start":7},
+            "title": "Wrap 'freq' in $slider"
+          },
+          {
+            "caretOffset": 28,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('offset', 0, 0, 5)",
+            "span": {"end":18,"start":18},
+            "title": "Add slider for 'offset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('saturation', 1, 0, 5)",
+            "span": {"end":30,"start":30},
+            "title": "Add slider for 'saturation'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('hue', 0.6, 0, 5)",
+            "preferred": true,
+            "span": {"end":30,"start":27},
+            "title": "Wrap 'hue' in $slider"
+          },
+          {
+            "caretOffset": 32,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('saturation', 1, 0, 5)",
+            "span": {"end":30,"start":30},
+            "title": "Add slider for 'saturation'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('hue', 0.1, 0, 5)",
+            "preferred": true,
+            "span": {"end":50,"start":47},
+            "title": "Wrap 'hue' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 30,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('saturation', 1, 0, 1)",
+            "preferred": true,
+            "span": {"end":53,"start":52},
+            "title": "Wrap 'saturation' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('softness', 0.01, 0, 5)",
+            "span": {"end":67,"start":67},
+            "title": "Add slider for 'softness'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('size', 0.2, 0, 5)",
+            "preferred": true,
+            "span": {"end":67,"start":64},
+            "title": "Wrap 'size' in $slider"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('softness', 0.01, 0, 5)",
+            "span": {"end":67,"start":67},
+            "title": "Add slider for 'softness'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('softness', 0.01, 0, 5)",
+            "span": {"end":89,"start":89},
+            "title": "Add slider for 'softness'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('size', 0.2, 0, 5)",
+            "preferred": true,
+            "span": {"end":89,"start":86},
+            "title": "Wrap 'size' in $slider"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 2,
+            "kind": "add",
+            "newText": ", $slider('softness', 0.01, 0, 5)",
+            "span": {"end":89,"start":89},
+            "title": "Add slider for 'softness'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":98,"start":98,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":24,"start":24,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":49,"start":49,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":73,"start":73,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

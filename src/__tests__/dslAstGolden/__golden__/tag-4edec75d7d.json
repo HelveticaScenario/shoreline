@@ -1,0 +1,190 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 3,
+        "gainClear": null,
+        "gainSet": null,
+        "muteOff": null,
+        "muteOn": null,
+        "panClear": null,
+        "panSet": null,
+        "soloOff": null,
+        "soloOn": null
+      }
+    ],
+    "quickFixes": {
+      "at": ["14-18 0","20-23 1","36-37 2","56-57 3","87-88 4","105-123 5","126-127 6"],
+      "fixes": [
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('hue', 0.55, 0, 5)",
+            "preferred": true,
+            "span": {"end":18,"start":14},
+            "title": "Wrap 'hue' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('saturation', 0.8, 0, 1)",
+            "preferred": true,
+            "span": {"end":23,"start":20},
+            "title": "Wrap 'saturation' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('scale', 1, 0, 5)",
+            "preferred": true,
+            "span": {"end":37,"start":36},
+            "title": "Wrap 'scale' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 21,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('b', 2, 0, 5)",
+            "preferred": true,
+            "span": {"end":57,"start":56},
+            "title": "Wrap 'b' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 21,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('b', 8, 0, 8)",
+            "preferred": true,
+            "span": {"end":88,"start":87},
+            "title": "Wrap 'b' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 36,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  zoom: $slider('zoom', 1, 0, 5),\n}",
+            "span": {"end":123,"start":123},
+            "title": "Add slider for 'zoom'"
+          },
+          {
+            "caretOffset": 40,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  rotate: $slider('rotate', 0, 0, 5),\n}",
+            "span": {"end":123,"start":123},
+            "title": "Add slider for 'rotate'"
+          },
+          {
+            "caretOffset": 40,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":123,"start":123},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 40,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":123,"start":123},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 21,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('b', 5, 0, 5)",
+            "preferred": true,
+            "span": {"end":127,"start":126},
+            "title": "Wrap 'b' in $slider"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":133,"start":133,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":33,"start":33,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":66,"start":66,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":99,"start":99,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

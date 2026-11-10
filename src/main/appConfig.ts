@@ -47,6 +47,7 @@ export const AppConfigSchema = z.object({
     performanceLineNumbers: z.boolean().optional(),
     performanceScrollSpeed: z.number().min(0).max(1).optional(),
     performanceTheme: z.string().optional(),
+    sidebarSide: z.enum(['left', 'right']).optional(),
     vuPanelVisible: z.boolean().optional(),
     vuPanelHeight: z.number().min(84).max(480).optional(),
 });

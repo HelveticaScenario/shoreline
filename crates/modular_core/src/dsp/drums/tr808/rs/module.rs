@@ -5,33 +5,40 @@ use crate::dsp::drums::input::{Cached, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::tr808::levels;
 use crate::dsp::drums::voice::{Timing, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Rs808Params {
-    /// rising edges strike the drum
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// pitch of the upper tone in V/Oct, the lower one following; stock is
-    /// ≈1.79 kHz (default 2.771)
-    #[signal(type = pitch, default = 2.771, range = (1.5, 4.0))]
+    #[input(
+        "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz; its level shifts as you tune far from stock",
+        type = pitch,
+        default = 2.771,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 808 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike and hold them until the next, as
-    /// accent always is, so changes reach only the hits after them (default
-    /// false)
+    #[input(
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,
@@ -40,23 +47,32 @@ struct Rs808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Rs808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 rim shot.
-///
-/// A circuit model of the 808's rim shot: a bright, woody crack, over in about
-/// 10 ms, built from two tones near 1.8 kHz and 450 Hz. **freq** sets its pitch
-/// and **accent** how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.rimShot($clock.beatTrigger).out()
-/// ```
-#[module(name = "$tr808.rimShot", has_init, args(trigger), block)]
+const RS808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 rim shot",
+    description: "The 808's rim shot: a bright, woody crack, over in about 10 ms, for \
+                  clicky syncopation on top of a groove.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Syncopated rim clicks",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            $tr808.rimShot($cycle($p('c(3,8)')).trig).out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$tr808.rimShot",
+    docs = RS808_DOCS,
+    has_init,
+    args(trigger),
+    block
+)]
 pub struct Rs808 {
     outputs: Rs808Outputs,
     params: Rs808Params,
@@ -215,36 +231,45 @@ fn rim_tick<I: Input>(
 
 message_handlers!(impl Rs808 {});
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cl808Params {
-    /// rising edges strike the drum
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the drum", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// pitch in V/Oct; stock is ≈2.53 kHz (default 3.273)
-    #[signal(type = pitch, default = 3.273, range = (1.5, 4.5))]
+    #[input(
+        "pitch; stock is ≈2.53 kHz; its level shifts as you tune far from stock",
+        type = pitch,
+        default = 3.273,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// decay control, 0–5 V: how long the claves ring, from ≈0.025 s to
-    /// ≈0.23 s (default 2.5, ≈0.075 s as on the 808)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how long the claves ring, from ≈0.025 s to ≈0.23 s; ≈0.075 s at 2.5, as on the 808",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 808 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike and hold them until the next, as
-    /// accent always is, so changes reach only the hits after them (default
-    /// false)
+    #[input(
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,
@@ -253,23 +278,35 @@ struct Cl808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Cl808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 claves.
-///
-/// A circuit model of the 808's claves: a short, pure wooden click ringing at
-/// ≈2.5 kHz. **decay** sets how long it rings, **freq** its pitch, and
-/// **accent** how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.claves($clock.beatTrigger).out()
-/// ```
-#[module(name = "$tr808.claves", has_init, args(trigger), block)]
+const CL808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 claves",
+    description: "The 808's claves: a short, pure wooden click ringing high, cutting \
+                  through a mix for Latin patterns and bright accents.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Son clave",
+        code: r#"
+            $tr808
+              .claves(
+                $cycle($p('c ~ ~ c ~ ~ c ~ ~ ~ c ~ c ~ ~ ~')).trig,
+              )
+              .out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$tr808.claves",
+    docs = CL808_DOCS,
+    has_init,
+    args(trigger),
+    block
+)]
 pub struct Cl808 {
     outputs: Cl808Outputs,
     params: Cl808Params,

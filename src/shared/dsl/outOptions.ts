@@ -1,7 +1,7 @@
 /**
  * Fields of the option objects taken by `out()` and `outMono()`. The generated
  * DSL lib declares the interfaces from these and lists them in the methods'
- * own JSDoc, and the help window renders the same fields.
+ * own JSDoc, and the Docs panel renders the same fields.
  */
 
 export interface OutOptionField {
@@ -12,7 +12,7 @@ export interface OutOptionField {
 
 const LEVEL_FIELDS: readonly OutOptionField[] = [
     {
-        doc: 'Label shown on this output\'s VU meter. Must be unique across outs',
+        doc: "Label shown on this output's VU meter. Must be unique across outs",
         name: 'label',
         type: 'string',
     },
@@ -67,7 +67,9 @@ export const MONO_OUT_OPTIONS: readonly OutOptionField[] = [
 ];
 
 /** One-line type expression, e.g. `interface { label?: string; ... }`. */
-export function outOptionsDefinition(fields: readonly OutOptionField[]): string {
+export function outOptionsDefinition(
+    fields: readonly OutOptionField[],
+): string {
     return `interface { ${fields.map((f) => `${f.name}?: ${f.type};`).join(' ')} }`;
 }
 

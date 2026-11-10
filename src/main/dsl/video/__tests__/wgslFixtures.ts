@@ -19,6 +19,7 @@ export const stripes: VideoGraph = {
                 input: { kind: 'node', id: 'x' },
                 freq: { kind: 'uniform', slot: 0 },
                 phase: { kind: 'time' },
+                offset: { kind: 'const', value: 0 },
             },
             params: { shape: 'triangle' },
         },

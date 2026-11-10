@@ -1,33 +1,40 @@
 use std::ops::Range;
 
 use super::*;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cb808Params {
-    /// rising edges strike the bell
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges strike the bell", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the hit: up to twice
-    /// as loud (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// pitch of the lower tone in V/Oct, the higher one following; stock is 540
-    /// Hz against 800 Hz (default 1.0454)
-    #[signal(type = pitch, default = 1.0454, range = (-0.5, 2.5))]
+    #[input(
+        "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz; its level shifts as you tune far from stock",
+        type = pitch,
+        default = 1.0454,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    /// fade out a hit still sounding over 2 ms as the next one strikes, so
-    /// every hit starts from rest; otherwise each hit builds on the last, as on
-    /// the 808 (default false)
+    #[input(
+        "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
-    /// sample the controls on each strike and hold them until the next, as
-    /// accent always is, so changes reach only the hits after them (default
-    /// false)
+    #[input(
+        "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them"
+    )]
     #[serde(default)]
     #[deserr(default)]
     hold: bool,
@@ -36,23 +43,42 @@ struct Cb808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Cb808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 cowbell.
-///
-/// A circuit model of the 808's cowbell: two square waves near 540 and 800 Hz
-/// through a band-pass filter, for its clanking, slightly sour clang. **freq**
-/// sets the pitch and **accent** how hard it hits.
-///
-/// An unaccented hit peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.cowbell($clock.beatTrigger).out()
-/// ```
-#[module(name = "$tr808.cowbell", has_init, patch_update, args(trigger), block)]
+const CB808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 cowbell",
+    description: "The 808's cowbell: two square waves through a band-pass filter, for \
+                  its clanking, slightly sour tone.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Cowbell riff",
+            code: r#"
+                $tr808.kick($cycle($p('c*4')).trig).out()
+                $tr808.cowbell($cycle($p('~ c ~ c c ~ c ~')).trig).out()
+            "#,
+        },
+        DocExample {
+            title: "Tuned cowbell melody",
+            code: r#"
+                const bell = $cycle($p('c5 ~ eb5 c5 ~ g4 ~ bb4'))
+                $tr808.cowbell(bell.trig, { freq: bell }).out()
+            "#,
+        },
+    ],
+};
+
+#[module(
+    name = "$tr808.cowbell",
+    docs = CB808_DOCS,
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Cb808 {
     outputs: Cb808Outputs,
     params: Cb808Params,

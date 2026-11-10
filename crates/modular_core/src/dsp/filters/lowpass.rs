@@ -1,22 +1,34 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::filters::resonant_svf::{self, Response, SvfChannel, SvfFilterState},
     poly::{PolyOutput, PolySignal},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct LowpassFilterParams {
-    /// signal input
+    #[input("the sound to filter", type = audio)]
     input: PolySignal,
-    /// cutoff frequency in V/Oct (0V = C4)
-    #[signal(type = frequency, default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "cutoff frequency; tops out just under half the sample rate",
+        type = frequency,
+        default = 0.0,
+        range = (-3.71, ..),
+    )]
     cutoff: PolySignal,
-    /// filter resonance (0-5)
-    #[signal(type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "resonant peak at the cutoff; keeps sharpening past 5",
+        type = control,
+        default = 0.0,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
 }
@@ -24,27 +36,48 @@ struct LowpassFilterParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LowpassFilterOutputs {
-    #[output("output", "filtered signal", default)]
+    #[output("output", "filtered signal", type = cv, default)]
     sample: PolyOutput,
 }
 
-/// Lowpass filter that attenuates frequencies above the cutoff point.
-///
-/// Use it to tame bright timbres, create bass-heavy sounds, or build classic
-/// subtractive synth patches. Sweeping the cutoff with an envelope or LFO
-/// produces the familiar filter-sweep effect.
-///
-/// - **cutoff** — set in V/Oct (0 V = C4). Accepts modulation for filter sweeps.
-/// - **resonance** — boosts frequencies near the cutoff (0–5). High values
-///   produce a ringing peak, but the filter never self-oscillates; use
-///   `$jup6f` for a filter that does.
-///
-/// ```js
-/// // subtractive bass: saw through a lowpass with envelope on cutoff
-/// let env = $adsr($pPulse($clock[0]), { attack: 0.01, decay: 0.3, sustain: 1, release: 0.4 })
-/// $lpf($saw('c2'), env.range('200hz', '2000hz'))
-/// ```
-#[module(name = "$lpf", patch_update, args(input, cutoff, resonance))]
+const LPF_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Resonant lowpass filter",
+    description: "Removes the highs above the cutoff: the everyday filter for taming bright \
+                  oscillators and for envelope-swept basses and pads. Resonance adds a ringing \
+                  peak at the cutoff but never self-oscillates; reach for `$jup6f` when you \
+                  want the filter to sing.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Plucky acid bass",
+            code: r#"
+                const seq = $cycle($p('c2 c2 [eb2 c3] g1'))
+                $saw(seq)
+                  .$.lpf(
+                    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c7'),
+                    4,
+                  )
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Slow pad sweep",
+            code: r#"
+                $saw($chord('C3[m7]'))
+                  .$.lpf($sine('0.05hz').range('c4', 'c7'), 1)
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(
+    name = "$lpf",
+    docs = LPF_DOCS,
+    patch_update,
+    args(input, cutoff, resonance)
+)]
 pub struct LowpassFilter {
     outputs: LowpassFilterOutputs,
     state: SvfFilterState,

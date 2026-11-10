@@ -12,6 +12,8 @@ use std::f32::consts::PI;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::halfband::{Halfband2xDown, Halfband2xUp};
 use crate::dsp::utils::one_pole::OnePole;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
@@ -20,30 +22,41 @@ use crate::types::SwapGlide;
 #[serde(rename_all = "snake_case")]
 #[deserr(rename_all = lowercase)]
 pub enum OverdriveMode {
-    /// Smooth tanh-style saturation.
+    /// smooth, rounded saturation
     #[default]
     Soft,
-    /// Hard clipping at ±1.
+    /// hard clipping, buzzy and aggressive
     Hard,
-    /// Asymmetric tube-style saturation with even harmonics.
+    /// asymmetric tube-style grit, warmer and thicker
     Asym,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct OverdriveParams {
-    /// input signal to overdrive (bipolar, typically -5 to 5)
+    #[input(
+        "signal to overdrive",
+        type = audio,
+    )]
     pub input: PolySignal,
-    /// drive amount (0 = unity gain, 5 = ~30 dB pre-shaper gain)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the signal hits the saturator: 0 unity gain, 5 about +30 dB",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     pub drive: PolySignal,
-    /// tone (-5 = dark, 0 = neutral, +5 = bright). Pre-emphasises highs into
-    /// the shaper at positive values and de-emphasises them after, and vice versa.
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "which frequencies distort most: -5 dark, 0 neutral, +5 bright; the overall balance stays flat",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pub tone: Option<PolySignal>,
-    /// saturation mode (defaults to soft)
+    #[input("saturation character", default = "soft")]
     #[serde(default)]
     #[deserr(default)]
     pub mode: Option<OverdriveMode>,
@@ -52,7 +65,7 @@ pub struct OverdriveParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct OverdriveOutputs {
-    #[output("output", "overdriven signal output", default)]
+    #[output("output", "overdriven signal", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -84,11 +97,40 @@ const MAX_DRIVE_GAIN: f32 = 32.0;
 /// 3:1 boost/cut ratio. Larger values = more aggressive tone shift.
 const TONE_RANGE: f32 = 3.0;
 
-/// Multi-mode overdrive saturator. Drive boosts the input into a soft, hard,
-/// or asymmetric shaper, with a tone control applying pre-emphasis before
-/// distortion and matching de-emphasis after. Internally oversampled 2× to
-/// reduce aliasing.
-#[module(name = "$overdrive", args(input, drive), has_init)]
+const OVERDRIVE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Overdrive and clipping",
+    description: "Pushes a signal into saturation, from warm rounding to hard clipping or \
+                  tube-style grit. `tone` chooses whether the lows or the highs break up first \
+                  without changing the overall brightness.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Driven acid bass",
+            code: r#"
+                $saw('a1')
+                  .$.lpf($sine('0.25hz').range('a2', 'a5'), 4)
+                  .$.overdrive(3)
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Gritty tube chords",
+            code: r#"
+                $saw($chord('C3[m7]'))
+                  .$.overdrive(2, { mode: 'asym', tone: -2 })
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(
+    name = "$overdrive",
+    docs = OVERDRIVE_DOCS,
+    args(input, drive),
+    has_init
+)]
 pub struct Overdrive {
     outputs: OverdriveOutputs,
     state: OverdriveState,

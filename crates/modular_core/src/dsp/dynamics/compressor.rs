@@ -7,6 +7,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::{cached::Cached, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
 // Gain voltage scaling: maps [-5, 5] volts to [-24, 24] dB (4.8 dB per volt)
@@ -122,55 +124,103 @@ struct ChannelState {
     release_coeff: Cached<f32>,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CompressorParams {
-    /// audio input signal
+    #[input("the sound to compress", type = audio)]
     input: PolySignal,
-    /// optional side-chain detector input — when connected, the envelope follower
-    /// reads from this signal instead of `input`, but the gain is still applied
-    /// to `input`. Use for ducking, kick-triggered pumping, etc.
+    #[input(
+        "when patched, the compressor listens to this instead of the input, but still turns the input down; for ducking and pumping",
+        type = audio,
+    )]
     #[deserr(default)]
     sidechain: Option<PolySignal>,
-    /// downward stage threshold (0-5V, default 2.5)
+    #[input(
+        "level above which the signal is compressed, in volts",
+        type = control,
+        default = 2.5,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     threshold: Option<PolySignal>,
-    /// downward stage ratio in textbook X:1 form (= Δinput dB / Δoutput dB above
-    /// threshold). > 1 compresses, < 1 expands (boost loud), 1 = passthrough.
-    /// `f32::INFINITY` acts as a brick-wall limiter (output clamps to
-    /// threshold). Equivalent to Ableton's 1:Y display via `ratio = 1/Y`.
-    /// Lower-bounded at 1e-3. Default 4.0 (= Ableton 1:0.25).
+    #[input(
+        "compression ratio above the threshold, as X:1: above 1 compresses, 1 passes through, below 1 makes loud parts louder",
+        type = control,
+        default = 4.0,
+        range = (0.001, ..),
+        control_range = (1.0, 20.0),
+    )]
     #[deserr(default)]
     ratio: Option<PolySignal>,
-    /// upward stage threshold — signal *below* this gets pushed toward the
-    /// threshold (0-5V, default 0 = bypassed; no real signal sits below the
-    /// resulting ~-200 dB floor)
+    #[input(
+        "level below which upwardRatio acts, in volts; 0 turns the upward stage off",
+        type = control,
+        default = 0.0,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     upward_threshold: Option<PolySignal>,
-    /// upward stage ratio in textbook X:1 form. > 1 compresses below threshold
-    /// (boosts quiet signal), < 1 expands below threshold (gates quiet signal),
-    /// 1 = passthrough. Equivalent to Ableton's 1:Y display via `ratio = 1/Y`.
-    /// Lower-bounded at 1e-3. Default 1.0.
+    #[input(
+        "ratio below upwardThreshold, as X:1: above 1 lifts quiet parts, 1 passes through, below 1 gates them",
+        type = control,
+        default = 1.0,
+        range = (0.001, ..),
+        control_range = (0.1, 10.0),
+    )]
     #[deserr(default)]
     upward_ratio: Option<PolySignal>,
-    /// attack time in seconds (default 0.01)
+    #[input(
+        "how fast the compressor reacts to rising level, in seconds",
+        type = control,
+        default = 0.01,
+        range = (0.0, ..),
+        control_range = (0.0, 0.2),
+    )]
     #[deserr(default)]
     attack: Option<PolySignal>,
-    /// release time in seconds (default 0.1)
+    #[input(
+        "how fast the compressor lets go as level falls, in seconds",
+        type = control,
+        default = 0.1,
+        range = (0.0, ..),
+        control_range = (0.0, 2.0),
+    )]
     #[deserr(default)]
     release: Option<PolySignal>,
-    /// makeup gain as a dB-domain voltage (-5V = -24dB, 0V = unity, +5V = +24dB,
-    /// default 0 = unity) — matches the inputGain / outputGain convention.
+    #[input(
+        "gain after compression: -5 V = -24 dB, +5 V = +24 dB",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     makeup: Option<PolySignal>,
-    /// input gain control (-5V = -24dB, 0V = unity, 5V = +24dB) — drives signal into the compressor
+    #[input(
+        "gain into the compressor: -5 V = -24 dB, +5 V = +24 dB; more pushes harder into compression",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     input_gain: Option<PolySignal>,
-    /// output gain control (-5V = -24dB, 0V = unity, 5V = +24dB) — trims level after compression
+    #[input(
+        "final output level: -5 V = -24 dB, +5 V = +24 dB",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     output_gain: Option<PolySignal>,
-    /// dry/wet blend (0 = fully dry, 5 = fully wet, default 5.0)
+    #[input(
+        "dry/wet blend: 0 dry, 5 wet; the dry signal skips inputGain",
+        type = control,
+        default = 5.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     mix: Option<PolySignal>,
 }
@@ -178,77 +228,52 @@ struct CompressorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CompressorOutputs {
-    #[output("sample", "compressed signal", default)]
+    #[output("sample", "compressed signal", type = cv, default)]
     sample: PolyOutput,
 }
 
-/// EXPERIMENTAL
-///
-/// Single-band feed-forward dynamics processor with peak envelope follower.
-///
-/// Two stages run in parallel:
-///
-/// - **downward stage** acts on signal above `threshold`. `ratio > 1` =
-///   compression, `ratio < 1` = upward expansion (boost loud), `ratio = 1` =
-///   passthrough.
-/// - **upward stage** acts on signal below `upwardThreshold`. `upwardRatio > 1`
-///   = upward compression (boost quiet), `upwardRatio < 1` = downward
-///   expansion / gate-like attenuation of quiet signal, `upwardRatio = 1` =
-///   passthrough.
-///
-/// Both ratios use textbook `X:1` notation (X = Δinput dB / Δoutput dB) and
-/// are lower-bounded at 1e-3 (≈ Ableton's 1:1000 display). The detected
-/// level is clamped to ±60 dB so expansion stays bounded at signal extremes.
-///
-/// An optional **side-chain** input lets the envelope follower track an
-/// external signal while the gain is applied to `input` — useful for
-/// ducking, kick-triggered pumping, or building multiband effects like OTT.
-///
-/// **Signal flow:** input → input gain → (detector: side-chain or input)
-///   → up + down compression → output gain → dry/wet mix → output
-///
-/// - **threshold** — downward stage threshold in volts (0–5, default 2.5).
-/// - **ratio** — downward stage ratio in textbook X:1 form. > 1 compresses,
-///   < 1 expands (boosts loud signal), 1 = passthrough. Lower-bounded at
-///   1e-3 (≈ 1:1000 expansion); upper bound is `f32::INFINITY` =
-///   brick-wall limiter. Default 4.0 (= Ableton display 1:0.25).
-/// - **upwardThreshold** — upward stage threshold in volts (0–5, default 0).
-/// - **upwardRatio** — upward stage ratio in textbook X:1 form. > 1 boosts
-///   quiet signal, < 1 gates quiet signal, 1 = passthrough. Same bounds as
-///   `ratio`. Default 1 (passthrough).
-/// - **sidechain** — optional external detector signal.
-/// - **attack** / **release** — envelope follower time constants in seconds.
-/// - **makeup** — post-compression makeup gain as a dB-domain voltage
-///   (-5V = -24dB, 0V = unity, +5V = +24dB, default 0).
-/// - **inputGain** — gain before the compressor (-5V = -24dB, 0V = unity,
-///   5V = +24dB). Raising input gain drives more signal into the compressor.
-/// - **outputGain** — gain after compression (-5V = -24dB, 0V = unity,
-///   5V = +24dB). Trims the final output level.
-/// - **mix** — dry/wet blend (0 = fully dry, 5 = fully wet, default 5.0).
-///   The dry signal is the original input before any gain staging.
-///
-/// ```js
-/// // simple bus compressor
-/// $comp($saw('c2'), { threshold: 2.5, ratio: 4, attack: 0.01, release: 0.1 })
-/// ```
-///
-/// ```js
-/// // side-chain ducking — a kick envelope ducks a sustained pad
-/// $comp($saw('c3'), {
-///   sidechain: $perc($clock.beatTrigger, { decay: 0.2 }),
-///   threshold: 1.0, ratio: 8, attack: 0.005, release: 0.2,
-/// })
-/// ```
-///
-/// ```js
-/// // multiband compression using $xover + $comp
-/// let bands = $xover($saw('c2'), { lowMidFreq: '200hz', midHighFreq: '2000hz' })
-/// let low  = $comp(bands.low,  { threshold: 2.5, ratio: 4 })
-/// let mid  = $comp(bands.mid,  { threshold: 3,   ratio: 3 })
-/// let high = $comp(bands.high, { threshold: 2,   ratio: 6 })
-/// $mix([low, mid, high]).out()
-/// ```
-#[module(name = "$comp", args(input))]
+const COMP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Compressor and expander",
+    description: "Evens out levels by turning loud parts down, and with its upward stage can \
+                  also lift quiet details or gate them away. Patch `sidechain` to duck one \
+                  sound under another, or split a sound with `$xover` to compress each band \
+                  on its own.",
+    categories: &[ModuleCategory::Dynamics],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Pad pumping to the beat",
+            code: r#"
+                $saw($chord('C3[m9]'))
+                  .$.lpf('c5')
+                  .$.comp({
+                    sidechain: $perc($clock.beatTrigger, { decay: 0.2 }),
+                    threshold: 1,
+                    ratio: 8,
+                    attack: 0.005,
+                    release: 0.2,
+                  })
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Multiband squash",
+            code: r#"
+                const bands = $xover($saw('c2'), {
+                  lowMidFreq: '200hz',
+                  midHighFreq: '2000hz',
+                })
+                $mix([
+                  $comp(bands.low, { threshold: 2.5, ratio: 4 }),
+                  $comp(bands.mid, { threshold: 3, ratio: 3 }),
+                  $comp(bands.high, { threshold: 2, ratio: 6 }),
+                ]).out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$comp", docs = COMP_DOCS, args(input))]
 pub struct Compressor {
     outputs: CompressorOutputs,
     channel_state: Box<[ChannelState]>,
@@ -265,7 +290,10 @@ impl Compressor {
             let input = self.params.input.get_value(ch);
 
             // Apply input gain
-            let input_gain_voltage = self.params.input_gain.value_or(ch, 0.0);
+            let input_gain_voltage = self
+                .params
+                .input_gain
+                .value_or(ch, CompressorParams::INPUT_GAIN_DEFAULT);
             let gained = input * state.input_gain.get(input_gain_voltage, voltage_to_gain);
 
             // Side-chain: detector reads from sidechain input if connected,
@@ -276,16 +304,37 @@ impl Compressor {
             };
 
             // Read compressor parameters
-            let threshold = self.params.threshold.value_or(ch, 2.5);
-            let ratio = self.params.ratio.value_or(ch, 4.0);
-            let upward_threshold = self.params.upward_threshold.value_or(ch, 0.0);
-            let upward_ratio = self.params.upward_ratio.value_or(ch, 1.0);
-            let attack = self.params.attack.value_or(ch, 0.01);
-            let release = self.params.release.value_or(ch, 0.1);
+            let threshold = self
+                .params
+                .threshold
+                .value_or(ch, CompressorParams::THRESHOLD_DEFAULT);
+            let ratio = self
+                .params
+                .ratio
+                .value_or(ch, CompressorParams::RATIO_DEFAULT);
+            let upward_threshold = self
+                .params
+                .upward_threshold
+                .value_or(ch, CompressorParams::UPWARD_THRESHOLD_DEFAULT);
+            let upward_ratio = self
+                .params
+                .upward_ratio
+                .value_or(ch, CompressorParams::UPWARD_RATIO_DEFAULT);
+            let attack = self
+                .params
+                .attack
+                .value_or(ch, CompressorParams::ATTACK_DEFAULT);
+            let release = self
+                .params
+                .release
+                .value_or(ch, CompressorParams::RELEASE_DEFAULT);
             // makeup is a dB-domain voltage matching inputGain / outputGain
             // (-5 V = -24 dB, 0 V = unity, +5 V = +24 dB). voltage_to_gain
             // clamps the voltage internally.
-            let makeup_voltage = self.params.makeup.value_or(ch, 0.0);
+            let makeup_voltage = self
+                .params
+                .makeup
+                .value_or(ch, CompressorParams::MAKEUP_DEFAULT);
             let makeup = state.makeup.get(makeup_voltage, voltage_to_gain);
 
             // Compress
@@ -309,11 +358,19 @@ impl Compressor {
             );
 
             // Apply output gain
-            let output_gain_voltage = self.params.output_gain.value_or(ch, 0.0);
+            let output_gain_voltage = self
+                .params
+                .output_gain
+                .value_or(ch, CompressorParams::OUTPUT_GAIN_DEFAULT);
             let out = compressed * state.output_gain.get(output_gain_voltage, voltage_to_gain);
 
             // Dry/wet mix (dry signal is original input before gain staging)
-            let mix_amount = self.params.mix.value_or(ch, 5.0).clamp(0.0, 5.0) / 5.0;
+            let mix_amount = self
+                .params
+                .mix
+                .value_or(ch, CompressorParams::MIX_DEFAULT)
+                .clamp(0.0, 5.0)
+                / 5.0;
             let output = input * (1.0 - mix_amount) + out * mix_amount;
 
             self.outputs.sample.set(ch, output);
