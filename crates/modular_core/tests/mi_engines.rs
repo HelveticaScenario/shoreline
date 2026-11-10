@@ -98,6 +98,13 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
                 port("$mi.swarm", knobs, "sine"),
             ]
         }
+        18 => {
+            let knobs = json!({ "density": 5.0 * t, "spread": 5.0 * h, "resonance": 5.0 * m });
+            [
+                port("$mi.particles", knobs.clone(), "output"),
+                port("$mi.particles", knobs, "raw"),
+            ]
+        }
         19 | 20 => {
             let module = if engine == 19 {
                 "$mi.string"
@@ -309,6 +316,16 @@ fn matches_plaits_engines() {
             );
             let inverted: Vec<f32> = actual.iter().map(|v| -v).collect();
             assert_sounds_alike(&name, &actual, &expected, 0.1, 0.6, 3.0);
+            // Particles draw Plaits' values in Plaits' order on its block
+            // timing, so they match its engine sample for sample, to the
+            // rounding of a pitch given in volts.
+            if engine == 18 {
+                let error = actual
+                    .iter()
+                    .zip(&expected)
+                    .fold(0.0f32, |m, (a, e)| m.max((a - e).abs()));
+                assert!(error < 1e-4, "{name}: max error {error}");
+            }
             assert!(
                 aligned_error(&actual, &expected) < aligned_error(&inverted, &expected),
                 "{name}: inverted"
