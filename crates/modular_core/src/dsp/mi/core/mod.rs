@@ -6,6 +6,8 @@ pub mod downsampler;
 pub mod filter;
 #[cfg(test)]
 pub mod fixture;
+pub mod interpolate;
+pub mod oscillator;
 pub mod phase;
 pub mod polyblep;
 pub mod sine;

@@ -15,6 +15,13 @@ TABLES = [
     ("lut_sine", "f32"),
     ("lut_fm_frequency_quantizer", "f32"),
     ("lut_4x_downsampler_fir", "f32"),
+    ("lut_fold", "f32"),
+    ("lut_fold_2", "f32"),
+    ("lut_ws_inverse_tan", "i16"),
+    ("lut_ws_inverse_sin", "i16"),
+    ("lut_ws_linear", "i16"),
+    ("lut_ws_bump", "i16"),
+    ("lut_ws_double_bump", "i16"),
 ]
 
 
