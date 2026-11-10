@@ -1019,7 +1019,7 @@ export function executePatchScript(
         registry: spanRegistry,
         interpolationResolutions,
         callSiteSpans,
-    } = analyzeSourceSpans(source, schemas, wrapperLineCount);
+    } = analyzeSourceSpans(source, schemas);
     setActiveSpanRegistry(spanRegistry);
     setActiveInterpolationResolutions(interpolationResolutions);
     setActiveCycleFactory(cycleFactory);

@@ -4,9 +4,9 @@
       "callSiteSpans": [["3:48",3,3]],
       "interpolations": [],
       "registry": [
-        ["5:36","$sine",[["freq",84,90]]],
-        ["6:4","$saw",[["freq",113,120]]],
-        ["6:19","$saw",[["freq",128,135]]]
+        ["2:36","$sine",[["freq",84,90]]],
+        ["3:4","$saw",[["freq",113,120]]],
+        ["3:19","$saw",[["freq",128,135]]]
       ]
     },
     "controlCalls": [],
@@ -281,7 +281,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["5:36","$sine",[["freq",84,90]]],["6:4","$saw",[["freq",113,117]]]]
+        "registry": [["2:36","$sine",[["freq",84,90]]],["3:4","$saw",[["freq",113,117]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

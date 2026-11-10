@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["2:19",2,2],["3:26",3,3]],
       "interpolations": [],
-      "registry": [["4:18","$coinFlip",[["probability",43,47]]]]
+      "registry": [["1:18","$coinFlip",[["probability",43,47]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -184,7 +184,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:18","$coinFlip",[["probability",43,47]]]]
+        "registry": [["1:18","$coinFlip",[["probability",43,47]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -196,7 +196,7 @@
       "analyze": {
         "callSiteSpans": [["2:19",2,2]],
         "interpolations": [],
-        "registry": [["4:18","$coinFlip",[["probability",43,47]]]]
+        "registry": [["1:18","$coinFlip",[["probability",43,47]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

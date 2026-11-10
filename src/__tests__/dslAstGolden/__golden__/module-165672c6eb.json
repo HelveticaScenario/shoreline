@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["1:59",1,1]],
       "interpolations": [],
-      "registry": [["4:9","$mi.waveshaper",[["freq",15,19],["shape",30,31],["fold",39,40]]]]
+      "registry": [["1:9","$mi.waveshaper",[["freq",15,19],["shape",30,31],["fold",39,40]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -184,7 +184,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:9","$mi.waveshaper",[["freq",15,19]]]]
+        "registry": [["1:9","$mi.waveshaper",[["freq",15,19]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -196,7 +196,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:9","$mi.waveshaper",[["freq",15,19],["shape",30,31],["fold",39,40]]]]
+        "registry": [["1:9","$mi.waveshaper",[["freq",15,19],["shape",30,31],["fold",39,40]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

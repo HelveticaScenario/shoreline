@@ -4,9 +4,9 @@
       "callSiteSpans": [["1:41",1,1],["4:4",4,4]],
       "interpolations": [],
       "registry": [
-        ["4:24","$p",[["source",22,27]]],
-        ["6:4","$tr909.snare",[["snappy",100,101]]],
-        ["6:17","$p",[["source",68,81]]]
+        ["1:24","$p",[["source",22,27]]],
+        ["3:4","$tr909.snare",[["snappy",100,101]]],
+        ["3:17","$p",[["source",68,81]]]
       ]
     },
     "controlCalls": [],
@@ -246,7 +246,7 @@
   },
   "variants": {
     "cut25": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:24","$p",[["source",22,27]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:24","$p",[["source",22,27]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -257,7 +257,7 @@
       "analyze": {
         "callSiteSpans": [["1:41",1,1]],
         "interpolations": [],
-        "registry": [["4:24","$p",[["source",22,27]]]]
+        "registry": [["1:24","$p",[["source",22,27]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -281,7 +281,7 @@
       "analyze": {
         "callSiteSpans": [["1:41",1,1]],
         "interpolations": [],
-        "registry": [["4:24","$p",[["source",22,27]]],["6:17","$p",[["source",68,81]]]]
+        "registry": [["1:24","$p",[["source",22,27]]],["3:17","$p",[["source",68,81]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

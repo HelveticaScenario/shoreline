@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["2:43",2,2]],
       "interpolations": [],
-      "registry": [["4:19","$sine",[["freq",20,28]]],["5:5","$mi.waveTerrain",[["freq",58,62]]]]
+      "registry": [["1:19","$sine",[["freq",20,28]]],["2:5","$mi.waveTerrain",[["freq",58,62]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -169,7 +169,7 @@
   },
   "variants": {
     "cut25": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:19","$sine",[["freq",20,22]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:19","$sine",[["freq",20,22]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -177,7 +177,7 @@
       "setOutputGain": {"end":22,"start":22,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut50": {
-      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:19","$sine",[["freq",20,28]]]]},
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["1:19","$sine",[["freq",20,28]]]]},
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
@@ -188,7 +188,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:19","$sine",[["freq",20,28]]],["5:5","$mi.waveTerrain",[["freq",58,62]]]]
+        "registry": [["1:19","$sine",[["freq",20,28]]],["2:5","$mi.waveTerrain",[["freq",58,62]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

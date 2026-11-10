@@ -65,21 +65,30 @@ interface ListShape {
     pad: string;
 }
 
-/** Add `prop` (e.g. `fm: 1`) as the last property of `obj`. */
+/** Add `prop` (e.g. `fm: 1`) as the last property of `obj`; null when the
+ *  object has no closing brace to append before. */
 export function appendObjectProperty(
     file: ts.SourceFile,
     obj: ts.ObjectLiteralExpression,
     prop: string,
     layout: CodeStyle,
-): ListEdit {
+): ListEdit | null {
     const shape = objectShape(layout);
-    return withRepairedSeparators(file, obj, shape, (f, o) => {
-        const list = shape(o, f);
-        const edit = appendToList(f, list, prop);
-        return isExpanded(f, list) || fitsOnLine(f.text, edit, layout)
-            ? edit
-            : (expandObject(f, o, prop, layout) ?? edit);
-    });
+    if (!shape(obj, file)) {
+        return null;
+    }
+    return withRepairedSeparators(
+        file,
+        obj,
+        (o, f) => shape(o, f)!,
+        (f, o) => {
+            const list = shape(o, f)!;
+            const edit = appendToList(f, list, prop);
+            return isExpanded(f, list) || fitsOnLine(f.text, edit, layout)
+                ? edit
+                : (expandObject(f, o, prop, layout) ?? edit);
+        },
+    );
 }
 
 /** Append `text` as the last argument of `call`; null when the call has no
@@ -140,31 +149,53 @@ export function appendObjectArgument(
     };
 }
 
-/** Append `text` as the last element of `array`. */
+/** Append `text` as the last element of `array`; null when the array has
+ *  no closing bracket to append before. */
 export function appendArrayElement(
     file: ts.SourceFile,
     array: ts.ArrayLiteralExpression,
     text: string,
-): ListEdit {
+): ListEdit | null {
     const shape = (a: ts.ArrayLiteralExpression, f: ts.SourceFile) =>
-        bracketShape(a, a.elements, f, '');
-    return withRepairedSeparators(file, array, shape, (f, a) =>
-        appendToList(f, shape(a, f), text),
+        bracketShape(a, a.elements, f, '', ts.SyntaxKind.CloseBracketToken);
+    if (!shape(array, file)) {
+        return null;
+    }
+    return withRepairedSeparators(
+        file,
+        array,
+        (a, f) => shape(a, f)!,
+        (f, a) => appendToList(f, shape(a, f)!, text),
     );
 }
 
 const objectShape =
     (layout: CodeStyle) => (o: ts.ObjectLiteralExpression, f: ts.SourceFile) =>
-        bracketShape(o, o.properties, f, layout.bracketSpacing ? ' ' : '');
+        bracketShape(
+            o,
+            o.properties,
+            f,
+            layout.bracketSpacing ? ' ' : '',
+            ts.SyntaxKind.CloseBraceToken,
+        );
 
+/** The list inside a bracketed literal, or null when the parser found no
+ *  closing bracket, as in a literal still being typed. */
 function bracketShape(
     node: ts.Node,
     elements: readonly ts.Node[],
     file: ts.SourceFile,
     pad: string,
-): ListShape {
+    closeKind: ts.SyntaxKind,
+): ListShape | null {
+    // The literal's own last child, not the last token beneath it: a nested
+    // literal's bracket must not stand in for a missing outer one.
+    const close = node.getChildren(file).at(-1);
+    if (!close || close.kind !== closeKind) {
+        return null;
+    }
     return {
-        close: node.getEnd() - 1,
+        close: close.getStart(file),
         elements,
         open: node.getStart(file) + 1,
         pad,

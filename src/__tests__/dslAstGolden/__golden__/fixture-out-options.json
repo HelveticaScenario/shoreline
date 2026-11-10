@@ -4,10 +4,10 @@
       "callSiteSpans": [["1:17",1,1],["2:13",2,2],["3:13",3,3],["4:13",4,4]],
       "interpolations": [],
       "registry": [
-        ["4:5","$sine",[["freq",6,10]]],
-        ["5:1","$sine",[["freq",24,28]]],
-        ["6:1","$sine",[["freq",56,60]]],
-        ["7:1","$sine",[["freq",100,104]]]
+        ["1:5","$sine",[["freq",6,10]]],
+        ["2:1","$sine",[["freq",24,28]]],
+        ["3:1","$sine",[["freq",56,60]]],
+        ["4:1","$sine",[["freq",100,104]]]
       ]
     },
     "controlCalls": [],
@@ -414,7 +414,7 @@
       "analyze": {
         "callSiteSpans": [["1:17",1,1],["2:13",2,2]],
         "interpolations": [],
-        "registry": [["4:5","$sine",[["freq",6,10]]],["5:1","$sine",[["freq",24,28]]]]
+        "registry": [["1:5","$sine",[["freq",6,10]]],["2:1","$sine",[["freq",24,28]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -450,9 +450,9 @@
         "callSiteSpans": [["1:17",1,1],["2:13",2,2],["3:13",3,3]],
         "interpolations": [],
         "registry": [
-          ["4:5","$sine",[["freq",6,10]]],
-          ["5:1","$sine",[["freq",24,28]]],
-          ["6:1","$sine",[["freq",56,60]]]
+          ["1:5","$sine",[["freq",6,10]]],
+          ["2:1","$sine",[["freq",24,28]]],
+          ["3:1","$sine",[["freq",56,60]]]
         ]
       },
       "controlCalls": [],
@@ -500,10 +500,10 @@
         "callSiteSpans": [["1:17",1,1],["2:13",2,2],["3:13",3,3],["4:13",4,4]],
         "interpolations": [],
         "registry": [
-          ["4:5","$sine",[["freq",6,10]]],
-          ["5:1","$sine",[["freq",24,28]]],
-          ["6:1","$sine",[["freq",56,60]]],
-          ["7:1","$sine",[["freq",100,104]]]
+          ["1:5","$sine",[["freq",6,10]]],
+          ["2:1","$sine",[["freq",24,28]]],
+          ["3:1","$sine",[["freq",56,60]]],
+          ["4:1","$sine",[["freq",100,104]]]
         ]
       },
       "controlCalls": [],

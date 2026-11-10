@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["2:4",2,2]],
       "interpolations": [],
-      "registry": [["4:17","$sine",[["freq",18,25]]]]
+      "registry": [["1:17","$sine",[["freq",18,25]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -179,7 +179,7 @@
       "analyze": {
         "callSiteSpans": [["2:4",2,2]],
         "interpolations": [],
-        "registry": [["4:17","$sine",[["freq",18,25]]]]
+        "registry": [["1:17","$sine",[["freq",18,25]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -203,7 +203,7 @@
       "analyze": {
         "callSiteSpans": [["2:4",2,2]],
         "interpolations": [],
-        "registry": [["4:17","$sine",[["freq",18,25]]]]
+        "registry": [["1:17","$sine",[["freq",18,25]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

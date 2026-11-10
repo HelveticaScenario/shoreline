@@ -19,6 +19,7 @@ import type {
     SourceSpan,
     SpanRegistry,
 } from './sourceAnalysisTypes';
+import { dottedName, propertyName } from '../../shared/dsl/ast/names';
 import { callSiteKey, v8CallAnchor } from '../../shared/dsl/ast/position';
 import { forEachDescendant } from '../../shared/dsl/ast/walk';
 import { findControlCalls } from '../../shared/dsl/controlCalls';
@@ -30,7 +31,7 @@ import {
     patternMethodCallName,
 } from './patternChains';
 import {
-    buildConstTable,
+    constLiteralOf,
     isTrackableLiteral,
     resolveInterpolations,
     spanOf,
@@ -72,13 +73,10 @@ function calledName(call: ts.CallExpression): string | null {
 /**
  * Walk every call in `file` and record the spans of its trackable
  * arguments, with the interpolations each template argument resolves.
- * `lineOffset` is the number of lines the executor's script wrapper puts
- * before the patch.
  */
 export function analyzeArgumentSpans(
     file: ts.SourceFile,
     schemas: ModuleSchema[],
-    lineOffset: number,
 ): {
     registry: SpanRegistry;
     interpolationResolutions: InterpolationResolutionMap;
@@ -86,7 +84,6 @@ export function analyzeArgumentSpans(
     const registry: SpanRegistry = new Map();
     const interpolationResolutions: InterpolationResolutionMap = new Map();
     const schemaMap = buildSchemaMap(schemas);
-    const consts = buildConstTable(file);
     const controlKinds = new Map(
         findControlCalls(file).map((c) => [c.call, c.kind]),
     );
@@ -103,14 +100,14 @@ export function analyzeArgumentSpans(
         const literal = isTrackableLiteral(node)
             ? node
             : ts.isIdentifier(node)
-              ? consts.literals.get(node.text)
+              ? constLiteralOf(node)
               : undefined;
         if (!literal) {
             return false;
         }
         const span = spanOf(literal, file);
         args.set(name, span);
-        const resolutions = resolveInterpolations(literal, consts);
+        const resolutions = resolveInterpolations(literal, file);
         if (resolutions) {
             interpolationResolutions.set(
                 `${span.start}:${span.end}`,
@@ -135,19 +132,16 @@ export function analyzeArgumentSpans(
 
         // `$p(source)` and `$p.s(source, scale)`: the source literal's span
         // rides on the returned pattern to whichever factory receives it.
-        // The scale is configuration, not highlighted. V8 places `$p.s` at
-        // its `s`, and a bare `$p` call at its start.
+        // The scale is configuration, not highlighted.
         const funcName = calledName(call);
         const isPs = isPsCall(call);
-        if (funcName === '$p' || isPs) {
+        const isP = ts.isIdentifier(call.expression) && funcName === '$p';
+        if (isP || isPs) {
             const argsMap = new Map<string, SourceSpan>();
             if (args.length < 1 || !record(argsMap, 'source', args[0])) {
                 return;
             }
-            const anchor = isPs
-                ? v8CallAnchor(call, file)
-                : call.getStart(file);
-            registry.set(callSiteKey(file, anchor, lineOffset), {
+            registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
                 args: argsMap,
                 moduleType: isPs ? '$p.s' : '$p',
             });
@@ -156,24 +150,21 @@ export function analyzeArgumentSpans(
 
         // `.add(rhs)` / `.sub(rhs)` links of a `$p.s` chain, read back by the
         // chain method under `rhs`.
-        if (isSpChainCall(call, consts.initializers)) {
+        if (isSpChainCall(call)) {
             const argsMap = new Map<string, SourceSpan>();
             if (args.length < 1 || !record(argsMap, 'rhs', args[0])) {
                 return;
             }
-            registry.set(
-                callSiteKey(file, v8CallAnchor(call, file), lineOffset),
-                {
-                    args: argsMap,
-                    moduleType: '$p.s.chain',
-                },
-            );
+            registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
+                args: argsMap,
+                moduleType: '$p.s.chain',
+            });
             return;
         }
 
         // Pattern methods, each argument under the name the method reads it
         // back by.
-        const patternMethod = patternMethodCallName(call, consts.initializers);
+        const patternMethod = patternMethodCallName(call);
         if (patternMethod) {
             const argNames = PATTERN_METHOD_ARGS[patternMethod];
             const argsMap = new Map<string, SourceSpan>();
@@ -181,15 +172,20 @@ export function analyzeArgumentSpans(
                 record(argsMap, argNames[i], args[i]);
             }
             if (argsMap.size > 0) {
-                registry.set(
-                    callSiteKey(file, v8CallAnchor(call, file), lineOffset),
-                    { args: argsMap, moduleType: `.${patternMethod}` },
-                );
+                registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
+                    args: argsMap,
+                    moduleType: `.${patternMethod}`,
+                });
             }
             return;
         }
 
-        const schema = funcName ? schemaMap.get(funcName) : undefined;
+        // A dotted callee names its module in full (`$tr808.kick`); a method
+        // on a value (`.kick(...)`) only by its last segment.
+        const fullName = dottedName(call.expression);
+        const schema =
+            (fullName !== null ? schemaMap.get(fullName) : undefined) ??
+            (funcName ? schemaMap.get(funcName) : undefined);
         if (!schema) {
             return;
         }
@@ -202,9 +198,14 @@ export function analyzeArgumentSpans(
             const { name } = positionalArgs[i];
             const arg = args[i];
             if (ts.isArrayLiteralExpression(arg)) {
-                arg.elements.forEach((element, j) =>
-                    record(argsMap, `${name}.${j}`, element),
-                );
+                // A spread puts every later element at an index the source
+                // cannot tell.
+                for (const [j, element] of arg.elements.entries()) {
+                    if (ts.isSpreadElement(element)) {
+                        break;
+                    }
+                    record(argsMap, `${name}.${j}`, element);
+                }
             } else {
                 record(argsMap, name, arg);
             }
@@ -215,8 +216,8 @@ export function analyzeArgumentSpans(
         if (config && ts.isObjectLiteralExpression(config)) {
             for (const prop of config.properties) {
                 if (ts.isPropertyAssignment(prop)) {
-                    const key = prop.name.getText(file);
-                    if (key !== 'id') {
+                    const key = propertyName(prop);
+                    if (key !== null && key !== 'id') {
                         record(argsMap, key, prop.initializer);
                     }
                 } else if (ts.isShorthandPropertyAssignment(prop)) {
@@ -228,13 +229,10 @@ export function analyzeArgumentSpans(
         }
 
         if (argsMap.size > 0) {
-            registry.set(
-                callSiteKey(file, v8CallAnchor(call, file), lineOffset),
-                {
-                    args: argsMap,
-                    moduleType: schema.name,
-                },
-            );
+            registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
+                args: argsMap,
+                moduleType: schema.name,
+            });
         }
     });
 

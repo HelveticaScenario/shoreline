@@ -15,7 +15,6 @@ import { isSignalGroupLike } from './signalGroups';
 import { buildSignalMapper } from './signalSchemaMapper';
 import {
     captureSourceLocation,
-    getDSLWrapperLineOffset,
     setDSLWrapperLineOffset,
 } from './captureSourceLocation';
 
@@ -131,9 +130,7 @@ function captureArgumentSpans(
         return undefined;
     }
 
-    // Registry keys are V8 call sites offset by the script wrapper's lines
-    // (see callSiteKey).
-    const key: CallSiteKey = `${sourceLocation.line + getDSLWrapperLineOffset()}:${sourceLocation.column}`;
+    const key: CallSiteKey = `${sourceLocation.line}:${sourceLocation.column}`;
 
     const entry = activeSpanRegistry.get(key);
     if (!entry) {

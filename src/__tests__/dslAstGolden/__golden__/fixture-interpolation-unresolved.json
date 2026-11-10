@@ -10,12 +10,16 @@
         [
           "124:141",
           [{"constLiteralSpan":{"end":20,"start":13},"evaluatedLength":5,"evaluatedStart":3}]
+        ],
+        [
+          "167:181",
+          [{"constLiteralSpan":{"end":20,"start":13},"evaluatedLength":5,"evaluatedStart":2}]
         ]
       ],
       "registry": [
-        ["7:14","$p",[["source",69,98]]],
-        ["8:14","$p",[["source",124,141]]],
-        ["9:14","$p",[["source",167,181]]]
+        ["4:14","$p",[["source",69,98]]],
+        ["5:14","$p",[["source",124,141]]],
+        ["6:14","$p",[["source",167,181]]]
       ]
     },
     "controlCalls": [],
@@ -100,7 +104,7 @@
             [{"constLiteralSpan":{"end":20,"start":13},"evaluatedLength":5,"evaluatedStart":0}]
           ]
         ],
-        "registry": [["7:14","$p",[["source",69,95]]]]
+        "registry": [["4:14","$p",[["source",69,95]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -121,7 +125,7 @@
             [{"constLiteralSpan":{"end":20,"start":13},"evaluatedLength":5,"evaluatedStart":3}]
           ]
         ],
-        "registry": [["7:14","$p",[["source",69,98]]],["8:14","$p",[["source",124,141]]]]
+        "registry": [["4:14","$p",[["source",69,98]]],["5:14","$p",[["source",124,141]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

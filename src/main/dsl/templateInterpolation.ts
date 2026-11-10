@@ -1,39 +1,32 @@
 /**
- * The patch's top-level `const` bindings, and how template literals
- * interpolate them. When `${root} e4 g4` interpolates a const string, the
- * resolution records where the const's value lands in the evaluated text and
- * the span of the const's own literal, so a highlight inside the evaluated
- * pattern can be redirected to the declaration. Consts whose initializer is
- * itself a template resolve recursively.
+ * How template literals interpolate the patch's `const` bindings. When
+ * `${root} e4 g4` interpolates a const string, the resolution records where
+ * the const's value lands in the evaluated text and the span of the const's
+ * own literal, so a highlight inside the evaluated pattern can be redirected
+ * to the declaration. Consts whose initializer is itself a template resolve
+ * recursively. A const number only advances the offsets: its source text is
+ * not the text it prints, so nothing inside it can be redirected, nor inside
+ * a const template that interpolates one.
  */
 import ts from 'typescript';
 
+import { constInitializerOf } from '../../shared/dsl/ast/consts';
+import { signedNumericLiteral } from '../../shared/dsl/ast/literals';
 import type {
     ResolvedInterpolation,
     SourceSpan,
 } from '../../shared/dsl/spanTypes';
 
-/** Top-level `const` initializers by name; a later declaration wins. */
-export interface ConstTable {
-    file: ts.SourceFile;
-    /** Every initializer. */
-    initializers: Map<string, ts.Expression>;
-    /** The latest initializer of each name that was a trackable literal. */
-    literals: Map<string, ts.Expression>;
-}
-
-/** String, numeric, template, array and object literals, and a literal
- *  under a prefix operator (`-5`): the argument forms whose spans are
- *  recorded. */
+/** String, numeric (signed or not), template, array and object literals:
+ *  the argument forms whose spans are recorded. */
 export function isTrackableLiteral(node: ts.Node): boolean {
     return (
         ts.isStringLiteral(node) ||
-        ts.isNumericLiteral(node) ||
+        signedNumericLiteral(node) !== null ||
         ts.isNoSubstitutionTemplateLiteral(node) ||
         ts.isTemplateExpression(node) ||
         ts.isArrayLiteralExpression(node) ||
-        ts.isObjectLiteralExpression(node) ||
-        ts.isPrefixUnaryExpression(node)
+        ts.isObjectLiteralExpression(node)
     );
 }
 
@@ -41,52 +34,35 @@ export function spanOf(node: ts.Node, file: ts.SourceFile): SourceSpan {
     return { end: node.getEnd(), start: node.getStart(file) };
 }
 
-/** `const` declarations at the top level only, which is where a flat patch
- *  script declares them. */
-export function buildConstTable(file: ts.SourceFile): ConstTable {
-    const initializers = new Map<string, ts.Expression>();
-    const literals = new Map<string, ts.Expression>();
-    for (const statement of file.statements) {
-        if (!ts.isVariableStatement(statement)) {
-            continue;
-        }
-        const { flags } = statement.declarationList;
-        // `await using` sets the Const bit too.
-        const isConst =
-            (flags & ts.NodeFlags.Const) !== 0 &&
-            (flags & ts.NodeFlags.Using) === 0;
-        if (!isConst) {
-            continue;
-        }
-        for (const decl of statement.declarationList.declarations) {
-            if (!decl.initializer || !ts.isIdentifier(decl.name)) {
-                continue;
-            }
-            initializers.set(decl.name.text, decl.initializer);
-            if (isTrackableLiteral(decl.initializer)) {
-                literals.set(decl.name.text, decl.initializer);
-            }
-        }
-    }
-    return { file, initializers, literals };
+/** The literal the const an identifier refers to holds, or null when it
+ *  refers to no const, or to one whose value is not a trackable literal. */
+export function constLiteralOf(id: ts.Identifier): ts.Expression | null {
+    const init = constInitializerOf(id);
+    return init && isTrackableLiteral(init) ? init : null;
 }
 
 /** Length of the string a literal evaluates to, or null when the source
  *  alone cannot tell. */
 function evaluatedLength(
     node: ts.Node,
-    table: ConstTable,
+    file: ts.SourceFile,
     visited = new Set<string>(),
 ): number | null {
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
         return node.text.length;
+    }
+    const number = signedNumericLiteral(node);
+    if (number) {
+        // The number as a template prints it: `0x10` interpolates as `16`.
+        const value = Number(number.literal.text);
+        return String(number.sign === '-' ? -value : value).length;
     }
     if (!ts.isTemplateExpression(node)) {
         return null;
     }
     let total = node.head.text.length;
     for (const span of node.templateSpans) {
-        const length = interpolatedLength(span.expression, table, visited);
+        const length = interpolatedLength(span.expression, file, visited);
         if (length === null) {
             return null;
         }
@@ -96,29 +72,41 @@ function evaluatedLength(
 }
 
 /** Length of what an interpolated expression evaluates to: a const literal
- *  (guarding circular references), or a string or number written in place. */
+ *  (guarding circular references), or a literal written in place. */
 function interpolatedLength(
     expr: ts.Expression,
-    table: ConstTable,
+    file: ts.SourceFile,
     visited: Set<string>,
 ): number | null {
     if (ts.isIdentifier(expr)) {
-        const literal = table.literals.get(expr.text);
+        const literal = constLiteralOf(expr);
         if (visited.has(expr.text) || !literal) {
             return null;
         }
         visited.add(expr.text);
-        const length = evaluatedLength(literal, table, visited);
+        const length = evaluatedLength(literal, file, visited);
         visited.delete(expr.text);
         return length;
     }
-    if (ts.isStringLiteral(expr)) {
-        return expr.text.length;
+    return evaluatedLength(expr, file, visited);
+}
+
+/**
+ * Whether a position inside a const literal's evaluated text maps back into
+ * the literal: a string does, a number does not, and a template does only
+ * when every one of its interpolations redirects in turn.
+ */
+function redirectable(
+    literal: ts.Expression,
+    nested: ResolvedInterpolation[] | null,
+): boolean {
+    if (signedNumericLiteral(literal)) {
+        return false;
     }
-    if (ts.isNumericLiteral(expr)) {
-        return expr.getText(table.file).length;
-    }
-    return null;
+    return (
+        !ts.isTemplateExpression(literal) ||
+        nested?.length === literal.templateSpans.length
+    );
 }
 
 /**
@@ -129,7 +117,7 @@ function interpolatedLength(
  */
 export function resolveInterpolations(
     node: ts.Node,
-    table: ConstTable,
+    file: ts.SourceFile,
 ): ResolvedInterpolation[] | null {
     if (!ts.isTemplateExpression(node)) {
         return null;
@@ -140,21 +128,23 @@ export function resolveInterpolations(
     for (const span of node.templateSpans) {
         const expr = span.expression;
         if (ts.isIdentifier(expr)) {
-            const literal = table.literals.get(expr.text);
-            const length = literal ? evaluatedLength(literal, table) : null;
+            const literal = constLiteralOf(expr);
+            const length = literal ? evaluatedLength(literal, file) : null;
             if (!literal || length === null) {
                 return settled();
             }
-            resolutions.push({
-                constLiteralSpan: spanOf(literal, table.file),
-                evaluatedLength: length,
-                evaluatedStart: offset,
-                nestedResolutions:
-                    resolveInterpolations(literal, table) ?? undefined,
-            });
+            const nested = resolveInterpolations(literal, file);
+            if (redirectable(literal, nested)) {
+                resolutions.push({
+                    constLiteralSpan: spanOf(literal, file),
+                    evaluatedLength: length,
+                    evaluatedStart: offset,
+                    nestedResolutions: nested ?? undefined,
+                });
+            }
             offset += length;
         } else {
-            const length = interpolatedLength(expr, table, new Set());
+            const length = interpolatedLength(expr, file, new Set());
             if (length === null) {
                 return settled();
             }

@@ -4,15 +4,15 @@
       "callSiteSpans": [["9:4",9,9]],
       "interpolations": [],
       "registry": [
-        ["4:20","$pulse",[["freq",22,27]]],
+        ["1:20","$pulse",[["freq",22,27]]],
         [
-          "5:1",
+          "2:1",
           "$granular",
           [["rootFreq",173,177],["width",188,189],["spread",201,202],["mix",211,212]]
         ],
-        ["5:11","$saw",[["freq",44,48]]],
-        ["6:14","$noise",[["color",81,88]]],
-        ["7:16","$p",[["source",130,157]]]
+        ["2:11","$saw",[["freq",44,48]]],
+        ["3:14","$noise",[["color",81,88]]],
+        ["4:16","$p",[["source",130,157]]]
       ]
     },
     "controlCalls": [],
@@ -704,7 +704,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:20","$pulse",[["freq",22,27]]],["5:11","$saw",[["freq",44,48]]]]
+        "registry": [["1:20","$pulse",[["freq",22,27]]],["2:11","$saw",[["freq",44,48]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -717,9 +717,9 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["4:20","$pulse",[["freq",22,27]]],
-          ["5:11","$saw",[["freq",44,48]]],
-          ["6:14","$noise",[["color",81,88]]]
+          ["1:20","$pulse",[["freq",22,27]]],
+          ["2:11","$saw",[["freq",44,48]]],
+          ["3:14","$noise",[["color",81,88]]]
         ]
       },
       "controlCalls": [],
@@ -733,10 +733,10 @@
         "callSiteSpans": [],
         "interpolations": [],
         "registry": [
-          ["4:20","$pulse",[["freq",22,27]]],
-          ["5:11","$saw",[["freq",44,48]]],
-          ["6:14","$noise",[["color",81,88]]],
-          ["7:16","$p",[["source",130,157]]]
+          ["1:20","$pulse",[["freq",22,27]]],
+          ["2:11","$saw",[["freq",44,48]]],
+          ["3:14","$noise",[["color",81,88]]],
+          ["4:16","$p",[["source",130,157]]]
         ]
       },
       "controlCalls": [],

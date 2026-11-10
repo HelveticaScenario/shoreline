@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["1:50",1,1]],
       "interpolations": [],
-      "registry": [["5:1","$saw",[["freq",58,61]]],["6:1","$sine",[["freq",88,92]]]]
+      "registry": [["2:1","$saw",[["freq",58,61]]],["3:1","$sine",[["freq",88,92]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -250,7 +250,7 @@
       "analyze": {
         "callSiteSpans": [["1:50",1,1]],
         "interpolations": [],
-        "registry": [["5:1","$saw",[["freq",58,61]]]]
+        "registry": [["2:1","$saw",[["freq",58,61]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},

@@ -133,11 +133,10 @@ describe('position', () => {
         ).toEqual([1, 2, 3, 4, 5, 6]);
     });
 
-    test('line 1 columns carry the executor indent; lineOffset shifts lines', () => {
+    test('line 1 columns carry the executor indent', () => {
         const file = parseDsl('$saw(1)\n  $sine(2)');
         expect(callSiteKey(file, 0)).toBe('1:5');
         expect(callSiteKey(file, 10)).toBe('2:3');
-        expect(callSiteKey(file, 10, 3)).toBe('5:3');
     });
 
     test('a method call is placed at its name, any other call at its start', () => {

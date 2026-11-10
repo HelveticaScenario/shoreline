@@ -3,7 +3,7 @@
     "analyze": {
       "callSiteSpans": [["1:56",1,1]],
       "interpolations": [],
-      "registry": [["4:9","$mi.waveTerrain",[["freq",16,20],["radius",32,33],["offset",43,44]]]]
+      "registry": [["1:9","$mi.waveTerrain",[["freq",16,20],["radius",32,33],["offset",43,44]]]]
     },
     "controlCalls": [],
     "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -184,7 +184,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:9","$mi.waveTerrain",[["freq",16,20]]]]
+        "registry": [["1:9","$mi.waveTerrain",[["freq",16,20]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -196,7 +196,7 @@
       "analyze": {
         "callSiteSpans": [],
         "interpolations": [],
-        "registry": [["4:9","$mi.waveTerrain",[["freq",16,20],["radius",32,33]]]]
+        "registry": [["1:9","$mi.waveTerrain",[["freq",16,20],["radius",32,33]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
