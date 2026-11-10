@@ -1,9 +1,8 @@
 /**
  * Shared types and state for source span analysis.
  *
- * This file is deliberately free of ts-morph (or any Node.js-only) imports
- * so it can be consumed from the renderer process without pulling in
- * Node.js built-ins via webpack.
+ * This file imports nothing, so the renderer and the main-process
+ * analyzers can both depend on it.
  */
 
 /**

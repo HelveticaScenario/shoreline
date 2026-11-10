@@ -131,8 +131,8 @@ function captureArgumentSpans(
         return undefined;
     }
 
-    // Build the call site key matching what ts-morph produced.
-    // Both ts-morph and V8 stack traces use 1-based lines and columns.
+    // Registry keys are V8 call sites offset by the script wrapper's lines
+    // (see callSiteKey).
     const key: CallSiteKey = `${sourceLocation.line + getDSLWrapperLineOffset()}:${sourceLocation.column}`;
 
     const entry = activeSpanRegistry.get(key);

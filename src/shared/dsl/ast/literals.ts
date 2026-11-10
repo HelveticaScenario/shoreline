@@ -35,3 +35,14 @@ export function negatableNumber(node: ts.Node): number | null {
     const value = Number(number.literal.text);
     return number.sign === '-' ? -value : value;
 }
+
+/** The value of a `true` / `false` literal, or null for any other node. */
+export function booleanLiteral(node: ts.Node): boolean | null {
+    if (node.kind === ts.SyntaxKind.TrueKeyword) {
+        return true;
+    }
+    if (node.kind === ts.SyntaxKind.FalseKeyword) {
+        return false;
+    }
+    return null;
+}

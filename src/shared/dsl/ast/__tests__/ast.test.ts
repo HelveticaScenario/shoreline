@@ -4,6 +4,8 @@ import { describe, expect, test } from 'vitest';
 import { findControlCalls } from '../../controlCalls';
 import { negatableNumber, signedNumericLiteral } from '../literals';
 import { dottedName, propertyName } from '../names';
+import { callSiteKey, lineColumn, v8CallAnchor } from '../position';
+import { forEachDescendant } from '../walk';
 import { parseDsl, parseTransient } from '../parse';
 
 describe('parseDsl', () => {
@@ -116,6 +118,41 @@ describe('names', () => {
             null,
             'f',
             'g',
+        ]);
+    });
+});
+
+describe('position', () => {
+    test('lines break where V8 breaks them', () => {
+        const source = 'a\rb\r\nc\u2028d\u2029e\nf';
+        const file = parseDsl(source);
+        expect(
+            ['a', 'b', 'c', 'd', 'e', 'f'].map(
+                (ch) => lineColumn(file, source.indexOf(ch)).line,
+            ),
+        ).toEqual([1, 2, 3, 4, 5, 6]);
+    });
+
+    test('line 1 columns carry the executor indent; lineOffset shifts lines', () => {
+        const file = parseDsl('$saw(1)\n  $sine(2)');
+        expect(callSiteKey(file, 0)).toBe('1:5');
+        expect(callSiteKey(file, 10)).toBe('2:3');
+        expect(callSiteKey(file, 10, 3)).toBe('5:3');
+    });
+
+    test('a method call is placed at its name, any other call at its start', () => {
+        const source = "$saw('c2')\n  .out()\n$sine('c4')";
+        const file = parseDsl(source);
+        const calls: ts.CallExpression[] = [];
+        forEachDescendant(file, (n) => {
+            if (ts.isCallExpression(n)) {
+                calls.push(n);
+            }
+        });
+        expect(calls.map((c) => v8CallAnchor(c, file))).toEqual([
+            source.indexOf('out'),
+            0,
+            source.indexOf('$sine'),
         ]);
     });
 });

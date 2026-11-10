@@ -13,7 +13,7 @@
 
 import ts from 'typescript';
 
-import { negatableNumber } from '../../shared/dsl/ast/literals';
+import { booleanLiteral, negatableNumber } from '../../shared/dsl/ast/literals';
 import { propertyName } from '../../shared/dsl/ast/names';
 import { parseDsl } from '../../shared/dsl/ast/parse';
 import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
@@ -96,16 +96,6 @@ function rangeOf(node: ts.Node, sourceFile: ts.SourceFile): SourceRange {
 /** A numeric (optionally negated) or string literal's value, else null. */
 function sliderLiteral(node: ts.Expression): number | string | null {
     return ts.isStringLiteral(node) ? node.text : negatableNumber(node);
-}
-
-function booleanLiteral(node: ts.Expression): boolean | null {
-    if (node.kind === ts.SyntaxKind.TrueKeyword) {
-        return true;
-    }
-    if (node.kind === ts.SyntaxKind.FalseKeyword) {
-        return false;
-    }
-    return null;
 }
 
 /** Whether a call's argument count fits its required arguments plus an
