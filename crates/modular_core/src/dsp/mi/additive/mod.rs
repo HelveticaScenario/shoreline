@@ -124,7 +124,8 @@ pub struct Additive {
 struct AdditiveState {
     inv_sample_rate: f32,
     to_48k: f32,
-    /// Samples per spectrum step: 12 at 48 kHz, and at least one.
+    /// Samples per spectrum step: 12 at 48 kHz, below 1 under 4 kHz, where
+    /// several steps share a sample.
     period: f32,
 }
 
@@ -133,7 +134,7 @@ impl AdditiveState {
         Self {
             inv_sample_rate: 1.0 / sample_rate,
             to_48k: sample_rate / 48000.0,
-            period: (sample_rate / SPECTRUM_RATE).max(1.0),
+            period: sample_rate / SPECTRUM_RATE,
         }
     }
 }
@@ -199,28 +200,31 @@ impl Voice {
         }
         self.count += 1.0;
         if self.countdown <= 0.0 {
-            self.countdown += state.period;
             let [centroid, morph, raw_bumps] = self.sum.map(|sum| knob(sum / self.count));
             self.sum = [0.0; 3];
             self.count = 0.0;
             let raw_slope = (1.0 - 0.6 * raw_bumps) * morph;
             let slope = 0.01 + 1.99 * raw_slope * raw_slope * raw_slope;
             let bumps = 16.0 * raw_bumps * raw_bumps;
-            update_amplitudes(centroid, slope, bumps, &mut self.amplitudes, &INTEGER_SLOTS);
-            update_amplitudes(
-                centroid,
-                slope,
-                bumps,
-                &mut self.amplitudes[ORGAN..],
-                &ORGAN_SLOTS,
-            );
+            while self.countdown <= 0.0 {
+                self.countdown += state.period;
+                update_amplitudes(centroid, slope, bumps, &mut self.amplitudes, &INTEGER_SLOTS);
+                update_amplitudes(
+                    centroid,
+                    slope,
+                    bumps,
+                    &mut self.amplitudes[ORGAN..],
+                    &ORGAN_SLOTS,
+                );
+            }
+            let length = state.period.max(1.0);
             for ((increment, target), value) in self
                 .increment
                 .iter_mut()
                 .zip(&self.amplitudes)
                 .zip(&self.ramp)
             {
-                *increment = (target - value) / state.period;
+                *increment = (target - value) / length;
             }
         }
         self.countdown -= 1.0;

@@ -185,3 +185,47 @@ fn stays_finite() {
         }
     }
 }
+
+/// Grains run on a timebase in seconds: after a second, every voice's grain
+/// is where it is at 48 kHz, including at rates under 4 kHz, where several
+/// ticks share a sample.
+#[test]
+fn grains_keep_time_at_any_rate() {
+    let phases = |sample_rate: f32| {
+        let state = SwarmState::new(sample_rate);
+        let mut ch = channel();
+        // Through t = 1 s, so every rate has stepped the same 4001 ticks.
+        for _ in 0..=sample_rate as usize {
+            ch.control([3.5, 2.0, 2.0], false, false, &state);
+            ch.step(0.001, &state);
+        }
+        ch.voices.map(|v| v.envelope_phase())
+    };
+    let reference = phases(48000.0);
+    for sample_rate in [2000.0, 3000.0, 8000.0, 96000.0] {
+        let actual = phases(sample_rate);
+        for (v, (a, r)) in actual.iter().zip(&reference).enumerate() {
+            assert!(
+                (a - r).abs() < 1e-4,
+                "{sample_rate} Hz, voice {v}: {a} vs {r}"
+            );
+        }
+    }
+}
+
+/// A backward phase that lands a hair below 0 and then stops keeps the saw
+/// finite.
+#[test]
+fn saw_survives_stopping_on_a_wrap() {
+    let state = SwarmState::new(48000.0);
+    let mut ch = channel();
+    for f0 in [-0.25, -0.25, -0.25, -0.125, -0.125_000_01, 0.0] {
+        ch.control([2.5, 0.0, 2.5], false, false, &state);
+        ch.step(f0, &state);
+    }
+    for n in 0..48000 {
+        ch.control([2.5, 0.0, 2.5], false, false, &state);
+        let (saws, sines) = ch.step(0.0, &state);
+        assert!(saws.is_finite() && sines.is_finite(), "sample {n}");
+    }
+}

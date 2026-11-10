@@ -134,7 +134,8 @@ pub struct Swarm {
 struct SwarmState {
     inv_sample_rate: f32,
     to_48k: f32,
-    /// Samples per tick: 12 at 48 kHz, and at least one.
+    /// Samples per tick: 12 at 48 kHz, below 1 under 4 kHz, where several
+    /// ticks share a sample.
     period: f32,
     /// Plaits' 12 kHz saw limit, or Nyquist when that is lower.
     max_frequency: f32,
@@ -146,7 +147,7 @@ impl SwarmState {
         Self {
             inv_sample_rate: 1.0 / sample_rate,
             to_48k: sample_rate / 48000.0,
-            period: (sample_rate / TICK_RATE).max(1.0),
+            period: sample_rate / TICK_RATE,
             max_frequency: max_frequency(sample_rate).min(0.5),
             limiter: LimiterRates::new(sample_rate),
         }
@@ -226,31 +227,49 @@ impl Channel {
         self.count += 1.0;
         if self.countdown <= 0.0 || start_burst {
             // A burst restarts the timebase on its own sample.
-            self.countdown = if start_burst {
-                state.period
-            } else {
-                self.countdown + state.period
-            };
+            if start_burst {
+                self.countdown = 0.0;
+            }
             let [timbre, harmonics, morph] = self.sum.map(|sum| knob(sum / self.count));
             self.sum = [0.0; 3];
             self.count = 0.0;
             let density = note_to_frequency(timbre * 120.0) * 0.025 * PLAITS_BLOCK;
             let spread = harmonics * harmonics * harmonics;
-            let mut size_ratio = 0.25 * semitones_to_ratio((1.0 - morph) * 84.0);
-            let jump = !self.started;
-            self.started = true;
-            for (i, voice) in self.voices.iter_mut().enumerate() {
-                let rank = (i as f32 - 3.0) / 3.0;
-                voice
-                    .envelope
-                    .step(density, burst_mode, start_burst, &mut self.random);
-                let (ratio, level) = voice.targets(rank, spread, size_ratio);
-                voice.ratio.set(ratio, state.period, jump);
-                voice.level.set(level, state.period, false);
-                size_ratio *= 0.97;
+            let size_ratio = 0.25 * semitones_to_ratio((1.0 - morph) * 84.0);
+            let mut burst = start_burst;
+            while self.countdown <= 0.0 {
+                self.countdown += state.period;
+                self.tick(density, spread, size_ratio, burst_mode, burst, state);
+                burst = false;
             }
         }
         self.countdown -= 1.0;
+    }
+
+    /// One step of every voice's grain, ramping each voice's pitch ratio and
+    /// level to the result across the tick.
+    fn tick(
+        &mut self,
+        density: f32,
+        spread: f32,
+        mut size_ratio: f32,
+        burst_mode: bool,
+        start_burst: bool,
+        state: &SwarmState,
+    ) {
+        let jump = !self.started;
+        self.started = true;
+        let length = state.period.max(1.0);
+        for (i, voice) in self.voices.iter_mut().enumerate() {
+            let rank = (i as f32 - 3.0) / 3.0;
+            voice
+                .envelope
+                .step(density, burst_mode, start_burst, &mut self.random);
+            let (ratio, level) = voice.targets(rank, spread, size_ratio);
+            voice.ratio.set(ratio, length, jump);
+            voice.level.set(level, length, false);
+            size_ratio *= 0.97;
+        }
     }
 
     /// One sample of the saws and sines at `f0` cycles per sample.

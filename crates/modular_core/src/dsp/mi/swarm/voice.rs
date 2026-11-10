@@ -3,7 +3,7 @@
 
 use crate::dsp::mi::core::{
     fast_sine::QuadratureOscillator,
-    polyblep::{next_blep_sample, this_blep_sample},
+    polyblep::{edge_time, next_blep_sample, this_blep_sample},
     random::Random,
     sine::sine,
     units::semitones_to_ratio,
@@ -110,12 +110,16 @@ impl Saw {
         self.phase += frequency;
         if self.phase >= 1.0 {
             self.phase -= 1.0;
-            let t = self.phase / frequency;
+            let t = edge_time(self.phase, frequency);
             this_sample -= this_blep_sample(t);
             next_sample -= next_blep_sample(t);
         } else if self.phase < 0.0 {
             self.phase += 1.0;
-            let t = (1.0 - self.phase) / -frequency;
+            let t = edge_time(1.0 - self.phase, -frequency);
+            // A phase a hair below 0 wraps to 1, which is 0.
+            if self.phase >= 1.0 {
+                self.phase = 0.0;
+            }
             this_sample += this_blep_sample(t);
             next_sample += next_blep_sample(t);
         }
