@@ -2,6 +2,7 @@
 //! `plaits/dsp`.
 
 pub mod control;
+pub mod delay_line;
 pub mod downsampler;
 pub mod filter;
 #[cfg(test)]
