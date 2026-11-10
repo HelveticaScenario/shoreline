@@ -5,7 +5,8 @@
  * own literal, so a highlight inside the evaluated pattern can be redirected
  * to the declaration. Consts whose initializer is itself a template resolve
  * recursively. A const number only advances the offsets: its source text is
- * not the text it prints, so nothing inside it can be redirected.
+ * not the text it prints, so nothing inside it can be redirected, nor inside
+ * a const template that interpolates one.
  */
 import ts from 'typescript';
 
@@ -91,6 +92,24 @@ function interpolatedLength(
 }
 
 /**
+ * Whether a position inside a const literal's evaluated text maps back into
+ * the literal: a string does, a number does not, and a template does only
+ * when every one of its interpolations redirects in turn.
+ */
+function redirectable(
+    literal: ts.Expression,
+    nested: ResolvedInterpolation[] | null,
+): boolean {
+    if (signedNumericLiteral(literal)) {
+        return false;
+    }
+    return (
+        !ts.isTemplateExpression(literal) ||
+        nested?.length === literal.templateSpans.length
+    );
+}
+
+/**
  * The const interpolations of a template expression, each with where its
  * value starts in the evaluated text. Resolution stops at the first
  * interpolation whose length is unknown, since every later offset would be
@@ -114,13 +133,13 @@ export function resolveInterpolations(
             if (!literal || length === null) {
                 return settled();
             }
-            if (!signedNumericLiteral(literal)) {
+            const nested = resolveInterpolations(literal, file);
+            if (redirectable(literal, nested)) {
                 resolutions.push({
                     constLiteralSpan: spanOf(literal, file),
                     evaluatedLength: length,
                     evaluatedStart: offset,
-                    nestedResolutions:
-                        resolveInterpolations(literal, file) ?? undefined,
+                    nestedResolutions: nested ?? undefined,
                 });
             }
             offset += length;

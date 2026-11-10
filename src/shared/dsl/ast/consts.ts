@@ -3,7 +3,8 @@
  * nearest enclosing block, function, loop or catch clause that binds the
  * name decides. A `let`, `var`, parameter, loop or catch variable, function
  * or class of that name hides any outer `const`. A `var` binds in its
- * enclosing function or the file, wherever in it it is declared.
+ * enclosing function, class static block or the file, wherever in it it is
+ * declared.
  *
  * Every binding is read as visible throughout its scope, ahead of its
  * declaration too.
@@ -46,10 +47,14 @@ function bindList(list: ts.VariableDeclarationList, out: Bindings): void {
     }
 }
 
-/** The names `var` declares anywhere in `node` outside nested functions. */
+/** The names `var` declares anywhere in `node` outside nested functions and
+ *  class static blocks. */
 function bindHoistedVars(node: ts.Node, out: Bindings): void {
     ts.forEachChild(node, (child) => {
-        if (ts.isFunctionLike(child)) {
+        if (
+            ts.isFunctionLike(child) ||
+            ts.isClassStaticBlockDeclaration(child)
+        ) {
             return;
         }
         if (
@@ -81,6 +86,8 @@ function bindingsOf(node: ts.Node): Bindings | null {
         if ('body' in node && node.body) {
             bindHoistedVars(node.body, out);
         }
+    } else if (ts.isClassStaticBlockDeclaration(node)) {
+        bindHoistedVars(node.body, out);
     } else if (ts.isClassExpression(node)) {
         if (!node.name) {
             return null;

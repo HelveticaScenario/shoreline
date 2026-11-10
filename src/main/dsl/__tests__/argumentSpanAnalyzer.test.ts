@@ -92,6 +92,19 @@ describe('template interpolation', () => {
         ).toEqual(["'c4'@6+2"]);
     });
 
+    test('a const template is redirected into only when all of it redirects', () => {
+        expect(
+            resolutions(
+                "const n = 4\nconst pat = `c${n} e4`\nconst root = 'g4'\n$p(`${pat} ${root}`)",
+            ),
+        ).toEqual(["'g4'@6+2"]);
+        expect(
+            resolutions(
+                "const root = 'c4'\nconst pat = `${root} e4`\n$p(`${pat} g4`)",
+            ),
+        ).toEqual(['`${root} e4`@0+5']);
+    });
+
     test('a const inside a function resolves where it is in scope', () => {
         expect(
             resolutions(
@@ -125,6 +138,17 @@ describe('template interpolation', () => {
                 "const x = 'c4'\nfunction f(c) { if (c) { var x = 'd4' } $sine(x).out() }",
             ),
         ).toEqual([]);
+        // A class static block holds its own `var`.
+        expect(
+            entries(
+                "const x = 'c4'\nclass K { static { if (1) { var x = 'd4' } $sine(x).out() } }",
+            ),
+        ).toEqual([]);
+        expect(
+            entries(
+                "const x = 'c4'\nclass K { static { var x = 'd4' } }\n$sine(x).out()",
+            ),
+        ).toEqual(["3:1 $sine freq='c4'"]);
         // A named class expression binds its own name inside itself.
         expect(
             entries(
