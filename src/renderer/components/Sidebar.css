@@ -26,6 +26,10 @@
     width: 32ch;
 }
 
+.app-sidebar-panel[hidden] {
+    display: none;
+}
+
 /* Covers the sidebar's editor-facing border and reaches inward, leaving the
    editor's scrollbar alone. */
 .app-sidebar-sash {
@@ -157,4 +161,10 @@ body.app-sidebar-resizing {
 .app-activity-bar-item:focus-visible {
     outline: 1px solid var(--text-secondary);
     outline-offset: -1px;
+}
+
+/* With the panel closed, the sidebar's own border is the bar's only edge. */
+.app-sidebar.collapsed .app-activity-bar {
+    border-left: none;
+    border-right: none;
 }

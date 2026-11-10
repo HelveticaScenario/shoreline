@@ -19,6 +19,7 @@ import { SettingsPanel } from './SettingsPanel';
 import {
     SidebarSash,
     sidebarPanelStyle,
+    useSidebarOpen,
     useSidebarSide,
     useSidebarWidth,
 } from './SidebarSash';
@@ -53,6 +54,7 @@ export function Sidebar({
     performContent,
 }: SidebarProps) {
     const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
+    const [open, setOpen] = useSidebarOpen();
     const activeLabel = TABS.find(({ id }) => id === activeTab)?.label;
     const [width, setWidth] = useSidebarWidth();
     const [docsTarget, setDocsTarget] = useState<DocsTarget | null>(null);
@@ -64,32 +66,49 @@ export function Sidebar({
             SHOW_DOCS_COMMAND,
             (target) => {
                 setActiveTab('docs');
+                setOpen(true);
                 setDocsTarget(toDocsTarget(target));
             },
             { label: 'Show Docs', category: 'View' },
         );
-        registerCommand(OPEN_SETTINGS_COMMAND, () => setActiveTab('settings'), {
-            label: 'Open Settings',
-            category: 'Preferences',
-        });
+        registerCommand(
+            OPEN_SETTINGS_COMMAND,
+            () => {
+                setActiveTab('settings');
+                setOpen(true);
+            },
+            { label: 'Open Settings', category: 'Preferences' },
+        );
         return () => {
             unregisterCommand(SHOW_DOCS_COMMAND);
             unregisterCommand(OPEN_SETTINGS_COMMAND);
         };
-    }, []);
+    }, [setOpen]);
+
+    const shownTab = open ? activeTab : null;
+
+    // Clicking the shown panel's button closes the sidebar, as in VS Code.
+    const onActivityClick = (id: SidebarTab) => {
+        setOpen(!open || id !== activeTab);
+        setActiveTab(id);
+    };
 
     return (
-        <div className={`app-sidebar ${side}`}>
-            <SidebarSash
-                panelId="app-sidebar-panel"
-                side={side}
-                onWidthChange={setWidth}
-            />
+        <div className={`app-sidebar ${side} ${open ? '' : 'collapsed'}`}>
+            {open && (
+                <SidebarSash
+                    panelId="app-sidebar-panel"
+                    side={side}
+                    onWidthChange={setWidth}
+                />
+            )}
+            {/* Stays mounted while closed so panels keep their state. */}
             <section
                 id="app-sidebar-panel"
                 className="app-sidebar-panel"
                 aria-labelledby="app-sidebar-title"
                 style={sidebarPanelStyle(width)}
+                hidden={!open}
             >
                 <h2 id="app-sidebar-title" className="app-sidebar-title">
                     {activeLabel}
@@ -105,28 +124,32 @@ export function Sidebar({
                     {/* Stays mounted so its page, search and expanded types survive tab switches. */}
                     <DocsPanel
                         target={docsTarget}
-                        hidden={activeTab !== 'docs'}
+                        hidden={shownTab !== 'docs'}
                     />
                     <SettingsPanel
-                        hidden={activeTab !== 'settings'}
+                        hidden={shownTab !== 'settings'}
                         config={config}
                         onConfigChange={changeConfig}
                     />
                 </div>
             </section>
             <nav className="app-activity-bar" aria-label="Sidebar panels">
-                {TABS.map(({ id, label, icon: Icon }) => (
-                    <button
-                        key={id}
-                        aria-pressed={activeTab === id}
-                        aria-label={label}
-                        title={label}
-                        className={`app-activity-bar-item ${id} ${activeTab === id ? 'active' : ''}`}
-                        onClick={() => setActiveTab(id)}
-                    >
-                        <Icon size={22} strokeWidth={1.5} aria-hidden />
-                    </button>
-                ))}
+                {TABS.map(({ id, label, icon: Icon }) => {
+                    const shown = shownTab === id;
+                    return (
+                        <button
+                            key={id}
+                            aria-pressed={shown}
+                            aria-controls="app-sidebar-panel"
+                            aria-label={label}
+                            title={label}
+                            className={`app-activity-bar-item ${id} ${shown ? 'active' : ''}`}
+                            onClick={() => onActivityClick(id)}
+                        >
+                            <Icon size={22} strokeWidth={1.5} aria-hidden />
+                        </button>
+                    );
+                })}
             </nav>
         </div>
     );
