@@ -47,7 +47,7 @@
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
       "eq": [],
       "out": [],
-      "setOutputGain": {"end":18,"start":15,"text":"0.5"}
+      "setOutputGain": null
     }
   }
 }
