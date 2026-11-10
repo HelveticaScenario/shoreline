@@ -183,7 +183,8 @@ impl Voice {
             .follow(knobs.cutoff.0, knobs.cutoff.1, sample_rate);
         let shape = self.shape.follow(knobs.shape.0, knobs.shape.1, sample_rate);
         let mode = self.mode.follow(knobs.mode.0, knobs.mode.1, sample_rate);
-        if changed(cutoff, self.last_cutoff) {
+        // A NaN or infinite cutoff holds the multiplier where it is.
+        if changed(cutoff, self.last_cutoff) && cutoff.is_finite() {
             self.multiplier = (8.0 * (cutoff * 0.2).clamp(0.0, 1.0)).exp2();
             self.last_cutoff = cutoff;
         }
