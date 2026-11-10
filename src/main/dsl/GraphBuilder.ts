@@ -1778,10 +1778,9 @@ export class GraphBuilder {
             signalFactory(0, { id: 'ROOT_OUTPUT' });
         }
 
-        // Lane taps read the gain stage's and stereo mix's processed params,
-        // so a pattern-valued gain or pan plays through the one $cycle the
-        // lane itself uses. Processed params are serialized cables, so the
-        // declared range comes from the out's own option value.
+        // Lane taps read the gain stage's and stereo mix's processed params.
+        // Those are serialized cables, so the declared range comes from the
+        // out's own option value.
         const constants = new Map<number, ModuleOutput>();
         const toOutput = (value: Signal): ModuleOutput => {
             if (value instanceof ModuleOutput) {
