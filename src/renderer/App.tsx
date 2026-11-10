@@ -63,6 +63,7 @@ import { VuMeterPanel } from './components/VuMeterPanel';
 import { BottomBar } from './components/BottomBar';
 import { BottomPanel } from './components/BottomPanel';
 import { useBottomPanel } from './hooks/useBottomPanel';
+import { useEditableConfig } from './hooks/useEditableConfig';
 import type { VuBallistics } from './app/vuMeter';
 import {
     drawVuMeter,
@@ -194,7 +195,13 @@ function App() {
     const [sliderDefs, setSliderDefs] = useState<SliderDefinition[]>([]);
     const [buttonDefs, setButtonDefs] = useState<ButtonDefinition[]>([]);
     const [vuOutputs, setVuOutputs] = useState<VuMeterDef[]>([]);
-    const bottomPanel = useBottomPanel();
+    const [appConfig, changeAppConfig, appConfigLoaded] =
+        useEditableConfig(true);
+    const bottomPanel = useBottomPanel(
+        appConfig,
+        changeAppConfig,
+        appConfigLoaded,
+    );
     const showBottomPanel = bottomPanel.show;
     /** Code-side control values diverging from the running audio after
      *  Ctrl/Cmd (code-only) panel edits, keyed by meter key. Cleared when a
@@ -2663,6 +2670,9 @@ function App() {
                 </div>
                 <Sidebar
                     docs={bottomPanel.docs}
+                    config={appConfig}
+                    onConfigChange={changeAppConfig}
+                    configLoaded={appConfigLoaded}
                     explorerContent={
                         <FileExplorer
                             workspaceRoot={workspaceRoot}

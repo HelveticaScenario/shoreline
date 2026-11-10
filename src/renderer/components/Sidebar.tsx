@@ -7,7 +7,7 @@ import {
     SlidersHorizontal,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
-import { useEditableConfig } from '../hooks/useEditableConfig';
+import type { AppConfig } from '../../shared/ipcTypes';
 import { registerCommand, unregisterCommand } from '../keybindings/commands';
 import { DocsPanel } from './DocsPanel';
 import type { DocsState } from '../hooks/useBottomPanel';
@@ -46,6 +46,11 @@ interface SidebarProps {
     performContent: ReactNode;
     /** The docs show as a tab here while their location is the sidebar. */
     docs: DocsState;
+    /** The app's one editable copy of the config file. */
+    config: AppConfig;
+    onConfigChange: (partial: Partial<AppConfig>) => void;
+    /** False until the config file has been read. */
+    configLoaded: boolean;
 }
 
 export function Sidebar({
@@ -53,6 +58,9 @@ export function Sidebar({
     controlContent,
     performContent,
     docs,
+    config,
+    onConfigChange,
+    configLoaded,
 }: SidebarProps) {
     const [selectedTab, setSelectedTab] = useState<SidebarTab>('explorer');
     const [open, setOpen] = useSidebarOpen();
@@ -68,7 +76,6 @@ export function Sidebar({
         selectedTab === 'docs' && !docsHere ? 'explorer' : selectedTab;
     const activeLabel = TABS.find(({ id }) => id === activeTab)?.label;
     const [width, setWidth] = useSidebarWidth();
-    const [config, changeConfig, configLoaded] = useEditableConfig(true);
     const side = useSidebarSide(config.sidebarSide, configLoaded);
 
     useEffect(() => {
@@ -136,7 +143,7 @@ export function Sidebar({
                     <SettingsPanel
                         hidden={shownTab !== 'settings'}
                         config={config}
-                        onConfigChange={changeConfig}
+                        onConfigChange={onConfigChange}
                     />
                 </div>
             </section>

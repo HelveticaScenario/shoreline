@@ -11,7 +11,7 @@ import {
     SHOW_DOCS_COMMAND,
     toDocsTarget,
 } from '../components/docsCommand';
-import { useEditableConfig } from './useEditableConfig';
+import type { AppConfig } from '../../shared/ipcTypes';
 
 export type BottomTab = 'mixer' | 'docs';
 
@@ -39,7 +39,8 @@ export function bottomPanelStyle(height: number): CSSProperties {
 
 /** Where the docs live and what they were last asked to show. */
 export interface DocsState {
-    location: 'bottom' | 'sidebar';
+    /** `null` until the config file is read, so the docs mount only once, in their place. */
+    location: 'bottom' | 'sidebar' | null;
     target: DocsTarget | null;
     /** Counts the requests to bring the docs forward. */
     reveals: number;
@@ -51,10 +52,52 @@ export interface BottomPanelState {
     /** Opens `tab`, or collapses the panel when `tab` is already open. */
     toggle: (tab: BottomTab) => void;
     show: (tab: BottomTab | null) => void;
+    /** The height kept in the config file. */
     height: number;
-    /** `null` restores the default height. */
-    setHeight: (height: number | null) => void;
+    commitHeight: (height: number) => void;
     docs: DocsState;
+}
+
+/**
+ * The panel's height while a drag runs, ahead of the config file, and the
+ * setter the sash drives. A height is written once it holds still, and a
+ * pending write is flushed on unmount. Kept beside the panel so a drag
+ * re-renders only the panel.
+ */
+export function useDraftHeight(
+    committed: number,
+    commit: (height: number) => void,
+): [number, (height: number | null) => void] {
+    const [draft, setDraft] = useState<number | null>(null);
+    const pending = useRef<{ timer: number; height: number } | null>(null);
+    const commitRef = useRef(commit);
+    useEffect(() => {
+        commitRef.current = commit;
+    }, [commit]);
+
+    const setHeight = useCallback((next: number | null) => {
+        const height = next ?? DEFAULT_HEIGHT;
+        setDraft(height);
+        if (pending.current) window.clearTimeout(pending.current.timer);
+        const timer = window.setTimeout(() => {
+            pending.current = null;
+            commitRef.current(height);
+            setDraft(null);
+        }, HEIGHT_WRITE_DELAY_MS);
+        pending.current = { timer, height };
+    }, []);
+
+    useEffect(
+        () => () => {
+            const write = pending.current;
+            if (!write) return;
+            window.clearTimeout(write.timer);
+            commitRef.current(write.height);
+        },
+        [],
+    );
+
+    return [draft ?? committed, setHeight];
 }
 
 /**
@@ -62,15 +105,18 @@ export interface BottomPanelState {
  * config file. Registers the commands that open the mixer and the docs,
  * wherever the docs live.
  */
-export function useBottomPanel(): BottomPanelState {
-    const [config, changeConfig] = useEditableConfig(true);
-    const docsLocation = config.docsLocation ?? 'bottom';
+export function useBottomPanel(
+    config: AppConfig,
+    changeConfig: (partial: Partial<AppConfig>) => void,
+    configLoaded: boolean,
+): BottomPanelState {
+    const docsLocation = configLoaded
+        ? (config.docsLocation ?? 'bottom')
+        : null;
     const storedTab = config.bottomPanel ?? null;
     const tab =
         docsLocation === 'sidebar' && storedTab === 'docs' ? null : storedTab;
-    // The height while a drag runs, ahead of the config file.
-    const [draftHeight, setDraftHeight] = useState<number | null>(null);
-    const height = draftHeight ?? config.bottomPanelHeight ?? DEFAULT_HEIGHT;
+    const height = config.bottomPanelHeight ?? DEFAULT_HEIGHT;
     const [docsTarget, setDocsTarget] = useState<DocsTarget | null>(null);
     const [reveals, setReveals] = useState(0);
 
@@ -92,39 +138,34 @@ export function useBottomPanel(): BottomPanelState {
         [show],
     );
 
-    const heightWrite = useRef<number>(undefined);
-    const setHeight = useCallback(
-        (next: number | null) => {
-            const settled = next ?? DEFAULT_HEIGHT;
-            setDraftHeight(settled);
-            window.clearTimeout(heightWrite.current);
-            heightWrite.current = window.setTimeout(() => {
-                changeConfig({ bottomPanelHeight: settled });
-                setDraftHeight(null);
-            }, HEIGHT_WRITE_DELAY_MS);
-        },
+    const commitHeight = useCallback(
+        (next: number) => changeConfig({ bottomPanelHeight: next }),
         [changeConfig],
     );
-    useEffect(() => () => window.clearTimeout(heightWrite.current), []);
 
     useEffect(() => {
-        const inSidebar = () => current.current.docsLocation === 'sidebar';
-        const revealInSidebar = () => setReveals((n) => n + 1);
+        // Before the config file is read the docs have no place to open in.
+        const bringDocsForward = (togglesAtBottom: boolean) => {
+            const location = current.current.docsLocation;
+            if (location === 'sidebar') setReveals((n) => n + 1);
+            else if (location === 'bottom') {
+                if (togglesAtBottom) toggle('docs');
+                else show('docs');
+            }
+        };
         registerCommand('shoreline.toggleMixer', () => toggle('mixer'), {
             label: 'Toggle Mixer',
             category: 'View',
         });
-        registerCommand(
-            'shoreline.toggleDocs',
-            () => (inSidebar() ? revealInSidebar() : toggle('docs')),
-            { label: 'Toggle Docs', category: 'View' },
-        );
+        registerCommand('shoreline.toggleDocs', () => bringDocsForward(true), {
+            label: 'Toggle Docs',
+            category: 'View',
+        });
         registerCommand(
             SHOW_DOCS_COMMAND,
             (target) => {
                 setDocsTarget(toDocsTarget(target));
-                if (inSidebar()) revealInSidebar();
-                else show('docs');
+                bringDocsForward(false);
             },
             { label: 'Show Docs', category: 'View' },
         );
@@ -140,7 +181,7 @@ export function useBottomPanel(): BottomPanelState {
         toggle,
         show,
         height,
-        setHeight,
+        commitHeight,
         docs: { location: docsLocation, target: docsTarget, reveals },
     };
 }

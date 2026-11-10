@@ -4,6 +4,7 @@ import {
     type BottomPanelState,
     bottomPanelMaxHeight,
     bottomPanelStyle,
+    useDraftHeight,
 } from '../hooks/useBottomPanel';
 import { DocsPanel } from './DocsPanel';
 import { Sash } from './Sash';
@@ -17,7 +18,11 @@ interface BottomPanelProps {
 
 /** The panel under the editor, showing the mixer or the docs. */
 export function BottomPanel({ state, mixer }: BottomPanelProps) {
-    const { tab, height, setHeight, docs } = state;
+    const { tab, docs } = state;
+    const [height, setHeight] = useDraftHeight(
+        state.height,
+        state.commitHeight,
+    );
     return (
         <section
             id="app-bottom-panel"

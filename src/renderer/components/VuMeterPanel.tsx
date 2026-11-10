@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+} from 'react';
 import type { VuMeterDef, VuMeterGhost } from '../../shared/dsl/vuMeterTypes';
 import { METER_PAD_CSS, meterNormToDb } from '../app/vuMeter';
 import './VuMeterPanel.css';
@@ -536,9 +542,11 @@ export function VuMeterPanel({
     const anySolo = channelOutputs.some((o) => o.solo);
     const panelRef = useRef<HTMLDivElement>(null);
     const [height, setHeight] = useState(0);
-    useEffect(() => {
+    // Measured before the first paint, so the strips open with their knobs.
+    useLayoutEffect(() => {
         const panel = panelRef.current;
         if (!panel) return;
+        setHeight(panel.getBoundingClientRect().height);
         const observer = new ResizeObserver(([entry]) =>
             setHeight(entry.borderBoxSize[0].blockSize),
         );
