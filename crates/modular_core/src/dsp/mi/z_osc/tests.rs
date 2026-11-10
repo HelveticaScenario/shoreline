@@ -145,3 +145,28 @@ fn knobs_take_effect_on_the_next_sample() {
         }
     }
 }
+
+/// A NaN knob holds the sound where it is.
+#[test]
+fn nan_knobs_hold() {
+    let state = ZOscState::new(48000.0);
+    let f0 = 0.01;
+    let knobs = |v: f32| Knobs {
+        cutoff: (v, mark()),
+        shape: (v, mark()),
+        mode: (v, mark()),
+    };
+    let mut held = Voice::default();
+    let mut glitched = Voice::default();
+    for n in 0..200 {
+        let v = if (100..103).contains(&n) {
+            f32::NAN
+        } else {
+            1.0
+        };
+        held.control(f0, knobs(1.0), 1.0, 48000.0, &state);
+        glitched.control(f0, knobs(v), 1.0, 48000.0, &state);
+        let (a, b) = (held.step(f0, &state), glitched.step(f0, &state));
+        assert!((a - b).abs() < 1e-4, "sample {n}: {a} vs {b}");
+    }
+}

@@ -198,7 +198,11 @@ impl Voice {
         let ratio = self.ratio.follow(knobs.ratio.0, knobs.ratio.1, sample_rate);
         let width = self.width.follow(knobs.width.0, knobs.width.1, sample_rate);
 
-        if changed(formant, self.last_formant) || changed(ratio, self.last_ratio) {
+        // A NaN or infinite knob holds the formants where they are.
+        if (changed(formant, self.last_formant) || changed(ratio, self.last_ratio))
+            && formant.is_finite()
+            && ratio.is_finite()
+        {
             let f1 = voct_to_hz(formant) * state.inv_sample_rate;
             let harmonics = (ratio * 0.2).clamp(0.0, 1.0);
             let multiplier = (4.0 * harmonics - 2.0).exp2();

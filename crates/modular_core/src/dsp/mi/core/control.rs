@@ -3,8 +3,7 @@
 //! over that one sample, so a band-limited restart can still read a control
 //! between two samples.
 
-/// `stmlib::ParameterInterpolator` without the block: a linear ramp from the
-/// value it has reached to the last target set.
+/// A linear ramp from the value it has reached to the last target set.
 #[derive(Clone, Copy, Default)]
 pub struct Ramp {
     value: f32,
