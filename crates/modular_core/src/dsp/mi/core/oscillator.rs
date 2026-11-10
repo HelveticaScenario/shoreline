@@ -2,7 +2,7 @@
 //! band-limited triangle whose peak sits at `pw` of the cycle.
 
 use super::control::Ramp;
-use super::polyblep::{next_integrated_blep_sample, this_integrated_blep_sample};
+use super::polyblep::{edge_time, next_integrated_blep_sample, this_integrated_blep_sample};
 
 #[derive(Clone, Copy)]
 pub struct SlopeOscillator {
@@ -43,17 +43,6 @@ fn constrain(x: f32, low: f32, high: f32) -> f32 {
     } else {
         x
     }
-}
-
-/// When within the sample an edge `distance` cycles back fell, at `frequency`
-/// cycles per sample. A peak that moves across the phase lands it outside
-/// 0–1, slightly as the pitch sweeps and far when a knob jumps; bounding it to
-/// −1–2 keeps Plaits' sweeps exact and the correction small, and a standstill
-/// (0/0) reads as 0.
-#[inline(always)]
-fn edge_time(distance: f32, frequency: f32) -> f32 {
-    let t = distance / frequency;
-    if t.is_nan() { 0.0 } else { t.clamp(-1.0, 2.0) }
 }
 
 impl SlopeOscillator {
