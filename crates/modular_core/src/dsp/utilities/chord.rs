@@ -25,7 +25,7 @@ pub fn chord_derive_channel_count(params: &ChordParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ChordOutputs {
-    #[output("output", "one pitch per note, lowest first", default)]
+    #[output("output", "one pitch per note, lowest first", type = cv, default)]
     output: PolyOutput,
 }
 

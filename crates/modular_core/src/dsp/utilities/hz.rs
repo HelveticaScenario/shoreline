@@ -24,7 +24,7 @@ struct HzParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct HzOutputs {
-    #[output("output", "the frequency as a V/Oct pitch", default)]
+    #[output("output", "the frequency as a V/Oct pitch", type = cv, default)]
     sample: PolyOutput,
 }
 

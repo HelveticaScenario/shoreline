@@ -31,7 +31,7 @@ struct AddHzParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct AddHzOutputs {
-    #[output("output", "the detuned pitch", default)]
+    #[output("output", "the detuned pitch", type = cv, default)]
     sample: PolyOutput,
 }
 

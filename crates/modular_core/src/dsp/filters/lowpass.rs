@@ -36,7 +36,7 @@ struct LowpassFilterParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LowpassFilterOutputs {
-    #[output("output", "filtered signal", default)]
+    #[output("output", "filtered signal", type = cv, default)]
     sample: PolyOutput,
 }
 

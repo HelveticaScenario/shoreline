@@ -98,7 +98,7 @@ fn video_tap_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct VideoTapOutputs {
-    #[output("output", "the input, passed through", default)]
+    #[output("output", "the input, passed through", type = cv, default)]
     sample: f32,
 }
 

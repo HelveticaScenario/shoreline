@@ -7,7 +7,7 @@ import { voltsToHz, voltsToNoteName } from './sliderUnits';
 
 /** The signal metadata a param carries in `ModuleSchema.signalParams`. */
 export interface SignalMeta {
-    signalType: string;
+    paramType: string;
     /** Absent when a disconnected input has no fixed value. */
     defaultValue?: number;
     /** The default in words, shown in place of `defaultValue`. */
@@ -27,6 +27,8 @@ export interface PlainParamSchema {
 
 export interface OutputMeta {
     name: string;
+    /** `cv`, `gate` or `trig`. */
+    outputType: string;
     minValue?: number;
     maxValue?: number;
 }
@@ -77,7 +79,7 @@ export function formatSignalMeta(
     required: boolean,
 ): string | undefined {
     const parts: string[] = [];
-    switch (meta.signalType) {
+    switch (meta.paramType) {
         case 'gate':
             return 'gate';
         case 'trig':
@@ -89,7 +91,9 @@ export function formatSignalMeta(
                 parts.push(range);
             }
             if (!required && meta.defaultValue !== undefined) {
-                parts.push(`default ${meta.defaultDoc ?? note(meta.defaultValue)}`);
+                parts.push(
+                    `default ${meta.defaultDoc ?? note(meta.defaultValue)}`,
+                );
             }
             break;
         }
@@ -99,7 +103,9 @@ export function formatSignalMeta(
                 parts.push(range);
             }
             if (!required && meta.defaultValue !== undefined) {
-                parts.push(`default ${meta.defaultDoc ?? hz(meta.defaultValue)}`);
+                parts.push(
+                    `default ${meta.defaultDoc ?? hz(meta.defaultValue)}`,
+                );
             }
             break;
         }
@@ -110,10 +116,12 @@ export function formatSignalMeta(
             }
             if (
                 !required &&
-                meta.signalType !== 'audio' &&
+                meta.paramType !== 'audio' &&
                 meta.defaultValue !== undefined
             ) {
-                parts.push(`default ${meta.defaultDoc ?? num(meta.defaultValue)}`);
+                parts.push(
+                    `default ${meta.defaultDoc ?? num(meta.defaultValue)}`,
+                );
             }
         }
     }
@@ -147,9 +155,17 @@ export function formatPlainMeta(schema: PlainParamSchema): string | undefined {
     return parts.length > 0 ? parts.join(', ') : undefined;
 }
 
-/** An output's value range, e.g. `0–5` or `±5`. */
+/** An output's type, or a cv output's value range: `gate`, `trigger`,
+ *  `0–5`, `±5`. */
 export function formatOutputMeta(output: OutputMeta): string | undefined {
-    return formatBounds(output.minValue, output.maxValue, num, true);
+    switch (output.outputType) {
+        case 'gate':
+            return 'gate';
+        case 'trig':
+            return 'trigger';
+        default:
+            return formatBounds(output.minValue, output.maxValue, num, true);
+    }
 }
 
 /** The parts of a module schema a param's metadata is read from. */

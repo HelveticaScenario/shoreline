@@ -3,6 +3,7 @@
 //! the declared range to the metadata the editor shows beside them.
 
 use modular_core::dsp::schema;
+use modular_core::types::ParamType;
 
 /// The ways a description could spell the range `lo..hi` in prose.
 fn spellings(lo: f64, hi: f64) -> Vec<String> {
@@ -22,8 +23,8 @@ fn control_inputs_have_a_slider_span() {
     for module in schema() {
         for p in &module.signal_params {
             let ctl = (p.control_min, p.control_max);
-            match p.signal_type.as_str() {
-                "control" => {
+            match p.param_type {
+                ParamType::Control => {
                     let (Some(lo), Some(hi)) = ctl else {
                         panic!("{}.{}: control without a slider span", module.name, p.name);
                     };

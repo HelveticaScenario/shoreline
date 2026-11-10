@@ -52,6 +52,7 @@ struct UnisonOutputs {
     #[output(
         "output",
         "the detuned copies, each a full set of the input channels",
+        type = cv,
         default
     )]
     sample: PolyOutput,

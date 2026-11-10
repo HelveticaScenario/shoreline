@@ -29,7 +29,7 @@ struct PWarpParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PWarpOutputs {
-    #[output("output", "the reshaped phase", default, range = (0.0, 1.0))]
+    #[output("output", "the reshaped phase", type = cv, default, range = (0.0, 1.0))]
     sample: PolyOutput,
 }
 
