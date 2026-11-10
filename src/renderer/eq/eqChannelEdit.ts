@@ -16,7 +16,7 @@ import {
 } from '../dsl/listEdits';
 import {
     type EqSourceEditResult,
-    asTextEdit,
+    appendResult,
     isPerChannelLiteral,
     locateSections,
     removeElement,
@@ -65,17 +65,9 @@ export function computeEqChannelEdit(
             return { ok: false, reason: 'stale' };
         }
         if (!outer) {
-            const insert = appendObjectProperty(
-                sf,
-                config,
-                'sections: [[], []]',
-                layout,
+            return appendResult(
+                appendObjectProperty(sf, config, 'sections: [[], []]', layout),
             );
-            return {
-                edit: asTextEdit(insert),
-                ok: true,
-                skipped: [],
-            };
         }
         const start = outer.getStart(sf);
         const list = source.slice(start, outer.getEnd());
@@ -104,11 +96,7 @@ export function computeEqChannelEdit(
         if (!from || !ts.isArrayLiteralExpression(from)) {
             return { ok: false, reason: 'unsupported' };
         }
-        return {
-            edit: asTextEdit(appendArrayElement(sf, outer, from.getText(sf))),
-            ok: true,
-            skipped: [],
-        };
+        return appendResult(appendArrayElement(sf, outer, from.getText(sf)));
     }
     if (listCount === 2) {
         const keep = outer.elements[op.index === 0 ? 1 : 0];

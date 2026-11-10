@@ -6,7 +6,7 @@
  * with `#[args]` and optional `param_spans` in its state.
  *
  * Key concepts:
- * - `argument_spans`: Document offsets for each positional argument (from ts-morph analysis)
+ * - `argument_spans`: Document offsets for each positional argument (from the static analysis of the patch source)
  * - `param_spans`: Map of param name -> { spans, source } for internal highlighting
  * - Combining them: document_offset = argument_spans[paramName].start + param_spans[paramName].spans[i]
  *
@@ -182,7 +182,7 @@ function extractInterpolationRegions(
 
 /**
  * Build interpolation regions using accurate data from the interpolation
- * resolution map (computed by sourceSpanAnalyzer via ts-morph).
+ * resolution map (computed by the argument span analyzer).
  *
  * This avoids the fragile indexOf-based text matching in extractInterpolationRegions,
  * which can fail when the interpolated content contains substrings matching the

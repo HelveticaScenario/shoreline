@@ -1,1110 +1,239 @@
 /**
  * Argument Span Analyzer
  *
- * Parses DSL source code and extracts absolute character offsets for literal
- * arguments in module factory calls. The registry is keyed by call-site
- * (line:column) for lookup from factory functions at runtime.
+ * Finds the character span of each literal argument passed to a module
+ * factory, a pattern builder (`$p`, `$p.s`), a `$p.s` chain link, or a
+ * pattern method, keyed by the `line:column` V8 reports for the call so the
+ * factory can look its spans up at runtime from `captureSourceLocation()`.
+ * A `const` reference resolves to the const's literal, and a template that
+ * interpolates const strings records where each lands (templateInterpolation.ts).
  *
- * Additionally builds an interpolation resolution map for template literals
- * containing const variable references. When a template like `${root} e4 g4`
- * interpolates a const string, the resolution map records the const's literal
- * span so that highlights landing inside the interpolation result can be
- * redirected to the original const declaration site. This works recursively
- * for nested template const chains.
+ * Control calls are checked here too: their arguments must be literals
+ * (controlCallValidation.ts).
  */
-
-import type { CallExpression } from 'ts-morph';
-import {
-    Node,
-    SyntaxKind,
-    ts,
-    VariableDeclarationKind,
-    type SourceFile,
-} from 'ts-morph';
+import ts from 'typescript';
 import type { ModuleSchema } from '@modular/core';
 
 import type {
-    CallSiteKey,
     InterpolationResolutionMap,
     SourceSpan,
     SpanRegistry,
 } from './sourceAnalysisTypes';
-import type { ResolvedInterpolation } from '../../shared/dsl/spanTypes';
-import { findControlCalls, propertyName } from '../../shared/dsl/controlCalls';
+import { dottedName, propertyName } from '../../shared/dsl/ast/names';
+import { callSiteKey, v8CallAnchor } from '../../shared/dsl/ast/position';
+import { forEachDescendant } from '../../shared/dsl/ast/walk';
+import { findControlCalls } from '../../shared/dsl/controlCalls';
+import { validateControlCall } from './controlCallValidation';
+import {
+    isPsCall,
+    isSpChainCall,
+    PATTERN_METHOD_ARGS,
+    patternMethodCallName,
+} from './patternChains';
+import {
+    constLiteralOf,
+    isTrackableLiteral,
+    resolveInterpolations,
+    spanOf,
+} from './templateInterpolation';
 
 /**
- * Build a set of factory function names from module schemas.
- * Only includes modules that have positional arguments defined.
- */
-function buildFactoryNames(schemas: ModuleSchema[]): Set<string> {
-    const names = new Set<string>();
-
-    for (const schema of schemas) {
-        // Track all module calls — positional args, config object properties,
-        // And const variable references can all contribute trackable spans
-        const parts = schema.name.split('.');
-        const finalName = parts[parts.length - 1];
-        names.add(finalName);
-
-        // Also add the sanitized version (for direct calls like `seqICycle`)
-        const sanitized = schema.name.replace(
-            /[^a-zA-Z0-9]+(.)?/g,
-            (_match, chr: string | undefined) => (chr ? chr.toUpperCase() : ''),
-        );
-        names.add(sanitized);
-    }
-
-    return names;
-}
-
-/**
- * Build a map from factory names to their schemas for quick lookup
+ * Schemas by every name a call can reach them through: the full name, its
+ * last segment (`kick` of `$tr808.kick`, as a `.kick(...)` method call
+ * names it), and the camel-cased form of the full name.
  */
 function buildSchemaMap(schemas: ModuleSchema[]): Map<string, ModuleSchema> {
     const map = new Map<string, ModuleSchema>();
-
     for (const schema of schemas) {
         const parts = schema.name.split('.');
-        const finalName = parts[parts.length - 1];
-        map.set(finalName, schema);
-
-        const sanitized = schema.name.replace(
+        map.set(parts[parts.length - 1], schema);
+        const camel = schema.name.replace(
             /[^a-zA-Z0-9]+(.)?/g,
             (_match, chr: string | undefined) => (chr ? chr.toUpperCase() : ''),
         );
-        map.set(sanitized, schema);
+        map.set(camel, schema);
         map.set(schema.name, schema);
     }
-
     return map;
 }
 
-/**
- * Extract the function name being called from a CallExpression.
- * Handles both simple calls (foo()) and property access calls ($p.s()).
- */
-function getCalledFunctionName(call: CallExpression): string | null {
-    const expression = call.getExpression();
-
-    // Simple identifier call: foo()
-    if (Node.isIdentifier(expression)) {
-        return expression.getText();
+/** The name a call is matched against schemas by: the identifier of `f()`,
+ *  or the method name of `a.f()`. */
+function calledName(call: ts.CallExpression): string | null {
+    const callee = call.expression;
+    if (ts.isIdentifier(callee)) {
+        return callee.text;
     }
-
-    // Property access call: obj.method()
-    if (Node.isPropertyAccessExpression(expression)) {
-        // Return the method name for matching against schema finals
-        return expression.getName();
+    if (ts.isPropertyAccessExpression(callee)) {
+        return callee.name.text;
     }
-
     return null;
 }
 
 /**
- * Identify a direct `$p.s(source, scale)` call: callee = `$p.s`, where
- * `$p` is the bare mini-notation factory identifier.
- */
-function isPsCall(call: CallExpression): boolean {
-    const expr = call.getExpression();
-    if (!Node.isPropertyAccessExpression(expr)) return false;
-    if (expr.getName() !== 's') return false;
-    const receiver = expr.getExpression();
-    return Node.isIdentifier(receiver) && receiver.getText() === '$p';
-}
-
-/**
- * Identify `$p.s(...).add(...)`, `.sub(...)`, `.add.in(...)`,
- * `.sub.squeeze(...)` and friends. Returns true when the chain root is
- * `$p.s(...)`.
- *
- * Shapes covered:
- * - `$p.s(...).add(rhs)` — callee = `<call>.add`
- * - `$p.s(...).add.in(rhs)` — callee = `<call>.add.in`
- * - longer chains: `.add(rhs).sub.squeeze(rhs2)` — each call's chain
- *   root recurses through the receiver
- */
-const SP_OPS = new Set(['add', 'sub']);
-const SP_MODES = new Set([
-    'in',
-    'out',
-    'mix',
-    'squeeze',
-    'squeezeout',
-    'reset',
-    'restart',
-]);
-
-function isSpChainCall(
-    call: CallExpression,
-    constInitMap: Map<string, Node>,
-): boolean {
-    const expr = call.getExpression();
-    if (!Node.isPropertyAccessExpression(expr)) return false;
-    const methodName = expr.getName();
-
-    // Two forms:
-    //   <receiver>.<op>(rhs)         where op ∈ {add, sub}
-    //   <receiver>.<op>.<mode>(rhs)  where op ∈ {add, sub}, mode ∈ MODES
-    let receiver = expr.getExpression();
-    if (SP_MODES.has(methodName)) {
-        if (!Node.isPropertyAccessExpression(receiver)) return false;
-        const innerName = receiver.getName();
-        if (!SP_OPS.has(innerName)) return false;
-        receiver = receiver.getExpression();
-    } else if (!SP_OPS.has(methodName)) {
-        return false;
-    }
-
-    return chainRootIsPs(receiver, constInitMap);
-}
-
-function chainRootIsPs(
-    node: import('ts-morph').Node,
-    constInitMap: Map<string, Node>,
-    visited = new Set<string>(),
-): boolean {
-    // Walk back through nested `.add(...).sub.x(...)` chains until we
-    // either reach the `$p.s(...)` root or something else. An identifier
-    // receiver is resolved to its `const` initializer so chains rooted in a
-    // const-bound pattern (`const p = $p.s(...); p.add('0 5')`, and
-    // const-of-const hops) are recognised, not just inline `$p.s(...)`
-    // chains.
-    let n: import('ts-morph').Node = node;
-    while (true) {
-        if (Node.isCallExpression(n)) {
-            const inner = n.getExpression();
-            if (Node.isPropertyAccessExpression(inner)) {
-                // `$p.s(...)` is the chain root.
-                const recv = inner.getExpression();
-                if (
-                    inner.getName() === 's' &&
-                    Node.isIdentifier(recv) &&
-                    recv.getText() === '$p'
-                ) {
-                    return true;
-                }
-                // Another chain link — recurse into its receiver.
-                n = recv;
-                continue;
-            }
-            // A bare-identifier call can never be the `$p.s` root.
-            return false;
-        }
-        if (Node.isPropertyAccessExpression(n)) {
-            n = n.getExpression();
-            continue;
-        }
-        if (Node.isIdentifier(n)) {
-            // Resolve the const this identifier binds and keep walking its
-            // initializer. The visited set guards circular const references.
-            const name = n.getText();
-            if (visited.has(name)) return false;
-            const init = constInitMap.get(name);
-            if (!init) return false;
-            visited.add(name);
-            n = init;
-            continue;
-        }
-        return false;
-    }
-}
-
-/** Pattern methods whose argument spans the analyzer tracks. */
-type PatternMethodName = 'fast' | 'slow' | 'struct' | 'beat' | 'glide';
-
-/** Which argument names each pattern method registers, in positional order. */
-const PATTERN_METHOD_ARGS: Record<PatternMethodName, ReadonlyArray<string>> = {
-    fast: ['factor'],
-    slow: ['factor'],
-    struct: ['boolPattern'],
-    beat: ['t', 'div'],
-    glide: ['g'],
-};
-
-/**
- * Identify `<pattern>.fast(factor)` / `.slow(factor)` / `.struct(boolPattern)`
- * / `.beat(t, div)` / `.glide(g)` calls, where `<pattern>` is any pattern-producing chain:
- * `$p(...)`, `$p.s(...)`, `$p.arrange(...)`, a nested wrapper/`.add`/`.sub`
- * link, or a const-bound pattern. Returns the method name so the caller can
- * register each argument literal under the name the method looks up via
- * `captureSourceLocation()` + `lookupArgumentSpan(loc, <argName>)`.
- */
-function patternMethodCallName(
-    call: CallExpression,
-    constInitMap: Map<string, Node>,
-): PatternMethodName | null {
-    const expr = call.getExpression();
-    if (!Node.isPropertyAccessExpression(expr)) return null;
-    const methodName = expr.getName();
-    if (!(methodName in PATTERN_METHOD_ARGS)) return null;
-    return chainRootIsPattern(expr.getExpression(), constInitMap)
-        ? (methodName as PatternMethodName)
-        : null;
-}
-
-/**
- * Walk back through a method chain and return true when it roots in a pattern
- * builder — `$p(...)`, `$p.s(...)`, or `$p.arrange(...)` — possibly through
- * intermediate `.add`/`.sub`/`.fast`/`.slow`/mode links and `const` hops.
- * Generalises [`chainRootIsPs`] beyond the `$p.s` root.
- */
-function chainRootIsPattern(
-    node: import('ts-morph').Node,
-    constInitMap: Map<string, Node>,
-    visited = new Set<string>(),
-): boolean {
-    let n: import('ts-morph').Node = node;
-    while (true) {
-        if (Node.isCallExpression(n)) {
-            const inner = n.getExpression();
-            // `$p("…")` — a bare-identifier call to the mini-notation factory.
-            if (Node.isIdentifier(inner)) {
-                return inner.getText() === '$p';
-            }
-            if (Node.isPropertyAccessExpression(inner)) {
-                const name = inner.getName();
-                const recv = inner.getExpression();
-                // `$p.s(...)` / `$p.arrange(...)` are chain roots.
-                if (
-                    (name === 's' || name === 'arrange') &&
-                    Node.isIdentifier(recv) &&
-                    recv.getText() === '$p'
-                ) {
-                    return true;
-                }
-                // Any other chain link (.add/.sub/.fast/.slow/mode) — keep
-                // walking toward the root through its receiver.
-                n = recv;
-                continue;
-            }
-            return false;
-        }
-        if (Node.isPropertyAccessExpression(n)) {
-            n = n.getExpression();
-            continue;
-        }
-        if (Node.isIdentifier(n)) {
-            const name = n.getText();
-            if (visited.has(name)) return false;
-            const init = constInitMap.get(name);
-            if (!init) return false;
-            visited.add(name);
-            n = init;
-            continue;
-        }
-        return false;
-    }
-}
-
-/**
- * Get the full dotted path for a property access call.
- * e.g., "$p.s" for $p.s()
- */
-function getFullCallPath(call: CallExpression): string | null {
-    const expression = call.getExpression();
-
-    if (Node.isIdentifier(expression)) {
-        return expression.getText();
-    }
-
-    if (Node.isPropertyAccessExpression(expression)) {
-        return expression.getText();
-    }
-
-    return null;
-}
-
-/**
- * Check if a node is a literal that we should track spans for.
- * Includes: string literals, numeric literals, template literals,
- * array literals, and object literals.
- */
-function isTrackableLiteral(node: Node): boolean {
-    return (
-        Node.isStringLiteral(node) ||
-        Node.isNumericLiteral(node) ||
-        Node.isNoSubstitutionTemplateLiteral(node) ||
-        Node.isTemplateExpression(node) ||
-        Node.isArrayLiteralExpression(node) ||
-        Node.isObjectLiteralExpression(node) ||
-        Node.isPrefixUnaryExpression(node) // For negative numbers like -5
-    );
-}
-
-/**
- * Pre-build a map of const-declared variable names to their literal initializer spans.
- * Only includes variables declared with `const` whose initializer is a trackable literal.
- * Scans top-level statements only (sufficient for flat DSL scripts).
- */
-function buildConstLiteralMap(sourceFile: SourceFile): Map<string, SourceSpan> {
-    const map = new Map<string, SourceSpan>();
-
-    for (const statement of sourceFile.getStatements()) {
-        if (!Node.isVariableStatement(statement)) {
-            continue;
-        }
-
-        const declList = statement.getDeclarationList();
-        if (declList.getDeclarationKind() !== VariableDeclarationKind.Const) {
-            continue;
-        }
-
-        for (const decl of declList.getDeclarations()) {
-            const initializer = decl.getInitializer();
-            if (initializer && isTrackableLiteral(initializer)) {
-                map.set(decl.getName(), {
-                    end: initializer.getEnd(),
-                    start: initializer.getStart(),
-                });
-            }
-        }
-    }
-
-    return map;
-}
-
-/**
- * Pre-build a map of const-declared variable names to their AST initializer nodes.
- * Used for deeper analysis of template expressions within const declarations.
- */
-function buildConstNodeMap(sourceFile: SourceFile): Map<string, Node> {
-    const map = new Map<string, Node>();
-
-    for (const statement of sourceFile.getStatements()) {
-        if (!Node.isVariableStatement(statement)) {
-            continue;
-        }
-
-        const declList = statement.getDeclarationList();
-        if (declList.getDeclarationKind() !== VariableDeclarationKind.Const) {
-            continue;
-        }
-
-        for (const decl of declList.getDeclarations()) {
-            const initializer = decl.getInitializer();
-            if (initializer && isTrackableLiteral(initializer)) {
-                map.set(decl.getName(), initializer);
-            }
-        }
-    }
-
-    return map;
-}
-
-/**
- * Pre-build a map of const-declared variable names to their initializer
- * nodes, regardless of initializer kind. Unlike `buildConstNodeMap` (which
- * keeps only trackable literals), this includes pattern-producing
- * initializers like `$p.s(...)` and chain calls so `chainRootIsPs` can
- * resolve a const-bound pattern back to its `$p.s(...)` root.
- * Scans top-level statements only (sufficient for flat DSL scripts).
- */
-function buildConstInitializerMap(sourceFile: SourceFile): Map<string, Node> {
-    const map = new Map<string, Node>();
-
-    for (const statement of sourceFile.getStatements()) {
-        if (!Node.isVariableStatement(statement)) {
-            continue;
-        }
-
-        const declList = statement.getDeclarationList();
-        if (declList.getDeclarationKind() !== VariableDeclarationKind.Const) {
-            continue;
-        }
-
-        for (const decl of declList.getDeclarations()) {
-            const initializer = decl.getInitializer();
-            if (initializer) {
-                map.set(decl.getName(), initializer);
-            }
-        }
-    }
-
-    return map;
-}
-
-/**
- * Get the string content length of a const literal, stripping quotes.
- * Returns null if the length cannot be statically determined.
- *
- * For simple string literals: `"abc"` → 3
- * For no-substitution template literals: `` `abc` `` → 3
- * For template expressions with all-const interpolations: recursively computed
- */
-function getConstStringLength(
-    node: Node,
-    constNodeMap: Map<string, Node>,
-    visited = new Set<string>(),
-): number | null {
-    if (Node.isStringLiteral(node)) {
-        // Strip quotes and compute length
-        return node.getLiteralValue().length;
-    }
-
-    if (Node.isNoSubstitutionTemplateLiteral(node)) {
-        return node.getLiteralValue().length;
-    }
-
-    if (Node.isTemplateExpression(node)) {
-        // Sum up: head literal + (each span's expression evaluated length + literal part)
-        const head = node.getHead();
-        // Head text is between ` and ${, strip the backtick
-        let totalLength = head.getLiteralText().length;
-
-        for (const span of node.getTemplateSpans()) {
-            const expr = span.getExpression();
-            const exprLength = getExpressionStringLength(
-                expr,
-                constNodeMap,
-                visited,
-            );
-            if (exprLength === null) {
-                return null;
-            } // Can't determine
-            totalLength += exprLength;
-
-            // The literal part of the span (between } and next ${ or closing `)
-            const literal = span.getLiteral();
-            totalLength += literal.getLiteralText().length;
-        }
-
-        return totalLength;
-    }
-
-    return null;
-}
-
-/**
- * Get the evaluated string length of an expression node.
- * Only works for const identifier references with known literal initializers.
- */
-function getExpressionStringLength(
-    expr: Node,
-    constNodeMap: Map<string, Node>,
-    visited: Set<string>,
-): number | null {
-    if (Node.isIdentifier(expr)) {
-        const name = expr.getText();
-        if (visited.has(name)) {
-            return null;
-        } // Circular reference
-        const constNode = constNodeMap.get(name);
-        if (!constNode) {
-            return null;
-        }
-
-        visited.add(name);
-        const result = getConstStringLength(constNode, constNodeMap, visited);
-        visited.delete(name);
-        return result;
-    }
-
-    // Direct literals in interpolation (rarely useful but handle it)
-    if (Node.isStringLiteral(expr)) {
-        return expr.getLiteralValue().length;
-    }
-    if (Node.isNumericLiteral(expr)) {
-        return expr.getText().length;
-    }
-
-    return null;
-}
-
-/**
- * Recursively resolve interpolations in a template expression or const reference.
- *
- * For a template like `${root} e4 ${fifth}`:
- * - Computes the evaluated start position and length for each interpolation
- * - If the interpolated const is itself a template with interpolations, recurses
- *
- * @param node - The template expression or const literal node
- * @param constNodeMap - Map of const names to their AST nodes
- * @param constMap - Map of const names to their document spans
- * @returns Array of resolved interpolations, or null if resolution not possible
- */
-function resolveInterpolations(
-    node: Node,
-    constNodeMap: Map<string, Node>,
-    constMap: Map<string, SourceSpan>,
-): ResolvedInterpolation[] | null {
-    if (!Node.isTemplateExpression(node)) {
-        return null;
-    }
-
-    const resolutions: ResolvedInterpolation[] = [];
-    const head = node.getHead();
-    let evalOffset = head.getLiteralText().length;
-
-    for (const span of node.getTemplateSpans()) {
-        const expr = span.getExpression();
-
-        if (Node.isIdentifier(expr)) {
-            const name = expr.getText();
-            const constNode = constNodeMap.get(name);
-            const constSpan = constMap.get(name);
-
-            if (constNode && constSpan) {
-                const evalLength = getConstStringLength(
-                    constNode,
-                    constNodeMap,
-                );
-
-                if (evalLength !== null) {
-                    // Recursively resolve nested interpolations within the const
-                    const nested = resolveInterpolations(
-                        constNode,
-                        constNodeMap,
-                        constMap,
-                    );
-
-                    resolutions.push({
-                        constLiteralSpan: constSpan,
-                        evaluatedLength: evalLength,
-                        evaluatedStart: evalOffset,
-                        nestedResolutions: nested ?? undefined,
-                    });
-
-                    evalOffset += evalLength;
-                } else {
-                    // Can't determine length — skip this interpolation but continue
-                    // (offset tracking becomes unreliable, bail on remaining interpolations)
-                    return resolutions.length > 0 ? resolutions : null;
-                }
-            } else {
-                // Not a const reference — can't resolve. Stop tracking offsets.
-                // Any previous resolutions are still valid since their offsets are correct.
-                return resolutions.length > 0 ? resolutions : null;
-            }
-        } else {
-            // Non-identifier expression in interpolation — can't resolve
-            const exprLength = getExpressionStringLength(
-                expr,
-                constNodeMap,
-                new Set(),
-            );
-            if (exprLength !== null) {
-                evalOffset += exprLength;
-            } else {
-                return resolutions.length > 0 ? resolutions : null;
-            }
-        }
-
-        // Add the literal text following this interpolation
-        const literal = span.getLiteral();
-        evalOffset += literal.getLiteralText().length;
-    }
-
-    return resolutions.length > 0 ? resolutions : null;
-}
-
-/**
- * Get a trackable span from a node, either directly (if it's a literal)
- * or by resolving a const variable reference to its literal initializer.
- */
-function getTrackableSpan(
-    node: Node,
-    constMap: Map<string, SourceSpan>,
-): SourceSpan | null {
-    if (isTrackableLiteral(node)) {
-        return { end: node.getEnd(), start: node.getStart() };
-    }
-
-    // Try resolving const variable reference
-    if (Node.isIdentifier(node)) {
-        return constMap.get(node.getText()) ?? null;
-    }
-
-    return null;
-}
-
-/**
- * Get the AST node for a trackable argument, resolving const references.
- * Returns the literal node itself, or the const's initializer node.
- * Used for deeper analysis like interpolation resolution.
- */
-function getTrackableNode(
-    node: Node,
-    constNodeMap: Map<string, Node>,
-): Node | null {
-    if (isTrackableLiteral(node)) {
-        return node;
-    }
-
-    if (Node.isIdentifier(node)) {
-        return constNodeMap.get(node.getText()) ?? null;
-    }
-
-    return null;
-}
-
-/** Throw unless a control factory's label argument is a string literal —
- *  the control panel keys widgets by label, so it must be statically known. */
-function requireStringLiteralLabel(
-    fnName: string,
-    args: Node[],
-    sourceFile: SourceFile,
-): void {
-    if (args.length >= 1 && !Node.isStringLiteral(args[0])) {
-        const { line, column } = sourceFile.getLineAndColumnAtPos(
-            args[0].getStart(),
-        );
-        throw new Error(
-            `${fnName}() label (argument 1) must be a string literal at line ${line}, column ${column}`,
-        );
-    }
-}
-
-/** A numeric literal (optionally negated) or a string literal. */
-function isSliderLiteral(node: Node): boolean {
-    if (Node.isNumericLiteral(node) || Node.isStringLiteral(node)) {
-        return true;
-    }
-    return (
-        Node.isPrefixUnaryExpression(node) &&
-        node.getOperatorToken() === SyntaxKind.MinusToken &&
-        Node.isNumericLiteral(node.getOperand())
-    );
-}
-
-/**
- * Analyze factory call argument spans in a parsed source file.
- *
- * Walks all call expressions, matches them against module schemas,
- * and records character-offset spans for each trackable argument.
- * Also resolves interpolations in template literals with const references.
- *
- * @param sourceFile - The ts-morph SourceFile to analyze
- * @param schemas - Module schemas to determine which calls to track
- * @param lineOffset - Line offset for the executor's script wrapper lines
- * @param firstLineColumnOffset - Column offset for the first line
- * @returns Span registry and interpolation resolution map
+ * Walk every call in `file` and record the spans of its trackable
+ * arguments, with the interpolations each template argument resolves.
  */
 export function analyzeArgumentSpans(
-    sourceFile: SourceFile,
+    file: ts.SourceFile,
     schemas: ModuleSchema[],
-    lineOffset: number,
-    firstLineColumnOffset: number,
 ): {
     registry: SpanRegistry;
     interpolationResolutions: InterpolationResolutionMap;
 } {
     const registry: SpanRegistry = new Map();
     const interpolationResolutions: InterpolationResolutionMap = new Map();
-    const factoryNames = buildFactoryNames(schemas);
     const schemaMap = buildSchemaMap(schemas);
-
-    // Pre-build const literal map for resolving variable references
-    const constMap = buildConstLiteralMap(sourceFile);
-    const constNodeMap = buildConstNodeMap(sourceFile);
-    // All const initializers (any kind) — used to resolve chain roots that
-    // reference a const-bound `$p.s(...)` pattern.
-    const constInitMap = buildConstInitializerMap(sourceFile);
-
-    // Control calls, free or on a group, keyed by their call node.
     const controlKinds = new Map(
-        findControlCalls(sourceFile.compilerNode).map((c) => [c.call, c.kind]),
+        findControlCalls(file).map((c) => [c.call, c.kind]),
     );
 
-    // Walk all call expressions
-    sourceFile.forEachDescendant((node: Node) => {
-        if (!Node.isCallExpression(node)) {
+    /**
+     * Record `node`'s span in `args` under `name`: a literal's own span, or
+     * the literal a const reference holds. Returns whether it was trackable.
+     */
+    const record = (
+        args: Map<string, SourceSpan>,
+        name: string,
+        node: ts.Node,
+    ): boolean => {
+        const literal = isTrackableLiteral(node)
+            ? node
+            : ts.isIdentifier(node)
+              ? constLiteralOf(node)
+              : undefined;
+        if (!literal) {
+            return false;
+        }
+        const span = spanOf(literal, file);
+        args.set(name, span);
+        const resolutions = resolveInterpolations(literal, file);
+        if (resolutions) {
+            interpolationResolutions.set(
+                `${span.start}:${span.end}`,
+                resolutions,
+            );
+        }
+        return true;
+    };
+
+    forEachDescendant(file, (node) => {
+        if (!ts.isCallExpression(node)) {
+            return;
+        }
+        const call = node;
+        const args = call.arguments;
+
+        const controlKind = controlKinds.get(call);
+        if (controlKind) {
+            validateControlCall(call, controlKind, file);
             return;
         }
 
-        const call = node;
-        const funcName = getCalledFunctionName(call);
-        const controlKind = controlKinds.get(call.compilerNode);
-
-        // Validate $slider() calls: every argument must be a literal so the
-        // control panel can show the slider before the patch is evaluated.
-        if (controlKind === '$slider') {
-            const args = call.getArguments();
-            requireStringLiteralLabel('$slider', args, sourceFile);
-            const names = ['value', 'min', 'max'];
-            for (let i = 1; i < Math.min(args.length, 4); i++) {
-                if (!isSliderLiteral(args[i])) {
-                    const { line, column } = sourceFile.getLineAndColumnAtPos(
-                        args[i].getStart(),
-                    );
-                    throw new Error(
-                        `$slider() ${names[i - 1]} (argument ${i + 1}) must be a numeric or string literal at line ${line}, column ${column}`,
-                    );
-                }
-            }
-            return; // $slider is not a module factory, skip further processing
-        }
-
-        // Validate $btn() calls: the label must be a literal so the control
-        // panel can key widgets by it.
-        if (controlKind === '$btn') {
-            requireStringLiteralLabel('$btn', call.getArguments(), sourceFile);
-            return; // $btn is not a module factory, skip further processing
-        }
-
-        // Validate $cGroup() calls: the label keys the group and the panel
-        // rewrites the collapsed state in place. The control scan only
-        // reports a call whose params are absent or an object literal.
-        if (controlKind === '$cGroup') {
-            const args = call.getArguments();
-            requireStringLiteralLabel('$cGroup', args, sourceFile);
-            const params = args[1];
-            // Read keys as the control scan does, so `'collapsed'` counts.
-            const collapsed =
-                params && Node.isObjectLiteralExpression(params)
-                    ? params.compilerNode.properties.find(
-                          (p) => propertyName(p) === 'collapsed',
-                      )
-                    : undefined;
-            const kind =
-                collapsed && ts.isPropertyAssignment(collapsed)
-                    ? collapsed.initializer.kind
-                    : undefined;
-            if (
-                collapsed &&
-                kind !== SyntaxKind.TrueKeyword &&
-                kind !== SyntaxKind.FalseKeyword
-            ) {
-                const { line, column } = sourceFile.getLineAndColumnAtPos(
-                    collapsed.getStart(sourceFile.compilerNode),
-                );
-                throw new Error(
-                    `$cGroup() collapsed must be a true or false literal at line ${line}, column ${column}`,
-                );
-            }
-            return; // $cGroup is not a module factory, skip further processing
-        }
-
-        // Validate $toggleBtn() calls: the initial state must be a bare
-        // true/false so the UI can rewrite it in place.
-        if (controlKind === '$toggleBtn') {
-            const args = call.getArguments();
-            requireStringLiteralLabel('$toggleBtn', args, sourceFile);
-            if (args.length >= 2) {
-                const kind = args[1].getKind();
-                if (
-                    kind !== SyntaxKind.TrueKeyword &&
-                    kind !== SyntaxKind.FalseKeyword
-                ) {
-                    const { line, column } = sourceFile.getLineAndColumnAtPos(
-                        args[1].getStart(),
-                    );
-                    throw new Error(
-                        `$toggleBtn() initial state (argument 2) must be a true or false literal at line ${line}, column ${column}`,
-                    );
-                }
-            }
-            return; // $toggleBtn is not a module factory, skip further processing
-        }
-
-        // Track $p(literal) and $p.s(literal, scale) calls: register the
-        // source-literal span under the call site so the helper can embed
-        // its argument_span in the returned pattern at runtime. Factories
-        // that receive the pattern read that span as the argument_span for
-        // their pattern param. $p.s's second arg (scale) is config-only —
-        // not tracked for highlighting.
-        //
-        // $p.s is a property-access call, so V8 reports its call site at
-        // the `s` name position; key it there (the bare `$p` call keys at
-        // its own start).
+        // `$p(source)` and `$p.s(source, scale)`: the source literal's span
+        // rides on the returned pattern to whichever factory receives it.
+        // The scale is configuration, not highlighted.
+        const funcName = calledName(call);
         const isPs = isPsCall(call);
-        if (funcName === '$p' || isPs) {
-            const pArgs = call.getArguments();
-            if (pArgs.length < 1) return;
-            const span = getTrackableSpan(pArgs[0], constMap);
-            if (!span) return;
-            const callExpr = call.getExpression();
-            const callStartPos =
-                isPs && Node.isPropertyAccessExpression(callExpr)
-                    ? callExpr.getNameNode().getStart()
-                    : call.getStart();
-            const { line, column } =
-                sourceFile.getLineAndColumnAtPos(callStartPos);
-            const columnOffset = line === 1 ? firstLineColumnOffset : 0;
-            const callKey: CallSiteKey = `${line + lineOffset}:${column + columnOffset}`;
+        const isP = ts.isIdentifier(call.expression) && funcName === '$p';
+        if (isP || isPs) {
             const argsMap = new Map<string, SourceSpan>();
-            argsMap.set('source', span);
-            registry.set(callKey, {
+            if (args.length < 1 || !record(argsMap, 'source', args[0])) {
+                return;
+            }
+            registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
                 args: argsMap,
                 moduleType: isPs ? '$p.s' : '$p',
             });
-            // Resolve interpolations for template expressions passed as source
-            const innerNode = getTrackableNode(pArgs[0], constNodeMap);
-            if (innerNode) {
-                const resolutions = resolveInterpolations(
-                    innerNode,
-                    constNodeMap,
-                    constMap,
-                );
-                if (resolutions) {
-                    const spanKey = `${span.start}:${span.end}`;
-                    interpolationResolutions.set(spanKey, resolutions);
-                }
-            }
             return;
         }
 
-        // Track $p.s(...).add(...) / .sub(...) / .add.in(...) chain method
-        // calls: register the RHS string literal span under the chain
-        // method's call site so the TS chain method can capture it via
-        // captureSourceLocation()+lookupArgumentSpan(loc, 'rhs').
-        //
-        // V8 reports the call site for property-access calls at the method
-        // name's position, not at the start of the receiver chain. Use the
-        // PropertyAccess name's start to match what the runtime sees.
-        if (isSpChainCall(call, constInitMap)) {
-            const pArgs = call.getArguments();
-            if (pArgs.length < 1) return;
-            const span = getTrackableSpan(pArgs[0], constMap);
-            if (!span) return;
-            const callExpr = call.getExpression();
-            const callStartPos = Node.isPropertyAccessExpression(callExpr)
-                ? callExpr.getNameNode().getStart()
-                : call.getStart();
-            const { line, column } =
-                sourceFile.getLineAndColumnAtPos(callStartPos);
-            const columnOffset = line === 1 ? firstLineColumnOffset : 0;
-            const callKey: CallSiteKey = `${line + lineOffset}:${column + columnOffset}`;
+        // `.add(rhs)` / `.sub(rhs)` links of a `$p.s` chain, read back by the
+        // chain method under `rhs`.
+        if (isSpChainCall(call)) {
             const argsMap = new Map<string, SourceSpan>();
-            argsMap.set('rhs', span);
-            registry.set(callKey, {
+            if (args.length < 1 || !record(argsMap, 'rhs', args[0])) {
+                return;
+            }
+            registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
                 args: argsMap,
                 moduleType: '$p.s.chain',
             });
-            const innerNode = getTrackableNode(pArgs[0], constNodeMap);
-            if (innerNode) {
-                const resolutions = resolveInterpolations(
-                    innerNode,
-                    constNodeMap,
-                    constMap,
-                );
-                if (resolutions) {
-                    const spanKey = `${span.start}:${span.end}`;
-                    interpolationResolutions.set(spanKey, resolutions);
-                }
-            }
             return;
         }
 
-        // Track pattern-method calls (`.fast(factor)`, `.slow(factor)`,
-        // `.struct(boolPattern)`, `.beat(t, div)`, `.glide(g)`): register each argument
-        // literal's span under its parameter name so the method captures it
-        // via captureSourceLocation()+lookupArgumentSpan(loc, <argName>).
-        // Keyed at the method name's position, like the `$p.s` chain above.
-        const patternMethod = patternMethodCallName(call, constInitMap);
+        // Pattern methods, each argument under the name the method reads it
+        // back by.
+        const patternMethod = patternMethodCallName(call);
         if (patternMethod) {
-            const pArgs = call.getArguments();
             const argNames = PATTERN_METHOD_ARGS[patternMethod];
             const argsMap = new Map<string, SourceSpan>();
-            for (let i = 0; i < argNames.length && i < pArgs.length; i++) {
-                const span = getTrackableSpan(pArgs[i], constMap);
-                if (!span) continue;
-                argsMap.set(argNames[i], span);
-                const innerNode = getTrackableNode(pArgs[i], constNodeMap);
-                if (innerNode) {
-                    const resolutions = resolveInterpolations(
-                        innerNode,
-                        constNodeMap,
-                        constMap,
-                    );
-                    if (resolutions) {
-                        const spanKey = `${span.start}:${span.end}`;
-                        interpolationResolutions.set(spanKey, resolutions);
-                    }
-                }
+            for (let i = 0; i < argNames.length && i < args.length; i++) {
+                record(argsMap, argNames[i], args[i]);
             }
-            if (argsMap.size === 0) return;
-            const callExpr = call.getExpression();
-            const callStartPos = Node.isPropertyAccessExpression(callExpr)
-                ? callExpr.getNameNode().getStart()
-                : call.getStart();
-            const { line, column } =
-                sourceFile.getLineAndColumnAtPos(callStartPos);
-            const columnOffset = line === 1 ? firstLineColumnOffset : 0;
-            const callKey: CallSiteKey = `${line + lineOffset}:${column + columnOffset}`;
-            registry.set(callKey, {
-                args: argsMap,
-                moduleType: `.${patternMethod}`,
-            });
+            if (argsMap.size > 0) {
+                registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
+                    args: argsMap,
+                    moduleType: `.${patternMethod}`,
+                });
+            }
             return;
         }
 
-        // Skip if not a tracked factory
-        if (!funcName || !factoryNames.has(funcName)) {
-            return;
-        }
-
-        // Get the schema for this call
-        const fullPath = getFullCallPath(call);
+        // A dotted callee names its module in full (`$tr808.kick`); a method
+        // on a value (`.kick(...)`) only by its last segment.
+        const fullName = dottedName(call.expression);
         const schema =
-            schemaMap.get(funcName) ||
-            (fullPath ? schemaMap.get(fullPath) : null);
+            (fullName !== null ? schemaMap.get(fullName) : undefined) ??
+            (funcName ? schemaMap.get(funcName) : undefined);
         if (!schema) {
             return;
         }
-
-        const args = call.getArguments();
         const argsMap = new Map<string, SourceSpan>();
 
-        // Map each positional argument to its arg name
+        // Positional arguments by their schema names; an array literal
+        // records each element as `name.0`, `name.1`, ….
         const positionalArgs = schema.positionalArgs || [];
         for (let i = 0; i < positionalArgs.length && i < args.length; i++) {
+            const { name } = positionalArgs[i];
             const arg = args[i];
-            const argDef = positionalArgs[i];
-
-            // Array literal: register per-element spans as "argName.0", "argName.1", etc.
-            if (Node.isArrayLiteralExpression(arg)) {
-                const elements = arg.getElements();
-                for (let j = 0; j < elements.length; j++) {
-                    const elem = elements[j];
-                    const elemSpan = getTrackableSpan(elem, constMap);
-                    if (elemSpan) {
-                        argsMap.set(`${argDef.name}.${j}`, elemSpan);
-
-                        // Resolve interpolations for template expressions
-                        const elemNode = getTrackableNode(elem, constNodeMap);
-                        if (elemNode) {
-                            const resolutions = resolveInterpolations(
-                                elemNode,
-                                constNodeMap,
-                                constMap,
-                            );
-                            if (resolutions) {
-                                const spanKey = `${elemSpan.start}:${elemSpan.end}`;
-                                interpolationResolutions.set(
-                                    spanKey,
-                                    resolutions,
-                                );
-                            }
-                        }
+            if (ts.isArrayLiteralExpression(arg)) {
+                // A spread puts every later element at an index the source
+                // cannot tell.
+                for (const [j, element] of arg.elements.entries()) {
+                    if (ts.isSpreadElement(element)) {
+                        break;
                     }
+                    record(argsMap, `${name}.${j}`, element);
                 }
-                continue;
+            } else {
+                record(argsMap, name, arg);
             }
+        }
 
-            // Track literals directly, or resolve const variable references
-            const span = getTrackableSpan(arg, constMap);
-            if (span) {
-                argsMap.set(argDef.name, span);
-
-                // Resolve interpolations for template expressions
-                const innerNode = getTrackableNode(arg, constNodeMap);
-                if (innerNode) {
-                    const resolutions = resolveInterpolations(
-                        innerNode,
-                        constNodeMap,
-                        constMap,
-                    );
-                    if (resolutions) {
-                        const spanKey = `${span.start}:${span.end}`;
-                        interpolationResolutions.set(spanKey, resolutions);
+        // The config object after the positional arguments, by key.
+        const config = args[positionalArgs.length];
+        if (config && ts.isObjectLiteralExpression(config)) {
+            for (const prop of config.properties) {
+                if (ts.isPropertyAssignment(prop)) {
+                    const key = propertyName(prop);
+                    if (key !== null && key !== 'id') {
+                        record(argsMap, key, prop.initializer);
+                    }
+                } else if (ts.isShorthandPropertyAssignment(prop)) {
+                    if (prop.name.text !== 'id') {
+                        record(argsMap, prop.name.text, prop.name);
                     }
                 }
             }
         }
 
-        // Check for config object argument (after positional args)
-        if (positionalArgs.length < args.length) {
-            const configArg = args[positionalArgs.length];
-
-            if (Node.isObjectLiteralExpression(configArg)) {
-                for (const prop of configArg.getProperties()) {
-                    if (Node.isPropertyAssignment(prop)) {
-                        const propName = prop.getName();
-                        if (propName === 'id') {
-                            continue;
-                        }
-
-                        const initializer = prop.getInitializerOrThrow();
-                        const span = getTrackableSpan(initializer, constMap);
-                        if (span) {
-                            argsMap.set(propName, span);
-
-                            // Resolve interpolations for template expressions
-                            const innerNode2 = getTrackableNode(
-                                initializer,
-                                constNodeMap,
-                            );
-                            if (innerNode2) {
-                                const resolutions = resolveInterpolations(
-                                    innerNode2,
-                                    constNodeMap,
-                                    constMap,
-                                );
-                                if (resolutions) {
-                                    const spanKey = `${span.start}:${span.end}`;
-                                    interpolationResolutions.set(
-                                        spanKey,
-                                        resolutions,
-                                    );
-                                }
-                            }
-                        }
-                    } else if (Node.isShorthandPropertyAssignment(prop)) {
-                        const propName = prop.getName();
-                        if (propName === 'id') {
-                            continue;
-                        }
-
-                        // For shorthand { myVar }, resolve the variable to its const literal
-                        const span = constMap.get(propName) ?? null;
-                        if (span) {
-                            argsMap.set(propName, span);
-
-                            // Resolve interpolations if it's a template const
-                            const constNode = constNodeMap.get(propName);
-                            if (constNode) {
-                                const resolutions = resolveInterpolations(
-                                    constNode,
-                                    constNodeMap,
-                                    constMap,
-                                );
-                                if (resolutions) {
-                                    const spanKey = `${span.start}:${span.end}`;
-                                    interpolationResolutions.set(
-                                        spanKey,
-                                        resolutions,
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        if (argsMap.size > 0) {
+            registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
+                args: argsMap,
+                moduleType: schema.name,
+            });
         }
-
-        // Skip if no trackable arguments
-        if (argsMap.size === 0) {
-            return;
-        }
-
-        // Get the call site position
-        // For property access calls like `$p.s()`, V8 stack traces point to the
-        // Opening parenthesis, not the start of the expression. So we need to find
-        // The position of the `(` in the call.
-        const callExpression = call.getExpression();
-        let callStartPos: number;
-
-        if (Node.isPropertyAccessExpression(callExpression)) {
-            // For `$p.s()`, get the position of the `s` name node
-            // The opening paren follows immediately after the method name
-            callStartPos = callExpression.getNameNode().getStart();
-        } else {
-            // For simple calls like `foo()`, use the identifier start
-            callStartPos = call.getStart();
-        }
-
-        // Both ts-morph and V8 stack traces use 1-based lines and columns.
-        // Add the lineOffset to account for the executor's script wrapper lines.
-        const { line, column } = sourceFile.getLineAndColumnAtPos(callStartPos);
-        // For line 1 of source, add the firstLineColumnOffset because
-        // The function body template indents the first line with spaces.
-        const columnOffset = line === 1 ? firstLineColumnOffset : 0;
-        const key: CallSiteKey = `${line + lineOffset}:${column + columnOffset}`;
-
-        registry.set(key, {
-            args: argsMap,
-            moduleType: schema.name,
-        });
     });
 
     return { interpolationResolutions, registry };

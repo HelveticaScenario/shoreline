@@ -6,24 +6,19 @@
  */
 import ts from 'typescript';
 
+import { constInitializerOf } from '../../shared/dsl/ast/consts';
+import { dottedName } from '../../shared/dsl/ast/names';
 import type { ApiIndex, Family } from './apiSignatures';
 
 const MAX_DEPTH = 16;
 
 /**
- * A reader of the family of expressions in `file`, or null for one whose
- * family the source alone cannot tell (a function parameter, a `let`).
+ * A reader of the family of an expression, or null for one whose family the
+ * source alone cannot tell (a function parameter, a `let`).
  */
 export function createFamilyReader(
-    file: ts.SourceFile,
     api: ApiIndex,
 ): (expr: ts.Expression) => Family | null {
-    let consts: Map<string, ts.Expression | null> | undefined;
-    const constInit = (name: string) => {
-        consts ??= constInitializers(file);
-        return consts.get(name) ?? null;
-    };
-
     const familyOf = (expr: ts.Expression, depth: number): Family | null => {
         if (depth > MAX_DEPTH) {
             return null;
@@ -36,7 +31,7 @@ export function createFamilyReader(
             return next(expr.expression);
         }
         if (ts.isIdentifier(expr)) {
-            const init = constInit(expr.text);
+            const init = constInitializerOf(expr);
             if (init) {
                 return next(init);
             }
@@ -72,7 +67,9 @@ export function createFamilyReader(
         }
         if (!chain) {
             // A bare `$` factory (`$saw(...)`) makes an audio module.
-            return fn?.startsWith('$') && !constInit(fn) ? 'audio' : null;
+            const shadowed =
+                ts.isIdentifier(callee) && constInitializerOf(callee) !== null;
+            return fn?.startsWith('$') && !shadowed ? 'audio' : null;
         }
         const receiver = next(chain.receiver);
         if (!receiver) {
@@ -110,43 +107,4 @@ export function splitChain(callee: ts.PropertyAccessExpression): {
         path: [callee.name.text],
         receiver: callee.expression,
     };
-}
-
-/**
- * `foo` for an identifier, `a.b.c` for a property-access chain rooted at an
- * identifier, and null for anything else. Read from the syntax tree, so
- * whitespace and comments around the dots never reach it.
- */
-export function dottedName(expr: ts.Expression): string | null {
-    if (ts.isIdentifier(expr)) {
-        return expr.text;
-    }
-    if (ts.isPropertyAccessExpression(expr)) {
-        const base = dottedName(expr.expression);
-        return base === null ? null : `${base}.${expr.name.text}`;
-    }
-    return null;
-}
-
-/** Initializers of the file's `const` bindings; null for a name bound more
- *  than once, whose value depends on scope. */
-function constInitializers(
-    file: ts.SourceFile,
-): Map<string, ts.Expression | null> {
-    const out = new Map<string, ts.Expression | null>();
-    const visit = (node: ts.Node) => {
-        if (
-            ts.isVariableDeclaration(node) &&
-            ts.isIdentifier(node.name) &&
-            node.initializer &&
-            ts.isVariableDeclarationList(node.parent) &&
-            (node.parent.flags & ts.NodeFlags.Const) !== 0
-        ) {
-            const name = node.name.text;
-            out.set(name, out.has(name) ? null : node.initializer);
-        }
-        ts.forEachChild(node, visit);
-    };
-    visit(file);
-    return out;
 }
