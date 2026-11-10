@@ -11061,6 +11061,901 @@
     ]
   },
   {
+    "name": "$enosc",
+    "docs": {
+      "summary": "Ensemble of sines on a scale",
+      "description": "A bank of sine voices stacked up a scale, after the 4ms Ensemble Oscillator. Sweeping `root` or `spread` morphs smoothly from chord to chord, and cross FM, phase warps and the fold, cheby and segment shapers turn the sines into anything from glassy pads to snarling drones. The other outputs split the voices the way the hardware's stereo modes do.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Minor chord",
+          "code": "$enosc('c3', $enosc.scale.minor).out()"
+        },
+        {
+          "title": "Harmonic stack",
+          "code": "$enosc('c2', $enosc.scale.harm4to7, {\n  spread: 1,\n  count: 6,\n}).out()"
+        },
+        {
+          "title": "Custom scale",
+          "code": "$enosc('c2', $enosc.scale.custom('0 2 3 7 9', true)).out()"
+        },
+        {
+          "title": "Stereo pulsar drone",
+          "code": "const e = $enosc('a2', $enosc.scale.just6, {\n  spread: $sine('0.05hz').range(1, 3),\n  crossFm: 1.5,\n  phase: $phase.pulsar(2),\n  fold: 1,\n})\ne.odd.out({ pan: -5 })\ne.even.out({ pan: 5 })"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "EnoscParams",
+      "type": "object",
+      "properties": {
+        "pitch": {
+          "description": "pitch of the scale's first note; every voice moves with it",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "scale": {
+          "description": "the scale the voices sit on, built with `$enosc.scale.*`; every semitone if omitted",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EnoscScale"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "root": {
+          "description": "lowest voice's offset from `pitch`, one octave per volt, quantized to `scale`; each voice above adds `spread`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spread": {
+          "description": "distance between neighbouring voices, up to 7.5 semitones",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "detune": {
+          "description": "unquantized detuning that grows and alternates in sign up the voices",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "crossfade": {
+          "description": "how much of each step between scale notes crossfades rather than jumps: 0 hard steps, 5 always crossfading",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "crossFm": {
+          "description": "cross-FM depth",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "crossFmMode": {
+          "description": "how each voice's cross FM reaches the others",
+          "$ref": "#/$defs/CrossFmMode",
+          "default": "up"
+        },
+        "balance": {
+          "description": "level tilt across the voices: negative favours the lowest, positive the highest",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phase": {
+          "description": "phase warp applied to every oscillator before its sine, built with `$phase.*`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PhaseWarp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fold": {
+          "description": "wavefold amount",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cheby": {
+          "description": "Chebyshev waveshaping amount",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "segment": {
+          "description": "triangle-segment waveshaping amount",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effectOrder": {
+          "description": "order of the fold (f), cheby (c) and segment (s) warps, e.g. \"fcs\" or \"scf\"",
+          "$ref": "#/$defs/EffectOrder",
+          "default": "fcs"
+        },
+        "count": {
+          "description": "voices per channel",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 8
+        }
+      },
+      "required": [
+        "pitch"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "EnoscScale": {
+          "oneOf": [
+            {
+              "description": "12-TET: octaves only.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "octave"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "12-TET: octave and fifth.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "octaveFifth"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "12-TET: major triad.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "major"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "12-TET: minor triad.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "minor"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "12-TET: minor triad with a fourth (0 3 5 7).",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "minorAdd4"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "12-TET: stacked fourths (0 3 5 10).",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "quartal"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "12-TET: 0 1 5 8, from the miyako-bushi scale.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "miyako"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "12-TET: a spiral of fifths, repeating every fifth.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "fifths"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "12-TET: 0 3 5, repeating every fifth.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "fifthsMinor"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "12-TET: every semitone. The default.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "chromatic"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Octave: harmonics 2–3 (just fifth).",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "harm2to3"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Octave: harmonics 4–7.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "harm4to7"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Octave: harmonics 8–15.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "harm8to15"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Octave: the odd harmonics up to 15, repeating every three octaves.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "harmOdd"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Octave: Pythagorean do, fa, so.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "pythag3"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Octave: Pythagorean do, re, fa, so, la.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "pythag5"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Octave: just 1, 4/3, 3/2, 5/3.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "just4"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Octave: just 1, 5/4, 4/3, 3/2, 5/3, 7/4.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "just6"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Octave: 5 equal steps per octave.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "tet5"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Octave: 7 equal steps per octave.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "tet7"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "description": "Your own notes, like the hardware's learn mode.",
+              "type": "object",
+              "properties": {
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "format": "float"
+                  }
+                },
+                "repeatsOctave": {
+                  "type": "boolean"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "custom"
+                }
+              },
+              "required": [
+                "type",
+                "notes",
+                "repeatsOctave"
+              ]
+            }
+          ]
+        },
+        "CrossFmMode": {
+          "description": "How each voice's cross-FM output reaches the others.",
+          "oneOf": [
+            {
+              "description": "The lowest voice modulates every other voice.",
+              "type": "string",
+              "const": "up"
+            },
+            {
+              "description": "Each voice modulates the next one up.",
+              "type": "string",
+              "const": "chain"
+            },
+            {
+              "description": "The highest voice modulates every other voice, one sample late.",
+              "type": "string",
+              "const": "down"
+            }
+          ]
+        },
+        "PhaseWarp": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "identity"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "mirror"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "bend"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "ratio": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "sync"
+                }
+              },
+              "required": [
+                "type",
+                "ratio"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "fold"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "width": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "pwm"
+                }
+              },
+              "required": [
+                "type",
+                "width"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "pulsar"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "crush"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "feedback"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "first": {
+                  "$ref": "#/$defs/PhaseWarp"
+                },
+                "second": {
+                  "$ref": "#/$defs/PhaseWarp"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "pipe"
+                }
+              },
+              "required": [
+                "type",
+                "first",
+                "second"
+              ]
+            }
+          ]
+        },
+        "EffectOrder": {
+          "description": "The order the fold (`f`), cheby (`c`) and segment (`s`) warps run in.",
+          "type": "string",
+          "enum": [
+            "fcs",
+            "fsc",
+            "cfs",
+            "csf",
+            "sfc",
+            "scf"
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "mix of every voice",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "odd",
+        "description": "mix of voices 1, 3, 5, …",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "even",
+        "description": "mix of voices 2, 4, 6, …",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "low",
+        "description": "mix of the lower half of the voices",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "high",
+        "description": "mix of the upper half of the voices",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "root",
+        "description": "the lowest voice alone",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "other",
+        "description": "mix of every voice but the lowest",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "pitch",
+        "description": "pitch of the scale's first note; every voice moves with it",
+        "paramType": "pitch"
+      },
+      {
+        "name": "root",
+        "description": "lowest voice's offset from `pitch`, one octave per volt, quantized to `scale`; each voice above adds `spread`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "controlMin": -5.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "spread",
+        "description": "distance between neighbouring voices, up to 7.5 semitones",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "detune",
+        "description": "unquantized detuning that grows and alternates in sign up the voices",
+        "paramType": "control",
+        "defaultValue": 1.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "crossfade",
+        "description": "how much of each step between scale notes crossfades rather than jumps: 0 hard steps, 5 always crossfading",
+        "paramType": "control",
+        "defaultValue": 4.33,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "crossFm",
+        "description": "cross-FM depth",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "balance",
+        "description": "level tilt across the voices: negative favours the lowest, positive the highest",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "controlMin": -5.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fold",
+        "description": "wavefold amount",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "cheby",
+        "description": "Chebyshev waveshaping amount",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "segment",
+        "description": "triangle-segment waveshaping amount",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "pitch"
+      },
+      {
+        "name": "scale"
+      }
+    ]
+  },
+  {
     "name": "$wavetable",
     "docs": {
       "summary": "Wavetable oscillator",
