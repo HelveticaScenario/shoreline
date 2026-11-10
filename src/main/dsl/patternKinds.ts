@@ -1,5 +1,5 @@
 /**
- * Wire-shape discriminators of every pattern value a signal accepts: `$p(...)`,
+ * Wire-shape discriminators of every pattern value: `$p(...)`,
  * `$p.s(...)`, `$p.arrange(...)` and the `.fast`/`.slow`/`.struct`/`.beat`/
  * `.glide` chains built from them.
  */

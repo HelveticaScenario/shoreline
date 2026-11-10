@@ -45,7 +45,6 @@ import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { assertControlsPlaced, createControls } from './controls';
 import { $p, setActiveCycleFactory, type CycleFactory } from './miniNotation';
-import { isPatternValue } from './patternKinds';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
 import type {
@@ -723,10 +722,6 @@ export function executePatchScript(
             if (button) return button.value ? GATE_HIGH_VOLTAGE : 0;
             return undefined;
         },
-        playPattern: (pattern) =>
-            cycleFactory(pattern) as
-                | ModuleOutput
-                | BaseCollection<ModuleOutput>,
         publishTap: (output, slot) => {
             _videoTap(output, slot);
         },
@@ -923,14 +918,9 @@ export function executePatchScript(
         return t;
     }
 
-    // A pattern argument plays through its own `$cycle` before it becomes a
-    // warp signal.
-    const warpSignal = (value: unknown) =>
-        replaceSignals(isPatternValue(value) ? cycleFactory(value) : value);
-
     const warpHelper =
         (type: string, field: string) => (value: unknown, next?: unknown) => {
-            const t = wrapWarp({ type, [field]: warpSignal(value) });
+            const t = wrapWarp({ type, [field]: replaceSignals(value) });
             return next !== undefined
                 ? wrapWarp({ type: 'pipe', first: t, second: next })
                 : t;

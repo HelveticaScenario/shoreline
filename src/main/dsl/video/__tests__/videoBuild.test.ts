@@ -105,11 +105,11 @@ describe('$v graph building', () => {
         });
     });
 
-    describe('patterns', () => {
-        it('plays one pattern used twice through one $cycle and one tap', () => {
+    describe('played patterns', () => {
+        it('reads one pattern used twice through one $cycle and one tap', () => {
             const source = `
                 const p = $p('0 1');
-                $v.out($v.hsv(p, p));
+                $v.out($v.hsv(p.c, p.c));
             `;
             expect(modulesOf(source, '$cycle')).toHaveLength(1);
             expect(modulesOf(source, '_videoTap')).toHaveLength(1);
@@ -119,7 +119,7 @@ describe('$v graph building', () => {
         it('shares the $cycle between a field and fromAudio', () => {
             const source = `
                 const p = $p('0 1');
-                $v.out($v.hsv(p, $v.fromAudio(p)));
+                $v.out($v.hsv(p.c, $v.fromAudio(p.c)));
             `;
             expect(modulesOf(source, '$cycle')).toHaveLength(1);
             expect(modulesOf(source, '_videoTap')).toHaveLength(1);

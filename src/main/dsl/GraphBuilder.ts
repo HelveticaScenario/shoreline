@@ -25,7 +25,7 @@ import {
     qualifiesForDollarChain,
 } from './paramsSchema';
 import { captureSourceLocation } from './captureSourceLocation';
-import { isPatternValue, type PatternValue } from './patternKinds';
+import { isPatternValue } from './patternKinds';
 import {
     assertSignalGroupsTopLevelOnly,
     expandSignalGroups,
@@ -232,7 +232,7 @@ export interface MonoOutGroup extends OutGroupVuState {
 
 /**
  * True for a plain `{ ... }` literal — distinguishes MonoOutOptions from a
- * gain PolySignal (number | string | array | pattern | ModuleOutput | iterable).
+ * gain PolySignal (number | string | array | ModuleOutput | iterable).
  * Patch scripts evaluate in a vm realm whose `Object.prototype` is a
  * different object from the host's, so plainness is judged by chain depth
  * (a prototype that is itself the chain root) rather than identity.
@@ -766,16 +766,6 @@ export class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
     }
 }
 
-/**
- * Play a pattern argument through its own `$cycle`; any other value is
- * returned unchanged.
- */
-function playPattern(builder: GraphBuilder, value: PolySignal): PolySignal {
-    return isPatternValue(value)
-        ? (builder.getFactory('$cycle')(value) as Collection)
-        : value;
-}
-
 type ArithmeticOp = 'add' | 'sub' | 'mul' | 'div' | 'pow';
 type RoundMode = 'round' | 'floor' | 'ceil';
 
@@ -895,10 +885,6 @@ export class Collection extends BaseCollection<ModuleOutput> {
         if (!factory) {
             throw new Error('Factory for util.remap not registered');
         }
-        outMin = playPattern(builder, outMin);
-        outMax = playPattern(builder, outMax);
-        inMin = playPattern(builder, inMin);
-        inMax = playPattern(builder, inMax);
         return (
             factory(this.items, outMin, outMax, inMin, inMax) as Collection
         ).withRange(outMin, outMax);
@@ -927,8 +913,6 @@ export class CollectionWithRange extends BaseCollection<ModuleOutputWithRange> {
         if (!factory) {
             throw new Error('Factory for util.remap not registered');
         }
-        outMin = playPattern(builder, outMin);
-        outMax = playPattern(builder, outMax);
         return (
             factory(
                 this.items,
@@ -1397,17 +1381,11 @@ export class GraphBuilder {
      * an array argument are handled too. Lifting a scalar needs the `$signal`
      * factory, hence a builder method.
      */
-    $c(
-        ...args: (Signal | PatternValue | Iterable<Signal | PatternValue>)[]
-    ): Collection {
+    $c(...args: (Signal | Iterable<Signal>)[]): Collection {
         // Resolved on the first scalar: a Collection of only ModuleOutputs
         // needs no factory.
         let signal: FactoryFunction | undefined;
         const lift = (value: unknown): ModuleOutput[] => {
-            // A pattern plays through its own `$cycle`.
-            if (isPatternValue(value)) {
-                return [...(this.getFactory('$cycle')(value) as Collection)];
-            }
             // Scalar literal checked before the iterable branch so a string is
             // one signal rather than spread into characters.
             if (typeof value === 'number' || typeof value === 'string') {
@@ -2683,10 +2661,6 @@ export class ModuleOutput {
         inMax: PolySignal,
     ): CollectionWithRange {
         const factory = this.builder.getFactory('$remap');
-        outMin = playPattern(this.builder, outMin);
-        outMax = playPattern(this.builder, outMax);
-        inMin = playPattern(this.builder, inMin);
-        inMax = playPattern(this.builder, inMax);
         return (
             factory(this, outMin, outMax, inMin, inMax) as Collection
         ).withRange(outMin, outMax);
@@ -2729,8 +2703,6 @@ export class ModuleOutputWithRange extends ModuleOutput {
      */
     range(outMin: PolySignal, outMax: PolySignal): CollectionWithRange {
         const factory = this.builder.getFactory('$remap');
-        outMin = playPattern(this.builder, outMin);
-        outMax = playPattern(this.builder, outMax);
         return (
             factory(
                 this,

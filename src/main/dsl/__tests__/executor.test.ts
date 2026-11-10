@@ -540,34 +540,48 @@ describe('sequencing', () => {
         ).toEqual({ start: 3, end: 10 });
     });
 
-    test('a pattern in a poly signal param is wrapped in $cycle', () => {
-        const patch = execPatch('$sine($p("c4 e4")).out()');
+    test('.c is .cycle(), made once per pattern', () => {
+        const patch = execPatch(`
+            const seq = $p("c4 e4");
+            $sine(seq.c).amp($perc(seq.c.trig)).out();
+        `);
         const [cycle] = findModules(patch, '$cycle');
         const [sine] = findModules(patch, '$sine');
         expect(findModules(patch, '$cycle').length).toBe(1);
         expect(sine.params.freq).toMatchObject([
             { module: cycle.id, port: 'cv', type: 'cable' },
         ]);
+        expect(
+            (cycle.params as { pattern: { argument_span?: unknown } }).pattern
+                .argument_span,
+        ).toEqual(expect.any(Object));
     });
 
-    test('every pattern kind is accepted by poly and mono signal params', () => {
+    test('every pattern kind has .c', () => {
         const patch = execPatch(`
-            $sine($p.s("0 2 4", "C(major)")).out();
-            $sine($p.arrange([2, $p("c4")], [1, $p("e4")])).out();
-            $sine($p("c4").fast(2).struct("x ~")).out();
-            $sine([$p("c4"), "e4", $p("g4")]).out();
-            $stereoMix($saw("c3"), { width: $p("0 5") }).out();
+            $sine($p.s("0 2 4", "C(major)").c).out();
+            $sine($p.arrange([2, $p("c4")], [1, $p("e4")]).c).out();
+            $sine($p("c4").fast(2).struct("x ~").c).out();
+            $sine([$p("c4").c, "e4", $p("g4").c]).out();
+            $stereoMix($saw("c3"), { width: $p("0 5").c }).out();
         `);
         expect(findModules(patch, '$cycle').length).toBe(6);
     });
 
-    test('wrapped patterns keep their editor highlight spans', () => {
-        const patch = execPatch('$sine($p("c4 e4")).out()');
-        const [cycle] = findModules(patch, '$cycle');
-        expect(
-            (cycle.params as { pattern: { argument_span?: unknown } }).pattern
-                .argument_span,
-        ).toEqual({ start: 9, end: 16 });
+    test.each([
+        '$sine($p("c4 e4")).out()',
+        '$sine([$p("c4"), "e4"]).out()',
+        '$sine($g1($p("c4 e4"))).out()',
+        '$stereoMix($saw("c3"), { width: $p("0 5") }).out()',
+        '$mix([$p("c4 e4"), "g4"]).out()',
+        '$step(["c4", "g4"], $p("1 0")).out()',
+        '$sine("c3").amplitude($p("1 2")).out()',
+        '$sine("c3").out({ gain: $p("3 4") })',
+        '$sine("c3").outMono(1, $p("0.5 1"))',
+        '$signal(1).range($p("0 1"), 5, -5, 5).out()',
+        '$c($sine("c3")).range(0, $p("2 3")).out()',
+    ])('a pattern is not a signal: %s', (source) => {
+        expect(() => execPatch(source)).toThrow(/is a pattern, not a signal/);
     });
 
     test('MIDI-number and scale-interval signal strings are rejected', () => {
@@ -575,47 +589,13 @@ describe('sequencing', () => {
         expect(() => execPatch('$sine("4s(C:major)").out()')).toThrow();
     });
 
-    test('$c plays pattern objects directly and lifts single values to $signal', () => {
-        const patch = execPatch('$c($p("c4 e4"), "c4", 440).out()');
+    test('$c lifts single values to $signal and takes a played pattern', () => {
+        const patch = execPatch('$c($p("c4 e4").c, "c4", 440).out()');
         expect(findModules(patch, '$cycle').length).toBe(1);
         const lifted = findModules(patch, '$signal').filter(
             (m) => m.params.value === 'c4' || m.params.value === 440,
         );
         expect(lifted.length).toBe(2);
-    });
-
-    test('a pattern inside a $gN group plays through a $cycle', () => {
-        const patch = execPatch('$sine($g1($p("c4 e4"))).out()');
-        expect(findModules(patch, '$cycle').length).toBe(1);
-    });
-
-    test('patterns inside nested signal params play through a $cycle', () => {
-        const patch = execPatch(`
-            $mix([$p("c4 e4"), "g4"]).out();
-            $step([$p("c4 e4"), "g4"], $p("1 0")).out();
-        `);
-        expect(findModules(patch, '$cycle').length).toBe(3);
-    });
-
-    test('patterns work through methods and .out config', () => {
-        const patch = execPatch(
-            '$sine("c3").amplitude($p("1 2")).out({ gain: $p("3 4") })',
-        );
-        expect(findModules(patch, '$cycle').length).toBe(2);
-    });
-
-    test('.range accepts patterns for its bounds', () => {
-        const patch = execPatch(`
-            $signal(1).range($p("0 1"), 5, -5, 5).out();
-            $c($sine("c3")).range($p("0 1"), $p("2 3"), 0, 5).out();
-            $sine("c3").range($p("0 1"), 5).out();
-        `);
-        expect(findModules(patch, '$cycle').length).toBe(4);
-    });
-
-    test('.outMono(channel, pattern) plays the pattern as the gain', () => {
-        const patch = execPatch('$sine("c3").outMono(1, $p("0.5 1"))');
-        expect(findModules(patch, '$cycle').length).toBe(1);
     });
 
     test('.outMono rejects a pattern in the channel position', () => {
@@ -624,15 +604,11 @@ describe('sequencing', () => {
         );
     });
 
-    test('$phase helpers play patterns as their signals', () => {
-        const patch = execPatch(`
-            $phase.mirror($p("0 1"), $phase.pwm($p("1 2")));
-        `);
-        expect(findModules(patch, '$cycle').length).toBe(2);
-    });
-
     test('$c rejects values that are not signals', () => {
         expect(() => execPatch('$c({}).out()')).toThrow(/\$c: cannot make/);
+        expect(() => execPatch('$c($p("c4 e4")).out()')).toThrow(
+            /\$c: cannot make/,
+        );
         expect(() => execPatch('$c(undefined).out()')).toThrow(
             /\$c: cannot make/,
         );

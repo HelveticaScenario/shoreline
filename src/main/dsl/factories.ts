@@ -387,51 +387,34 @@ export class DSLContext {
     }
 
     /**
-     * Wrap a pattern value (`$p(...)`, `$p.s(...)`, `$p.arrange(...)` or a
-     * `.fast`/`.slow`/`.struct`/`.beat` chain) in a `$cycle` module at the
-     * caller's source location; any other value passes through. The `$cycle`
-     * carries no argument spans of its own — the pattern embeds its
-     * highlight spans — so the caller's spans are not reused for it.
+     * A signal param's value with the collections inside an array, or inside
+     * a `$gN` group's array, spread into its elements. A pattern anywhere in
+     * it is refused: a pattern becomes a signal by playing it, with `.c` or
+     * `.cycle()`.
      */
-    private wrapPattern(
-        value: unknown,
-        sourceLocation: SourceLocation | undefined,
-    ): unknown {
-        if (!isPatternValue(value)) {
-            return value;
-        }
-        const cycle = this.instantiators.get('$cycle');
-        if (!cycle) {
-            throw new Error('$cycle module not found in schemas');
-        }
-        return cycle([value], sourceLocation, undefined);
-    }
-
-    /**
-     * Wrap every pattern inside a signal param's value: the value itself, array
-     * elements, and the contents of a `$gN` group.
-     */
-    private wrapSignalParam(
-        value: unknown,
-        sourceLocation: SourceLocation | undefined,
-    ): unknown {
+    private signalParam(value: unknown, module: string, name: string): unknown {
         if (isSignalGroupLike(value)) {
-            const signals = this.wrapSignalParam(value.signals, sourceLocation);
+            const signals = this.signalParam(value.signals, module, name);
             return {
                 ...value,
                 signals:
                     signals instanceof BaseCollection ? [...signals] : signals,
             };
         }
+        const refuse = (v: unknown): unknown => {
+            if (isPatternValue(v)) {
+                throw new Error(
+                    `${module}: ${name} is a pattern, not a signal — play it with .c or .cycle()`,
+                );
+            }
+            return v;
+        };
         if (Array.isArray(value)) {
-            return value.flatMap((v) => {
-                const wrapped = this.wrapPattern(v, sourceLocation);
-                return wrapped instanceof BaseCollection
-                    ? [...wrapped]
-                    : [wrapped];
-            });
+            return value.flatMap((v) =>
+                refuse(v) instanceof BaseCollection ? [...v] : [v],
+            );
         }
-        return this.wrapPattern(value, sourceLocation);
+        return refuse(value);
     }
 
     private createInstantiator(schema: ModuleSchema): Instantiator {
@@ -440,7 +423,7 @@ export class DSLContext {
         const scaleParamNames = processed.params
             .filter((p) => p.isScaleSignalInput)
             .map((p) => p.name);
-        const patternSignalParamNames = processed.params
+        const signalParamNames = processed.params
             .filter(
                 (p) =>
                     !p.isScaleSignalInput &&
@@ -460,8 +443,7 @@ export class DSLContext {
         const nestedSignalParams = processed.params
             .filter(
                 (p) =>
-                    !p.isScaleSignalInput &&
-                    !patternSignalParamNames.includes(p.name),
+                    !p.isScaleSignalInput && !signalParamNames.includes(p.name),
             )
             .flatMap((p) => {
                 const property = paramsSchema.properties?.[p.name];
@@ -498,17 +480,17 @@ export class DSLContext {
                 }
             }
 
-            // A pattern in a signal param plays through its own `$cycle`.
-            for (const name of patternSignalParamNames) {
-                params[name] = this.wrapSignalParam(
+            for (const name of signalParamNames) {
+                params[name] = this.signalParam(
                     params[name],
-                    sourceLocation,
+                    schema.name,
+                    name,
                 );
             }
             for (const { mapper, name } of nestedSignalParams) {
                 if (params[name] !== undefined) {
                     params[name] = mapper(params[name], name, (value) =>
-                        this.wrapSignalParam(value, sourceLocation),
+                        this.signalParam(value, schema.name, name),
                     );
                 }
             }

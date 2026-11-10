@@ -835,6 +835,12 @@ function attachTimeModifiers<T extends SectionPattern>(
     Object.defineProperty(modifiable, 'struct', { enumerable: false });
     Object.defineProperty(modifiable, 'beat', { enumerable: false });
     Object.defineProperty(modifiable, 'glide', { enumerable: false });
+    // `.c` is `.cycle()` made once: every read gives the same sequencer.
+    let cycle: unknown;
+    Object.defineProperty(modifiable, 'c', {
+        enumerable: false,
+        get: () => (cycle ??= makeCycle(pattern, [])),
+    });
     return modifiable;
 }
 

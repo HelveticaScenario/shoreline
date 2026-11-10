@@ -132,10 +132,10 @@ describe('$v inputs from the audio graph', () => {
         );
     });
 
-    describe('patterns', () => {
-        it('plays a pattern wherever a field is accepted, through a $cycle', () => {
+    describe('played patterns', () => {
+        it('takes a played pattern wherever a field is accepted', () => {
             const { video, patch } = exec(`
-                $v.out($v.hsv($p('0 1.25 2.5 3.75'), 5, 5));
+                $v.out($v.hsv($p('0 1.25 2.5 3.75').c, 5, 5));
             `);
             expect(video!.uniforms.map((u) => u.kind)).toEqual(['tap']);
             expect(
@@ -145,34 +145,40 @@ describe('$v inputs from the audio graph', () => {
             ).toBe(true);
         });
 
-        it('accepts the sample, arrange and chained pattern forms too', () => {
+        it('takes the sample, arrange and chained pattern forms too', () => {
             for (const pattern of [
                 `$p.s('0 2 4', 'C(major)')`,
                 `$p.arrange([2, $p('0 5')], [1, $p('2.5')])`,
                 `$p('0 5').fast(2)`,
                 `$p('0 5').slow(2)`,
             ]) {
-                const { video } = exec(`$v.out($v.hsv(${pattern}));`);
+                const { video } = exec(`$v.out($v.hsv(${pattern}.c));`);
                 expect(video!.uniforms.map((u) => u.kind)).toEqual(['tap']);
             }
         });
 
-        it('plays a pattern given to a chained method or a config field', () => {
+        it('takes a played pattern in a chained method or a config field', () => {
             const { video } = exec(`
-                $v.ramp('horizontal', { zoom: $p('1 2') }).$.hsv($p('0 1')).out();
+                $v.ramp('horizontal', { zoom: $p('1 2').c }).$.hsv($p('0 1').c).out();
             `);
             expect(video!.uniforms).toHaveLength(2);
         });
 
-        it('plays a pattern through fromAudio as it would an audio signal', () => {
+        it('reads a played pattern through fromAudio', () => {
             const { video } = exec(`
-                $v.out($v.hsv($v.fromAudio($p('0 1'))));
+                $v.out($v.hsv($v.fromAudio($p('0 1').c)));
             `);
             expect(video!.histories).toHaveLength(1);
         });
 
+        it('rejects a pattern that is not played', () => {
+            expect(() => exec(`$v.out($v.hsv($p('0 1')));`)).toThrow(
+                /hue must be a number, a video signal or an audio signal/,
+            );
+        });
+
         it('sums a pattern that makes several voices', () => {
-            const { video } = exec(`$v.out($v.hsv($p('0,1')));`);
+            const { video } = exec(`$v.out($v.hsv($p('0,1').c));`);
             expect(video!.uniforms.map((u) => u.kind)).toEqual(['tap']);
         });
     });

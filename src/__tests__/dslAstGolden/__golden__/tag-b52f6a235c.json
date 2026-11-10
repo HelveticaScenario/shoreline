@@ -5,8 +5,8 @@
       "interpolations": [],
       "registry": [
         ["4:19","$p",[["source",17,34]]],
-        ["4:60","$p",[["source",58,65]]],
-        ["4:78","$p",[["source",76,79]]]
+        ["4:62","$p",[["source",60,67]]],
+        ["4:80","$p",[["source",78,81]]]
       ]
     },
     "controlCalls": [],
@@ -27,7 +27,7 @@
       }
     ],
     "quickFixes": {
-      "at": ["37-38 0"],
+      "at": ["39-40 0"],
       "fixes": [
         [
           {
@@ -36,20 +36,20 @@
             "kind": "wrap",
             "newText": "$slider('saturation', 1, 0, 1)",
             "preferred": true,
-            "span": {"end":38,"start":37},
+            "span": {"end":40,"start":39},
             "title": "Wrap 'saturation' in $slider"
           }
         ]
       ]
     },
-    "setOutputGain": {"end":84,"start":84,"text":"\n$setOutputGain(0.5)\n"}
+    "setOutputGain": {"end":88,"start":88,"text":"\n$setOutputGain(0.5)\n"}
   },
   "variants": {
     "cut25": {
       "analyze": {
         "callSiteSpans": [["1:8",1,1]],
         "interpolations": [],
-        "registry": [["4:19","$p",[["source",17,21]]]]
+        "registry": [["4:19","$p",[["source",17,22]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -67,7 +67,7 @@
           "soloOn": null
         }
       ],
-      "setOutputGain": {"end":21,"start":21,"text":"\n$setOutputGain(0.5)\n"}
+      "setOutputGain": {"end":22,"start":22,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut50": {
       "analyze": {
@@ -91,13 +91,13 @@
           "soloOn": null
         }
       ],
-      "setOutputGain": {"end":42,"start":42,"text":"\n$setOutputGain(0.5)\n"}
+      "setOutputGain": {"end":44,"start":44,"text":"\n$setOutputGain(0.5)\n"}
     },
     "cut75": {
       "analyze": {
         "callSiteSpans": [["1:8",1,1]],
         "interpolations": [],
-        "registry": [["4:19","$p",[["source",17,34]]],["4:60","$p",[["source",58,63]]]]
+        "registry": [["4:19","$p",[["source",17,34]]],["4:62","$p",[["source",60,66]]]]
       },
       "controlCalls": [],
       "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
@@ -115,7 +115,7 @@
           "soloOn": null
         }
       ],
-      "setOutputGain": {"end":63,"start":63,"text":"\n$setOutputGain(0.5)\n"}
+      "setOutputGain": {"end":66,"start":66,"text":"\n$setOutputGain(0.5)\n"}
     }
   }
 }

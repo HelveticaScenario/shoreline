@@ -21,7 +21,6 @@ import {
     type CollectionWithRange,
     ModuleOutput,
 } from '../GraphBuilder';
-import { isPatternValue } from '../patternKinds';
 import { VideoOutput, type VideoOps } from './VideoOutput';
 import { colorMethods } from './videoColor';
 import { filterMethods } from './videoFilters';
@@ -94,8 +93,6 @@ export class VideoGraphBuilder implements VideoCore {
     private scopes: VideoScope[] = [];
     /** The audio signal each tap carries, published once `build` knows which taps are live. */
     private tapSignals: AudioSignal[] = [];
-    /** The signal each pattern plays as, so a pattern used twice shares one `$cycle`. */
-    private played = new Map<object, AudioSignal>();
 
     constructor(private readonly host: VideoGraphHost) {
         Object.assign(
@@ -184,19 +181,7 @@ export class VideoGraphBuilder implements VideoCore {
         return tap;
     }
 
-    /** `value` as an audio signal when it is a pattern, playing each pattern once. */
-    private play(value: unknown): unknown {
-        if (!isPatternValue(value)) return value;
-        let signal = this.played.get(value);
-        if (signal === undefined) {
-            signal = this.host.playPattern(value);
-            this.played.set(value, signal);
-        }
-        return signal;
-    }
-
-    value(fn: string, name: string, value: unknown): VideoValue {
-        const v = this.play(value);
+    value(fn: string, name: string, v: unknown): VideoValue {
         if (typeof v === 'number') {
             // The shader holds constants as f32, whose range ends near 3.4e38.
             if (!Number.isFinite(Math.fround(v))) {
@@ -242,11 +227,10 @@ export class VideoGraphBuilder implements VideoCore {
         position: VideoSource = this.ramp('horizontal'),
         config?: VideoAudioConfig,
     ): VideoOutput => {
-        const played = this.play(signal);
         if (
             !(
-                played instanceof ModuleOutput ||
-                played instanceof BaseCollection
+                signal instanceof ModuleOutput ||
+                signal instanceof BaseCollection
             )
         ) {
             throw new Error(
@@ -264,7 +248,7 @@ export class VideoGraphBuilder implements VideoCore {
             );
         }
         const trigger = config?.trigger ?? true;
-        const tap = this.tapFor('$v.fromAudio', 'signal', single(played));
+        const tap = this.tapFor('$v.fromAudio', 'signal', single(signal));
         const row = this.historyRow({ samples, tap, trigger });
         return this.addNode(
             'audioHistory',
@@ -357,7 +341,7 @@ export class VideoGraphBuilder implements VideoCore {
             const value = this.value(fn, name, given);
             if (value.kind !== 'uniform') {
                 throw new Error(
-                    `${fn}: ${name} takes a number, a slider, a pattern or an audio signal, not a video signal: the beam has one ${name} for the whole frame`,
+                    `${fn}: ${name} takes a number, a slider or an audio signal, not a video signal: the beam has one ${name} for the whole frame`,
                 );
             }
             return value;
@@ -376,7 +360,7 @@ export class VideoGraphBuilder implements VideoCore {
     };
 
     /**
-     * Every channel of an audio signal, pattern or array of them, in order. A
+     * Every channel of an audio signal or array of them, in order. A
      * number or note string is a constant signal.
      */
     private channelsOf(
@@ -387,11 +371,10 @@ export class VideoGraphBuilder implements VideoCore {
         if (Array.isArray(value)) {
             return value.flatMap((v: unknown) => this.channelsOf(fn, name, v));
         }
-        const played = this.play(
+        const played =
             typeof value === 'number' || typeof value === 'string'
                 ? this.host.constantSignal(value)
-                : value,
-        );
+                : value;
         if (played instanceof ModuleOutput) return [played];
         if (played instanceof BaseCollection) {
             if (played.length === 0) {
@@ -400,7 +383,7 @@ export class VideoGraphBuilder implements VideoCore {
             return [...played];
         }
         throw new Error(
-            `${fn}: ${name} must be an audio signal, a pattern, a number or an array of them, got ${describe(value)}`,
+            `${fn}: ${name} must be an audio signal, a number or an array of them, got ${describe(value)}`,
         );
     }
 
