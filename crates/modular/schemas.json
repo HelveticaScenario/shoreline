@@ -28337,6 +28337,290 @@
     ]
   },
   {
+    "name": "$mi.string",
+    "docs": {
+      "summary": "Plucked and bowed string",
+      "description": "Mutable Instruments Plaits' inharmonic string: a Karplus-Strong string plucked by a burst of filtered noise, for guitars, sitars, harps and piano wire. Each pluck takes the next of three strings so notes overlap; leave `trigger` unpatched and grains bow it into a drone.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Plucked arpeggio",
+          "code": "const seq = $cycle($p('c3 g3 e4 <b3 a3>'))\n$mi.string(seq, { trigger: seq.trig }).out()"
+        },
+        {
+          "title": "Sitar drone",
+          "code": "$mi.string('d2', { structure: 0.3, decay: 4.5 }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiStringParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the string's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "plucks a string; earlier notes ring on on their own strings. Unpatched, a stream of tiny grains bows the string continuously instead",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "structure": {
+          "description": "inharmonicity: a curved bridge that buzzes and sitar-twangs (0), a clean string around 1.25, then dispersion stretching the partials toward piano wire and metal (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "brightness": {
+          "description": "how bright the pluck is and how long the high partials last; unpatched trigger, how dense the grains are",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decay": {
+          "description": "how long the string rings, from a muted thud (0) to sustaining forever (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accent": {
+          "description": "how hard each pluck is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input": {
+          "description": "a sound to resonate the current string with, alongside its plucks",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the ringing strings",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "exciter",
+        "description": "the plucks or grains that excite the strings, to mix back in for more attack",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the string's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "plucks a string; earlier notes ring on on their own strings. Unpatched, a stream of tiny grains bows the string continuously instead",
+        "paramType": "trig"
+      },
+      {
+        "name": "structure",
+        "description": "inharmonicity: a curved bridge that buzzes and sitar-twangs (0), a clean string around 1.25, then dispersion stretching the partials toward piano wire and metal (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "brightness",
+        "description": "how bright the pluck is and how long the high partials last; unpatched trigger, how dense the grains are",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "decay",
+        "description": "how long the string rings, from a muted thud (0) to sustaining forever (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "accent",
+        "description": "how hard each pluck is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
+        "paramType": "control",
+        "defaultValue": 4.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "input",
+        "description": "a sound to resonate the current string with, alongside its plucks",
+        "paramType": "audio"
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.twoOp",
     "docs": {
       "summary": "Two-operator FM oscillator",
