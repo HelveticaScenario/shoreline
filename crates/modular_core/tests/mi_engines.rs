@@ -91,6 +91,13 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
                 port("$mi.additive", knobs("organ"), "output"),
             ]
         }
+        16 => {
+            let knobs = json!({ "density": 5.0 * t, "spread": 5.0 * h, "grainSize": 5.0 * m });
+            [
+                port("$mi.swarm", knobs.clone(), "output"),
+                port("$mi.swarm", knobs, "sine"),
+            ]
+        }
         19 | 20 => {
             let module = if engine == 19 {
                 "$mi.string"

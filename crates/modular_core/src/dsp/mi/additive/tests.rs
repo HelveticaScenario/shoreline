@@ -179,3 +179,33 @@ fn stays_finite_and_bounded() {
         }
     }
 }
+
+/// The spectrum steps on a timebase in seconds: 0.1 s in, while it is still
+/// settling, it is where it is at 48 kHz, including at rates under 4 kHz,
+/// where several steps share a sample.
+#[test]
+fn spectrum_keeps_time_at_any_rate() {
+    let amplitudes = |sample_rate: f32| {
+        let state = AdditiveState::new(sample_rate);
+        let mut voice = Voice::default();
+        for _ in 0..(sample_rate * 0.1) as usize {
+            render(
+                &mut voice,
+                0.001,
+                knobs(4.0, 3.0, 1.0),
+                Series::Integer,
+                &state,
+            );
+        }
+        voice.amplitudes
+    };
+    let reference = amplitudes(48000.0);
+    for sample_rate in [2000.0, 8000.0, 96000.0] {
+        for (k, (a, r)) in amplitudes(sample_rate).iter().zip(&reference).enumerate() {
+            assert!(
+                (a - r).abs() < 1e-5,
+                "{sample_rate} Hz, slot {k}: {a} vs {r}"
+            );
+        }
+    }
+}

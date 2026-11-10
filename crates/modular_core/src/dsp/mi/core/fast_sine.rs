@@ -70,13 +70,20 @@ impl QuadratureOscillator {
             if epsilon_increment != 0.0 {
                 self.epsilon += epsilon_increment;
                 let invariant = x * x + y * y + self.epsilon.abs() * x * y;
-                // Positive for any |ε| below 2; the guard keeps a degenerate
-                // point finite.
-                if invariant > 0.0 {
-                    let scale = 1.0 / invariant.sqrt();
-                    x *= scale;
-                    y *= scale;
-                }
+                // Near 1, as it is when the frequency moves a little each
+                // step, one Newton step from 1 gives 1/√ to within
+                // (invariant − 1)²; farther off, or for a degenerate point,
+                // it takes the exact root.
+                let error = invariant - 1.0;
+                let scale = if error.abs() < 0.01 {
+                    1.0 - 0.5 * error
+                } else if invariant > 0.0 {
+                    1.0 / invariant.sqrt()
+                } else {
+                    1.0
+                };
+                x *= scale;
+                y *= scale;
             }
             self.amplitude += amplitude_increment;
             if self.epsilon >= 0.0 {
