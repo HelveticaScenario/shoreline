@@ -27899,7 +27899,7 @@
           ]
         },
         "accent": {
-          "description": "how hard each strike is: louder, brighter and longer",
+          "description": "how hard each strike is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -28084,7 +28084,7 @@
       },
       {
         "name": "accent",
-        "description": "how hard each strike is: louder, brighter and longer",
+        "description": "how hard each strike is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
         "paramType": "control",
         "defaultValue": 4.0,
         "minValue": 0.0,

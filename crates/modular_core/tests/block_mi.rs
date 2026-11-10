@@ -1,10 +1,11 @@
-//! The `$mi.*` oscillators render identically on the block and per-sample
-//! paths: held and modulated controls, audio-rate and through-zero FM, mono and
-//! poly inputs.
+//! The `$mi.*` modules in a patch: block and per-sample paths agree (held and
+//! modulated controls, audio-rate and through-zero FM, mono and poly inputs),
+//! rendering allocates nothing, and module-level behaviour holds.
 
 mod block_common;
 
 use block_common::*;
+use modular_core::types::ProcessingMode;
 use serde_json::json;
 
 #[global_allocator]
@@ -77,5 +78,66 @@ fn allocation_free() {
             0,
             "{module}"
         );
+    }
+}
+
+fn render_ports(patch: &modular_core::Patch, port: &str, calls: usize) -> Vec<f32> {
+    let mut out = Vec::new();
+    for _ in 0..calls {
+        render(patch, &[BLOCK_SIZE]);
+        for index in 0..BLOCK_SIZE {
+            for ch in 0..CHANNELS {
+                out.push(patch.sampleables["dut"].get_value_at(port, ch, index));
+            }
+        }
+    }
+    out
+}
+
+/// Two `$mi.modal` drones with the same settings draw their own grains.
+#[test]
+fn modal_instances_draw_their_own_grains() {
+    let params = json!({ "freq": 0.0, "brightness": 5.0 });
+    let a = build(
+        ProcessingMode::Block,
+        ProcessingMode::Block,
+        "$mi.modal",
+        params.clone(),
+    );
+    let b = build(
+        ProcessingMode::Block,
+        ProcessingMode::Block,
+        "$mi.modal",
+        params,
+    );
+    let a = render_ports(&a, "exciter", 4);
+    let b = render_ports(&b, "exciter", 4);
+    assert!(
+        a.iter().zip(&b).any(|(x, y)| x != y),
+        "identical grain streams"
+    );
+}
+
+/// Loud strikes and drones stay within the ±5 V the outputs declare.
+#[test]
+fn modal_outputs_stay_in_range() {
+    for params in [
+        json!({ "freq": cable("lfo", 0), "trigger": poly_cable("src", CHANNELS),
+                "structure": 1.4, "brightness": 5.0, "decay": 5.0, "accent": 5.0 }),
+        json!({ "freq": -2.0, "brightness": 4.0, "decay": 5.0, "accent": 5.0,
+                "input": poly_cable("src", CHANNELS) }),
+    ] {
+        let patch = build(
+            ProcessingMode::Block,
+            ProcessingMode::Block,
+            "$mi.modal",
+            params,
+        );
+        for port in ["output", "exciter"] {
+            let peak = render_ports(&patch, port, 200)
+                .iter()
+                .fold(0.0f32, |m, v| m.max(v.abs()));
+            assert!(peak <= 5.0, "{port} peak {peak}");
+        }
     }
 }
