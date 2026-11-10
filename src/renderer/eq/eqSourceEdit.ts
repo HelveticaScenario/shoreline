@@ -17,6 +17,7 @@ import {
     type EqSourceEditResult,
     type FieldLiteral,
     applyTextEdit,
+    appendResult,
     asTextEdit,
     diffEdit,
     findProperty,
@@ -86,7 +87,9 @@ function setField(
         `${field}: ${literal(layout.quote)}`,
         layout,
     );
-    return { source: applyTextEdit(source, asTextEdit(insert)) };
+    return insert
+        ? { source: applyTextEdit(source, asTextEdit(insert)) }
+        : { skipped: true };
 }
 
 /** Section object literal text for an appended section. */
@@ -149,23 +152,16 @@ export function computeEqSourceEdit(
     if (op.kind === 'add') {
         const text = sectionText(op.fields, layout);
         if (!loc.sections) {
-            const insert = appendObjectProperty(
-                loc.sf,
-                loc.config,
-                `sections: [${text}]`,
-                layout,
+            return appendResult(
+                appendObjectProperty(
+                    loc.sf,
+                    loc.config,
+                    `sections: [${text}]`,
+                    layout,
+                ),
             );
-            return {
-                edit: asTextEdit(insert),
-                ok: true,
-                skipped: [],
-            };
         }
-        return {
-            edit: asTextEdit(appendArrayElement(loc.sf, loc.sections, text)),
-            ok: true,
-            skipped: [],
-        };
+        return appendResult(appendArrayElement(loc.sf, loc.sections, text));
     }
     return {
         edit: loc.sections

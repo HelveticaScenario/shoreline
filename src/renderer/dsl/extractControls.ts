@@ -11,12 +11,15 @@
  * mid-edit. Within a group, duplicate labels after the first are omitted.
  */
 
-import { ts } from 'ts-morph';
+import ts from 'typescript';
+
+import { booleanLiteral, negatableNumber } from '../../shared/dsl/ast/literals';
+import { propertyName } from '../../shared/dsl/ast/names';
+import { parseDsl } from '../../shared/dsl/ast/parse';
 import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
 import {
     findControlCalls,
     GROUP_ARG_INDEX,
-    propertyName,
 } from '../../shared/dsl/controlCalls';
 import type { SliderDefinition } from '../../shared/dsl/sliderTypes';
 import { parseSliderValue } from '../../shared/dsl/sliderUnits';
@@ -92,30 +95,7 @@ function rangeOf(node: ts.Node, sourceFile: ts.SourceFile): SourceRange {
 
 /** A numeric (optionally negated) or string literal's value, else null. */
 function sliderLiteral(node: ts.Expression): number | string | null {
-    if (ts.isNumericLiteral(node)) {
-        return Number(node.text);
-    }
-    if (ts.isStringLiteral(node)) {
-        return node.text;
-    }
-    if (
-        ts.isPrefixUnaryExpression(node) &&
-        node.operator === ts.SyntaxKind.MinusToken &&
-        ts.isNumericLiteral(node.operand)
-    ) {
-        return -Number(node.operand.text);
-    }
-    return null;
-}
-
-function booleanLiteral(node: ts.Expression): boolean | null {
-    if (node.kind === ts.SyntaxKind.TrueKeyword) {
-        return true;
-    }
-    if (node.kind === ts.SyntaxKind.FalseKeyword) {
-        return false;
-    }
-    return null;
+    return ts.isStringLiteral(node) ? node.text : negatableNumber(node);
 }
 
 /** Whether a call's argument count fits its required arguments plus an
@@ -223,16 +203,6 @@ function toGroupState(
     };
 }
 
-function parse(source: string): ts.SourceFile {
-    return ts.createSourceFile(
-        'patch.js',
-        source,
-        ts.ScriptTarget.Latest,
-        false,
-        ts.ScriptKind.JS,
-    );
-}
-
 /**
  * The edit that sets the collapsed state of the `$cGroup` call whose name
  * starts at `callStart`: the `collapsed` literal is replaced, the property
@@ -245,7 +215,7 @@ export function groupCollapseEdit(
     collapsed: boolean,
     layout: CodeStyle,
 ): { span: SourceRange; text: string } | null {
-    const sourceFile = parse(source);
+    const sourceFile = parseDsl(source);
     const found = findControlCalls(sourceFile).find(
         (c) =>
             c.kind === '$cGroup' && c.name.getStart(sourceFile) === callStart,
@@ -269,7 +239,7 @@ export function groupCollapseEdit(
 }
 
 export function extractControls(source: string): StaticControls {
-    const sourceFile = parse(source);
+    const sourceFile = parseDsl(source);
     const sliders: StaticControls['sliders'] = [];
     const buttons: StaticControls['buttons'] = [];
     const groups: StaticGroup[] = [];
@@ -278,7 +248,11 @@ export function extractControls(source: string): StaticControls {
     const controlKeys = new Set<string>();
     const groupKeys = new Set<string>();
 
-    for (const { kind, call, name, group } of findControlCalls(sourceFile)) {
+    for (const found of findControlCalls(sourceFile)) {
+        const { kind, call, name } = found;
+        // The scan's result is shared by every reader of this tree; the
+        // panel gets its own copy of each path.
+        const group = [...found.group];
         const label = call.arguments[0];
         if (!label || !ts.isStringLiteral(label)) {
             continue;

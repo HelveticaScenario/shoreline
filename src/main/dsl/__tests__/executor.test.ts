@@ -10,7 +10,7 @@
 import { describe, expect, test } from 'vitest';
 import type { ModuleSchema, PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
-import { assertControlsPlaced } from '../controls';
+import { assertControlsPlaced } from '../controlPlacement';
 import { type DSLExecutionResult, executePatchScript } from '../executor';
 import { FIRST_LINE_COLUMN_OFFSET } from '../../../shared/dsl/spanTypes';
 import { enoscScalePresets } from '../../../shared/dsl/enoscScales';

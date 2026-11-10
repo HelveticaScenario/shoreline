@@ -35,15 +35,13 @@ import { createOutLane, type OutLane } from './outLane';
 import { analyzeSourceSpans } from './analyzeSource';
 import type { CallSiteSpanRegistry } from './analyzeSource';
 import type { InterpolationResolutionMap } from '../../shared/dsl/spanTypes';
-import {
-    FIRST_LINE_COLUMN_OFFSET,
-    setActiveInterpolationResolutions,
-} from '../../shared/dsl/spanTypes';
+import { setActiveInterpolationResolutions } from '../../shared/dsl/spanTypes';
 import type { SliderDefinition } from '../../shared/dsl/sliderTypes';
 import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
 import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
-import { assertControlsPlaced, createControls } from './controls';
+import { createControls } from './controls';
+import { assertControlsPlaced } from './controlPlacement';
 import { $p, setActiveCycleFactory, type CycleFactory } from './miniNotation';
 import { isPatternValue } from './patternKinds';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
@@ -1057,22 +1055,13 @@ export function executePatchScript(
     const wrapperLineCount = 3;
     setDSLWrapperLineOffset(wrapperLineCount);
 
-    // The function body template indents the first line of source with 4 spaces
-    // This affects the column reported by V8 for the first line only
-    const firstLineColumnOffset = FIRST_LINE_COLUMN_OFFSET;
-
     // Analyze source code to extract argument spans before execution
     // The registry maps call-site keys (line:column) to argument span info
     const {
         registry: spanRegistry,
         interpolationResolutions,
         callSiteSpans,
-    } = analyzeSourceSpans(
-        source,
-        schemas,
-        wrapperLineCount,
-        firstLineColumnOffset,
-    );
+    } = analyzeSourceSpans(source, schemas);
     setActiveSpanRegistry(spanRegistry);
     setActiveInterpolationResolutions(interpolationResolutions);
     setActiveCycleFactory(cycleFactory);
