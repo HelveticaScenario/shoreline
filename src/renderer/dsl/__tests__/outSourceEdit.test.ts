@@ -86,7 +86,7 @@ describe('computeOutOptionEdit — set on .out', () => {
     test('multi-line call inserts correctly', () => {
         const source = `$sine('c4').out({\n    gain: 2,\n    label: 'lead',\n})`;
         expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
-            `$sine('c4').out({\n    gain: 2,\n    label: 'lead', mute: true })`,
+            `$sine('c4').out({\n    gain: 2,\n    label: 'lead', mute: true\n})`,
         );
     });
 });
@@ -367,5 +367,180 @@ describe('computeOutOptionEdit — robustness', () => {
     test('unbalanced call returns null', () => {
         const source = `$sine('c4').out({ gain: 2 `;
         expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBeNull();
+    });
+});
+
+describe('reading the call from the syntax tree', () => {
+    test('a template interpolation does not end the call early', () => {
+        const source = '$sine(`${`c4`}`).out({ mute: false, pan: 0 })';
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
+            '$sine(`${`c4`}`).out({ mute: true, pan: 0 })',
+        );
+    });
+
+    test('a regex literal holding a bracket does not unbalance the call', () => {
+        const source = "$sine('c4').out({ pan: /[)]/.test('x') ? 0 : 1 })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
+            "$sine('c4').out({ pan: /[)]/.test('x') ? 0 : 1, mute: true })",
+        );
+    });
+
+    test('a name inside a value is not a property', () => {
+        const source = "$sine('c4').out({ pan: wide ? mute : 1 })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
+            "$sine('c4').out({ pan: wide ? mute : 1, mute: true })",
+        );
+    });
+
+    test('a shorthand property is not rewritten or duplicated', () => {
+        const source = "$sine('c4').out({ mute })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBeNull();
+        expect(
+            apply(source, anchorOf(source, 'out'), 'mute', false),
+        ).toBeNull();
+    });
+
+    test('a quoted key is the property it names', () => {
+        const source = "$sine('c4').out({ 'mute': true })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', false)).toBe(
+            "$sine('c4').out()",
+        );
+    });
+
+    test('a comment before the options object leaves it an object', () => {
+        const source = "$sine('c4').out(/* fx */ { solo: true })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
+            "$sine('c4').out(/* fx */ { solo: true, mute: true })",
+        );
+    });
+
+    test('any numeric literal is a value the knobs can rewrite', () => {
+        const source = "$sine('c4').outMono(0, 1e-1)";
+        expect(
+            applyNumeric(source, anchorOf(source, 'outMono'), 'gain', 0.5),
+        ).toBe("$sine('c4').outMono(0, 0.5)");
+        const gain = '$setOutputGain(0x1)';
+        const edit = computeSetOutputGainEdit(gain, 0.25);
+        expect(
+            edit &&
+                gain.slice(0, edit.start) + edit.text + gain.slice(edit.end),
+        ).toBe('$setOutputGain(0.25)');
+    });
+
+    test('a comment beside a comma does not swallow or strand it', () => {
+        const added = "$sine('c4').out({\n  pan: 0, // wide\n})";
+        expect(apply(added, anchorOf(added, 'out'), 'mute', true)).toBe(
+            "$sine('c4').out({\n  pan: 0, mute: true // wide\n})",
+        );
+        const removed = "$sine('c4').out({ mute: true /* m */, pan: 0 })";
+        expect(apply(removed, anchorOf(removed, 'out'), 'mute', false)).toBe(
+            "$sine('c4').out({ pan: 0 })",
+        );
+    });
+
+    test('the fader edits the last $setOutputGain call, the one that wins', () => {
+        const source = '$setOutputGain(1)\n$sine(1).out()\n$setOutputGain(0.5)';
+        const edit = computeSetOutputGainEdit(source, 0.25);
+        expect(
+            edit &&
+                source.slice(0, edit.start) +
+                    edit.text +
+                    source.slice(edit.end),
+        ).toBe('$setOutputGain(1)\n$sine(1).out()\n$setOutputGain(0.25)');
+    });
+
+    test('a spread argument is not wrapped into an options object', () => {
+        const source = "$sine('c4').outMono(0, ...rest)";
+        expect(
+            apply(source, anchorOf(source, 'outMono'), 'mute', true),
+        ).toBeNull();
+    });
+});
+
+describe('removing an option keeps the rest of the call', () => {
+    const unmute = (source: string, method: 'out' | 'outMono' = 'out') =>
+        apply(source, anchorOf(source, method), 'mute', false);
+
+    test('a property on its own line goes with its line and its comment', () => {
+        expect(
+            unmute("$sine('c4').out({\n  gain: 1, // g\n  mute: true // m\n})"),
+        ).toBe("$sine('c4').out({\n  gain: 1, // g\n})");
+        expect(
+            unmute(
+                "$sine('c4').out({\n  mute: true, // m\n  gain: 1, // g\n})",
+            ),
+        ).toBe("$sine('c4').out({\n  gain: 1, // g\n})");
+        expect(
+            unmute("$sine('c4').out({\r\n  gain: 1,\r\n  mute: true,\r\n})"),
+        ).toBe("$sine('c4').out({\r\n  gain: 1,\r\n})");
+    });
+
+    test('an option ending a shared line leaves no trailing space', () => {
+        expect(
+            unmute("$sine('c4').out({\n  gain: 2, mute: true,\n  pan: 1,\n})"),
+        ).toBe("$sine('c4').out({\n  gain: 2,\n  pan: 1,\n})");
+        expect(unmute("$sine('c4').out({ mute: true,\n  gain: 2 })")).toBe(
+            "$sine('c4').out({\n  gain: 2 })",
+        );
+    });
+
+    test('a positional gain on its own line keeps the channel comment', () => {
+        const source = "$sine('c4').outMono(\n  0, // ch\n  0.5,\n)";
+        expect(
+            applyNumeric(source, anchorOf(source, 'outMono'), 'gain', null),
+        ).toBe("$sine('c4').outMono(\n  0, // ch\n)");
+    });
+
+    test('an options object with a comment of its own stays', () => {
+        expect(unmute("$sine('c4').out({\n  // keep\n  mute: true,\n})")).toBe(
+            "$sine('c4').out({\n  // keep\n})",
+        );
+    });
+
+    test('arguments past the options are left alone', () => {
+        expect(unmute("$sine('c4').out({ mute: true }, extra)")).toBeNull();
+        expect(
+            unmute("$sine('c4').outMono({ mute: true }, extra)", 'outMono'),
+        ).toBeNull();
+        const gain = "$sine('c4').outMono(0, 0.5, extra)";
+        expect(
+            applyNumeric(gain, anchorOf(gain, 'outMono'), 'gain', null),
+        ).toBeNull();
+    });
+
+    test('a repeated key is set at its last, and never removed', () => {
+        const source = "$sine('c4').out({ mute: false, mute: false })";
+        expect(apply(source, anchorOf(source, 'out'), 'mute', true)).toBe(
+            "$sine('c4').out({ mute: false, mute: true })",
+        );
+        expect(
+            unmute("$sine('c4').out({ mute: true, mute: false })"),
+        ).toBeNull();
+    });
+});
+
+describe('the master fader edits the level the patch ends with', () => {
+    const fader = (source: string) => {
+        const edit = computeSetOutputGainEdit(source, 0.25);
+        return (
+            edit &&
+            source.slice(0, edit.start) + edit.text + source.slice(edit.end)
+        );
+    };
+
+    test('a call inside a function is not the patch level', () => {
+        expect(
+            fader(
+                '$setOutputGain(1)\nfunction f() { $setOutputGain($sine(1)) }',
+            ),
+        ).toBe(
+            '$setOutputGain(0.25)\nfunction f() { $setOutputGain($sine(1)) }',
+        );
+    });
+
+    test('a call under a branch leaves the level unknown', () => {
+        expect(
+            fader('$setOutputGain(1)\nif (c) { $setOutputGain(4) }'),
+        ).toBeNull();
     });
 });

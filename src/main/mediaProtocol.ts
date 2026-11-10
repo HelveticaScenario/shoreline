@@ -1,12 +1,8 @@
-import { net, protocol } from 'electron';
+import { protocol } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import {
-    MEDIA_SCHEME,
-    parseMediaUrl,
-    parseRemoteMediaUrl,
-} from '../shared/video/mediaUrl';
+import { MEDIA_SCHEME, parseMediaUrl } from '../shared/video/mediaUrl';
 
 /**
  * Lets the renderer load the workspace's pictures and recordings. Must run
@@ -141,46 +137,13 @@ export function parseByteRange(
 const ANY_ORIGIN = '*';
 
 /**
- * Fetches a network URL on the renderer's behalf and adds the CORS header the
- * response lacks, so a shader may read its pixels. Byte ranges go through for
- * seeking, and the body is streamed, so a live stream plays as it arrives.
- */
-async function proxyRemote(url: string, request: Request): Promise<Response> {
-    const headers = new Headers();
-    const range = request.headers.get('Range');
-    if (range !== null) headers.set('Range', range);
-    let upstream: Response;
-    try {
-        upstream = await net.fetch(url, { headers, signal: request.signal });
-    } catch (error) {
-        return new Response(
-            error instanceof Error ? error.message : String(error),
-            { status: 502 },
-        );
-    }
-    const out = new Headers(upstream.headers);
-    out.set('Access-Control-Allow-Origin', ANY_ORIGIN);
-    // The body is already decoded, so the encoding and length no longer describe it.
-    out.delete('Content-Encoding');
-    out.delete('Content-Length');
-    return new Response(upstream.body, {
-        headers: out,
-        status: upstream.status,
-        statusText: upstream.statusText,
-    });
-}
-
-/**
- * Serves workspace files over the media scheme, and network URLs through
- * {@link proxyRemote}. Byte ranges are answered so a video can seek, which its
- * loop points depend on.
+ * Serves workspace files over the media scheme. Byte ranges are answered so a
+ * video can seek, which its loop points depend on.
  */
 export function handleMediaProtocol(
     getWorkspaceRoot: () => string | null,
 ): void {
     protocol.handle(MEDIA_SCHEME, async (request) => {
-        const remote = parseRemoteMediaUrl(request.url);
-        if (remote !== null) return proxyRemote(remote, request);
         const root = getWorkspaceRoot();
         const file = servableFile(root, resolveMediaFile(root, request.url));
         if (file === null) return new Response('Not found', { status: 404 });

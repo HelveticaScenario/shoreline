@@ -11,19 +11,21 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::{fasttan, softclip8};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Ladder slope — which of the four cascaded pole outputs is tapped.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserr, JsonSchema, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum LadderSlope {
-    /// 6 dB/oct (1-pole tap).
+    /// 6 dB/oct, the gentlest slope
     Db6,
-    /// 12 dB/oct (2-pole tap).
+    /// 12 dB/oct
     Db12,
-    /// 18 dB/oct (3-pole tap).
+    /// 18 dB/oct
     Db18,
-    /// 24 dB/oct (full 4-pole ladder).
+    /// 24 dB/oct, the full classic ladder
     #[default]
     Db24,
 }
@@ -93,21 +95,35 @@ impl Filter for LegacyLadder {
     }
 }
 
+const LEGACY_LADDER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Transistor ladder lowpass",
+    description: "The classic 4-pole transistor-ladder lowpass, fat and round, with 6 to 24 dB \
+                  slopes. Lighter and cleaner than `vintageLadder`'s circuit models, it rings and \
+                  self-oscillates as the resonance nears the top.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Fat ladder bass",
+        code: r#"
+            const seq = $cycle($p('a1 ~ a1 [a2 a1] ~ e2 g1 ~'))
+            $unstable.filter
+              .legacyLadder(
+                $saw(seq),
+                $perc(seq.trig, { decay: 0.25 }).range('c3', 'c6'),
+                3,
+              )
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge XT's Legacy Ladder — the classic 4-pole transistor-ladder lowpass.
-    /// Self-oscillates at high resonance; runs 2× oversampled.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; past ~4 the ladder rings and self-oscillates.
-    /// - **slope** — output tap: `'db6'`, `'db12'`, `'db18'`, or `'db24'`.
-    ///
-    /// ```js
-    /// $unstable.filter.legacyLadder($saw('c2'), 'c4', 3, { slope: 'db24' })
-    /// ```
+    docs = LEGACY_LADDER_DOCS,
     name = "$unstable.filter.legacyLadder", ident = LegacyLadderFilter, kernel = LegacyLadder,
     output_doc = "lowpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
-        /// slope: output tap at 6, 12, 18, or 24 dB/oct (default 24)
+        #[input("how steeply it cuts", default = "db24")]
         slope: LadderSlope,
     },
     mode = |p| p.slope,
@@ -295,21 +311,34 @@ impl Filter for DiodeLadder {
     }
 }
 
+const DIODE_LADDER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "EMS-style diode ladder",
+    description: "A diode-ladder lowpass in the EMS style: thinner and more acidic than a \
+                  transistor ladder, and it screams at high resonance.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Screaming acid line",
+        code: r#"
+            const seq = $cycle($p('c2 c3 [~ c2] eb3 c2 [g2 c3] bb1 c2'))
+            $unstable.filter
+              .diodeLadder(
+                $saw(seq),
+                $perc(seq.trig, { decay: 0.15 }).range('c3', 'c7'),
+                4,
+              )
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge XT's Diode Ladder — an EMS-style diode-cascade lowpass (zero-delay
-    /// feedback, adapted from Odin 2). Screams at high resonance.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; high values self-oscillate.
-    /// - **slope** — output tap: `'db6'`, `'db12'`, `'db18'`, or `'db24'`.
-    ///
-    /// ```js
-    /// $unstable.filter.diodeLadder($saw('c2'), 'c4', 3, { slope: 'db24' })
-    /// ```
+    docs = DIODE_LADDER_DOCS,
     name = "$unstable.filter.diodeLadder", ident = DiodeLadderFilter, kernel = DiodeLadder,
     output_doc = "lowpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
-        /// slope: output tap at 6, 12, 18, or 24 dB/oct (default 24)
+        #[input("how steeply it cuts", default = "db24")]
         slope: LadderSlope,
     },
     mode = |p| p.slope,

@@ -12,8 +12,10 @@ use crate::dsp::utils::dc_blocker::DcBlocker;
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::one_pole::OnePole;
 use crate::dsp::utils::{map_range, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
-use crate::types::Clickless;
+use crate::types::SwapGlide;
 
 // ─── Reference sample rate ───────────────────────────────────────────────────
 // Glicol's DelayN values are in samples at 48kHz.
@@ -81,31 +83,46 @@ fn scale_samples(ref_samples: usize, sample_rate: f32) -> usize {
 
 // ─── Params ──────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PlateParams {
-    /// audio input (even channels → left, odd channels → right; with an odd
-    /// channel count the last channel feeds both sides)
+    #[input(
+        "signal to reverberate; all channels are mixed to mono",
+        type = audio,
+    )]
     input: PolySignal,
-    /// input bandwidth — controls high-frequency content entering the tank.
-    /// default 2.02V → coeff 0.7 (maps -5V..5V to 0.005..0.9999, clamped)
-    #[signal(default = 2.02, range = (-5.0, 5.0))]
+    #[input(
+        "how much treble enters the reverb: -5 dull, +5 full bandwidth",
+        type = control,
+        default = 2.02,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     bandwidth: Option<MonoSignal>,
-    /// tank damping — higher values absorb more high frequencies per recirculation.
-    /// default 4.09V → coeff 0.1 (maps -5V..5V to 0.9999..0.005, inverted, clamped)
-    #[signal(default = 4.09, range = (-5.0, 5.0))]
+    #[input(
+        "how fast the tail darkens: -5 bright, +5 muffled",
+        type = control,
+        default = 4.09,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     damping: Option<MonoSignal>,
-    /// feedback decay — controls how long the reverb tail sustains.
-    /// default -2.0V → coeff 0.3 (maps -5V..5V to 0.0..0.9999, clamped)
-    #[signal(default = -2.0, range = (-5.0, 5.0))]
+    #[input(
+        "how long the tail rings: -5 shortest, +5 almost endless",
+        type = control,
+        default = -2.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<MonoSignal>,
-    /// external tank modulation signal.
-    /// default 0.0V → no modulation (±5V maps to ±5.5 samples excursion at 48kHz)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.1 ms",
+        type = control,
+        default = 0.0,
+        control_range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     modulation: Option<MonoSignal>,
 }
@@ -115,7 +132,12 @@ struct PlateParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PlateOutputs {
-    #[output("output", "stereo reverb output (ch0=left, ch1=right)", default)]
+    #[output(
+        "output",
+        "stereo reverb, fully wet, as left and right channels",
+        type = cv,
+        default
+    )]
     sample: PolyOutput,
 }
 
@@ -180,10 +202,10 @@ struct PlateState {
     line_f_ap: DelayLine,
     line_f_delay: [DelayLine; 3],
 
-    // Parameter smoothing
-    smoothed_bandwidth: Clickless,
-    smoothed_damping: Clickless,
-    smoothed_decay: Clickless,
+    // Patch-update glides
+    smoothed_bandwidth: SwapGlide,
+    smoothed_damping: SwapGlide,
+    smoothed_decay: SwapGlide,
 
     // DC blocking HPF (20Hz)
     dc_blocker_l: DcBlocker,
@@ -198,19 +220,32 @@ struct PlateState {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-/// Stereo plate reverb with a dense Glicol-inspired feedback network.
-///
-/// Uses a longer feedback path with distributed damping and more allpass
-/// stages than the standard Dattorro algorithm, producing a thicker,
-/// warmer reverb tail. Always 100% wet — use `.send()` or `$mix` for
-/// dry/wet blending.
-///
-/// ```js
-/// $plate($saw('c3')).out()
-/// $plate($saw('c3'), { decay: 2, bandwidth: 3 }).out()
-/// $plate($saw('c3'), { modulation: $sine('0.1hz') }).out()
-/// ```
-#[module(name = "$plate", channels = 2, has_init, args(input))]
+const PLATE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Thick, warm plate reverb",
+    description: "A denser, warmer plate than `$dattorro`, with a thicker tail that sits well \
+                  behind pads and keys. The input is summed to mono and spread into a stereo \
+                  tail. Output is fully wet, so blend it with `.$m.plate(mix)` or send to it \
+                  from a bus.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Warm pad plate",
+        code: r#"
+            $saw($chord('F3[maj9]'))
+              .$.lpf('f5', 1)
+              .$m.plate(2, { decay: 2, damping: 1 })
+              .out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$plate",
+    docs = PLATE_DOCS,
+    channels = 2,
+    has_init,
+    args(input)
+)]
 pub struct Plate {
     outputs: PlateOutputs,
     state: PlateState,
@@ -318,7 +353,7 @@ impl Plate {
         };
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lens = self.state.lengths;
         let num_input_channels = self.params.input.channels();
 
@@ -326,17 +361,27 @@ impl Plate {
 
         let bw_v = self.params.bandwidth.value_or(2.02);
         let bw_coeff = map_range(bw_v, -5.0, 5.0, 0.005, 0.9999).clamp(0.005, 0.9999);
-        self.state.smoothed_bandwidth.update(bw_coeff);
+        self.state.smoothed_bandwidth.update(
+            bw_coeff,
+            self.params.bandwidth.glide_mark(),
+            sample_rate,
+        );
         let bandwidth = *self.state.smoothed_bandwidth;
 
         let damp_v = self.params.damping.value_or(4.09);
         let damp_coeff = map_range(damp_v, -5.0, 5.0, 0.9999, 0.005).clamp(0.005, 0.9999);
-        self.state.smoothed_damping.update(damp_coeff);
+        self.state.smoothed_damping.update(
+            damp_coeff,
+            self.params.damping.glide_mark(),
+            sample_rate,
+        );
         let damping = *self.state.smoothed_damping;
 
         let decay_v = self.params.decay.value_or(-2.0);
         let decay_raw = map_range(decay_v, -5.0, 5.0, 0.0, 0.9999).clamp(0.0, 0.9999);
-        self.state.smoothed_decay.update(decay_raw);
+        self.state
+            .smoothed_decay
+            .update(decay_raw, self.params.decay.glide_mark(), sample_rate);
         let decay = *self.state.smoothed_decay;
 
         let mod_v = self.params.modulation.value_or(0.0);

@@ -6,7 +6,10 @@
 //! - `PolyOutput`: A fixed-capacity output buffer with channel count metadata (for module outputs)
 //! - `PolySignal`: A fixed-capacity input buffer containing Signal values (for polyphonic module inputs)
 
-use crate::{dsp::utils::sanitize, types::Signal};
+use crate::{
+    dsp::utils::sanitize,
+    types::{GlideMark, PolyCableView, PreviousIds, Signal, SwapGlide},
+};
 use deserr::{DeserializeError, ErrorKind, IntoValue, ValuePointerRef};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -162,6 +165,19 @@ pub struct PolySignal {
     /// Active signal channels (always at least 1, up to PORT_MAX_CHANNELS).
     /// Sized to the actual channel count on the main thread at deserialize.
     channels: Box<[Signal]>,
+    /// The channel values, densely packed, when every channel is a constant;
+    /// empty otherwise. Read in place by block modules.
+    volts: Box<[f32]>,
+    /// A single view over the upstream port when channel `i` is a cable to
+    /// channel `first + i` of one port, read in place by block modules. Resolved by
+    /// `inject_index_ptr`, which runs after `connect`; `connect` clears it so
+    /// a stale view is never read.
+    cable: Option<PolyCableView>,
+    /// Generation of the patch swap that installed this signal; 0 until one does.
+    glide_generation: u64,
+    /// Bit `i` is set when channel `i` differs from the matching channel of the
+    /// replaced module's signal. All set until a swap compares them.
+    changed: u64,
 }
 
 // Hand-written rather than `#[derive(Connect)]`: deriving would require a
@@ -172,6 +188,7 @@ impl crate::types::Connect for PolySignal {
         // Signals carry no `#[default_connection]` fields — nothing to fill.
     }
     fn connect(&mut self, patch: &crate::Patch) {
+        self.cable = None;
         for signal in self.channels.iter_mut() {
             signal.connect(patch);
         }
@@ -185,15 +202,26 @@ impl crate::types::Connect for PolySignal {
         for signal in self.channels.iter_mut() {
             signal.inject_index_ptr(ptr);
         }
+        self.cable = PolyCableView::resolve(&self.channels);
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        self.glide_generation = generation;
+        self.changed = 0;
+        for (i, signal) in self.channels.iter().enumerate() {
+            let same = old
+                .and_then(|o| o.channels.get(i))
+                .is_some_and(|o| signal.same_source(o, ids));
+            if !same {
+                self.changed |= 1 << i;
+            }
+        }
     }
 }
 
 impl PolySignal {
     /// Create a mono (1-channel) PolySignal from a single Signal.
     pub fn mono(signal: Signal) -> Self {
-        Self {
-            channels: vec![signal].into_boxed_slice(),
-        }
+        Self::from_channels(vec![signal].into_boxed_slice())
     }
 
     /// Create a polyphonic PolySignal from a slice of Signals.
@@ -208,10 +236,43 @@ impl PolySignal {
             .cloned()
             .collect::<Vec<_>>()
             .into_boxed_slice();
-        Self { channels }
+        Self::from_channels(channels)
+    }
+
+    fn from_channels(channels: Box<[Signal]>) -> Self {
+        let volts = channels
+            .iter()
+            .map(|signal| match signal {
+                Signal::Volts(v) => Some(*v),
+                Signal::Cable { .. } => None,
+            })
+            .collect::<Option<Box<[f32]>>>()
+            .unwrap_or_default();
+        Self {
+            channels,
+            volts,
+            cable: None,
+            glide_generation: 0,
+            changed: u64::MAX,
+        }
     }
 
     // === Accessors ===
+
+    /// The channel values when every channel is a constant; empty otherwise.
+    pub(crate) fn volts(&self) -> &[f32] {
+        &self.volts
+    }
+
+    /// Every channel's signal.
+    pub(crate) fn signals(&self) -> &[Signal] {
+        &self.channels
+    }
+
+    /// The single-port view, when the channels resolved to one.
+    pub(crate) fn cable_view(&self) -> Option<&PolyCableView> {
+        self.cable.as_ref()
+    }
 
     /// Get the number of active channels
     pub fn channels(&self) -> usize {
@@ -241,6 +302,34 @@ impl PolySignal {
     /// Get the f32 value at a channel with cycling
     pub fn get_value(&self, channel: usize) -> f32 {
         self.channels[channel % self.channels.len()].get_value()
+    }
+
+    /// The [`GlideMark`] for the channel `get_value(channel)` reads.
+    #[inline]
+    pub fn glide_mark(&self, channel: usize) -> GlideMark {
+        GlideMark {
+            generation: self.glide_generation,
+            changed: self.changed,
+            channel,
+            channels: self.channels.len(),
+        }
+    }
+
+    /// Whether any of `glides`, one per channel of this signal, starts or
+    /// continues a glide on its next update. While none does, a block path
+    /// reads the signal raw and then calls [`settle_glides`](Self::settle_glides).
+    pub fn glides_pending(&self, glides: &[SwapGlide]) -> bool {
+        glides
+            .iter()
+            .enumerate()
+            .any(|(i, glide)| glide.will_glide(self.glide_mark(i)))
+    }
+
+    /// Records the last block row a block path read raw as each glide's input.
+    pub fn settle_glides(&self, glides: &mut [SwapGlide], row: &[f32]) {
+        for (i, (glide, &value)) in glides.iter_mut().zip(row).enumerate() {
+            glide.settle(value, self.glide_mark(i));
+        }
     }
 
     /// Calculate the maximum channel count across multiple PolySignals
@@ -398,6 +487,17 @@ impl MonoSignal {
         self.inner.channels.iter().map(|s| s.get_value()).sum()
     }
 
+    /// The [`GlideMark`] for the summed value: changed when any channel is.
+    #[inline]
+    pub fn glide_mark(&self) -> GlideMark {
+        GlideMark {
+            generation: self.inner.glide_generation,
+            changed: if self.inner.changed != 0 { u64::MAX } else { 0 },
+            channel: 0,
+            channels: 1,
+        }
+    }
+
     /// The summed value when every channel is a fixed voltage; None when any
     /// channel is a cable.
     pub fn constant_value(&self) -> Option<f32> {
@@ -492,6 +592,9 @@ pub trait PolySignalExt {
 
     /// Returns true if the signal is disconnected (None).
     fn is_disconnected(&self) -> bool;
+
+    /// The [`GlideMark`] for the given channel, or [`GlideMark::ABSENT`] if disconnected.
+    fn glide_mark(&self, ch: usize) -> GlideMark;
 }
 
 impl PolySignalExt for Option<PolySignal> {
@@ -516,6 +619,14 @@ impl PolySignalExt for Option<PolySignal> {
     fn is_disconnected(&self) -> bool {
         self.is_none()
     }
+
+    #[inline]
+    fn glide_mark(&self, ch: usize) -> GlideMark {
+        match self {
+            Some(ps) => ps.glide_mark(ch),
+            None => GlideMark::ABSENT,
+        }
+    }
 }
 
 /// Extension trait for `Option<MonoSignal>` providing normalled/default value access.
@@ -531,6 +642,9 @@ pub trait MonoSignalExt {
 
     /// Returns true if the signal is disconnected (None).
     fn is_disconnected(&self) -> bool;
+
+    /// The [`GlideMark`] for the summed value, or [`GlideMark::ABSENT`] if disconnected.
+    fn glide_mark(&self) -> GlideMark;
 }
 
 impl MonoSignalExt for Option<MonoSignal> {
@@ -548,6 +662,14 @@ impl MonoSignalExt for Option<MonoSignal> {
     fn is_disconnected(&self) -> bool {
         self.is_none()
     }
+
+    #[inline]
+    fn glide_mark(&self) -> GlideMark {
+        match self {
+            Some(ms) => ms.glide_mark(),
+            None => GlideMark::ABSENT,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -555,6 +677,30 @@ mod tests {
     use crate::dsp::utils::hz_to_voct;
 
     use super::*;
+    use crate::types::{Connect, SameIds};
+
+    #[test]
+    fn mark_glides_flags_only_changed_channels() {
+        let old = PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(2.0)]);
+        let mut new =
+            PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(5.0), Signal::Volts(3.0)]);
+        new.mark_glides(Some(&old), 7, &SameIds);
+        let changed: Vec<bool> = (0..3).map(|ch| new.glide_mark(ch).changed()).collect();
+        assert_eq!(
+            changed,
+            [false, true, true],
+            "a new channel counts as changed"
+        );
+        assert!(new.glide_mark(4).changed(), "channel 4 reads channel 1");
+        assert_eq!(new.glide_mark(0).generation, 7);
+
+        let mut fresh = PolySignal::mono(Signal::Volts(1.0));
+        fresh.mark_glides(None, 8, &SameIds);
+        assert!(
+            fresh.glide_mark(0).changed(),
+            "no predecessor counts as changed"
+        );
+    }
 
     #[test]
     fn test_poly_signal_mono() {
