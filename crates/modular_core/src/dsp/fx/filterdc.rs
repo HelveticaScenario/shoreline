@@ -4,20 +4,23 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FilterDcParams {
-    /// input signal to filter (any range)
+    #[input("signal to strip of DC offset and sub-audio rumble", type = audio)]
     input: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FilterDcOutputs {
-    #[output("output", "DC-blocked output signal", default)]
+    #[output("output", "the input, centred on 0 V", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -33,9 +36,26 @@ struct FilterDcState {
     dc_block_coeff: f32,
 }
 
-/// One-pole high-pass that removes DC offset and sub-audio rumble from a
-/// signal while passing audio-rate content. The cutoff sits at ~20 Hz.
-#[module(name = "$filterDC", args(input), has_init)]
+const FILTER_DC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "DC offset remover",
+    description: "Recentres a signal on 0 V by removing DC offset and sub-audio rumble below \
+                  about 20 Hz, leaving everything audible untouched. Put it after asymmetric \
+                  distortion or offset modulation so the signal sits centred and keeps its \
+                  headroom.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Recentring tube-style drive",
+        code: r#"
+            $saw('c2')
+              .$.overdrive(4, { mode: 'asym' })
+              .$.filterDC()
+              .out()
+        "#,
+    }],
+};
+
+#[module(name = "$filterDC", docs = FILTER_DC_DOCS, args(input), has_init)]
 pub struct FilterDc {
     outputs: FilterDcOutputs,
     state: FilterDcState,

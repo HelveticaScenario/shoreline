@@ -4,11 +4,13 @@ use schemars::JsonSchema;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     block_input::{InputScratch, OptionBlockInput, SCRATCH_LEN},
     dsp::utils::sanitize,
     poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
-    types::Clickless,
+    types::SwapGlide,
 };
 
 /// Mixing mode for combining input signals.
@@ -16,31 +18,34 @@ use crate::{
 #[serde(rename_all = "snake_case")]
 #[deserr(rename_all = lowercase)]
 pub enum MixMode {
-    /// Sum all inputs.
+    /// every signal added together, getting louder as more stack up
     #[default]
     Sum,
-    /// Average all inputs.
+    /// the average of the signals, staying at one signal's level however many stack up
     Average,
-    /// Keep the strongest input.
+    /// only the loudest signal at each moment
     Max,
-    /// Keep the weakest non-zero input.
+    /// only the quietest signal that isn't silent at each moment
     Min,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct MixParams {
-    /// Input signals to mix channel-by-channel.
-    ///
-    /// Channel `n` from every input is mixed into output channel `n`.
+    #[input("the signals to mix; channel n of each input mixes into output channel n")]
     pub inputs: Vec<PolySignal>,
-    /// How inputs are combined.
+    #[input("how the inputs combine", default = "sum")]
     #[serde(default)]
     #[deserr(default)]
     pub mode: MixMode,
-    /// Final output level (perceptual curve, exponent 3).
-    #[signal(default = 5.0, range = (0.0, 10.0))]
+    #[input(
+        "output level on a cubic curve: 0 silent, 5 unity, 10 eight times louder; negative flips polarity",
+        type = control,
+        default = 5.0,
+        control_range = (0.0, 10.0),
+    )]
     #[deserr(default)]
     pub gain: Option<PolySignal>,
 }
@@ -48,10 +53,10 @@ pub struct MixParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MixOutputs {
-    /// Mixed multichannel output.
     #[output(
         "output",
-        "multichannel mix: each output channel mixes the same channel index from all inputs (not a mono fold-down)",
+        "the mix, keeping each channel separate rather than folding to mono",
+        type = cv,
         default
     )]
     sample: PolyOutput,
@@ -83,16 +88,28 @@ pub fn mix_derive_channel_count(params: &MixParams) -> usize {
     .min(PORT_MAX_CHANNELS)
 }
 
-/// Mix module for combining multiple signals into a single mix bus.
-///
-/// Use this when you want to blend several multichannel modulation/audio sources.
-/// It mixes channel `n` across all inputs into output channel `n`, rather than
-/// folding all channels into a single mono channel.
-#[module(name = "$mix", channels_derive = mix_derive_channel_count, args(inputs), block)]
+const MIX_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Channel-by-channel mixer",
+    description: "Mixes several signals into one, keeping their channels apart: channel n of \
+                  every input lands on output channel n, so mixing two four-voice signals \
+                  still gives four voices. Use `$mixDown` to fold channels together instead.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Saw and sub-octave square layered",
+        code: r#"
+            $mix([$saw('c3'), $pulse('c2')], { gain: 3 })
+              .$.lpf('c5', 1)
+              .out()
+        "#,
+    }],
+};
+
+#[module(name = "$mix", docs = MIX_DOCS, channels_derive = mix_derive_channel_count, args(inputs), block)]
 pub struct Mix {
     outputs: MixOutputs,
     params: MixParams,
-    channel_state: Box<[Clickless]>,
+    channel_state: Box<[SwapGlide]>,
 }
 
 message_handlers!(impl Mix {});
@@ -177,7 +194,7 @@ pub fn __bench_make_mix(params: MixParams) -> Mix {
         outputs,
         _channel_count: channels,
         _block_index: Default::default(),
-        channel_state: vec![Clickless::default(); channels].into_boxed_slice(),
+        channel_state: vec![SwapGlide::default(); channels].into_boxed_slice(),
     }
 }
 
@@ -187,7 +204,7 @@ impl Mix {
         self.update(sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let inputs = &self.params.inputs;
         let gain = &self.params.gain;
 
@@ -271,12 +288,16 @@ impl Mix {
             }
         }
 
-        // Apply gain with cycling on pre_gain_values.
+        // Apply gain with cycling on pre_gain_values. Outside a glide the gain
+        // reads raw, exactly as `process_block` does.
         for i in 0..output_channels {
             let pre_gain_index = i % max_input_channels;
             let pre_gain_value = pre_gain_values[pre_gain_index];
-            self.channel_state[i].update(gain_curve(gain.value_or(i, 5.0)));
-            let gain_value = *self.channel_state[i];
+            let gain_value = self.channel_state[i].follow(
+                gain_curve(gain.value_or(i, 5.0)),
+                gain.glide_mark(i),
+                sample_rate,
+            );
             self.outputs.sample.set(i, pre_gain_value * gain_value);
         }
     }
@@ -289,7 +310,16 @@ impl Mix {
     ) -> Option<()> {
         let output_channels = self.channel_count();
         let inputs = &self.params.inputs;
+        let gain_param = &self.params.gain;
+        let glides = &mut self.channel_state[..output_channels];
         let out = &mut outputs.sample;
+        if glides
+            .iter()
+            .enumerate()
+            .any(|(i, glide)| glide.will_glide(gain_param.glide_mark(i)))
+        {
+            return None;
+        }
         if inputs.is_empty() {
             for i in range {
                 out.slot_mut(i).fill(0.0);
@@ -304,12 +334,8 @@ impl Mix {
             return None;
         }
         let mut gain_scratch = InputScratch::new();
-        let gain = self.params.gain.block_input_or(
-            range.clone(),
-            output_channels,
-            5.0,
-            &mut gain_scratch,
-        )?;
+        let gain =
+            gain_param.block_input_or(range.clone(), output_channels, 5.0, &mut gain_scratch)?;
 
         // `pre` ends up holding each slot's pre-gain value per channel.
         let (mut pre_buffer, mut best_buffer) = (MaybeUninit::uninit(), MaybeUninit::uninit());
@@ -370,17 +396,16 @@ impl Mix {
             }
         }
 
-        for (n, i) in range.enumerate() {
+        for (n, i) in range.clone().enumerate() {
             let pre = &pre[n * width..(n + 1) * width];
             let gains = gain.row(i);
-            let slots = out
-                .slot_mut(i)
-                .iter_mut()
-                .zip(self.channel_state.iter_mut());
-            for (ch, (value, state)) in slots.enumerate() {
-                state.update(gain_curve(gains[ch]));
-                *value = sanitize(pre[ch % width] * **state);
+            for (ch, value) in out.slot_mut(i).iter_mut().enumerate() {
+                *value = sanitize(pre[ch % width] * gain_curve(gains[ch]));
             }
+        }
+        let last = gain.row(range.end - 1);
+        for (i, glide) in glides.iter_mut().enumerate() {
+            glide.settle(gain_curve(last[i]), gain_param.glide_mark(i));
         }
         Some(())
     }
@@ -402,7 +427,7 @@ mod tests {
             outputs,
             _channel_count: channels,
             _block_index: Default::default(),
-            channel_state: vec![Clickless::default(); channels].into_boxed_slice(),
+            channel_state: vec![SwapGlide::default(); channels].into_boxed_slice(),
         };
         mixer
     }

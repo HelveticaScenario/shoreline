@@ -1,4 +1,4 @@
-//! `$mix` folds its inputs and applies its smoothed gain identically on the block
+//! `$mix` folds its inputs and applies its gain identically on the block
 //! and per-sample paths, in every mode.
 
 mod block_common;
@@ -11,9 +11,8 @@ static GLOBAL: CountingAllocator = CountingAllocator;
 
 #[test]
 fn mix_every_mode_across_input_widths() {
-    use modular_core::types::Clickless;
     // A four-wide cable, a two-wide cable and a mono constant: channels past an
-    // input's width leave it out. Gain is a smoothed mono cable.
+    // input's width leave it out. Gain is a mono cable.
     for mode in ["sum", "average", "max", "min"] {
         check_module(
             "$mix",
@@ -23,7 +22,6 @@ fn mix_every_mode_across_input_widths() {
                 "gain": cable("lfo", 3),
             }),
             |src, lfo| {
-                let mut gains = [Clickless::default(); CHANNELS];
                 (0..src.len())
                     .map(|k| {
                         let ch = k % CHANNELS;
@@ -60,14 +58,31 @@ fn mix_every_mode_across_input_widths() {
                         };
                         let amp = lfo[k - ch + 3];
                         let normalized = (amp.abs() * (1.0 / 5.0)).max(0.0);
-                        gains[ch].update(amp.signum() * (normalized * normalized * normalized));
-                        let v = pre * *gains[ch];
+                        let v = pre * (amp.signum() * (normalized * normalized * normalized));
                         if v.is_finite() { v } else { 0.0 }
                     })
                     .collect()
             },
         );
     }
+}
+
+#[test]
+fn paths_agree() {
+    for mode in ["sum", "average", "max", "min"] {
+        check_paths_agree(
+            "$mix",
+            json!({
+                "inputs": [poly_cable("src", CHANNELS), cable("lfo", 1), [0.5, -0.25]],
+                "mode": mode,
+                "gain": [cable("lfo", 0), 4.0],
+            }),
+        );
+    }
+    check_paths_agree(
+        "$mix",
+        json!({ "inputs": [poly_cable("src", 2)], "gain": poly_cable("lfo", CHANNELS) }),
+    );
 }
 
 #[test]
