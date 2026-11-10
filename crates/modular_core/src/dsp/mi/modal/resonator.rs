@@ -11,8 +11,8 @@ const BATCH: usize = 4;
 /// Where along the struck body the excitation lands; sets the mode amplitudes.
 const POSITION: f32 = 0.015;
 
-/// One state-variable band-pass mode's coefficients for frequency `f`
-/// (cycles per sample) and resonance `q`.
+/// A state-variable filter's coefficients for frequency `f` (cycles per
+/// sample) and resonance `q`, as Plaits' `ResonatorSvf` computes them.
 #[inline(always)]
 pub fn svf_coefficients(f: f32, q: f32) -> (f32, f32, f32) {
     let g = tan_fast(f);

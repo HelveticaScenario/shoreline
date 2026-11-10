@@ -1,5 +1,5 @@
-//! `stmlib::Random` and Plaits' `Dust`, one generator per voice instead of
-//! stmlib's global one, with the same sequence for the same seed.
+//! `stmlib::Random` and Plaits' `Dust`: one generator per voice, drawing
+//! stmlib's sequence for the same seed.
 
 #[derive(Clone, Copy)]
 pub struct Random {

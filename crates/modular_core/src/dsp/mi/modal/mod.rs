@@ -14,7 +14,10 @@ use crate::{
             units::semitones_to_ratio,
         },
         oscillators::{FmMode, apply_fm},
-        utils::{SchmittTrigger, rng::seed_base},
+        utils::{
+            SchmittTrigger,
+            rng::{hash_bipolar, seed_base},
+        },
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
     types::{GlideMark, SwapGlide},
@@ -70,7 +73,7 @@ struct ModalParams {
     #[deserr(default)]
     decay: Option<PolySignal>,
     #[input(
-        "how hard each strike is: louder, brighter and longer",
+        "how hard each strike is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
         type = control,
         default = 4.0,
         range = (0.0, 5.0),
@@ -129,7 +132,7 @@ const MODAL_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$mi.modal", docs = MODAL_DOCS, args(freq), has_init)]
+#[module(name = "$mi.modal", docs = MODAL_DOCS, args(freq), has_init, patch_update)]
 pub struct Modal {
     outputs: ModalOutputs,
     state: ModalState,
@@ -225,11 +228,15 @@ struct Voice {
     accent: SwapGlide,
     /// The last finite knobs, which a NaN or infinite knob holds.
     held: [f32; 4],
+    /// Whether `random` has its per-instance seed. Transfers with the voice,
+    /// so a voice's grains stay continuous across patch updates.
+    seeded: bool,
 }
 
 impl Voice {
     fn new(seed: u32) -> Self {
         Self {
+            seeded: false,
             excitation: ExcitationFilter::default(),
             resonator: Resonator::default(),
             limiter: Limiter::default(),
@@ -337,10 +344,6 @@ impl Voice {
 impl Modal {
     fn init(&mut self, sample_rate: f32) {
         self.state = ModalState::new(sample_rate);
-        let seed = seed_base(self) as u32;
-        for (ch, voice) in self.channel_state.iter_mut().enumerate() {
-            *voice = Voice::new(seed ^ (ch as u32).wrapping_mul(0x9E37_79B9));
-        }
     }
 
     fn update(&mut self, _sample_rate: f32) {
@@ -353,7 +356,9 @@ impl Modal {
                 p.fm.value_or(ch, ModalParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
-            let f0 = limit_frequency(f0.abs(), 0.5);
+            // At a standstill the modes would freeze into a held level; a
+            // 1 Hz floor lets them ring out, at a resonance too low to hear.
+            let f0 = limit_frequency(f0.abs(), 0.5).max(self.state.inv_sample_rate);
             let strike = p
                 .trigger
                 .as_ref()
@@ -379,8 +384,29 @@ impl Modal {
             let input = p.input.value_or(ch, 0.0) * 0.2;
             let input = if input.is_finite() { input } else { 0.0 };
             let (body, exciter) = voice.step(f0, knobs, sustain, strike, input, &self.state);
-            self.outputs.sample.set(ch, OUTPUT_GAIN * body);
-            self.outputs.exciter.set(ch, EXCITER_GAIN * exciter);
+            // Plaits clips after its slow limiter.
+            self.outputs
+                .sample
+                .set(ch, (OUTPUT_GAIN * body).clamp(-5.0, 5.0));
+            self.outputs
+                .exciter
+                .set(ch, (EXCITER_GAIN * exciter).clamp(-5.0, 5.0));
+        }
+    }
+}
+
+impl crate::types::PatchUpdateHandler for Modal {
+    /// Seeds the grain generators of voices that have none yet. Runs here,
+    /// not in `init`, because `init` runs in a stack slot that consecutive
+    /// constructions share, so every instance would draw the same grains.
+    fn on_patch_update(&mut self) {
+        let base = seed_base(self);
+        for (ch, voice) in self.channel_state.iter_mut().enumerate() {
+            if !voice.seeded {
+                let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
+                voice.random = Random::new((unit * f64::from(u32::MAX)) as u32);
+                voice.seeded = true;
+            }
         }
     }
 }
