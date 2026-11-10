@@ -56,9 +56,9 @@ int main(int argc, char** argv) {
         lut_fm_frequency_quantizer, clamp(in[1] * 0.2f, 0.0f, 1.0f), 128.0f);
     const float carrier_frequency = f0 * 0.25f;
     const float modulator_frequency =
-        clamp(carrier_frequency * exp2f(ratio / 12.0f), -0.5f, 0.5f);
+        clamp(carrier_frequency * float(exp2(double(ratio / 12.0f))), -0.5f, 0.5f);
     const float note_number =
-        69.0f + 12.0f * log2f(fabsf(f0) * 48000.0f / 440.0f);
+        69.0f + 12.0f * float(log2(double(fabsf(f0) * 48000.0f / 440.0f)));
     float hf_taming = 1.0f - (note_number - 24.0f + ratio - 72.0f) * 0.025f;
     hf_taming = clamp(hf_taming, 0.0f, 1.0f);
     hf_taming *= hf_taming;

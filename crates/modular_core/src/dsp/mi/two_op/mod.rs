@@ -182,7 +182,7 @@ impl Default for Voice {
             feedback: SwapGlide::default(),
             last_ratio: f32::NAN,
             semitones: ratio_semitones(TwoOpParams::RATIO_DEFAULT),
-            multiplier: (ratio_semitones(TwoOpParams::RATIO_DEFAULT) / 12.0).exp2(),
+            multiplier: ratio_multiplier(ratio_semitones(TwoOpParams::RATIO_DEFAULT)),
             last_pitch: f32::NAN,
             last_semitones: f32::NAN,
             hf_taming: 1.0,
@@ -201,6 +201,12 @@ fn ratio_semitones(ratio: f32) -> f32 {
     let a = LUT_FM_FREQUENCY_QUANTIZER[integral];
     let b = LUT_FM_FREQUENCY_QUANTIZER[integral + 1];
     a + (b - a) * fractional
+}
+
+/// The frequency multiplier for `semitones`, computed in f64 and rounded so
+/// every platform's libm gives the same value.
+fn ratio_multiplier(semitones: f32) -> f32 {
+    f64::from(semitones / 12.0).exp2() as f32
 }
 
 /// The control inputs for a sample: the raw signals and their glide marks.
@@ -231,14 +237,15 @@ impl Voice {
         }
         if changed(ratio, self.last_ratio) && ratio.is_finite() {
             self.semitones = ratio_semitones(ratio);
-            self.multiplier = (self.semitones / 12.0).exp2();
+            self.multiplier = ratio_multiplier(self.semitones);
             self.last_ratio = ratio;
         }
         let pitch = f0.abs();
         if changed(pitch, self.last_pitch) || changed(self.semitones, self.last_semitones) {
             // The modulator's MIDI note, in Plaits' two-octave-down substep
             // terms.
-            let note = 69.0 + 12.0 * (pitch * sample_rate / 440.0).log2();
+            // f64 then rounded, so every platform's libm gives the same value.
+            let note = 69.0 + 12.0 * f64::from(pitch * sample_rate / 440.0).log2() as f32;
             let taming = (1.0 - (note - 24.0 + self.semitones - 72.0) * 0.025).clamp(0.0, 1.0);
             self.hf_taming = taming * taming;
             self.last_pitch = pitch;
