@@ -98,12 +98,20 @@ function removalSpan(
     ) {
         return { end: lineEnd + 1, start: lineStart };
     }
+    const blank = (i: number) => text[i] === ' ' || text[i] === '\t';
     if (after) {
         let end = after.getEnd();
-        while (text[end] === ' ' || text[end] === '\t') {
+        while (blank(end)) {
             end++;
         }
-        return { end, start };
+        // Last on its line: take the space before it, not a line break.
+        let from = start;
+        if (text[end] === '\n' || text[end] === '\r') {
+            while (blank(from - 1)) {
+                from--;
+            }
+        }
+        return { end, start: from };
     }
     return {
         end: element.getEnd(),
@@ -168,8 +176,9 @@ export function computeOutNumericOptionEdit(
 /**
  * Compute the text edit that sets the master output gain: updates the
  * numeric literal in the last `$setOutputGain(...)` outside any function,
- * the one whose level the patch ends up with, or appends a new call at the
- * end of the source. Returns null when that call's argument is not a
+ * or appends a new call at the end of the source. A call inside a function
+ * is never the one edited: whether and when it runs is the function's
+ * caller's business. Returns null when that call's argument is not a
  * numeric literal (signal-driven — the fader is locked), or when it is not a
  * statement of its own at the top of the patch, so whether it runs depends
  * on a branch or loop.

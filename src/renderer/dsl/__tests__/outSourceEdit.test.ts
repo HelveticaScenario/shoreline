@@ -475,6 +475,15 @@ describe('removing an option keeps the rest of the call', () => {
         ).toBe("$sine('c4').out({\r\n  gain: 1,\r\n})");
     });
 
+    test('an option ending a shared line leaves no trailing space', () => {
+        expect(
+            unmute("$sine('c4').out({\n  gain: 2, mute: true,\n  pan: 1,\n})"),
+        ).toBe("$sine('c4').out({\n  gain: 2,\n  pan: 1,\n})");
+        expect(unmute("$sine('c4').out({ mute: true,\n  gain: 2 })")).toBe(
+            "$sine('c4').out({\n  gain: 2 })",
+        );
+    });
+
     test('a positional gain on its own line keeps the channel comment', () => {
         const source = "$sine('c4').outMono(\n  0, // ch\n  0.5,\n)";
         expect(
