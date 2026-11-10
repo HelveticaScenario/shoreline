@@ -26,6 +26,7 @@ TABLES = [
     ("lut_ws_bump", "i16"),
     ("lut_ws_double_bump", "i16"),
     ("lut_stiffness", "f32"),
+    ("lut_svf_shift", "f32"),
     ("lut_pitch_ratio_high", "f32", UNITS),
     ("lut_pitch_ratio_low", "f32", UNITS),
 ]
