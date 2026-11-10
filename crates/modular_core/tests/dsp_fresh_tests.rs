@@ -317,6 +317,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.formant"
         | "$mi.modal"
         | "$mi.phaseDistortion"
+        | "$mi.string"
         | "$mi.twoOp"
         | "$mi.waveshaper"
         | "$mi.zOsc" => json!({ "freq": 0.0 }),
