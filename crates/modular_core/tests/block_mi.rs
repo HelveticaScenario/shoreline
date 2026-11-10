@@ -63,6 +63,7 @@ fn z_osc_paths_agree() {
 #[test]
 fn allocation_free() {
     for module in [
+        "$mi.additive",
         "$mi.formant",
         "$mi.modal",
         "$mi.phaseDistortion",

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use crate::params::ParamsDeserializer;
 use crate::types::{Module, ModuleSchema, SampleableConstructor};
 
+pub mod additive;
 pub mod core;
 pub mod formant;
 pub mod modal;
@@ -16,6 +17,7 @@ pub mod waveshaper;
 pub mod z_osc;
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
+    additive::Additive::install_constructor(map);
     formant::Formant::install_constructor(map);
     modal::Modal::install_constructor(map);
     phase_distortion::PhaseDistortion::install_constructor(map);
@@ -26,6 +28,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
 }
 
 pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer>) {
+    additive::Additive::install_params_deserializer(map);
     formant::Formant::install_params_deserializer(map);
     modal::Modal::install_params_deserializer(map);
     phase_distortion::PhaseDistortion::install_params_deserializer(map);
@@ -37,6 +40,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
 
 pub fn schemas() -> Vec<ModuleSchema> {
     vec![
+        additive::Additive::get_schema(),
         formant::Formant::get_schema(),
         modal::Modal::get_schema(),
         phase_distortion::PhaseDistortion::get_schema(),
