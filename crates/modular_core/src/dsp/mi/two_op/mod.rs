@@ -44,7 +44,7 @@ struct TwoOpParams {
     #[deserr(default)]
     index: Option<PolySignal>,
     #[input(
-        "feedback: positive feeds the modulator into itself for a harsher, noisier tone; negative feeds the output back into the modulator's pitch for a growl",
+        "feedback of the output into the modulator: positive into its phase for a harsher, noisier tone; negative into its pitch for a growl",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -162,7 +162,8 @@ struct Voice {
     last_pitch: f32,
     last_semitones: f32,
     hf_taming: f32,
-    /// The last non-NaN `index` and `feedback`, which a NaN knob holds.
+    /// The last finite `index` and `feedback`, which a NaN or infinite knob
+    /// holds.
     held_index: f32,
     held_feedback: f32,
 }
@@ -180,8 +181,8 @@ impl Default for Voice {
             index: SwapGlide::default(),
             feedback: SwapGlide::default(),
             last_ratio: f32::NAN,
-            semitones: 0.0,
-            multiplier: 1.0,
+            semitones: ratio_semitones(TwoOpParams::RATIO_DEFAULT),
+            multiplier: (ratio_semitones(TwoOpParams::RATIO_DEFAULT) / 12.0).exp2(),
             last_pitch: f32::NAN,
             last_semitones: f32::NAN,
             hf_taming: 1.0,
@@ -189,6 +190,17 @@ impl Default for Voice {
             held_feedback: TwoOpParams::FEEDBACK_DEFAULT,
         }
     }
+}
+
+/// The modulator's ratio to the carrier, in semitones, for a `ratio` knob in
+/// volts: Plaits' quantised ratio table.
+fn ratio_semitones(ratio: f32) -> f32 {
+    let position = (ratio * 0.2).clamp(0.0, 1.0) * 128.0;
+    let integral = position as usize;
+    let fractional = position - integral as f32;
+    let a = LUT_FM_FREQUENCY_QUANTIZER[integral];
+    let b = LUT_FM_FREQUENCY_QUANTIZER[integral + 1];
+    a + (b - a) * fractional
 }
 
 /// The control inputs for a sample: the raw signals and their glide marks.
@@ -210,20 +222,15 @@ impl Voice {
             .feedback
             .follow(knobs.feedback.0, knobs.feedback.1, sample_rate);
 
-        // A NaN knob holds its control where it is.
-        if !index.is_nan() {
+        // A NaN or infinite knob holds its control where it is.
+        if index.is_finite() {
             self.held_index = index;
         }
-        if !feedback.is_nan() {
+        if feedback.is_finite() {
             self.held_feedback = feedback;
         }
-        if changed(ratio, self.last_ratio) && !ratio.is_nan() {
-            let position = (ratio * 0.2).clamp(0.0, 1.0) * 128.0;
-            let integral = position as usize;
-            let fractional = position - integral as f32;
-            let a = LUT_FM_FREQUENCY_QUANTIZER[integral];
-            let b = LUT_FM_FREQUENCY_QUANTIZER[integral + 1];
-            self.semitones = a + (b - a) * fractional;
+        if changed(ratio, self.last_ratio) && ratio.is_finite() {
+            self.semitones = ratio_semitones(ratio);
             self.multiplier = (self.semitones / 12.0).exp2();
             self.last_ratio = ratio;
         }

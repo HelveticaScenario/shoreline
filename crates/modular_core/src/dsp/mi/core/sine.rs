@@ -16,7 +16,7 @@ pub fn sine(phase: f32) -> f32 {
 }
 
 /// Plaits' `SinePM`: the table read at a 32-bit `phase` offset by `pm` cycles,
-/// for `pm` within ±32. The offset is rounded to 1/2²⁶ of a cycle, as in Plaits.
+/// for `pm` within ±32. The offset is truncated to 1/2²⁶ of a cycle, as in Plaits.
 #[inline(always)]
 pub fn sine_pm(phase: u32, pm: f32) -> f32 {
     const MAX_INDEX: u32 = 32;

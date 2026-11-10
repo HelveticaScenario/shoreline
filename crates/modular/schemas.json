@@ -27877,7 +27877,7 @@
           ]
         },
         "feedback": {
-          "description": "feedback: positive feeds the modulator into itself for a harsher, noisier tone; negative feeds the output back into the modulator's pitch for a growl",
+          "description": "feedback of the output into the modulator: positive into its phase for a harsher, noisier tone; negative into its pitch for a growl",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -28036,7 +28036,7 @@
       },
       {
         "name": "feedback",
-        "description": "feedback: positive feeds the modulator into itself for a harsher, noisier tone; negative feeds the output back into the modulator's pitch for a growl",
+        "description": "feedback of the output into the modulator: positive into its phase for a harsher, noisier tone; negative into its pitch for a growl",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": -5.0,
