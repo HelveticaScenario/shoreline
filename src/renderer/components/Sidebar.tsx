@@ -83,7 +83,9 @@ export function Sidebar({
             unregisterCommand(SHOW_DOCS_COMMAND);
             unregisterCommand(OPEN_SETTINGS_COMMAND);
         };
-    }, []);
+    }, [setOpen]);
+
+    const shownTab = open ? activeTab : null;
 
     // Clicking the shown panel's button closes the sidebar, as in VS Code.
     const onActivityClick = (id: SidebarTab) => {
@@ -122,10 +124,10 @@ export function Sidebar({
                     {/* Stays mounted so its page, search and expanded types survive tab switches. */}
                     <DocsPanel
                         target={docsTarget}
-                        hidden={activeTab !== 'docs'}
+                        hidden={shownTab !== 'docs'}
                     />
                     <SettingsPanel
-                        hidden={activeTab !== 'settings'}
+                        hidden={shownTab !== 'settings'}
                         config={config}
                         onConfigChange={changeConfig}
                     />
@@ -133,7 +135,7 @@ export function Sidebar({
             </section>
             <nav className="app-activity-bar" aria-label="Sidebar panels">
                 {TABS.map(({ id, label, icon: Icon }) => {
-                    const shown = open && activeTab === id;
+                    const shown = shownTab === id;
                     return (
                         <button
                             key={id}
