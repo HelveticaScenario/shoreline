@@ -28863,6 +28863,253 @@
     ]
   },
   {
+    "name": "$mi.swarm",
+    "docs": {
+      "summary": "Swarm of grains and glides",
+      "description": "Mutable Instruments Plaits' swarm: eight saw (or sine) voices that each wander in pitch, from a cloud of short grains to a mass of slow glissandi around the pitch.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Cloud of grains",
+          "code": "$mi.swarm('c3', { spread: 2, grainSize: 1 }).out()"
+        },
+        {
+          "title": "Bursts",
+          "code": "const seq = $cycle($p('c3 [~ c3] eb3 <g3 bb2>'))\n$mi.swarm(seq, { trigger: seq.trig }).sine.out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SwarmParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the swarm's centre pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "starts a burst: every voice restarts at once with a flurry of quick grains that slows down; unpatched, the swarm runs continuously",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "density": {
+          "description": "how often each voice starts a new grain or glide, from rarely (0) to a dense flutter (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spread": {
+          "description": "how far the eight voices stray from the centre pitch, from unison (0) to a wide, clustered cloud (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "grainSize": {
+          "description": "from short, separate grains (0) to long grains, then, past about 3.5, continuous glides between pitches (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the voices backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the swarm of saws",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "sine",
+        "description": "the same voices and grains as sines",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the swarm's centre pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "starts a burst: every voice restarts at once with a flurry of quick grains that slows down; unpatched, the swarm runs continuously",
+        "paramType": "trig"
+      },
+      {
+        "name": "density",
+        "description": "how often each voice starts a new grain or glide, from rarely (0) to a dense flutter (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "spread",
+        "description": "how far the eight voices stray from the centre pitch, from unison (0) to a wide, clustered cloud (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "grainSize",
+        "description": "from short, separate grains (0) to long grains, then, past about 3.5, continuous glides between pitches (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the voices backward",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.twoOp",
     "docs": {
       "summary": "Two-operator FM oscillator",
