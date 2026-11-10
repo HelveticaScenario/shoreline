@@ -2,25 +2,31 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::SchmittTrigger;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ScanParams {
-    /// span the counter wraps within; must be above 0
+    #[input("span the counter wraps within, read at each trigger", type = control, default = 1.0, range = (0.0, ..), control_range = (0.0, 5.0))]
     pub length: PolySignal,
-    /// amount added to the counter on each trigger; negative steps backwards
+    #[input(
+        "amount added to the counter on each trigger; negative steps backwards",
+        type = control,
+        control_range = (-5.0, 5.0),
+    )]
     pub distance: PolySignal,
-    /// rising edges step the counter by `distance`
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges step the counter by `distance`", type = trig)]
     pub trigger: PolySignal,
-    /// rising edges set the counter to 0
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edge sets the counter to 0, winning over a trigger in the same sample", type = trig)]
     #[deserr(default)]
     pub reset: Option<PolySignal>,
-    /// a step past either end lands on the opposite end instead of wrapping
-    /// by the overshoot (default false)
+    #[input(
+        "a step past either end lands on the opposite end instead of wrapping by the overshoot"
+    )]
     #[serde(default)]
     #[deserr(default)]
     pub snap_on_wrap: bool,
@@ -29,7 +35,7 @@ struct ScanParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ScanOutputs {
-    #[output("output", "the counter, from 0 to length", default)]
+    #[output("output", "the counter, from 0 to length", type = cv, default)]
     pub output: PolyOutput,
 }
 
@@ -40,21 +46,20 @@ struct ChannelState {
     reset_schmitt: SchmittTrigger,
 }
 
-/// Steps a counter by `distance` on each trigger, wrapping it within 0 to
-/// `length`.
-///
-/// A step past `length` wraps around by the overshoot, as many times as it
-/// takes, and so does a step below 0. With `snapOnWrap`, a step past
-/// `length` lands on 0 and a step below 0 lands on `length`. A counter
-/// exactly at `length` stays there. `reset` sets the counter to 0, and wins
-/// over a trigger in the same sample. Lengths are read at each trigger, so a
-/// shorter `length` takes effect on the next step.
-///
-/// ```js
-/// // Pitch steps of a quarter octave, wrapping within an octave:
-/// $sine($scan(1, 0.25, $pulse('4hz'))).out()
-/// ```
-#[module(name = "$scan", args(length, distance, trigger))]
+const SCAN_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stepping wrap-around counter",
+    description: "Moves a value by a fixed step on each trigger and wraps it around \
+                  within a length: a simple way to climb through pitches, positions or \
+                  table frames in a loop.",
+    categories: &[ModuleCategory::Sequencer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Circle of fifths folded into one octave",
+        code: "$sine($scan(1, 7 / 12, $clock.beatTrigger)).out()",
+    }],
+};
+
+#[module(name = "$scan", docs = SCAN_DOCS, args(length, distance, trigger))]
 pub struct Scan {
     params: ScanParams,
     outputs: ScanOutputs,

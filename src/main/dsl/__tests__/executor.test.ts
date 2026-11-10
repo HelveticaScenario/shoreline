@@ -16,6 +16,7 @@ import { FIRST_LINE_COLUMN_OFFSET } from '../../../shared/dsl/spanTypes';
 import { enoscScalePresets } from '../../../shared/dsl/enoscScales';
 import {
     isBeatPattern,
+    isGlidePattern,
     isFastPattern,
     isParsedPattern,
     isStructPattern,
@@ -880,6 +881,27 @@ describe('sequencing', () => {
         ).toBe(true);
     });
 
+    test('.glide captures a string glide argument span for highlighting', () => {
+        const source =
+            'const pat = $p("c4 e4").glide("0 0.25")\n' +
+            'const seq = $cycle(pat)\n' +
+            'seq.out()';
+        const patch = execPatch(source);
+        const pattern = findModules(patch, '$cycle')[0].params.pattern;
+        expect(isGlidePattern(pattern)).toBe(true);
+        if (!isGlidePattern(pattern)) return;
+        // Spans flatten as [inner, glide] — matching the Rust per_source order.
+        expect(pattern.argument_spans.length).toBe(2);
+        const innerSpan = pattern.argument_spans[0];
+        expect(
+            source.slice(innerSpan.start, innerSpan.end).includes('c4 e4'),
+        ).toBe(true);
+        const glideSpan = pattern.argument_spans[1];
+        expect(
+            source.slice(glideSpan.start, glideSpan.end).includes('0 0.25'),
+        ).toBe(true);
+    });
+
     test('.struct / .beat compose with the other pattern builders', () => {
         // .struct on a scale-degree pattern.
         expect(
@@ -1118,10 +1140,8 @@ describe('sequencing', () => {
     });
 
     test('$p.s accepts a reassigned string variable as source', () => {
-        // The inline migration form `$cycle($p.s(pat, key))` (used when an
-        // $iCycle source variable feeds calls with conflicting scales) keeps
-        // `pat` a raw string, so $p.s must consume the variable's runtime
-        // (last-assigned) value.
+        // `$cycle($p.s(pat, key))` with a reassigned `pat` must consume the
+        // variable's runtime (last-assigned) value.
         const source =
             "const key = 'c(maj)'\n" +
             "let pat = '<0 2 4>*16'\n" +

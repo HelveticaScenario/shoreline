@@ -27,6 +27,13 @@ import {
     renderOutOptionsJsDocList,
     renderOutOptionsMembers,
 } from '../../shared/dsl/outOptions';
+import { GLIDE_CURVES, GLIDE_MODES, literalUnion } from './glideCurves';
+import {
+    formatOutputMeta,
+    paramMeta,
+    withMeta,
+} from '../../shared/dsl/paramRange';
+import { renderDocContentJsDoc } from '../../shared/dsl/referenceDocs';
 export type { WavsFolderNode } from './executor';
 
 const BASE_LIB_SOURCE = `
@@ -358,18 +365,18 @@ type BufferOutputRef = {
 
 /**
  * Any pattern value: \`$p(...)\`, \`$p.s(...)\`, \`$p.arrange(...)\`, or a
- * \`.fast\`/\`.slow\`/\`.struct\`/\`.beat\` chain. Signal params accept one and
- * play it through a \`$cycle\`.
+ * \`.fast\`/\`.slow\`/\`.struct\`/\`.beat\`/\`.glide\` chain. Signal params
+ * accept one and play it through a \`$cycle\`.
  */
-type PatternSource = ParsedPattern | SpPattern | ArrangePattern | FastPattern | SlowPattern | StructPattern | BeatPattern;
+type PatternSource = ParsedPattern | SpPattern | ArrangePattern | FastPattern | SlowPattern | StructPattern | BeatPattern | GlidePattern;
 
 type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : never;
 
 /**
  * A parsed mini-notation pattern — returned by \`$p(source)\`, passed to
  * \`$cycle\` as its pattern argument. Opaque to user code; construct with
- * \`$p(...)\` and chain \`.fast\`/\`.slow\`/\`.struct\`/\`.beat\`. Never build one
- * by hand.
+ * \`$p(...)\` and chain \`.fast\`/\`.slow\`/\`.struct\`/\`.beat\`/\`.glide\`.
+ * Never build one by hand.
  */
 type ParsedPattern = {
   /**
@@ -421,6 +428,24 @@ type ParsedPattern = {
    * \`\`\`
    */
   beat(t: number | string, div: number | string): BeatPattern;
+  /**
+   * Give each note a glide (portamento) of \`g\` cycles. \`$cycle\` ramps
+   * its CV from the previous pitch, starting \`g\` cycles before the
+   * note's onset and arriving on it. \`g\` is sampled at each onset;
+   * \`0\` jumps. It is a constant or a mini-notation number pattern. With
+   * several voices, each gliding note takes the nearest-pitched voice that is
+   * free at its onset.
+   *
+   * \`curve\` shapes the ramp (default \`'linear'\`) and \`mode\` picks
+   * which end it eases: \`'in'\` (default), \`'out'\` or \`'inOut'\`.
+   * Every curve stays between the two pitches.
+   *
+   * \`\`\`js
+   * $sine($p("c4 e4 g4").glide("0 0.1 0.25")).out()
+   * $sine($p("c3 g3").glide(0.25, 'expo', 'out')).out()
+   * \`\`\`
+   */
+  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /**
    * Shorthand for \`$cycle(pattern, ...rest)\`: plays this pattern with a
    * \`$cycle\` sequencer. Accepts the same arguments as \`$cycle\` after its
@@ -620,7 +645,7 @@ function s(source: string, scale: string): SpPattern;
  * @param sections \`[cycles, pattern]\` tuples, in play order
  */
 function arrange(
-  ...sections: [number, ParsedPattern | SpPattern | ArrangePattern | FastPattern | SlowPattern | StructPattern | BeatPattern][]
+  ...sections: [number, ParsedPattern | SpPattern | ArrangePattern | FastPattern | SlowPattern | StructPattern | BeatPattern | GlidePattern][]
 ): ArrangePattern;
 }
 
@@ -647,8 +672,8 @@ type SpCombineBuilder = ((rhs: string) => SpPattern) & {
 /**
  * Chainable scale-degree pattern returned by \`$p.s()\`. Pass directly to
  * \`$cycle\`'s \`pattern\` param, or chain \`.add\`/\`.sub\`/\`.fast\`/\`.slow\`/
- * \`.struct\`/\`.beat\`. Opaque to user code — chain methods return fresh
- * patterns.
+ * \`.struct\`/\`.beat\`/\`.glide\`. Opaque to user code — chain methods return
+ * fresh patterns.
  */
 type SpPattern = {
   add: SpCombineBuilder;
@@ -661,6 +686,8 @@ type SpPattern = {
   struct(boolPattern: string): StructPattern;
   /** Place this pattern at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
   beat(t: number | string, div: number | string): BeatPattern;
+  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
+  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
 };
@@ -680,6 +707,8 @@ type ArrangePattern = {
   struct(boolPattern: string): StructPattern;
   /** Place this arrangement at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
   beat(t: number | string, div: number | string): BeatPattern;
+  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
+  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
 };
@@ -699,6 +728,8 @@ type FastPattern = {
   struct(boolPattern: string): StructPattern;
   /** Place this pattern at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
   beat(t: number | string, div: number | string): BeatPattern;
+  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
+  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
 };
@@ -716,6 +747,8 @@ type SlowPattern = {
   struct(boolPattern: string): StructPattern;
   /** Place this pattern at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
   beat(t: number | string, div: number | string): BeatPattern;
+  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
+  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
 };
@@ -740,6 +773,8 @@ type StructPattern = {
   struct(boolPattern: string): StructPattern;
   /** Place this pattern at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
   beat(t: number | string, div: number | string): BeatPattern;
+  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
+  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
 };
@@ -764,6 +799,36 @@ type BeatPattern = {
   struct(boolPattern: string): StructPattern;
   /** Place this pattern at other beats. See \`$p(...).beat\`. */
   beat(t: number | string, div: number | string): BeatPattern;
+  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
+  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
+  /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
+  cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+};
+
+/** Shape of a glide ramp. See \`$p(...).glide\`. */
+type GlideCurve = ${literalUnion(GLIDE_CURVES)};
+
+/** Which end of a glide ramp its curve eases. See \`$p(...).glide\`. */
+type GlideMode = ${literalUnion(GLIDE_MODES)};
+
+/**
+ * A gliding pattern returned by \`pattern.glide(g, curve, mode)\`: \`$cycle\` ramps into
+ * each note over \`g\` cycles. Pass directly to \`$cycle\`'s \`pattern\`
+ * param, nest it as an \`$p.arrange(...)\` section, or chain further pattern
+ * methods. Opaque to user code — construct with \`.glide(...)\`; never build
+ * one by hand.
+ */
+type GlidePattern = {
+  /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
+  fast(factor: number | string): FastPattern;
+  /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
+  slow(factor: number | string): SlowPattern;
+  /** Impose a boolean rhythmic structure. See \`$p(...).struct\`. */
+  struct(boolPattern: string): StructPattern;
+  /** Place this pattern at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
+  beat(t: number | string, div: number | string): BeatPattern;
+  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
+  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
 };
@@ -2189,10 +2254,15 @@ interface VideoBuffer {
      * shift and edge mode, as for \`$v.feedback\`.
      */
     read(config?: {
+        /** Magnification about the center; above 1 zooms in (default 1) */
         zoom?: VideoValue;
+        /** Turns; positive turns the picture clockwise (default 0) */
         rotate?: VideoValue;
+        /** Horizontal move as a fraction of the width; positive moves right (default 0) */
         shiftX?: VideoValue;
+        /** Vertical move as a fraction of the height; positive moves up (default 0) */
         shiftY?: VideoValue;
+        /** What lies beyond the frame border (default \`'clamp'\`) */
         edge?: 'clamp' | 'repeat' | 'mirror';
     }): VideoSignal;
     /** Stores a signal for the next frame to read, and returns it. */
@@ -2411,8 +2481,9 @@ function generateMultiOutputInterface(
         const outputType = getOutputType(output);
         const safeName = sanitizeOutputName(output.name);
 
-        if (output.description) {
-            lines.push(`${indent}  /** ${output.description} */`);
+        const doc = withMeta(output.description, formatOutputMeta(output));
+        if (doc) {
+            lines.push(`${indent}  /** ${doc} */`);
         }
         lines.push(`${indent}  readonly ${safeName}: ${outputType};`);
     }
@@ -2445,6 +2516,31 @@ function paramDescription(description: string): string {
         .split(/\s*\r?\n\s*/)
         .filter(Boolean)
         .join(' ');
+}
+
+/** Options listed in full up to this many; beyond it, by name only. */
+const MAX_DESCRIBED_OPTIONS = 8;
+
+/**
+ * A param's enum options on one line: `Options: \`a\` what a does; \`b\` …`.
+ * TypeScript strips the indentation of JSDoc tag lines, so options cannot
+ * nest as a list under their param.
+ */
+function optionsText(
+    propSchema: JSONSchema,
+    paramsSchema: Schema['paramsSchema'],
+): string | undefined {
+    const variants = getEnumVariants(propSchema, paramsSchema);
+    if (!variants || !variants.some((v) => v.description)) {
+        return undefined;
+    }
+    if (variants.length > MAX_DESCRIBED_OPTIONS) {
+        return `Options: ${variants.map((v) => `\`${v.value}\``).join(', ')}.`;
+    }
+    const items = variants.map((v) =>
+        v.description ? `\`${v.value}\` ${v.description}` : `\`${v.value}\``,
+    );
+    return `Options: ${items.join('; ')}.`;
 }
 
 /**
@@ -2482,19 +2578,16 @@ function buildConfigArg(moduleSchema: Schema): {
         const optionalMark = schemaRequired.includes(key) ? '' : '?';
         configProps.push(`${key}${optionalMark}: ${type}`);
 
-        // Collect config param descriptions
         const description = propSchema?.description;
-        if (description) {
-            paramDocs.push(`${key} - ${paramDescription(description)}`);
-        }
-
-        // Append enum variant descriptions as sub-bullets
-        const variants = getEnumVariants(propSchema, paramsSchema);
-        if (variants && variants.some((v) => v.description)) {
-            for (const v of variants) {
-                const desc = v.description ? ` — ${v.description}` : '';
-                paramDocs.push(`    - \`${v.value}\`${desc}`);
-            }
+        const doc = withMeta(
+            description && paramDescription(description),
+            paramMeta(moduleSchema, key),
+        );
+        const options = optionsText(propSchema, paramsSchema);
+        if (doc || options) {
+            paramDocs.push(
+                `  - ${key} - ${[doc, options].filter(Boolean).join(' · ')}`,
+            );
         }
     }
 
@@ -2516,9 +2609,9 @@ function buildConfigArg(moduleSchema: Schema): {
  * `.$.`-method renderers. `positionalStart` drops leading positionals (1 for
  * `.$.`, whose receiver is injected as the first argument); `leadParams` are
  * prepended to the parameter list (the `.$m.` `mix` crossfade); `leadDocLines`
- * are prepended before the module's own documentation. The module's full
- * documentation and every `@param` are always included, so the factory and
- * `.$.` surfaces carry identical docs and cannot drift.
+ * are prepended before the module's own documentation. The module's docs
+ * (`renderDocContentJsDoc`) and every `@param` are always included, so the
+ * factory and `.$.` surfaces carry identical docs and cannot drift.
  */
 function buildSignature(
     moduleSchema: Schema,
@@ -2526,6 +2619,8 @@ function buildSignature(
         positionalStart: number;
         leadParams?: { decl: string; doc: string }[];
         leadDocLines?: string[];
+        /** Document the main output as `@returns` (default true). */
+        returnsDoc?: boolean;
     },
 ): { args: string[]; docLines: string[] } {
     const { paramsSchema } = moduleSchema;
@@ -2542,9 +2637,9 @@ function buildSignature(
 
     const args: string[] = [];
     const docLines: string[] = [...(opts.leadDocLines ?? [])];
-    if (moduleSchema.documentation) {
-        docLines.push(...moduleSchema.documentation.split(/\r?\n/));
-    }
+    docLines.push(
+        ...renderDocContentJsDoc(moduleSchema.docs, moduleSchema.name),
+    );
 
     for (const lead of opts.leadParams ?? []) {
         args.push(lead.decl);
@@ -2573,21 +2668,16 @@ function buildSignature(
         }
 
         const description = propSchema?.description;
-        if (description) {
-            docLines.push(
-                `@param ${arg.name} ${paramDescription(description)}`,
-            );
-        } else {
-            docLines.push(`@param ${arg.name}`);
-        }
+        const doc = withMeta(
+            description && paramDescription(description),
+            paramMeta(moduleSchema, arg.name),
+        );
+        docLines.push(doc ? `@param ${arg.name} ${doc}` : `@param ${arg.name}`);
 
         if (propSchema) {
-            const variants = getEnumVariants(propSchema, paramsSchema);
-            if (variants && variants.some((v) => v.description)) {
-                for (const v of variants) {
-                    const desc = v.description ? ` — ${v.description}` : '';
-                    docLines.push(`  - \`${v.value}\`${desc}`);
-                }
+            const options = optionsText(propSchema, paramsSchema);
+            if (options) {
+                docLines.push(options);
             }
         }
     }
@@ -2596,11 +2686,19 @@ function buildSignature(
     args.push(configArg);
     if (paramDocs.length > 0) {
         docLines.push(`@param config Configuration object`);
-        for (const doc of paramDocs) {
-            docLines.push(`  - ${doc}`);
-        }
+        docLines.push(...paramDocs);
     } else {
         docLines.push(`@param config Configuration object`);
+    }
+
+    if (opts.returnsDoc ?? true) {
+        const outputs = moduleSchema.outputs ?? [];
+        // A module without a default output returns all its outputs.
+        const main = outputs.find((o) => o.default);
+        const doc = main && withMeta(main.description, formatOutputMeta(main));
+        if (doc) {
+            docLines.push(`@returns ${doc}`);
+        }
     }
 
     return { args, docLines };
@@ -2611,7 +2709,7 @@ function buildSignature(
  * for `moduleSchema`: the module's factory with its first positional dropped
  * (it becomes the chained signal receiver). For `.$m.`, a required leading
  * `mix` signal crossfades dry/wet and the return type collapses to
- * `Collection`. Carries the module's full documentation, like the factory.
+ * `Collection`. Carries the module's docs, like the factory.
  *
  * Only called on schemas passing `qualifiesForDollarChain`, which guarantees
  * `dollarMethodName` yields a valid TS identifier for the interface member.
@@ -2651,6 +2749,7 @@ function renderDollarMethod(
         positionalStart: 1,
         leadParams,
         leadDocLines,
+        returnsDoc: !withMix,
     });
 
     const returnType = withMix

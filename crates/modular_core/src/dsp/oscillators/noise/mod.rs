@@ -3,6 +3,8 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{hash_bipolar, seed_base};
 use crate::dsp::utils::voct_to_hz;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal};
 
 mod channel;
@@ -26,29 +28,33 @@ fn noise_derive_channel_count(params: &NoiseParams) -> usize {
         .clamp(1, PORT_MAX_CHANNELS)
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct NoiseParams {
-    /// kind of noise: white, pink, brown, blue, violet, binary, gaussian,
-    /// lfsr, lfsrShort, velvet, telegraph, dust
+    #[input("kind of noise", default = "white")]
     #[serde(default)]
     #[deserr(default)]
     color: NoiseKind,
-    /// generator clock in V/Oct (use `$hz()` or a note name); a new value is drawn
-    /// each tick. For telegraph and dust it is the average events per second,
-    /// and for lfsrShort the pitch of its 93-step loop.
-    /// Unconnected, the generator runs at the sample rate.
-    #[signal(type = pitch)]
+    #[input(
+        "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop. Unpatched, a new value every sample",
+        type = frequency,
+    )]
     #[deserr(default)]
     rate: Option<PolySignal>,
-    /// how the output moves between ticks: step, linear, smooth
+    #[input(
+        "how the output moves between draws while `rate` is patched",
+        default = "step"
+    )]
     #[serde(default)]
     #[deserr(default)]
     interp: NoiseInterp,
-    /// number of independent noise channels (1–64), each a different sequence;
-    /// a polyphonic `rate` raises it to that many channels
+    #[input(
+        "number of independent noise channels, each a different sequence; a polyphonic `rate` raises it to that many",
+        range = (1, 64),
+    )]
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
     channels: usize,
@@ -101,54 +107,45 @@ enum NoiseInterp {
     Smooth,
 }
 
-/// Polyphonic noise generator with selectable color and clock rate.
-///
-/// Spectral colors:
-/// - **white**: equal energy across all frequencies (bright, hissy)
-/// - **pink**: equal energy per octave (warm, balanced — good for "ocean" textures)
-/// - **brown**: steep low-frequency emphasis (deep, rumbling)
-/// - **blue** / **violet**: high-frequency emphasis (+3 / +6 dB/octave), for hats and air
-///
-/// Distributions and digital noise:
-/// - **binary**: only −5V or +5V — at the same peak it is louder than white
-/// - **gaussian**: values cluster near 0V with occasional large excursions
-/// - **lfsr** / **lfsrShort**: NES-style shift-register noise; lfsr repeats every 32767 ticks,
-///   lfsrShort every 93, which sounds pitched and metallic — its `rate` sets that pitch
-///
-/// Impulse and switching noise:
-/// - **velvet**: exactly one ±5V trigger per tick, at a random moment within it, resting at 0V
-/// - **telegraph**: ±5V that flips at random moments, on average `rate` times per second
-/// - **dust**: rests at −5V with +5V triggers, on average `rate` per second; like
-///   Mutable Instruments Beads' random grain triggers, each gap is 0.12–2.36× the average, so
-///   triggers are loosely irregular with no long silences
-///
-/// Velvet and dust triggers last the standard trigger length (about 0.33 ms),
-/// shortened toward a single sample when the next trigger comes sooner, so
-/// every trigger stays distinct.
-///
-/// `rate` clocks the generator: the color is computed at that rate, so slow
-/// rates give random CV (a slow brown is a drunk walk) and audio rates give
-/// lo-fi, band-limited noise. `interp` shapes the output between ticks;
-/// `linear` and `smooth` turn any color into a smooth random LFO. Unconnected,
-/// the generator draws a new value every sample, telegraph flips on half of all
-/// samples, and dust triggers every two samples on average.
-///
-/// The `channels` parameter sets how many independent channels are generated;
-/// each channel runs its own RNG seeded distinctly, so every channel is a
-/// different random sequence.
-///
-/// Output range is **±5V**.
-///
-/// ## Example
-///
-/// ```js
-/// $noise("pink").out()
-/// $noise("white", { channels: 4 }).out()
-/// $noise("lfsrShort", { rate: "c3" }).out()
-/// $sine($noise("brown", { rate: $hz(4), interp: "smooth" })).out()
-/// ```
+const NOISE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Noise and random source",
+    description: "Hiss, rumble, crackle and random voltages from one module: \
+                  colored noise for hats, wind and surf, shift-register noise \
+                  for chiptune percussion, and random triggers. Clocked slowly \
+                  by `rate`, any color becomes stepped or smooth random CV.",
+    categories: &[ModuleCategory::Oscillator, ModuleCategory::Random],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Brown-noise surf",
+            code: "$noise('brown').amp($sine('0.1hz').range(1, 5)).out()",
+        },
+        DocExample {
+            title: "Random melody in key",
+            code: r#"
+                $sine(
+                  $quantizer(
+                    $noise('white', { rate: '4hz' }).range('c3', 'c5'),
+                    $chord('C(minor)'),
+                  ),
+                ).out()
+            "#,
+        },
+        DocExample {
+            title: "Raindrop blips on random triggers",
+            code: r#"
+                $sine('c6')
+                  .amp(
+                    $perc($noise('dust', { rate: '6hz' }), { decay: 0.03 }),
+                  )
+                  .out()
+            "#,
+        },
+    ],
+};
+
 #[module(
-    name = "$noise",
+    name = "$noise", docs = NOISE_DOCS,
     channels_derive = noise_derive_channel_count,
     has_init,
     patch_update,
@@ -177,7 +174,7 @@ struct NoiseState {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct NoiseOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the noise", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 

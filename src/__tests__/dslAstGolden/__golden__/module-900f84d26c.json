@@ -1,0 +1,405 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["9:4",9,9]],
+      "interpolations": [],
+      "registry": [
+        ["4:5","$saw",[["freq",5,9]]],
+        ["6:5","$curve",[["exp",88,89]]],
+        ["7:7","$adsr",[["decay",74,77]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 136,
+        "gainClear": null,
+        "gainSet": {"end":140,"start":140,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":140,"start":140,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":140,"start":140,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":140,"start":140,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": [
+        "0-4 0",
+        "5-9 1",
+        "39-66 2",
+        "67-73 3",
+        "74-77 4",
+        "78-79 2",
+        "88-89 5",
+        "103-107 6",
+        "109-113 7",
+        "115-116 8",
+        "118-119 9",
+        "126-127 10",
+        "132-140 11"
+      ],
+      "fixes": [
+        [
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { shape: $slider('shape', 0, 0, 5) }",
+            "span": {"end":9,"start":9},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 22,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $btn('sync') }",
+            "span": {"end":9,"start":9},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":9,"start":9},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'c2', 'c0', 'c4')",
+            "preferred": true,
+            "span": {"end":9,"start":5},
+            "title": "Wrap 'freq' in a note $slider"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { shape: $slider('shape', 0, 0, 5) }",
+            "span": {"end":9,"start":9},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 22,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $btn('sync') }",
+            "span": {"end":9,"start":9},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":9,"start":9},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 69,
+            "controlOffset": 38,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        attack: $slider('attack', 0.001, 0, 10),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 66,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        sustain: $slider('sustain', 5, 0, 5),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'sustain'"
+          },
+          {
+            "caretOffset": 70,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        release: $slider('release', 0.01, 0, 10),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 63,
+            "controlOffset": 37,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        curve: $slider('curve', 5, -5, 5),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'curve'"
+          },
+          {
+            "caretOffset": 30,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", retrigger: $btn('retrigger')",
+            "span": {"end":77,"start":77},
+            "title": "Add button for 'retrigger'"
+          },
+          {
+            "caretOffset": 71,
+            "controlOffset": 41,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        retrigger: $toggleBtn('retrigger', false),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add toggle for 'retrigger'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 0.3, 0, 10)",
+            "preferred": false,
+            "span": {"end":77,"start":74},
+            "title": "Wrap 'decay' in $slider"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 38,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        attack: $slider('attack', 0.001, 0, 10),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 66,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        sustain: $slider('sustain', 5, 0, 5),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'sustain'"
+          },
+          {
+            "caretOffset": 70,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        release: $slider('release', 0.01, 0, 10),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 63,
+            "controlOffset": 37,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        curve: $slider('curve', 5, -5, 5),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'curve'"
+          },
+          {
+            "caretOffset": 30,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", retrigger: $btn('retrigger')",
+            "span": {"end":77,"start":77},
+            "title": "Add button for 'retrigger'"
+          },
+          {
+            "caretOffset": 71,
+            "controlOffset": 41,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        retrigger: $toggleBtn('retrigger', false),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add toggle for 'retrigger'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 0.3, 0, 10)",
+            "preferred": true,
+            "span": {"end":77,"start":74},
+            "title": "Wrap 'decay' in $slider"
+          },
+          {
+            "caretOffset": 69,
+            "controlOffset": 38,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        attack: $slider('attack', 0.001, 0, 10),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 66,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        sustain: $slider('sustain', 5, 0, 5),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'sustain'"
+          },
+          {
+            "caretOffset": 70,
+            "controlOffset": 39,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        release: $slider('release', 0.01, 0, 10),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 63,
+            "controlOffset": 37,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        curve: $slider('curve', 5, -5, 5),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add slider for 'curve'"
+          },
+          {
+            "caretOffset": 30,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", retrigger: $btn('retrigger')",
+            "span": {"end":77,"start":77},
+            "title": "Add button for 'retrigger'"
+          },
+          {
+            "caretOffset": 71,
+            "controlOffset": 41,
+            "kind": "add",
+            "newText": "{\n        decay: 0.3,\n        retrigger: $toggleBtn('retrigger', false),\n      }",
+            "span": {"end":79,"start":65},
+            "title": "Add toggle for 'retrigger'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 24,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('exp', 3, 0, 10)",
+            "preferred": true,
+            "span": {"end":89,"start":88},
+            "title": "Wrap 'exp' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 35,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMin', 'c3', 'c1', 'c5')",
+            "preferred": true,
+            "span": {"end":107,"start":103},
+            "title": "Wrap 'outMin' in a note $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 35,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('outMax', 'c7', 'c5', 'c9')",
+            "preferred": true,
+            "span": {"end":113,"start":109},
+            "title": "Wrap 'outMax' in a note $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('inMin', 0, 0, 5)",
+            "preferred": true,
+            "span": {"end":116,"start":115},
+            "title": "Wrap 'inMin' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('inMax', 5, 0, 5)",
+            "preferred": true,
+            "span": {"end":119,"start":118},
+            "title": "Wrap 'inMax' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 29,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('resonance', 2, 0, 5)",
+            "preferred": true,
+            "span": {"end":127,"start":126},
+            "title": "Wrap 'resonance' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ gain: $slider('gain', 5, 0, 5) }",
+            "span": {"end":140,"start":140},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":140,"start":140},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ width: $slider('width', 0, 0, 5) }",
+            "span": {"end":140,"start":140},
+            "title": "Add slider for 'width'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":141,"start":141,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:5","$saw",[["freq",5,9]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":35,"start":35,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["4:5","$saw",[["freq",5,9]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":70,"start":70,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [],
+        "interpolations": [],
+        "registry": [
+          ["4:5","$saw",[["freq",5,9]]],
+          ["6:5","$curve",[["exp",88,89]]],
+          ["7:7","$adsr",[["decay",74,77]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":105,"start":105,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

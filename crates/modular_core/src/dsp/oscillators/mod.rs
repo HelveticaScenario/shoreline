@@ -13,12 +13,12 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum FmMode {
-    /// Through-zero FM: frequency can go negative (phase runs backward)
+    /// through-zero: deep modulation can push the frequency below zero, running the wave backwards
     #[default]
     ThroughZero,
-    /// Linear FM: like through-zero but frequency clamped to >= 0
+    /// linear: like throughZero, but the frequency stops at zero
     Lin,
-    /// Exponential FM: modulator added to pitch in V/Oct space
+    /// exponential: `fm` adds to the pitch, one octave per volt
     Exp,
 }
 

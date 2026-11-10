@@ -7,6 +7,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::{C4_HZ_F32, rng::seed_base},
     param_errors::ModuleParamErrors,
@@ -20,28 +22,48 @@ const MAX_STAGES: usize = 50;
 /// Largest `fadeStep`: one crossfade spanning the 1- and 50-stage chains.
 const MAX_FADE_STEP: u32 = MAX_STAGES as u32 - 1;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_allpass_params -> ModuleParamErrors)]
 struct AllpassParams {
-    /// signal input
+    #[input("the sound to smear", type = audio)]
     input: PolySignal,
-    /// frequency in V/Oct (0V = C4) the stages delay most
-    #[signal(type = frequency, default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "the frequency the stages delay most",
+        type = frequency,
+        default = 0.0,
+    )]
     cutoff: PolySignal,
-    /// number of two-pole stages (1-50): how much smear
-    #[signal(default = 1.0, range = (1.0, 50.0))]
+    #[input(
+        "number of stages: more stages, longer smear; fractions fade the next stage in",
+        type = control,
+        default = 1.0,
+        range = (1.0, 50.0),
+    )]
     #[deserr(default)]
     stages: Option<PolySignal>,
-    /// how sharply the stages ring at the cutoff (0-5)
-    #[signal(type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how sharply the smear rings at the cutoff's pitch",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
-    /// output fed back into the input (-5 to 5, up to ±6 to self-oscillate)
-    #[signal(type = control, default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "repeats of the smear: rings never fade at ±5 and self-oscillate beyond; negative flips every other repeat",
+        type = control,
+        default = 0.0,
+        range = (-6.0, 6.0),
+        control_range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     feedback: Option<PolySignal>,
-    /// stages between crossfaded chains (0-49); 0 glides instead
+    #[input(
+        "how `stages` moves between counts: 0 glides smoothly from one to the next; above 0 it blends two chains this many stages apart, which cuts phaser-like notches",
+        range = (0, 49)
+    )]
     #[serde(default)]
     #[deserr(default)]
     fade_step: u32,
@@ -65,37 +87,52 @@ fn validate_allpass_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct AllpassOutputs {
-    #[output("output", "phase-shifted signal", default)]
+    #[output("output", "phase-shifted signal", type = cv, default)]
     sample: PolyOutput,
 }
 
-/// Stacked allpass filter: 1 to 50 two-pole stages, with resonance and
-/// feedback. Smears transients into chirps around the cutoff; mixed with the
-/// dry signal, it notches like a phaser.
-///
-/// - **cutoff** — V/Oct, the frequency delayed most.
-/// - **stages** — 1–50. More stages, longer smear. A fractional count fades
-///   the next stage in smoothly.
-/// - **resonance** — 0–5. Makes the smear ring at the cutoff's pitch.
-/// - **feedback** — −5 to 5. Repeats the smear; rings get longer toward ±5,
-///   where they never fade. Up to ±6 the filter self-oscillates. Negative
-///   values flip the sign of every other repeat.
-/// - **fadeStep** — 0–49. Above 0, `stages` crossfades between chains this
-///   many stages apart instead, giving notches.
-///
-/// ```js
-/// // smear a click on every beat into a chirp around C3
-/// $pPulse($clock[0]).$.apf('c3', { stages: 50 }).out()
-/// // ringing, pitched smear with repeats
-/// $pPulse($clock[0]).$.apf('g3', { stages: 32, resonance: 3, feedback: 3 }).out()
-/// // self-oscillating: no input, just the loop
-/// $apf(0, 'c3', { stages: 20, resonance: 2, feedback: 5.5 }).out()
-/// // notches: crossfading between chains 8 stages apart
-/// $noise('white').$.apf('c4', { stages: $sine('0.05hz').range(9, 25), resonance: 2, fadeStep: 8 }).out()
-/// // four-stage phaser: swept allpass mixed equally with the dry saw
-/// $saw('c2').$m.apf(2.5, $sine('0.2hz').range(-1, 3), { stages: 4, resonance: 2, feedback: 3 }).out()
-/// ```
-#[module(name = "$apf", args(input, cutoff), has_init, block)]
+const APF_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stacked allpass smear",
+    description: "Up to 50 allpass stages that smear transients into chirps around the cutoff. \
+                  Resonance and feedback make the smear ring at a pitch, and mixed with the dry \
+                  signal it notches like a phaser.",
+    categories: &[ModuleCategory::Filter, ModuleCategory::Effect],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "A click smeared into a chirp",
+            code: "$pPulse($clock[0]).$.apf('c3', { stages: 50 }).out()",
+        },
+        DocExample {
+            title: "Ringing, pitched smear with repeats",
+            code: r#"
+                $pPulse($clock[0])
+                  .$.apf('g3', { stages: 32, resonance: 3, feedback: 3 })
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Four-stage phaser",
+            code: r#"
+                $saw('c2')
+                  .$m.apf(2.5, $sine('0.2hz').range(-1, 3), {
+                    stages: 4,
+                    resonance: 2,
+                    feedback: 3,
+                  })
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(
+    name = "$apf",
+    docs = APF_DOCS,
+    args(input, cutoff),
+    has_init,
+    block
+)]
 pub struct Allpass {
     outputs: AllpassOutputs,
     state: AllpassState,

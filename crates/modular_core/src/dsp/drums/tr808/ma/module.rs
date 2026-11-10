@@ -4,22 +4,27 @@ use super::*;
 use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Ma808Params {
-    /// rising edges shake the maracas
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edges shake the maracas", type = trig)]
     trigger: PolySignal,
-    /// accent, 0–5 V, sampled at each strike and held for the shake: up to
-    /// twice as loud, and drawn out (default 0)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the shake lands, read at each strike: up to twice as loud at 5 V, and drawn out",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     accent: Option<PolySignal>,
-    /// fade out a shake still sounding over 2 ms as the next one strikes, so
-    /// every shake starts from rest; otherwise each shake runs into the last,
-    /// as on the 808 (default false)
+    #[input(
+        "start every shake from rest, fading out one still sounding over 2 ms; off, each shake runs into the last, as on the 808"
+    )]
     #[serde(default)]
     #[deserr(default)]
     restart: bool,
@@ -28,22 +33,33 @@ struct Ma808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Ma808Outputs {
-    #[output("output", "drum output", default, range = (-10.0, 10.0))]
+    #[output("output", "drum output; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
-/// TR-808 maracas.
-///
-/// A circuit model of the 808's maracas: a short shake of high, hissing noise.
-/// **accent** makes it louder and draws it out.
-///
-/// An unaccented shake peaks near **±5 V** and a fully accented one near **±10
-/// V**.
-///
-/// ```js
-/// $tr808.maracas($clock.beatTrigger).out()
-/// ```
-#[module(name = "$tr808.maracas", has_init, patch_update, args(trigger), block)]
+const MA808_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-808 maracas",
+    description: "The 808's maracas: a short shake of high, hissing noise, for a light \
+                  shuffle on top of a beat.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Sixteenth shaker",
+        code: r#"
+            $tr808.kick($cycle($p('c*4')).trig).out()
+            $tr808.maracas($cycle($p('c*16')).trig).out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$tr808.maracas",
+    docs = MA808_DOCS,
+    has_init,
+    patch_update,
+    args(trigger),
+    block
+)]
 pub struct Ma808 {
     outputs: Ma808Outputs,
     params: Ma808Params,

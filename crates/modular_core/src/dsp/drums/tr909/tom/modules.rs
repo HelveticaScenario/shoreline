@@ -4,6 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr909::circuit::TRIG_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 fn noise_network(dt: f32) -> Mna<NOISE_UNKNOWNS, NOISE_CAPS, 0, 1> {
     let mut b = MnaBuilder::<NOISE_UNKNOWNS>::default();
@@ -139,44 +141,49 @@ fn seed(base: u64, channels: &mut [Channel]) {
 
 macro_rules! tom_module {
     (
-        $(#[$doc:meta])*
+        docs = $docs:path,
         name = $name:literal,
         ident = $Struct:ident,
         parts = $parts:ident,
         freq = $freq:literal,
-        freq_range = ($freq_min:literal, $freq_max:literal),
         freq_doc = $freq_doc:literal $(,)?
     ) => {
         paste::paste! {
-            #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+            #[params]
+            #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
-                /// rising edges strike the drum
-                #[signal(type = trig, range = (0.0, 5.0))]
+                #[input("rising edges strike the drum", type = trig)]
                 trigger: PolySignal,
-                /// accent, 0–5 V, sampled at each strike and held for the hit:
-                /// up to twice as loud (default 0)
-                #[signal(default = 0.0, range = (0.0, 5.0))]
+                #[input(
+                    "how hard the hit lands, read at each strike: up to twice as loud at 5 V",
+                    type = control,
+                    default = 0.0,
+                    range = (0.0, 5.0),
+                )]
                 #[deserr(default)]
                 accent: Option<PolySignal>,
-                #[doc = $freq_doc]
-                #[signal(type = pitch, default = $freq, range = ($freq_min, $freq_max))]
+                #[input($freq_doc, type = pitch, default = $freq)]
                 #[deserr(default)]
                 freq: Option<PolySignal>,
-                /// decay control, 0–5 V: how long the drum rings (default 2.5)
-                #[signal(default = 2.5, range = (0.0, 5.0))]
+                #[input(
+                    "how long the drum rings",
+                    type = control,
+                    default = 2.5,
+                    range = (0.0, 5.0),
+                )]
                 #[deserr(default)]
                 decay: Option<PolySignal>,
-                /// fade out a hit still sounding over 2 ms as the next one
-                /// strikes, so every hit starts from rest; otherwise each hit
-                /// builds on the last, as on the 909 (default false)
+                #[input(
+                    "start every hit from rest, fading out one still sounding over 2 ms; off, each hit builds on the last, as on the 909",
+                )]
                 #[serde(default)]
                 #[deserr(default)]
                 restart: bool,
-                /// sample the controls on each strike and hold them until the
-                /// next, as accent always is, so changes reach only the hits
-                /// after them (default false)
+                #[input(
+                    "sample the controls on each strike and hold them until the next, as accent always is, so changes reach only the hits after them",
+                )]
                 #[serde(default)]
                 #[deserr(default)]
                 hold: bool,
@@ -185,12 +192,11 @@ macro_rules! tom_module {
             #[derive(Outputs, JsonSchema)]
             #[serde(rename_all = "camelCase")]
             struct [<$Struct Outputs>] {
-                #[output("output", "drum output", default, range = (-10.0, 10.0))]
+                #[output("output", "drum output; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
                 sample: PolyOutput,
             }
 
-            $(#[$doc])*
-            #[module(name = $name, has_init, patch_update, args(trigger), block)]
+            #[module(name = $name, docs = $docs, has_init, patch_update, args(trigger), block)]
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 params: [<$Struct Params>],
@@ -276,66 +282,76 @@ macro_rules! tom_module {
     };
 }
 
+const LT909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 low tom",
+    description: "The 909's low tom: a deep tone that bends down from the strike and \
+                  grows gritty as it fades, over a puff of noise.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Tom fill",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.highTom($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()
+            $tr909.midTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [c ~]')).trig).out()
+            $tr909.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [~ c]')).trig).out()
+        "#,
+    }],
+};
+
 tom_module! {
-    /// TR-909 low tom.
-    ///
-    /// A circuit model of the 909's low tom: a deep tone that bends down from
-    /// the strike and grows gritty as it fades, over a puff of noise. **freq**
-    /// sets the pitch, **decay** how long it rings, and **accent** how hard it
-    /// hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr909.lowTom($clock.beatTrigger).out()
-    /// ```
+    docs = LT909_DOCS,
     name = "$tr909.lowTom",
     ident = Lt909,
     parts = LOW,
     freq = -2.0993,
-    freq_range = (-3.6, -0.6),
-    freq_doc = "pitch in V/Oct; stock is ≈61 Hz (default -2.0993)",
+    freq_doc = "pitch; stock is ≈61 Hz",
 }
 
+const MT909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 mid tom",
+    description: "The 909's mid tom: a tone that bends down from the strike and grows \
+                  gritty as it fades, pitched between the low and high toms.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Rolling tom groove",
+        code: r#"
+            $tr909.kick($cycle($p('c*4')).trig).out()
+            $tr909.midTom($cycle($p('~ c ~ c c ~ ~ c')).trig).out()
+        "#,
+    }],
+};
+
 tom_module! {
-    /// TR-909 mid tom.
-    ///
-    /// The 909's mid tom: the low tom's sound, pitched higher and shorter.
-    /// **freq** sets the pitch, **decay** how long it rings, and **accent** how
-    /// hard it hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr909.midTom($clock.beatTrigger).out()
-    /// ```
+    docs = MT909_DOCS,
     name = "$tr909.midTom",
     ident = Mt909,
     parts = MID,
     freq = -1.8098,
-    freq_range = (-3.3, -0.3),
-    freq_doc = "pitch in V/Oct; stock is ≈75 Hz (default -1.8098)",
+    freq_doc = "pitch; stock is ≈75 Hz",
 }
 
+const HT909_DOCS: ModuleDocs = ModuleDocs {
+    summary: "TR-909 high tom",
+    description: "The 909's high tom: a tone that bends down from the strike and grows \
+                  gritty as it fades, the highest and shortest of the three.",
+    categories: &[ModuleCategory::Drum],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Tuned tom melody",
+        code: r#"
+            const toms = $cycle($p('c3 ~ eb3 f3 ~ c3 bb2 ~'))
+            $tr909.highTom(toms.trig, { freq: toms }).out()
+        "#,
+    }],
+};
+
 tom_module! {
-    /// TR-909 high tom.
-    ///
-    /// The 909's high tom: the low tom's sound, the highest and shortest of the
-    /// three. **freq** sets the pitch, **decay** how long it rings, and
-    /// **accent** how hard it hits.
-    ///
-    /// An unaccented hit peaks near **±5 V** and a fully accented one near
-    /// **±10 V**.
-    ///
-    /// ```js
-    /// $tr909.highTom($clock.beatTrigger).out()
-    /// ```
+    docs = HT909_DOCS,
     name = "$tr909.highTom",
     ident = Ht909,
     parts = HIGH,
     freq = -1.5143,
-    freq_range = (-3.0, 0.0),
-    freq_doc = "pitch in V/Oct; stock is ≈92 Hz (default -1.5143)",
+    freq_doc = "pitch; stock is ≈92 Hz",
 }

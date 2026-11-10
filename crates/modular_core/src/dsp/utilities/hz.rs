@@ -5,23 +5,26 @@ use std::ops::Range;
 
 use crate::block_input;
 use crate::dsp::utils::hz_to_voct;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 
 /// Lowest frequency converted, keeping `hz_to_voct` away from log2(≤0).
 const MIN_HZ: f32 = 1e-4;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct HzParams {
-    /// frequency in Hz
+    #[input("frequency in Hz", type = control, range = (0.0, ..), control_range = (0.0, 1000.0))]
     input: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct HzOutputs {
-    #[output("output", "V/Oct pitch output", default)]
+    #[output("output", "the frequency as a V/Oct pitch", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -32,10 +35,19 @@ fn hz(frequency: f32) -> f32 {
     hz_to_voct(frequency.max(MIN_HZ))
 }
 
-/// Converts a frequency in Hz to a V/Oct pitch.
-///
-/// Backs the DSL's `$hz()` when its argument is a signal.
-#[module(name = "_hz", args(input), block)]
+const HZ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Hz to V/Oct",
+    description: "Converts a frequency in Hz to a V/Oct pitch. Backs `$hz()` when its \
+                  argument is a signal.",
+    categories: &[ModuleCategory::Pitch],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Sweep set in Hz",
+        code: "$sine($hz($sine('0.2hz').range(200, 800))).out()",
+    }],
+};
+
+#[module(name = "_hz", docs = HZ_DOCS, args(input), block)]
 pub struct Hz {
     outputs: HzOutputs,
     params: HzParams,

@@ -16,6 +16,8 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
@@ -133,41 +135,62 @@ fn householder4(v: &mut [f32; HALF_LINES]) {
 
 // ─── Params ──────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Reverb2Params {
-    /// audio input — even channels feed the left half of the reverb, odd
-    /// channels the right; an odd channel count feeds the last channel to both
+    #[input(
+        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        type = audio,
+    )]
     input: PolySignal,
-    /// low-frequency decay time, mapped logarithmically from ~0.15 s (-5) to
-    /// ~18 s (+5). default 0 → ~1.6 s
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "how long the low end of the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<MonoSignal>,
-    /// high-frequency damping — sets how much faster the high band decays than
-    /// the low band, from equal (-5) to ten times faster (+5). default 0
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "how much faster the treble dies than the bass: -5 equally fast, +5 ten times faster",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     damping: Option<MonoSignal>,
-    /// room size — scales every delay length from 0.5× (-5) to 2× (+5). default
-    /// 0 → 1.25×
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "room size, from 0.5× (-5) to 2× (+5); bigger rooms space the echoes further apart",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<MonoSignal>,
-    /// stereo width — how strongly the left and right halves of the network
-    /// stay separate. -5 is narrowest (a panned source pulls toward centre),
-    /// +5 is widest; default 0 → natural
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "stereo width: -5 narrow, pulling panned sources toward the centre; +5 widest",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<MonoSignal>,
-    /// predelay before the network, in seconds (0 to 0.5). default 0
-    #[signal(default = 0.0, range = (0.0, 0.5))]
+    #[input(
+        "gap before the reverb starts, in seconds",
+        type = control,
+        default = 0.0,
+        range = (0.0, 0.5),
+    )]
     #[deserr(default)]
     predelay: Option<MonoSignal>,
-    /// internal chorusing depth — subtly detunes the delay lines to reduce
-    /// metallic ringing. -5 is off, +5 is deepest; default 0 → gentle
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "gentle chorusing inside the tail that softens metallic ringing: -5 off, +5 deepest",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     modulation: Option<MonoSignal>,
 }
@@ -177,7 +200,12 @@ struct Reverb2Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Reverb2Outputs {
-    #[output("output", "stereo reverb output (ch0=left, ch1=right)", default)]
+    #[output(
+        "output",
+        "stereo reverb, fully wet, as left and right channels",
+        type = cv,
+        default
+    )]
     sample: PolyOutput,
 }
 
@@ -237,26 +265,33 @@ struct Reverb2State {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-/// Stereo Jot-style Feedback Delay Network reverb with a scattering matrix.
-///
-/// The eight modulated delay lines split into a left and a right sub-network,
-/// each recirculating through its own paraunitary scattering matrix — a
-/// Hadamard mix, short per-line delays, then a Householder mix — so energy
-/// diffuses densely without a fixed metallic structure. Even input channels
-/// feed the left half, odd the right, so the wet field tracks the dry stereo
-/// image; a `width` control sets how strongly the halves cross-couple. Each
-/// line's feedback runs through a first-order absorption filter that sets a
-/// two-band decay time (`decay` for the low band, `damping` for how much faster
-/// the high band decays), and a matching tonal-correction shelf flattens the
-/// output timbre. Per-channel predelay and diffusion sit ahead of the network.
-/// Output is always 100% wet — use `.send()` or `$mix` for a dry/wet blend.
-///
-/// ```js
-/// $unstable.reverb2($saw('c3')).out()
-/// $unstable.reverb2($saw('c3'), { decay: 3, damping: 2, size: 2 }).out()
-/// $unstable.reverb2($saw('c3'), { decay: 4, width: 4, modulation: 3 }).out()
-/// ```
-#[module(name = "$unstable.reverb2", channels = 2, has_init, args(input))]
+const REVERB2_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Hall reverb with darkening tail",
+    description: "A dense stereo reverb whose bass and treble ring out for different times, like \
+                  a real hall where the highs die first. Keeps a stereo source's left and right \
+                  apart in the tail. Output is fully wet, so blend it with \
+                  `.$m.unstable.reverb2(mix)` or send to it from a bus.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Dark, long-tailed plucks",
+        code: r#"
+            const notes = $cycle($p('c5 g4 eb5 ~'))
+            $sine(notes)
+              .amp($perc(notes.trig, { decay: 0.15 }))
+              .$m.unstable.reverb2(3, { decay: 4, damping: 4 })
+              .out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$unstable.reverb2",
+    docs = REVERB2_DOCS,
+    channels = 2,
+    has_init,
+    args(input)
+)]
 pub struct Reverb2 {
     outputs: Reverb2Outputs,
     state: Reverb2State,

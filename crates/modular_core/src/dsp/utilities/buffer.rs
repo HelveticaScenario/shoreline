@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     Buffer, BufferData, MonoSignal,
     poly::{PolyOutput, PolySignal},
@@ -8,15 +10,16 @@ use crate::{
 
 // ─── $buffer (BufferWrite) ────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BufferWriteParams {
+    #[input("signal recorded into the buffer", type = audio)]
     input: PolySignal,
     #[serde(default = "default_buffer_length")]
     #[deserr(default = default_buffer_length())]
     #[schemars(skip)]
-    #[signal(skip)]
     length: f64,
 }
 
@@ -61,7 +64,8 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
     fn schemas() -> Vec<crate::types::OutputSchema> {
         vec![crate::types::OutputSchema {
             name: "output".to_string(),
-            description: "input signal passthrough".to_string(),
+            description: "the input, passed through".to_string(),
+            output_type: crate::types::OutputType::Cv,
             polyphonic: true,
             default: true,
             min_value: None,
@@ -160,10 +164,31 @@ impl BufferWriteBlockOutputs {
 #[derive(Default)]
 struct BufferWriteState {}
 
-/// Writes an input signal into a circular buffer each sample tick.
-/// The buffer is owned by this module and exposed as a buffer output.
-/// Readers ($delayRead, $bufRead) connect to it via buffer params.
-#[module(name = "$buffer", has_init, args(input, length))]
+const BUFFER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Recording loop for delays",
+    description: "Continuously records a signal into a loop the given number of \
+                  seconds long, for `$delayRead` and `$bufRead` to play back. On its \
+                  own it makes no sound.",
+    categories: &[ModuleCategory::Effect, ModuleCategory::Utility],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Echo tap",
+        code: r#"
+            const voice = $saw($cycle($p('c3 eb3 g3 ~'))).amp(
+              $perc($clock.beatTrigger, { decay: 0.15 }),
+            )
+            voice.out()
+            $delayRead($buffer(voice, 1), 0.375).amp(2.5).out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$buffer",
+    docs = BUFFER_DOCS,
+    has_init,
+    args(input, length)
+)]
 pub struct BufferWrite {
     params: BufferWriteParams,
     outputs: BufferWriteOutputs,
@@ -253,25 +278,51 @@ fn read_interpolated(buffer: &Buffer, channel: usize, frame: f32) -> f32 {
     ((c3 * frac + c2) * frac + c1) * frac + c0
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BufReadParams {
+    #[input("buffer to read, from a `$buffer`")]
     buffer: Buffer,
-    /// read position (0 to 5V scales to 0 to buffer length)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "read position: 0 the start of the buffer, 5 the end; wraps past either end",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     frame: MonoSignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BufReadOutputs {
-    #[output("output", "buffer sample output", default)]
+    #[output(
+        "output",
+        "one channel per buffer channel, read at the position",
+        type = cv,
+        default
+    )]
     sample: PolyOutput,
 }
 
-/// Reads a sample frame from a buffer and outputs its channels as a poly signal.
-#[module(name = "$bufRead", channels_derive = buf_read_derive_channel_count, args(buffer, frame))]
+const BUF_READ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Read a buffer by position",
+    description: "Plays a `$buffer` from a position you choose rather than a fixed \
+                  time behind the recording. Sweep the position to scrub through what \
+                  was recorded, like moving a tape by hand.",
+    categories: &[ModuleCategory::Utility],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Scrubbing a recorded phrase",
+        code: r#"
+            const phrase = $buffer($saw($cycle($p('c3 e3 g3 b3'))), 2)
+            $bufRead(phrase, $sine('0.1hz').range(0, 5)).out()
+        "#,
+    }],
+};
+
+#[module(name = "$bufRead", docs = BUF_READ_DOCS, channels_derive = buf_read_derive_channel_count, args(buffer, frame))]
 pub struct BufRead {
     outputs: BufReadOutputs,
     params: BufReadParams,

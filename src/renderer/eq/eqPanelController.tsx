@@ -11,7 +11,7 @@ import type { editor } from 'monaco-editor';
 import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import type { DSLExecuteResult } from '../../shared/ipcTypes';
 import { scopeBufferKeyFromChannel } from '../app/oscilloscope';
-import type { CodeStyle } from '../dsl/objectPropertyInsert';
+import type { CodeStyle } from '../dsl/listEdits';
 import { EqLivePoller } from './eqLivePoller';
 import { renderEqPanel } from './eqPanelRender';
 import { cancelTimers, flushCode } from './eqCodeWriter';

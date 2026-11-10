@@ -9,6 +9,8 @@ use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
 
 use super::wow_flutter::{WowModulation, write_read};
 use super::{FULL_SCALE_VOLTS, input_value};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Rate the hardware runs its wow and flutter at.
 const HARDWARE_RATE: f32 = 24000.0;
@@ -22,20 +24,27 @@ const HARDWARE_LP: f32 = 0.95;
 /// Control blocks per second.
 const BLOCK_RATE: f32 = 4000.0;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct WowFlutterParams {
-    /// audio input
+    #[input("signal to run through the tape; each channel wobbles in step", type = audio)]
     input: PolySignal,
-    /// how fast the tape wobbles; each volt doubles it, and 2.5 is Beads'
-    /// dirty tape (0–5, default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how fast the tape wobbles; each volt doubles it, and 2.5 is Beads' dirty tape",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     speed: Option<MonoSignal>,
-    /// how deep the wobble is: 0 = none, 2.5 = Beads' dirty tape, 5 = twice
-    /// as deep (default 2.5)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "how deep the wobble is: 0 none, 2.5 Beads' dirty tape, 5 twice as deep",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     intensity: Option<MonoSignal>,
 }
@@ -43,7 +52,7 @@ struct WowFlutterParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WowFlutterOutputs {
-    #[output("output", "the input with wow and flutter", default, range = (-5.0, 5.0))]
+    #[output("output", "the input with wow and flutter", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -68,19 +77,33 @@ struct WowFlutterState {
     block_pos: usize,
 }
 
-/// Tape wow and flutter from Mutable Instruments Beads' dirty tape setting:
-/// slow, drifting pitch wobble with a slight softening of the highs. Every
-/// channel wobbles together, like one tape carrying them all.
-///
-/// `speed` and `intensity` set how fast and how deep the wobble is; their
-/// defaults are Beads'. Faster and deeper both bend the pitch further.
-///
-/// ```js
-/// const grains = $pulse('8hz')
-/// const cloud = $granular($saw('a3'), grains, { mix: 4, quality: 'dirtyTape' })
-/// $reverb($wowFlutter(cloud), 3, { size: 5, tone: 2 }).out()
-/// ```
-#[module(name = "$wowFlutter", has_init, args(input))]
+const WOW_FLUTTER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Tape wow and flutter",
+    description: "The drifting pitch wobble and softened highs of worn tape, from Mutable \
+                  Instruments Beads' dirty tape setting. Every channel wobbles together, as if \
+                  one tape carried them all.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Warbly tape chords",
+            code: "$saw($chord('F3[maj9]')).$.lpf('f5', 1).$.wowFlutter().out()",
+        },
+        DocExample {
+            title: "The full Beads chain",
+            code: r#"
+                const grains = $pulse('8hz')
+                const cloud = $granular($saw('a3'), grains, {
+                  mix: 4,
+                  quality: 'dirtyTape',
+                })
+                $reverb($wowFlutter(cloud), 3, { size: 5, tone: 2 }).out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$wowFlutter", docs = WOW_FLUTTER_DOCS, has_init, args(input))]
 pub struct WowFlutter {
     outputs: WowFlutterOutputs,
     state: WowFlutterState,

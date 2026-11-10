@@ -1,3 +1,5 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
@@ -5,19 +7,26 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct StereoMixerParams {
-    /// Input signal to place in the stereo field.
+    #[input("the signal to place in the stereo field", type = audio)]
     input: PolySignal,
-    /// Pan position per channel (-5 = left, 0 = center, +5 = right).
+    #[input(
+        "pan position of each channel: -5 left, 0 centre, +5 right",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pan: Option<PolySignal>,
-    /// Stereo spread across channels (0 = no spread, 5 = widest spread).
-    /// Width offsets each channel around its base pan position. Defaults to 0
-    /// (no spread) when omitted.
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "how far the channels fan out around their pan positions: 0 none, 5 widest",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<MonoSignal>,
 }
@@ -25,8 +34,7 @@ struct StereoMixerParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct StereoMixerOutputs {
-    /// Stereo output (left on channel 0, right on channel 1).
-    #[output("output", "stereo mix output", default)]
+    #[output("output", "stereo mix: left on channel 0, right on channel 1", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -35,8 +43,30 @@ struct ChannelState {
     pan: SwapGlide,
 }
 
-/// Pan and spread a signal into stereo.
-#[module(name = "$stereoMix", channels = 2, args(input), has_init)]
+const STEREO_MIX_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stereo panner and spreader",
+    description: "Places a signal in the stereo field and puts out left and right. Give each \
+                  channel its own `pan`, or raise `width` to fan the voices of a chord out \
+                  from the centre.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Chord fanned across the stereo field",
+        code: r#"
+            $stereoMix($saw($chord('C3[m9]')).$.lpf('c5', 1), {
+              width: 4,
+            }).out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$stereoMix",
+    docs = STEREO_MIX_DOCS,
+    channels = 2,
+    args(input),
+    has_init
+)]
 pub struct StereoMixer {
     outputs: StereoMixerOutputs,
     params: StereoMixerParams,

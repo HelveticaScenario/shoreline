@@ -1,0 +1,156 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["3:4",3,3]],
+      "interpolations": [],
+      "registry": [["5:4","$tr909.lowTom",[["decay",62,63]]],["5:18","$p",[["source",27,44]]]]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 70,
+        "gainClear": null,
+        "gainSet": {"end":74,"start":74,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":74,"start":74,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":74,"start":74,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":74,"start":74,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": ["0-16 0","46-54 0","55-61 1","62-63 2","64-65 0","66-74 3"],
+      "fixes": [
+        [
+          {
+            "caretOffset": 54,
+            "controlOffset": 28,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    accent: $slider('accent', 0, 0, 5),\n  }",
+            "span": {"end":65,"start":53},
+            "title": "Add slider for 'accent'"
+          },
+          {
+            "caretOffset": 59,
+            "controlOffset": 26,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    freq: $slider('freq', 'f2', 'f0', 'f4'),\n  }",
+            "span": {"end":65,"start":53},
+            "title": "Add note slider for 'freq'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 4, 0, 5)",
+            "preferred": false,
+            "span": {"end":63,"start":62},
+            "title": "Wrap 'decay' in $slider"
+          },
+          {
+            "caretOffset": 54,
+            "controlOffset": 28,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    accent: $slider('accent', 0, 0, 5),\n  }",
+            "span": {"end":65,"start":53},
+            "title": "Add slider for 'accent'"
+          },
+          {
+            "caretOffset": 59,
+            "controlOffset": 26,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    freq: $slider('freq', 'f2', 'f0', 'f4'),\n  }",
+            "span": {"end":65,"start":53},
+            "title": "Add note slider for 'freq'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('decay', 4, 0, 5)",
+            "preferred": true,
+            "span": {"end":63,"start":62},
+            "title": "Wrap 'decay' in $slider"
+          },
+          {
+            "caretOffset": 54,
+            "controlOffset": 28,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    accent: $slider('accent', 0, 0, 5),\n  }",
+            "span": {"end":65,"start":53},
+            "title": "Add slider for 'accent'"
+          },
+          {
+            "caretOffset": 59,
+            "controlOffset": 26,
+            "kind": "add",
+            "newText": "{\n    decay: 4,\n    freq: $slider('freq', 'f2', 'f0', 'f4'),\n  }",
+            "span": {"end":65,"start":53},
+            "title": "Add note slider for 'freq'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ gain: $slider('gain', 5, 0, 5) }",
+            "span": {"end":74,"start":74},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":74,"start":74},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ width: $slider('width', 0, 0, 5) }",
+            "span": {"end":74,"start":74},
+            "title": "Add slider for 'width'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":75,"start":75,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":18,"start":18,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["5:18","$p",[["source",27,37]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":37,"start":37,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[],"interpolations":[],"registry":[["5:18","$p",[["source",27,44]]]]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [],
+      "setOutputGain": {"end":56,"start":56,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}

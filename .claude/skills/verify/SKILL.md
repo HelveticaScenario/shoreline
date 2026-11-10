@@ -1,9 +1,9 @@
 ---
 name: verify
-description: Launch and drive the Operator Electron app for runtime verification of renderer/editor changes — build handles, single-instance workaround, Playwright driving recipe.
+description: Launch and drive the Shoreline Electron app for runtime verification of renderer/editor changes — build handles, single-instance workaround, Playwright driving recipe.
 ---
 
-# Verifying Operator at runtime
+# Verifying Shoreline at runtime
 
 The app is Electron + Vite (`@electron-forge/plugin-vite`). The built entry is `.vite/build/main.js` (CJS), produced by `electron-forge start`; `e2e/fixtures.ts` launches the same entry. In dev builds it has a Vite dev-server URL baked in (grep `http://localhost:` in `.vite/build/main.js`).
 
@@ -19,7 +19,7 @@ The app is Electron + Vite (`@electron-forge/plugin-vite`). The built entry is `
 ## Driving the editor
 
 - Seed a `patch.js` into the E2E workspace dir before launch; the app opens with **no buffer** — `.monaco-editor` is absent until you click the file in the EXPLORER "workspace files" list (`getByText('patch.js')`).
-- Sidebar tab labels are CSS-uppercased — match `getByText(/^control$/i)`, not `'CONTROL'`.
+- Sidebar panels are switched from the vertical activity bar — icon buttons labelled by `aria-label`: `getByRole('button', { name: 'Control' })`.
 - The patch editor is the Monaco editor whose model language is `'javascript'` (`window.monaco.editor.getEditors().find(...)`); an `inmemory://` plaintext model also exists.
 - `window.__TEST_API__` (E2E_TEST=1): `executePatch()` fires the submit flow without awaiting — poll `getLastPatchResult()` until non-null. Also `setEditorValue`, `getScopeData`, `getAudioHealth`.
 - Trigger editor actions via `editor.trigger('src', 'editor.action.quickFix', null)` etc.; the action-widget rows are `.action-widget .monaco-list-row`.

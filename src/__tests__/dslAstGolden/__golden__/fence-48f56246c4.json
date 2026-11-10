@@ -1,0 +1,943 @@
+{
+  "original": {
+    "analyze": {
+      "callSiteSpans": [["1:22",1,1],["2:98",2,2]],
+      "interpolations": [],
+      "registry": [
+        ["4:10","$saw",[["freq",10,14]]],
+        ["5:12","$saw",[["freq",39,43]]],
+        ["5:24","$noise",[["color",53,60]]]
+      ]
+    },
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 17,
+        "gainClear": null,
+        "gainSet": {"end":21,"start":21,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":21,"start":21,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":21,"start":21,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":21,"start":21,"text":"{ solo: true }"}
+      },
+      {
+        "anchor": 120,
+        "gainClear": null,
+        "gainSet": {"end":124,"start":124,"text":"{ gain: 0.5 }"},
+        "muteOff": null,
+        "muteOn": {"end":124,"start":124,"text":"{ mute: true }"},
+        "panClear": null,
+        "panSet": {"end":124,"start":124,"text":"{ pan: 0.25 }"},
+        "soloOff": null,
+        "soloOn": {"end":124,"start":124,"text":"{ solo: true }"}
+      }
+    ],
+    "quickFixes": {
+      "at": [
+        "0-4 0",
+        "5-9 1",
+        "10-14 2",
+        "15-15 0",
+        "16-21 3",
+        "23-27 4",
+        "28-33 5",
+        "34-38 6",
+        "39-43 7",
+        "44-45 5",
+        "61-62 5",
+        "63-66 4",
+        "67-73 8",
+        "74-75 9",
+        "76-76 4",
+        "77-85 10",
+        "86-87 11",
+        "88-88 4",
+        "89-98 12",
+        "99-100 13",
+        "101-101 4",
+        "102-112 14",
+        "113-116 15",
+        "117-118 4",
+        "119-124 16"
+      ],
+      "fixes": [
+        [
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { depth: $slider('depth', 5, 0, 5) }",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'depth'"
+          },
+          {
+            "caretOffset": 44,
+            "controlOffset": 15,
+            "kind": "add",
+            "newText": ", { threshold: $slider('threshold', 1, 0, 5) }",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'threshold'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { ratio: $slider('ratio', 4, 0, 5) }",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'ratio'"
+          },
+          {
+            "caretOffset": 60,
+            "controlOffset": 23,
+            "kind": "add",
+            "newText": ", {\n  upwardThreshold: $slider('upwardThreshold', 0.5, 0, 5),\n}",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'upwardThreshold'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { upwardRatio: $slider('upwardRatio', 4, 0, 5) }",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", { attack: $slider('attack', 0.003, 0, 5) }",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 43,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", { release: $slider('release', 0.05, 0, 5) }",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 40,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", { lowGain: $slider('lowGain', 5, 0, 5) }",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'lowGain'"
+          },
+          {
+            "caretOffset": 40,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", { midGain: $slider('midGain', 5, 0, 5) }",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'midGain'"
+          },
+          {
+            "caretOffset": 42,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", { highGain: $slider('highGain', 5, 0, 5) }",
+            "span": {"end":15,"start":15},
+            "title": "Add slider for 'highGain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { shape: $slider('shape', 0, 0, 5) }",
+            "span": {"end":14,"start":14},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 22,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $btn('sync') }",
+            "span": {"end":14,"start":14},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":14,"start":14},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'c2', 'c0', 'c4')",
+            "preferred": true,
+            "span": {"end":14,"start":10},
+            "title": "Wrap 'freq' in a note $slider"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": ", { shape: $slider('shape', 0, 0, 5) }",
+            "span": {"end":14,"start":14},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 22,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": ", { sync: $btn('sync') }",
+            "span": {"end":14,"start":14},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 48,
+            "controlOffset": 17,
+            "kind": "add",
+            "newText": ", { phaseOffset: $slider('phaseOffset', 0, 0, 1) }",
+            "span": {"end":14,"start":14},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 8,
+            "kind": "add",
+            "newText": "{ gain: $slider('gain', 5, 0, 5) }",
+            "span": {"end":21,"start":21},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 31,
+            "controlOffset": 7,
+            "kind": "add",
+            "newText": "{ pan: $slider('pan', 0, -5, 5) }",
+            "span": {"end":21,"start":21},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 34,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{ width: $slider('width', 0, 0, 5) }",
+            "span": {"end":21,"start":21},
+            "title": "Add slider for 'width'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 95,
+            "controlOffset": 70,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  ratio: $slider('ratio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'ratio'"
+          },
+          {
+            "caretOffset": 117,
+            "controlOffset": 80,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardThreshold: $slider('upwardThreshold', 0.5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardThreshold'"
+          },
+          {
+            "caretOffset": 107,
+            "controlOffset": 76,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardRatio: $slider('upwardRatio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 101,
+            "controlOffset": 71,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  attack: $slider('attack', 0.003, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 102,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  release: $slider('release', 0.05, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 99,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  midGain: $slider('midGain', 5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'midGain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 37,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  gain: $slider('gain', 5, 0, 10),\n}",
+            "span": {"end":62,"start":62},
+            "title": "Add slider for 'gain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 38,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", {\n  shape: $slider('shape', 0, 0, 5),\n}",
+            "span": {"end":43,"start":43},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 24,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $btn('sync'),\n}",
+            "span": {"end":43,"start":43},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":43,"start":43},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 33,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('freq', 'c2', 'c0', 'c4')",
+            "preferred": true,
+            "span": {"end":43,"start":39},
+            "title": "Wrap 'freq' in a note $slider"
+          },
+          {
+            "caretOffset": 38,
+            "controlOffset": 13,
+            "kind": "add",
+            "newText": ", {\n  shape: $slider('shape', 0, 0, 5),\n}",
+            "span": {"end":43,"start":43},
+            "title": "Add slider for 'shape'"
+          },
+          {
+            "caretOffset": 24,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  sync: $btn('sync'),\n}",
+            "span": {"end":43,"start":43},
+            "title": "Add button for 'sync'"
+          },
+          {
+            "caretOffset": 50,
+            "controlOffset": 19,
+            "kind": "add",
+            "newText": ", {\n  phaseOffset: $slider('phaseOffset', 0, 0, 1),\n}",
+            "span": {"end":43,"start":43},
+            "title": "Add slider for 'phaseOffset'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('depth', 4, 0, 5)",
+            "preferred": false,
+            "span": {"end":75,"start":74},
+            "title": "Wrap 'depth' in $slider"
+          },
+          {
+            "caretOffset": 95,
+            "controlOffset": 70,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  ratio: $slider('ratio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'ratio'"
+          },
+          {
+            "caretOffset": 117,
+            "controlOffset": 80,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardThreshold: $slider('upwardThreshold', 0.5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardThreshold'"
+          },
+          {
+            "caretOffset": 107,
+            "controlOffset": 76,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardRatio: $slider('upwardRatio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 101,
+            "controlOffset": 71,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  attack: $slider('attack', 0.003, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 102,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  release: $slider('release', 0.05, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 99,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  midGain: $slider('midGain', 5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'midGain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 25,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('depth', 4, 0, 5)",
+            "preferred": true,
+            "span": {"end":75,"start":74},
+            "title": "Wrap 'depth' in $slider"
+          },
+          {
+            "caretOffset": 95,
+            "controlOffset": 70,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  ratio: $slider('ratio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'ratio'"
+          },
+          {
+            "caretOffset": 117,
+            "controlOffset": 80,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardThreshold: $slider('upwardThreshold', 0.5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardThreshold'"
+          },
+          {
+            "caretOffset": 107,
+            "controlOffset": 76,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardRatio: $slider('upwardRatio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 101,
+            "controlOffset": 71,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  attack: $slider('attack', 0.003, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 102,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  release: $slider('release', 0.05, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 99,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  midGain: $slider('midGain', 5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'midGain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('lowGain', 6, 0, 6)",
+            "preferred": false,
+            "span": {"end":87,"start":86},
+            "title": "Wrap 'lowGain' in $slider"
+          },
+          {
+            "caretOffset": 95,
+            "controlOffset": 70,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  ratio: $slider('ratio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'ratio'"
+          },
+          {
+            "caretOffset": 117,
+            "controlOffset": 80,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardThreshold: $slider('upwardThreshold', 0.5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardThreshold'"
+          },
+          {
+            "caretOffset": 107,
+            "controlOffset": 76,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardRatio: $slider('upwardRatio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 101,
+            "controlOffset": 71,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  attack: $slider('attack', 0.003, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 102,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  release: $slider('release', 0.05, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 99,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  midGain: $slider('midGain', 5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'midGain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 27,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('lowGain', 6, 0, 6)",
+            "preferred": true,
+            "span": {"end":87,"start":86},
+            "title": "Wrap 'lowGain' in $slider"
+          },
+          {
+            "caretOffset": 95,
+            "controlOffset": 70,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  ratio: $slider('ratio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'ratio'"
+          },
+          {
+            "caretOffset": 117,
+            "controlOffset": 80,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardThreshold: $slider('upwardThreshold', 0.5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardThreshold'"
+          },
+          {
+            "caretOffset": 107,
+            "controlOffset": 76,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardRatio: $slider('upwardRatio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 101,
+            "controlOffset": 71,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  attack: $slider('attack', 0.003, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 102,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  release: $slider('release', 0.05, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 99,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  midGain: $slider('midGain', 5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'midGain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('highGain', 4, 0, 5)",
+            "preferred": false,
+            "span": {"end":100,"start":99},
+            "title": "Wrap 'highGain' in $slider"
+          },
+          {
+            "caretOffset": 95,
+            "controlOffset": 70,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  ratio: $slider('ratio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'ratio'"
+          },
+          {
+            "caretOffset": 117,
+            "controlOffset": 80,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardThreshold: $slider('upwardThreshold', 0.5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardThreshold'"
+          },
+          {
+            "caretOffset": 107,
+            "controlOffset": 76,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardRatio: $slider('upwardRatio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 101,
+            "controlOffset": 71,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  attack: $slider('attack', 0.003, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 102,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  release: $slider('release', 0.05, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 99,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  midGain: $slider('midGain', 5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'midGain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 28,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('highGain', 4, 0, 5)",
+            "preferred": true,
+            "span": {"end":100,"start":99},
+            "title": "Wrap 'highGain' in $slider"
+          },
+          {
+            "caretOffset": 95,
+            "controlOffset": 70,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  ratio: $slider('ratio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'ratio'"
+          },
+          {
+            "caretOffset": 117,
+            "controlOffset": 80,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardThreshold: $slider('upwardThreshold', 0.5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardThreshold'"
+          },
+          {
+            "caretOffset": 107,
+            "controlOffset": 76,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardRatio: $slider('upwardRatio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 101,
+            "controlOffset": 71,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  attack: $slider('attack', 0.003, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 102,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  release: $slider('release', 0.05, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 99,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  midGain: $slider('midGain', 5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'midGain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('threshold', 1.5, 0, 5)",
+            "preferred": false,
+            "span": {"end":116,"start":113},
+            "title": "Wrap 'threshold' in $slider"
+          },
+          {
+            "caretOffset": 95,
+            "controlOffset": 70,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  ratio: $slider('ratio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'ratio'"
+          },
+          {
+            "caretOffset": 117,
+            "controlOffset": 80,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardThreshold: $slider('upwardThreshold', 0.5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardThreshold'"
+          },
+          {
+            "caretOffset": 107,
+            "controlOffset": 76,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardRatio: $slider('upwardRatio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 101,
+            "controlOffset": 71,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  attack: $slider('attack', 0.003, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 102,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  release: $slider('release', 0.05, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 99,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  midGain: $slider('midGain', 5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'midGain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 31,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('threshold', 1.5, 0, 5)",
+            "preferred": true,
+            "span": {"end":116,"start":113},
+            "title": "Wrap 'threshold' in $slider"
+          },
+          {
+            "caretOffset": 95,
+            "controlOffset": 70,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  ratio: $slider('ratio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'ratio'"
+          },
+          {
+            "caretOffset": 117,
+            "controlOffset": 80,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardThreshold: $slider('upwardThreshold', 0.5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardThreshold'"
+          },
+          {
+            "caretOffset": 107,
+            "controlOffset": 76,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  upwardRatio: $slider('upwardRatio', 4, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'upwardRatio'"
+          },
+          {
+            "caretOffset": 101,
+            "controlOffset": 71,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  attack: $slider('attack', 0.003, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'attack'"
+          },
+          {
+            "caretOffset": 102,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  release: $slider('release', 0.05, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'release'"
+          },
+          {
+            "caretOffset": 99,
+            "controlOffset": 72,
+            "kind": "add",
+            "newText": "{\n  depth: 4,\n  lowGain: 6,\n  highGain: 4,\n  threshold: 1.5,\n  midGain: $slider('midGain', 5, 0, 5),\n}",
+            "span": {"end":118,"start":65},
+            "title": "Add slider for 'midGain'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 34,
+            "controlOffset": 10,
+            "kind": "add",
+            "newText": "{\n  gain: $slider('gain', 5, 0, 5),\n}",
+            "span": {"end":124,"start":124},
+            "title": "Add slider for 'gain'"
+          },
+          {
+            "caretOffset": 33,
+            "controlOffset": 9,
+            "kind": "add",
+            "newText": "{\n  pan: $slider('pan', 0, -5, 5),\n}",
+            "span": {"end":124,"start":124},
+            "title": "Add slider for 'pan'"
+          },
+          {
+            "caretOffset": 36,
+            "controlOffset": 11,
+            "kind": "add",
+            "newText": "{\n  width: $slider('width', 0, 0, 5),\n}",
+            "span": {"end":124,"start":124},
+            "title": "Add slider for 'width'"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":125,"start":125,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {
+        "callSiteSpans": [["1:22",1,1]],
+        "interpolations": [],
+        "registry": [["4:10","$saw",[["freq",10,14]]]]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 17,
+          "gainClear": null,
+          "gainSet": {"end":21,"start":21,"text":"{ gain: 0.5 }"},
+          "muteOff": null,
+          "muteOn": {"end":21,"start":21,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":21,"start":21,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
+          "soloOn": {"end":21,"start":21,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":31,"start":31,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {
+        "callSiteSpans": [["1:22",1,1]],
+        "interpolations": [],
+        "registry": [
+          ["4:10","$saw",[["freq",10,14]]],
+          ["5:12","$saw",[["freq",39,43]]],
+          ["5:24","$noise",[["color",53,60]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 17,
+          "gainClear": null,
+          "gainSet": {"end":21,"start":21,"text":"{ gain: 0.5 }"},
+          "muteOff": null,
+          "muteOn": {"end":21,"start":21,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":21,"start":21,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
+          "soloOn": {"end":21,"start":21,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":62,"start":62,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {
+        "callSiteSpans": [["1:22",1,1]],
+        "interpolations": [],
+        "registry": [
+          ["4:10","$saw",[["freq",10,14]]],
+          ["5:12","$saw",[["freq",39,43]]],
+          ["5:24","$noise",[["color",53,60]]]
+        ]
+      },
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 17,
+          "gainClear": null,
+          "gainSet": {"end":21,"start":21,"text":"{ gain: 0.5 }"},
+          "muteOff": null,
+          "muteOn": {"end":21,"start":21,"text":"{ mute: true }"},
+          "panClear": null,
+          "panSet": {"end":21,"start":21,"text":"{ pan: 0.25 }"},
+          "soloOff": null,
+          "soloOn": {"end":21,"start":21,"text":"{ solo: true }"}
+        }
+      ],
+      "setOutputGain": {"end":93,"start":93,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}
