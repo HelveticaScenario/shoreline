@@ -27866,7 +27866,7 @@
           ]
         },
         "amount": {
-          "description": "how far the phase is bent: from a pure sine (0) to bright, resonant and harsh",
+          "description": "how far the triangle bends the phase: from none (0) to bright, resonant and harsh",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -27888,7 +27888,7 @@
           ]
         },
         "sync": {
-          "description": "restart the distorting oscillator every cycle, for a stable, resonant-filter-like sweep; off, it runs free for a beating, inharmonic tone",
+          "description": "restart the distorting oscillator every cycle, for a stable, resonant-filter-like sweep; off, it runs free, beating and inharmonic between the harmonic ratios",
           "type": "boolean",
           "default": true
         },
@@ -28022,7 +28022,7 @@
       },
       {
         "name": "amount",
-        "description": "how far the phase is bent: from a pure sine (0) to bright, resonant and harsh",
+        "description": "how far the triangle bends the phase: from none (0) to bright, resonant and harsh",
         "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
