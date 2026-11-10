@@ -84,12 +84,12 @@ describe('template interpolation', () => {
         ).toEqual(["'c4'@3+2"]);
     });
 
-    test('a const holding a number resolves like one holding a string', () => {
+    test('a const holding a number counts toward later offsets, unredirected', () => {
         expect(
             resolutions(
-                "const n = 3\nconst m = -2\nconst root = 'c4'\n$p(`${n} ${m} ${root}`)",
+                "const n = 0x10\nconst m = -2\nconst root = 'c4'\n$p(`${n} ${m} ${root}`)",
             ),
-        ).toEqual(['3@0+1', '-2@2+2', "'c4'@5+2"]);
+        ).toEqual(["'c4'@6+2"]);
     });
 
     test('a const inside a function resolves where it is in scope', () => {

@@ -1,9 +1,11 @@
 /**
- * How template literals interpolate the patch's `const` bindings. When `${root} e4 g4` interpolates a const string, the
- * resolution records where the const's value lands in the evaluated text and
- * the span of the const's own literal, so a highlight inside the evaluated
- * pattern can be redirected to the declaration. Consts whose initializer is
- * itself a template resolve recursively.
+ * How template literals interpolate the patch's `const` bindings. When
+ * `${root} e4 g4` interpolates a const string, the resolution records where
+ * the const's value lands in the evaluated text and the span of the const's
+ * own literal, so a highlight inside the evaluated pattern can be redirected
+ * to the declaration. Consts whose initializer is itself a template resolve
+ * recursively. A const number only advances the offsets: its source text is
+ * not the text it prints, so nothing inside it can be redirected.
  */
 import ts from 'typescript';
 
@@ -112,13 +114,15 @@ export function resolveInterpolations(
             if (!literal || length === null) {
                 return settled();
             }
-            resolutions.push({
-                constLiteralSpan: spanOf(literal, file),
-                evaluatedLength: length,
-                evaluatedStart: offset,
-                nestedResolutions:
-                    resolveInterpolations(literal, file) ?? undefined,
-            });
+            if (!signedNumericLiteral(literal)) {
+                resolutions.push({
+                    constLiteralSpan: spanOf(literal, file),
+                    evaluatedLength: length,
+                    evaluatedStart: offset,
+                    nestedResolutions:
+                        resolveInterpolations(literal, file) ?? undefined,
+                });
+            }
             offset += length;
         } else {
             const length = interpolatedLength(expr, file, new Set());
