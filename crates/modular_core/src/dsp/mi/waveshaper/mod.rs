@@ -25,14 +25,13 @@ use crate::{
 const OUTPUT_GAIN: f32 = -0.7 * 5.0;
 const OVERTONES_GAIN: f32 = -0.6 * 5.0;
 
-/// The shaper curves `shape` morphs across, the last repeated so the top of
-/// the morph has a pair to read.
-const SHAPERS: [&[i16; 257]; 6] = [
+/// The shaper curves `shape` morphs across. `shape` stops just short of 4,
+/// so it always reads a pair.
+const SHAPERS: [&[i16; 257]; 5] = [
     &LUT_WS_INVERSE_TAN,
     &LUT_WS_INVERSE_SIN,
     &LUT_WS_LINEAR,
     &LUT_WS_BUMP,
-    &LUT_WS_DOUBLE_BUMP,
     &LUT_WS_DOUBLE_BUMP,
 ];
 

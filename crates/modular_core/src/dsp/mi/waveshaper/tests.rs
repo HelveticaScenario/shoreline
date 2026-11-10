@@ -140,3 +140,31 @@ fn stays_finite() {
         );
     }
 }
+
+/// At engine rates where the frequency limit passes a quarter cycle per
+/// sample, the top pitches and wild FM stay finite and bounded.
+#[test]
+fn stays_finite_at_low_rates() {
+    for sample_rate in [8000.0, 16000.0, 22050.0, 24000.0, 44100.0] {
+        let state = WaveshaperState::new(sample_rate);
+        let mut voice = Voice::default();
+        for n in 0..4000 {
+            let f0 = match n % 4 {
+                0 => state.max_frequency,
+                1 => -state.max_frequency,
+                2 => 10.0,
+                _ => (n as f32 * 0.37).sin() * state.max_frequency,
+            };
+            let knob = (n % 11) as f32 * 0.5;
+            let (out, overtones) = render(&mut voice, f0, knobs(knob, 5.0 - knob, knob), &state);
+            assert!(
+                out.is_finite() && overtones.is_finite(),
+                "{sample_rate} Hz, sample {n}"
+            );
+            assert!(
+                out.abs() <= 1.5 && overtones.abs() <= 1.5,
+                "{sample_rate} Hz, sample {n}: {out} {overtones}"
+            );
+        }
+    }
+}

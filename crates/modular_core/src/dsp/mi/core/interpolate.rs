@@ -1,11 +1,14 @@
 //! Table reads from `stmlib/dsp/dsp.h`.
 
 /// `stmlib::InterpolateHermite`: `table` read at `index` × `size` with
-/// four-point Hermite interpolation. The read spans one entry before and two
-/// after the integral index, which must lie inside `table`.
+/// four-point Hermite interpolation, which spans one entry before and two
+/// after the integral index. A position too near either end of `table` (or
+/// NaN) reads at the nearest one the span fits.
 #[inline(always)]
 pub fn hermite(table: &[f32], index: f32, size: f32) -> f32 {
     let index = index * size;
+    let last = (table.len() - 3) as f32;
+    let index = if index >= 1.0 { index.min(last) } else { 1.0 };
     let integral = index as i32;
     let f = index - integral as f32;
     let i = integral as usize;

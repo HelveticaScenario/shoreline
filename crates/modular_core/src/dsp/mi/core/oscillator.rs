@@ -57,14 +57,16 @@ fn edge_time(distance: f32, frequency: f32) -> f32 {
 }
 
 impl SlopeOscillator {
-    /// One sample, from −1 to 1, at `frequency` cycles per sample (finite,
-    /// within ±0.25; negative runs backward) with the peak at `pw`.
+    /// One sample, from −1 to 1, at `frequency` cycles per sample (finite;
+    /// negative runs backward) with the peak at `pw`.
     #[inline(always)]
     pub fn step(&mut self, frequency: f32, pw: f32) -> f32 {
         self.frequency.set(frequency, Some(1.0));
         self.pw.set(pw, Some(1.0));
         let frequency = self.frequency.next_value();
-        let speed = frequency.abs();
+        // Past 0.25 cycles per sample, reachable at engine rates below 48 kHz,
+        // the bounds would pin the peak to an edge and make a slope infinite.
+        let speed = frequency.abs().min(0.25);
         let pw = constrain(self.pw.next_value(), speed * 2.0, 1.0 - 2.0 * speed);
 
         let mut this_sample = self.next_sample;
