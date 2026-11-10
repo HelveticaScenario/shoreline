@@ -188,7 +188,9 @@ function bracketShape(
     pad: string,
     closeKind: ts.SyntaxKind,
 ): ListShape | null {
-    const close = node.getLastToken(file);
+    // The literal's own last child, not the last token beneath it: a nested
+    // literal's bracket must not stand in for a missing outer one.
+    const close = node.getChildren(file).at(-1);
     if (!close || close.kind !== closeKind) {
         return null;
     }
