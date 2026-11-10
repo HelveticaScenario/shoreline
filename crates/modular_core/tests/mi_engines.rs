@@ -2,8 +2,9 @@
 //! `scripts/mi-reference/drivers/engines.cc` from each unmodified engine and
 //! its output gain): the engine's knobs map onto the module's params, and its
 //! `out` and `aux` reach the same level, spectrum and polarity once both have
-//! settled. The per-sample fixtures compare waveforms; this pins the knob
-//! mappings and output gains.
+//! settled. String and modal draw the same grains as Plaits, from the seed
+//! the test pins. The per-sample fixtures compare waveforms; this pins the
+//! knob mappings and output gains.
 
 use modular_core::Patch;
 use modular_core::dsp::get_params_deserializers;
@@ -137,12 +138,16 @@ fn rms(x: &[f32]) -> f32 {
     (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt()
 }
 
-/// The rms difference between `actual` and `expected` over 1024 samples after
-/// `SETTLE`, at the lag within ±48 samples, in eighths of a sample, that
-/// aligns them best: oscillators that start their phase differently line up
-/// only between samples.
+/// The rms difference between `actual` and `expected` over the loudest 1024
+/// samples of `expected` after `SETTLE`, at the lag within ±48 samples, in
+/// eighths of a sample, that aligns them best: oscillators that start their
+/// phase differently line up only between samples.
 fn aligned_error(actual: &[f32], expected: &[f32]) -> f32 {
-    let window = SETTLE..SETTLE + 1024;
+    let start = (SETTLE..expected.len() - 1024 - 48)
+        .step_by(256)
+        .max_by(|&a, &b| rms(&expected[a..a + 1024]).total_cmp(&rms(&expected[b..b + 1024])))
+        .unwrap();
+    let window = start..start + 1024;
     (-48 * 8..=48 * 8)
         .map(|eighths: i32| {
             let whole = eighths.div_euclid(8);
@@ -269,6 +274,8 @@ fn matches_plaits_engines() {
         .chunks_exact(4)
         .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
         .collect();
+    // The seed `engines.cc` starts Plaits' random generator from.
+    modular_core::dsp::utils::rng::TEST_SEED_BASE.set(Some(1));
     let mut rest = &floats[..];
     while !rest.is_empty() {
         let [engine, note, h, t, m, samples] = rest[..6] else {
@@ -286,23 +293,13 @@ fn matches_plaits_engines() {
                 "engine {engine} note {note} knobs {h}/{t}/{m}: {} {}",
                 port.module, port.port
             );
-            match (engine, port.port) {
-                // Random grains: their levels average out over seconds, but
-                // a resonator rings on so few of them that Plaits' own render
-                // varies by several dB from one second to the next.
-                (19 | 20, "exciter") => {
-                    assert_sounds_alike(&name, &actual, &expected, 1.0, 1.5, 3.0)
-                }
-                (19 | 20, _) => assert_sounds_alike(&name, &actual, &expected, 3.0, 6.0, 8.0),
-                _ => {
-                    assert_sounds_alike(&name, &actual, &expected, 0.1, 0.6, 3.0);
-                    let inverted: Vec<f32> = actual.iter().map(|v| -v).collect();
-                    assert!(
-                        aligned_error(&actual, &expected) < aligned_error(&inverted, &expected),
-                        "{name}: inverted"
-                    );
-                }
-            }
+            let inverted: Vec<f32> = actual.iter().map(|v| -v).collect();
+            let level = 20.0 * (rms(&actual[SETTLE..]) / rms(&expected[SETTLE..])).log10();
+            assert_sounds_alike(&name, &actual, &expected, 0.1, 0.6, 3.0);
+            assert!(
+                aligned_error(&actual, &expected) < aligned_error(&inverted, &expected),
+                "{name}: inverted"
+            );
         }
     }
 }

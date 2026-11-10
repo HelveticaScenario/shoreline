@@ -1,21 +1,12 @@
 use super::*;
 use crate::dsp::mi::core::fixture::{assert_rate_independent, harmonics, max_error, records};
 use crate::dsp::utils::voct_to_hz;
-use crate::types::Signal;
 
-fn mark() -> GlideMark {
-    PolySignal::mono(Signal::Volts(0.0)).glide_mark(0)
+fn knobs(centroid: f32, slope: f32, bumps: f32) -> [f32; 3] {
+    [centroid, slope, bumps]
 }
 
-fn knobs(centroid: f32, slope: f32, bumps: f32) -> Knobs {
-    Knobs {
-        centroid: (centroid, mark()),
-        slope: (slope, mark()),
-        bumps: (bumps, mark()),
-    }
-}
-
-fn render(voice: &mut Voice, f0: f32, k: Knobs, series: Series, state: &AdditiveState) -> f32 {
+fn render(voice: &mut Voice, f0: f32, k: [f32; 3], series: Series, state: &AdditiveState) -> f32 {
     voice.control(k, state);
     voice.step(f0, series, state)
 }
@@ -162,7 +153,7 @@ fn non_finite_knobs_hold() {
 /// output finite and within Plaits' full scale.
 #[test]
 fn stays_finite_and_bounded() {
-    for sample_rate in [8000.0, 44100.0, 96000.0] {
+    for sample_rate in [2000.0, 8000.0, 44100.0, 96000.0] {
         let state = AdditiveState::new(sample_rate);
         for series in [Series::Integer, Series::Organ] {
             let mut voice = Voice::default();

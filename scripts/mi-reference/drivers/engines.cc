@@ -5,13 +5,17 @@
 // knob mappings and output levels, which the per-sample fixtures leave to
 // the ports. Each case is a header (engine, MIDI note, harmonics, timbre,
 // morph, sample count) then that many samples of `out` and `aux` in volts
-// (±5 V full scale, the sign Plaits' output stage gives). String and modal,
-// excited by random grains, run long enough for their levels to average out.
+// (±5 V full scale, the sign Plaits' output stage gives). Each case starts
+// stmlib's random generator from the seed the modules derive for channel 0
+// when a test pins `TEST_SEED_BASE` to 1, so string and modal draw the same
+// grains as the modules; string's cases keep dispersion off, where only the
+// sounding string draws.
 // build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc
 
 #include <cstdio>
 
 #include "stmlib/dsp/limiter.h"
+#include "stmlib/utils/random.h"
 #include "plaits/dsp/engine/additive_engine.h"
 #include "plaits/dsp/engine/fm_engine.h"
 #include "plaits/dsp/engine/grain_engine.h"
@@ -34,9 +38,11 @@ static const Case kCases[] = {
     {10, 41.0f, 0.4f, 0.5f, 0.3f}, {10, 57.0f, 0.65f, 0.7f, 0.8f},
     {11, 43.0f, 0.3f, 0.5f, 0.4f}, {11, 59.0f, 0.7f, 0.25f, 0.85f},
     {12, 48.0f, 0.0f, 0.4f, 0.6f}, {12, 55.0f, 0.5f, 0.7f, 0.3f},
-    {19, 40.0f, 0.3f, 0.6f, 0.7f}, {19, 52.0f, 0.8f, 0.4f, 0.9f},
+    {19, 40.0f, 0.1f, 0.6f, 0.7f}, {19, 52.0f, 0.25f, 0.4f, 0.9f},
     {20, 45.0f, 0.4f, 0.6f, 0.7f}, {20, 57.0f, 0.75f, 0.3f, 0.5f},
 };
+
+const uint32_t kModuleSeed = 0x910a2deb;
 
 // The engine for `index`, its out and aux gains as voice.cc registers them.
 static Engine* Select(int index, float* out_gain, float* aux_gain) {
@@ -76,6 +82,7 @@ int main(int argc, char** argv) {
   static char memory[65536];
   for (const Case& c : kCases) {
     stmlib::BufferAllocator allocator(memory, sizeof(memory));
+    stmlib::Random::Seed(kModuleSeed);
     float out_gain, aux_gain;
     Engine* engine = Select(c.engine, &out_gain, &aux_gain);
     engine->Init(&allocator);
@@ -92,7 +99,7 @@ int main(int argc, char** argv) {
     p.timbre = c.timbre;
     p.morph = c.morph;
     p.accent = 0.8f;
-    const int blocks = c.engine >= 19 ? 16000 : 1000;
+    const int blocks = 1000;
     const float header[6] = {float(c.engine), c.note, c.harmonics, c.timbre,
                              c.morph, float(blocks * kBlockSize)};
     fwrite(header, sizeof(float), 6, f);

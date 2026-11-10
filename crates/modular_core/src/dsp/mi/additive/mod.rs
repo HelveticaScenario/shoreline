@@ -12,7 +12,6 @@ use crate::{
         oscillators::{FmMode, apply_fm},
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
-    types::{GlideMark, SwapGlide},
 };
 
 use spectrum::{BANK, INTEGER, INTEGER_SLOTS, ORGAN, ORGAN_SLOTS, SLOTS, bank, update_amplitudes};
@@ -123,20 +122,18 @@ pub struct Additive {
 
 #[derive(Default)]
 struct AdditiveState {
-    sample_rate: f32,
     inv_sample_rate: f32,
     to_48k: f32,
-    /// Samples per spectrum step: 12 at 48 kHz.
+    /// Samples per spectrum step: 12 at 48 kHz, and at least one.
     period: f32,
 }
 
 impl AdditiveState {
     fn new(sample_rate: f32) -> Self {
         Self {
-            sample_rate,
             inv_sample_rate: 1.0 / sample_rate,
             to_48k: sample_rate / 48000.0,
-            period: sample_rate / SPECTRUM_RATE,
+            period: (sample_rate / SPECTRUM_RATE).max(1.0),
         }
     }
 }
@@ -158,9 +155,6 @@ struct Voice {
     /// The knobs summed since the last step, and how many samples that is.
     sum: [f32; 3],
     count: f32,
-    centroid: SwapGlide,
-    slope: SwapGlide,
-    bumps: SwapGlide,
     /// The last finite knobs, which a NaN or infinite knob holds.
     held: [f32; 3],
 }
@@ -177,9 +171,6 @@ impl Default for Voice {
             countdown: 0.0,
             sum: [0.0; 3],
             count: 0.0,
-            centroid: SwapGlide::default(),
-            slope: SwapGlide::default(),
-            bumps: SwapGlide::default(),
             held: [
                 AdditiveParams::CENTROID_DEFAULT,
                 AdditiveParams::SLOPE_DEFAULT,
@@ -189,30 +180,18 @@ impl Default for Voice {
     }
 }
 
-/// The control inputs for a sample: the raw signals and their glide marks.
-struct Knobs {
-    centroid: (f32, GlideMark),
-    slope: (f32, GlideMark),
-    bumps: (f32, GlideMark),
-}
-
 fn knob(volts: f32) -> f32 {
     (volts * 0.2).clamp(0.0, 1.0)
 }
 
 impl Voice {
-    /// Reads a sample's knobs and, when a step is due, moves the spectrum
-    /// toward their mean since the last step and ramps to it.
+    /// Reads a sample's centroid, slope and bumps and, when a step is due,
+    /// moves the spectrum toward their mean since the last step and ramps to
+    /// it. The spectrum's smoothing glides every change, patch updates
+    /// included.
     #[inline(always)]
-    fn control(&mut self, knobs: Knobs, state: &AdditiveState) {
-        let sample_rate = state.sample_rate;
-        let raw = [
-            self.centroid
-                .follow(knobs.centroid.0, knobs.centroid.1, sample_rate),
-            self.slope.follow(knobs.slope.0, knobs.slope.1, sample_rate),
-            self.bumps.follow(knobs.bumps.0, knobs.bumps.1, sample_rate),
-        ];
-        for ((held, sum), value) in self.held.iter_mut().zip(&mut self.sum).zip(raw) {
+    fn control(&mut self, knobs: [f32; 3], state: &AdditiveState) {
+        for ((held, sum), value) in self.held.iter_mut().zip(&mut self.sum).zip(knobs) {
             if value.is_finite() {
                 *held = value;
             }
@@ -310,20 +289,11 @@ impl Additive {
                 p.fm.value_or(ch, AdditiveParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
-            let knobs = Knobs {
-                centroid: (
-                    p.centroid.value_or(ch, AdditiveParams::CENTROID_DEFAULT),
-                    p.centroid.glide_mark(ch),
-                ),
-                slope: (
-                    p.slope.value_or(ch, AdditiveParams::SLOPE_DEFAULT),
-                    p.slope.glide_mark(ch),
-                ),
-                bumps: (
-                    p.bumps.value_or(ch, AdditiveParams::BUMPS_DEFAULT),
-                    p.bumps.glide_mark(ch),
-                ),
-            };
+            let knobs = [
+                p.centroid.value_or(ch, AdditiveParams::CENTROID_DEFAULT),
+                p.slope.value_or(ch, AdditiveParams::SLOPE_DEFAULT),
+                p.bumps.value_or(ch, AdditiveParams::BUMPS_DEFAULT),
+            ];
             voice.control(knobs, &self.state);
             let out = voice.step(f0, p.series, &self.state);
             self.outputs.sample.set(ch, OUTPUT_GAIN * out);
