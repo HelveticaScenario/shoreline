@@ -1,5 +1,7 @@
 use std::ops::Range;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
@@ -11,27 +13,31 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct SineOscillatorParams {
-    /// pitch in V/Oct (0V = C4)
-    #[signal(type = pitch)]
+    #[input("oscillator pitch", type = pitch)]
     freq: PolySignal,
-    /// FM input signal (pre-scaled by user)
+    #[input("frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)", type = audio)]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    /// hard sync source — rising edges reset the oscillator phase
+    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
     #[deserr(default)]
     #[block_input(optional)]
     sync: Option<PolySignal>,
-    /// phase offset in [0, 1) added to the internal phase before sampling
-    #[signal(default = 0.0, range = (0.0, 1.0))]
+    #[input(
+        "shifts where in the cycle the wave is read, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
     #[deserr(default)]
     phase_offset: Option<PolySignal>,
 }
@@ -39,7 +45,7 @@ struct SineOscillatorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SineOscillatorOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the sine wave", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -55,14 +61,36 @@ struct ChannelState {
     blep_carry: f32,
 }
 
-/// A sine wave oscillator.
-///
-/// ## Example
-///
-/// ```js
-/// $sine('c4').out()
-/// ```
-#[module(name = "$sine", args(freq), block)]
+const SINE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Sine wave oscillator",
+    description: "The purest tone, a single sine with no overtones: sub bass, \
+                  soft leads and the classic FM carrier or modulator. \
+                  Through-zero FM from another oscillator turns it into bells \
+                  and electric pianos.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Soft sine melody",
+            code: r#"
+                const seq = $cycle($p('c4 e4 g4 <b4 a4>'))
+                $sine(seq)
+                  .amp($perc(seq.trig, { decay: 0.3 }))
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "FM bell",
+            code: r#"
+                $sine('c4', { fm: $sine('c5').range(-3, 3) })
+                  .amp($perc($clock.beatTrigger, { decay: 1 }))
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$sine", docs = SINE_DOCS, args(freq), block)]
 pub struct SineOscillator {
     outputs: SineOscillatorOutputs,
     channel_state: Box<[ChannelState]>,
@@ -110,7 +138,7 @@ impl SineOscillator {
         let p = &self.params;
         for (ch, state) in self.channel_state.iter_mut().enumerate() {
             let pitch = p.freq.get_value(ch);
-            let fm = p.fm.value_or(ch, SineOscillatorParams::FM_DEFAULT);
+            let fm = p.fm.value_or(ch, 0.0);
             let increment = apply_fm(pitch, fm, p.fm_mode) / sample_rate;
             let offset = p
                 .phase_offset

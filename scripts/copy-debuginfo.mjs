@@ -25,11 +25,11 @@ const repoRoot = dirname(here);
 const crateDir = join(repoRoot, 'crates', 'modular');
 
 const nodeFile = readdirSync(crateDir).find(
-    (f) => f.startsWith('operator.') && f.endsWith('.node'),
+    (f) => f.startsWith('shoreline.') && f.endsWith('.node'),
 );
 if (!nodeFile) {
     console.warn(
-        `[copy-debuginfo] no operator.*.node in ${crateDir}, skipping`,
+        `[copy-debuginfo] no shoreline.*.node in ${crateDir}, skipping`,
     );
     process.exit(0);
 }

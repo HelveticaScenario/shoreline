@@ -56,6 +56,7 @@ const BUILTINS: Record<string, (...args: Value[]) => Value> = {
     vec4f: vector(4),
     abs: (v) => unary(v, Math.abs),
     floor: (v) => unary(v, Math.floor),
+    sin: (v) => unary(v, Math.sin),
     fract: (v) => unary(v, (x) => x - Math.floor(x)),
     max: (a, b) => zip(a, b, Math.max),
     min: (a, b) => zip(a, b, Math.min),

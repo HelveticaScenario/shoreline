@@ -251,12 +251,12 @@ describe('$v media sources', () => {
 
         it('gives only a video file an audio property', () => {
             const { video } = exec(`
-                const stream = $v.stream('https://a.example/b.mp4');
+                const camera = $v.camera();
                 const image = $v.image('pictures/a.png');
-                if (stream.audio !== undefined || image.audio !== undefined) {
+                if (camera.audio !== undefined || image.audio !== undefined) {
                     throw new Error('has audio');
                 }
-                $v.out(stream);
+                $v.out(image);
             `);
             expect(video).not.toBeNull();
         });
@@ -325,74 +325,28 @@ describe('$v media sources', () => {
         });
     });
 
-    describe('network addresses', () => {
-        it('streams a video from an address, with no file or extension to check', () => {
-            const { video } = exec(
-                `$v.stream('https://cdn.example.com/live/stream?id=7').out();`,
-            );
-            expect(video!.sources).toEqual([
-                {
-                    kind: 'video',
-                    path: 'https://cdn.example.com/live/stream?id=7',
-                },
-            ]);
-        });
-
-        it('draws an image from an address', () => {
-            const { video } = exec(
-                `$v.image('http://example.com/pictures/photo').out();`,
-            );
-            expect(video!.sources).toEqual([
-                { kind: 'image', path: 'http://example.com/pictures/photo' },
-            ]);
-        });
-
-        it('uses one source for an address written two ways', () => {
-            const { video } = exec(`
-                $v.mix($v.stream('HTTPS://CDN.example.com/a.mp4'), $v.stream('https://cdn.example.com/a.mp4'), 2.5).out();
-            `);
-            expect(video!.sources).toHaveLength(1);
-        });
-
-        it('fits a stream like any other source', () => {
-            expect(() =>
-                exec(
-                    `$v.stream('https://a.example/b.m3u8', { fit: 'contain' }).out();`,
-                ),
-            ).not.toThrow();
-            expect(() =>
-                exec(
-                    `$v.stream('https://a.example/b.m3u8', { fit: 'tile' }).out();`,
-                ),
-            ).toThrow(/fit must be one of/);
-        });
-
-        it('sends an address given to $v.video to $v.stream', () => {
-            expect(() => exec(`$v.video('https://a.example/b.mp4');`)).toThrow(
-                /\$v\.video: plays files in the workspace folder; use \$v\.stream/,
-            );
-        });
-
-        it('refuses protocols a browser cannot play, and says what works', () => {
-            for (const url of [
-                'rtsp://camera.local/stream',
-                'rtmp://live.example/app',
-                'ftp://files.example/a.mp4',
-                'file:///etc/a.mp4',
+    describe('addresses', () => {
+        it('loads only workspace files, never a network address', () => {
+            for (const call of [
+                `$v.image('https://example.com/a.png')`,
+                `$v.video('http://a.example/b.mp4')`,
             ]) {
-                expect(() => exec(`$v.stream('${url}');`)).toThrow(
-                    /\$v\.stream: [a-z]+:\/\/ addresses cannot be played; use an http or https URL/,
+                expect(() => exec(`${call};`)).toThrow(
+                    /\$v\.(image|video): https?:\/\/ addresses cannot be loaded; use a file in the workspace folder/,
                 );
             }
         });
 
-        it('rejects a stream that is not an address', () => {
-            expect(() => exec(`$v.stream('clip.mp4');`)).toThrow(
-                /\$v\.stream: url must be an http or https address/,
-            );
-            expect(() => exec(`$v.stream('http://');`)).toThrow(
-                /\$v\.stream: "http:\/\/" is not a valid URL/,
-            );
+        it('refuses any other scheme the same way', () => {
+            for (const url of [
+                'rtsp://camera.local/stream',
+                'ftp://files.example/a.png',
+                'file:///etc/a.png',
+            ]) {
+                expect(() => exec(`$v.image('${url}');`)).toThrow(
+                    /\$v\.image: [a-z]+:\/\/ addresses cannot be loaded; use a file in the workspace folder/,
+                );
+            }
         });
 
         it('still keeps files inside the workspace', () => {

@@ -13,9 +13,6 @@ import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import type { SliderDefinition } from '../../shared/dsl/sliderTypes';
 import { parseSliderValue } from '../../shared/dsl/sliderUnits';
-import { findControlCalls } from '../../shared/dsl/controlCalls';
-import { FIRST_LINE_COLUMN_OFFSET } from '../../shared/dsl/spanTypes';
-import { ts } from 'ts-morph';
 import { captureSourceLocation } from './factories';
 import type { CollectionWithRange } from './GraphBuilder';
 
@@ -347,57 +344,4 @@ export function createControls(deps: ControlDeps): Controls & {
         groups,
         sliders,
     };
-}
-
-/**
- * Reject any control or group the static scan does not place where
- * evaluation put it. The control panel builds its controls and groups from
- * the source, so one whose group argument it cannot resolve — a group
- * passed as a parameter or held in a `let` — or one made through an aliased
- * factory would be missing from the panel, and one it resolves differently
- * would show in the wrong group.
- */
-export function assertControlsPlaced(
-    source: string,
-    controls: Array<{
-        label: string;
-        group: string[];
-        sourceLocation?: { line: number; column: number };
-    }>,
-): void {
-    const sourceFile = ts.createSourceFile(
-        'patch.js',
-        source,
-        ts.ScriptTarget.Latest,
-        false,
-        ts.ScriptKind.JS,
-    );
-    // Keys in V8 call-site coordinates, matching captured source locations.
-    const placed = new Map(
-        findControlCalls(sourceFile).map(({ name, group }) => {
-            const { line, character } =
-                sourceFile.getLineAndCharacterOfPosition(
-                    name.getStart(sourceFile),
-                );
-            const column =
-                character + 1 + (line === 0 ? FIRST_LINE_COLUMN_OFFSET : 0);
-            return [`${line + 1}:${column}`, group] as const;
-        }),
-    );
-    for (const { label, group, sourceLocation: loc } of controls) {
-        if (!loc) {
-            continue;
-        }
-        const scanned = placed.get(`${loc.line}:${loc.column}`);
-        if (!scanned) {
-            throw new Error(
-                `Control "${label}" at line ${loc.line} must be created by a direct $slider/$btn/$toggleBtn/$cGroup call whose group, if given, is a $cGroup(...) call or a const bound to one ($cGroup params written as an object literal), so the Control panel can place it`,
-            );
-        }
-        if (JSON.stringify(scanned) !== JSON.stringify(group)) {
-            throw new Error(
-                `Control "${label}" at line ${loc.line} is in group "${group.join(' / ')}" when evaluated, but the Control panel would place it in "${scanned.join(' / ')}" — pass the group as a $cGroup(...) call or a const bound to one that no other binding shadows`,
-            );
-        }
-    }
 }

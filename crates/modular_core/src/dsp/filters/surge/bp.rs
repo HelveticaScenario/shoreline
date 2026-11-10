@@ -14,6 +14,8 @@ use super::coeffs::{
     to_coupled_form, to_normalized_lattice,
 };
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Drive character for the bandpass biquad. The legacy variants exist only at the
 /// 12 dB slope (matching Surge XT's menu); at 24 dB they select their modern counterparts.
@@ -21,16 +23,16 @@ use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum BpDrive {
-    /// State-variable form (cleanest, mildest resonance).
+    /// smooth, with the mildest resonance
     #[default]
     Standard,
-    /// Coupled state-space form with a heavier resonance/clip character.
+    /// heavier resonance that clips harder
     Driven,
-    /// Normalized-lattice form (high numerical precision).
+    /// clean and precise, even at very low cutoffs
     Clean,
-    /// Surge XT's "Driven (Legacy)" — the darker pre-fix driven bandpass.
+    /// a darker take on `driven`
     DrivenLegacy,
-    /// Surge XT's "Clean (Legacy)" — the darker pre-fix clean bandpass.
+    /// a darker take on `clean`
     CleanLegacy,
 }
 
@@ -160,24 +162,33 @@ fn coeff_bp_legacy(freq_semi: f32, reso: f32, subtype: i32, rate: f32) -> [f32; 
     std::array::from_fn(|i| (4.0 * n12[i] + 5.0 * n24[i]) / 9.0)
 }
 
+const BP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Surge bandpass filter",
+    description: "Surge's resonant bandpass: picks out a band for nasal, vocal tones, \
+                  narrowing and ringing as the resonance rises.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Nasal bandpass sweep",
+        code: r#"
+            $unstable.filter
+              .bp($saw('c2'), $sine('0.3hz').range('c4', 'c6'), 3, {
+                slope: 'db12',
+              })
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge multimode bandpass (the "12 dB" / "24 dB" vember filter).
-    ///
-    /// - **cutoff** — center frequency in V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; higher narrows the band and pushes toward ringing.
-    /// - **slope** — `'db12'` or `'db24'`.
-    /// - **drive** — `'standard'`, `'driven'`, `'clean'`, or the 12 dB-only
-    ///   `'drivenLegacy'` / `'cleanLegacy'`.
-    ///
-    /// ```js
-    /// $unstable.filter.bp($saw('c2'), 'c4', 3, { slope: 'db12', drive: 'drivenLegacy' })
-    /// ```
+    docs = BP_DOCS,
     name = "$unstable.filter.bp", ident = BpFilter, kernel = BpBiquad,
     output_doc = "bandpass output",
+    cutoff_doc = "centre frequency of the band",
     params = {
-        /// slope: 12 or 24 dB/oct (default 24)
+        #[input("how steeply it cuts", default = "db24")]
         slope: FilterSlope,
-        /// drive character (default standard); legacy variants apply at 12 dB only
+        #[input("how hard the resonance pushes and clips; the legacy variants apply at 12 dB only", default = "standard")]
         drive: BpDrive,
     },
     mode = |p| {

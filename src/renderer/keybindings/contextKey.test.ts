@@ -21,9 +21,9 @@ describe('ContextKeyService', () => {
     });
 
     test('unset removes the key', () => {
-        contextKeys.set('inSettingsModal', true);
-        contextKeys.unset('inSettingsModal');
-        expect(contextKeys.get('inSettingsModal')).toBeUndefined();
+        contextKeys.set('settingsVisible', true);
+        contextKeys.unset('settingsVisible');
+        expect(contextKeys.get('settingsVisible')).toBeUndefined();
     });
 
     test('setMany sets every entry at once', () => {

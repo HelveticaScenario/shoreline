@@ -9,7 +9,7 @@ mod enum_tag;
 mod message_handlers;
 mod module_attr;
 mod outputs;
-mod signal_params;
+mod params_attr;
 mod utils;
 
 use proc_macro::TokenStream;
@@ -56,22 +56,19 @@ pub fn channel_count_macro_derive(input: TokenStream) -> TokenStream {
     channel_count::impl_channel_count_macro(&ast)
 }
 
-#[proc_macro_derive(SignalParams, attributes(signal))]
-pub fn signal_params_macro_derive(input: TokenStream) -> TokenStream {
-    let ast: DeriveInput = match syn::parse(input) {
-        Ok(v) => v,
-        Err(e) => return e.to_compile_error().into(),
-    };
-    signal_params::impl_signal_params_macro(&ast)
-}
-
-#[proc_macro_derive(BlockInputs, attributes(signal, block_input))]
+#[proc_macro_derive(BlockInputs, attributes(block_input))]
 pub fn block_inputs_macro_derive(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = match syn::parse(input) {
         Ok(v) => v,
         Err(e) => return e.to_compile_error().into(),
     };
     block_inputs::impl_block_inputs_macro(&ast)
+}
+
+/// Documents a params struct's fields; see `params_attr`.
+#[proc_macro_attribute]
+pub fn params(attr: TokenStream, item: TokenStream) -> TokenStream {
+    params_attr::params_impl(attr, item)
 }
 
 #[proc_macro_attribute]
