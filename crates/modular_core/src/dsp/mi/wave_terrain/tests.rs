@@ -39,14 +39,18 @@ fn tone(sample_rate: f32, hz: f32, settings: (f32, f32, f32), pm: bool, seconds:
 }
 
 /// Replays `wave_terrain.f32` (Plaits' path oscillator and terrains,
-/// rendered a sample at a time) across all eight terrains.
+/// rendered a sample at a time): eight pitches, each from a fresh voice, with
+/// the knobs sweeping all eight terrains.
 #[test]
 fn matches_plaits() {
     let state = WaveTerrainState::new(48000.0);
     let mut voice = Voice::default();
     let mut actual = Vec::new();
     let mut expected = Vec::new();
-    for record in records("wave_terrain", 4 + 2) {
+    for (n, record) in records("wave_terrain", 4 + 2).iter().enumerate() {
+        if n % 2400 == 0 {
+            voice = Voice::default();
+        }
         let (out, pm) = render(
             &mut voice,
             record[0],

@@ -22,6 +22,7 @@ fn fast_rsqrt(x: f32) -> f32 {
 pub struct QuadratureOscillator {
     x: f32,
     y: f32,
+    /// `NaN` until the first render, which starts at its frequency.
     epsilon: f32,
     amplitude: f32,
 }
@@ -31,7 +32,7 @@ impl Default for QuadratureOscillator {
         Self {
             x: 1.0,
             y: 0.0,
-            epsilon: 0.0,
+            epsilon: f32::NAN,
             amplitude: 0.0,
         }
     }
@@ -40,12 +41,21 @@ impl Default for QuadratureOscillator {
 impl QuadratureOscillator {
     /// `N` steps of the point at `frequency` cycles per step (within ±0.25),
     /// its radius `amplitude`. Frequency and radius ramp to their new values
-    /// across the steps, as Plaits' interpolators do across a block. A
-    /// negative frequency runs the recurrence's exact inverse, so the point
+    /// across the steps, as Plaits' interpolators do across a block, except
+    /// the first frequency, which the point starts at. A negative frequency runs the recurrence's exact inverse, so the point
     /// retraces the forward path backward.
+    ///
+    /// For a fixed frequency the recurrence keeps x² + y² + |ε|·x·y
+    /// constant, at 1 from the starting point. As the frequency ramps, the
+    /// point is rescaled to bring it back to 1, so a pitch moving every
+    /// sample, as under audio-rate FM, cannot pump the radius.
     #[inline(always)]
     pub fn render<const N: usize>(&mut self, frequency: f32, amplitude: f32) -> [(f32, f32); N] {
-        let epsilon_increment = (fast_2_sin(frequency) - self.epsilon) / N as f32;
+        let target = fast_2_sin(frequency);
+        if self.epsilon.is_nan() {
+            self.epsilon = target;
+        }
+        let epsilon_increment = (target - self.epsilon) / N as f32;
         let amplitude_increment = (amplitude - self.amplitude) / N as f32;
         let (mut x, mut y) = (self.x, self.y);
         // The recurrence drifts off the unit circle; pull it back when it
@@ -57,7 +67,17 @@ impl QuadratureOscillator {
             y *= scale;
         }
         let out = std::array::from_fn(|_| {
-            self.epsilon += epsilon_increment;
+            if epsilon_increment != 0.0 {
+                self.epsilon += epsilon_increment;
+                let invariant = x * x + y * y + self.epsilon.abs() * x * y;
+                // Positive for any |ε| below 2; the guard keeps a degenerate
+                // point finite.
+                if invariant > 0.0 {
+                    let scale = 1.0 / invariant.sqrt();
+                    x *= scale;
+                    y *= scale;
+                }
+            }
             self.amplitude += amplitude_increment;
             if self.epsilon >= 0.0 {
                 x += self.epsilon * y;
@@ -71,5 +91,43 @@ impl QuadratureOscillator {
         self.x = x;
         self.y = y;
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Under audio-rate FM locked to the pitch, which moves the frequency
+    /// every sample in step with the path, the radius stays on the ellipse
+    /// the frequency allows rather than pumping, at any rate.
+    #[test]
+    fn radius_holds_under_audio_rate_fm() {
+        for sample_rate in [44100.0f32, 48000.0, 96000.0] {
+            for (ratio, depth) in [(2.0f64, 1.0f64), (1.0, 1.0), (2.0, 0.3)] {
+                let hz = 130.81;
+                let mut path = QuadratureOscillator::default();
+                let (mut low, mut high) = (f32::MAX, 0.0f32);
+                for n in 0..(sample_rate as usize * 30) {
+                    let t = n as f64 / f64::from(sample_rate);
+                    let modulation = depth * (std::f64::consts::TAU * ratio * hz * t).sin();
+                    let f0 = (hz * (1.0 + modulation) / f64::from(sample_rate)) as f32;
+                    let steps = path.render::<2>(f0 * 0.5, 1.0);
+                    // The radius fades in over the first sample.
+                    if n == 0 {
+                        continue;
+                    }
+                    for (x, y) in steps {
+                        let norm = x * x + y * y;
+                        low = low.min(norm);
+                        high = high.max(norm);
+                    }
+                }
+                assert!(
+                    low > 0.97 && high < 1.03,
+                    "{sample_rate} Hz, ratio {ratio}, depth {depth}: norm² {low}–{high}"
+                );
+            }
+        }
     }
 }

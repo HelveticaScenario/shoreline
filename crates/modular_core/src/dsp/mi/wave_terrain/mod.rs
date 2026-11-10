@@ -146,8 +146,9 @@ struct Controls {
 struct Voice {
     path: QuadratureOscillator,
     controls: Controls,
-    /// The pitch and knobs, as bits, `controls` were derived from.
-    last_inputs: [u32; 4],
+    /// The pitch and knobs, as bits, `controls` were derived from; `None`
+    /// before the first sample.
+    last_inputs: Option<[u32; 4]>,
     terrain: SwapGlide,
     radius: SwapGlide,
     offset: SwapGlide,
@@ -160,7 +161,7 @@ impl Default for Voice {
         Self {
             path: QuadratureOscillator::default(),
             controls: Controls::default(),
-            last_inputs: [f32::NAN.to_bits(); 4],
+            last_inputs: None,
             terrain: SwapGlide::default(),
             radius: SwapGlide::default(),
             offset: SwapGlide::default(),
@@ -190,14 +191,14 @@ impl Voice {
     #[inline(always)]
     fn control(&mut self, f0: f32, knobs: Knobs, state: &WaveTerrainState) -> Controls {
         let inputs = [f0, knobs.terrain.0, knobs.radius.0, knobs.offset.0].map(f32::to_bits);
-        if inputs == self.last_inputs
+        if Some(inputs) == self.last_inputs
             && !self.terrain.will_glide(knobs.terrain.1)
             && !self.radius.will_glide(knobs.radius.1)
             && !self.offset.will_glide(knobs.offset.1)
         {
             return self.controls;
         }
-        self.last_inputs = inputs;
+        self.last_inputs = Some(inputs);
         let sample_rate = state.sample_rate;
         let raw = [
             self.terrain
