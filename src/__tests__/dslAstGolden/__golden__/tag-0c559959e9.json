@@ -1,0 +1,146 @@
+{
+  "original": {
+    "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+    "controlCalls": [],
+    "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+    "eq": [],
+    "execute": {"buttons":[],"eqPanels":0,"sliders":[]},
+    "out": [
+      {
+        "anchor": 3,
+        "gainClear": null,
+        "gainSet": null,
+        "muteOff": null,
+        "muteOn": null,
+        "panClear": null,
+        "panSet": null,
+        "soloOff": null,
+        "soloOn": null
+      }
+    ],
+    "quickFixes": {
+      "at": ["37-40 0","42-60 1","64-65 2"],
+      "fixes": [
+        [
+          {
+            "caretOffset": 32,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('saturation', 0.6, 0, 1)",
+            "preferred": true,
+            "span": {"end":40,"start":37},
+            "title": "Wrap 'saturation' in $slider"
+          }
+        ],
+        [
+          {
+            "caretOffset": 36,
+            "controlOffset": 12,
+            "kind": "add",
+            "newText": ", {\n  zoom: $slider('zoom', 1, 0, 5),\n}",
+            "span": {"end":60,"start":60},
+            "title": "Add slider for 'zoom'"
+          },
+          {
+            "caretOffset": 40,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  rotate: $slider('rotate', 0, 0, 5),\n}",
+            "span": {"end":60,"start":60},
+            "title": "Add slider for 'rotate'"
+          },
+          {
+            "caretOffset": 40,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  shiftX: $slider('shiftX', 0, 0, 5),\n}",
+            "span": {"end":60,"start":60},
+            "title": "Add slider for 'shiftX'"
+          },
+          {
+            "caretOffset": 40,
+            "controlOffset": 14,
+            "kind": "add",
+            "newText": ", {\n  shiftY: $slider('shiftY', 0, 0, 5),\n}",
+            "span": {"end":60,"start":60},
+            "title": "Add slider for 'shiftY'"
+          }
+        ],
+        [
+          {
+            "caretOffset": 26,
+            "controlOffset": 0,
+            "kind": "wrap",
+            "newText": "$slider('amount', 3, 0, 5)",
+            "preferred": true,
+            "span": {"end":65,"start":64},
+            "title": "Wrap 'amount' in $slider"
+          }
+        ]
+      ]
+    },
+    "setOutputGain": {"end":67,"start":67,"text":"\n$setOutputGain(0.5)\n"}
+  },
+  "variants": {
+    "cut25": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":16,"start":16,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut50": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":33,"start":33,"text":"\n$setOutputGain(0.5)\n"}
+    },
+    "cut75": {
+      "analyze": {"callSiteSpans":[["1:8",1,1]],"interpolations":[],"registry":[]},
+      "controlCalls": [],
+      "controls": {"controls":{"buttons":[],"groups":[],"sliders":[]},"groupCollapse":[]},
+      "eq": [],
+      "out": [
+        {
+          "anchor": 3,
+          "gainClear": null,
+          "gainSet": null,
+          "muteOff": null,
+          "muteOn": null,
+          "panClear": null,
+          "panSet": null,
+          "soloOff": null,
+          "soloOn": null
+        }
+      ],
+      "setOutputGain": {"end":50,"start":50,"text":"\n$setOutputGain(0.5)\n"}
+    }
+  }
+}
