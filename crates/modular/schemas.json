@@ -27791,9 +27791,7 @@
         "name": "formant",
         "description": "first formant, independent of the pitch",
         "paramType": "frequency",
-        "defaultValue": 0.5,
-        "minValue": -3.0,
-        "maxValue": 4.0
+        "defaultValue": 0.5
       },
       {
         "name": "ratio",

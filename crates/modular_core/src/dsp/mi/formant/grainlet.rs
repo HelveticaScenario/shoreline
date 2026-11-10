@@ -8,7 +8,7 @@ use crate::dsp::mi::core::phase::{fraction, wrap_below};
 use crate::dsp::mi::core::polyblep::{next_blep_sample, this_blep_sample};
 use crate::dsp::mi::core::sine::sine;
 
-/// Control targets for one tick.
+/// Control targets the oscillator ramps to.
 pub struct GrainletControls {
     /// Formant frequencies in cycles per sample.
     pub formant: [f32; 2],
@@ -29,7 +29,7 @@ pub struct GrainletPair {
 }
 
 impl GrainletPair {
-    /// Ramps to `controls` over a tick of `length` samples, or jumps there when
+    /// Ramps to `controls` over `length` samples, or jumps there when
     /// `length` is `None`.
     pub fn set(&mut self, controls: &GrainletControls, length: Option<f32>) {
         for (ramp, &f) in self.formant_frequency.iter_mut().zip(&controls.formant) {
@@ -37,6 +37,14 @@ impl GrainletPair {
         }
         self.shape.set(controls.shape, length);
         self.bleed.set(controls.bleed, length);
+    }
+
+    /// Whether every control has reached its target.
+    #[inline(always)]
+    pub fn settled(&self) -> bool {
+        self.formant_frequency.iter().all(Ramp::settled)
+            && self.shape.settled()
+            && self.bleed.settled()
     }
 
     /// One sample of both grainlets at carrier frequency `f0` (cycles per
