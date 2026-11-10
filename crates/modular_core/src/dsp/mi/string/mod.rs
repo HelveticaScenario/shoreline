@@ -24,7 +24,7 @@ use crate::{
     types::{GlideMark, SwapGlide},
 };
 
-use model::{StringModel, StringRates};
+use model::{StringModel, StringRates, g_at_rate};
 
 /// Plaits' output gains for this engine, at ±5 V full scale; the output also
 /// passes Plaits' limiter, and both clip at ±5 V as Plaits does.
@@ -213,7 +213,7 @@ impl StringVoice {
             let q = if sustain { 1.0 } else { 0.5 };
             self.remaining_noise_samples = (1.0 / f0) as usize;
             self.excitation
-                .set_g_q(tan_dirty((cutoff / to_48k).min(0.499)), q);
+                .set_g_q(g_at_rate(tan_dirty(cutoff), to_48k, tan_dirty(0.499)), q);
         }
 
         // Grains carry the same energy at any rate: a grain's height scales
@@ -223,7 +223,7 @@ impl StringVoice {
             random.dust(dust_density / to_48k) * (8.0 - dust_density * 6.0) * accent * to_48k
         } else if self.remaining_noise_samples > 0 {
             self.remaining_noise_samples -= 1;
-            2.0 * random.float() - 1.0
+            (2.0 * random.float() - 1.0) * rates.noise_gain
         } else {
             0.0
         };

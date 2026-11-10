@@ -20,6 +20,8 @@ const STRETCH_LENGTH: f32 = 256.0;
 pub struct StringRates {
     /// Cycles per sample here to cycles per sample at Plaits' 48 kHz.
     pub to_48k: f32,
+    /// √`to_48k`: the gain that keeps white noise's in-band level at any rate.
+    pub noise_gain: f32,
     sample_rate: f32,
     dc_pole: f32,
 }
@@ -28,6 +30,7 @@ impl StringRates {
     pub fn new(sample_rate: f32) -> Self {
         Self {
             to_48k: sample_rate / 48000.0,
+            noise_gain: (sample_rate / 48000.0).sqrt(),
             sample_rate,
             dc_pole: 1.0 - 20.0 / sample_rate,
         }
@@ -147,7 +150,7 @@ impl StringModel {
             src_ratio,
             upsampling,
             delay: delay * damping_compensation,
-            g: tan_fast((damping_f / rates.to_48k).min(0.4999)),
+            g: g_at_rate(tan_fast(damping_f), rates.to_48k, tan_fast(0.4999)),
             q: 0.5,
             dispersion,
             stretch_point,
@@ -243,4 +246,14 @@ fn per_sample(coefficient: f32, to_48k: f32) -> f32 {
     } else {
         (1.0 - (1.0 - f64::from(coefficient)).powf(1.0 / f64::from(to_48k))) as f32
     }
+}
+
+/// A filter's `g` at this rate for a `g` Plaits computes at 48 kHz. Scaling
+/// `g`, rather than the cutoff, keeps the 48 kHz filter's response below
+/// 24 kHz, and in the string's loop its loss and delay per pass, which set
+/// decay and tuning; a cutoff near Nyquist is nearly transparent at 48 kHz.
+/// Capped at `max`, Plaits' highest, so a low rate cannot push the filter
+/// unstable.
+pub fn g_at_rate(g_48k: f32, to_48k: f32, max: f32) -> f32 {
+    (g_48k / to_48k).min(max)
 }
