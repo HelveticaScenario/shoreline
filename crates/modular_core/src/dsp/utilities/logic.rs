@@ -30,9 +30,9 @@ struct FallingEdgeDetectorParams {
 struct RisingEdgeDetectorOutputs {
     #[output(
         "output",
-        "high while the input keeps rising, and for a trigger's length after", type = gate,
-        default,
-        range = (0.0, 5.0)
+        "high while the input keeps rising, and for a trigger's length after",
+        type = gate,
+        default
     )]
     output: PolyOutput,
 }
@@ -42,9 +42,9 @@ struct RisingEdgeDetectorOutputs {
 struct FallingEdgeDetectorOutputs {
     #[output(
         "output",
-        "high while the input keeps falling, and for a trigger's length after", type = gate,
-        default,
-        range = (0.0, 5.0)
+        "high while the input keeps falling, and for a trigger's length after",
+        type = gate,
+        default
     )]
     output: PolyOutput,
 }

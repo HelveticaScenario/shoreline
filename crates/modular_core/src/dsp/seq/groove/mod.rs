@@ -53,13 +53,14 @@ fn validate_groove_params(
 struct GrooveOutputs {
     #[output(
         "offset",
-        "how far the groove shifts the playhead, in cycles; pass to a sequencer's `groove`", type = cv,
+        "how far the groove shifts the playhead, in cycles; pass to a sequencer's `groove`",
+        type = cv,
         default
     )]
     offset: f32,
     #[output("velocity", "velocity of the current groove step; pass to a sequencer's `velocity`", type = cv, range = (0.0, 5.0))]
     velocity: f32,
-    #[output("trigger", "fires at the start of each grooved step", type = trig, range = (0.0, 5.0))]
+    #[output("trigger", "fires at the start of each grooved step", type = trig)]
     trigger: f32,
 }
 

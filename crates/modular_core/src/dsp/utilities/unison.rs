@@ -51,7 +51,8 @@ pub fn unison_derive_channel_count(params: &UnisonParams) -> usize {
 struct UnisonOutputs {
     #[output(
         "output",
-        "the detuned copies, each a full set of the input channels", type = cv,
+        "the detuned copies, each a full set of the input channels",
+        type = cv,
         default
     )]
     sample: PolyOutput,

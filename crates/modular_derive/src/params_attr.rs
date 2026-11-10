@@ -53,14 +53,15 @@ impl ParamType {
         })
     }
 
-    fn as_str(self) -> &'static str {
+    /// The matching `crate::types::ParamType` variant.
+    fn variant(self) -> TokenStream2 {
         match self {
-            Self::Audio => "audio",
-            Self::Control => "control",
-            Self::Pitch => "pitch",
-            Self::Frequency => "frequency",
-            Self::Gate => "gate",
-            Self::Trig => "trig",
+            Self::Audio => quote! { crate::types::ParamType::Audio },
+            Self::Control => quote! { crate::types::ParamType::Control },
+            Self::Pitch => quote! { crate::types::ParamType::Pitch },
+            Self::Frequency => quote! { crate::types::ParamType::Frequency },
+            Self::Gate => quote! { crate::types::ParamType::Gate },
+            Self::Trig => quote! { crate::types::ParamType::Trig },
         }
     }
 }
@@ -536,7 +537,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         };
 
         let field_name = ident.to_string().to_case(Case::Camel);
-        let type_str = param_type.as_str();
+        let type_variant = param_type.variant();
         let declared_default = match &parsed.default {
             Some((DocumentedDefault::Number(n), _)) => Some(n.value),
             _ => None,
@@ -566,7 +567,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             crate::types::SignalParamSchema {
                 name: #field_name.to_string(),
                 description: #description.to_string(),
-                param_type: #type_str.to_string(),
+                param_type: #type_variant,
                 default_value: #default_schema,
                 default_doc: #default_doc,
                 min_value: #min_value,
