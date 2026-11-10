@@ -320,6 +320,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.phaseDistortion"
         | "$mi.string"
         | "$mi.twoOp"
+        | "$mi.waveTerrain"
         | "$mi.waveshaper"
         | "$mi.zOsc" => json!({ "freq": 0.0 }),
         "$pSine" | "$pSaw" | "$pPulse" => json!({ "phase": 0.0 }),
