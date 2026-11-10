@@ -75,11 +75,50 @@ function commasAround(
     };
 }
 
-/** Start of `element` together with the comma separating it from the one
- *  before, so removing from there drops it and its separator. */
-function startWithComma(element: ts.Node, file: ts.SourceFile): number {
-    const { before } = commasAround(element, file);
-    return before ? before.getStart(file) : element.getStart(file);
+/**
+ * The span that removes `element` from its list along with one separator.
+ * An element on lines of its own goes with those whole lines, its trailing
+ * comment included, so its neighbours keep their comments and layout. An
+ * inline element goes with the comma after it, or else the one before it.
+ */
+function removalSpan(
+    element: ts.Node,
+    file: ts.SourceFile,
+): { start: number; end: number } {
+    const text = file.text;
+    const { before, after } = commasAround(element, file);
+    const start = element.getStart(file);
+    const tail = after ? after.getEnd() : element.getEnd();
+    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd = text.indexOf('\n', tail);
+    if (
+        lineEnd >= 0 &&
+        /^\s*$/.test(text.slice(lineStart, start)) &&
+        /^\s*(\/\/[^\n]*)?$/.test(text.slice(tail, lineEnd))
+    ) {
+        return { end: lineEnd + 1, start: lineStart };
+    }
+    if (after) {
+        let end = after.getEnd();
+        while (text[end] === ' ' || text[end] === '\t') {
+            end++;
+        }
+        return { end, start };
+    }
+    return {
+        end: element.getEnd(),
+        start: before ? before.getStart(file) : start,
+    };
+}
+
+/** Whether `node` sits inside a function, where it runs only if called. */
+function insideFunction(node: ts.Node): boolean {
+    for (let n = node.parent; n; n = n.parent) {
+        if (ts.isFunctionLike(n)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -128,10 +167,12 @@ export function computeOutNumericOptionEdit(
 
 /**
  * Compute the text edit that sets the master output gain: updates the
- * numeric literal in the last `$setOutputGain(...)` call, the one whose
- * level the patch ends up with, or appends a new call at the end of the
- * source. Returns null when that call's argument is not a numeric literal
- * (signal-driven — the fader is locked).
+ * numeric literal in the last `$setOutputGain(...)` outside any function,
+ * the one whose level the patch ends up with, or appends a new call at the
+ * end of the source. Returns null when that call's argument is not a
+ * numeric literal (signal-driven — the fader is locked), or when it is not a
+ * statement of its own at the top of the patch, so whether it runs depends
+ * on a branch or loop.
  */
 export function computeSetOutputGainEdit(
     source: string,
@@ -145,6 +186,7 @@ export function computeSetOutputGainEdit(
             ts.isCallExpression(node) &&
             ts.isIdentifier(node.expression) &&
             node.expression.text === '$setOutputGain' &&
+            !insideFunction(node) &&
             (!last || node.getStart(file) > last.getStart(file))
         ) {
             last = node;
@@ -153,6 +195,8 @@ export function computeSetOutputGainEdit(
     if (last) {
         const arg = last.arguments[0];
         if (
+            !ts.isExpressionStatement(last.parent) ||
+            last.parent.parent !== file ||
             !callParens(last, file) ||
             last.arguments.length !== 1 ||
             !isNumber(arg)
@@ -193,9 +237,10 @@ function computeOptionPropertyEdit(
     // placed it first (an object as the first argument).
     const firstIsObject =
         args[0] !== undefined && ts.isObjectLiteralExpression(args[0]);
-    const optionsArg = args[method === 'out' || firstIsObject ? 0 : 1] as
-        | ts.Expression
-        | undefined;
+    const optionsIndex = method === 'out' || firstIsObject ? 0 : 1;
+    const optionsArg = args[optionsIndex] as ts.Expression | undefined;
+    // Arguments past the options are no form these edits know.
+    const optionsLast = args.length === optionsIndex + 1;
     const options =
         optionsArg && ts.isObjectLiteralExpression(optionsArg)
             ? optionsArg
@@ -308,13 +353,10 @@ function computeOptionPropertyEdit(
             method === 'outMono' &&
             prop === 'gain' &&
             optionsArg !== undefined &&
+            optionsLast &&
             isLiteral(optionsArg)
         ) {
-            return {
-                end: optionsArg.getEnd(),
-                start: startWithComma(optionsArg, file),
-                text: '',
-            };
+            return { ...removalSpan(optionsArg, file), text: '' };
         }
         return null;
     }
@@ -333,35 +375,30 @@ function computeOptionPropertyEdit(
         return null;
     }
 
-    // If this was the only property, drop the whole options argument.
-    if (options.properties.length === 1) {
+    // Removing one of a repeated key would leave an earlier one in force.
+    if (
+        options.properties.some(
+            (p) => p !== existing && propertyName(p) === prop,
+        )
+    ) {
+        return null;
+    }
+    const span = removalSpan(existing, file);
+    const leftover =
+        source.slice(options.getStart(file) + 1, span.start) +
+        source.slice(span.end, objClose);
+    // The only property, with no comment beside it to keep: drop the whole
+    // options argument.
+    if (options.properties.length === 1 && leftover.trim() === '') {
+        if (!optionsLast) {
+            return null;
+        }
         if (method === 'out') {
             return { end: close, start: open, text: '' };
         }
-        // `.outMono(ch, { prop: true })` — remove the second arg and the
-        // comma separating it from the channel.
-        return {
-            end: options.getEnd(),
-            start: startWithComma(options, file),
-            text: '',
-        };
+        return { ...removalSpan(options, file), text: '' };
     }
-
-    // Through the property's own comma and the space after it, or else
-    // back through the comma before it.
-    const { after } = commasAround(existing, file);
-    if (after) {
-        let end = after.getEnd();
-        while (end < objClose && /\s/.test(source[end])) {
-            end++;
-        }
-        return { end, start: existing.getStart(file), text: '' };
-    }
-    return {
-        end: existing.initializer.getEnd(),
-        start: startWithComma(existing, file),
-        text: '',
-    };
+    return { ...span, text: '' };
 }
 
 /** The member of `obj` that sets `prop`. */
@@ -369,5 +406,6 @@ function findProperty(
     obj: ts.ObjectLiteralExpression,
     prop: string,
 ): ts.ObjectLiteralElementLike | null {
-    return obj.properties.find((p) => propertyName(p) === prop) ?? null;
+    // The last of a repeated key is the one the object keeps.
+    return obj.properties.findLast((p) => propertyName(p) === prop) ?? null;
 }
