@@ -10,6 +10,16 @@ pub fn tan_dirty(f: f32) -> f32 {
     f * (std::f32::consts::PI + A * f * f)
 }
 
+/// `OnePole::tan<FREQUENCY_FAST>`: `tan(π f)` for a frequency `f` in cycles
+/// per sample, tuned for 16 Hz–16 kHz at 48 kHz.
+#[inline(always)]
+pub fn tan_fast(f: f32) -> f32 {
+    const A: f32 = (3.260e-01f32 as f64 * PI * PI * PI) as f32;
+    const B: f32 = (1.823e-01f32 as f64 * PI * PI * PI * PI * PI) as f32;
+    let f2 = f * f;
+    f * (std::f32::consts::PI + f2 * (A + B * f2))
+}
+
 /// Topology-preserving one-pole filter.
 #[derive(Clone, Copy, Default)]
 pub struct OnePole {

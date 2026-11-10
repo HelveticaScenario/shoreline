@@ -23,3 +23,15 @@ pub fn hermite(table: &[f32], index: f32, size: f32) -> f32 {
     let b_neg = w + a;
     (((a * f) - b_neg) * f + c) * f + x0
 }
+
+/// `stmlib::Interpolate`: `table` read at `index` × `size` with linear
+/// interpolation. A position past either end reads the end pair.
+#[inline(always)]
+pub fn linear(table: &[f32], index: f32, size: f32) -> f32 {
+    let index = index * size;
+    let integral = (index as i32).clamp(0, table.len() as i32 - 2) as usize;
+    let fractional = index - integral as f32;
+    let a = table[integral];
+    let b = table[integral + 1];
+    a + (b - a) * fractional
+}
