@@ -2,10 +2,11 @@
 //! `plaits/dsp`.
 
 pub mod control;
+pub mod downsampler;
 pub mod filter;
 #[cfg(test)]
 pub mod fixture;
 pub mod phase;
 pub mod polyblep;
 pub mod sine;
-mod tables;
+pub(in crate::dsp::mi) mod tables;
