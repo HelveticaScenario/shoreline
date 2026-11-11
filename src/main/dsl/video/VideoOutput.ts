@@ -168,8 +168,8 @@ const forward = (names: string[]): Record<string, ChainCall> =>
 /** Functions of `.$` and `.$m`: each returns a new signal from this one. */
 const PROCESSING: Record<string, ChainCall> = {
     ...forward(FORWARDED),
-    osc: (o, s, freq, phase, config) =>
-        o.osc(freq, phase, { ...(config as object), input: s }),
+    osc: (o, s, freq, phase, offset, config) =>
+        o.osc(freq, phase, offset, { ...(config as object), input: s }),
     rotate: (o, s, turns) => o.warp(s, { rotate: turns }),
     scale: (o, s, zoom) => o.warp(s, { zoom }),
     scroll: (o, s, x = 0, y = 0) => o.warp(s, { shiftX: x, shiftY: y }),

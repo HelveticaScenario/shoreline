@@ -107,6 +107,39 @@ describe('$v modules', () => {
             expect(video!.uniforms).toHaveLength(1);
         });
 
+        it('puts red and blue an offset in cycles either side of green, as Hydra osc does', () => {
+            const wgsl = wgslOf(
+                `$v.osc(4, 0.1, 0.25, { shape: 'saw' }).out();`,
+            );
+            expect(wgsl).toMatch(
+                /osc_saw_split\(video_luma\(v\d\) \* 4\.0 \+ 0\.1, 0\.25\)/,
+            );
+            const saw = callWgsl(wgsl, 'osc_saw_split', 0.5, 0.25) as number[];
+            saw.forEach((level, i) =>
+                expect(level).toBeCloseTo([0.25, 0.5, 0.75, 1][i]),
+            );
+            const wrapped = callWgsl(
+                wgsl,
+                'osc_saw_split',
+                0.1,
+                0.2,
+            ) as number[];
+            wrapped.forEach((level, i) =>
+                expect(level).toBeCloseTo([0.9, 0.1, 0.3, 1][i]),
+            );
+        });
+
+        it('draws one gray wave for a constant offset of 0', () => {
+            const wgsl = wgslOf(`$v.osc(4).out();`);
+            expect(wgsl).toMatch(
+                /vec4f\(vec3f\(osc_sine\(fract\(video_luma\(v\d\) \* 4\.0 \+ 0\.0\)\)\), 1\.0\)/,
+            );
+            expect(wgsl).not.toMatch(/= osc_sine_split\(/);
+            expect(callWgsl(wgsl, 'osc_sine', 0.125)).toBeCloseTo(
+                0.5 + 0.5 * Math.SQRT1_2,
+            );
+        });
+
         it('compiles min, max, wrap and fold', () => {
             const wgsl = wgslOf(`
                 const x = $v.ramp();

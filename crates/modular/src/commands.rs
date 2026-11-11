@@ -5,13 +5,13 @@
 
 use modular_core::patch::Patch;
 use modular_core::profiling::ModuleProfileAccum;
-use modular_core::types::{Message, ModuleIdRemap, Sampleable, ScopeBufferKey};
+use modular_core::types::{Message, ModuleIdRemap, PreviousIds, Sampleable, ScopeBufferKey};
 use napi::Error;
 use napi_derive::napi;
 use rtrb::PushError;
 use std::collections::HashMap;
 
-use crate::audio::{ScopeBuffer, VuMeterState};
+use crate::audio::{ScopeBuffer, ScopeStash, VuMeterState};
 use crate::link::LinkResources;
 
 /// When a queued patch update should be applied.
@@ -70,6 +70,10 @@ pub struct PatchUpdate {
     /// through the garbage queue.
     pub scope_next: HashMap<ScopeBufferKey, ScopeBuffer>,
 
+    /// Stash storage sized for `scope_next`'s taps, swapped in alongside it;
+    /// the displaced stash rides this update back through the garbage queue.
+    pub scope_stash_next: ScopeStash,
+
     /// The complete next VU meter membership, built on the main thread with
     /// running levels carried over from matching current entries. The audio
     /// thread swaps this in wholesale; the displaced Vec rides this update
@@ -118,6 +122,7 @@ impl PatchUpdate {
             process_order_ids: Vec::new(),
             transfer_sources: HashMap::new(),
             scope_next: HashMap::new(),
+            scope_stash_next: ScopeStash::default(),
             vu_next: Vec::new(),
             process_order_scratch: Vec::new(),
             sample_rate,
@@ -138,6 +143,21 @@ impl PatchUpdate {
             self.transfer_sources
                 .entry(remap.from.clone())
                 .or_insert(None);
+        }
+    }
+}
+
+/// [`PatchUpdate::transfer_sources`] read as a [`PreviousIds`]: each incoming
+/// module id resolves to the live module it takes state from — its remap
+/// source, nothing when flagged fresh, else itself.
+pub struct TransferSourceIds<'a>(pub &'a HashMap<String, Option<String>>);
+
+impl PreviousIds for TransferSourceIds<'_> {
+    fn previous<'b>(&'b self, id: &'b str) -> Option<&'b str> {
+        match self.0.get(id) {
+            Some(Some(old_id)) => Some(old_id.as_str()),
+            Some(None) => None,
+            None => Some(id),
         }
     }
 }
