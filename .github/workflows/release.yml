@@ -60,6 +60,8 @@ jobs:
         # Outside a release, a manual run still builds and tests every platform.
         if: needs.draft.outputs.release == 'true' || github.event_name == 'workflow_dispatch'
         runs-on: ${{ matrix.os }}
+        permissions:
+            contents: write
         strategy:
             fail-fast: false
             matrix:
