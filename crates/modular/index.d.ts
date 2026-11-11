@@ -64,7 +64,10 @@ export declare class Synthesizer {
    */
   setModuleProfilingSampleRate(rate: number): void
   updatePatch(patch: PatchGraph, trigger?: QueuedTrigger | undefined | null, resetClock?: boolean | undefined | null): PatchUpdateResult
-  /** Load a WAV file into the cache, returning metadata about the loaded sample. */
+  /**
+   * Load a WAV file into the cache, returning metadata about the loaded
+   * sample. `path` starts with `/`, the workspace root.
+   */
   loadWav(path: string): WavLoadInfo
   /**
    * Decode the audio track of a workspace media file into the cache. `None`

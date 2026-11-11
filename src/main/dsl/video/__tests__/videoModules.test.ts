@@ -461,7 +461,7 @@ describe('$v modules', () => {
         });
 
         it('darkens the color and keeps the alpha', () => {
-            const wgsl = wgslOf(`$v.out($v.vignette($v.image('a.png')));`);
+            const wgsl = wgslOf(`$v.out($v.vignette($v.image('/a.png')));`);
             expect(wgsl).toContain(
                 'return vec4f(c.rgb * (1.0 - amount), c.a);',
             );

@@ -13,7 +13,6 @@ import {
     processModuleSchema,
     qualifiesForDollarChain,
 } from './paramsSchema';
-import type { WavsFolderNode } from './executor';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 import {
     generateVideoChainInterfaces,
@@ -35,7 +34,6 @@ import {
 import { chooseOutput } from '../../shared/dsl/outputResolutionRule';
 import { sanitizeOutputName } from './outputNames';
 import { renderDocContentJsDoc } from '../../shared/dsl/referenceDocs';
-export type { WavsFolderNode } from './executor';
 
 const BASE_LIB_SOURCE = `
 /** The **\`console\`** object provides access to the debugging console (e.g., the Web console in Firefox). */
@@ -843,18 +841,16 @@ type GlidePattern = {
 };
 
 /**
- * A loaded WAV sample handle — returned by \`$wavs()\`, passed to \`$sampler()\` as the \`wav\` param.
+ * What \`$wavMeta\` reads from a WAV file. Times are in seconds.
  */
-type WavHandle = {
-  readonly type: 'wav_ref';
+type WavMeta = {
   readonly path: string;
   readonly channels: number;
   readonly sampleRate: number;
   readonly frameCount: number;
   readonly duration: number;
   readonly bitDepth: number;
-  /** File modification time (epoch ms). Cache-key hint — changes when the WAV is edited on disk. */
-  readonly mtime: number;
+  /** Root note of the sample, in V/Oct. */
   readonly pitch?: number;
   readonly playback?: 'one-shot' | 'loop';
   readonly bpm?: number;
@@ -1752,6 +1748,17 @@ function $c(...args: (Signal | Signal[] | Iterable<Signal>)[]): Collection;
 function $r(...args: (ModuleOutputWithRange | Iterable<ModuleOutputWithRange>)[]): CollectionWithRange;
 
 /**
+ * Read the format, tempo, loops and cue points of a WAV file.
+ * @param path The file, from the workspace folder: \`'/wavs/loop.wav'\`
+ * @example
+ * // Play a loop at the tempo it was recorded at
+ * const loop = '/wavs/loop.wav'
+ * $setTempo($wavMeta(loop).bpm ?? 120)
+ * $sampler(loop, $clock.barTrigger).out()
+ */
+function $wavMeta(path: string): WavMeta;
+
+/**
  * Set the global tempo for the root clock.
  * @param tempo Tempo in BPM
  * @example $setTempo(120)  // 120 beats per minute
@@ -2278,53 +2285,10 @@ interface VideoBuffer {
 ${generateVideoNamespace()}
 `;
 
-function generateWavsTypeDeclaration(tree: WavsFolderNode | null): string {
-    if (!tree || Object.keys(tree).length === 0) {
-        return '/** Load WAV samples from the wavs/ folder. */\nexport function $wavs(): Record<string, never>;\n';
-    }
-
-    function renderNode(node: WavsFolderNode, indent: string): string {
-        const sorted = Object.entries(node).sort(([a], [b]) =>
-            a.localeCompare(b),
-        );
-        const hasFiles = sorted.some(([, v]) => v === 'file');
-        const lines: string[] = ['{'];
-        // Numeric index signature (wraps modulo file count) when this folder
-        // has at least one direct file. Out-of-range integers are valid at
-        // runtime since access wraps; folders with zero files omit the
-        // signature so `$wavs().emptyDir[0]` is a static type error.
-        if (hasFiles) {
-            lines.push(`${indent}  readonly [index: number]: WavHandle;`);
-        }
-        for (const [key, value] of sorted) {
-            const safeName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key)
-                ? key
-                : `'${key.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-            if (value === 'file') {
-                lines.push(`${indent}  readonly ${safeName}: WavHandle;`);
-            } else {
-                lines.push(
-                    `${indent}  readonly ${safeName}: ${renderNode(value, indent + '  ')}`,
-                );
-            }
-        }
-        lines.push(`${indent}}`);
-        return lines.join('\n');
-    }
-
-    const treeType = renderNode(tree, '');
-    return `/** Load WAV samples from the wavs/ folder. */\nexport function $wavs(): ${treeType};\n`;
-}
-
-export function buildLibSource(
-    schemas: Schemas,
-    wavsFolderTree?: WavsFolderNode | null,
-): string {
+export function buildLibSource(schemas: Schemas): string {
     const schemaLib = generateDSL(schemas);
-    const wavsDecl = generateWavsTypeDeclaration(wavsFolderTree ?? null);
-    return `/* oxlint-disable */\ndeclare global {\n${BASE_LIB_SOURCE}\n\n${schemaLib}\n\n${wavsDecl}\n}\n\nexport {};\n`;
+    return `/* oxlint-disable */\ndeclare global {\n${BASE_LIB_SOURCE}\n\n${schemaLib}\n}\n\nexport {};\n`;
 }
-
 interface NamespaceNode {
     namespaces: Map<string, NamespaceNode>;
     classes: Map<string, Schema>;
@@ -2841,10 +2805,12 @@ function renderTree(node: NamespaceNode, indentLevel: number = 0): string[] {
  * builds the values.
  */
 function renderEnoscNamespace(schemas: Schemas): string[] {
-    const presets = enoscScalePresets(schemas).flatMap(({ name, description }) => [
-        `    /** ${description} */`,
-        `    readonly ${name}: EnoscScale;`,
-    ]);
+    const presets = enoscScalePresets(schemas).flatMap(
+        ({ name, description }) => [
+            `    /** ${description} */`,
+            `    readonly ${name}: EnoscScale;`,
+        ],
+    );
     return [
         'export namespace $enosc {',
         '  /**',

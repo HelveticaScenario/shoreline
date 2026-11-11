@@ -8198,7 +8198,7 @@
       "examples": [
         {
           "title": "Scattered pad texture",
-          "code": "const grains = $pulse('8hz')\n$granularSampler($wavs().pad, grains, {\n  time: $sah($noise('white').range(0, 5), grains),\n  width: 4,\n  spread: 2,\n}).out()"
+          "code": "const grains = $pulse('8hz')\n$granularSampler('/wavs/pad.wav', grains, {\n  time: $sah($noise('white').range(0, 5), grains),\n  width: 4,\n  spread: 2,\n}).out()"
         }
       ]
     },
@@ -11967,11 +11967,11 @@
       "examples": [
         {
           "title": "Scanning pad",
-          "code": "$wavetable(\n  $chord('C3[m9]'),\n  $wavs().tables.pad,\n  $sine('0.1hz').range(0, 5),\n).out()"
+          "code": "$wavetable(\n  $chord('C3[m9]'),\n  '/wavs/tables/pad.wav',\n  $sine('0.1hz').range(0, 5),\n).out()"
         },
         {
           "title": "Plucked table sweep",
-          "code": "const seq = $p('c3 eb3 g3 bb3').c\nconst env = $perc(seq, { decay: 0.5 })\n$wavetable(seq, $wavs().tables.pad, env.range(0, 4))\n  .amp(env)\n  .out()"
+          "code": "const seq = $p('c3 eb3 g3 bb3').c\nconst env = $perc(seq, { decay: 0.5 })\n$wavetable(seq, '/wavs/tables/pad.wav', env.range(0, 4))\n  .amp(env)\n  .out()"
         }
       ]
     },
@@ -31897,11 +31897,11 @@
       "examples": [
         {
           "title": "Slowly scanned cloud",
-          "code": "$grains('c4', $wavs().pad, 5, {\n  start: $ramp('0.02hz').range(0, 5),\n  density: 4,\n  shape: 'bell',\n}).out()"
+          "code": "$grains('c4', '/wavs/pad.wav', 5, {\n  start: $ramp('0.02hz').range(0, 5),\n  density: 4,\n  shape: 'bell',\n}).out()"
         },
         {
           "title": "Grain chords from a melody",
-          "code": "const seq = $p('<[c3, g3] [eb3, bb3]>').c\n$grains(seq, $wavs().strings, seq, {\n  length: 2,\n  density: 3,\n  shape: 'tukey',\n}).out()"
+          "code": "const seq = $p('<[c3, g3] [eb3, bb3]>').c\n$grains(seq, '/wavs/strings.wav', seq, {\n  length: 2,\n  density: 3,\n  shape: 'tukey',\n}).out()"
         }
       ]
     },
@@ -32293,11 +32293,11 @@
       "examples": [
         {
           "title": "Chopped and rearranged loop",
-          "code": "const order = $p('0 2 1 3 0 0 3 2').c\n$sampler($wavs().pad, order.trig, {\n  slice: [[0, 0.25, 0.5, 0.75], order],\n  fade: 2,\n}).out()"
+          "code": "const order = $p('0 2 1 3 0 0 3 2').c\n$sampler('/wavs/pad.wav', order.trig, {\n  slice: [[0, 0.25, 0.5, 0.75], order],\n  fade: 2,\n}).out()"
         },
         {
           "title": "Kick on every beat",
-          "code": "$sampler($wavs().kick, $clock.beatTrigger).out()"
+          "code": "$sampler('/wavs/kick.wav', $clock.beatTrigger).out()"
         }
       ]
     },
