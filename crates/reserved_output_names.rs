@@ -1,7 +1,11 @@
-/// Reserved output names that cannot be used as module output port names.
-/// These are the built-in properties and methods of `BaseCollection`,
-/// `Collection`, `CollectionWithRange` and `DeferredCollection`, as well as
-/// JavaScript built-in property names.
+/// Names taken by the built-in properties and methods of `BaseCollection`,
+/// `Collection`, `CollectionWithRange` and `DeferredCollection`, and by
+/// JavaScript built-in properties.
+///
+/// A module output cannot take one of these names. Nor can the first segment
+/// of a module's name after its `$`: every chainable module is also a method
+/// of collections (`$lpf` as `.lpf(...)`, `$mi.chorus` as `.mi.chorus(...)`),
+/// so `$gain` or `$gain.soft` would shadow `.gain(...)`.
 ///
 /// This file is the single source of truth. It is `include!()`-ed by both
 /// `modular_derive` (compile-time validation) and `modular` (NAPI export to JS).
@@ -13,6 +17,7 @@ const RESERVED_OUTPUT_NAMES: &[&str] = &[
     "items",
     "length",
     "channelViews",
+    "o",
     // BaseCollection methods
     "channel",
     "slice",
@@ -30,16 +35,15 @@ const RESERVED_OUTPUT_NAMES: &[&str] = &[
     "round",
     "floor",
     "ceil",
-    "addHz",
-    "mulHz",
     "scope",
     "out",
     "outMono",
     "send",
     "pipe",
     "pipeMix",
-    "mix",
+    "wet",
     "withRange",
+    "rounded",
     "toString",
     // Collection / CollectionWithRange methods
     "range",

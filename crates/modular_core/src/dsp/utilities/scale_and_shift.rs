@@ -46,7 +46,7 @@ const SCALE_AND_SHIFT_DOCS: ModuleDocs = ModuleDocs {
         title: "Filter wobble set by depth and centre",
         code: r#"
             $saw('c2')
-              .$.lpf($scaleAndShift($sine('0.5hz'), 1.5, 1), 2)
+              .lpf($scaleAndShift($sine('0.5hz'), 1.5, 1), 2)
               .out()
         "#,
     }],

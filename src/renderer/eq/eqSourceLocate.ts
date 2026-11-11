@@ -1,7 +1,7 @@
 /**
  * Finding an EQ call in the source and the list literals the panel edits.
  * Each edit parses the current document and finds the call by the offset of
- * its callee — `$eq` itself, or the `eq` of a `.$.eq(...)` chain (the
+ * its callee — `$eq` itself, or the `eq` of a `.eq(...)` chain (the
  * panel's tracked anchor) — then the config object holding `ui` and its
  * `sections`: the array itself, or one channel's nested array.
  */

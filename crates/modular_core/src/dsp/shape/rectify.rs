@@ -81,7 +81,7 @@ const RECTIFY_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Octave-up buzz",
-        code: "$sine('c3').$.unstable.shape.rectify('full').out()",
+        code: "$sine('c3').unstable.shape.rectify('full').out()",
     }],
 };
 

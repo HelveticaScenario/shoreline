@@ -121,7 +121,7 @@ describe('$v.scopeXY', () => {
 
     it('can be warped and composited like any signal', () => {
         const { video } = exec(`
-            $v.out($v.mult($v.scopeXY($sine('c4'), $sine('g4')).$.kaleid(4), $v.hsv(0.9, 1, 1)))
+            $v.out($v.mult($v.scopeXY($sine('c4'), $sine('g4')).kaleid(4), $v.hsv(0.9, 1, 1)))
         `);
         expect(video!.scopes).toHaveLength(1);
         expect(video!.wgsl).toContain('video_scope(scope_0, uv)');

@@ -77,7 +77,7 @@ describe('computeControlQuickFixes — add controls for all unset params', () =>
     });
 
     test('is not offered when only one param is unset', () => {
-        expect(addAll(`$sine(0).$.lpf('100hz'|).out();`).fix).toBeUndefined();
+        expect(addAll(`$sine(0).lpf('100hz'|).out();`).fix).toBeUndefined();
     });
 
     test('formats like Format Document', async () => {

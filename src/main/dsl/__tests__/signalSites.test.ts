@@ -71,13 +71,13 @@ describe('static resolution', () => {
     test('a cycle resolves as argument, chain receiver and method receiver', () => {
         expect(
             hints(
-                `const cyc = $p('0*8').c\ncyc.$.perc()\n$adsr(cyc)\ncyc.amp(2).out()`,
+                `const cyc = $p('0*8').c\ncyc.perc()\n$adsr(cyc)\ncyc.amp(2).out()`,
             ),
         ).toEqual(['cyc‹trig›', '$adsr(cyc‹gate›', 'cyc‹cv›']);
     });
 
     test('an inline chain puts the hint after the receiver', () => {
-        const source = `$p('0*8').c.$.perc().out()`;
+        const source = `$p('0*8').c.perc().out()`;
         const [site] = collect(source);
         expect(source.slice(0, site.end)).toBe(`$p('0*8').c`);
         expect(site.output).toBe('trig');
@@ -140,9 +140,9 @@ describe('static resolution', () => {
     test('a mix amount reads cv', () => {
         expect(
             hints(
-                `const seq = $p('1 2').c\n$sine('c').$m.lpf(seq, 'c')\n$sine('c').pipeMix((x) => x, seq)`,
+                `const seq = $p('1 2').c\n$sine('c').lpf('c').wet(seq)\n$sine('c').pipeMix((x) => x, seq)`,
             ),
-        ).toEqual([').$m.lpf(seq‹cv›', 'x) => x, seq‹cv›']);
+        ).toEqual(["'c').wet(seq‹cv›", 'x) => x, seq‹cv›']);
     });
 
     test('a chain method option resolves by its own class', () => {
@@ -160,13 +160,13 @@ describe('static resolution', () => {
     test('$delay resolves its signals as a call and as a chain', () => {
         expect(
             hints(
-                `const seq = $p('1 2').c\n$delay(seq, seq, { feedback: seq })\n$sine('c').$.delay(seq)`,
+                `const seq = $p('1 2').c\n$delay(seq, seq, { feedback: seq })\n$sine('c').delay(seq)`,
             ),
         ).toEqual([
             '$delay(seq‹cv›',
             'lay(seq, seq‹cv›',
             'eedback: seq‹cv›',
-            '.$.delay(seq‹cv›',
+            "').delay(seq‹cv›",
         ]);
     });
 
@@ -228,26 +228,26 @@ describe('agreement with the runtime', () => {
     const sources = [
         `const seq = $p('c e g').c\n$saw(seq).amp($perc(seq)).out()`,
         `$saw($p('c e g').c).amp($perc($p('c*4').c)).out()`,
-        `const cyc = $p('0*8').c\ncyc.$.perc().out()\n$adsr(cyc).out()\ncyc.amp(2).out()`,
-        `$p('0*8').c.$.adsr().out()`,
+        `const cyc = $p('0*8').c\ncyc.perc().out()\n$adsr(cyc).out()\ncyc.amp(2).out()`,
+        `$p('0*8').c.adsr().out()`,
         `const seqs = []\nfor (let i = 0; i < 3; i++) {\n    seqs.push($p('c e g').c)\n}\n$sine(seqs).amp($perc(seqs)).out()`,
         `const a = $p('c').c\nconst b = $p('e').c\n$perc([a, b]).out()`,
         `const seq = $p('c e').c\n$saw(seq, { sync: seq }).out()`,
         `function voice(s) {\n    return $saw(s).amp($perc(s))\n}\nvoice($p('c e g').c).out()`,
         `$perc($clock).out()\n$tr808.kick($clock).out()`,
         `const seq = $p('c e').c\nseq.out()\n$sine('c').amp(seq).out()`,
-        `$sine('c').$.lpf($p('c5 c6').c).out()`,
+        `$sine('c').lpf($p('c5 c6').c).out()`,
         `const seq = $p('c e').c\n$saw($g1([seq, seq]), { sync: $g2(seq) }).out()`,
-        `function f(s, m) {\n    return s.$m.lpf(m, 'c')\n}\nf($clock, $p('1 2').c)`,
-        `function f(m) {\n    return $sine('c').pipeMix((x) => x.$.lpf('c'), m)\n}\nf($p('1 2').c).out()`,
+        `function f(s, m) {\n    return s.xover().wet(m)\n}\nf($clock, $p('1 2').c)`,
+        `function f(m) {\n    return $sine('c').pipeMix((x) => x.lpf('c'), m)\n}\nf($p('1 2').c).out()`,
         `function f(s) {\n    return $sine('c').range(s, s)\n}\nf($p('0 1').c).out()`,
         `function f(s) {\n    return $sine('c').amp($g1([s, s])).out({ gain: $g1(s) })\n}\nf($p('0 1').c)`,
         `function f(s) {\n    return $mix([[s, 2.5]]).amp($step([s, 'c'], s))\n}\nf($p('0 1').c).out()`,
         `function f(s) {\n    return $quantizer($sine('c'), s)\n}\nf($p('c, e, g').c).out()`,
         `function f(s) {\n    return $sine('c').erratic(1, { trigger: s, speed: s })\n}\nf($p('0 1').c).out({ gain: $p('1 2').c })`,
-        `function f(s) {\n    return $delay(s, s, { feedback: s, feedbackCb: (m) => m.$.lpf(s) })\n}\nf($p('0 1').c)`,
-        `function f(s) {\n    return $sine('c').$m.delay(s, s)\n}\nf($p('0 1').c)`,
-        `const seq = $p('[c,e] [g,b]').c\n$perc(seq.slice(1)).out()\n$saw(seq.chunk(1)).amp($perc(seq[1])).out()\nseq.slice(1).$.perc().out()`,
+        `function f(s) {\n    return $delay(s, s, { feedback: s, feedbackCb: (m) => m.lpf(s) })\n}\nf($p('0 1').c)`,
+        `function f(s) {\n    return $sine('c').delay(s).wet(s)\n}\nf($p('0 1').c)`,
+        `const seq = $p('[c,e] [g,b]').c\n$perc(seq.slice(1)).out()\n$saw(seq.chunk(1)).amp($perc(seq[1])).out()\nseq.slice(1).perc().out()`,
     ];
 
     test.each(sources)('%s', (source) => {

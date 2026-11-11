@@ -224,7 +224,7 @@ const PLATE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Thick, warm plate reverb",
     description: "A denser, warmer plate than `$dattorro`, with a thicker tail that sits well \
                   behind pads and keys. The input is summed to mono and spread into a stereo \
-                  tail. Output is fully wet, so blend it with `.$m.plate(mix)` or send to it \
+                  tail. Output is fully wet, so blend it with `.wet(mix)` or send to it \
                   from a bus.",
     categories: &[ModuleCategory::Effect],
     sections: &[],
@@ -232,8 +232,9 @@ const PLATE_DOCS: ModuleDocs = ModuleDocs {
         title: "Warm pad plate",
         code: r#"
             $saw($chord('F3[maj9]'))
-              .$.lpf('f5', 1)
-              .$m.plate(2, { decay: 2, damping: 1 })
+              .lpf('f5', 1)
+              .plate({ decay: 2, damping: 1 })
+              .wet(2)
               .out()
         "#,
     }],

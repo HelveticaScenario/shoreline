@@ -178,7 +178,7 @@ describe('rounding methods', () => {
         expect(modules('_round')).toHaveLength(3);
     });
 
-    test('_arithmetic and _round are not globals or .$ methods', () => {
+    test('_arithmetic and _round are not globals or chain methods', () => {
         const run = (src: string) =>
             executePatchScript(src, schemas, {
                 sampleRate: 48_000,
@@ -186,6 +186,6 @@ describe('rounding methods', () => {
             });
         expect(() => run('$arithmetic(0, 1).out()')).toThrow();
         expect(() => run('$round(0).out()')).toThrow();
-        expect(() => run('$sine(0).$.round().out()')).toThrow();
+        expect(() => run('$sine(0).arithmetic(1).out()')).toThrow();
     });
 });

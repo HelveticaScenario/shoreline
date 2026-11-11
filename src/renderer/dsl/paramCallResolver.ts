@@ -2,7 +2,7 @@
  * Resolve a DSL call expression to the params its arguments set.
  *
  * Module calls — direct factories (`$saw(...)`, `$unstable.filter.lp(...)`)
- * and `.$.` / `.$m.` chains on audio signals — resolve through the module
+ * and chain modules on audio signals (`.lpf(...)`) — resolve through the module
  * schemas, which carry each param's signal type, range, and default. Every
  * other API call — functions (`$setOutputGain`, `$phase.bend`, `$v.osc`),
  * methods (`.out`, `.send`, `.amp`, `.range`), and video chains — resolves
@@ -20,7 +20,6 @@ import {
     API_CONTROLS,
     controlRef,
     hintedRef,
-    mixRef,
     schemaParamRef,
 } from './apiParamControls';
 import type { ParamRef, SchemaEntry } from './apiParamControls';
@@ -84,7 +83,6 @@ export function createCallResolver(
         argToPositional: (i: number) => number | null,
         configSlot: number,
         chained: boolean,
-        extra?: (i: number) => ParamRef | null,
     ): ResolvedCall => {
         const positionals = schema.positionalArgs ?? [];
         const config = new Map<string, ParamRef | null>();
@@ -93,10 +91,6 @@ export function createCallResolver(
         }
         return {
             argParam: (i) => {
-                const fromExtra = extra?.(i);
-                if (fromExtra) {
-                    return fromExtra;
-                }
                 const pi = argToPositional(i);
                 return pi === null
                     ? null
@@ -161,24 +155,15 @@ export function createCallResolver(
             positionalNames: () => new Set(),
         };
     };
-    /** `.$.` / `.$m.` through a module: the chained signal is injected as
-     *  its first positional argument, and `.$m.` adds a leading mix. */
-    const moduleChain = (schema: SchemaEntry, dollar: '$' | '$m') => {
+    /** A chain module: the receiver is its first positional argument. */
+    const moduleChain = (schema: SchemaEntry) => {
         const count = schema.positionalArgs?.length ?? 0;
-        return dollar === '$m'
-            ? moduleCall(
-                  schema,
-                  (i) => (i >= 1 && i < count ? i : null),
-                  count,
-                  true,
-                  (i) => (i === 0 ? mixRef('audio') : null),
-              )
-            : moduleCall(
-                  schema,
-                  (i) => (i + 1 < count ? i + 1 : null),
-                  count - 1,
-                  true,
-              );
+        return moduleCall(
+            schema,
+            (i) => (i + 1 < count ? i + 1 : null),
+            count - 1,
+            true,
+        );
     };
 
     return (call) => {
@@ -212,37 +197,22 @@ export function createCallResolver(
         }
         // Audio and video members share names, so the receiver's family
         // picks which apply; an unknown receiver tries audio first.
-        const { dollar, path, receiver } = splitChain(expr);
+        const { chain, receiver } = splitChain(expr, api);
         const known = familyOf(receiver);
-        const families: Family[] = known ? [known] : ['audio', 'video'];
-        if (!dollar) {
-            const name = expr.name.text;
-            for (const family of families) {
-                const sig = api[family].methods.get(name);
-                if (sig) {
-                    return apiCall(family, name, sig);
-                }
-            }
-            return null;
-        }
         const schema =
-            known === 'video' ? undefined : byChainPath.get(path.join('.'));
+            chain !== null && known !== 'video'
+                ? byChainPath.get(chain)
+                : undefined;
         if (schema) {
-            return moduleChain(schema, dollar);
+            return moduleChain(schema);
         }
+        const name = expr.name.text;
+        const families: Family[] = known ? [known] : ['audio', 'video'];
         for (const family of families) {
-            const sig = api[family].chains.get(`${dollar}.${path.join('.')}`);
-            if (!sig) {
-                continue;
+            const sig = api[family].methods.get(name);
+            if (sig) {
+                return apiCall(family, name, sig);
             }
-            const resolved = apiCall(family, expr.name.text, sig);
-            return dollar === '$m'
-                ? {
-                      ...resolved,
-                      argParam: (i) =>
-                          i === 0 ? mixRef(family) : resolved.argParam(i),
-                  }
-                : resolved;
         }
         return null;
     };

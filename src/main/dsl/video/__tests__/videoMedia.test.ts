@@ -25,7 +25,7 @@ describe('$v media sources', () => {
             const { video } = exec(`
                 const a = $v.image('/a.png');
                 const b = $v.video('/b.mp4', { fit: 'contain' });
-                $v.out($v.mix(a, b, 0.5).$.add($v.image('/a.png', { fit: 'stretch' })));
+                $v.out($v.mix(a, b, 0.5).add($v.image('/a.png', { fit: 'stretch' })));
             `);
             expect(video!.sources).toEqual([
                 { kind: 'image', path: 'a.png' },
@@ -108,7 +108,7 @@ describe('$v media sources', () => {
             const { video } = exec(`
                 const trail = $v.buffer();
                 const wave = $v.fromAudio($sine('110hz'));
-                $v.image('/a.png').$.add(trail.read().$.mult(0.9)).write(trail).$.mult($v.hsv(wave)).out();
+                $v.image('/a.png').add(trail.read().mult(0.9)).write(trail).mult($v.hsv(wave)).out();
             `);
             expect(video!.wgsl).toContain('var fb_0: texture_2d<f32>');
             expect(video!.wgsl).toContain(
@@ -118,7 +118,7 @@ describe('$v media sources', () => {
         });
 
         it('moves with the warps like any other pattern', () => {
-            const wgsl = wgslOf(`$v.image('/a.png').$.kaleid(6).out();`);
+            const wgsl = wgslOf(`$v.image('/a.png').kaleid(6).out();`);
             expect(wgsl).toMatch(
                 /fn node0\(uv: vec2f\) -> vec4f \{\n    return video_source\(src_0/,
             );
@@ -272,7 +272,7 @@ describe('$v media sources', () => {
         it('keeps the audio after a chain is taken from the video, not on the chain', () => {
             const { video } = exec(`
                 const clip = $v.video('/clips/loop.mp4');
-                if (clip.$.invert().audio !== undefined) throw new Error('chained audio');
+                if (clip.invert().audio !== undefined) throw new Error('chained audio');
                 $v.out(clip);
             `);
             expect(video).not.toBeNull();

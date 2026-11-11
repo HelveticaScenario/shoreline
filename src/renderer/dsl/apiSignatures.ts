@@ -4,9 +4,9 @@
  * option object a patch can call.
  *
  * Functions are keyed by their dotted name (`$setOutputGain`, `$phase.bend`,
- * `$v.osc`), methods by name, and the `.$` / `.$m` chain namespaces by their
- * dotted path below `$`. Audio and video values are separate families, since
- * their methods and chains share names (`range`, `.$.fold`) but not
+ * `$v.osc`), methods by name, and the chain modules of an audio value by
+ * their dotted path (`lpf`, `mi.chorus`). Audio and video values are separate
+ * families, since their methods share names (`range`, `fold`) but not
  * parameters. A parameter accepts a signal when its type reaches `Signal`,
  * `Poly`, or `Mono`, or unions `number` with a module output type.
  */
@@ -17,12 +17,15 @@ import type { ApiMember, ApiParam, ApiSignature } from './apiTypeReader';
 
 export type Family = 'audio' | 'video';
 
+/** The generated interface whose methods are the chain modules. */
+const CHAIN_INTERFACE = 'ModuleChain';
+
 /** The members of one family of values. */
 export interface ApiFamily {
     methods: ReadonlyMap<string, ApiSignature>;
-    /** `.$.<path>` and `.$m.<path>` methods, keyed `$.path` / `$m.path`. */
-    chains: ReadonlyMap<string, ApiSignature>;
-    /** Method names and chain keys whose result is a video value. */
+    /** Chain modules, keyed by dotted path (`lpf`, `mi.chorus`). */
+    chains: ReadonlySet<string>;
+    /** Method names whose result is a video value. */
     returnsVideo: ReadonlySet<string>;
 }
 
@@ -41,12 +44,12 @@ type Declarations = Map<string, ts.SignatureDeclarationBase[]>;
 
 interface FamilyDeclarations {
     methods: Declarations;
-    chains: Declarations;
+    chains: Set<string>;
     returnsVideo: Set<string>;
 }
 
 const emptyFamily = (): ApiFamily => ({
-    chains: new Map(),
+    chains: new Set(),
     methods: new Map(),
     returnsVideo: new Set(),
 });
@@ -83,38 +86,13 @@ export function indexApiSignatures(libSource: string): ApiIndex {
         true,
     );
 
-    // Named types, and the interfaces that hang off `$` / `$m`.
     const aliases = new Map<string, ts.TypeNode>();
     const interfaces = new Map<string, ts.InterfaceDeclaration[]>();
-    const chainRoots: { dollar: string; owner: string; root: string }[] = [];
-    const collectChainRoots = (
-        owner: string,
-        members: readonly (ts.TypeElement | ts.ClassElement)[],
-    ) => {
-        for (const m of members) {
-            const name = m.name && memberName(m.name);
-            if (
-                (ts.isPropertySignature(m) || ts.isPropertyDeclaration(m)) &&
-                (name === '$' || name === '$m') &&
-                m.type &&
-                ts.isTypeReferenceNode(m.type)
-            ) {
-                chainRoots.push({
-                    dollar: name,
-                    owner,
-                    root: m.type.typeName.getText(file),
-                });
-            }
-        }
-    };
     const collectTypes = (node: ts.Node) => {
         if (ts.isTypeAliasDeclaration(node) && !node.typeParameters) {
             aliases.set(node.name.text, node.type);
         } else if (ts.isInterfaceDeclaration(node)) {
             push(interfaces, node.name.text, node);
-            collectChainRoots(node.name.text, node.members);
-        } else if (ts.isClassDeclaration(node) && node.name) {
-            collectChainRoots(node.name.text, node.members);
         }
         ts.forEachChild(node, collectTypes);
     };
@@ -124,12 +102,12 @@ export function indexApiSignatures(libSource: string): ApiIndex {
     const functions: Declarations = new Map();
     const families: Record<Family, FamilyDeclarations> = {
         audio: {
-            chains: new Map(),
+            chains: new Set(),
             methods: new Map(),
             returnsVideo: new Set(),
         },
         video: {
-            chains: new Map(),
+            chains: new Set(),
             methods: new Map(),
             returnsVideo: new Set(),
         },
@@ -137,14 +115,10 @@ export function indexApiSignatures(libSource: string): ApiIndex {
     const videoFunctions = new Set<string>();
     const videoValues = new Set<string>();
 
+    // The chain modules: the methods of `ModuleChain` and of the namespace
+    // interfaces its properties name. Module schemas describe their params.
     const chainInterfaces = new Set<string>();
-    const walkChain = (
-        family: FamilyDeclarations,
-        thisIsVideo: boolean,
-        prefix: string,
-        typeName: string,
-        depth: number,
-    ) => {
+    const walkChain = (prefix: string, typeName: string, depth: number) => {
         if (depth > 8) {
             return;
         }
@@ -155,32 +129,25 @@ export function indexApiSignatures(libSource: string): ApiIndex {
                 if (!name) {
                     continue;
                 }
-                const key = `${prefix}.${name}`;
+                const key = prefix ? `${prefix}.${name}` : name;
                 if (ts.isMethodSignature(m)) {
-                    push(family.chains, key, m);
-                    if (types.isVideo(m.type, thisIsVideo)) {
-                        family.returnsVideo.add(key);
+                    families.audio.chains.add(key);
+                    // A chain method with no module behind it (`delay`)
+                    // resolves as a method, by its declaration.
+                    if (depth === 0) {
+                        push(families.audio.methods, name, m);
                     }
                 } else if (
                     ts.isPropertySignature(m) &&
                     m.type &&
                     ts.isTypeReferenceNode(m.type)
                 ) {
-                    walkChain(
-                        family,
-                        thisIsVideo,
-                        key,
-                        m.type.typeName.getText(file),
-                        depth + 1,
-                    );
+                    walkChain(key, m.type.typeName.getText(file), depth + 1);
                 }
             }
         }
     };
-    for (const { dollar, owner, root } of chainRoots) {
-        const video = types.isVideoInterface(owner);
-        walkChain(families[video ? 'video' : 'audio'], video, dollar, root, 0);
-    }
+    walkChain('', CHAIN_INTERFACE, 0);
 
     const addFunction = (name: string, decl: ts.SignatureDeclarationBase) => {
         push(functions, name, decl);
@@ -285,11 +252,7 @@ export function indexApiSignatures(libSource: string): ApiIndex {
         const ofFamily = (fn: string) =>
             videoFunctions.has(fn) === (family === 'video');
         return {
-            chains: withFunctionHints(
-                build(decls.chains),
-                signatures,
-                ofFamily,
-            ),
+            chains: decls.chains,
             methods: withFunctionHints(
                 build(decls.methods),
                 signatures,
@@ -318,7 +281,7 @@ function push<T>(map: Map<string, T[]>, key: string, value: T) {
 
 /**
  * Methods often document only a summary, while the function they forward to
- * (`.$.osc` to `$v.osc`, `.range` to `$v.range`) documents each param. A
+ * (`.osc` to `$v.osc`, `.range` to `$v.range`) documents each param. A
  * param or option member without hints takes those of the same-named one on
  * the only function of `ofFamily` whose name ends in the method's name.
  */

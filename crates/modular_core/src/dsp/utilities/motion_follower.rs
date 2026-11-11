@@ -132,7 +132,7 @@ const MOTION_FOLLOWER_DOCS: ModuleDocs = ModuleDocs {
         title: "A swinging LFO bows the filter open",
         code: r#"
             $saw('c3')
-              .$.lpf(
+              .lpf(
                 $motionFollower($sine('0.5hz'), { release: 0.5 }).range(
                   'c3',
                   'c7',
