@@ -146,16 +146,6 @@
     color: var(--accent-secondary);
 }
 
-/* Stretches over .docs-content's padding so scrolled cards stay hidden behind it. */
-.docs-panel .search-container {
-    position: sticky;
-    top: calc(-1 * var(--sp-1));
-    z-index: 10;
-    margin: 0 calc(-1 * var(--sp-1));
-    padding: var(--sp-1);
-    background: var(--bg-secondary);
-}
-
 .docs-panel .search-input {
     width: 100%;
     padding: 8px;
@@ -339,8 +329,110 @@
     color: var(--text-primary);
 }
 
+.docs-content-split {
+    display: flex;
+    padding: 0;
+    overflow: hidden;
+}
+
+.docs-content-split > * {
+    max-width: none;
+}
+
+.docs-panel .module-reference {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+}
+
+.docs-panel .module-index {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 200px;
+    gap: var(--sp-1);
+    padding: var(--sp-1);
+    border-right: 1px solid var(--border-subtle);
+}
+
+.docs-panel .module-index-list {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.docs-panel .module-index-list button {
+    display: block;
+    width: 100%;
+    padding: 2px 6px;
+    background: none;
+    border: none;
+    border-radius: 3px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: inherit;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.docs-panel .module-index-list button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.docs-panel .module-index-list button.active {
+    color: var(--accent-primary);
+}
+
+.docs-panel .module-reference-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.docs-panel .module-categories {
+    display: flex;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    gap: 6px;
+    padding: var(--sp-1);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.docs-panel .module-categories button {
+    padding: 2px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.docs-panel .module-categories button:hover {
+    color: var(--text-primary);
+}
+
+.docs-panel .module-categories button.active {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.docs-panel .module-cards {
+    flex: 1;
+    min-height: 0;
+    padding: var(--sp-1);
+    overflow-y: auto;
+}
+
 .docs-panel .module-list {
     position: relative;
+    max-width: 80ch;
 }
 
 .docs-panel .module-list-item {

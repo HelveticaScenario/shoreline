@@ -137,6 +137,7 @@ const TypeCard: React.FC<TypeCardProps> = ({
 export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
     const [activePage, setActivePage] = useState<Page>('types');
     const [searchQuery, setSearchQuery] = useState('');
+    const [category, setCategory] = useState<string | null>(null);
     const [schemas, setSchemas] = useState<Schemas>();
     // A fresh object per reveal, so revealing the same type again scrolls back to it.
     const [revealedType, setRevealedType] = useState<{
@@ -174,6 +175,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
         } else if (symbolType === 'module' || symbolType === 'namespace') {
             setActivePage('reference');
             setSearchQuery(name);
+            setCategory(null);
         }
     }, [target]);
 
@@ -319,7 +321,8 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
                         modules={schemas ?? NO_MODULES}
                         searchQuery={searchQuery}
                         onSearchQueryChange={setSearchQuery}
-                        scrollRef={contentRef}
+                        category={category}
+                        onCategoryChange={setCategory}
                         onTypeClick={handleTypeClick}
                     />
                 );
@@ -340,7 +343,10 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
                     </button>
                 ))}
             </nav>
-            <div ref={contentRef} className="docs-content">
+            <div
+                ref={contentRef}
+                className={`docs-content ${activePage === 'reference' ? 'docs-content-split' : ''}`}
+            >
                 {renderContent()}
             </div>
         </div>

@@ -1,12 +1,6 @@
-import type { RefObject } from 'react';
-import React, {
-    useCallback,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
+import moduleCategories from '@modular/core/moduleCategories.json';
 import { ReferenceCard } from './ReferenceCard';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type { Schema } from '../../shared/dsl/schemaTypeResolver';
@@ -21,89 +15,68 @@ interface ModuleReferenceProps {
     modules: Schema[];
     searchQuery: string;
     onSearchQueryChange: (query: string) => void;
-    scrollRef: RefObject<HTMLDivElement | null>;
+    /** Only modules in this category are listed; `null` lists every category. */
+    category: string | null;
+    onCategoryChange: (category: string | null) => void;
     onTypeClick: (typeName: DslTypeName) => void;
 }
 
+/** Name matches lead, best first; then entries whose summary or description
+ *  mention the query; then those whose params or examples do. -1 is no match. */
+function searchRank(entry: ReferenceEntry, query: string): number {
+    const name = entry.name.toLowerCase();
+    if (name === query) return 0;
+    if (name.startsWith(query)) return 1;
+    if (name.includes(query)) return 2;
+    const { summary, description, sections, examples } = entry.docs;
+    if (`${summary}\n${description}`.toLowerCase().includes(query)) {
+        return 3;
+    }
+    const rest = [
+        ...entry.params.flatMap((p) => [p.name, p.description ?? '']),
+        ...sections.flatMap((s) => [s.title, s.body]),
+        ...[...examples, ...sections.flatMap((s) => s.examples)].flatMap(
+            (e) => [e.title, e.code],
+        ),
+    ];
+    return rest.join('\n').toLowerCase().includes(query) ? 4 : -1;
+}
+
 /**
- * Module cards rendered through a virtualizer that scrolls the docs pane, so
- * only the cards near the viewport are mounted.
+ * A searchable name index beside the module cards. The index and the cards
+ * show the same filtered entries; the cards render through a virtualizer so
+ * only those near the viewport are mounted.
  */
 export const ModuleReference: React.FC<ModuleReferenceProps> = ({
     modules,
     searchQuery,
     onSearchQueryChange,
-    scrollRef,
+    category,
+    onCategoryChange,
     onTypeClick,
 }) => {
-    const listRef = useRef<HTMLDivElement>(null);
-    // The list's offset within the scrolling pane, below the heading and search box.
-    const [scrollMargin, setScrollMargin] = useState(0);
+    const cardsRef = useRef<HTMLDivElement>(null);
 
     const entries = useMemo(
         () => modules.map(moduleToReferenceEntry),
         [modules],
     );
 
+    const categories = useMemo(() => {
+        const used = new Set(entries.flatMap((e) => e.docs.categories));
+        return moduleCategories.filter((c) => used.has(c.name));
+    }, [entries]);
+
     const filteredModules = useMemo(() => {
         const query = searchQuery.toLowerCase();
-        // Name matches lead, best first; then entries whose summary or
-        // description mention the query; then those whose params or examples
-        // do. Each group keeps the display order.
-        const rankOf = (entry: ReferenceEntry): number => {
-            const name = entry.name.toLowerCase();
-            if (name === query) return 0;
-            if (name.startsWith(query)) return 1;
-            if (name.includes(query)) return 2;
-            const { summary, description, sections, examples } = entry.docs;
-            if (`${summary}\n${description}`.toLowerCase().includes(query)) {
-                return 3;
-            }
-            const rest = [
-                ...entry.params.flatMap((p) => [p.name, p.description ?? '']),
-                ...sections.flatMap((s) => [s.title, s.body]),
-                ...[
-                    ...examples,
-                    ...sections.flatMap((s) => s.examples),
-                ].flatMap((e) => [e.title, e.code]),
-            ];
-            return rest.join('\n').toLowerCase().includes(query) ? 4 : -1;
-        };
+        // Each rank keeps the display order.
         return entries
-            .map((entry) => ({ entry, rank: rankOf(entry) }))
+            .filter((e) => !category || e.docs.categories.includes(category))
+            .map((entry) => ({ entry, rank: searchRank(entry, query) }))
             .filter(({ rank }) => rank >= 0)
             .sort((a, b) => a.rank - b.rank)
             .map(({ entry }) => entry);
-    }, [entries, searchQuery]);
-
-    useLayoutEffect(() => {
-        const scrollElement = scrollRef.current;
-        const list = listRef.current;
-        if (!scrollElement || !list) {
-            return;
-        }
-        const measure = () => {
-            // A hidden pane has no layout; keep the margin it had while shown.
-            if (scrollElement.clientHeight === 0) {
-                return;
-            }
-            setScrollMargin(
-                list.getBoundingClientRect().top -
-                    scrollElement.getBoundingClientRect().top +
-                    scrollElement.scrollTop,
-            );
-        };
-        measure();
-        // The heading and search box above the list can change height without the pane resizing.
-        const observer = new ResizeObserver(measure);
-        observer.observe(scrollElement);
-        for (const sibling of list.parentElement?.children ?? []) {
-            if (sibling !== list) {
-                observer.observe(sibling);
-            }
-        }
-        return () => observer.disconnect();
-    }, [scrollRef]);
+    }, [entries, searchQuery, category]);
 
     const getItemKey = useCallback(
         (index: number) => filteredModules[index].name,
@@ -115,7 +88,7 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
         estimateSize: () => ESTIMATED_CARD_HEIGHT_PX,
         gap: CARD_GAP_PX,
         getItemKey,
-        getScrollElement: () => scrollRef.current,
+        getScrollElement: () => cardsRef.current,
         // A hidden pane measures every card as zero; keep the sizes they had while shown.
         measureElement: (element, entry, instance) => {
             const size = measureElement(element, entry, instance);
@@ -128,20 +101,23 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
             return instance.itemSizeCache.get(key) ?? size;
         },
         overscan: 3,
-        scrollMargin,
         useFlushSync: false,
     });
 
-    // A new query starts its results from the first match. Scrolling through the
+    // A new filter starts its results from the first match. Scrolling through the
     // virtualizer keeps its offset in step, so re-measuring cannot shift the pane back.
     useLayoutEffect(() => {
         virtualizer.scrollToOffset(0);
-    }, [virtualizer, searchQuery]);
+    }, [virtualizer, searchQuery, category]);
+
+    const virtualItems = virtualizer.getVirtualItems();
+    const scrollOffset = virtualizer.scrollOffset ?? 0;
+    const topItem = virtualItems.find((item) => item.end > scrollOffset);
+    const topName = topItem && filteredModules[topItem.index]?.name;
 
     return (
-        <div>
-            <h2>Module Reference</h2>
-            <div className="search-container">
+        <div className="module-reference">
+            <div className="module-index">
                 <input
                     type="text"
                     placeholder="Search modules..."
@@ -149,28 +125,67 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
                     onChange={(e) => onSearchQueryChange(e.target.value)}
                     className="search-input"
                 />
+                <ul className="module-index-list">
+                    {filteredModules.map((entry, index) => (
+                        <li key={entry.name}>
+                            <button
+                                className={
+                                    entry.name === topName ? 'active' : ''
+                                }
+                                title={entry.docs.summary}
+                                onClick={() =>
+                                    virtualizer.scrollToIndex(index, {
+                                        align: 'start',
+                                    })
+                                }
+                            >
+                                {entry.name}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
             </div>
-            <div
-                ref={listRef}
-                className="module-list"
-                style={{ height: virtualizer.getTotalSize() }}
-            >
-                {virtualizer.getVirtualItems().map((item) => (
+            <div className="module-reference-main">
+                <div className="module-categories">
+                    {categories.map(({ name, description }) => (
+                        <button
+                            key={name}
+                            aria-pressed={category === name}
+                            className={category === name ? 'active' : ''}
+                            title={description}
+                            onClick={() =>
+                                onCategoryChange(
+                                    category === name ? null : name,
+                                )
+                            }
+                        >
+                            {name}
+                        </button>
+                    ))}
+                </div>
+                <div ref={cardsRef} className="module-cards">
                     <div
-                        key={item.key}
-                        ref={virtualizer.measureElement}
-                        data-index={item.index}
-                        className="module-list-item"
-                        style={{
-                            transform: `translateY(${item.start - scrollMargin}px)`,
-                        }}
+                        className="module-list"
+                        style={{ height: virtualizer.getTotalSize() }}
                     >
-                        <ReferenceCard
-                            entry={filteredModules[item.index]}
-                            onTypeClick={onTypeClick}
-                        />
+                        {virtualItems.map((item) => (
+                            <div
+                                key={item.key}
+                                ref={virtualizer.measureElement}
+                                data-index={item.index}
+                                className="module-list-item"
+                                style={{
+                                    transform: `translateY(${item.start}px)`,
+                                }}
+                            >
+                                <ReferenceCard
+                                    entry={filteredModules[item.index]}
+                                    onTypeClick={onTypeClick}
+                                />
+                            </div>
+                        ))}
                     </div>
-                ))}
+                </div>
             </div>
         </div>
     );
