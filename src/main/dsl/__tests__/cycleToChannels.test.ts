@@ -6,11 +6,10 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import schemas from '@modular/core/schemas.json';
 import { DSLContext } from '../factories';
 import {
-    BaseCollection,
+    type AnyCollection,
     type Collection,
     cycleToChannels,
     type GraphBuilder,
-    type ModuleOutput,
 } from '../GraphBuilder';
 
 let builder: GraphBuilder;
@@ -26,15 +25,14 @@ function sig(channels: number): Collection {
 }
 
 /** Stable per-channel identifiers for a signal. */
-function ids(s: Collection | ModuleOutput): string[] {
-    const items = s instanceof BaseCollection ? [...s] : [s];
-    return items.map((o) => o.toString());
+function ids(s: AnyCollection): string[] {
+    return s.items.map((o) => o.toString());
 }
 
 describe('cycleToChannels()', () => {
     test('broadcasts a mono signal across N channels', () => {
         const mono = sig(1);
-        const out = cycleToChannels(mono, 4) as Collection;
+        const out = cycleToChannels(mono, 4);
         expect(out.length).toBe(4);
         // every channel references the one source channel
         expect(ids(out)).toEqual(Array(4).fill(ids(mono)[0]));
@@ -47,12 +45,14 @@ describe('cycleToChannels()', () => {
     });
 
     test('truncates to a narrower target', () => {
-        const out = cycleToChannels(sig(4), 2) as Collection;
+        const out = cycleToChannels(sig(4), 2);
         expect(out.length).toBe(2);
     });
 
-    test('accepts a single ModuleOutput', () => {
-        const single = [...sig(1)][0];
-        expect((cycleToChannels(single, 3) as Collection).length).toBe(3);
+    test('accepts one channel of a wider signal', () => {
+        const stereo = sig(2);
+        const [first] = stereo;
+        const out = cycleToChannels(first, 3);
+        expect(ids(out)).toEqual(Array(3).fill(ids(stereo)[0]));
     });
 });

@@ -154,7 +154,7 @@ Monaco shows the description, sections and first example; the Reference pane sho
 
 ### Reserved Output Names
 
-When adding methods to `ModuleOutput`, `ModuleOutputWithRange`, `BaseCollection`, `Collection`, or `CollectionWithRange`, add the method name to `RESERVED_OUTPUT_NAMES` in `crates/reserved_output_names.rs`. This is the single source of truth shared by the Rust proc-macro and TypeScript DSL via NAPI.
+When adding methods to `BaseCollection`, `Collection`, `CollectionWithRange`, or `DeferredCollection`, add the method name to `RESERVED_OUTPUT_NAMES` in `crates/reserved_output_names.rs`. This is the single source of truth shared by the Rust proc-macro and TypeScript DSL via NAPI.
 
 ### Code Organization
 
