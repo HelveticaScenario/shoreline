@@ -5,7 +5,7 @@ import {
     groupCollapseEdit,
     isIncomplete,
 } from '../dsl/extractControls';
-import type { CodeStyle } from '../dsl/objectPropertyInsert';
+import type { CodeStyle } from '../dsl/listEdits';
 import { rewriteSource, type SliderEditModel } from './sliderChange';
 
 /**

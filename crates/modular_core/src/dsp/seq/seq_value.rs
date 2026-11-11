@@ -4,6 +4,8 @@
 //! - Voltage values (V/Oct, pre-converted at parse time)
 //! - Rests
 
+use std::sync::Arc;
+
 use deserr::{DeserializeError, Deserr, ErrorKind, IntoValue, Map, Sequence, ValuePointerRef};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -26,6 +28,8 @@ use super::cache::{
     CycleStorage, MIN_HAPS_CAP_HINT, SPANS_RESERVE_PER_HAP,
     populate_cycle_storage as cache_populate,
 };
+use super::glide::GlideBake;
+use super::glide_curve::{GlideCurve, GlideEase, GlideMode};
 
 /// Scalar cached hap data. No `Vec` or `Arc` — voices can hold these
 /// by value without keeping cycle storage alive.
@@ -47,7 +51,9 @@ pub(crate) struct SeqCycleHap {
 /// multi-source highlights know which input string each leaf came from.
 pub(crate) type SeqCycleStorage = CycleStorage<SeqCycleHap, super::cache::FlatSpan>;
 
-/// Fill `storage` with the pattern's haps for `cycle`.
+/// Fill `storage` with the pattern's haps for `cycle`, sorted by `part_begin`
+/// (stable, so simultaneous haps keep query order). `Seq::update` relies on the
+/// order to binary-search the haps a forward playhead step enters.
 pub(crate) fn populate_cycle_storage(
     pattern: &Pattern<SeqValue>,
     cycle: i64,
@@ -75,7 +81,14 @@ pub(crate) fn populate_cycle_storage(
             span_len,
         });
     });
+    storage
+        .haps
+        .sort_by(|a, b| a.part_begin.total_cmp(&b.part_begin));
 }
+
+/// Tolerance, in cycles or volts, for matching a held or claimed note to a
+/// baked hap across a re-bake.
+pub(crate) const HAP_MATCH_EPS: f64 = 1e-6;
 
 /// A value in a sequence pattern.
 ///
@@ -84,20 +97,35 @@ pub(crate) fn populate_cycle_storage(
 /// - Rests (silence/no output)
 #[derive(Clone, Copy, Debug)]
 pub enum SeqValue {
-    /// Pre-converted V/Oct voltage value.
-    /// This replaces both Midi and Note variants - conversion happens at parse time.
-    Voltage(f64),
+    /// V/Oct pitch, converted from notes, MIDI numbers or Hz at parse time.
+    Voltage {
+        volts: f64,
+        /// Length in cycles of the CV ramp into this note, ending on its
+        /// onset. Zero jumps.
+        glide: f64,
+        /// Shape of that ramp.
+        ease: GlideEase,
+    },
 
     /// Rest - no value output, gate goes low
     Rest,
 }
 
 impl SeqValue {
+    /// A pitch that jumps to its value at onset.
+    pub fn voltage(volts: f64) -> Self {
+        SeqValue::Voltage {
+            volts,
+            glide: 0.0,
+            ease: GlideEase::default(),
+        }
+    }
+
     /// Get the voltage (V/Oct) value.
     /// Returns None for Rest.
     pub fn to_voltage(&self) -> Option<f64> {
         match self {
-            SeqValue::Voltage(v) => Some(*v),
+            SeqValue::Voltage { volts, .. } => Some(*volts),
             SeqValue::Rest => None,
         }
     }
@@ -105,6 +133,34 @@ impl SeqValue {
     /// Check if this is a rest value.
     pub fn is_rest(&self) -> bool {
         matches!(self, SeqValue::Rest)
+    }
+
+    /// Glide length in cycles; zero for a rest.
+    pub fn glide(&self) -> f64 {
+        match self {
+            SeqValue::Voltage { glide, .. } => *glide,
+            SeqValue::Rest => 0.0,
+        }
+    }
+
+    /// Shape of the ramp into this note; linear for a rest.
+    pub fn ease(&self) -> GlideEase {
+        match self {
+            SeqValue::Voltage { ease, .. } => *ease,
+            SeqValue::Rest => GlideEase::default(),
+        }
+    }
+
+    /// True when both are rests or both are the same pitch within
+    /// [`HAP_MATCH_EPS`]. Glide length does not count.
+    pub(crate) fn same_pitch(&self, other: &SeqValue) -> bool {
+        match (self, other) {
+            (SeqValue::Voltage { volts: a, .. }, SeqValue::Voltage { volts: b, .. }) => {
+                (a - b).abs() < HAP_MATCH_EPS
+            }
+            (SeqValue::Rest, SeqValue::Rest) => true,
+            _ => false,
+        }
     }
 }
 
@@ -137,12 +193,12 @@ impl FromMiniAtom for SeqValue {
         match atom {
             AtomValue::Number(n) => {
                 // Bare numbers are voltages directly (1V/oct CV).
-                Ok(SeqValue::Voltage(*n))
+                Ok(SeqValue::voltage(*n))
             }
             AtomValue::Hz(hz) => {
                 // Convert Hz to MIDI then to voltage.
                 let midi = 12.0 * (hz / 440.0).log2() + 69.0;
-                Ok(SeqValue::Voltage(midi_to_voct_f64(midi)))
+                Ok(SeqValue::voltage(midi_to_voct_f64(midi)))
             }
             AtomValue::Note {
                 letter,
@@ -150,7 +206,7 @@ impl FromMiniAtom for SeqValue {
                 octave,
             } => {
                 if let Some(midi) = note_to_midi(*letter, *accidental, *octave) {
-                    Ok(SeqValue::Voltage(midi_to_voct_f64(midi)))
+                    Ok(SeqValue::voltage(midi_to_voct_f64(midi)))
                 } else {
                     Err(ConvertError::InvalidAtom(format!(
                         "Invalid note: {}{}{}",
@@ -509,6 +565,13 @@ pub enum BeatKindTag {
     BeatPattern,
 }
 
+/// Phantom discriminator matching the literal `"GlidePattern"` string.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "PascalCase")]
+pub enum GlideKindTag {
+    GlidePattern,
+}
+
 /// A `.fast`/`.slow` factor. A bare number (`.fast(2)`) is a constant speed —
 /// not a highlightable source. A parsed pattern (`.fast("2 4")`) becomes its own
 /// highlightable source, so its active value lights up in the editor as it
@@ -578,6 +641,25 @@ pub struct BeatPatternPayload {
     pub div: FactorPayload,
 }
 
+/// JSON payload for `$p(...).glide(length, curve, mode)`: give each note of
+/// `pattern` a CV ramp `length` cycles long that ends on its onset, shaped by
+/// `curve` eased at `mode`'s end. `length` follows [`FactorPayload`]'s
+/// const-vs-pattern duality and is sampled at each onset; negative lengths
+/// jump.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GlidePatternPayload {
+    /// Discriminator — TS-side `.glide` sets this so the `SeqPatternSource`
+    /// untagged enum picks the `Glide` variant.
+    #[serde(rename = "__kind")]
+    pub kind: GlideKindTag,
+    pub pattern: Box<SeqPatternSource>,
+    pub length: FactorPayload,
+    #[serde(default)]
+    pub curve: GlideCurve,
+    #[serde(default)]
+    pub mode: GlideMode,
+}
+
 /// Wire-level dispatch shape: a `.fast`/`.slow`/`.struct`/`.beat` wrapper, an
 /// `$p.arrange` payload, a chained `$p.s` payload with multi-source
 /// highlighting, or a single `ParsedPatternPayload` (the legacy single-source
@@ -593,6 +675,7 @@ pub enum SeqPatternSource {
     Slow(SlowPatternPayload),
     Struct(StructPatternPayload),
     Beat(BeatPatternPayload),
+    Glide(GlidePatternPayload),
     Arrange(ArrangePatternPayload),
     Sp(SpPatternPayload),
     Single(ParsedPatternPayload),
@@ -637,7 +720,14 @@ pub struct SeqPatternParam {
 
     /// Baked haps for the ribbon window `[offset, offset+length)`, one
     /// `SeqCycleStorage` per cycle. Filled by [`SeqPatternParam::bake`].
-    pub(crate) cached_haps: Vec<SeqCycleStorage>,
+    /// Shared, so cloning params (every params-cache hit) never copies the
+    /// bake. The audio thread never drops the last reference: replaced modules
+    /// return through the garbage queue and drop on the main thread.
+    pub(crate) cached_haps: Arc<[SeqCycleStorage]>,
+
+    /// Where the baked notes' glide windows open. Shared and dropped like
+    /// `cached_haps`.
+    pub(crate) glide: Arc<GlideBake>,
 }
 
 impl JsonSchema for SeqPatternParam {
@@ -664,16 +754,25 @@ impl JsonSchema for SeqPatternParam {
 }
 
 impl SeqPatternParam {
+    /// A parsed pattern with nothing baked yet. `Seq`'s `validate` hook bakes
+    /// the ribbon window once both `pattern` and `ribbon` are known.
+    fn unbaked(
+        pattern: Pattern<SeqValue>,
+        per_source: Vec<SeqSourceMeta>,
+        is_multi_source: bool,
+    ) -> Self {
+        Self {
+            per_source,
+            is_multi_source,
+            pattern: Some(pattern),
+            cached_haps: Arc::default(),
+            glide: Arc::default(),
+        }
+    }
+
     fn from_payload(payload: ParsedPatternPayload) -> Result<Self, String> {
         let (pattern, per_source) = Self::lower_single(payload)?;
-        // Parse-only: leave `cached_haps` empty. `Seq`'s `validate` hook
-        // bakes the ribbon window once both `pattern` and `ribbon` are known.
-        Ok(Self {
-            per_source,
-            is_multi_source: false,
-            pattern: Some(pattern),
-            cached_haps: Vec::new(),
-        })
+        Ok(Self::unbaked(pattern, per_source, false))
     }
 
     /// Lower a single `$p(...)` payload to a runtime pattern + its one source
@@ -712,6 +811,7 @@ impl SeqPatternParam {
             SeqPatternSource::Slow(p) => Self::lower_slow(p),
             SeqPatternSource::Struct(p) => Self::lower_struct(p),
             SeqPatternSource::Beat(p) => Self::lower_beat(p),
+            SeqPatternSource::Glide(p) => Self::lower_glide(p),
             SeqPatternSource::Single(p) => Self::lower_single(p),
             SeqPatternSource::Sp(p) => Self::lower_sp(p),
             SeqPatternSource::Arrange(p) => Self::lower_arrange(p),
@@ -758,12 +858,7 @@ impl SeqPatternParam {
     /// Build a `SeqPatternParam` from an `$p.arrange(...)` payload.
     pub fn from_arrange_payload(payload: ArrangePatternPayload) -> Result<Self, String> {
         let (pattern, per_source) = Self::lower_arrange(payload)?;
-        Ok(Self {
-            per_source,
-            is_multi_source: true,
-            pattern: Some(pattern),
-            cached_haps: Vec::new(),
-        })
+        Ok(Self::unbaked(pattern, per_source, true))
     }
 
     /// Lower a `.fast(...)` wrapper: lower the inner pattern, build the factor
@@ -844,6 +939,34 @@ impl SeqPatternParam {
         Ok((inner.beat_with(t_pat, div_pat), per_source))
     }
 
+    /// Lower a `.glide(...)` wrapper: lower the inner pattern and tag each
+    /// note with the glide length at its onset, or zero where the length
+    /// pattern is silent. Notes keep their own timing; a pattern length is its own
+    /// highlightable source, appended after the inner sources like a `.fast`
+    /// factor.
+    fn lower_glide(
+        payload: GlidePatternPayload,
+    ) -> Result<(Pattern<SeqValue>, Vec<SeqSourceMeta>), String> {
+        let (inner, mut per_source) = Self::lower_source(*payload.pattern)?;
+        let (length, length_meta) = Self::lower_factor(payload.length, per_source.len())?;
+        if let Some(meta) = length_meta {
+            per_source.push(meta);
+        }
+        let ease = GlideEase {
+            curve: payload.curve,
+            mode: payload.mode,
+        };
+        let glided = inner.app_onset(&length, move |value, length| match *value {
+            SeqValue::Voltage { volts, .. } => SeqValue::Voltage {
+                volts,
+                glide: length.map_or(0.0, |length| length.to_f64().max(0.0)),
+                ease,
+            },
+            SeqValue::Rest => SeqValue::Rest,
+        });
+        Ok((glided, per_source))
+    }
+
     /// Lower a numeric pattern-method argument (`.fast`/`.slow` factor,
     /// `.beat` t/div) into a `Pattern<Fraction>` plus an optional source
     /// metadata entry.
@@ -905,59 +1028,41 @@ impl SeqPatternParam {
     /// pattern wouldn't highlight.
     pub fn from_fast_payload(payload: FastPatternPayload) -> Result<Self, String> {
         let (pattern, per_source) = Self::lower_fast(payload)?;
-        Ok(Self {
-            per_source,
-            is_multi_source: true,
-            pattern: Some(pattern),
-            cached_haps: Vec::new(),
-        })
+        Ok(Self::unbaked(pattern, per_source, true))
     }
 
     /// Build a `SeqPatternParam` from a `.struct(...)` payload. `is_multi_source`
     /// is always `true` for the highlight-key reason in [`Self::from_fast_payload`].
     pub fn from_struct_payload(payload: StructPatternPayload) -> Result<Self, String> {
         let (pattern, per_source) = Self::lower_struct(payload)?;
-        Ok(Self {
-            per_source,
-            is_multi_source: true,
-            pattern: Some(pattern),
-            cached_haps: Vec::new(),
-        })
+        Ok(Self::unbaked(pattern, per_source, true))
     }
 
     /// Build a `SeqPatternParam` from a `.beat(...)` payload. `is_multi_source`
     /// is always `true` for the highlight-key reason in [`Self::from_fast_payload`].
     pub fn from_beat_payload(payload: BeatPatternPayload) -> Result<Self, String> {
         let (pattern, per_source) = Self::lower_beat(payload)?;
-        Ok(Self {
-            per_source,
-            is_multi_source: true,
-            pattern: Some(pattern),
-            cached_haps: Vec::new(),
-        })
+        Ok(Self::unbaked(pattern, per_source, true))
+    }
+
+    /// Build a `SeqPatternParam` from a `.glide(...)` payload. `is_multi_source`
+    /// is always `true` for the highlight-key reason in [`Self::from_fast_payload`].
+    pub fn from_glide_payload(payload: GlidePatternPayload) -> Result<Self, String> {
+        let (pattern, per_source) = Self::lower_glide(payload)?;
+        Ok(Self::unbaked(pattern, per_source, true))
     }
 
     /// Build a `SeqPatternParam` from a `.slow(...)` payload. `is_multi_source`
     /// is always `true` for the highlight-key reason in [`Self::from_fast_payload`].
     pub fn from_slow_payload(payload: SlowPatternPayload) -> Result<Self, String> {
         let (pattern, per_source) = Self::lower_slow(payload)?;
-        Ok(Self {
-            per_source,
-            is_multi_source: true,
-            pattern: Some(pattern),
-            cached_haps: Vec::new(),
-        })
+        Ok(Self::unbaked(pattern, per_source, true))
     }
 
     #[doc(hidden)]
     pub fn from_sp_payload(payload: SpPatternPayload) -> Result<Self, String> {
         let (pattern, per_source) = Self::lower_sp(payload)?;
-        Ok(Self {
-            per_source,
-            is_multi_source: true,
-            pattern: Some(pattern),
-            cached_haps: Vec::new(),
-        })
+        Ok(Self::unbaked(pattern, per_source, true))
     }
 
     fn lower_sp(
@@ -1019,7 +1124,7 @@ impl SeqPatternParam {
 
         // Resolve degrees -> SeqValue voltages, then cache cycles.
         let resolver = move |v: &IntervalValue| match v {
-            IntervalValue::Degree(d) => SeqValue::Voltage(scale.degree_voltage(*d)),
+            IntervalValue::Degree(d) => SeqValue::voltage(scale.degree_voltage(*d)),
             IntervalValue::Rest => SeqValue::Rest,
         };
         let voltage_pattern = combined.fmap(resolver);
@@ -1065,7 +1170,9 @@ impl SeqPatternParam {
     /// audio thread.
     pub(crate) fn bake(&mut self, offset: f64, length: f64) {
         if let Some(pattern) = self.pattern.as_ref() {
-            self.cached_haps = bake_cycles(pattern, offset, length);
+            let cached_haps = bake_cycles(pattern, offset, length);
+            self.glide = Arc::new(GlideBake::new(&cached_haps, offset, length));
+            self.cached_haps = cached_haps.into();
         }
     }
 }
@@ -1150,6 +1257,13 @@ impl<E: DeserializeError> Deserr<E> for SeqPatternParam {
                     location,
                 ))
             }),
+            SeqPatternSource::Glide(p) => Self::from_glide_payload(p).map_err(|e| {
+                deserr::take_cf_content(E::error::<V>(
+                    None,
+                    ErrorKind::Unexpected { msg: e },
+                    location,
+                ))
+            }),
             SeqPatternSource::Single(p) => Self::from_payload(p).map_err(|e| {
                 deserr::take_cf_content(E::error::<V>(
                     None,
@@ -1180,6 +1294,13 @@ impl Connect for SeqPatternParam {
     fn connect(&mut self, _patch: &Patch) {}
     fn collect_cables(&self, _sink: &mut Vec<String>) {}
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {}
+    fn mark_glides(
+        &mut self,
+        _old: Option<&Self>,
+        _generation: u64,
+        _ids: &dyn crate::types::PreviousIds,
+    ) {
+    }
 }
 
 #[cfg(test)]
@@ -1265,6 +1386,27 @@ mod tests {
         let v: Vec<f64> = haps.iter().map(|h| h.value.to_voltage().unwrap()).collect();
         assert!((v[0] - 2.0 / 12.0).abs() < 1e-9, "v[0]={}", v[0]);
         assert!((v[1] - 4.0 / 12.0).abs() < 1e-9, "v[1]={}", v[1]);
+    }
+
+    #[test]
+    fn test_baked_haps_sorted_by_part_begin() {
+        // Stack layers query one after another, so the raw hap order is not
+        // time order; `Seq::update` binary-searches each cycle by `part_begin`.
+        let mut param = SeqPatternParam::from_payload(ParsedPatternPayload::parse_for_test(
+            "<0 1 2>*8, c3(3,8) e3@3 g3, [c4|d4]*5",
+        ))
+        .unwrap();
+        param.bake(0.0, 6.0);
+        for storage in param.cached_haps().iter() {
+            assert!(storage.haps.len() > 1);
+            assert!(
+                storage
+                    .haps
+                    .windows(2)
+                    .all(|w| w[0].part_begin <= w[1].part_begin),
+                "baked haps out of part_begin order"
+            );
+        }
     }
 
     // ===== $p.arrange tests =====
@@ -2060,7 +2202,7 @@ mod tests {
             let whole = hap.whole.as_ref().unwrap();
             assert_eq!(whole.begin, Fraction::new(begin, 16));
             assert_eq!(whole.end, Fraction::new(end, 16));
-            assert!(matches!(hap.value, SeqValue::Voltage(v) if v.abs() < 1e-9));
+            assert!(matches!(hap.value, SeqValue::Voltage { volts: v, .. } if v.abs() < 1e-9));
         }
     }
 
@@ -2241,12 +2383,12 @@ mod tests {
     fn test_seq_value_to_voltage() {
         // C4 = MIDI 60 -> voltage = (60 - 33) / 12 = 2.25
         let c4_voltage = midi_to_voct_f64(60.0);
-        assert!((SeqValue::Voltage(c4_voltage).to_voltage().unwrap() - c4_voltage).abs() < 0.001);
+        assert!((SeqValue::voltage(c4_voltage).to_voltage().unwrap() - c4_voltage).abs() < 0.001);
 
         // C4 + 50 cents = MIDI 60.5 -> voltage = (60.5 - 33) / 12 = 2.2917
         let c4_50_cents_voltage = midi_to_voct_f64(60.5);
         assert!(
-            (SeqValue::Voltage(c4_50_cents_voltage).to_voltage().unwrap() - c4_50_cents_voltage)
+            (SeqValue::voltage(c4_50_cents_voltage).to_voltage().unwrap() - c4_50_cents_voltage)
                 .abs()
                 < 0.001
         );
@@ -2272,7 +2414,7 @@ mod tests {
     fn test_from_atom() {
         // Bare numbers are voltages directly (1V/oct).
         let n = SeqValue::from_atom(&AtomValue::Number(2.0)).unwrap();
-        assert!(matches!(n, SeqValue::Voltage(v) if (v - 2.0).abs() < 0.001));
+        assert!(matches!(n, SeqValue::Voltage { volts: v, .. } if (v - 2.0).abs() < 0.001));
 
         // Note is converted to voltage at parse time
         let note = SeqValue::from_atom(&AtomValue::Note {
@@ -2282,7 +2424,9 @@ mod tests {
         })
         .unwrap();
         let expected_a4_voltage = midi_to_voct_f64(69.0); // A4 = MIDI 69
-        assert!(matches!(note, SeqValue::Voltage(v) if (v - expected_a4_voltage).abs() < 0.001));
+        assert!(
+            matches!(note, SeqValue::Voltage { volts: v, .. } if (v - expected_a4_voltage).abs() < 0.001)
+        );
     }
 
     #[test]

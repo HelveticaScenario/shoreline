@@ -6,21 +6,23 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::{voct_to_hz, wrap_phase};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RampParams {
-    /// pitch in V/Oct (0V = C4)
-    #[signal(type = pitch)]
+    #[input("how fast the ramp cycles", type = pitch)]
     freq: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct RampOutputs {
-    #[output("output", "phase ramp output (0 to 1)", default, range = (0.0, 1.0))]
+    #[output("output", "phase rising once per cycle", type = cv, default, range = (0.0, 1.0))]
     sample: PolyOutput,
 }
 
@@ -30,13 +32,25 @@ struct ChannelState {
     phase: f32,
 }
 
-/// Phase ramp generator.
-///
-/// Produces a rising sawtooth phase signal from 0 to 1 at the given frequency.
-/// This is the fundamental building block for phase-based synthesis:
-/// feed its output into phase-distortion modules (crush, feedback, pulsar)
-/// and then into a waveshaper (e.g. `$pSine`) to produce audio.
-#[module(name = "$ramp", args(freq))]
+const RAMP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Phase ramp",
+    description: "A ramp rising from 0 to 1 once per cycle: the phase source \
+                  for `$pSine`, `$pSaw`, `$pPulse` and `$pWarp`. Phase \
+                  oscillators sharing one ramp stay perfectly in step; at slow \
+                  rates it is also a rising-sawtooth LFO.",
+    categories: &[ModuleCategory::Phase, ModuleCategory::Modulation],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Locked sine and synced saw",
+        code: r#"
+            const phase = $ramp('c3')
+            $pSine(phase).out()
+            $pSaw($pWarp(phase, $phase.sync(2))).out()
+        "#,
+    }],
+};
+
+#[module(name = "$ramp", docs = RAMP_DOCS, args(freq))]
 pub struct Ramp {
     outputs: RampOutputs,
     channel_state: Box<[ChannelState]>,

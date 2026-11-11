@@ -9,6 +9,8 @@ use schemars::JsonSchema;
 
 use super::coeffs::note_to_hz;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// OB-Xd 2-pole coefficient slots (Surge `Obxd12dBCoeff`).
 const G12: usize = 0;
@@ -24,10 +26,10 @@ const N_OBXD12_COEFF: usize = 5;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum ObxdDrive {
-    /// Standard feedback bias.
+    /// steady resonance that stays stable
     #[default]
     Standard,
-    /// Self-oscillation push — hotter feedback bias.
+    /// hotter resonance that tips into self-oscillation more easily
     Pushed,
 }
 
@@ -124,23 +126,14 @@ impl Filter for Obxd2Pole {
 /// Stamp one 2-pole passband module (they differ only in name, docs, and the
 /// passband offset into Surge XT's `sub` index).
 macro_rules! obxd2_module {
-    ($name:literal, $Struct:ident, $offset:literal, $passband:literal, $example:literal) => {
+    ($docs:path, $name:literal, $Struct:ident, $offset:literal, $passband:literal, $cutoff_doc:literal) => {
         filter_module! {
-            /// Surge XT's OB-Xd 2-pole filter — a zero-delay state-variable design with
-            /// a diode-pair feedback nonlinearity (from Filatov's OB-Xd, via Odin 2).
-            /// Runs 2× oversampled.
-            ///
-            /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-            /// - **resonance** — 0–5.
-            /// - **drive** — `'standard'`, or `'pushed'` for easy self-oscillation.
-            ///
-            /// ```js
-            #[doc = $example]
-            /// ```
+            docs = $docs,
             name = $name, ident = $Struct, kernel = Obxd2Pole,
             output_doc = $passband,
+            cutoff_doc = $cutoff_doc,
             params = {
-                /// drive: standard or pushed (self-oscillation push; default standard)
+                #[input("how readily the filter self-oscillates", default = "standard")]
                 drive: ObxdDrive,
             },
             mode = |p| Obxd2Mode {
@@ -150,33 +143,113 @@ macro_rules! obxd2_module {
     };
 }
 
+const OBXD2_LP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "OB-Xd 2-pole lowpass",
+    description: "The Oberheim 2-pole lowpass: a gentle 12 dB slope with a creamy, open sound \
+                  for brassy pads and leads. `'pushed'` drive lets it self-oscillate.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Brassy chord stab",
+        code: r#"
+            const seq = $cycle($p('[c3, eb3, g3] ~ ~ [bb2, d3, f3]'))
+            $unstable.filter
+              .obxd2Lp(
+                $saw(seq),
+                $perc(seq.trig, { decay: 0.4 }).range('c4', 'c7'),
+                2,
+              )
+              .out()
+        "#,
+    }],
+};
+
+const OBXD2_BP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "OB-Xd 2-pole bandpass",
+    description: "The Oberheim 2-pole bandpass: a soft, vocal band that sweeps without getting \
+                  harsh.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Vocal band sweep",
+        code: r#"
+            $unstable.filter
+              .obxd2Bp($saw('c2'), $sine('0.3hz').range('c4', 'c6'), 3)
+              .out()
+        "#,
+    }],
+};
+
+const OBXD2_HP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "OB-Xd 2-pole highpass",
+    description: "The Oberheim 2-pole highpass: a gentle 12 dB cut for airy, thinned-out pads.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Airy thinned pad",
+        code: r#"
+            $unstable.filter
+              .obxd2Hp(
+                $saw($chord('C3[maj9]')),
+                $sine('0.1hz').range('c3', 'c5'),
+                2,
+              )
+              .out()
+        "#,
+    }],
+};
+
+const OBXD2_NOTCH_DOCS: ModuleDocs = ModuleDocs {
+    summary: "OB-Xd 2-pole notch",
+    description: "The Oberheim 2-pole notch: a soft-edged cut that, swept, gives a gentle \
+                  hollow motion.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Gentle notch sweep",
+        code: r#"
+            $unstable.filter
+              .obxd2Notch(
+                $saw('c2'),
+                $sine('0.2hz').range('c3', 'c6'),
+                2,
+              )
+              .out()
+        "#,
+    }],
+};
+
 obxd2_module!(
+    OBXD2_LP_DOCS,
     "$unstable.filter.obxd2Lp",
     Obxd2LpFilter,
     0,
     "lowpass output",
-    "$unstable.filter.obxd2Lp($saw('c2'), 'c4', 3, { drive: 'pushed' })"
+    "cutoff frequency"
 );
 obxd2_module!(
+    OBXD2_BP_DOCS,
     "$unstable.filter.obxd2Bp",
     Obxd2BpFilter,
     1,
     "bandpass output",
-    "$unstable.filter.obxd2Bp($saw('c2'), 'c4', 3)"
+    "centre frequency of the band"
 );
 obxd2_module!(
+    OBXD2_HP_DOCS,
     "$unstable.filter.obxd2Hp",
     Obxd2HpFilter,
     2,
     "highpass output",
-    "$unstable.filter.obxd2Hp($saw('c2'), 'c4', 3)"
+    "cutoff frequency"
 );
 obxd2_module!(
+    OBXD2_NOTCH_DOCS,
     "$unstable.filter.obxd2Notch",
     Obxd2NotchFilter,
     3,
     "notch output",
-    "$unstable.filter.obxd2Notch($saw('c2'), 'c4', 3)"
+    "centre frequency of the notch"
 );
 
 #[cfg(test)]

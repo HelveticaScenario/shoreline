@@ -1,18 +1,17 @@
 use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
-use proc_macro2::{Span, TokenStream as TokenStream2};
+use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::spanned::Spanned;
-use syn::{Data, DeriveInput, Fields, LitFloat};
+use syn::{Data, DeriveInput, Fields};
 
-use crate::signal_params::{SignalAttr, parse_signal_attr};
 use crate::utils::{
     is_mono_signal_type, is_option_mono_signal_type, is_option_poly_signal_type,
     is_poly_signal_type,
 };
 
 /// `#[block_input(optional)]`: a disconnected input resolves to `None`
-/// instead of its `#[signal(default)]`.
+/// instead of its `#[input(default)]`.
 fn is_optional(field: &syn::Field) -> syn::Result<bool> {
     let mut optional = false;
     for attr in field
@@ -30,16 +29,6 @@ fn is_optional(field: &syn::Field) -> syn::Result<bool> {
         })?;
     }
     Ok(optional)
-}
-
-/// An `f32` literal spelling `value` as written, so it rounds once.
-fn f32_literal(value: f64) -> TokenStream2 {
-    let lit = LitFloat::new(&format!("{:?}f32", value.abs()), Span::call_site());
-    if value.is_sign_negative() {
-        quote! { -#lit }
-    } else {
-        quote! { #lit }
-    }
 }
 
 /// `Vec<PolySignal>` or `Vec<MonoSignal>`.
@@ -90,7 +79,6 @@ fn block_inputs(ast: &DeriveInput) -> syn::Result<TokenStream2> {
     let mut field_decls = Vec::new();
     let mut resolutions = Vec::new();
     let mut scratches = Vec::new();
-    let mut defaults = Vec::new();
     for field in fields {
         let ident = field.ident.as_ref().expect("named field");
         let scratch = format_ident!("scratch_{}", scratches.len());
@@ -107,17 +95,9 @@ fn block_inputs(ast: &DeriveInput) -> syn::Result<TokenStream2> {
                     }
                 }
             } else {
-                let attr = match field.attrs.iter().find(|a| a.path().is_ident("signal")) {
-                    Some(a) => parse_signal_attr(a)?,
-                    None => SignalAttr::default(),
-                };
-                let default = f32_literal(attr.default_value);
+                // `#[params]` emits the constant from the field's `#[input(default)]`.
                 let default_name =
                     format_ident!("{}_DEFAULT", ident.to_string().to_case(Case::UpperSnake));
-                defaults.push(quote! {
-                    /// What a disconnected input reads, on both paths.
-                    #vis const #default_name: f32 = #default;
-                });
                 field_decls.push(quote! { pub #ident: crate::block_input::BlockInput<'a> });
                 quote! {
                     crate::block_input::OptionBlockInput::block_input_or(
@@ -156,11 +136,9 @@ fn block_inputs(ast: &DeriveInput) -> syn::Result<TokenStream2> {
         }
 
         impl #name {
-            #(#defaults)*
-
             /// Resolve every signal input for slots `range` across `channels`
             /// channels, in field order. A disconnected input reads as its
-            /// `#[signal(default)]` (the generated `<FIELD>_DEFAULT`), or as
+            /// `#[input(default)]` (the generated `<FIELD>_DEFAULT`), or as
             /// `None` when marked
             /// `#[block_input(optional)]`. `None` when any input declines.
             #[inline(always)]

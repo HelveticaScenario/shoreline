@@ -1,54 +1,110 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use std::ops::Range;
+
+use crate::block_input::{self, InputScratch};
 use crate::dsp::utils::{hz_to_voct, voct_to_hz};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::types::SwapGlide;
 
 /// Lower bound for the post-offset frequency, keeping `hz_to_voct` away from log2(≤0).
 const MIN_HZ: f32 = 1e-4;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct AddHzParams {
-    /// V/Oct pitch signal to detune
-    #[signal(type = pitch)]
+    #[input("pitch to detune", type = pitch)]
     input: PolySignal,
-    /// frequency offset added to the input pitch, in Hz
+    #[input(
+        "frequency added to the pitch, in Hz; small amounts give slow beating",
+        type = control,
+        control_range = (-5.0, 5.0),
+    )]
     offset: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct AddHzOutputs {
-    #[output("output", "V/Oct pitch output", default)]
+    #[output("output", "the detuned pitch", type = cv, default)]
     sample: PolyOutput,
 }
 
-/// Offsets a pitch by an absolute frequency amount, in Hz.
-///
-/// The input V/Oct pitch is converted to Hz, **offset** Hz is added, then the
-/// result is converted back to V/Oct. Useful for audible beating detune.
-///
-/// ```js
-/// // detune a saw by +0.5 Hz for slow beating
-/// $addHz($saw('C4'), 0.5)
-/// ```
-#[module(name = "$addHz", args(input, offset))]
+const ADD_HZ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Detune a pitch by Hz",
+    description: "Shifts a pitch by a fixed number of Hz rather than by cents, so a \
+                  detuned copy beats at the same steady rate whatever note plays. \
+                  Layer it against the original for slow, even chorusing.",
+    categories: &[ModuleCategory::Pitch],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Slow, even beating",
+        code: r#"
+            const pitch = $cycle($p('c3 eb3 g3 bb2'))
+            $saw(pitch).out()
+            $saw($addHz(pitch, 0.7)).out()
+        "#,
+    }],
+};
+
+#[module(name = "$addHz", docs = ADD_HZ_DOCS, args(input, offset), block)]
 pub struct AddHz {
     outputs: AddHzOutputs,
     params: AddHzParams,
+    channel_state: Box<[SwapGlide]>,
+}
+
+/// The V/Oct pitch `voct` moved by `offset` Hz.
+#[inline(always)]
+fn add_hz(voct: f32, offset: f32) -> f32 {
+    hz_to_voct((voct_to_hz(voct) + offset).max(MIN_HZ))
 }
 
 impl AddHz {
-    fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
-
-        for i in 0..channels as usize {
-            let freq = voct_to_hz(self.params.input.get_value(i));
-            let result = (freq + self.params.offset.get_value(i)).max(MIN_HZ);
-            self.outputs.sample.set(i, hz_to_voct(result));
+    fn update(&mut self, sample_rate: f32) {
+        let offset = &self.params.offset;
+        for i in 0..self.channel_count() {
+            let offset_value = self.channel_state[i].follow(
+                offset.get_value(i),
+                offset.glide_mark(i),
+                sample_rate,
+            );
+            let value = add_hz(self.params.input.get_value(i), offset_value);
+            self.outputs.sample.set(i, value);
         }
+    }
+
+    fn process_block(
+        &mut self,
+        outputs: &mut AddHzBlockOutputs,
+        range: Range<usize>,
+        _sample_rate: f32,
+    ) -> Option<()> {
+        let channels = self.channel_count();
+        let glides = &mut self.channel_state[..channels];
+        let offset = &self.params.offset;
+        if offset.glides_pending(glides) {
+            return None;
+        }
+        let (mut s0, mut s1) = (InputScratch::new(), InputScratch::new());
+        let input = self
+            .params
+            .input
+            .block_input(range.clone(), channels, &mut s0)?;
+        let offset_input = offset.block_input(range.clone(), channels, &mut s1)?;
+        offset.settle_glides(glides, offset_input.row(range.end - 1));
+        block_input::map(
+            &mut outputs.sample,
+            range,
+            [input, offset_input],
+            |[x, offset]| add_hz(x, offset),
+        );
+        Some(())
     }
 }
 
@@ -71,6 +127,7 @@ mod tests {
             outputs,
             _channel_count: 1,
             _block_index: Default::default(),
+            channel_state: Box::new([SwapGlide::default()]),
         }
     }
 
