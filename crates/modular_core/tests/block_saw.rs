@@ -46,3 +46,12 @@ fn allocation_free() {
         0
     );
 }
+
+#[test]
+fn swap_agrees_through_a_shape_glide() {
+    check_swap_agrees(
+        "$saw",
+        json!({ "freq": [0.0, 0.5, 1.0, 1.5], "shape": 0.0 }),
+        json!({ "freq": [0.0, 0.5, 1.0, 1.5], "shape": [2.5, 5.0] }),
+    );
+}
