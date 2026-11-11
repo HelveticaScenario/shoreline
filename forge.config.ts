@@ -78,6 +78,16 @@ const config: ForgeConfig = {
     },
     rebuildConfig: {},
     hooks: {
+        // `forge start` keeps running after Electron quits because the Vite dev
+        // server holds its event loop open; end it with the app. Forge marks a
+        // child `restarted` before killing it for `rs`, so restarts pass through.
+        postStart: async (_config, appProcess) => {
+            appProcess.on('exit', (code) => {
+                if (!(appProcess as { restarted?: boolean }).restarted) {
+                    process.exit(code ?? 0);
+                }
+            });
+        },
         // Copy @modular/core workspace package to node_modules before packaging
         // This is needed because yarn workspaces use symlinks which don't survive packaging
         packageAfterCopy: async (
