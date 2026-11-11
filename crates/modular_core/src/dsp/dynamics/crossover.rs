@@ -6,32 +6,43 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
-    dsp::utils::{changed, sanitize, voct_to_hz},
+    dsp::filters::resonant_svf::{Response, cutoff_gain},
+    dsp::filters::svf_core::{self, SvfCoeffs},
+    dsp::utils::{changed, sanitize},
     poly::{PolyOutput, PolySignal, PolySignalExt},
-    types::Clickless,
+    types::{GlideMark, SwapGlide},
 };
-
-// Default crossover frequencies in V/Oct
-// 200 Hz: hz_to_voct(200.0) = log2(200 / 261.626) ≈ -0.389
-const DEFAULT_LOW_MID_FREQ_VOCT: f32 = -0.389;
-// 2000 Hz: hz_to_voct(2000.0) = log2(2000 / 261.626) ≈ 2.935
-const DEFAULT_MID_HIGH_FREQ_VOCT: f32 = 2.935;
 
 const BUTTERWORTH_Q: f32 = 0.707_107; // 1/sqrt(2)
 
 // ── Params & Outputs ─────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CrossoverParams {
-    /// audio input signal
+    #[input("the sound to split", type = audio)]
     input: PolySignal,
-    /// crossover frequency between low and mid bands (V/Oct, 0V = C4)
+    #[input(
+        "where the low band ends and the mid band begins",
+        type = frequency,
+        // 200 Hz
+        default = -0.389,
+        range = (-3.71, ..),
+    )]
     #[deserr(default)]
     low_mid_freq: Option<PolySignal>,
-    /// crossover frequency between mid and high bands (V/Oct, 0V = C4)
+    #[input(
+        "where the mid band ends and the high band begins",
+        type = frequency,
+        // 2 kHz
+        default = 2.935,
+        range = (-3.71, ..),
+    )]
     #[deserr(default)]
     mid_high_freq: Option<PolySignal>,
 }
@@ -39,160 +50,115 @@ struct CrossoverParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CrossoverOutputs {
-    #[output("output", "input passed through unchanged", default)]
+    #[output("output", "input passed through unchanged", type = cv, default)]
     sample: PolyOutput,
-    #[output("low", "low band output")]
+    #[output("low", "frequencies below lowMidFreq", type = cv)]
     low: PolyOutput,
-    #[output("mid", "mid band output")]
+    #[output("mid", "frequencies between lowMidFreq and midHighFreq", type = cv)]
     mid: PolyOutput,
-    #[output("high", "high band output")]
+    #[output("high", "frequencies above midHighFreq", type = cv)]
     high: PolyOutput,
 }
 
-// ── Biquad types ─────────────────────────────────────────────────────────────
+// ── Filter sections ──────────────────────────────────────────────────────────
 
-#[derive(Clone, Copy, Default)]
-struct BiquadCoeffs {
-    b0: f32,
-    b1: f32,
-    b2: f32,
-    a1: f32,
-    a2: f32,
+/// Butterworth (Q = 1/√2) lowpass and highpass at one crossover point.
+fn compute_coeffs(voct: f32, sample_rate: f32) -> (SvfCoeffs, SvfCoeffs) {
+    let g = cutoff_gain(voct, sample_rate);
+    let k = 1.0 / BUTTERWORTH_Q;
+    (
+        Response::Lowpass.coeffs(g, k),
+        Response::Highpass.coeffs(g, k),
+    )
 }
 
+/// One Linkwitz-Riley 4th-order leg: two identical Butterworth sections in series.
 #[derive(Clone, Copy, Default)]
-struct BiquadState {
-    z1: f32,
-    z2: f32,
+struct Lr4State {
+    ic: [[f32; 2]; 2],
 }
 
-impl BiquadState {
+impl Lr4State {
     #[inline]
-    fn process(&mut self, input: f32, c: &BiquadCoeffs) -> f32 {
-        let w = input - c.a1 * self.z1 - c.a2 * self.z2;
-        let w = sanitize(w);
-        let y = c.b0 * w + c.b1 * self.z1 + c.b2 * self.z2;
-        self.z2 = self.z1;
-        self.z1 = w;
-        y
+    fn process(&mut self, input: f32, coeffs: &SvfCoeffs) -> f32 {
+        let [[a1, a2], [b1, b2]] = &mut self.ic;
+        let mid = svf_core::process(coeffs, a1, a2, input);
+        svf_core::process(coeffs, b1, b2, mid)
     }
 }
 
-/// Compute lowpass biquad coefficients (Butterworth, Q = 1/sqrt(2)).
-fn compute_lp_coeffs(freq: f32, sample_rate: f32) -> BiquadCoeffs {
-    let freq = freq.min(sample_rate * 0.45).max(20.0);
-    let omega = 2.0 * std::f32::consts::PI * freq / sample_rate;
-    let sin_w = omega.sin();
-    let cos_w = omega.cos();
-    let alpha = sin_w / (2.0 * BUTTERWORTH_Q);
+/// Glided crossover frequency and the coefficients derived from it.
+/// `NaN` = never computed.
+#[derive(Clone, Copy)]
+struct CrossoverPoint {
+    glide: SwapGlide,
+    last: f32,
+    lp: SvfCoeffs,
+    hp: SvfCoeffs,
+}
 
-    let b0 = (1.0 - cos_w) / 2.0;
-    let b1 = 1.0 - cos_w;
-    let b2 = (1.0 - cos_w) / 2.0;
-    let a0 = 1.0 + alpha;
-    let a1 = -2.0 * cos_w;
-    let a2 = 1.0 - alpha;
-
-    BiquadCoeffs {
-        b0: b0 / a0,
-        b1: b1 / a0,
-        b2: b2 / a0,
-        a1: a1 / a0,
-        a2: a2 / a0,
+impl Default for CrossoverPoint {
+    fn default() -> Self {
+        Self {
+            glide: SwapGlide::default(),
+            last: f32::NAN,
+            lp: SvfCoeffs::default(),
+            hp: SvfCoeffs::default(),
+        }
     }
 }
 
-/// Compute highpass biquad coefficients (Butterworth, Q = 1/sqrt(2)).
-fn compute_hp_coeffs(freq: f32, sample_rate: f32) -> BiquadCoeffs {
-    let freq = freq.min(sample_rate * 0.45).max(20.0);
-    let omega = 2.0 * std::f32::consts::PI * freq / sample_rate;
-    let sin_w = omega.sin();
-    let cos_w = omega.cos();
-    let alpha = sin_w / (2.0 * BUTTERWORTH_Q);
-
-    let b0 = (1.0 + cos_w) / 2.0;
-    let b1 = -(1.0 + cos_w);
-    let b2 = (1.0 + cos_w) / 2.0;
-    let a0 = 1.0 + alpha;
-    let a1 = -2.0 * cos_w;
-    let a2 = 1.0 - alpha;
-
-    BiquadCoeffs {
-        b0: b0 / a0,
-        b1: b1 / a0,
-        b2: b2 / a0,
-        a1: a1 / a0,
-        a2: a2 / a0,
+impl CrossoverPoint {
+    #[inline]
+    fn refresh(&mut self, voct: f32, mark: GlideMark, sample_rate: f32) {
+        self.glide.update(voct, mark, sample_rate);
+        let v = *self.glide;
+        if changed(v, self.last) {
+            (self.lp, self.hp) = compute_coeffs(v, sample_rate);
+            self.last = v;
+        }
     }
 }
 
 // ── Per-channel state ────────────────────────────────────────────────────────
 
-/// Crossover filter state for one crossover point (LR4 = 2 cascaded biquads).
-#[derive(Clone, Copy, Default)]
-struct Lr4State {
-    stage1: BiquadState,
-    stage2: BiquadState,
-}
-
-impl Lr4State {
-    #[inline]
-    fn process(&mut self, input: f32, coeffs: &BiquadCoeffs) -> f32 {
-        let mid = self.stage1.process(input, coeffs);
-        self.stage2.process(mid, coeffs)
-    }
-}
-
 #[derive(Clone, Copy, Default)]
 struct ChannelState {
-    // Crossover filter states (LR4 = two cascaded biquads each)
-    // LOW band: 2 LP biquads at low_mid_freq
+    /// LOW band: LR4 lowpass at the low/mid point.
     low_lp: Lr4State,
-    // MID band: 2 HP biquads at low_mid_freq, then 2 LP biquads at mid_high_freq
+    /// MID band: LR4 highpass at the low/mid point, then LR4 lowpass at the
+    /// mid/high point.
     mid_hp: Lr4State,
     mid_lp: Lr4State,
-    // HIGH band: 2 HP biquads at mid_high_freq
+    /// HIGH band: LR4 highpass at the mid/high point.
     high_hp: Lr4State,
-
-    // Cached crossover coefficients
-    low_mid_lp_coeffs: BiquadCoeffs,
-    low_mid_hp_coeffs: BiquadCoeffs,
-    mid_high_lp_coeffs: BiquadCoeffs,
-    mid_high_hp_coeffs: BiquadCoeffs,
-
-    // Change detection for crossover frequencies
-    last_low_mid_freq: f32,
-    last_mid_high_freq: f32,
-
-    // Clickless smoothing for crossover frequencies
-    smooth_low_mid: Clickless,
-    smooth_mid_high: Clickless,
+    low_mid: CrossoverPoint,
+    mid_high: CrossoverPoint,
 }
 
 // ── Module ───────────────────────────────────────────────────────────────────
 
-/// EXPERIMENTAL
-///
-/// Three-band crossover / band splitter.
-///
-/// Splits an input signal into three frequency bands (low, mid, high).
-/// The default `sample` output passes the input through unchanged,
-/// so the module is a no-op unless you explicitly tap the
-/// `.low`, `.mid`, or `.high` outputs.
-///
-/// Two crossover frequencies define the band boundaries:
-/// - **lowMidFreq** — boundary between the low and mid bands (V/Oct, default ~200 Hz).
-/// - **midHighFreq** — boundary between the mid and high bands (V/Oct, default ~2000 Hz).
-///
-/// ```js
-/// // Split into 3 bands and process each independently
-/// let bands = $xover($saw('c2'), { lowMidFreq: '200hz', midHighFreq: '2000hz' })
-/// let low  = $comp(bands.low,  { threshold: 2.5, ratio: 4 })
-/// let mid  = $comp(bands.mid,  { threshold: 3,   ratio: 3 })
-/// let high = $comp(bands.high, { threshold: 2,   ratio: 6 })
-/// $mix([low, mid, high]).out()
-/// ```
-#[module(name = "$xover", args(input))]
+const XOVER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Three-band crossover",
+    description: "Splits a sound into low, mid and high bands at two crossover points, so each \
+                  band can be processed on its own and mixed back together. The main output \
+                  passes the sound through unchanged; tap `.low`, `.mid` and `.high` for the bands.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Tremolo on the mids only",
+        code: r#"
+            const bands = $xover($saw('c2'))
+            $mix([
+              bands.low,
+              bands.mid.amp($sine('4hz').range(0, 5)),
+              bands.high,
+            ]).out()
+        "#,
+    }],
+};
+
+#[module(name = "$xover", docs = XOVER_DOCS, args(input))]
 pub struct Crossover {
     outputs: CrossoverOutputs,
     channel_state: Box<[ChannelState]>,
@@ -208,47 +174,38 @@ impl Crossover {
 
             let input = self.params.input.get_value(ch);
 
-            // ── Read and smooth crossover frequencies ────────────────────
+            // ── Read crossover frequencies ───────────────────────────────
             let low_mid_voct = self
                 .params
                 .low_mid_freq
-                .value_or(ch, DEFAULT_LOW_MID_FREQ_VOCT);
+                .value_or(ch, CrossoverParams::LOW_MID_FREQ_DEFAULT);
             let mid_high_voct = self
                 .params
                 .mid_high_freq
-                .value_or(ch, DEFAULT_MID_HIGH_FREQ_VOCT);
+                .value_or(ch, CrossoverParams::MID_HIGH_FREQ_DEFAULT);
 
-            state.smooth_low_mid.update(low_mid_voct);
-            state.smooth_mid_high.update(mid_high_voct);
-
-            let low_mid_voct_smooth = *state.smooth_low_mid;
-            let mid_high_voct_smooth = *state.smooth_mid_high;
-
-            // ── Recompute coefficients if frequencies changed ────────────
-            if changed(low_mid_voct_smooth, state.last_low_mid_freq) {
-                let freq = voct_to_hz(low_mid_voct_smooth);
-                state.low_mid_lp_coeffs = compute_lp_coeffs(freq, sample_rate);
-                state.low_mid_hp_coeffs = compute_hp_coeffs(freq, sample_rate);
-                state.last_low_mid_freq = low_mid_voct_smooth;
-            }
-
-            if changed(mid_high_voct_smooth, state.last_mid_high_freq) {
-                let freq = voct_to_hz(mid_high_voct_smooth);
-                state.mid_high_lp_coeffs = compute_lp_coeffs(freq, sample_rate);
-                state.mid_high_hp_coeffs = compute_hp_coeffs(freq, sample_rate);
-                state.last_mid_high_freq = mid_high_voct_smooth;
-            }
+            state.low_mid.refresh(
+                low_mid_voct,
+                self.params.low_mid_freq.glide_mark(ch),
+                sample_rate,
+            );
+            state.mid_high.refresh(
+                mid_high_voct,
+                self.params.mid_high_freq.glide_mark(ch),
+                sample_rate,
+            );
 
             // ── Split into 3 bands using LR4 crossover ──────────────────
+            let x = sanitize(input);
             // Low band: input → LPF₁ → LPF₂ (at low_mid_freq)
-            let low_band = state.low_lp.process(input, &state.low_mid_lp_coeffs);
+            let low_band = state.low_lp.process(x, &state.low_mid.lp);
 
             // Mid band: input → HPF₁ → HPF₂ (at low_mid_freq) → LPF₁ → LPF₂ (at mid_high_freq)
-            let mid_hp_out = state.mid_hp.process(input, &state.low_mid_hp_coeffs);
-            let mid_band = state.mid_lp.process(mid_hp_out, &state.mid_high_lp_coeffs);
+            let mid_hp_out = state.mid_hp.process(x, &state.low_mid.hp);
+            let mid_band = state.mid_lp.process(mid_hp_out, &state.mid_high.lp);
 
             // High band: input → HPF₁ → HPF₂ (at mid_high_freq)
-            let high_band = state.high_hp.process(input, &state.mid_high_hp_coeffs);
+            let high_band = state.high_hp.process(x, &state.mid_high.hp);
 
             // ── Write outputs ───────────────────────────────────────────
             self.outputs.sample.set(ch, input);

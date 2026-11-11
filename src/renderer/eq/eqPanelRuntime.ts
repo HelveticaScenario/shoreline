@@ -5,7 +5,7 @@ import type { Root } from 'react-dom/client';
 import type { editor } from 'monaco-editor';
 
 import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
-import type { CodeStyle } from '../dsl/objectPropertyInsert';
+import type { CodeStyle } from '../dsl/listEdits';
 import type { EqChangePhase } from './eqGestures';
 import { quantizeGain, quantizeHz, quantizeQ } from './eqMath';
 import {

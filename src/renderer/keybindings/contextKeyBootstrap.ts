@@ -3,7 +3,7 @@
  *   - editorFocused          (Monaco editor widget has focus)
  *   - suggestWidgetVisible   (Monaco suggest widget on screen)
  *   - findWidgetVisible      (Monaco find widget on screen)
- *   - inSettingsModal        (settings modal mounted)
+ *   - settingsVisible        (settings panel showing in the sidebar)
  *   - fileExplorerFocused    (file explorer subtree has focus)
  *
  * Surfaces import the helper they need and call it from their existing
@@ -21,9 +21,9 @@ import { contextKeys, type ContextKeyValue } from './contextKey';
 
 export type Teardown = () => void;
 
-// VS Code names several focus context keys that map onto Operator's single
+// VS Code names several focus context keys that map onto Shoreline's single
 // editor; keep them in lock-step so VS Code-authored `when` clauses gate
-// correctly. `editorFocused` is Operator's own; the rest are VS Code aliases.
+// correctly. `editorFocused` is Shoreline's own; the rest are VS Code aliases.
 // Widget focus spans the editor and its peripheral inputs (find / suggest);
 // `editorTextFocus` is narrower — true only while the main text input holds
 // focus, so it drops to false when, e.g., the find box is focused.
@@ -80,7 +80,7 @@ const JS_TS_PROVIDER_KEYS = [
 
 /**
  * Mirror the editor context keys that VS Code `when` clauses commonly test:
- *   - editorReadonly  — always false (Operator's buffers are editable)
+ *   - editorReadonly  — always false (Shoreline's buffers are editable)
  *   - foldingEnabled  — reflects the editor's `folding` option
  *   - editorLangId    — the active model's language id
  *   - editorHas<X>Provider — true while a js/ts model is active (see above)
@@ -174,11 +174,11 @@ export function bindEditorWidgetVisibility(
     };
 }
 
-/** Set `inSettingsModal` while the modal is open. */
-export function bindSettingsModal(isOpen: boolean): Teardown {
-    contextKeys.set('inSettingsModal', isOpen);
+/** Set `settingsVisible` while the settings panel shows in the sidebar. */
+export function bindSettingsVisible(visible: boolean): Teardown {
+    contextKeys.set('settingsVisible', visible);
     return () => {
-        contextKeys.set('inSettingsModal', false);
+        contextKeys.set('settingsVisible', false);
     };
 }
 

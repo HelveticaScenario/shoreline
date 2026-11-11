@@ -11,7 +11,7 @@
  *   - editorFocused          (Monaco editor has focus)
  *   - suggestWidgetVisible   (Monaco suggest widget open)
  *   - findWidgetVisible      (Monaco find widget open)
- *   - inSettingsModal        (settings modal is open)
+ *   - settingsVisible        (settings panel showing in the sidebar)
  *   - fileExplorerFocused    (file explorer tree has focus)
  */
 

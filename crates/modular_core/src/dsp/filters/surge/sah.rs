@@ -7,6 +7,8 @@
 use super::coeffs::{bound_freq, note_to_hz};
 use super::fastmath::softclip;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Sample & Hold kernel. Surge runs it at the oversampled voice rate, so it runs 2×
 /// here too (the sample clock in the coefficients tracks the run rate).
@@ -52,19 +54,27 @@ impl Filter for SampleHold {
     }
 }
 
+const SAH_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Sample-and-hold decimator",
+    description: "Samples the sound at the cutoff frequency and holds each value: pitched, \
+                  lo-fi decimation. Resonance feeds the held value back for a harsher edge.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Crunchy downsampling sweep",
+        code: r#"
+            $unstable.filter
+              .sah($saw('c3'), $sine('0.2hz').range('c5', 'c9'), 1)
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge XT's Sample & Hold — samples the input at the cutoff frequency, holding
-    /// each value until the next tick (a pitched decimation/downsampling effect).
-    /// Resonance feeds the held value back through a soft clip.
-    ///
-    /// - **cutoff** — sample clock in V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; feedback into the sampler.
-    ///
-    /// ```js
-    /// $unstable.filter.sah($saw('c2'), 'c1', 0)
-    /// ```
+    docs = SAH_DOCS,
     name = "$unstable.filter.sah", ident = SahFilter, kernel = SampleHold,
     output_doc = "sampled output",
+    cutoff_doc = "sample clock: how often the input is sampled; lower is crunchier",
     params = {},
     mode = |_p| (),
 }
