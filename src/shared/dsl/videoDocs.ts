@@ -169,7 +169,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             "$v.out($v.hsv($v.fromAudio($saw('55hz'), $v.ramp('radial'), { samples: 1024 }), 1, 1))",
         ],
         declarations: [
-            'fromAudio(signal: ModuleOutput | Collection | CollectionWithRange, position?: VideoValue, config?: { samples?: number; trigger?: boolean }): VideoSignal;',
+            'fromAudio(signal: Collection | CollectionWithRange, position?: VideoValue, config?: { samples?: number; trigger?: boolean }): VideoSignal;',
         ],
     },
     {
@@ -230,7 +230,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             "$scopeXY($sine('c3'), $sine('g3'), { intensity: $slider('Beam', 0.6, 0, 1), lineWidth: $sine('0.25hz').range(0.5, 3) })",
         ],
         declarations: [
-            'scopeXY(x: ScopeAxis, y: ScopeAxis, config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | ModuleOutput | Collection | CollectionWithRange; persistence?: number | ModuleOutput | Collection | CollectionWithRange; lineWidth?: number | ModuleOutput | Collection | CollectionWithRange; upsample?: boolean }): VideoSignal;',
+            'scopeXY(x: ScopeAxis, y: ScopeAxis, config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | Collection | CollectionWithRange; persistence?: number | Collection | CollectionWithRange; lineWidth?: number | Collection | CollectionWithRange; upsample?: boolean }): VideoSignal;',
         ],
     },
     {

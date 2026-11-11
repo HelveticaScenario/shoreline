@@ -87,26 +87,34 @@ export function indexApiSignatures(libSource: string): ApiIndex {
     const aliases = new Map<string, ts.TypeNode>();
     const interfaces = new Map<string, ts.InterfaceDeclaration[]>();
     const chainRoots: { dollar: string; owner: string; root: string }[] = [];
+    const collectChainRoots = (
+        owner: string,
+        members: readonly (ts.TypeElement | ts.ClassElement)[],
+    ) => {
+        for (const m of members) {
+            const name = m.name && memberName(m.name);
+            if (
+                (ts.isPropertySignature(m) || ts.isPropertyDeclaration(m)) &&
+                (name === '$' || name === '$m') &&
+                m.type &&
+                ts.isTypeReferenceNode(m.type)
+            ) {
+                chainRoots.push({
+                    dollar: name,
+                    owner,
+                    root: m.type.typeName.getText(file),
+                });
+            }
+        }
+    };
     const collectTypes = (node: ts.Node) => {
         if (ts.isTypeAliasDeclaration(node) && !node.typeParameters) {
             aliases.set(node.name.text, node.type);
         } else if (ts.isInterfaceDeclaration(node)) {
             push(interfaces, node.name.text, node);
-            for (const m of node.members) {
-                const name = m.name && memberName(m.name);
-                if (
-                    ts.isPropertySignature(m) &&
-                    (name === '$' || name === '$m') &&
-                    m.type &&
-                    ts.isTypeReferenceNode(m.type)
-                ) {
-                    chainRoots.push({
-                        dollar: name,
-                        owner: node.name.text,
-                        root: m.type.typeName.getText(file),
-                    });
-                }
-            }
+            collectChainRoots(node.name.text, node.members);
+        } else if (ts.isClassDeclaration(node) && node.name) {
+            collectChainRoots(node.name.text, node.members);
         }
         ts.forEachChild(node, collectTypes);
     };
@@ -181,13 +189,16 @@ export function indexApiSignatures(libSource: string): ApiIndex {
         }
     };
     const addMethods = (
-        members: ts.NodeArray<ts.TypeElement>,
+        members: readonly (ts.TypeElement | ts.ClassElement)[],
         thisIsVideo: boolean,
     ) => {
         const family = families[thisIsVideo ? 'video' : 'audio'];
         for (const m of members) {
             const name = m.name && memberName(m.name);
-            if (name && ts.isMethodSignature(m)) {
+            if (
+                name &&
+                (ts.isMethodSignature(m) || ts.isMethodDeclaration(m))
+            ) {
                 push(family.methods, name, m);
                 if (types.isVideo(m.type, thisIsVideo)) {
                     family.returnsVideo.add(name);
@@ -246,6 +257,8 @@ export function indexApiSignatures(libSource: string): ApiIndex {
                     types.isVideoInterface(node.name.text),
                 );
             }
+        } else if (ts.isClassDeclaration(node) && node.name) {
+            addMethods(node.members, types.isVideoInterface(node.name.text));
         } else if (ts.isTypeAliasDeclaration(node)) {
             forEachTypeLiteral(node.type, (lit) =>
                 addMethods(lit.members, false),
