@@ -73,7 +73,9 @@ fn allocation_free() {
         "$mi.string",
         "$mi.swarm",
         "$mi.twoOp",
-        "$mi.vowel",
+        "$mi.formantVowel",
+        "$mi.samVowel",
+        "$mi.lpcVowel",
         "$mi.waveTerrain",
         "$mi.waveshaper",
         "$mi.zOsc",
@@ -103,18 +105,21 @@ fn six_op_allocation_free() {
     );
 }
 
-/// Syllables on every model, with the vowel and formant shift moving,
+/// Syllables on every vowel synth, with the vowel and formant shift moving,
 /// allocate nothing.
 #[test]
 fn vowel_allocation_free() {
-    assert_eq!(
-        allocations_while_rendering(
-            "$mi.vowel",
-            json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS),
-                    "model": cable("lfo", 1), "vowel": cable("lfo", 2), "formantShift": cable("lfo", 3) })
-        ),
-        0
-    );
+    for module in ["$mi.formantVowel", "$mi.samVowel", "$mi.lpcVowel"] {
+        assert_eq!(
+            allocations_while_rendering(
+                module,
+                json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS),
+                        "vowel": cable("lfo", 2), "formantShift": cable("lfo", 3) })
+            ),
+            0,
+            "{module}"
+        );
+    }
 }
 
 #[test]
@@ -170,20 +175,19 @@ fn vowel_instances_draw_their_own_noise() {
     let differ = (0..=10).any(|step| {
         let params = json!({
             "freq": 0.0,
-            "model": 5.0,
             "vowel": step as f32 * 0.5,
             "trigger": poly_cable("lfo", CHANNELS),
         });
         let a = build(
             ProcessingMode::Block,
             ProcessingMode::Block,
-            "$mi.vowel",
+            "$mi.lpcVowel",
             params.clone(),
         );
         let b = build(
             ProcessingMode::Block,
             ProcessingMode::Block,
-            "$mi.vowel",
+            "$mi.lpcVowel",
             params,
         );
         let a = render_ports(&a, "excitation", 500);

@@ -1,12 +1,12 @@
-mod lpc;
-mod naive;
-mod sam;
+//! Plaits' vowel synthesis, one module per synthesizer: `$mi.formantVowel`
+//! (its formant filter bank), `$mi.samVowel` (SAM) and `$mi.lpcVowel` (its
+//! LPC voice). Each runs as Plaits' speech engine runs that synth alone,
+//! through its limiter.
 
-use deserr::Deserr;
-use schemars::JsonSchema;
+pub mod lpc;
+pub mod naive;
+pub mod sam;
 
-use crate::module_category::ModuleCategory;
-use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
@@ -14,21 +14,13 @@ use crate::{
             limiter::{Limiter, LimiterRates},
             lpc::SYNTHESIS_RATE,
             phase::{limit_frequency, max_frequency},
-            random::Random,
         },
-        oscillators::{FmMode, apply_fm},
-        utils::{
-            SchmittTrigger,
-            rng::{hash_bipolar, seed_base},
-        },
+        utils::SchmittTrigger,
     },
-    poly::{PolyOutput, PolySignal, PolySignalExt},
     types::{GlideMark, SwapGlide},
 };
 
-use lpc::{CORRECTED_SAMPLE_RATE, LpcVowels};
-use naive::NaiveSynth;
-use sam::SamSynth;
+use lpc::CORRECTED_SAMPLE_RATE;
 
 /// Plaits' gain into its limiter and its excitation gain, at ±5 V full
 /// scale; both outputs clip at ±5 V as Plaits does.
@@ -36,106 +28,12 @@ const PRE_GAIN: f32 = 0.7;
 const OUTPUT_GAIN: f32 = -5.0;
 const EXCITATION_GAIN: f32 = -0.8 * 5.0;
 
-#[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
-#[serde(rename_all = "camelCase")]
-#[deserr(rename_all = camelCase, deny_unknown_fields)]
-struct VowelParams {
-    #[input("the voice's pitch", type = pitch)]
-    freq: PolySignal,
-    #[input(
-        "starts a syllable: a short consonant before the vowel, picked from the knobs and pitch, or a brief drop in pitch on the formant-filter model. Unpatched, the vowel sustains",
-        type = trig,
-    )]
-    #[deserr(default)]
-    trigger: Option<PolySignal>,
-    #[input(
-        "the synthesis, crossfading from a formant-filter voice (0) to SAM's buzzy sine formants (2.5) to an LPC voice like a speak-and-spell (5)",
-        type = control,
-        default = 2.5,
-        range = (0.0, 5.0),
-    )]
-    #[deserr(default)]
-    model: Option<PolySignal>,
-    #[input(
-        "which vowel: open a (0) through e, i and o to closed u (5) on the formant-filter and LPC voices; SAM sweeps its own nine vowels, roughly open to closed",
-        type = control,
-        default = 2.5,
-        range = (0.0, 5.0),
-    )]
-    #[deserr(default)]
-    vowel: Option<PolySignal>,
-    #[input(
-        "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
-        type = control,
-        default = 2.5,
-        range = (0.0, 5.0),
-    )]
-    #[deserr(default)]
-    formant_shift: Option<PolySignal>,
-    #[input(
-        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
-        type = audio,
-    )]
-    #[deserr(default)]
-    fm: Option<PolySignal>,
-    #[input("how `fm` bends the frequency")]
-    #[serde(default)]
-    #[deserr(default)]
-    fm_mode: FmMode,
-}
-
-#[derive(Outputs, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-struct VowelOutputs {
-    #[output("output", "the voice", type = cv, default, range = (-5.0, 5.0))]
-    sample: PolyOutput,
-    #[output(
-        "excitation",
-        "the glottal source the formants shape: pulses, a buzz, or the LPC voice's pulses and noise",
-        type = cv,
-        range = (-5.0, 5.0),
-    )]
-    excitation: PolyOutput,
-}
-
-const VOWEL_DOCS: ModuleDocs = ModuleDocs {
-    summary: "Sung and spoken vowels",
-    description: "Mutable Instruments Plaits' vowel synthesis: three \
-                  generations of speech synthesizer, a formant filter bank, \
-                  SAM and a speak-and-spell's LPC, singing vowels at the \
-                  pitch, with consonants on `trigger`.",
-    categories: &[ModuleCategory::Oscillator],
-    sections: &[],
-    examples: &[
-        DocExample {
-            title: "Morphing vowels",
-            code: r#"
-                const vowel = $sine('0.15hz').range(0, 5)
-                $mi.vowel('c2', { vowel, model: 0 }).out()
-            "#,
-        },
-        DocExample {
-            title: "Robot syllables",
-            code: r#"
-                const seq = $p('c3 eb3 g3 <bb2 f3>').c
-                $mi.vowel(seq, { trigger: seq, model: 5 }).out()
-            "#,
-        },
-    ],
-};
-
-#[module(name = "$mi.vowel", docs = VOWEL_DOCS, args(freq), has_init, patch_update)]
-pub struct Vowel {
-    outputs: VowelOutputs,
-    state: Rates,
-    channel_state: Box<[Channel]>,
-    params: VowelParams,
-}
+/// The `vowel` and `formantShift` default every module declares.
+const KNOB_DEFAULT: f32 = 2.5;
 
 /// Rate conversions for the engine's rate, stated against Plaits' 48 kHz.
 #[derive(Default)]
-struct Rates {
+pub struct Rates {
     sample_rate: f32,
     inv_sample_rate: f32,
     /// Cycles per sample times this is cycles per 48 kHz sample.
@@ -185,11 +83,28 @@ impl Rates {
     }
 }
 
+/// One of Plaits' speech synths.
+pub trait Voice: Default {
+    fn new(_rates: &Rates) -> Self {
+        Self::default()
+    }
+
+    /// One sample at `f0` cycles per sample: the excitation and the voice.
+    /// `vowel` and `formant_shift` are 0–1; `trigger` starts a syllable.
+    fn step(
+        &mut self,
+        trigger: bool,
+        f0: f32,
+        vowel: f32,
+        formant_shift: f32,
+        rates: &Rates,
+    ) -> (f32, f32);
+}
+
 /// The knobs for a sample, in volts, with their glide marks.
-struct Knobs {
-    model: (f32, GlideMark),
-    vowel: (f32, GlideMark),
-    formant_shift: (f32, GlideMark),
+pub struct Knobs {
+    pub vowel: (f32, GlideMark),
+    pub formant_shift: (f32, GlideMark),
 }
 
 #[inline(always)]
@@ -197,65 +112,39 @@ fn knob(volts: f32) -> f32 {
     (volts * 0.2).clamp(0.0, 1.0)
 }
 
-/// Plaits' crossfade curve: smoothstep applied twice.
-#[inline(always)]
-fn crossfade(blend: f32) -> f32 {
-    let blend = blend * (blend * (3.0 - 2.0 * blend));
-    blend * (blend * (3.0 - 2.0 * blend))
-}
-
-/// One channel: Plaits' `SpeechEngine` on its vowel path, a sample at a time.
-struct Channel {
-    naive: NaiveSynth,
-    sam: SamSynth,
-    lpc: LpcVowels,
+/// One channel of a vowel module: its synth, then Plaits' limiter.
+pub struct Channel<V> {
+    voice: V,
     limiter: Limiter,
-    /// The LPC synth's noise, as Plaits draws its global generator.
-    random: Random,
-    /// Whether `random` has its per-instance seed. Transfers with the
-    /// channel, so a patch update never reseeds it.
-    seeded: bool,
     trigger: SchmittTrigger,
-    model: SwapGlide,
     vowel: SwapGlide,
     formant_shift: SwapGlide,
-    /// The last finite model, vowel and formant shift, which a NaN or
-    /// infinite knob holds.
-    held: [f32; 3],
+    /// The last finite vowel and formant shift, which a NaN or infinite knob
+    /// holds.
+    held: [f32; 2],
 }
 
-impl Channel {
+impl<V: Voice> Default for Channel<V> {
+    fn default() -> Self {
+        Self {
+            voice: V::default(),
+            limiter: Limiter::default(),
+            trigger: SchmittTrigger::default(),
+            vowel: SwapGlide::default(),
+            formant_shift: SwapGlide::default(),
+            held: [KNOB_DEFAULT; 2],
+        }
+    }
+}
+
+impl<V: Voice> Channel<V> {
     fn new(rates: &Rates) -> Self {
         Self {
-            naive: NaiveSynth::new(rates),
+            voice: V::new(rates),
             ..Self::default()
         }
     }
-}
 
-impl Default for Channel {
-    fn default() -> Self {
-        Self {
-            naive: NaiveSynth::default(),
-            sam: SamSynth::default(),
-            lpc: LpcVowels::default(),
-            limiter: Limiter::default(),
-            random: Random::new(0),
-            seeded: false,
-            trigger: SchmittTrigger::default(),
-            model: SwapGlide::default(),
-            vowel: SwapGlide::default(),
-            formant_shift: SwapGlide::default(),
-            held: [
-                VowelParams::MODEL_DEFAULT,
-                VowelParams::VOWEL_DEFAULT,
-                VowelParams::FORMANT_SHIFT_DEFAULT,
-            ],
-        }
-    }
-}
-
-impl Channel {
     /// One sample at `f0` cycles per sample: the limited voice and the
     /// excitation, before the output gains. A rising `trigger` starts a
     /// syllable; `None` is an unpatched trigger.
@@ -271,7 +160,6 @@ impl Channel {
         };
         let sample_rate = rates.sample_rate;
         let raw = [
-            self.model.follow(knobs.model.0, knobs.model.1, sample_rate),
             self.vowel.follow(knobs.vowel.0, knobs.vowel.1, sample_rate),
             self.formant_shift
                 .follow(knobs.formant_shift.0, knobs.formant_shift.1, sample_rate),
@@ -281,112 +169,59 @@ impl Channel {
                 *held = value;
             }
         }
-        let [model, vowel, formant_shift] = self.held.map(knob);
+        let [vowel, formant_shift] = self.held.map(knob);
         let f0 = limit_frequency(f0, 0.5);
-
-        // Plaits renders the formant-filter voice or the LPC voice beside
-        // SAM, whichever side of it `model` is on; the other holds still, as
-        // does a voice the blend gives no weight, such as SAM at 0 and 5 and
-        // the formant filters at 2.5.
-        let group = 2.0 * model;
-        let lpc_side = group > 1.0;
-        let blend = if lpc_side { 2.0 - group } else { group };
-        let side = (blend < 1.0).then(|| {
-            if lpc_side {
-                let [excitation, out] = self.lpc.step(
-                    trigger,
-                    f0 * rates.lpc_pitch_scale,
-                    vowel,
-                    formant_shift,
-                    &mut self.random,
-                    rates,
-                );
-                (excitation, out)
-            } else {
-                self.naive.step(trigger, f0, vowel, formant_shift, rates)
-            }
-        });
-        let sam = (blend > 0.0).then(|| self.sam.step(trigger, f0, vowel, formant_shift, rates));
-        let (excitation, out) = match (side, sam) {
-            (Some((excitation, out)), Some((sam_excitation, sam_out))) => {
-                let blend = crossfade(blend);
-                (
-                    excitation + (sam_excitation - excitation) * blend,
-                    out + (sam_out - out) * blend,
-                )
-            }
-            (Some(side), None) => side,
-            (None, Some(sam)) => sam,
-            (None, None) => unreachable!("a blend between 0 and 1 weights a voice"),
-        };
+        let (excitation, out) = self.voice.step(trigger, f0, vowel, formant_shift, rates);
         (
             self.limiter.process(out * PRE_GAIN, &rates.limiter),
             excitation,
         )
     }
+
+    /// One sample through the output stage: the voice and the excitation, in
+    /// volts.
+    #[inline(always)]
+    fn output(&mut self, f0: f32, knobs: Knobs, trigger: Option<f32>, rates: &Rates) -> (f32, f32) {
+        let (out, excitation) = self.step(f0, knobs, trigger, rates);
+        (
+            (OUTPUT_GAIN * out).clamp(-5.0, 5.0),
+            (EXCITATION_GAIN * excitation).clamp(-5.0, 5.0),
+        )
+    }
 }
 
-impl Vowel {
-    fn init(&mut self, sample_rate: f32) {
-        self.state = Rates::new(sample_rate);
-        for channel in self.channel_state.iter_mut() {
-            *channel = Channel::new(&self.state);
-        }
-    }
-
-    fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
-        let p = &self.params;
-        for (ch, channel) in self.channel_state[..channels].iter_mut().enumerate() {
-            let f0 = apply_fm(
+/// The body of a vowel module's `update`: every channel of `$module`, whose
+/// params are `$params`, one sample.
+macro_rules! update_channels {
+    ($module:expr, $params:ident) => {{
+        let module = $module;
+        let channels = module.channel_count();
+        let p = &module.params;
+        let rates = &module.state;
+        for (ch, channel) in module.channel_state[..channels].iter_mut().enumerate() {
+            let f0 = crate::dsp::oscillators::apply_fm(
                 p.freq.get_value(ch),
-                p.fm.value_or(ch, VowelParams::FM_DEFAULT),
+                p.fm.value_or(ch, $params::FM_DEFAULT),
                 p.fm_mode,
-            ) * self.state.inv_sample_rate;
+            ) * rates.inv_sample_rate;
             let trigger = p.trigger.as_ref().map(|t| t.get_value(ch));
-            let knobs = Knobs {
-                model: (
-                    p.model.value_or(ch, VowelParams::MODEL_DEFAULT),
-                    p.model.glide_mark(ch),
-                ),
+            let knobs = super::Knobs {
                 vowel: (
-                    p.vowel.value_or(ch, VowelParams::VOWEL_DEFAULT),
+                    p.vowel.value_or(ch, $params::VOWEL_DEFAULT),
                     p.vowel.glide_mark(ch),
                 ),
                 formant_shift: (
-                    p.formant_shift
-                        .value_or(ch, VowelParams::FORMANT_SHIFT_DEFAULT),
+                    p.formant_shift.value_or(ch, $params::FORMANT_SHIFT_DEFAULT),
                     p.formant_shift.glide_mark(ch),
                 ),
             };
-            let (out, excitation) = channel.step(f0, knobs, trigger, &self.state);
-            self.outputs
-                .sample
-                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0));
-            self.outputs
-                .excitation
-                .set(ch, (EXCITATION_GAIN * excitation).clamp(-5.0, 5.0));
+            let (out, excitation) = channel.output(f0, knobs, trigger, rates);
+            module.outputs.sample.set(ch, out);
+            module.outputs.excitation.set(ch, excitation);
         }
-    }
+    }};
 }
-
-impl crate::types::PatchUpdateHandler for Vowel {
-    /// Seeds the noise generators of channels that have none yet. Runs here,
-    /// not in `init`, because `init` runs in a stack slot that consecutive
-    /// constructions share, so every instance would draw the same noise.
-    fn on_patch_update(&mut self) {
-        let base = seed_base(self);
-        for (ch, channel) in self.channel_state.iter_mut().enumerate() {
-            if !channel.seeded {
-                let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
-                channel.random = Random::new((unit * f64::from(u32::MAX)) as u32);
-                channel.seeded = true;
-            }
-        }
-    }
-}
-
-message_handlers!(impl Vowel {});
+use update_channels;
 
 #[cfg(test)]
 mod tests;

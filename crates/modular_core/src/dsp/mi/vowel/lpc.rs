@@ -8,7 +8,20 @@ use crate::dsp::mi::core::{
     units::semitones_to_ratio,
 };
 
-use super::Rates;
+use deserr::Deserr;
+use schemars::JsonSchema;
+
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
+use crate::{
+    dsp::{
+        oscillators::FmMode,
+        utils::rng::{hash_bipolar, seed_base},
+    },
+    poly::{PolyOutput, PolySignal, PolySignalExt},
+};
+
+use super::{Channel, Rates, Voice, update_channels};
 
 const VOWELS: usize = 5;
 const CONSONANTS: usize = 10;
@@ -27,6 +40,12 @@ fn phoneme(index: usize) -> Frame {
 
 #[derive(Clone, Copy)]
 pub struct LpcVowels {
+    /// The noise of unvoiced consonants, as Plaits draws its global
+    /// generator.
+    pub(super) random: Random,
+    /// Whether `random` has its per-instance seed. Transfers with the
+    /// channel, so a patch update never reseeds it.
+    pub(super) seeded: bool,
     synth: LpcSynth,
     clock: LpcClock,
     /// The consonant frame to play next, if any.
@@ -48,6 +67,8 @@ pub struct LpcVowels {
 impl Default for LpcVowels {
     fn default() -> Self {
         Self {
+            random: Random::new(0),
+            seeded: false,
             synth: LpcSynth::default(),
             clock: LpcClock::default(),
             playback_frame: None,
@@ -63,20 +84,32 @@ impl Default for LpcVowels {
 }
 
 impl LpcVowels {
-    /// One sample at `f0` cycles per sample of Plaits' corrected rate: the
-    /// excitation and the voice. `vowel` scans a, e, i, o, u; `formant_shift`
-    /// (0–1) speeds the synthesis ±18 semitones, and away from the middle
-    /// stretches the consonants a `trigger` plays.
+    /// Seeds the noise for channel `ch` of the instance with seed `base`,
+    /// unless it has its seed.
+    pub(super) fn seed(&mut self, base: u64, ch: usize) {
+        if !self.seeded {
+            let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
+            self.random = Random::new((unit * f64::from(u32::MAX)) as u32);
+            self.seeded = true;
+        }
+    }
+}
+
+impl Voice for LpcVowels {
+    /// `vowel` scans a, e, i, o, u; `formant_shift` speeds the synthesis ±18
+    /// semitones, and away from the middle stretches the consonant frame a
+    /// trigger plays.
     #[inline(always)]
-    pub fn step(
+    fn step(
         &mut self,
         trigger: bool,
         f0: f32,
         vowel: f32,
         formant_shift: f32,
-        random: &mut Random,
         rates: &Rates,
-    ) -> [f32; 2] {
+    ) -> (f32, f32) {
+        // Plaits reckons LPC pitch at its corrected rate.
+        let f0 = f0 * rates.lpc_pitch_scale;
         if self.shift != Some(formant_shift.to_bits()) {
             self.shift = Some(formant_shift.to_bits());
             self.rate_ratio = semitones_to_ratio((formant_shift - 0.5) * 36.0);
@@ -125,6 +158,115 @@ impl LpcVowels {
         }
 
         let f = (DEFAULT_F0 / 8000.0 * pitch_shift).clamp(-0.5, 0.5);
-        self.clock.step(self.rate, f, &mut self.synth, random)
+        let [excitation, out] = self
+            .clock
+            .step(self.rate, f, &mut self.synth, &mut self.random);
+        (excitation, out)
     }
 }
+
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[serde(rename_all = "camelCase")]
+#[deserr(rename_all = camelCase, deny_unknown_fields)]
+struct LpcVowelParams {
+    #[input("the voice's pitch", type = pitch)]
+    freq: PolySignal,
+    #[input(
+        "starts a syllable: a consonant of about 25 ms, picked from the knobs and pitch and stretched as `formantShift` leaves the middle. Unpatched, the vowel sustains",
+        type = trig,
+    )]
+    #[deserr(default)]
+    trigger: Option<PolySignal>,
+    #[input(
+        "which vowel: open a (0) through e, i and o to closed u (5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    vowel: Option<PolySignal>,
+    #[input(
+        "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    formant_shift: Option<PolySignal>,
+    #[input(
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+        type = audio,
+    )]
+    #[deserr(default)]
+    fm: Option<PolySignal>,
+    #[input("how `fm` bends the frequency")]
+    #[serde(default)]
+    #[deserr(default)]
+    fm_mode: FmMode,
+}
+
+#[derive(Outputs, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct LpcVowelOutputs {
+    #[output("output", "the voice", type = cv, default, range = (-5.0, 5.0))]
+    sample: PolyOutput,
+    #[output(
+        "excitation",
+        "the glottal pulses and the noise of unvoiced consonants that the LPC filter shapes",
+        type = cv,
+        range = (-5.0, 5.0),
+    )]
+    excitation: PolyOutput,
+}
+
+const LPC_VOWEL_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Speak-and-spell vowels",
+    description: "Mutable Instruments Plaits' LPC vowels: the five vowels \
+                  of a speak-and-spell's LPC-10 voice, sung at the pitch, \
+                  with a short consonant on `trigger`.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Robot syllables",
+        code: r#"
+                const seq = $p('c3 eb3 g3 <bb2 f3>').c
+                $mi.lpcVowel(seq, { trigger: seq }).out()
+            "#,
+    }],
+};
+
+#[module(name = "$mi.lpcVowel", docs = LPC_VOWEL_DOCS, args(freq), has_init, patch_update)]
+pub struct LpcVowel {
+    outputs: LpcVowelOutputs,
+    state: Rates,
+    channel_state: Box<[Channel<LpcVowels>]>,
+    params: LpcVowelParams,
+}
+
+impl LpcVowel {
+    fn init(&mut self, sample_rate: f32) {
+        self.state = Rates::new(sample_rate);
+        for channel in self.channel_state.iter_mut() {
+            *channel = Channel::new(&self.state);
+        }
+    }
+
+    fn update(&mut self, _sample_rate: f32) {
+        update_channels!(self, LpcVowelParams);
+    }
+}
+
+impl crate::types::PatchUpdateHandler for LpcVowel {
+    /// Seeds the noise generators of channels that have none yet. Runs here,
+    /// not in `init`, because `init` runs in a stack slot that consecutive
+    /// constructions share, so every instance would draw the same noise.
+    fn on_patch_update(&mut self) {
+        let base = seed_base(self);
+        for (ch, channel) in self.channel_state.iter_mut().enumerate() {
+            channel.voice.seed(base, ch);
+        }
+    }
+}
+
+message_handlers!(impl LpcVowel {});

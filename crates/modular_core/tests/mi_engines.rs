@@ -102,14 +102,17 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
             ]
         }
         15 => {
-            // The vowel path: harmonics below 1/3 crossfade the three models.
-            // The cases leave out SAM-to-LPC blends: Plaits tunes its LPC
-            // voice to the codec's rate and SAM to 48 kHz, so in Plaits the
-            // two beat 4.6 cents apart; `vowel.f32` checks those blends.
-            let knobs = json!({ "model": 15.0 * h, "vowel": 5.0 * m, "formantShift": 5.0 * t });
+            // The vowel path, where harmonics sounds one synth alone: the
+            // formant filters at 0, SAM at 1/6 and LPC just below 1/3.
+            let module = match h {
+                h if h < 0.1 => "$mi.formantVowel",
+                h if h < 0.25 => "$mi.samVowel",
+                _ => "$mi.lpcVowel",
+            };
+            let knobs = json!({ "vowel": 5.0 * m, "formantShift": 5.0 * t });
             [
-                port("$mi.vowel", knobs.clone(), "output"),
-                port("$mi.vowel", knobs, "excitation"),
+                port(module, knobs.clone(), "output"),
+                port(module, knobs, "excitation"),
             ]
         }
         16 => {

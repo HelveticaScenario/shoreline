@@ -10,7 +10,17 @@ use crate::dsp::mi::core::{
     units::semitones_to_ratio,
 };
 
-use super::Rates;
+use deserr::Deserr;
+use schemars::JsonSchema;
+
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
+use crate::{
+    dsp::oscillators::FmMode,
+    poly::{PolyOutput, PolySignal, PolySignalExt},
+};
+
+use super::{Channel, Rates, Voice, update_channels};
 
 const FORMANTS: usize = 5;
 const PHONEMES: usize = 5;
@@ -103,12 +113,6 @@ fn entry(phoneme: usize, register: usize, i: usize) -> (u8, u8) {
 }
 
 impl NaiveSynth {
-    pub fn new(rates: &Rates) -> Self {
-        let mut synth = Self::default();
-        synth.coloration.set_g_q(rates.coloration, 0.5);
-        synth
-    }
-
     /// Retunes the formants for `phoneme` and `register` (0–1); a click
     /// drops the first an octave.
     fn tune(&mut self, phoneme: f32, register: f32, clicking: bool, rates: &Rates) {
@@ -139,11 +143,18 @@ impl NaiveSynth {
             self.formants[i].set_g_q(tan_dirty(f.min(0.49)), 20.0);
         }
     }
+}
 
-    /// One sample at `f0` cycles per sample: the excitation and the voice.
-    /// `click` drops the pitch an octave for 50 ms.
+impl Voice for NaiveSynth {
+    fn new(rates: &Rates) -> Self {
+        let mut synth = Self::default();
+        synth.coloration.set_g_q(rates.coloration, 0.5);
+        synth
+    }
+
+    /// A trigger clicks: the pitch drops an octave for 50 ms.
     #[inline(always)]
-    pub fn step(
+    fn step(
         &mut self,
         click: bool,
         f0: f32,
@@ -175,3 +186,97 @@ impl NaiveSynth {
         (excitation, out)
     }
 }
+
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[serde(rename_all = "camelCase")]
+#[deserr(rename_all = camelCase, deny_unknown_fields)]
+struct FormantVowelParams {
+    #[input("the voice's pitch", type = pitch)]
+    freq: PolySignal,
+    #[input(
+        "starts a syllable with a click: the pitch drops an octave for 50 ms. Unpatched, the vowel sustains",
+        type = trig,
+    )]
+    #[deserr(default)]
+    trigger: Option<PolySignal>,
+    #[input(
+        "which vowel: open a (0) through e, i and o to closed u (5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    vowel: Option<PolySignal>,
+    #[input(
+        "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    formant_shift: Option<PolySignal>,
+    #[input(
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+        type = audio,
+    )]
+    #[deserr(default)]
+    fm: Option<PolySignal>,
+    #[input("how `fm` bends the frequency")]
+    #[serde(default)]
+    #[deserr(default)]
+    fm_mode: FmMode,
+}
+
+#[derive(Outputs, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct FormantVowelOutputs {
+    #[output("output", "the voice", type = cv, default, range = (-5.0, 5.0))]
+    sample: PolyOutput,
+    #[output(
+        "excitation",
+        "the coloured impulse train the formant filters shape",
+        type = cv,
+        range = (-5.0, 5.0),
+    )]
+    excitation: PolyOutput,
+}
+
+const FORMANT_VOWEL_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Vowels from formant filters",
+    description: "Mutable Instruments Plaits' simplest vowel synthesis: a \
+                  glottal impulse train through five tuned band-pass \
+                  filters, singing smooth, choir-like vowels at the pitch.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Morphing vowels",
+        code: r#"
+                const vowel = $sine('0.15hz').range(0, 5)
+                $mi.formantVowel('c2', { vowel }).out()
+            "#,
+    }],
+};
+
+#[module(name = "$mi.formantVowel", docs = FORMANT_VOWEL_DOCS, args(freq), has_init)]
+pub struct FormantVowel {
+    outputs: FormantVowelOutputs,
+    state: Rates,
+    channel_state: Box<[Channel<NaiveSynth>]>,
+    params: FormantVowelParams,
+}
+
+impl FormantVowel {
+    fn init(&mut self, sample_rate: f32) {
+        self.state = Rates::new(sample_rate);
+        for channel in self.channel_state.iter_mut() {
+            *channel = Channel::new(&self.state);
+        }
+    }
+
+    fn update(&mut self, _sample_rate: f32) {
+        update_channels!(self, FormantVowelParams);
+    }
+}
+
+message_handlers!(impl FormantVowel {});

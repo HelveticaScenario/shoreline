@@ -9,7 +9,17 @@ use crate::dsp::mi::core::{
     tables::{FORMANT_AMPLITUDE_LUT, SAM_PHONEMES},
 };
 
-use super::Rates;
+use deserr::Deserr;
+use schemars::JsonSchema;
+
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
+use crate::{
+    dsp::oscillators::FmMode,
+    poly::{PolyOutput, PolySignal, PolySignalExt},
+};
+
+use super::{Channel, Rates, Voice, update_channels};
 
 const FORMANTS: usize = 3;
 const VOWELS: usize = 9;
@@ -80,12 +90,13 @@ impl SamSynth {
         }
         self.smoothing
     }
+}
 
-    /// One sample at `f0` cycles per sample: the excitation and the voice.
-    /// `consonant` plays one of SAM's consonants for 50 ms, picked from the
+impl Voice for SamSynth {
+    /// A trigger plays one of SAM's consonants for 50 ms, picked from the
     /// knobs and pitch.
     #[inline(always)]
-    pub fn step(
+    fn step(
         &mut self,
         consonant: bool,
         f0: f32,
@@ -160,3 +171,100 @@ impl SamSynth {
         (d, s * (1.0 - self.phase))
     }
 }
+
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[serde(rename_all = "camelCase")]
+#[deserr(rename_all = camelCase, deny_unknown_fields)]
+struct SamVowelParams {
+    #[input("the voice's pitch", type = pitch)]
+    freq: PolySignal,
+    #[input(
+        "starts a syllable: one of SAM's consonants for 50 ms, picked from the knobs and pitch. Unpatched, the vowel sustains",
+        type = trig,
+    )]
+    #[deserr(default)]
+    trigger: Option<PolySignal>,
+    #[input(
+        "sweeps SAM's nine vowels, roughly open (0) to closed (5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    vowel: Option<PolySignal>,
+    #[input(
+        "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    formant_shift: Option<PolySignal>,
+    #[input(
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+        type = audio,
+    )]
+    #[deserr(default)]
+    fm: Option<PolySignal>,
+    #[input("how `fm` bends the frequency")]
+    #[serde(default)]
+    #[deserr(default)]
+    fm_mode: FmMode,
+}
+
+#[derive(Outputs, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct SamVowelOutputs {
+    #[output("output", "the voice", type = cv, default, range = (-5.0, 5.0))]
+    sample: PolyOutput,
+    #[output(
+        "excitation",
+        "the glottal pulses the formants restart on",
+        type = cv,
+        range = (-5.0, 5.0),
+    )]
+    excitation: PolyOutput,
+}
+
+const SAM_VOWEL_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Vowels from SAM",
+    description: "Mutable Instruments Plaits' take on the Software \
+                  Automatic Mouth, a 1982 home-computer speech \
+                  synthesizer: three sine formants restarted on every \
+                  glottal pulse, for a buzzy, retro voice with consonants \
+                  on `trigger`.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Retro syllables",
+        code: r#"
+                const seq = $p('c3 eb3 g3 <bb2 f3>').c
+                const vowel = $sine('0.2hz').range(0, 5)
+                $mi.samVowel(seq, { trigger: seq, vowel }).out()
+            "#,
+    }],
+};
+
+#[module(name = "$mi.samVowel", docs = SAM_VOWEL_DOCS, args(freq), has_init)]
+pub struct SamVowel {
+    outputs: SamVowelOutputs,
+    state: Rates,
+    channel_state: Box<[Channel<SamSynth>]>,
+    params: SamVowelParams,
+}
+
+impl SamVowel {
+    fn init(&mut self, sample_rate: f32) {
+        self.state = Rates::new(sample_rate);
+        for channel in self.channel_state.iter_mut() {
+            *channel = Channel::new(&self.state);
+        }
+    }
+
+    fn update(&mut self, _sample_rate: f32) {
+        update_channels!(self, SamVowelParams);
+    }
+}
+
+message_handlers!(impl SamVowel {});
