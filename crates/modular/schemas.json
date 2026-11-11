@@ -30164,6 +30164,286 @@
     ]
   },
   {
+    "name": "$mi.sixOp",
+    "docs": {
+      "summary": "Six-operator DX7 FM voice",
+      "description": "Mutable Instruments Plaits' six-operator FM: the DX7's algorithms, envelopes and LFO playing Plaits' three banks of 32 patches, for electric pianos, basses, bells and brass. Leave `gate` unpatched for a drone whose `envelope` picks the moment in the note it holds.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Electric piano",
+          "code": "const seq = $p('c3 [eb3 g3] <bb3 f3> ~').c\n$mi.sixOp(seq, { gate: seq, bank: 1 }).out()"
+        },
+        {
+          "title": "Frozen pad",
+          "code": "$mi.sixOp('c2', { bank: 2, patch: 11, envelope: 3 }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SixOpParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the note's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "gate": {
+          "description": "holds the note: the envelopes attack and decay while high and release when it falls; a new note restarts them from where they are. Unpatched, the note sounds continuously and `envelope` scrubs through its envelopes",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bank": {
+          "description": "which of Plaits' three banks of 32 DX7 patches: basses, leads and synths (0), keys, mallets and percussion (1), organs, pads, strings and brass (2)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "patch": {
+          "description": "which patch of the bank; a held note keeps its patch until the next note-on",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "brightness": {
+          "description": "the level of the modulating operators: darker (0) to brighter and harsher (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "envelope": {
+          "description": "envelope speed, from snappy (0) to slow attacks and long tails (5), the release shortest around 1.5; unpatched gate, the point in the envelopes the note sits at",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accent": {
+          "description": "how hard each note is played: louder and brighter as the patch's velocity sensitivity sets",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the operators backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the FM voice",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the note's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "gate",
+        "description": "holds the note: the envelopes attack and decay while high and release when it falls; a new note restarts them from where they are. Unpatched, the note sounds continuously and `envelope` scrubs through its envelopes",
+        "paramType": "gate"
+      },
+      {
+        "name": "bank",
+        "description": "which of Plaits' three banks of 32 DX7 patches: basses, leads and synths (0), keys, mallets and percussion (1), organs, pads, strings and brass (2)",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 2.0,
+        "controlMin": 0.0,
+        "controlMax": 2.0
+      },
+      {
+        "name": "patch",
+        "description": "which patch of the bank; a held note keeps its patch until the next note-on",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 31.0,
+        "controlMin": 0.0,
+        "controlMax": 31.0
+      },
+      {
+        "name": "brightness",
+        "description": "the level of the modulating operators: darker (0) to brighter and harsher (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "envelope",
+        "description": "envelope speed, from snappy (0) to slow attacks and long tails (5), the release shortest around 1.5; unpatched gate, the point in the envelopes the note sits at",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "accent",
+        "description": "how hard each note is played: louder and brighter as the patch's velocity sensitivity sets",
+        "paramType": "control",
+        "defaultValue": 4.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the operators backward",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.string",
     "docs": {
       "summary": "Plucked and bowed string",

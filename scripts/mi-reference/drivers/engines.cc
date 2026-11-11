@@ -10,7 +10,7 @@
 // modules derive for channel 0 when a test pins `TEST_SEED_BASE` to 1, so the
 // random engines draw the same values as the modules; string's cases keep
 // dispersion off, where only the sounding string draws.
-// build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/particle_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/swarm_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/engine2/wave_terrain_engine.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc
+// build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/particle_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/swarm_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/engine2/six_op_engine.cc plaits/dsp/engine2/wave_terrain_engine.cc plaits/dsp/fm/algorithms.cc plaits/dsp/fm/dx_units.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc
 
 #include <algorithm>
 #include <cstdio>
@@ -26,7 +26,9 @@
 #include "plaits/dsp/engine/swarm_engine.h"
 #include "plaits/dsp/engine/waveshaping_engine.h"
 #include "plaits/dsp/engine2/phase_distortion_engine.h"
+#include "plaits/dsp/engine2/six_op_engine.h"
 #include "plaits/dsp/engine2/wave_terrain_engine.h"
+#include "plaits/resources.h"
 
 using namespace plaits;
 
@@ -35,9 +37,16 @@ struct Case {
   float note, harmonics, timbre, morph;
 };
 
-// Two settings per ported engine, numbered as in Plaits' voice.cc.
+// The six-op engines' harmonics knob centred on patch `index`.
+static float Patch(int index) { return (float(index) + 0.5f) / 32.64f; }
+
+// Two settings per ported engine, numbered as in Plaits' voice.cc; one or two
+// patches of each six-op bank.
 static const Case kCases[] = {
     {1, 48.0f, 0.3f, 0.6f, 0.2f},  {1, 62.0f, 0.75f, 0.35f, 0.8f},
+    {2, 40.0f, Patch(0), 0.6f, 0.3f}, {2, 55.0f, Patch(26), 0.45f, 0.6f},
+    {3, 60.0f, Patch(0), 0.5f, 0.5f}, {3, 72.0f, Patch(20), 0.7f, 0.2f},
+    {4, 55.0f, Patch(11), 0.4f, 0.7f}, {4, 48.0f, Patch(29), 0.5f, 0.4f},
     {5, 43.0f, 0.2f, 0.6f, 0.4f},  {5, 58.0f, 0.85f, 0.8f, 0.7f},
     {5, 86.0f, 0.5f, 0.9f, 0.5f},
     {9, 45.0f, 0.2f, 0.7f, 0.4f},  {9, 60.0f, 0.8f, 0.3f, 0.9f},
@@ -64,8 +73,12 @@ static Engine* Select(int index, float* out_gain, float* aux_gain) {
   static SwarmEngine swarm;
   static ModalEngine modal;
   static ParticleEngine particle;
+  static SixOpEngine six_op;
   switch (index) {
     case 1: *out_gain = 0.7f; *aux_gain = 0.7f; return &phase_distortion;
+    case 2:
+    case 3:
+    case 4: *out_gain = 1.0f; *aux_gain = 1.0f; return &six_op;
     case 5: *out_gain = 0.7f; *aux_gain = 0.7f; return &wave_terrain;
     case 9: *out_gain = 0.7f; *aux_gain = 0.6f; return &waveshaping;
     case 10: *out_gain = 0.6f; *aux_gain = 0.6f; return &fm;
@@ -103,7 +116,9 @@ int main(int argc, char** argv) {
     float out_gain, aux_gain;
     Engine* engine = Select(c.engine, &out_gain, &aux_gain);
     engine->Init(&allocator);
-    engine->LoadUserData(NULL);
+    engine->LoadUserData(c.engine >= 2 && c.engine <= 4
+                             ? fm_patches_table[c.engine - 2]
+                             : NULL);
     engine->Reset();
     stmlib::Limiter out_limiter, aux_limiter;
     out_limiter.Init();
