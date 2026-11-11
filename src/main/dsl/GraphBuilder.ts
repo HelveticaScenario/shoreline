@@ -1441,16 +1441,14 @@ export class GraphBuilder {
         // sorted into source order before emission.
         const vuMeters: (VuMeterDef & { ordinal: number })[] = [];
 
-        // Each labeled lane's compiled stages, for `$outLane` taps.
+        // Each labeled lane's signals, for `$outLane` taps.
         const lanesByLabel = new Map<
             string,
             {
                 audio: ModuleOutput[];
                 active: ModuleOutput;
-                gainStageId: string;
-                gain: PolySignal | undefined;
-                panMixId?: string;
-                pan: PolySignal | undefined;
+                level: PolySignal;
+                pan: PolySignal;
             }
         >();
 
@@ -1561,16 +1559,21 @@ export class GraphBuilder {
                           })
                         : group.gain!;
 
+                    const panSource: PolySignal =
+                        group.type !== 'stereo'
+                            ? 0
+                            : panControllable
+                              ? smoothControlFactory(panValue, {
+                                    id: `__vuPan_${sk}`,
+                                })
+                              : group.pan!;
+
                     // Group mix, then the gain stage — the tap: the meter
                     // reads post-gain, pre-mute like a post-fader DAW meter.
                     const mixSignals: ModuleOutput[] =
                         group.type === 'stereo'
                             ? stereoMixerFactory(group.outputs, {
-                                  pan: panControllable
-                                      ? smoothControlFactory(panValue, {
-                                            id: `__vuPan_${sk}`,
-                                        })
-                                      : group.pan,
+                                  pan: panSource,
                                   width: group.width ?? 0,
                               }).items
                             : [
@@ -1621,14 +1624,8 @@ export class GraphBuilder {
                         lanesByLabel.set(group.label, {
                             active: muteSig.items[0],
                             audio: outputSignals,
-                            gain: group.gain,
-                            gainStageId: curvedAmp.items[0].moduleId,
-                            pan:
-                                group.type === 'stereo' ? group.pan : undefined,
-                            panMixId:
-                                group.type === 'stereo'
-                                    ? mixSignals[0].moduleId
-                                    : undefined,
+                            level: gainSource,
+                            pan: panSource,
                         });
                     }
 
@@ -1775,9 +1772,6 @@ export class GraphBuilder {
             signalFactory(0, { id: 'ROOT_OUTPUT' });
         }
 
-        // Lane taps read the gain stage's and stereo mix's processed params.
-        // Those are serialized cables, so the declared range comes from the
-        // out's own option value.
         const constants = new Map<number, ModuleOutput>();
         const toOutput = (value: Signal): ModuleOutput => {
             if (value instanceof ModuleOutput) {
@@ -1793,18 +1787,19 @@ export class GraphBuilder {
             }
             return this.$c(value).items[0];
         };
+        // A lane control is the first channel of its source, declaring that
+        // channel's own range when it has one.
         const control = (
-            processed: unknown,
-            option: PolySignal | undefined,
+            source: PolySignal,
             defaultMin: number,
             defaultMax: number,
         ): OutLaneControl => {
-            const ranged = firstChannel(this, option);
-            const hasRange = ranged instanceof ModuleOutputWithRange;
+            const first = firstChannel(source);
+            const hasRange = first instanceof ModuleOutputWithRange;
             return {
-                max: toOutput(hasRange ? ranged.maxValue : defaultMax),
-                min: toOutput(hasRange ? ranged.minValue : defaultMin),
-                output: toOutput(firstChannel(this, processed)),
+                max: toOutput(hasRange ? first.maxValue : defaultMax),
+                min: toOutput(hasRange ? first.minValue : defaultMin),
+                output: toOutput(first),
             };
         };
         for (const { label, tap, sourceLocation } of this.outLaneTaps) {
@@ -1818,20 +1813,8 @@ export class GraphBuilder {
             tap.resolve({
                 active: lane.active,
                 audio: lane.audio,
-                level: control(
-                    this.modules.get(lane.gainStageId)!.params.input,
-                    lane.gain,
-                    0,
-                    10,
-                ),
-                pan: control(
-                    lane.panMixId === undefined
-                        ? 0
-                        : this.modules.get(lane.panMixId)!.params.pan,
-                    lane.pan,
-                    -5,
-                    5,
-                ),
+                level: control(lane.level, 0, 10),
+                pan: control(lane.pan, -5, 5),
             });
         }
 
@@ -2726,23 +2709,13 @@ function replaceDeferred(
 }
 
 /**
- * First channel of a signal param value, raw or serialized: the value itself
- * for a scalar or ModuleOutput, a ModuleOutput for a serialized cable, else
- * the first element of an array, Collection, or `$gN` group. An empty or
- * absent value reads as 0.
+ * First channel of a signal param value: the value itself for a scalar or
+ * ModuleOutput, else the first element of an array, Collection, or `$gN`
+ * group. An empty value reads as 0.
  */
-function firstChannel(builder: GraphBuilder, value: unknown): Signal {
+function firstChannel(value: unknown): Signal {
     if (isSignalGroupLike(value)) {
-        return firstChannel(builder, value.signals);
-    }
-    const cable = ResolvedModuleOutput.safeParse(value);
-    if (cable.success) {
-        return new ModuleOutput(
-            builder,
-            cable.data.module,
-            cable.data.port,
-            cable.data.channel,
-        );
+        return firstChannel(value.signals);
     }
     if (
         value instanceof ModuleOutput ||
@@ -2753,7 +2726,7 @@ function firstChannel(builder: GraphBuilder, value: unknown): Signal {
     }
     if (value instanceof BaseCollection || Array.isArray(value)) {
         const [first] = toSignalArray(value as PolySignal);
-        return first === undefined ? 0 : firstChannel(builder, first);
+        return first === undefined ? 0 : firstChannel(first);
     }
     return 0;
 }
