@@ -8,6 +8,7 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 
 pub mod additive;
 pub mod core;
+pub mod divide_down;
 pub mod formant;
 pub mod modal;
 pub mod particles;
@@ -21,6 +22,7 @@ pub mod z_osc;
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     additive::Additive::install_constructor(map);
+    divide_down::DivideDown::install_constructor(map);
     formant::Formant::install_constructor(map);
     modal::Modal::install_constructor(map);
     particles::MiParticles::install_constructor(map);
@@ -35,6 +37,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
 
 pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer>) {
     additive::Additive::install_params_deserializer(map);
+    divide_down::DivideDown::install_params_deserializer(map);
     formant::Formant::install_params_deserializer(map);
     modal::Modal::install_params_deserializer(map);
     particles::MiParticles::install_params_deserializer(map);
@@ -50,6 +53,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
 pub fn schemas() -> Vec<ModuleSchema> {
     vec![
         additive::Additive::get_schema(),
+        divide_down::DivideDown::get_schema(),
         formant::Formant::get_schema(),
         modal::Modal::get_schema(),
         particles::MiParticles::get_schema(),

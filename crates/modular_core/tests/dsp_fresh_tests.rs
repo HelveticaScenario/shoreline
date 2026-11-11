@@ -315,6 +315,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$ramp"
         | "$swell"
         | "$mi.additive"
+        | "$mi.divideDown"
         | "$mi.formant"
         | "$mi.modal"
         | "$mi.particles"
