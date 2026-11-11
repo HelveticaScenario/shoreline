@@ -41,8 +41,9 @@ pub fn chord_derive_channel_count(params: &ChordParams) -> usize {
 /// pitch and level (0–1) of each of `notes.len() + 1` voices with
 /// `inversion` notes raised an octave (lowered, when negative). The whole
 /// part rotates the notes across the voices; the fraction crossfades the note
-/// in motion from its voice to the next, an octave up. A voice changes pitch
-/// only while silent, so nothing it drives glides or clicks.
+/// in motion from its voice to the next, an octave up. As the inversion moves
+/// continuously, a voice changes pitch only while silent, so nothing it drives
+/// glides or clicks.
 fn invert(notes: &[f32], inversion: f32, pitches: &mut [f32], levels: &mut [f32]) {
     let n = notes.len() as i32;
     let voices = n + 1;
@@ -55,13 +56,16 @@ fn invert(notes: &[f32], inversion: f32, pitches: &mut [f32], levels: &mut [f32]
     let rotated = integral.rem_euclid(n);
     for (i, &note) in notes.iter().enumerate() {
         let i = i as i32;
-        let pitch = note + (n - 1 + integral - i).div_euclid(n) as f32;
+        let octaves = (n - 1 + integral - i).div_euclid(n);
+        let pitch = note + octaves as f32;
         let target = (i - rotations).rem_euclid(voices) as usize;
         let previous = (i - rotations - 1).rem_euclid(voices) as usize;
         if i == rotated {
             pitches[target] = pitch;
             levels[target] = 1.0 - fractional;
-            pitches[previous] = pitch + 1.0;
+            // As the next whole inversion computes it, so the pitch holds
+            // exactly when the note arrives.
+            pitches[previous] = note + (octaves + 1) as f32;
             levels[previous] = fractional;
         } else if i < rotated {
             pitches[previous] = pitch;
@@ -76,7 +80,12 @@ fn invert(notes: &[f32], inversion: f32, pitches: &mut [f32], levels: &mut [f32]
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ChordOutputs {
-    #[output("output", "one pitch per note, lowest first", type = cv, default)]
+    #[output(
+        "output",
+        "one pitch per note, lowest first; with `inversion` patched, one more channel, the notes rotating across them",
+        type = cv,
+        default
+    )]
     output: PolyOutput,
     #[output(
         "level",
@@ -93,7 +102,7 @@ const CHORD_DOCS: ModuleDocs = ModuleDocs {
                   note, lowest first. Patch it into an oscillator to hear the whole chord, \
                   or into `$quantizer` to keep a melody inside it. Patching `inversion` adds \
                   a channel, and the moving note crossfades between two of them: scale each \
-                  voice by `level`.",
+                  voice by `level`, or the extra channel sounds too.",
     categories: &[ModuleCategory::Pitch],
     sections: &[
         DocSection {
@@ -196,21 +205,11 @@ pub struct Chord {
     state: ChordState,
 }
 
-/// The voices for the last inversion, as bits; `None` until the first.
+#[derive(Default)]
 struct ChordState {
-    pitches: [f32; PORT_MAX_CHANNELS],
-    levels: [f32; PORT_MAX_CHANNELS],
-    inversion: Option<u32>,
-}
-
-impl Default for ChordState {
-    fn default() -> Self {
-        Self {
-            pitches: [0.0; PORT_MAX_CHANNELS],
-            levels: [0.0; PORT_MAX_CHANNELS],
-            inversion: None,
-        }
-    }
+    /// The last finite inversion, which a NaN or infinite one holds; `None`
+    /// until the first.
+    inversion: Option<f32>,
 }
 
 impl Chord {
@@ -226,20 +225,22 @@ impl Chord {
             Some(inversion) => {
                 let voices = (notes.len() + 1).min(PORT_MAX_CHANNELS);
                 let value = inversion.get_value();
-                // A NaN or infinite inversion holds the voices where they are.
-                if value.is_finite() && self.state.inversion != Some(value.to_bits()) {
-                    self.state.inversion = Some(value.to_bits());
-                    let s = &mut self.state;
+                if value.is_finite() {
+                    self.state.inversion = Some(value);
+                }
+                let mut pitches = [0.0; PORT_MAX_CHANNELS];
+                let mut levels = [0.0; PORT_MAX_CHANNELS];
+                if let Some(held) = self.state.inversion {
                     invert(
                         &notes[..voices - 1],
-                        value,
-                        &mut s.pitches[..voices],
-                        &mut s.levels[..voices],
+                        held,
+                        &mut pitches[..voices],
+                        &mut levels[..voices],
                     );
                 }
                 for ch in 0..voices {
-                    self.outputs.output.set(ch, self.state.pitches[ch]);
-                    self.outputs.level.set(ch, 5.0 * self.state.levels[ch]);
+                    self.outputs.output.set(ch, pitches[ch]);
+                    self.outputs.level.set(ch, 5.0 * levels[ch]);
                 }
             }
         }
@@ -408,7 +409,7 @@ mod tests {
                 x += step;
                 let current = voices(spec, x);
                 for (ch, ((p0, l0), (p1, l1))) in previous.iter().zip(&current).enumerate() {
-                    if (p0 - p1).abs() > 1e-6 {
+                    if p0 != p1 {
                         assert!(
                             *l0 <= 2.0 * step && *l1 <= 2.0 * step,
                             "{spec} at {x}: channel {ch} moved {p0} → {p1} at levels {l0}, {l1}"
@@ -420,17 +421,103 @@ mod tests {
         }
     }
 
-    /// A NaN or infinite inversion holds the voices where they are.
+    fn read(chord: &Chord) -> Vec<(f32, f32)> {
+        (0..chord.channel_count())
+            .map(|ch| (chord.outputs.output.get(ch), chord.outputs.level.get(ch)))
+            .collect()
+    }
+
+    /// A NaN or infinite inversion holds the voices, pitches and levels,
+    /// where they are.
     #[test]
     fn non_finite_inversion_holds() {
         let mut chord = make_inverted("C3[maj7]", Some(1.5));
         chord.update(48000.0);
-        let before: Vec<f32> = (0..5).map(|ch| chord.outputs.output.get(ch)).collect();
-        chord.params.inversion = Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(
-            f32::NAN,
-        ))));
-        chord.update(48000.0);
-        let after: Vec<f32> = (0..5).map(|ch| chord.outputs.output.get(ch)).collect();
-        assert_eq!(before, after);
+        let before = read(&chord);
+        for v in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            chord.params.inversion =
+                Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v))));
+            chord.update(48000.0);
+            assert_eq!(read(&chord), before, "{v}");
+        }
+    }
+
+    /// Editing the spec while the inversion stays put plays the new chord at
+    /// that inversion: the state a patch update carries over holds no chord.
+    #[test]
+    fn a_new_spec_sounds_after_a_patch_update() {
+        for (from, to) in [
+            ("C3[maj7]", "F3[m7]"),
+            ("C3[maj]", "C3[maj7]"),
+            ("C3[maj7]", "C3[maj]"),
+        ] {
+            let mut old = make_inverted(from, Some(1.0));
+            old.update(48000.0);
+            let mut new = make_inverted(to, Some(1.0));
+            std::mem::swap(&mut new.state, &mut old.state);
+            new.update(48000.0);
+            assert_eq!(
+                read(&new),
+                {
+                    let mut fresh = make_inverted(to, Some(1.0));
+                    fresh.update(48000.0);
+                    read(&fresh)
+                },
+                "{from} → {to}"
+            );
+        }
+    }
+
+    /// A whole rotation, `inversion` at the number of notes, is the chord an
+    /// octave up; its negative, an octave down.
+    #[test]
+    fn whole_rotations_transpose_by_octaves() {
+        for spec in ["C3[maj7]", "A2[m]", "C(major)"] {
+            let notes = ScaleSpec::parse(spec).unwrap().voltages().to_vec();
+            let n = notes.len() as f32;
+            for (inversion, octaves) in [(n, 1.0), (-n, -1.0), (2.0 * n, 2.0)] {
+                let mut expected: Vec<f32> = notes.iter().map(|v| v + octaves).collect();
+                expected.sort_by(f32::total_cmp);
+                let actual = sounding(&voices(spec, inversion));
+                assert_eq!(actual.len(), notes.len(), "{spec} at {inversion}");
+                for (a, e) in actual.iter().zip(&expected) {
+                    assert!(
+                        (a - e).abs() < 1e-5,
+                        "{spec} at {inversion}: {actual:?} vs {expected:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Past ±notes × (notes + 1) the inversion holds the voicing at its end.
+    #[test]
+    fn inversion_holds_past_its_span() {
+        let span = 4.0 * 5.0;
+        assert_eq!(voices("C3[maj7]", span), voices("C3[maj7]", span + 7.3));
+        assert_eq!(voices("C3[maj7]", -span), voices("C3[maj7]", -1e30));
+    }
+
+    /// One- and two-note chords invert too.
+    #[test]
+    fn small_chords_invert() {
+        let single = voices("C[0]", 0.5);
+        assert_eq!(single.len(), 2);
+        assert_eq!(sounding(&voices("C[0]", 1.0)), vec![1.0]);
+        let fifth = voices("C[0 7]", 1.0);
+        assert_eq!(fifth.len(), 3);
+        let sounding = sounding(&fifth);
+        assert!(
+            (sounding[0] - 7.0 / 12.0).abs() < 1e-6 && (sounding[1] - 1.0).abs() < 1e-6,
+            "{sounding:?}"
+        );
+    }
+
+    /// Patching `inversion` adds one channel, up to the port's limit.
+    #[test]
+    fn inversion_adds_a_channel() {
+        assert_eq!(make_inverted("C3[maj7]", None).channel_count(), 4);
+        assert_eq!(make_inverted("C3[maj7]", Some(0.0)).channel_count(), 5);
+        assert_eq!(make_inverted("chromatic", Some(0.0)).channel_count(), 13);
     }
 }

@@ -20852,7 +20852,7 @@
     "name": "$chord",
     "docs": {
       "summary": "Notes of a chord or scale",
-      "description": "Outputs every note of a chord or scale as pitch voltages, one channel per note, lowest first. Patch it into an oscillator to hear the whole chord, or into `$quantizer` to keep a melody inside it. Patching `inversion` adds a channel, and the moving note crossfades between two of them: scale each voice by `level`.",
+      "description": "Outputs every note of a chord or scale as pitch voltages, one channel per note, lowest first. Patch it into an oscillator to hear the whole chord, or into `$quantizer` to keep a melody inside it. Patching `inversion` adds a channel, and the moving note crossfades between two of them: scale each voice by `level`, or the extra channel sounds too.",
       "categories": [
         "pitch"
       ],
@@ -21038,7 +21038,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "one pitch per note, lowest first",
+        "description": "one pitch per note, lowest first; with `inversion` patched, one more channel, the notes rotating across them",
         "outputType": "cv",
         "polyphonic": true,
         "default": true
