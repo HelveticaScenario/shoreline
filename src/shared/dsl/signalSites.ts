@@ -63,7 +63,7 @@ export interface SignalSite {
     /** The output the value stands for, or null when only a run can tell. */
     output: string | null;
     /**
-     * Whether writing `.output` straight after the value names that output:
+     * Whether writing `.o.<name>` straight after the value names that output:
      * true of a name, a member or a call that is one root, not an array.
      */
     insertable: boolean;
@@ -202,9 +202,10 @@ export function collectSignalSites(
         }
     };
 
-    /** Whether `.name` can be written straight after `value`. */
+    /** Whether `.name` can be written straight after `value`; a shorthand `{ key }` cannot take one. */
     const takesMember = (value: TS.Expression): boolean =>
-        ts.isIdentifier(value) ||
+        (ts.isIdentifier(value) &&
+            !ts.isShorthandPropertyAssignment(value.parent)) ||
         ts.isPropertyAccessExpression(value) ||
         ts.isElementAccessExpression(value) ||
         ts.isCallExpression(value) ||

@@ -1,3 +1,12 @@
+import {
+    AudioLines,
+    Film,
+    Folder,
+    FolderOpen,
+    Image,
+    Parentheses,
+    type LucideIcon,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './FileExplorer.css';
 import type { FileTreeEntry } from '../../shared/ipcTypes';
@@ -5,6 +14,14 @@ import type { EditorBuffer } from '../types/editor';
 import { getBufferId, toAbsoluteWorkspacePath } from '../app/buffers';
 import electronAPI from '../electronAPI';
 import { bindFileExplorerFocus } from '../keybindings/contextKeyBootstrap';
+import { WORKSPACE_PATH_MIME } from './monaco/workspacePathCompletion';
+
+const FILE_ICONS: Record<NonNullable<FileTreeEntry['fileType']>, LucideIcon> = {
+    js: Parentheses,
+    wav: AudioLines,
+    image: Image,
+    video: Film,
+};
 
 interface FileExplorerProps {
     workspaceRoot: string | null;
@@ -80,28 +97,43 @@ function TreeNode({
         }
     };
 
+    const isAsset = entry.fileType !== undefined && entry.fileType !== 'js';
+
     const handleSingleClick = () => {
-        if (!isRenaming && entry.fileType !== 'wav') {
+        if (!isRenaming && !isAsset) {
             onOpenFile(entry.path, { preview: true });
         }
     };
 
     const handleDoubleClick = () => {
-        if (!isRenaming && entry.fileType !== 'wav') {
+        if (!isRenaming && !isAsset) {
             onOpenFile(entry.path, { preview: false });
         }
     };
 
     if (entry.type === 'file') {
-        const isWav = entry.fileType === 'wav';
+        const FileIcon = FILE_ICONS[entry.fileType ?? 'js'];
         return (
             <li
-                className={`tree-file${isWav ? ' tree-file-wav' : ''}`}
+                className={`tree-file${isAsset ? ' tree-file-asset' : ''}`}
                 onClick={handleSingleClick}
                 onDoubleClick={handleDoubleClick}
-                onContextMenu={(e) => !isWav && onContextMenu(e, entry)}
+                onContextMenu={(e) => !isAsset && onContextMenu(e, entry)}
+                draggable={isAsset && !isRenaming}
+                title={
+                    isAsset
+                        ? `Drag into the editor to use /${entry.path}`
+                        : undefined
+                }
+                onDragStart={(e) => {
+                    e.dataTransfer.setData(
+                        WORKSPACE_PATH_MIME,
+                        `/${entry.path}`,
+                    );
+                    e.dataTransfer.effectAllowed = 'copy';
+                }}
             >
-                <span className="file-icon">{isWav ? '🔊' : '📄'}</span>
+                <FileIcon className="file-icon" aria-hidden />
                 {isRenaming ? (
                     <input
                         ref={inputRef}
@@ -126,7 +158,11 @@ function TreeNode({
                 onClick={() => !isRenaming && onToggleFolder(entry.path)}
                 onContextMenu={(e) => onContextMenu(e, entry)}
             >
-                <span className="folder-icon">{expanded ? '📂' : '📁'}</span>
+                {expanded ? (
+                    <FolderOpen className="folder-icon" aria-hidden />
+                ) : (
+                    <Folder className="folder-icon" aria-hidden />
+                )}
                 <span className="folder-name">{entry.name}</span>
             </div>
             {expanded && entry.children && entry.children.length > 0 && (

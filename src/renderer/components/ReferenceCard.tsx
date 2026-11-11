@@ -227,9 +227,8 @@ export const ReferenceCard = memo<ReferenceCardProps>(
                         <ul>
                             {entry.outputs.map((out) => (
                                 <li key={out.name}>
-                                    <strong>
-                                        {out.main ? 'main' : out.name}
-                                    </strong>
+                                    <strong>{out.name}</strong>
+                                    {out.main && ' (default)'}
                                     : <InlineDoc text={out.description} />
                                     {out.meta && (
                                         <span className="param-meta">

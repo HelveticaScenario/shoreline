@@ -9,56 +9,28 @@ import {
     type VideoVideoConfig,
 } from './videoBuilderTypes';
 import type { VideoOutput } from './VideoOutput';
+import { assetPath } from '../assetPath';
 
-const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif'];
-const VIDEO_EXTENSIONS = ['mp4', 'webm', 'mov', 'm4v', 'ogv'];
 const FITS = ['cover', 'contain', 'stretch'];
 /** The fastest playback rate the browser engine's media element supports. */
 const MAX_SPEED = 16;
 
-/** Throws an error naming `fn` when `path` is a `scheme://` address, not a workspace path. */
-function rejectScheme(fn: string, path: string): void {
-    const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(path);
-    if (scheme !== null) {
-        throw new Error(
-            `${fn}: ${scheme[1]}:// addresses cannot be loaded; use a file in the workspace folder`,
-        );
-    }
-}
-
-/** A path inside the workspace folder, with `/` separators, or an error naming `fn`. */
+/**
+ * The workspace-relative path of the file a `/`-rooted asset path names, or
+ * an error naming `fn` when it is not a file of `kind` in the workspace folder.
+ */
 function mediaPath(
     core: VideoCore,
     fn: string,
     path: unknown,
-    extensions: string[],
+    kind: 'image' | 'video',
 ): string {
-    if (typeof path !== 'string' || path === '') {
-        throw new Error(
-            `${fn}: path must be a string naming a file in the workspace folder, got ${describe(path)}`,
-        );
+    const rooted = assetPath(fn, path, kind);
+    const relative = rooted.slice(1);
+    if (!core.mediaExists(relative)) {
+        throw new Error(`${fn}: no file "${rooted}" in the workspace folder`);
     }
-    rejectScheme(fn, path);
-    const normalized = path.replaceAll('\\', '/');
-    if (
-        normalized.startsWith('/') ||
-        /^[a-zA-Z]:/.test(normalized) ||
-        normalized.split('/').includes('..')
-    ) {
-        throw new Error(
-            `${fn}: path must stay inside the workspace folder, got "${path}"`,
-        );
-    }
-    const extension = normalized.split('.').pop()?.toLowerCase() ?? '';
-    if (!extensions.includes(extension)) {
-        throw new Error(
-            `${fn}: "${path}" must be one of ${extensions.map((e) => `.${e}`).join(', ')}`,
-        );
-    }
-    if (!core.mediaExists(normalized)) {
-        throw new Error(`${fn}: no file "${path}" in the workspace folder`);
-    }
-    return normalized;
+    return relative;
 }
 
 /** The `speed` and `loop` options of `$v.video` as the fields of a source definition. */
@@ -144,7 +116,7 @@ export function sourceMethods(core: VideoCore) {
             { params: { fit }, source: core.sourceIndex(def) },
         );
     const make =
-        (fn: string, kind: 'image' | 'video', extensions: string[]) =>
+        (fn: string, kind: 'image' | 'video') =>
         (path: string, config?: VideoVideoConfig): VideoOutput => {
             const fit = fitOf(fn, config);
             if (
@@ -153,7 +125,7 @@ export function sourceMethods(core: VideoCore) {
             ) {
                 throw new Error(`${fn}: speed and loop apply only to video`);
             }
-            const normalized = mediaPath(core, fn, path, extensions);
+            const normalized = mediaPath(core, fn, path, kind);
             const timing = kind === 'video' ? playback(config) : {};
             const output = source({ kind, path: normalized, ...timing }, fit);
             return kind === 'video'
@@ -165,13 +137,13 @@ export function sourceMethods(core: VideoCore) {
          * A picture from the workspace folder, drawn to fill the frame as `fit`
          * says.
          */
-        image: make('$v.image', 'image', IMAGE_EXTENSIONS),
+        image: make('$v.image', 'image'),
 
         /**
          * A recording from the workspace folder, played in a loop, muted, at
          * `speed` and between the `loop` points.
          */
-        video: make('$v.video', 'video', VIDEO_EXTENSIONS),
+        video: make('$v.video', 'video'),
 
         /** The live picture of a camera, as a color. */
         camera: (config?: VideoCameraConfig): VideoOutput => {

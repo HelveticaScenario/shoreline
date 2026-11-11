@@ -3,11 +3,11 @@
     display: flex;
     align-items: stretch;
     gap: 6px;
-    flex-shrink: 0;
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
     padding: 8px 8px 6px;
     background: var(--bg-primary);
-    border-top: 1px solid var(--border-subtle, #222);
     font-family: var(--font-mono);
 }
 
@@ -25,26 +25,6 @@
 .vu-meter--main {
     border-left: 2px solid var(--border-subtle, #333);
     border-radius: 0 3px 3px 0;
-}
-
-/* Grab zone along the top edge for expanding/contracting the panel. */
-.vu-panel-resize-handle {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 5px;
-    cursor: ns-resize;
-    z-index: 1;
-}
-
-.vu-panel-resize-handle:hover {
-    background: linear-gradient(
-        to bottom,
-        var(--accent-primary, #4ec9b0) 2px,
-        transparent 2px
-    );
-    opacity: 0.6;
 }
 
 .vu-meter-empty {

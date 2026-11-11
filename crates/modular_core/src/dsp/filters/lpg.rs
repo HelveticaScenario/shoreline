@@ -146,7 +146,7 @@ const LPG_DOCS: ModuleDocs = ModuleDocs {
             title: "Woody knock on every beat",
             code: r#"
                 $saw('c3')
-                  .$.lpg($clock.beatTrigger, { color: 0.5, decay: 1 })
+                  .$.lpg($clock.o.beatTrigger, { color: 0.5, decay: 1 })
                   .out()
             "#,
         },

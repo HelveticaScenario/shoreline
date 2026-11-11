@@ -102,6 +102,8 @@ export interface ParamDescriptor {
      * and takes no part in `$g` signal-group expansion.
      */
     isScaleSignalInput?: boolean;
+    /** A WAV file, written in the DSL as a `/`-rooted workspace path. */
+    isWavInput?: boolean;
 }
 
 export type ProcessedModuleSchema = ModuleSchema & {
@@ -538,6 +540,7 @@ export function processModuleSchema(
 
             const isMonoSignalInput = referencesDef(s, 'MonoSignal');
             const isScaleSignalInput = referencesDef(s, 'ScaleSignal');
+            const isWavInput = referencesDef(s, 'Wav');
             const isPolySignalInput =
                 !isMonoSignalInput &&
                 !isScaleSignalInput &&
@@ -553,6 +556,7 @@ export function processModuleSchema(
                 ...(isPolySignalInput && { isPolySignalInput }),
                 ...(isMonoSignalInput && { isMonoSignalInput }),
                 ...(isScaleSignalInput && { isScaleSignalInput }),
+                ...(isWavInput && { isWavInput }),
                 ...(signalMeta && {
                     controlMax: signalMeta.controlMax,
                     controlMin: signalMeta.controlMin,

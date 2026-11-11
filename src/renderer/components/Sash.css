@@ -1,0 +1,67 @@
+/* A sash covers its panel's editor-facing border and reaches inward, leaving
+   the editor's scrollbar alone. Each panel places it on its own edge. */
+.app-sash {
+    position: absolute;
+    z-index: 20;
+    touch-action: none;
+}
+
+.app-sash.x {
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+}
+
+.app-sash.y {
+    left: 0;
+    right: 0;
+    height: 5px;
+    cursor: row-resize;
+}
+
+.app-sash::after {
+    content: '';
+    position: absolute;
+    background: transparent;
+    transition: background-color 0.1s;
+}
+
+.app-sash.x::after {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+}
+
+.app-sash.y::after {
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+}
+
+.app-sash:hover::after {
+    transition-delay: 0.3s;
+    background: var(--accent-primary);
+}
+
+.app-sash.active::after,
+.app-sash:focus-visible::after {
+    transition-delay: 0s;
+    background: var(--accent-primary);
+}
+
+.app-sash:focus-visible {
+    outline: none;
+}
+
+body.app-sash-resizing-x {
+    cursor: col-resize;
+    user-select: none;
+}
+
+body.app-sash-resizing-y {
+    cursor: row-resize;
+    user-select: none;
+}

@@ -183,6 +183,8 @@ export interface ElectronAPI {
             IPCHandlers[typeof IPC_CHANNELS.FS_GET_WORKSPACE]
         >;
         listFiles: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_LIST_FILES]>;
+        /** Calls `callback` when files in the workspace folder change. */
+        onTreeChange: (callback: () => void) => () => void;
         readFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_READ_FILE]>;
         writeFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_WRITE_FILE]>;
         renameFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_RENAME_FILE]>;
@@ -215,7 +217,7 @@ export interface ElectronAPI {
     onMenuOpenWorkspace: (callback: () => void) => () => void;
     onMenuCloseBuffer: (callback: () => void) => () => void;
     onMenuToggleRecording: (callback: () => void) => () => void;
-    onMenuToggleVuMeters: (callback: () => void) => () => void;
+    onMenuToggleMixer: (callback: () => void) => () => void;
     onMenuOpenSettings: (callback: () => void) => () => void;
     onMenuOpenEngineHealth: (callback: () => void) => () => void;
     onMenuOpenModuleProfile: (callback: () => void) => () => void;
@@ -277,9 +279,6 @@ export interface ElectronAPI {
         /** Push command -> accelerator so the app menu shows live shortcuts. */
         setAccelerators: (accelerators: Record<string, string>) => void;
     };
-
-    // Wavs folder change notification
-    onWavsChange: (callback: () => void) => () => void;
 
     // Main process log forwarding
     onMainLog: (callback: (entry: MainLogEntry) => void) => () => void;
@@ -441,6 +440,8 @@ const electronAPI: ElectronAPI = {
 
         listFiles: (...args) => invokeIPC('FS_LIST_FILES', ...args),
 
+        onTreeChange: menuEventHandler(IPC_CHANNELS.FS_TREE_ON_CHANGE),
+
         moveFile: (...args) => invokeIPC('FS_MOVE_FILE', ...args),
 
         readFile: (...args) => invokeIPC('FS_READ_FILE', ...args),
@@ -475,7 +476,7 @@ const electronAPI: ElectronAPI = {
     onMenuOpenWorkspace: menuEventHandler(MENU_CHANNELS.OPEN_WORKSPACE),
     onMenuCloseBuffer: menuEventHandler(MENU_CHANNELS.CLOSE_BUFFER),
     onMenuToggleRecording: menuEventHandler(MENU_CHANNELS.TOGGLE_RECORDING),
-    onMenuToggleVuMeters: menuEventHandler(MENU_CHANNELS.TOGGLE_VU_METERS),
+    onMenuToggleMixer: menuEventHandler(MENU_CHANNELS.TOGGLE_MIXER),
     onMenuTogglePerformanceWindow: menuEventHandler(
         MENU_CHANNELS.TOGGLE_PERFORMANCE_WINDOW,
     ),
@@ -541,9 +542,6 @@ const electronAPI: ElectronAPI = {
 
     // Main process log forwarding
     onMainLog: menuEventHandler(IPC_CHANNELS.MAIN_LOG),
-
-    // Wavs folder change notification
-    onWavsChange: menuEventHandler(IPC_CHANNELS.WAVS_ON_CHANGE),
 
     // OS shell operations
     shell: {

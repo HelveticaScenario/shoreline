@@ -16,7 +16,7 @@
         },
         {
           "title": "Two voices drifting together",
-          "code": "const chaos = $lorenz({ rate: 0.1 })\n$sine(chaos.range('a3', 'a4')).out()\n$sine(chaos.y.range('e4', 'e5')).out()"
+          "code": "const chaos = $lorenz({ rate: 0.1 })\n$sine(chaos.range('a3', 'a4')).out()\n$sine(chaos.o.y.range('e4', 'e5')).out()"
         }
       ]
     },
@@ -2431,7 +2431,7 @@
       "examples": [
         {
           "title": "Crash on the one",
-          "code": "$tr808.kick($p('c*4').c).out()\n$tr808.cymbal($clock.barTrigger, { decay: 4 }).out()"
+          "code": "$tr808.kick($p('c*4').c).out()\n$tr808.cymbal($clock.o.barTrigger, { decay: 4 }).out()"
         }
       ]
     },
@@ -2751,7 +2751,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "both",
         "description": "both hats; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
         "polyphonic": true,
@@ -5195,11 +5195,11 @@
       "examples": [
         {
           "title": "Pad pumping to the beat",
-          "code": "$saw($chord('C3[m9]'))\n  .$.lpf('c5')\n  .$.comp({\n    sidechain: $perc($clock.beatTrigger, { decay: 0.2 }),\n    threshold: 1,\n    ratio: 8,\n    attack: 0.005,\n    release: 0.2,\n  })\n  .out()"
+          "code": "$saw($chord('C3[m9]'))\n  .$.lpf('c5')\n  .$.comp({\n    sidechain: $perc($clock.o.beatTrigger, { decay: 0.2 }),\n    threshold: 1,\n    ratio: 8,\n    attack: 0.005,\n    release: 0.2,\n  })\n  .out()"
         },
         {
           "title": "Multiband squash",
-          "code": "const bands = $xover($saw('c2'), {\n  lowMidFreq: '200hz',\n  midHighFreq: '2000hz',\n})\n$mix([\n  $comp(bands.low, { threshold: 2.5, ratio: 4 }),\n  $comp(bands.mid, { threshold: 3, ratio: 3 }),\n  $comp(bands.high, { threshold: 2, ratio: 6 }),\n]).out()"
+          "code": "const bands = $xover($saw('c2'), {\n  lowMidFreq: '200hz',\n  midHighFreq: '2000hz',\n})\n$mix([\n  $comp(bands.o.low, { threshold: 2.5, ratio: 4 }),\n  $comp(bands.o.mid, { threshold: 3, ratio: 3 }),\n  $comp(bands.o.high, { threshold: 2, ratio: 6 }),\n]).out()"
         }
       ]
     },
@@ -5523,7 +5523,7 @@
     "name": "$xover",
     "docs": {
       "summary": "Three-band crossover",
-      "description": "Splits a sound into low, mid and high bands at two crossover points, so each band can be processed on its own and mixed back together. The main output passes the sound through unchanged; tap `.low`, `.mid` and `.high` for the bands.",
+      "description": "Splits a sound into low, mid and high bands at two crossover points, so each band can be processed on its own and mixed back together. Its `thru` output passes the sound through unchanged; tap `.o.low`, `.o.mid` and `.o.high` for the bands.",
       "categories": [
         "filter"
       ],
@@ -5531,7 +5531,7 @@
       "examples": [
         {
           "title": "Tremolo on the mids only",
-          "code": "const bands = $xover($saw('c2'))\n$mix([\n  bands.low,\n  bands.mid.amp($sine('4hz').range(0, 5)),\n  bands.high,\n]).out()"
+          "code": "const bands = $xover($saw('c2'))\n$mix([\n  bands.o.low,\n  bands.o.mid.amp($sine('4hz').range(0, 5)),\n  bands.o.high,\n]).out()"
         }
       ]
     },
@@ -5632,7 +5632,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "thru",
         "description": "input passed through unchanged",
         "outputType": "cv",
         "polyphonic": true,
@@ -8060,7 +8060,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "stereo",
         "description": "stereo mix of every voice, as left and right channels",
         "outputType": "cv",
         "polyphonic": true,
@@ -8198,7 +8198,7 @@
       "examples": [
         {
           "title": "Scattered pad texture",
-          "code": "const grains = $pulse('8hz')\n$granularSampler($wavs().pad, grains, {\n  time: $sah($noise('white').range(0, 5), grains),\n  width: 4,\n  spread: 2,\n}).out()"
+          "code": "const grains = $pulse('8hz')\n$granularSampler('/wavs/pad.wav', grains, {\n  time: $sah($noise('white').range(0, 5), grains),\n  width: 4,\n  spread: 2,\n}).out()"
         }
       ]
     },
@@ -8432,7 +8432,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "stereo",
         "description": "stereo mix of every voice, as left and right channels",
         "outputType": "cv",
         "polyphonic": true,
@@ -8713,11 +8713,11 @@
       "examples": [
         {
           "title": "Dotted-eighth echoes",
-          "code": "const pluck = $saw('c3').amp(\n  $perc($clock.beatTrigger, { decay: 0.1 }),\n)\n$clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()"
+          "code": "const pluck = $saw('c3').amp(\n  $perc($clock.o.beatTrigger, { decay: 0.1 }),\n)\n$clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()"
         },
         {
           "title": "Sliced sixteenth repeats",
-          "code": "const pluck = $saw($p('c3 eb3 g3 bb3').c).amp(\n  $perc($clock.beatTrigger, { decay: 0.3 }),\n)\n$clockedDelay(pluck, {\n  bars: 1 / 16,\n  shape: 1,\n  feedback: 2,\n  mix: 3,\n}).out()"
+          "code": "const pluck = $saw($p('c3 eb3 g3 bb3').c).amp(\n  $perc($clock.o.beatTrigger, { decay: 0.3 }),\n)\n$clockedDelay(pluck, {\n  bars: 1 / 16,\n  shape: 1,\n  feedback: 2,\n  mix: 3,\n}).out()"
         }
       ]
     },
@@ -9059,7 +9059,7 @@
         },
         {
           "title": "FM bell",
-          "code": "$sine('c4', { fm: $sine('c5').range(-3, 3) })\n  .amp($perc($clock.beatTrigger, { decay: 1 }))\n  .out()"
+          "code": "$sine('c4', { fm: $sine('c5').range(-3, 3) })\n  .amp($perc($clock.o.beatTrigger, { decay: 1 }))\n  .out()"
         }
       ]
     },
@@ -10358,7 +10358,7 @@
         },
         {
           "title": "Chord stabs",
-          "code": "$macro('c3', 'chords', {\n  trigger: $clock.beatTrigger,\n  harmonics: 1,\n}).out()"
+          "code": "$macro('c3', 'chords', {\n  trigger: $clock.o.beatTrigger,\n  harmonics: 1,\n}).out()"
         }
       ]
     },
@@ -10497,7 +10497,7 @@
           ]
         },
         "mix": {
-          "description": "blend at `output` between the engine's `main` sound at 0 and its `aux` variant at 5",
+          "description": "blend at `blend` between the engine's `main` sound at 0 and its `aux` variant at 5",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -10699,7 +10699,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "blend",
         "description": "main and aux blended by `mix`",
         "outputType": "cv",
         "polyphonic": true,
@@ -10834,7 +10834,7 @@
       },
       {
         "name": "mix",
-        "description": "blend at `output` between the engine's `main` sound at 0 and its `aux` variant at 5",
+        "description": "blend at `blend` between the engine's `main` sound at 0 and its `aux` variant at 5",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -11084,7 +11084,7 @@
         },
         {
           "title": "Stereo pulsar drone",
-          "code": "const e = $enosc('a2', $enosc.scale.just6, {\n  spread: $sine('0.05hz').range(1, 3),\n  crossFm: 1.5,\n  phase: $phase.pulsar(2),\n  fold: 1,\n})\ne.odd.out({ pan: -5 })\ne.even.out({ pan: 5 })"
+          "code": "const e = $enosc('a2', $enosc.scale.just6, {\n  spread: $sine('0.05hz').range(1, 3),\n  crossFm: 1.5,\n  phase: $phase.pulsar(2),\n  fold: 1,\n})\ne.o.odd.out({ pan: -5 })\ne.o.even.out({ pan: 5 })"
         }
       ]
     },
@@ -11787,7 +11787,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "all",
         "description": "mix of every voice",
         "outputType": "cv",
         "polyphonic": true,
@@ -11967,11 +11967,11 @@
       "examples": [
         {
           "title": "Scanning pad",
-          "code": "$wavetable(\n  $chord('C3[m9]'),\n  $wavs().tables.pad,\n  $sine('0.1hz').range(0, 5),\n).out()"
+          "code": "$wavetable(\n  $chord('C3[m9]'),\n  '/wavs/tables/pad.wav',\n  $sine('0.1hz').range(0, 5),\n).out()"
         },
         {
           "title": "Plucked table sweep",
-          "code": "const seq = $p('c3 eb3 g3 bb3').c\nconst env = $perc(seq, { decay: 0.5 })\n$wavetable(seq, $wavs().tables.pad, env.range(0, 4))\n  .amp(env)\n  .out()"
+          "code": "const seq = $p('c3 eb3 g3 bb3').c\nconst env = $perc(seq, { decay: 0.5 })\n$wavetable(seq, '/wavs/tables/pad.wav', env.range(0, 4))\n  .amp(env)\n  .out()"
         }
       ]
     },
@@ -12758,7 +12758,7 @@
         },
         {
           "title": "Riser across each bar",
-          "code": "$noise('white')\n  .$.hpf($clock.ramp.range('c2', 'c9'), 2)\n  .out()"
+          "code": "$noise('white')\n  .$.hpf($clock.o.ramp.range('c2', 'c9'), 2)\n  .out()"
         }
       ]
     },
@@ -13064,7 +13064,7 @@
         },
         {
           "title": "Squelchy bandpass bass",
-          "code": "const seq = $p('c2 [c2 c3] eb2 [g1 bb1]').c\n$jup6f(\n  $saw(seq),\n  $perc(seq, { decay: 0.15 }).range('c3', 'c6'),\n  4,\n).bp.out()"
+          "code": "const seq = $p('c2 [c2 c3] eb2 [g1 bb1]').c\n$jup6f(\n  $saw(seq),\n  $perc(seq, { decay: 0.15 }).range('c3', 'c6'),\n  4,\n).o.bp.out()"
         }
       ]
     },
@@ -13159,7 +13159,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "lp24",
         "description": "4-pole (24 dB/oct) lowpass",
         "outputType": "cv",
         "polyphonic": true,
@@ -13248,7 +13248,7 @@
         },
         {
           "title": "Woody knock on every beat",
-          "code": "$saw('c3')\n  .$.lpg($clock.beatTrigger, { color: 0.5, decay: 1 })\n  .out()"
+          "code": "$saw('c3')\n  .$.lpg($clock.o.beatTrigger, { color: 0.5, decay: 1 })\n  .out()"
         }
       ]
     },
@@ -13584,7 +13584,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "morph",
         "description": "response selected by mode",
         "outputType": "cv",
         "polyphonic": true,
@@ -19319,7 +19319,7 @@
       "examples": [
         {
           "title": "Plucked strings from noise bursts",
-          "code": "const burst = $noise('white').amp(\n  $perc($clock.beatTrigger, { decay: 0.02 }),\n)\nconst notes = $p('c3 eb3 g3 bb3').c\n$unstable.filter\n  .comb(burst, notes, 4.5, { mix: 'full' })\n  .out()"
+          "code": "const burst = $noise('white').amp(\n  $perc($clock.o.beatTrigger, { decay: 0.02 }),\n)\nconst notes = $p('c3 eb3 g3 bb3').c\n$unstable.filter\n  .comb(burst, notes, 4.5, { mix: 'full' })\n  .out()"
         }
       ]
     },
@@ -20743,7 +20743,7 @@
       "examples": [
         {
           "title": "Echo tap",
-          "code": "const voice = $saw($p('c3 eb3 g3 ~').c).amp(\n  $perc($clock.beatTrigger, { decay: 0.15 }),\n)\nvoice.out()\n$delayRead($buffer(voice, 1), 0.375).amp(2.5).out()"
+          "code": "const voice = $saw($p('c3 eb3 g3 ~').c).amp(\n  $perc($clock.o.beatTrigger, { decay: 0.15 }),\n)\nvoice.out()\n$delayRead($buffer(voice, 1), 0.375).amp(2.5).out()"
         }
       ]
     },
@@ -20852,7 +20852,7 @@
     "name": "$chord",
     "docs": {
       "summary": "Notes of a chord or scale",
-      "description": "Outputs every note of a chord or scale as pitch voltages, one channel per note, lowest first. Patch it into an oscillator to hear the whole chord, or into `$quantizer` to keep a melody inside it.",
+      "description": "Outputs every note of a chord or scale as pitch voltages, one channel per note, lowest first. Patch it into an oscillator to hear the whole chord, or into `$quantizer` to keep a melody inside it. Patching `inversion` adds a channel, and the moving note crossfades between two of them: scale each voice by `level`, or the extra channel sounds too.",
       "categories": [
         "pitch"
       ],
@@ -20939,6 +20939,10 @@
           "code": "$saw($chord('C3[maj7]')).$.lpf('c5', 1).out()"
         },
         {
+          "title": "Gliding through the inversions",
+          "code": "const inv = $sine('0.05hz').range(0, 4)\nconst c = $chord('C3[maj7]', { inversion: inv })\n$saw(c).amplitude(c.o.level).out()"
+        },
+        {
           "title": "A drifting melody that stays in key",
           "code": "$sine(\n  $quantizer(\n    $sine('0.1hz').range('a3', 'a5'),\n    $chord('A(minor)'),\n  ),\n).out()"
         }
@@ -20952,6 +20956,17 @@
         "chord": {
           "description": "scale or chord spec, e.g. \"C(major)\", \"Eb3[m7]\", \"C[just maj7 inv1]\"",
           "$ref": "#/$defs/ScaleSpec"
+        },
+        "inversion": {
+          "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MonoSignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -20960,20 +20975,95 @@
       "$defs": {
         "ScaleSpec": {
           "type": "string"
+        },
+        "MonoSignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
         }
       }
     },
     "outputs": [
       {
-        "name": "output",
-        "description": "one pitch per note, lowest first",
+        "name": "pitch",
+        "description": "one pitch per note, lowest first; with `inversion` patched, one more channel, the notes rotating across them",
         "outputType": "cv",
         "polyphonic": true,
         "default": true
+      },
+      {
+        "name": "level",
+        "description": "each channel's level, full (5) unless `inversion` is fading a note between octaves",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": 0.0,
+        "maxValue": 5.0
       }
     ],
     "bufferOutputs": [],
-    "signalParams": [],
+    "signalParams": [
+      {
+        "name": "inversion",
+        "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "controlMin": -5.0,
+        "controlMax": 5.0
+      }
+    ],
     "positionalArgs": [
       {
         "name": "chord"
@@ -21145,7 +21235,7 @@
       "examples": [
         {
           "title": "Bass on every other beat",
-          "code": "$saw('c2')\n  .amp(\n    $perc($clockDivider($clock.beatTrigger, 2), {\n      decay: 0.3,\n    }),\n  )\n  .out()\n$noise('white')\n  .amp($perc($clock.beatTrigger, { decay: 0.03 }))\n  .out()"
+          "code": "$saw('c2')\n  .amp(\n    $perc($clockDivider($clock.o.beatTrigger, 2), {\n      decay: 0.3,\n    }),\n  )\n  .out()\n$noise('white')\n  .amp($perc($clock.o.beatTrigger, { decay: 0.03 }))\n  .out()"
         }
       ]
     },
@@ -21277,7 +21367,7 @@
     "name": "$coinFlip",
     "docs": {
       "summary": "Random trigger router",
-      "description": "Sends each trigger to heads or tails at random, weighted by the probability: thin a steady clock into a loose rhythm, or split one stream between two sounds. The module itself is the heads output; `.tails` carries the rest.",
+      "description": "Sends each trigger to heads or tails at random, weighted by the probability: thin a steady clock into a loose rhythm, or split one stream between two sounds. The module itself is the heads output; `.o.tails` carries the rest.",
       "categories": [
         "gate",
         "random"
@@ -21286,7 +21376,7 @@
       "examples": [
         {
           "title": "Kick or snare, 75/25",
-          "code": "const flip = $coinFlip($clock.beatTrigger, 3.75)\n$tr808.kick(flip).out()\n$tr808.snare(flip.tails).out()"
+          "code": "const flip = $coinFlip($clock.o.beatTrigger, 3.75)\n$tr808.kick(flip).out()\n$tr808.snare(flip.o.tails).out()"
         }
       ]
     },
@@ -21433,7 +21523,7 @@
       "examples": [
         {
           "title": "Circle of fifths folded into one octave",
-          "code": "$sine($scan(1, 7 / 12, $clock.beatTrigger)).out()"
+          "code": "$sine($scan(1, 7 / 12, $clock.o.beatTrigger)).out()"
         }
       ]
     },
@@ -21598,7 +21688,7 @@
       "examples": [
         {
           "title": "Snappy filter envelope",
-          "code": "$saw('c2')\n  .$.lpf(\n    $curve(\n      $adsr($clock.beatTrigger, { decay: 0.3 }),\n      3,\n    ).range('c3', 'c7', 0, 5),\n    2,\n  )\n  .out()"
+          "code": "$saw('c2')\n  .$.lpf(\n    $curve(\n      $adsr($clock.o.beatTrigger, { decay: 0.3 }),\n      3,\n    ).range('c3', 'c7', 0, 5),\n    2,\n  )\n  .out()"
         }
       ]
     },
@@ -21728,7 +21818,7 @@
       "examples": [
         {
           "title": "Two-tap echo",
-          "code": "const voice = $saw($p('c3 eb3 g3 ~').c).amp(\n  $perc($clock.beatTrigger, { decay: 0.15 }),\n)\nvoice.out()\nconst echoes = $buffer(voice, 1)\n$delayRead(echoes, 0.375).amp(2.5).out()\n$delayRead(echoes, 0.75).amp(1.25).out()"
+          "code": "const voice = $saw($p('c3 eb3 g3 ~').c).amp(\n  $perc($clock.o.beatTrigger, { decay: 0.15 }),\n)\nvoice.out()\nconst echoes = $buffer(voice, 1)\n$delayRead(echoes, 0.375).amp(2.5).out()\n$delayRead(echoes, 0.75).amp(1.25).out()"
         },
         {
           "title": "Chorused chord",
@@ -21883,7 +21973,7 @@
       "examples": [
         {
           "title": "Tremolo that changes depth each beat",
-          "code": "$saw('c3')\n  .amp(\n    $sine('4hz')\n      .range(2, 5)\n      .erratic(2, { trigger: $clock.beatTrigger }),\n  )\n  .out()"
+          "code": "$saw('c3')\n  .amp(\n    $sine('4hz')\n      .range(2, 5)\n      .erratic(2, { trigger: $clock.o.beatTrigger }),\n  )\n  .out()"
         }
       ]
     },
@@ -22137,7 +22227,7 @@
       "examples": [
         {
           "title": "Clock ticks held into notes",
-          "code": "$saw('c3')\n  .amp(\n    $adsr($hold($clock.beatTrigger, 0.15), {\n      release: 0.2,\n    }),\n  )\n  .out()"
+          "code": "$saw('c3')\n  .amp(\n    $adsr($hold($clock.o.beatTrigger, 0.15), {\n      release: 0.2,\n    }),\n  )\n  .out()"
         }
       ]
     },
@@ -22278,7 +22368,7 @@
         },
         {
           "title": "Random notes that slide",
-          "code": "$sine(\n  $slew(\n    $sah(\n      $noise('white').range('c3', 'c5'),\n      $clock.beatTrigger,\n    ),\n    { fall: 0.05 },\n  ),\n).out()"
+          "code": "$sine(\n  $slew(\n    $sah(\n      $noise('white').range('c3', 'c5'),\n      $clock.o.beatTrigger,\n    ),\n    { fall: 0.05 },\n  ),\n).out()"
         }
       ]
     },
@@ -22830,7 +22920,7 @@
     "name": "$motionFollower",
     "docs": {
       "summary": "Movement to level",
-      "description": "Turns controller movement into a level, like bowing a string: moving the input either way swells the output, and holding it still lets it fade. `.pos` and `.neg` follow only rising or only falling movement, so pushing and pulling a control can steer different things.",
+      "description": "Turns controller movement into a level, like bowing a string: moving the input either way swells the output, and holding it still lets it fade. `.o.pos` and `.o.neg` follow only rising or only falling movement, so pushing and pulling a control can steer different things.",
       "categories": [
         "envelope"
       ],
@@ -22972,7 +23062,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "both",
         "description": "movement level in either direction, 0 V at rest",
         "outputType": "cv",
         "polyphonic": true,
@@ -23313,7 +23403,7 @@
       "examples": [
         {
           "title": "Pad ducked by an upside-down envelope",
-          "code": "const duck = $perc($clock.beatTrigger, { decay: 0.3 })\n$tr808.kick($clock.beatTrigger).out()\n$saw($chord('C3[m7]'))\n  .amp($remap(duck, 5, 0, 0, 5))\n  .out()"
+          "code": "const duck = $perc($clock.o.beatTrigger, { decay: 0.3 })\n$tr808.kick($clock.o.beatTrigger).out()\n$saw($chord('C3[m7]'))\n  .amp($remap(duck, 5, 0, 0, 5))\n  .out()"
         }
       ]
     },
@@ -23489,11 +23579,11 @@
       "examples": [
         {
           "title": "Random notes in C major",
-          "code": "$sine(\n  $quantizer(\n    $sah(\n      $noise('white').range('c3', 'c5'),\n      $clock.beatTrigger,\n    ),\n    'C(major)',\n  ),\n).out()"
+          "code": "$sine(\n  $quantizer(\n    $sah(\n      $noise('white').range('c3', 'c5'),\n      $clock.o.beatTrigger,\n    ),\n    'C(major)',\n  ),\n).out()"
         },
         {
           "title": "Stepped random filter",
-          "code": "$saw('c2')\n  .$.lpf(\n    $sah(\n      $noise('white').range('c4', 'c7'),\n      $clock.beatTrigger,\n    ),\n    3,\n  )\n  .out()"
+          "code": "$saw('c2')\n  .$.lpf(\n    $sah(\n      $noise('white').range('c4', 'c7'),\n      $clock.o.beatTrigger,\n    ),\n    3,\n  )\n  .out()"
         }
       ]
     },
@@ -23743,7 +23833,7 @@
       "examples": [
         {
           "title": "Noise hi-hat",
-          "code": "$noise('white')\n  .amp($perc($clock.beatTrigger, { decay: 0.05 }))\n  .out()"
+          "code": "$noise('white')\n  .amp($perc($clock.o.beatTrigger, { decay: 0.05 }))\n  .out()"
         },
         {
           "title": "Plucked bass",
@@ -23873,7 +23963,7 @@
     "name": "$quantizer",
     "docs": {
       "summary": "Snap pitch to a scale",
-      "description": "Snaps a pitch to the nearest note of a scale or chord, so an LFO, a random source or a MIDI input plays in key. `.trig` fires on every note change, ready to retrigger an envelope.",
+      "description": "Snaps a pitch to the nearest note of a scale or chord, so an LFO, a random source or a MIDI input plays in key. `.o.trig` fires on every note change, ready to retrigger an envelope.",
       "categories": [
         "pitch"
       ],
@@ -24010,7 +24100,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "pitch",
         "description": "the snapped pitch",
         "outputType": "cv",
         "polyphonic": true,
@@ -25002,7 +25092,7 @@
       "examples": [
         {
           "title": "Swung hats over a straight bass",
-          "code": "$setGroove($swing(0.6))\nconst hats = $p('c5*8').c\nconst bass = $cycle($p('c2*4'), { groove: 0 })\n$noise('white')\n  .amp($perc(hats, { decay: 0.05 }))\n  .amp(hats.velocity)\n  .out()\n$saw(bass).$.lpf('c4', 1).amp($adsr(bass)).out()"
+          "code": "$setGroove($swing(0.6))\nconst hats = $p('c5*8').c\nconst bass = $cycle($p('c2*4'), { groove: 0 })\n$noise('white')\n  .amp($perc(hats, { decay: 0.05 }))\n  .amp(hats.o.velocity)\n  .out()\n$saw(bass).$.lpf('c4', 1).amp($adsr(bass)).out()"
         }
       ]
     },
@@ -27496,11 +27586,11 @@
       "examples": [
         {
           "title": "Four-note riff on the beat",
-          "code": "$saw($step(['c2', 'eb2', 'g2', 'bb1'], $clock.beatTrigger))\n  .$.lpf('c4', 2)\n  .out()"
+          "code": "$saw(\n  $step(['c2', 'eb2', 'g2', 'bb1'], $clock.o.beatTrigger),\n)\n  .$.lpf('c4', 2)\n  .out()"
         },
         {
           "title": "Switching between modulators each bar",
-          "code": "const sweeps = [\n  $sine('2hz').range('c3', 'c6'),\n  $saw('0.5hz').range('c6', 'c3'),\n  'c5',\n]\nconst cutoff = $step(sweeps, $clock.barTrigger)\n$pulse('c3').$.lpf(cutoff, 1).out()"
+          "code": "const sweeps = [\n  $sine('2hz').range('c3', 'c6'),\n  $saw('0.5hz').range('c6', 'c3'),\n  'c5',\n]\nconst cutoff = $step(sweeps, $clock.o.barTrigger)\n$pulse('c3').$.lpf(cutoff, 1).out()"
         }
       ]
     },
@@ -27653,7 +27743,7 @@
       "examples": [
         {
           "title": "Morphing drum loop",
-          "code": "const drums = $drumMap({\n  x: $sine('0.05hz').range(0, 5),\n  y: 3,\n  chaos: 0.5,\n})\n$tr808.kick(drums).out()\n$tr808.snare(drums.sd).out()\n$tr808.hiHat(drums.hh).out()"
+          "code": "const drums = $drumMap({\n  x: $sine('0.05hz').range(0, 5),\n  y: 3,\n  chaos: 0.5,\n})\n$tr808.kick(drums).out()\n$tr808.snare(drums.o.sd).out()\n$tr808.hiHat(drums.o.hh).out()"
         }
       ]
     },
@@ -28050,7 +28140,7 @@
       "examples": [
         {
           "title": "Shuffled eighths with soft offbeats",
-          "code": "const g = $groove({\n  timing: [0, 0.3],\n  velocity: [1, 0.6],\n  grid: 8,\n})\nconst seq = $cycle($p('c4 e4 g4 c5 g4 e4 c4 g3'), {\n  groove: g,\n  velocity: g.velocity,\n})\n$sine(seq).amp($adsr(seq)).amp(seq.velocity).out()"
+          "code": "const g = $groove({\n  timing: [0, 0.3],\n  velocity: [1, 0.6],\n  grid: 8,\n})\nconst seq = $cycle($p('c4 e4 g4 c5 g4 e4 c4 g3'), {\n  groove: g,\n  velocity: g.o.velocity,\n})\n$sine(seq).amp($adsr(seq)).amp(seq.o.velocity).out()"
         }
       ]
     },
@@ -28251,11 +28341,11 @@
       "examples": [
         {
           "title": "Four-voice keyboard synth",
-          "code": "const midi = $midiCV({ channels: 4 })\n$saw(midi)\n  .$.lpf(midi.velocity.range('c4', 'c7'), 1)\n  .amp($adsr(midi, { release: 0.4 }))\n  .out()"
+          "code": "const midi = $midiCV({ channels: 4 })\n$saw(midi)\n  .$.lpf(midi.o.velocity.range('c4', 'c7'), 1)\n  .amp($adsr(midi, { release: 0.4 }))\n  .out()"
         },
         {
           "title": "Mono lead with a wide pitch bend",
-          "code": "const lead = $midiCV({ pitchBendRange: 12 })\n$pulse(lead)\n  .$.lpf(lead.modWheel.range('c4', 'c7'), 2)\n  .amp($adsr(lead))\n  .out()"
+          "code": "const lead = $midiCV({ pitchBendRange: 12 })\n$pulse(lead)\n  .$.lpf(lead.o.modWheel.range('c4', 'c7'), 2)\n  .amp($adsr(lead))\n  .out()"
         }
       ]
     },
@@ -29511,7 +29601,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "body",
         "description": "the ringing body",
         "outputType": "cv",
         "polyphonic": true,
@@ -29774,7 +29864,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "filtered",
         "description": "the particles ringing through their filters",
         "outputType": "cv",
         "polyphonic": true,
@@ -30074,6 +30164,286 @@
     ]
   },
   {
+    "name": "$mi.sixOp",
+    "docs": {
+      "summary": "Six-operator DX7 FM voice",
+      "description": "Mutable Instruments Plaits' six-operator FM: the DX7's algorithms, envelopes and LFO playing Plaits' three banks of 32 patches, for electric pianos, basses, bells and brass. Leave `gate` unpatched for a drone whose `envelope` picks the moment in the note it holds.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Electric piano",
+          "code": "const seq = $p('c3 [eb3 g3] <bb3 f3> ~').c\n$mi.sixOp(seq, { gate: seq, bank: 1 }).out()"
+        },
+        {
+          "title": "Frozen pad",
+          "code": "$mi.sixOp('c2', { bank: 2, patch: 11, envelope: 3 }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SixOpParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the note's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "gate": {
+          "description": "holds the note: the envelopes attack and decay while high and release when it falls; a new note restarts them from where they are. Unpatched, the note sounds continuously and `envelope` scrubs through its envelopes",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bank": {
+          "description": "which of Plaits' three banks of 32 DX7 patches: basses, leads and synths (0), keys, mallets and percussion (1), organs, pads, strings and brass (2)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "patch": {
+          "description": "which patch of the bank; a held note keeps its patch until the next note-on",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "brightness": {
+          "description": "the level of the modulating operators: darker (0) to brighter and harsher (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "envelope": {
+          "description": "envelope speed, from snappy (0) to slow attacks and long tails (5), the release shortest around 1.5; unpatched gate, the point in the envelopes the note sits at",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accent": {
+          "description": "how hard each note is played: louder and brighter as the patch's velocity sensitivity sets",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the operators backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the FM voice",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the note's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "gate",
+        "description": "holds the note: the envelopes attack and decay while high and release when it falls; a new note restarts them from where they are. Unpatched, the note sounds continuously and `envelope` scrubs through its envelopes",
+        "paramType": "gate"
+      },
+      {
+        "name": "bank",
+        "description": "which of Plaits' three banks of 32 DX7 patches: basses, leads and synths (0), keys, mallets and percussion (1), organs, pads, strings and brass (2)",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 2.0,
+        "controlMin": 0.0,
+        "controlMax": 2.0
+      },
+      {
+        "name": "patch",
+        "description": "which patch of the bank; a held note keeps its patch until the next note-on",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 31.0,
+        "controlMin": 0.0,
+        "controlMax": 31.0
+      },
+      {
+        "name": "brightness",
+        "description": "the level of the modulating operators: darker (0) to brighter and harsher (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "envelope",
+        "description": "envelope speed, from snappy (0) to slow attacks and long tails (5), the release shortest around 1.5; unpatched gate, the point in the envelopes the note sits at",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "accent",
+        "description": "how hard each note is played: louder and brighter as the patch's velocity sensitivity sets",
+        "paramType": "control",
+        "defaultValue": 4.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the operators backward",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.string",
     "docs": {
       "summary": "Plucked and bowed string",
@@ -30270,7 +30640,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "strings",
         "description": "the ringing strings",
         "outputType": "cv",
         "polyphonic": true,
@@ -30373,7 +30743,7 @@
         },
         {
           "title": "Bursts",
-          "code": "const seq = $cycle($p('c3 [~ c3] eb3 <g3 bb2>'))\n$mi.swarm(seq, { trigger: seq.trig }).sine.out()"
+          "code": "const seq = $cycle($p('c3 [~ c3] eb3 <g3 bb2>'))\n$mi.swarm(seq, { trigger: seq.o.trig }).o.sine.out()"
         }
       ]
     },
@@ -30532,7 +30902,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "saw",
         "description": "the swarm of saws",
         "outputType": "cv",
         "polyphonic": true,
@@ -30620,7 +30990,7 @@
         },
         {
           "title": "Sub-octave growl",
-          "code": "$mi.twoOp('c1', { index: 3, feedback: -3 }).subOctave.out()"
+          "code": "const op = $mi.twoOp('c1', { index: 3, feedback: -3 })\nop.o.subOctave.out()"
         }
       ]
     },
@@ -30768,7 +31138,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "fm",
         "description": "the FM tone",
         "outputType": "cv",
         "polyphonic": true,
@@ -30836,6 +31206,672 @@
     ]
   },
   {
+    "name": "$mi.formantVowel",
+    "docs": {
+      "summary": "Vowels from formant filters",
+      "description": "Mutable Instruments Plaits' simplest vowel synthesis: a glottal impulse train through five tuned band-pass filters, singing smooth, choir-like vowels at the pitch.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Morphing vowels",
+          "code": "const vowel = $sine('0.15hz').range(0, 5)\n$mi.formantVowel('c2', { vowel }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "FormantVowelParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the voice's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "starts a syllable with a click: the pitch drops an octave for 50 ms. Unpatched, the vowel sustains",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vowel": {
+          "description": "which vowel: open a (0) through e, i and o to closed u (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formantShift": {
+          "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the voice",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "excitation",
+        "description": "the coloured impulse train the formant filters shape",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the voice's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "starts a syllable with a click: the pitch drops an octave for 50 ms. Unpatched, the vowel sustains",
+        "paramType": "trig"
+      },
+      {
+        "name": "vowel",
+        "description": "which vowel: open a (0) through e, i and o to closed u (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "formantShift",
+        "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
+    "name": "$mi.samVowel",
+    "docs": {
+      "summary": "Vowels from SAM",
+      "description": "Mutable Instruments Plaits' take on the Software Automatic Mouth, a 1982 home-computer speech synthesizer: three sine formants restarted on every glottal pulse, for a buzzy, retro voice with consonants on `trigger`.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Retro syllables",
+          "code": "const seq = $p('c3 eb3 g3 <bb2 f3>').c\nconst vowel = $sine('0.2hz').range(0, 5)\n$mi.samVowel(seq, { trigger: seq, vowel }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SamVowelParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the voice's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "starts a syllable: one of SAM's consonants for 50 ms, picked from the knobs and pitch. Unpatched, the vowel sustains",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vowel": {
+          "description": "sweeps SAM's nine vowels, roughly open (0) to closed (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formantShift": {
+          "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the voice",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "excitation",
+        "description": "the glottal pulses the formants restart on",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the voice's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "starts a syllable: one of SAM's consonants for 50 ms, picked from the knobs and pitch. Unpatched, the vowel sustains",
+        "paramType": "trig"
+      },
+      {
+        "name": "vowel",
+        "description": "sweeps SAM's nine vowels, roughly open (0) to closed (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "formantShift",
+        "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
+    "name": "$mi.lpcVowel",
+    "docs": {
+      "summary": "Speak-and-spell vowels",
+      "description": "Mutable Instruments Plaits' LPC vowels: the five vowels of a speak-and-spell's LPC-10 voice, sung at the pitch, with a short consonant on `trigger`.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Robot syllables",
+          "code": "const seq = $p('c3 eb3 g3 <bb2 f3>').c\n$mi.lpcVowel(seq, { trigger: seq }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "LpcVowelParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the voice's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "starts a syllable: a consonant of about 25 ms, picked from the knobs and pitch and stretched as `formantShift` leaves the middle. Unpatched, the vowel sustains",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vowel": {
+          "description": "which vowel: open a (0) through e, i and o to closed u (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formantShift": {
+          "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the voice",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "excitation",
+        "description": "the glottal pulses and the noise of unvoiced consonants that the LPC filter shapes",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the voice's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "starts a syllable: a consonant of about 25 ms, picked from the knobs and pitch and stretched as `formantShift` leaves the middle. Unpatched, the vowel sustains",
+        "paramType": "trig"
+      },
+      {
+        "name": "vowel",
+        "description": "which vowel: open a (0) through e, i and o to closed u (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "formantShift",
+        "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.waveTerrain",
     "docs": {
       "summary": "Wave terrain oscillator",
@@ -30851,7 +31887,7 @@
         },
         {
           "title": "Phase-modulated voice",
-          "code": "$mi.waveTerrain('g2', { radius: 4, offset: 1 }).pm.out()"
+          "code": "$mi.waveTerrain('g2', { radius: 4, offset: 1 }).o.pm.out()"
         }
       ]
     },
@@ -30999,7 +32035,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "height",
         "description": "the height of the surface under the circle",
         "outputType": "cv",
         "polyphonic": true,
@@ -31082,7 +32118,7 @@
         },
         {
           "title": "Bumpy overtones",
-          "code": "$mi.waveshaper('g2', { shape: 4, fold: 3 }).overtones.out()"
+          "code": "const shaper = $mi.waveshaper('g2', { shape: 4, fold: 3 })\nshaper.o.overtones.out()"
         }
       ]
     },
@@ -31230,7 +32266,7 @@
     },
     "outputs": [
       {
-        "name": "output",
+        "name": "shaped",
         "description": "the shaped and folded wave",
         "outputType": "cv",
         "polyphonic": true,
@@ -31527,11 +32563,11 @@
       "examples": [
         {
           "title": "Slowly scanned cloud",
-          "code": "$grains('c4', $wavs().pad, 5, {\n  start: $ramp('0.02hz').range(0, 5),\n  density: 4,\n  shape: 'bell',\n}).out()"
+          "code": "$grains('c4', '/wavs/pad.wav', 5, {\n  start: $ramp('0.02hz').range(0, 5),\n  density: 4,\n  shape: 'bell',\n}).out()"
         },
         {
           "title": "Grain chords from a melody",
-          "code": "const seq = $p('<[c3, g3] [eb3, bb3]>').c\n$grains(seq, $wavs().strings, seq, {\n  length: 2,\n  density: 3,\n  shape: 'tukey',\n}).out()"
+          "code": "const seq = $p('<[c3, g3] [eb3, bb3]>').c\n$grains(seq, '/wavs/strings.wav', seq, {\n  length: 2,\n  density: 3,\n  shape: 'tukey',\n}).out()"
         }
       ]
     },
@@ -31923,11 +32959,11 @@
       "examples": [
         {
           "title": "Chopped and rearranged loop",
-          "code": "const order = $p('0 2 1 3 0 0 3 2').c\n$sampler($wavs().pad, order.trig, {\n  slice: [[0, 0.25, 0.5, 0.75], order],\n  fade: 2,\n}).out()"
+          "code": "const order = $p('0 2 1 3 0 0 3 2').c\n$sampler('/wavs/pad.wav', order.o.trig, {\n  slice: [[0, 0.25, 0.5, 0.75], order],\n  fade: 2,\n}).out()"
         },
         {
           "title": "Kick on every beat",
-          "code": "$sampler($wavs().kick, $clock.beatTrigger).out()"
+          "code": "$sampler('/wavs/kick.wav', $clock.o.beatTrigger).out()"
         }
       ]
     },

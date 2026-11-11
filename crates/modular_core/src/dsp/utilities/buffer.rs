@@ -175,7 +175,7 @@ const BUFFER_DOCS: ModuleDocs = ModuleDocs {
         title: "Echo tap",
         code: r#"
             const voice = $saw($p('c3 eb3 g3 ~').c).amp(
-              $perc($clock.beatTrigger, { decay: 0.15 }),
+              $perc($clock.o.beatTrigger, { decay: 0.15 }),
             )
             voice.out()
             $delayRead($buffer(voice, 1), 0.375).amp(2.5).out()

@@ -5,6 +5,7 @@
  * Shared between main and renderer processes.
  */
 
+import type { AssetKind } from './assetFiles';
 import type { OutputResolutionRecord } from './dsl/outputResolutionRule';
 import type { SignalSiteTables } from './dsl/signalSites';
 import type { MonospaceFont } from './fonts';
@@ -129,10 +130,12 @@ export interface AppConfig {
     performanceTheme?: string;
     /** Which side of the window the sidebar sits on. Default 'right'. */
     sidebarSide?: 'left' | 'right';
-    /** VU meter panel visibility. Default false. */
-    vuPanelVisible?: boolean;
-    /** VU meter panel height in px (84–480). Default 150. */
-    vuPanelHeight?: number;
+    /** Where the docs open: a panel under the editor or a sidebar tab. Default 'bottom'. */
+    docsLocation?: 'bottom' | 'sidebar';
+    /** The panel open under the editor; absent leaves it collapsed. */
+    bottomPanel?: 'mixer' | 'docs';
+    /** Height in px of the panel under the editor, at least 84. Default 200. */
+    bottomPanelHeight?: number;
 }
 
 /** Result of toggling the macOS Syphon window-output helper. */
@@ -238,7 +241,7 @@ export interface FileTreeEntry {
     name: string;
     path: string; // Relative to workspace root
     type: 'file' | 'directory';
-    fileType?: 'js' | 'wav';
+    fileType?: 'js' | AssetKind;
     children?: FileTreeEntry[];
 }
 
@@ -383,6 +386,7 @@ export const IPC_CHANNELS = {
     FS_SELECT_WORKSPACE: 'modular:fs:select-workspace',
     FS_GET_WORKSPACE: 'modular:fs:get-workspace',
     FS_LIST_FILES: 'modular:fs:list-files',
+    FS_TREE_ON_CHANGE: 'modular:fs:tree-on-change',
     FS_READ_FILE: 'modular:fs:read-file',
     FS_WRITE_FILE: 'modular:fs:write-file',
     FS_RENAME_FILE: 'modular:fs:rename-file',
@@ -428,9 +432,6 @@ export const IPC_CHANNELS = {
     // Main process logging
     MAIN_LOG: 'modular:main:log',
 
-    // WAV operations
-    WAVS_ON_CHANGE: 'modular:wavs:on-change',
-
     // Update operations
     UPDATE_CHECK: 'modular:update:check',
     UPDATE_DOWNLOAD: 'modular:update:download',
@@ -453,7 +454,7 @@ export const MENU_CHANNELS = {
     STOP: 'modular:menu:stop',
     CANCEL_QUEUED_UPDATE: 'modular:menu:cancel-queued-update',
     TOGGLE_RECORDING: 'modular:menu:toggle-recording',
-    TOGGLE_VU_METERS: 'modular:menu:toggle-vu-meters',
+    TOGGLE_MIXER: 'modular:menu:toggle-mixer',
     TOGGLE_PERFORMANCE_WINDOW: 'modular:menu:toggle-performance-window',
     UPDATE_PATCH: 'modular:menu:update-patch',
     UPDATE_PATCH_NEXT_BEAT: 'modular:menu:update-patch-next-beat',
@@ -557,6 +558,7 @@ export interface IPCHandlers {
     [IPC_CHANNELS.FS_SELECT_WORKSPACE]: () => WorkspaceFolder | null;
     [IPC_CHANNELS.FS_GET_WORKSPACE]: () => WorkspaceFolder | null;
     [IPC_CHANNELS.FS_LIST_FILES]: () => FileTreeEntry[];
+    [IPC_CHANNELS.FS_TREE_ON_CHANGE]: () => void;
     [IPC_CHANNELS.FS_READ_FILE]: (filePath: string) => string;
     /**
      * With `expectedDiskContent`, the write is refused with a `conflict`
@@ -626,9 +628,6 @@ export interface IPCHandlers {
 
     // Main process logging
     [IPC_CHANNELS.MAIN_LOG]: (entry: MainLogEntry) => void;
-
-    // WAV operations
-    [IPC_CHANNELS.WAVS_ON_CHANGE]: () => void;
 
     /** A watched file changed on disk; `content` is as FS_READ_FILE returns. */
     [IPC_CHANNELS.FS_ON_FILE_CHANGED]: (change: FileChange) => void;

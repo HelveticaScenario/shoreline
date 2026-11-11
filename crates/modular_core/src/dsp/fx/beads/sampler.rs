@@ -131,7 +131,7 @@ impl crate::types::Connect for Loaded {
 #[serde(rename_all = "camelCase")]
 struct GranularSamplerOutputs {
     #[output(
-        "output",
+        "stereo",
         "stereo mix of every voice, as left and right channels",
         type = cv,
         default,
@@ -178,7 +178,7 @@ const GRANULAR_SAMPLER_DOCS: ModuleDocs = ModuleDocs {
         title: "Scattered pad texture",
         code: r#"
             const grains = $pulse('8hz')
-            $granularSampler($wavs().pad, grains, {
+            $granularSampler('/wavs/pad.wav', grains, {
               time: $sah($noise('white').range(0, 5), grains),
               width: 4,
               spread: 2,

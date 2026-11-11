@@ -61,7 +61,9 @@ const STEP_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Four-note riff on the beat",
             code: r#"
-                $saw($step(['c2', 'eb2', 'g2', 'bb1'], $clock.beatTrigger))
+                $saw(
+                  $step(['c2', 'eb2', 'g2', 'bb1'], $clock.o.beatTrigger),
+                )
                   .$.lpf('c4', 2)
                   .out()
             "#,
@@ -74,7 +76,7 @@ const STEP_DOCS: ModuleDocs = ModuleDocs {
                   $saw('0.5hz').range('c6', 'c3'),
                   'c5',
                 ]
-                const cutoff = $step(sweeps, $clock.barTrigger)
+                const cutoff = $step(sweeps, $clock.o.barTrigger)
                 $pulse('c3').$.lpf(cutoff, 1).out()
             "#,
         },

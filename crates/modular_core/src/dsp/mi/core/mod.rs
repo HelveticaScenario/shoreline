@@ -10,6 +10,7 @@ pub mod filter;
 pub mod fixture;
 pub mod interpolate;
 pub mod limiter;
+pub mod lpc;
 pub mod oscillator;
 pub mod phase;
 pub mod polyblep;

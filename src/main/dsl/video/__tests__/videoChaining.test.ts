@@ -260,7 +260,7 @@ describe('$v chaining', () => {
 
         it('takes the alpha and the brightness through $v.channel', () => {
             expect(
-                wgslOf(`$v.out($v.channel($v.image('a.png'), 'a'));`),
+                wgslOf(`$v.out($v.channel($v.image('/a.png'), 'a'));`),
             ).toMatch(/vec4f\(vec3f\(v\d\.a\), 1\.0\)/);
             expect(wgslOf(`$v.out($v.channel($v.hsv(0.3)));`)).toMatch(
                 /vec4f\(vec3f\(video_luma\(v\d\)\), 1\.0\)/,

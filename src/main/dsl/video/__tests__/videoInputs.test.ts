@@ -127,9 +127,7 @@ describe('$v inputs from the audio graph', () => {
     });
 
     it('does not declare the internal tap module in the DSL typings', () => {
-        expect(buildLibSource(schemas as never, null)).not.toContain(
-            '_videoTap',
-        );
+        expect(buildLibSource(schemas as never)).not.toContain('_videoTap');
     });
 
     describe('patterns', () => {

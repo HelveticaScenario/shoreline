@@ -54,6 +54,16 @@ export function setActiveSpanRegistry(registry: SpanRegistry | null): void {
  */
 export type ArgumentSpans = Record<string, SourceSpan>;
 
+/** A `wav` param value already resolved to the engine's reference. */
+function isWavRef(value: unknown): boolean {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        'type' in value &&
+        value.type === 'wav_ref'
+    );
+}
+
 /**
  * Structural check for a `ParsedPattern` — kept here (rather than imported
  * from `miniNotation/`) to avoid a circular dependency between factories and
@@ -233,8 +243,11 @@ export function deriveChannelCountChecked(
 // Return type for module factories - varies by output configuration
 type SingleOutput = ModuleOutput;
 type PolyOutput = Collection | CollectionWithRange;
-type MultiOutput = (SingleOutput | PolyOutput) &
-    Record<string, ModuleOutput | Collection | CollectionWithRange>;
+type MultiOutput = (SingleOutput | PolyOutput) & {
+    readonly o: Readonly<
+        Record<string, ModuleOutput | Collection | CollectionWithRange>
+    >;
+};
 type ModuleReturn = SingleOutput | PolyOutput | MultiOutput;
 
 type FactoryFunction = (...args: any[]) => ModuleReturn;
@@ -313,6 +326,11 @@ export class DSLContext {
     factories: Record<string, FactoryFunction> = {};
     namespaceTree: NamespaceTree = {};
     private builder: GraphBuilder;
+    private resolveWav: (module: string, path: unknown) => unknown = (
+        module,
+    ) => {
+        throw new Error(`${module}: WAV loading is not available`);
+    };
 
     constructor(schemas: ModuleSchema[]) {
         this.builder = new GraphBuilder(schemas);
@@ -336,6 +354,14 @@ export class DSLContext {
 
         // Build namespace tree (only way to access modules)
         this.namespaceTree = buildNamespaceTree(schemas, this.factories);
+    }
+
+    /**
+     * Sets how a `wav` param's path becomes the engine's reference to the
+     * decoded file; `module` names the module in errors.
+     */
+    setWavResolver(resolve: (module: string, path: unknown) => unknown): void {
+        this.resolveWav = resolve;
     }
 
     /**
@@ -393,6 +419,9 @@ export class DSLContext {
         const processed = processModuleSchema(schema);
         const scaleParamNames = processed.params
             .filter((p) => p.isScaleSignalInput)
+            .map((p) => p.name);
+        const wavParamNames = processed.params
+            .filter((p) => p.isWavInput)
             .map((p) => p.name);
         const signalParams = signalParamsOf(schema, processed);
 
@@ -455,6 +484,14 @@ export class DSLContext {
                     params[name] = this.builder.getFactory('$chord')(
                         params[name],
                     );
+                }
+            }
+
+            // A `wav` param is a path; the reference the engine reads also
+            // carries the file's channel count, so the file loads here.
+            for (const name of wavParamNames) {
+                if (!isWavRef(params[name])) {
+                    params[name] = this.resolveWav(schema.name, params[name]);
                 }
             }
 
@@ -540,9 +577,9 @@ export class DSLContext {
                 const output = outputs[0];
                 return node._output(output.name, output.polyphonic ?? false);
             }
-            // Multiple outputs: the root carries every output as a named
-            // property, each a separate untagged object. Read as a signal
-            // itself, the root is the output a `cv` input takes.
+            // Multiple outputs: the root's `o` holds every output by name,
+            // each a separate untagged object. Read as a signal itself, the
+            // root is the output a `cv` input takes.
             const named: Record<
                 string,
                 ModuleOutput | Collection | CollectionWithRange
@@ -558,7 +595,7 @@ export class DSLContext {
                 }
             }
             markRoot(root!, { outputs: rootOutputs, values: named });
-            return Object.assign(root!, named);
+            return Object.assign(root!, { o: Object.freeze(named) });
         };
     }
 

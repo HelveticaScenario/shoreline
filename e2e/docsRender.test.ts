@@ -1,7 +1,7 @@
 /**
  * Renders every module's docs in the real editor and Reference pane and
  * checks the rendered text: no raw markdown, no `undefined`/`NaN`, every
- * declared range shown, and no horizontal overflow at any sidebar width.
+ * declared range shown, and no horizontal overflow at any panel width.
  *
  * Set DOCS_RENDER_SHOTS=<dir> to also save a screenshot of every hover,
  * completion detail, signature help and Reference card.
@@ -290,22 +290,41 @@ test.describe('docs render', () => {
         expect(failures, failures.join('\n')).toEqual([]);
     });
 
-    for (const [label, width] of [
-        ['min', 160],
-        ['default', null],
-        ['wide', 900],
+    // At the bottom the docs share the editor column, so a wider sidebar
+    // narrows them; in the sidebar they take its width.
+    for (const { label, docsLocation, sidebarWidth, wide } of [
+        {
+            label: 'wide',
+            docsLocation: 'bottom',
+            sidebarWidth: 160,
+            wide: true,
+        },
+        {
+            label: 'narrow',
+            docsLocation: 'bottom',
+            sidebarWidth: 1320,
+            wide: false,
+        },
+        {
+            label: 'sidebar',
+            docsLocation: 'sidebar',
+            sidebarWidth: 160,
+            wide: false,
+        },
     ] as const) {
         test(`reference cards at ${label} width`, async ({ window }) => {
-            await window.evaluate((width) => {
-                if (width === null) {
-                    localStorage.removeItem('modular_sidebar_width');
-                } else {
+            await window.evaluate(
+                async ({ location, width }) => {
+                    await window.electronAPI.config.write({
+                        docsLocation: location,
+                    });
                     localStorage.setItem(
                         'modular_sidebar_width',
                         String(width),
                     );
-                }
-            }, width);
+                },
+                { location: docsLocation, width: sidebarWidth },
+            );
             await window.setViewportSize({ height: 1000, width: 1600 });
             await window.reload();
             await window.waitForLoadState('networkidle');
@@ -401,7 +420,7 @@ test.describe('docs render', () => {
                         .locator('table.doc-table thead')
                         .first()
                         .isVisible();
-                    if (headerShown !== (label === 'wide')) {
+                    if (headerShown !== wide) {
                         failures.push(
                             `${module.name}: table ${headerShown ? 'not stacked' : 'stacked'} at ${label} width`,
                         );
