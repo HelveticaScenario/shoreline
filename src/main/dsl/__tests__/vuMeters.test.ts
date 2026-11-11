@@ -701,18 +701,15 @@ describe('$outLane', () => {
         expect(probe(patch)[0]).toMatchObject({ module: 'g' });
     });
 
-    test('a lane control can drive its own lane', () => {
+    test('a lane control can feed its own lane', () => {
         const patch = execPatch(`
             const bass = $outLane('bass')
             $saw('c2').amp(bass.level).out({ label: 'bass', gain: 3 })
         `);
         const amp = patch.modules.find(
-            (m) =>
-                JSON.stringify(m.params).includes('__vuGain_bass') &&
-                m.id !== '__vuTap_bass' &&
-                m.moduleType !== '$curve',
-        );
-        expect(amp).toBeDefined();
+            (m) => m.moduleType === '$scaleAndShift' && !m.id.startsWith('__'),
+        )!;
+        expect(amp.params.scale).toMatchObject({ module: '__vuGain_bass' });
     });
 
     test('taps of one lane share its sources and range bounds', () => {
@@ -731,7 +728,7 @@ describe('$outLane', () => {
         expect(three.input).not.toEqual(one.input);
     });
 
-    test('a pattern gain is refused before any tap', () => {
+    test('a pattern gain is refused', () => {
         expect(() =>
             exec(`
                 $saw('c2').out({ label: 'bass', gain: $p('1 4') })

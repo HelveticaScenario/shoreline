@@ -1433,7 +1433,7 @@ export class GraphBuilder {
         // sorted into source order before emission.
         const vuMeters: (VuMeterDef & { ordinal: number })[] = [];
 
-        // Each labeled lane's compiled stages, for `$outLane` taps.
+        // Each labeled lane's signals, for `$outLane` taps.
         const lanesByLabel = new Map<
             string,
             {
@@ -1551,13 +1551,14 @@ export class GraphBuilder {
                           })
                         : group.gain!;
 
-                    const panSource: PolySignal = panControllable
-                        ? smoothControlFactory(panValue, {
-                              id: `__vuPan_${sk}`,
-                          })
-                        : group.type === 'stereo'
-                          ? (group.pan ?? 0)
-                          : 0;
+                    const panSource: PolySignal =
+                        group.type !== 'stereo'
+                            ? 0
+                            : panControllable
+                              ? smoothControlFactory(panValue, {
+                                    id: `__vuPan_${sk}`,
+                                })
+                              : group.pan!;
 
                     // Group mix, then the gain stage — the tap: the meter
                     // reads post-gain, pre-mute like a post-fader DAW meter.
@@ -3032,7 +3033,7 @@ function replaceDeferred(
 /**
  * First channel of a signal param value: the value itself for a scalar or
  * ModuleOutput, else the first element of an array, Collection, or `$gN`
- * group. An empty or absent value reads as 0.
+ * group. An empty value reads as 0.
  */
 function firstChannel(value: unknown): Signal {
     if (isSignalGroupLike(value)) {
