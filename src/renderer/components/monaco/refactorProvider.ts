@@ -24,8 +24,6 @@ interface RefactorCodeAction extends languages.CodeAction {
     refactor: LocalRefactor;
     model: editor.ITextModel;
     versionId: number;
-    start: number;
-    end: number;
     rename: RenameTarget;
 }
 
@@ -98,12 +96,10 @@ export function registerRefactorProvider(
                               title: 'Rename extracted symbol',
                           }
                         : undefined,
-                    end,
                     kind: refactor.kind,
                     model,
                     refactor,
                     rename,
-                    start,
                     title: refactor.title,
                     versionId,
                 };
@@ -125,8 +121,8 @@ export function registerRefactorProvider(
             const worker = await workerFor(model);
             const result = await worker.getLocalRefactorEdits(
                 model.uri.toString(),
-                action.start,
-                action.end,
+                refactor.start,
+                refactor.end,
                 refactor.refactor,
                 refactor.action,
                 {

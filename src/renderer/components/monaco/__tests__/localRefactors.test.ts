@@ -70,6 +70,7 @@ describe('localRefactors', () => {
             `function voice(n) {\n  return [n * 2 + 1];\n}\n`,
         );
         const kinds = localRefactors(
+            ts,
             serviceFor({ [FILE]: source }),
             FILE,
             start,
@@ -85,7 +86,7 @@ describe('localRefactors', () => {
         const source = `const f = (a) => a + 'x' + 'y';\n`;
         const service = serviceFor({ [FILE]: source });
         for (let at = 0; at < source.length; at++) {
-            for (const r of localRefactors(service, FILE, at, at, true)) {
+            for (const r of localRefactors(ts, service, FILE, at, at, true)) {
                 expect(r.kind).toMatch(/^refactor\.(extract|inline)\./);
             }
         }
@@ -95,10 +96,44 @@ describe('localRefactors', () => {
         const source = `const x = 3 * 4;\n`;
         const at = source.indexOf('3');
         const service = serviceFor({ [FILE]: source });
-        expect(localRefactors(service, FILE, at, at, false)).toEqual([]);
+        expect(localRefactors(ts, service, FILE, at, at, false)).toEqual([]);
         expect(
-            localRefactors(service, FILE, at, at, true).map((r) => r.kind),
+            localRefactors(ts, service, FILE, at, at, true).map((r) => r.kind),
         ).toContain('refactor.extract.constant');
+    });
+
+    test('with the cursor on a called name, extract takes the whole call', () => {
+        const source = `$saw($slider('f', 'a3', 'a1', 'a5').gain(2)).out();\n`;
+        const call = `$slider('f', 'a3', 'a1', 'a5')`;
+        const service = serviceFor({ [FILE]: source });
+        for (const at of [
+            source.indexOf('slider'),
+            source.indexOf('gain') + 1,
+        ]) {
+            const extract = localRefactors(
+                ts,
+                service,
+                FILE,
+                at,
+                at,
+                true,
+            ).find((r) => r.kind === 'refactor.extract.constant')!;
+            const result = localRefactorEdits(
+                ts,
+                service,
+                FILE,
+                extract.start,
+                extract.end,
+                extract.refactor,
+                extract.action,
+                STYLE,
+            )!;
+            const extracted = source.slice(extract.start, extract.end);
+            expect(extracted.startsWith(call)).toBe(true);
+            expect(applyEdits(source, result.edits)).toContain(
+                `const newLocal = ${extracted};`,
+            );
+        }
     });
 
     test('extract to constant names the new constant and points rename at it', () => {
@@ -106,9 +141,14 @@ describe('localRefactors', () => {
             `function voice(n) {\n  return [n * 2] + 1;\n}\n`,
         );
         const service = serviceFor({ [FILE]: source });
-        const extract = localRefactors(service, FILE, start, end, false).find(
-            (r) => r.kind === 'refactor.extract.constant',
-        )!;
+        const extract = localRefactors(
+            ts,
+            service,
+            FILE,
+            start,
+            end,
+            false,
+        ).find((r) => r.kind === 'refactor.extract.constant')!;
         const result = localRefactorEdits(
             ts,
             service,
@@ -133,9 +173,14 @@ describe('localRefactors', () => {
             `function voice(n) {\r\n  return [n * 2] + 1;\r\n}\r\n`,
         );
         const service = serviceFor({ [FILE]: source });
-        const extract = localRefactors(service, FILE, start, end, false).find(
-            (r) => r.kind === 'refactor.extract.constant',
-        )!;
+        const extract = localRefactors(
+            ts,
+            service,
+            FILE,
+            start,
+            end,
+            false,
+        ).find((r) => r.kind === 'refactor.extract.constant')!;
         const result = localRefactorEdits(
             ts,
             service,
@@ -157,7 +202,7 @@ describe('localRefactors', () => {
         const source = `function f() {\n  const g = 2;\n  return g * g;\n}\n`;
         const at = source.indexOf('g =');
         const service = serviceFor({ [FILE]: source });
-        const inline = localRefactors(service, FILE, at, at, true).find(
+        const inline = localRefactors(ts, service, FILE, at, at, true).find(
             (r) => r.kind === 'refactor.inline.variable',
         )!;
         expect(inline).toBeDefined();
@@ -181,7 +226,7 @@ describe('localRefactors', () => {
         const source = `const g = 2;\ng * 3;\n`;
         const at = source.indexOf('g =');
         const inlineKinds = (files: Record<string, string>) =>
-            localRefactors(serviceFor(files), FILE, at, at, true)
+            localRefactors(ts, serviceFor(files), FILE, at, at, true)
                 .map((r) => r.kind)
                 .filter((k) => k === 'refactor.inline.variable');
         expect(inlineKinds({ [FILE]: source })).toHaveLength(1);

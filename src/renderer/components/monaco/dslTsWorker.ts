@@ -49,6 +49,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         invoked: boolean,
     ): Promise<LocalRefactor[]> {
         return localRefactors(
+            ts,
             this.getLanguageService(),
             fileName,
             start,
