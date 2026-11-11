@@ -333,14 +333,12 @@
     color: var(--text-primary);
 }
 
-.tree-file-wav {
-    cursor: default;
-    color: var(--text-muted);
+.tree-file-asset {
+    cursor: grab;
 }
 
-.tree-file-wav:hover {
-    background: transparent;
-    color: var(--text-muted);
+.tree-file-asset:active {
+    cursor: grabbing;
 }
 
 .folder-header {
@@ -361,10 +359,10 @@
 
 .file-icon,
 .folder-icon {
-    font-size: var(--font-size);
     flex-shrink: 0;
-    width: 2ch;
-    text-align: center;
+    width: 1em;
+    height: 1em;
+    stroke-width: 1.5;
 }
 
 .file-name,

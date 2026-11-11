@@ -5,6 +5,7 @@
  * Shared between main and renderer processes.
  */
 
+import type { AssetKind } from './assetFiles';
 import type { OutputResolutionRecord } from './dsl/outputResolutionRule';
 import type { SignalSiteTables } from './dsl/signalSites';
 import type { MonospaceFont } from './fonts';
@@ -238,7 +239,7 @@ export interface FileTreeEntry {
     name: string;
     path: string; // Relative to workspace root
     type: 'file' | 'directory';
-    fileType?: 'js' | 'wav';
+    fileType?: 'js' | AssetKind;
     children?: FileTreeEntry[];
 }
 
@@ -427,9 +428,6 @@ export const IPC_CHANNELS = {
 
     // Main process logging
     MAIN_LOG: 'modular:main:log',
-
-    // WAV operations
-    WAVS_ON_CHANGE: 'modular:wavs:on-change',
 
     // Update operations
     UPDATE_CHECK: 'modular:update:check',
@@ -626,9 +624,6 @@ export interface IPCHandlers {
 
     // Main process logging
     [IPC_CHANNELS.MAIN_LOG]: (entry: MainLogEntry) => void;
-
-    // WAV operations
-    [IPC_CHANNELS.WAVS_ON_CHANGE]: () => void;
 
     /** A watched file changed on disk; `content` is as FS_READ_FILE returns. */
     [IPC_CHANNELS.FS_ON_FILE_CHANGED]: (change: FileChange) => void;

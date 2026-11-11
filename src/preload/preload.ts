@@ -278,8 +278,6 @@ export interface ElectronAPI {
         setAccelerators: (accelerators: Record<string, string>) => void;
     };
 
-    // Wavs folder change notification
-    onWavsChange: (callback: () => void) => () => void;
 
     // Main process log forwarding
     onMainLog: (callback: (entry: MainLogEntry) => void) => () => void;
@@ -542,8 +540,6 @@ const electronAPI: ElectronAPI = {
     // Main process log forwarding
     onMainLog: menuEventHandler(IPC_CHANNELS.MAIN_LOG),
 
-    // Wavs folder change notification
-    onWavsChange: menuEventHandler(IPC_CHANNELS.WAVS_ON_CHANGE),
 
     // OS shell operations
     shell: {

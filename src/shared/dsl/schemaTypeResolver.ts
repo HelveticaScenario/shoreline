@@ -63,6 +63,7 @@ export function resolveRef(
     | 'Poly<Signal>'
     | 'Mono<Signal>'
     | 'Buffer'
+    | 'Wav'
     | 'PhaseWarp'
     | 'EnoscScale'
     | 'ParsedPattern'
@@ -128,6 +129,9 @@ export function resolveRef(
     }
     if (defName === 'Buffer') {
         return 'Buffer';
+    }
+    if (defName === 'Wav') {
+        return 'Wav';
     }
     if (defName === 'PhaseWarp') {
         return 'PhaseWarp';
@@ -401,6 +405,9 @@ export function schemaToTypeExpr(
         }
         if (resolved === 'Buffer') {
             return 'BufferOutputRef';
+        }
+        if (resolved === 'Wav') {
+            return 'string';
         }
         if (resolved === 'PhaseWarp') {
             return 'PhaseWarp';
