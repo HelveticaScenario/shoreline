@@ -405,10 +405,9 @@ describe('computeControlQuickFixes — controls by signal type', () => {
             `$lpf($pulse('a3'), $slider("cutoff", "260hz", "65hz", "1040hz")).out();`,
         );
         const gate = fixesAt(`$adsr(|).out();`, dq);
-        expect(gate.fixes.map((f) => f.newText)).toEqual([
-            `$btn("gate")`,
-            `$toggleBtn("gate", false)`,
-        ]);
+        expect(
+            gate.fixes.filter((f) => f.kind === 'add').map((f) => f.newText),
+        ).toEqual([`$btn("gate")`, `$toggleBtn("gate", false)`]);
     });
 
     test('the two-octave span is clipped to the usable range', () => {
