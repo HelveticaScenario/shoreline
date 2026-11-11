@@ -28749,6 +28749,186 @@
     ]
   },
   {
+    "name": "$mi.divideDown",
+    "docs": {
+      "summary": "Divide-down string-machine oscillator",
+      "description": "Mutable Instruments Plaits' divide-down oscillator: four saws an octave apart from one phase, mixed into saw, square and organ registrations like a string machine's footages. Through a low-pass and `$mi.chorus` it makes Plaits' string machine.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Registration sweep",
+          "code": "const sweep = $sine('0.1hz').range(0, 5)\n$mi.divideDown('c3', { registration: sweep }).out()"
+        },
+        {
+          "title": "String chord",
+          "code": "const notes = $chord('C3[m7]')\n$mi.divideDown(notes, { registration: 1 }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "DivideDownParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "oscillator pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "registration": {
+          "description": "the mix of saw and square footages, from a bright saw (0) through organ-like mixtures to a hollow square (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the saws backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the divided-down tone",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "oscillator pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "registration",
+        "description": "the mix of saw and square footages, from a bright saw (0) through organ-like mixtures to a hollow square (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the saws backward",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.formant",
     "docs": {
       "summary": "Granular formant oscillator",

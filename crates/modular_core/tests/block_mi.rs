@@ -64,6 +64,7 @@ fn z_osc_paths_agree() {
 fn allocation_free() {
     for module in [
         "$mi.additive",
+        "$mi.divideDown",
         "$mi.formant",
         "$mi.modal",
         "$mi.particles",
