@@ -6,16 +6,18 @@ use crate::types::{ModuleSchema, SampleableConstructor};
 pub mod chaos;
 pub mod consts;
 pub mod core;
+pub mod drums;
 pub mod dynamics;
 pub mod filters;
 pub mod fx;
+pub mod mi;
 pub mod midi;
 pub mod oscillators;
 pub mod phase;
+pub mod phase_warp;
 pub mod samplers;
 pub mod seq;
 pub mod shape;
-pub mod tables;
 pub mod utilities;
 pub mod utils;
 
@@ -23,6 +25,7 @@ pub fn get_constructors() -> HashMap<String, SampleableConstructor> {
     let mut map = HashMap::new();
     chaos::install_constructors(&mut map);
     core::install_constructors(&mut map);
+    drums::install_constructors(&mut map);
     dynamics::install_constructors(&mut map);
     fx::install_constructors(&mut map);
     oscillators::install_constructors(&mut map);
@@ -31,6 +34,7 @@ pub fn get_constructors() -> HashMap<String, SampleableConstructor> {
     utilities::install_constructors(&mut map);
     seq::install_constructors(&mut map);
     midi::install_constructors(&mut map);
+    mi::install_constructors(&mut map);
     samplers::install_constructors(&mut map);
     shape::install_constructors(&mut map);
     map
@@ -56,6 +60,7 @@ pub fn get_params_deserializers() -> HashMap<String, ParamsDeserializer> {
     let mut map = HashMap::new();
     chaos::install_params_deserializers(&mut map);
     core::install_params_deserializers(&mut map);
+    drums::install_params_deserializers(&mut map);
     dynamics::install_params_deserializers(&mut map);
     fx::install_params_deserializers(&mut map);
     oscillators::install_params_deserializers(&mut map);
@@ -64,6 +69,7 @@ pub fn get_params_deserializers() -> HashMap<String, ParamsDeserializer> {
     utilities::install_params_deserializers(&mut map);
     seq::install_params_deserializers(&mut map);
     midi::install_params_deserializers(&mut map);
+    mi::install_params_deserializers(&mut map);
     samplers::install_params_deserializers(&mut map);
     shape::install_params_deserializers(&mut map);
     map
@@ -73,6 +79,7 @@ pub fn schema() -> Vec<ModuleSchema> {
     [
         chaos::schemas(),
         core::schemas(),
+        drums::schemas(),
         dynamics::schemas(),
         fx::schemas(),
         oscillators::schemas(),
@@ -81,6 +88,7 @@ pub fn schema() -> Vec<ModuleSchema> {
         utilities::schemas(),
         seq::schemas(),
         midi::schemas(),
+        mi::schemas(),
         samplers::schemas(),
         shape::schemas(),
     ]
