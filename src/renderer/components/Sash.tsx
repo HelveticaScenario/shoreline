@@ -17,7 +17,7 @@ interface SashProps {
     /** The pointer direction along the axis that grows the panel. */
     grow: 1 | -1;
     min: number;
-    /** The largest size the window allows, read at each use; keep it stable. */
+    /** The largest size the layout allows, read at each use; keep it stable. */
     max: () => number;
     label: string;
     className: string;
@@ -65,6 +65,8 @@ export function Sash({
         };
         const observer = new ResizeObserver(measure);
         observer.observe(panel);
+        // The largest size can follow the container as well as the window.
+        if (panel.parentElement) observer.observe(panel.parentElement);
         window.addEventListener('resize', measure);
         return () => {
             observer.disconnect();
@@ -80,6 +82,11 @@ export function Sash({
         document.body.classList.add(bodyClass);
         return () => document.body.classList.remove(bodyClass);
     }, [dragging, axis]);
+
+    // A sash with no room to move leaves the stored size alone.
+    const resize = (size: number) => {
+        if (max() > min) onSizeChange(size);
+    };
 
     const coordinate = (e: PointerEvent) =>
         axis === 'x' ? e.clientX : e.clientY;
@@ -97,7 +104,7 @@ export function Sash({
         const { start, startSize } = drag.current;
         const position = coordinate(e);
         if (position === start) return;
-        onSizeChange(clamp(startSize + (position - start) * grow));
+        resize(clamp(startSize + (position - start) * grow));
     };
 
     // Fires after pointerup and pointercancel too, and when the window takes
@@ -114,11 +121,11 @@ export function Sash({
         const step = e.shiftKey ? KEYBOARD_STEP * 4 : KEYBOARD_STEP;
         if (e.key === decrease || e.key === increase) {
             const direction = e.key === decrease ? -1 : 1;
-            onSizeChange(clamp(renderedSize() + step * direction * grow));
+            resize(clamp(renderedSize() + step * direction * grow));
         } else if (e.key === 'Home') {
-            onSizeChange(min);
+            resize(min);
         } else if (e.key === 'End') {
-            onSizeChange(clamp(Infinity));
+            resize(clamp(Infinity));
         } else {
             return;
         }
