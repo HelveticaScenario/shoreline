@@ -195,11 +195,13 @@ describe('namespaced dollar chain', () => {
     });
 });
 
-// ─── pipeMix regression: ModuleOutput.pipeMix now crossfades ─────────────────
+// ─── pipeMix crossfades dry against wet ──────────────────────────────────────
 
-describe('ModuleOutput.pipeMix regression', () => {
+describe('pipeMix', () => {
     test('produces a $remap/$clamp crossfade, not a bare 2-input $mix', () => {
-        const out = new ModuleOutput(builder, 'src-1', 'out', 0);
+        const out = new Collection(
+            new ModuleOutput(builder, 'src-1', 'out', 0),
+        );
         out.pipeMix(
             (s) => builder.getFactory('$lpf')(s, '100hz') as Collection,
         );

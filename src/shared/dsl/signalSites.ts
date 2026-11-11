@@ -100,9 +100,6 @@ export function siteOfRecord(
 /** The helpers that tag a param value into a cartesian signal group. */
 const SIGNAL_GROUP_HELPERS = new Set(['$g1', '$g2', '$g3']);
 
-/** Methods of a root that return a plain collection of its `cv` output. */
-const COLLECTION_BUILDERS = new Set(['slice', 'chunk']);
-
 /**
  * `undefined`: not a root. `null`: may be one, unknown until run. Otherwise
  * the output name.
@@ -237,13 +234,6 @@ export function collectSignalSites(
             value.arguments.length === 1
         ) {
             emitValue(call, slot, value.arguments[0], inputClass);
-            return;
-        }
-        if (
-            ts.isCallExpression(value) &&
-            ts.isPropertyAccessExpression(value.expression) &&
-            COLLECTION_BUILDERS.has(value.expression.name.text)
-        ) {
             return;
         }
         const type = checker.getTypeAtLocation(value);
@@ -418,26 +408,9 @@ export function collectSignalSites(
         }
     };
 
-    /** An element read off a root is a channel of its `cv` output. */
-    const visitIndex = (node: TS.ElementAccessExpression): void => {
-        const type = checker.getTypeAtLocation(node.expression);
-        const outputs = outputsOf(type);
-        if (outputs) {
-            emit(
-                position(node.argumentExpression),
-                RECEIVER_SLOT,
-                node.expression,
-                chooseOutput(outputs, 'cv'),
-                takesMember(node.expression),
-            );
-        }
-    };
-
     const visit = (node: TS.Node): void => {
         if (ts.isCallExpression(node)) {
             visitCall(node);
-        } else if (ts.isElementAccessExpression(node)) {
-            visitIndex(node);
         }
         ts.forEachChild(node, visit);
     };
