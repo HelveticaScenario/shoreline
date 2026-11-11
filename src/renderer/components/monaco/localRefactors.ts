@@ -42,9 +42,9 @@ export interface RefactorStyle {
 /**
  * The extract and inline refactors for [start, end) of `fileName`.
  * `invoked` is an explicit request. On an empty range it extracts the
- * innermost expression around the cursor that TypeScript can extract,
- * passing over a called name, so the cursor on `$slider` extracts the
- * whole `$slider(…)` call.
+ * innermost expression around the cursor that TypeScript can extract
+ * (enclosingExpressions), so the cursor on `$slider` extracts the whole
+ * `$slider(…)` call.
  */
 export function localRefactors(
     ts: typeof TS,
@@ -128,8 +128,10 @@ function applicable(
 }
 
 /**
- * The nodes holding the cursor at `pos`, innermost first, up to the
- * statement: a call's callee (`$slider`, `x.out`) is passed over.
+ * The expressions holding the cursor at `pos`, innermost first, within its
+ * statement. Passed over are those whose extraction would change what the
+ * code does: a call's callee (`$slider`, `x.out`), a declared name, an
+ * assignment target, and a tagged template's template.
  */
 function enclosingExpressions(
     ts: typeof TS,
@@ -147,24 +149,91 @@ function enclosingExpressions(
     const inner = chain.reverse();
     const stop = inner.findIndex(
         (n) =>
-            ts.isExpressionStatement(n) ||
-            ts.isVariableStatement(n) ||
-            ts.isReturnStatement(n) ||
-            ts.isBlock(n),
+            ts.isBlock(n) ||
+            ts.isFunctionDeclaration(n) ||
+            ts.isClassDeclaration(n) ||
+            (n.kind >= ts.SyntaxKind.FirstStatement &&
+                n.kind <= ts.SyntaxKind.LastStatement),
     );
-    return (stop < 0 ? inner : inner.slice(0, stop)).filter((n) => {
-        let callee: TS.Node = n;
-        while (
-            ts.isPropertyAccessExpression(callee.parent) &&
-            callee.parent.name === callee
+    return (stop < 0 ? inner : inner.slice(0, stop)).filter(
+        (n) =>
+            ts.isExpression(n) &&
+            !isCallee(ts, n) &&
+            !isDeclaredName(n) &&
+            !isWriteTarget(ts, n) &&
+            !(
+                ts.isTaggedTemplateExpression(n.parent) &&
+                n.parent.template === n
+            ),
+    );
+}
+
+/** Whether `node` is what a call calls, or a member name along it. */
+function isCallee(ts: typeof TS, node: TS.Node): boolean {
+    let callee = node;
+    while (
+        ts.isPropertyAccessExpression(callee.parent) &&
+        callee.parent.name === callee
+    ) {
+        callee = callee.parent;
+    }
+    return (
+        ts.isCallExpression(callee.parent) &&
+        callee.parent.expression === callee
+    );
+}
+
+/** Whether `node` is the name its parent declares or accesses. */
+function isDeclaredName(node: TS.Node): boolean {
+    const parent = node.parent as TS.Node & { name?: TS.Node };
+    return parent.name === node;
+}
+
+/**
+ * Whether the code writes to `node`: an assignment's target, directly or
+ * inside a destructuring pattern, a `++`/`--` or `delete` operand, or a
+ * for-in/for-of variable.
+ */
+function isWriteTarget(ts: typeof TS, node: TS.Node): boolean {
+    let n = node;
+    for (;;) {
+        const p = n.parent;
+        if (
+            ts.isParenthesizedExpression(p) ||
+            ts.isArrayLiteralExpression(p) ||
+            ts.isObjectLiteralExpression(p) ||
+            ts.isSpreadElement(p) ||
+            ts.isSpreadAssignment(p) ||
+            ts.isShorthandPropertyAssignment(p) ||
+            (ts.isPropertyAssignment(p) && p.initializer === n)
         ) {
-            callee = callee.parent;
+            n = p;
+        } else {
+            break;
         }
-        return !(
-            ts.isCallExpression(callee.parent) &&
-            callee.parent.expression === callee
+    }
+    const p = n.parent;
+    if (ts.isBinaryExpression(p)) {
+        const op = p.operatorToken.kind;
+        return (
+            p.left === n &&
+            op >= ts.SyntaxKind.FirstAssignment &&
+            op <= ts.SyntaxKind.LastAssignment
         );
-    });
+    }
+    if (ts.isPrefixUnaryExpression(p) || ts.isPostfixUnaryExpression(p)) {
+        return (
+            p.operator === ts.SyntaxKind.PlusPlusToken ||
+            p.operator === ts.SyntaxKind.MinusMinusToken
+        );
+    }
+    if (ts.isDeleteExpression(p)) {
+        return true;
+    }
+    return (
+        (ts.isForInStatement(p) || ts.isForOfStatement(p)) &&
+        p.initializer === n
+    );
 }
 
 /** The edits applying `action` of `refactor` over [start, end), or null

@@ -136,6 +136,46 @@ describe('localRefactors', () => {
         }
     });
 
+    test('the cursor never extracts something the code writes, declares or tags', () => {
+        // Each `|` marks a cursor; every extract offered there must leave
+        // the marked shape intact.
+        const cases: [string, string][] = [
+            ['obj.|x = f(2);', 'obj.x = '],
+            ['ob|j.x = f(2);', 'obj.x = '],
+            ['obj.cou|nt++;', 'obj.count++'],
+            ['x|s[0] = 1;', 'xs[0] = 1'],
+            ['delete obj.|x;', 'delete obj.x'],
+            ['[obj.|a, obj.b] = xs;', '[obj.a, obj.b] = xs'],
+            ['for (obj.|k of xs) f(1);', 'for (obj.k of xs)'],
+            ['tag`a${f(1)}|b`;', 'tag`'],
+            ['const |v = f(1);', 'const v = f(1)'],
+            ['|if (f(1)) f(2);', 'if (f(1)) f(2);'],
+        ];
+        const prelude =
+            'const obj = {}, xs = [];\nfunction f(n) { return n; }\nfunction tag() {}\n';
+        for (const [text, kept] of cases) {
+            const source = prelude + text.replace('|', '');
+            const at = prelude.length + text.indexOf('|');
+            const service = serviceFor({ [FILE]: source });
+            for (const r of localRefactors(ts, service, FILE, at, at, true)) {
+                if (!r.kind.startsWith('refactor.extract.')) {
+                    continue;
+                }
+                const result = localRefactorEdits(
+                    ts,
+                    service,
+                    FILE,
+                    r.start,
+                    r.end,
+                    r.refactor,
+                    r.action,
+                    STYLE,
+                )!;
+                expect(applyEdits(source, result.edits), text).toContain(kept);
+            }
+        }
+    });
+
     test('extract to constant names the new constant and points rename at it', () => {
         const { source, start, end } = selection(
             `function voice(n) {\n  return [n * 2] + 1;\n}\n`,
