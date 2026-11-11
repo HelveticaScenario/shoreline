@@ -44,7 +44,8 @@ static float Patch(int index) { return (float(index) + 0.5f) / 32.64f; }
 // Two settings per ported engine, numbered as in Plaits' voice.cc; one or two
 // patches of each six-op bank; four of the speech engine's vowel path where
 // harmonics sounds one synth alone: the formant filters (0), SAM (1/6) and
-// LPC (just below 1/3).
+// LPC (just below 1/3); and two of its word banks, the colours (0.48) and
+// the synth words (0.9), scanned.
 static const Case kCases[] = {
     {1, 48.0f, 0.3f, 0.6f, 0.2f},  {1, 62.0f, 0.75f, 0.35f, 0.8f},
     {2, 40.0f, Patch(0), 0.6f, 0.3f}, {2, 55.0f, Patch(26), 0.45f, 0.6f},
@@ -58,6 +59,7 @@ static const Case kCases[] = {
     {12, 48.0f, 0.0f, 0.4f, 0.6f}, {12, 55.0f, 0.5f, 0.7f, 0.3f},
     {15, 45.0f, 0.0f, 0.5f, 0.3f}, {15, 52.0f, 1.0f / 6.0f, 0.3f, 0.8f},
     {15, 48.0f, 1.0f / 6.0f, 0.6f, 0.2f}, {15, 40.0f, 0.333f, 0.45f, 0.1f},
+    {15, 48.0f, 0.48f, 0.5f, 0.6f}, {15, 43.0f, 0.9f, 0.35f, 0.5f},
     {16, 48.0f, 0.5f, 0.5f, 0.5f}, {16, 60.0f, 0.2f, 0.7f, 0.9f},
     {18, 52.0f, 0.4f, 0.8f, 0.8f}, {18, 64.0f, 0.7f, 0.6f, 0.2f},
     {19, 40.0f, 0.1f, 0.6f, 0.7f}, {19, 52.0f, 0.25f, 0.4f, 0.9f},

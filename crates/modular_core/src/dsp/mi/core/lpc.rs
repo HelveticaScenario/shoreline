@@ -16,6 +16,15 @@ const PULSE_OVERSAMPLING: f32 = 32.0;
 /// The synthesis rate at a formant ratio of 1.
 pub const SYNTHESIS_RATE: f32 = 8000.0;
 
+/// Plaits' corrected codec rate, which its LPC pitch is reckoned at.
+pub const CORRECTED_SAMPLE_RATE: f32 = 47872.34;
+
+/// The pitch every utterance's frames are normalised to.
+pub const DEFAULT_F0: f32 = 100.0;
+
+/// `DEFAULT_F0` in cycles per synthesis tick.
+const BASE_F0: f32 = DEFAULT_F0 / SYNTHESIS_RATE;
+
 /// One LPC-10 frame as Plaits stores it: energy, pitch period in ticks (0 for
 /// an unvoiced frame) and the reflection coefficients, `k[0..2]` scaled by
 /// 32768 and the rest by 128.
@@ -27,6 +36,10 @@ pub struct Frame {
 }
 
 impl Frame {
+    pub fn voiced(&self) -> bool {
+        self.period != 0
+    }
+
     /// A frame from its twelve fields in Plaits' declaration order.
     pub fn from_fields(fields: &[i16]) -> Self {
         let mut k = [0; ORDER];
@@ -44,11 +57,13 @@ fn pulse(index: i32) -> f32 {
     f32::from(LUT_LPC_EXCITATION_PULSE[index as usize]) / 128.0
 }
 
-/// `LPCSpeechSynth` with Plaits' prosody off: the pitch comes from the
-/// controller alone.
-#[derive(Clone, Copy, Default)]
+/// `LPCSpeechSynth`.
+#[derive(Clone, Copy)]
 pub struct LpcSynth {
     phase: f32,
+    /// The frame's glottal frequency in cycles per tick; an unvoiced frame
+    /// keeps the last voiced one's.
+    frequency: f32,
     noise_energy: f32,
     pulse_energy: f32,
     next_sample: f32,
@@ -58,9 +73,35 @@ pub struct LpcSynth {
     s: [f32; ORDER],
 }
 
+impl Default for LpcSynth {
+    fn default() -> Self {
+        Self {
+            phase: 0.0,
+            frequency: BASE_F0,
+            noise_energy: 0.0,
+            pulse_energy: 0.0,
+            next_sample: 0.0,
+            pulse_index: 0,
+            k: [0.0; ORDER],
+            s: [0.0; ORDER],
+        }
+    }
+}
+
 impl LpcSynth {
-    /// Sets the filter and excitation `blend` of the way from `f1` to `f2`.
+    /// Sets the pitch, filter and excitation `blend` of the way from `f1` to
+    /// `f2`. Blending a voiced frame with an unvoiced one moves the pitch
+    /// from where it is, so repeating the call moves it further.
     pub fn play_frame(&mut self, f1: &Frame, f2: &Frame, blend: f32) {
+        let frequency = |f: &Frame| {
+            if f.voiced() {
+                1.0 / f32::from(f.period)
+            } else {
+                self.frequency
+            }
+        };
+        let (frequency_1, frequency_2) = (frequency(f1), frequency(f2));
+        self.frequency = frequency_1 + (frequency_2 - frequency_1) * blend;
         let energy_1 = f32::from(f1.energy) / 256.0;
         let energy_2 = f32::from(f2.energy) / 256.0;
         let noise_1 = if f1.period == 0 { energy_1 } else { 0.0 };
@@ -75,6 +116,14 @@ impl LpcSynth {
             let b = f32::from(f2.k[i]) / scale;
             *k = a + (b - a) * blend;
         }
+    }
+
+    /// The glottal frequency in cycles per tick for a pitch `pitch_shift`
+    /// times `DEFAULT_F0`: the frame's own intonation by `prosody` (0–1)
+    /// around that pitch.
+    #[inline(always)]
+    pub fn glottal_frequency(&self, prosody: f32, pitch_shift: f32) -> f32 {
+        (BASE_F0 + (self.frequency - BASE_F0) * prosody) * pitch_shift
     }
 
     /// The reversed glottal pulse at `phase`, `speed` cycles per tick from the

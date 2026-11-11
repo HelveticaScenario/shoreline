@@ -70,6 +70,7 @@ fn allocation_free() {
         "$mi.particles",
         "$mi.phaseDistortion",
         "$mi.sixOp",
+        "$mi.speak",
         "$mi.string",
         "$mi.swarm",
         "$mi.twoOp",
@@ -120,6 +121,21 @@ fn vowel_allocation_free() {
             "{module}"
         );
     }
+}
+
+/// Triggered words, with the bank switching and every knob moving under
+/// them, allocate nothing.
+#[test]
+fn speak_allocation_free() {
+    assert_eq!(
+        allocations_while_rendering(
+            "$mi.speak",
+            json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS),
+                    "bank": cable("lfo", 0), "word": cable("lfo", 1), "formantShift": cable("lfo", 2),
+                    "prosody": cable("lfo", 3), "speed": cable("lfo", 1), "accent": cable("lfo", 2) })
+        ),
+        0
+    );
 }
 
 #[test]
