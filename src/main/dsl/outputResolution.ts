@@ -42,6 +42,11 @@ export function markRoot(root: object, set: OutputSet): void {
     Object.defineProperty(root, OUTPUT_SET, { value: set });
 }
 
+/** Whether `value` is a multi-output module's root. */
+export function isRoot(value: unknown): boolean {
+    return outputSetOf(value) !== undefined;
+}
+
 function outputSetOf(value: unknown): OutputSet | undefined {
     if (typeof value !== 'object' || value === null) {
         return undefined;

@@ -12,6 +12,7 @@ import {
     GraphBuilder,
     ModuleOutput,
 } from '../GraphBuilder';
+import { markRoot } from '../outputResolution';
 
 let builder: GraphBuilder;
 
@@ -91,6 +92,17 @@ describe('BaseCollection indexing and iteration', () => {
         const col = new Collection(...makeOutputs(2));
         expect(col[0][0]).toBe(col[0]);
         expect([...col[0]]).toEqual([col[0]]);
+    });
+
+    test("a one-channel root's channel is a plain slice", () => {
+        const [out] = makeOutputs(1);
+        const root = Object.assign(new Collection(out), {
+            o: { gate: new Collection() },
+        });
+        markRoot(root, { outputs: [], values: root.o });
+        expect(root[0]).not.toBe(root);
+        expect(root[0].items).toEqual([out]);
+        expect('o' in root[0]).toBe(false);
     });
 
     test('iteration and spreading give the index views', () => {

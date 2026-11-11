@@ -26,7 +26,7 @@ import {
 } from './paramsSchema';
 import { captureSourceLocation } from './captureSourceLocation';
 import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
-import { OutputResolver } from './outputResolution';
+import { isRoot, OutputResolver } from './outputResolution';
 import { isPatternValue, refusePattern } from './patternKinds';
 import { isPlainObject } from './plainObject';
 import {
@@ -380,9 +380,13 @@ export class BaseCollection<T extends ModuleOutput> {
         }
     }
 
-    /** Channel `i` as a one-channel collection of this collection's class. */
+    /**
+     * Channel `i` as a one-channel collection of this collection's class. A
+     * multi-output root's channel is a plain slice whatever its width, so it
+     * reads as the root's cv output, never as the module's other outputs.
+     */
     private channel(i: number): this {
-        if (this.items.length === 1) {
+        if (this.items.length === 1 && !isRoot(this)) {
             return this;
         }
         let view = this.channelViews[i];
@@ -2253,8 +2257,8 @@ export class GraphBuilder {
 }
 
 /**
- * ModuleNode represents a module instance in the DSL (internal use only)
- * Users interact with ModuleOutput directly, not ModuleNode
+ * ModuleNode represents a module instance in the DSL (internal use only).
+ * DSL code sees only the collections of its outputs.
  */
 export class ModuleNode {
     readonly builder: GraphBuilder;
