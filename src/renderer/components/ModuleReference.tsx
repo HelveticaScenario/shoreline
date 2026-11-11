@@ -56,6 +56,7 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
     onTypeClick,
 }) => {
     const cardsRef = useRef<HTMLDivElement>(null);
+    const indexRef = useRef<HTMLUListElement>(null);
 
     const entries = useMemo(
         () => modules.map(moduleToReferenceEntry),
@@ -112,8 +113,31 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
 
     const virtualItems = virtualizer.getVirtualItems();
     const scrollOffset = virtualizer.scrollOffset ?? 0;
-    const topItem = virtualItems.find((item) => item.end > scrollOffset);
+    // The gap belongs to the card above it, and a scroll that lands a
+    // sub-pixel short of a card's start still counts as reaching it.
+    const topItem = virtualItems.find(
+        (item) => item.end + CARD_GAP_PX - 1 > scrollOffset,
+    );
     const topName = topItem && filteredModules[topItem.index]?.name;
+
+    // Scrolls the index alone; `scrollIntoView` would also move the panes around it.
+    useLayoutEffect(() => {
+        const list = indexRef.current;
+        const active = list?.querySelector<HTMLElement>('button.active');
+        if (!list || !active) {
+            return;
+        }
+        const top =
+            active.getBoundingClientRect().top -
+            list.getBoundingClientRect().top +
+            list.scrollTop;
+        const bottom = top + active.offsetHeight;
+        if (top < list.scrollTop) {
+            list.scrollTop = top;
+        } else if (bottom > list.scrollTop + list.clientHeight) {
+            list.scrollTop = bottom - list.clientHeight;
+        }
+    }, [topName]);
 
     return (
         <div className="module-reference">
@@ -121,17 +145,23 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
                 <input
                     type="text"
                     placeholder="Search modules..."
+                    aria-label="Search modules"
                     value={searchQuery}
                     onChange={(e) => onSearchQueryChange(e.target.value)}
                     className="search-input"
                 />
-                <ul className="module-index-list">
+                <ul
+                    ref={indexRef}
+                    className="module-index-list"
+                    aria-label="Modules"
+                >
                     {filteredModules.map((entry, index) => (
                         <li key={entry.name}>
                             <button
                                 className={
                                     entry.name === topName ? 'active' : ''
                                 }
+                                aria-current={entry.name === topName}
                                 title={entry.docs.summary}
                                 onClick={() =>
                                     virtualizer.scrollToIndex(index, {
@@ -146,7 +176,11 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
                 </ul>
             </div>
             <div className="module-reference-main">
-                <div className="module-categories">
+                <div
+                    className="module-categories"
+                    role="group"
+                    aria-label="Categories"
+                >
                     {categories.map(({ name, description }) => (
                         <button
                             key={name}
@@ -164,6 +198,12 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
                     ))}
                 </div>
                 <div ref={cardsRef} className="module-cards">
+                    {filteredModules.length === 0 && modules.length > 0 && (
+                        <p className="module-reference-empty">
+                            No modules match
+                            {category ? ` in ${category}` : ''}.
+                        </p>
+                    )}
                     <div
                         className="module-list"
                         style={{ height: virtualizer.getTotalSize() }}

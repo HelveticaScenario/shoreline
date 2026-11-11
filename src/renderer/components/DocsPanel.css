@@ -329,13 +329,13 @@
     color: var(--text-primary);
 }
 
-.docs-content-split {
+.docs-content.docs-content-split {
     display: flex;
     padding: 0;
     overflow: hidden;
 }
 
-.docs-content-split > * {
+.docs-content.docs-content-split > * {
     max-width: none;
 }
 
@@ -428,6 +428,11 @@
     min-height: 0;
     padding: var(--sp-1);
     overflow-y: auto;
+}
+
+.docs-panel .module-reference-empty {
+    margin: 0;
+    color: var(--text-muted);
 }
 
 .docs-panel .module-list {

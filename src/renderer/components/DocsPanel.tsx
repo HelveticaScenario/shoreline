@@ -345,7 +345,11 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
             </nav>
             <div
                 ref={contentRef}
-                className={`docs-content ${activePage === 'reference' ? 'docs-content-split' : ''}`}
+                className={
+                    activePage === 'reference'
+                        ? 'docs-content docs-content-split'
+                        : 'docs-content'
+                }
             >
                 {renderContent()}
             </div>
