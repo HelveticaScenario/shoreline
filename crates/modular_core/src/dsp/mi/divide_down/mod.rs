@@ -150,9 +150,10 @@ struct Voice {
     /// The registration smoothed as Plaits smooths it.
     smoothed: f32,
     started: bool,
-    /// The saw levels for the smoothed registration, octave shift and fade
-    /// they were computed for, as bits; `None` before the first sample.
+    /// The saw levels the oscillator last drew with.
     gains: [f32; 4],
+    /// The smoothed registration, octave shift and fade `gains` were
+    /// computed for, as bits; `None` before the first sample.
     gains_key: Option<(u32, usize, u32)>,
 }
 
@@ -187,6 +188,11 @@ impl Voice {
         let target = knob(self.held);
         if self.started {
             self.smoothed += state.smoothing * (target - self.smoothed);
+            // Settled: lands on the target rather than creeping toward it
+            // through denormals.
+            if (target - self.smoothed).abs() < 1e-6 {
+                self.smoothed = target;
+            }
         } else {
             self.smoothed = target;
             self.started = true;
@@ -197,12 +203,19 @@ impl Voice {
         // equivalent when that is lower.
         let speed = f0.abs().max(f0.abs() * state.to_48k);
         let gain = (4.0 - speed * 32.0).clamp(0.0, 1.0);
-        let Some((frequency, shift)) = shift_down(f0 * 8.0) else {
+        let Some((frequency, shift)) = shift_down(f0 * 8.0, speed * 8.0) else {
             return 0.0;
         };
         let key = (self.smoothed.to_bits(), shift, gain.to_bits());
         if self.gains_key != Some(key) {
-            self.gains = saw_gains(&registration_amplitudes(self.smoothed), shift, gain);
+            let gains = saw_gains(&registration_amplitudes(self.smoothed), shift, gain);
+            if self
+                .gains_key
+                .is_some_and(|(_, last_shift, _)| last_shift != shift)
+            {
+                self.oscillator.redraw(gains);
+            }
+            self.gains = gains;
             self.gains_key = Some(key);
         }
         self.oscillator.step(frequency, self.gains)

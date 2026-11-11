@@ -19,14 +19,17 @@ pub fn saw_gains(registration: &[f32; 7], shift: usize, gain: f32) -> [f32; 4] {
 }
 
 /// Plaits' octave shift for very high pitches: `frequency` (cycles per sample
-/// of the eight-segment phase) halved until it is at most 0.5, with the
-/// registration shifted two slots per halving. `None` when the pitch is out
-/// of reach.
-pub fn shift_down(frequency: f32) -> Option<(f32, usize)> {
+/// of the eight-segment phase) halved, and the registration shifted two
+/// slots, for each halving that brings `speed` (the same pitch in Plaits'
+/// 48 kHz terms, or this rate's when nearer Nyquist) to at most 0.5. `None`
+/// when the pitch is out of reach.
+pub fn shift_down(frequency: f32, speed: f32) -> Option<(f32, usize)> {
     let mut frequency = frequency;
+    let mut speed = speed;
     let mut shift = 0;
-    while frequency.abs() > 0.5 {
+    while speed > 0.5 && shift < 8 {
         shift += 2;
+        speed *= 0.5;
         frequency *= 0.5;
     }
     (shift < 8).then_some((frequency, shift))
@@ -42,6 +45,25 @@ pub struct DivideDownOscillator {
 }
 
 impl DivideDownOscillator {
+    /// The four saws at the current phase, before their edges' corrections.
+    #[inline(always)]
+    fn naive(&self, gains: [f32; 4]) -> f32 {
+        let [saw_8, saw_4, saw_2, saw_1] = gains;
+        let segment = self.segment;
+        (self.phase - 4.0) * saw_8 * 0.125
+            + (self.phase - (segment & 4) as f32 - 2.0) * saw_4 * 0.25
+            + (self.phase - (segment & 6) as f32 - 1.0) * saw_2 * 0.5
+            + (self.phase - (segment & 7) as f32 - 0.5) * saw_1
+    }
+
+    /// Redraws the pending sample as the saws at levels `gains`, for a jump
+    /// in the levels (an octave shift): the edge correction it carries
+    /// belongs to the old levels' waveform, which the new one does not
+    /// continue.
+    pub fn redraw(&mut self, gains: [f32; 4]) {
+        self.next_sample = self.naive(gains);
+    }
+
     /// One sample at `frequency` (within ±0.5 segments per sample; negative
     /// runs the saws backward, their edges mirrored) with the four saw
     /// levels `gains`.

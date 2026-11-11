@@ -102,9 +102,86 @@ fn stays_finite_and_bounded() {
             let registration = 2.5 + 3.0 * (n as f32 * 0.002).sin();
             let out = voice.step(f0, (registration, mark()), &state);
             assert!(
-                out.is_finite() && out.abs() <= 1.3,
+                out.is_finite() && out.abs() <= 1.05,
                 "{sample_rate} Hz, sample {n}: {out}"
             );
+        }
+    }
+}
+
+/// Audio-rate FM that swings the pitch across the octave shift keeps the
+/// output within full scale at any registration.
+#[test]
+fn fm_across_the_octave_shift_stays_in_range() {
+    let state = DivideDownState::new(48000.0);
+    for registration in [0.0, 2.5, 3.7, 5.0] {
+        for (carrier, modulator, depth) in [(2000.0, 1000.0, 3.0), (3000.0, 11000.0, 2.0)] {
+            let mut voice = Voice::default();
+            let mut peak = 0.0f32;
+            for n in 0..48000 {
+                let t = n as f32 / 48000.0;
+                let fm = depth * (std::f32::consts::TAU * modulator * t).sin();
+                let f0 = carrier * (1.0 + fm) / 48000.0;
+                peak = peak.max(voice.step(f0, (registration, mark()), &state).abs());
+            }
+            assert!(
+                peak <= 1.05,
+                "registration {registration}, {carrier} Hz ± {depth} at {modulator} Hz: peak {peak}"
+            );
+        }
+    }
+}
+
+/// Run forward then backward at the same speed, the oscillator retraces the
+/// forward samples, edges and their corrections included.
+#[test]
+fn backward_retraces_forward() {
+    let state = DivideDownState::new(48000.0);
+    for (f0, registration) in [(0.0137, 0.0), (0.0137, 5.0), (0.031, 2.5), (0.0021, 3.7)] {
+        let mut voice = Voice::default();
+        let n = 4000;
+        let forward: Vec<f32> = (0..n)
+            .map(|_| voice.step(f0, (registration, mark()), &state))
+            .collect();
+        let backward: Vec<f32> = (0..n)
+            .map(|_| voice.step(-f0, (registration, mark()), &state))
+            .collect();
+        // The output runs a sample late, so backward sample `k` retraces
+        // forward sample `n − k`.
+        let error = (1..n - 100)
+            .map(|k| (backward[k] - forward[n - k]).abs())
+            .fold(0.0f32, f32::max);
+        assert!(
+            error < 1e-3,
+            "f0 {f0}, registration {registration}: {error}"
+        );
+    }
+}
+
+/// Notes past the octave shift (from about 3 kHz) have the same first four
+/// harmonics at 44.1 and 96 kHz as at 48 kHz, within the few percent their
+/// edges' residual aliasing differs between the rates; higher ones near
+/// 44.1 kHz's Nyquist cannot match.
+#[test]
+fn high_notes_sound_the_same_at_any_rate() {
+    for (pitch, registration) in [(3.6, 2.5), (3.9, 5.0), (3.55, 0.0)] {
+        let hz = voct_to_hz(pitch);
+        let reference = harmonics(&tone(48000.0, hz, registration, 0.5), hz, 48000.0, 4);
+        let loudest = reference.iter().fold(0.0f32, |m, &a| m.max(a));
+        for sample_rate in [44100.0, 96000.0] {
+            let actual = harmonics(
+                &tone(sample_rate, hz, registration, 0.5),
+                hz,
+                sample_rate,
+                4,
+            );
+            for (h, (a, r)) in actual.iter().zip(&reference).enumerate() {
+                assert!(
+                    (a - r).abs() < 0.06 * loudest,
+                    "{hz} Hz, registration {registration}, {sample_rate} Hz, harmonic {}: {a} vs {r}",
+                    h + 1
+                );
+            }
         }
     }
 }
