@@ -88,7 +88,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
                     let n: u8 = lit.base10_parse()?;
                     // Must match modular_core::poly::PORT_MAX_CHANNELS
                     const MAX: u8 = 64;
-                    if n < 1 || n > MAX {
+                    if !(1..=MAX).contains(&n) {
                         return Err(syn::Error::new(
                             lit.span(),
                             format!("channels must be between 1 and {MAX}, got {n}"),
@@ -241,27 +241,25 @@ pub fn module_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     // Inject `_channel_count: usize` field into the struct so that
     // `self.channel_count()` can return a precomputed value set by the
     // main thread via the constructor.
-    if let Data::Struct(ref mut data_struct) = ast.data {
-        if let Fields::Named(ref mut fields) = data_struct.fields {
+    if let Data::Struct(ref mut data_struct) = ast.data
+        && let Fields::Named(ref mut fields) = data_struct.fields {
             let field: syn::Field = syn::parse_quote! {
                 pub _channel_count: usize
             };
             fields.named.push(field);
         }
-    }
 
     // Inject `_block_index: Cell<usize>` so inner DSP can read the current
     // sample position within the block via `self.current_block_index()`.
     // The wrapper's `ensure_processed_to` writes the slot index here before
     // each `inner.update` call.
-    if let Data::Struct(ref mut data_struct) = ast.data {
-        if let Fields::Named(ref mut fields) = data_struct.fields {
+    if let Data::Struct(ref mut data_struct) = ast.data
+        && let Fields::Named(ref mut fields) = data_struct.fields {
             let field: syn::Field = syn::parse_quote! {
                 pub _block_index: std::cell::Cell<usize>
             };
             fields.named.push(field);
         }
-    }
 
     match impl_module_macro_attr(&ast, &attr_args) {
         Ok(generated) => {

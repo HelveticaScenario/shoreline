@@ -10,21 +10,13 @@ use super::sanitize;
 ///
 /// The buffer is sized to the next power of 2 >= `max_delay + 1`,
 /// enabling wrapping via bitwise AND instead of modulo.
+#[derive(Default)]
 pub struct DelayLine {
     buffer: Vec<f32>,
     write_ptr: usize,
     mask: usize,
 }
 
-impl Default for DelayLine {
-    fn default() -> Self {
-        Self {
-            buffer: Vec::new(),
-            write_ptr: 0,
-            mask: 0,
-        }
-    }
-}
 
 impl DelayLine {
     /// Create a new delay line that can hold up to `max_delay` samples.

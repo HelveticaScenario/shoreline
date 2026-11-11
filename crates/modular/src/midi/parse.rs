@@ -95,7 +95,7 @@ impl MidiParseState {
     fn get_cc_state(&mut self, device: &str) -> &mut MidiCcState {
         self.cc_state
             .entry(device.to_string())
-            .or_insert_with(MidiCcState::new)
+            .or_default()
     }
 
     fn track_note_on(&mut self, device: &str, channel: u8, note: u8) {

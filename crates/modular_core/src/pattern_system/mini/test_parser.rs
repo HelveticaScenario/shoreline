@@ -346,14 +346,13 @@ impl<'a> Parser<'a> {
                 // mirrors the peggy TruthyValue rule's !IdentCont, so `x4`
                 // and `xx` are errors rather than atoms.
                 self.pos += 1;
-                if let Some(next) = self.peek() {
-                    if next.is_ascii_alphanumeric() || next == b'_' {
+                if let Some(next) = self.peek()
+                    && (next.is_ascii_alphanumeric() || next == b'_') {
                         return Err(ParseError(format!(
                             "unexpected character after x at {}",
                             self.pos
                         )));
                     }
-                }
                 return Ok(MiniAST::Pure(Located::new(
                     AtomValue::Truthy,
                     start,

@@ -758,7 +758,7 @@ fn compress_query_into<'b, T: Clone + Send + Sync + 'static>(
                 .whole
                 .as_ref()
                 .map(|w| w.with_time(|t| t * duration + &b_r));
-            if let Some(final_part) = new_part.intersection(&cycle_span) {
+            if let Some(final_part) = new_part.intersection(cycle_span) {
                 out.push(ArenaHap {
                     whole: new_whole,
                     part: final_part,

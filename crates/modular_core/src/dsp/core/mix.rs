@@ -73,7 +73,7 @@ pub fn mix_derive_channel_count(params: &MixParams) -> usize {
     let max_input_channels = if params.inputs.is_empty() {
         0usize
     } else {
-        PolySignal::max_channels(&input_refs) as usize
+        PolySignal::max_channels(&input_refs)
     };
 
     // Get gain channel count

@@ -19,7 +19,6 @@ use napi::Result;
 use napi::bindgen_prelude::Float32Array;
 use napi_derive::napi;
 use parking_lot::Mutex;
-use profiling;
 use ringbuf::{
     HeapRb,
     traits::{Consumer, Producer, Split},

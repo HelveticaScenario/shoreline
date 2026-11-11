@@ -73,7 +73,7 @@ impl Wrap {
     fn update(&mut self, _sample_rate: f32) {
         let channels = self.channel_count();
 
-        for i in 0..channels as usize {
+        for i in 0..channels {
             let val = self.params.input.get_value(i);
             let a = self.params.min.get_value(i);
             let b = self.params.max.get_value(i);

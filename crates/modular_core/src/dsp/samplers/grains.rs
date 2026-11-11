@@ -406,7 +406,7 @@ impl Grains {
                     cs.spawn_phase = 1.0; // fire immediately on gate rise
                 }
 
-                let limit_reached = loop_count.map_or(false, |n| cs.grains_spawned >= n);
+                let limit_reached = loop_count.is_some_and(|n| cs.grains_spawned >= n);
 
                 if is_high && !limit_reached {
                     let grains_per_sample = density * 10.0 / sample_rate;
@@ -469,7 +469,7 @@ impl Grains {
                         cs.active |= 1 << slot;
                         cs.grains_spawned += 1;
 
-                        if loop_count.map_or(false, |n| cs.grains_spawned >= n) {
+                        if loop_count.is_some_and(|n| cs.grains_spawned >= n) {
                             break;
                         }
                     }

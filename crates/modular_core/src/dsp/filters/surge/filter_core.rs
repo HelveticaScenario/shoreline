@@ -210,8 +210,8 @@ pub fn on_patch_update<F: Filter>(
     channel_state: &mut [FilterChannel<F::Extra>],
     mode: F::Mode,
 ) {
-    if let Some(old) = state.last_mode {
-        if old != mode {
+    if let Some(old) = state.last_mode
+        && old != mode {
             if F::crossfade_on_mode_change() {
                 state.fade_mode = Some(old);
                 state.fade = FADE_SAMPLES;
@@ -227,7 +227,6 @@ pub fn on_patch_update<F: Filter>(
                 }
             }
         }
-    }
     state.last_mode = Some(mode);
     state.tick = 0;
 }

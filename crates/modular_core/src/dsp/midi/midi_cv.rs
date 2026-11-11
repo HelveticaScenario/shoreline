@@ -267,7 +267,7 @@ impl MidiCv {
 
     /// Find a free voice or steal one based on poly mode
     fn allocate_voice(&mut self, note: u8, midi_channel: u8) -> usize {
-        let num_voices = self.params.channels.clamp(1, PORT_MAX_CHANNELS) as usize;
+        let num_voices = self.params.channels.clamp(1, PORT_MAX_CHANNELS);
 
         match self.params.poly_mode {
             PolyMode::Mpe => {
@@ -321,7 +321,7 @@ impl MidiCv {
 
     /// Find which voice is playing a note
     fn find_voice_for_note(&self, note: u8) -> Option<usize> {
-        let num_voices = self.params.channels.clamp(1, PORT_MAX_CHANNELS) as usize;
+        let num_voices = self.params.channels.clamp(1, PORT_MAX_CHANNELS);
         for i in 0..num_voices {
             if self.channel_state[i].voice.gate && self.channel_state[i].voice.note == note {
                 return Some(i);
@@ -370,7 +370,7 @@ impl MidiCv {
         self.state.held_notes.retain(|&(n, _, _)| n != note);
         self.state.held_notes.push((note, velocity, midi_channel));
 
-        let num_voices = self.params.channels.clamp(1, PORT_MAX_CHANNELS) as usize;
+        let num_voices = self.params.channels.clamp(1, PORT_MAX_CHANNELS);
 
         if num_voices == 1 {
             // Monophonic mode
@@ -440,7 +440,7 @@ impl MidiCv {
         self.state.held_notes.retain(|&(n, _, _)| n != note);
         self.state.sustained_notes.retain(|&(n, _, _)| n != note);
 
-        let num_voices = self.params.channels.clamp(1, PORT_MAX_CHANNELS) as usize;
+        let num_voices = self.params.channels.clamp(1, PORT_MAX_CHANNELS);
 
         if num_voices == 1 {
             // Monophonic: check if a different note should take over
@@ -481,7 +481,7 @@ impl MidiCv {
                 // Mod wheel
                 if self.params.poly_mode == PolyMode::Mpe && msg.channel > 0 {
                     let voice_idx = ((msg.channel - 1) as usize)
-                        .min(self.params.channels.saturating_sub(1) as usize);
+                        .min(self.params.channels.saturating_sub(1));
                     self.channel_state[voice_idx].voice.mod_wheel = msg.value;
                 } else {
                     self.state.global_mod_wheel = msg.value;
@@ -532,7 +532,7 @@ impl MidiCv {
         if self.params.poly_mode == PolyMode::Mpe && msg.channel > 0 {
             // MPE: per-voice pitch bend
             let voice_idx =
-                ((msg.channel - 1) as usize).min(self.params.channels.saturating_sub(1) as usize);
+                ((msg.channel - 1) as usize).min(self.params.channels.saturating_sub(1));
             self.channel_state[voice_idx].voice.pitch_wheel = msg.value;
         } else {
             // Standard: global pitch bend
@@ -552,7 +552,7 @@ impl MidiCv {
 
         if self.params.poly_mode == PolyMode::Mpe && msg.channel > 0 {
             let voice_idx =
-                ((msg.channel - 1) as usize).min(self.params.channels.saturating_sub(1) as usize);
+                ((msg.channel - 1) as usize).min(self.params.channels.saturating_sub(1));
             self.channel_state[voice_idx].voice.aftertouch = msg.pressure;
         } else {
             self.state.global_aftertouch = msg.pressure;
@@ -608,7 +608,7 @@ impl MidiCv {
         let num_voices = self.channel_count();
 
         // Update outputs for each voice
-        for i in 0..num_voices as usize {
+        for i in 0..num_voices {
             let voice = &self.channel_state[i].voice;
 
             // Pitch CV

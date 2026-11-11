@@ -249,7 +249,7 @@ impl Supersaw {
         // balanced spread across the full detune range, so splitting voices
         // into two groups (e.g. for stereo panning) gives symmetric detuning
         // on each side — matching Strudel's alternating L/R distribution.
-        let half = (voices + 1) / 2;
+        let half = voices.div_ceil(2);
         for v in 0..voices {
             let linear_pos = if v < half { v * 2 } else { (v - half) * 2 + 1 };
             self.state.voice_t[v] = if voices > 1 {

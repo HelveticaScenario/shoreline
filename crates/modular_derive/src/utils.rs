@@ -17,15 +17,12 @@ pub fn unwrap_attr(attrs: &[Attribute], ident: &str) -> Option<TokenStream2> {
 pub fn is_type(ty: &Type, is_type_fn: fn(&Type) -> bool) -> bool {
     if let Type::Path(type_path) = ty {
         let segments = &type_path.path.segments;
-        if let Some(last) = segments.last() {
-            if last.ident == "Option" {
-                if let syn::PathArguments::AngleBracketed(args) = &last.arguments {
-                    if let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
+        if let Some(last) = segments.last()
+            && last.ident == "Option"
+                && let syn::PathArguments::AngleBracketed(args) = &last.arguments
+                    && let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
                         return is_type_fn(inner_ty);
                     }
-                }
-            }
-        }
     }
     false
 }

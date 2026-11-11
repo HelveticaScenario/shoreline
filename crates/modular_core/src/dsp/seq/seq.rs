@@ -655,11 +655,10 @@ impl Seq {
         // frees), because `logical` wraps at the ribbon seam.
         self.state.voices_to_release.clear();
         for i in 0..num_channels {
-            if let Some(cached) = self.channel_state[i].voice.cached_hap {
-                if !cached.contains(straight) {
+            if let Some(cached) = self.channel_state[i].voice.cached_hap
+                && !cached.contains(straight) {
                     self.state.voices_to_release.push(i);
                 }
-            }
         }
         for i in self.state.voices_to_release.iter().copied() {
             self.channel_state[i].voice.active = false;
@@ -1184,7 +1183,7 @@ impl crate::types::StatefulModule for Seq {
                 for span in &storage.span_arena[start..end] {
                     let idx = span.pattern_idx as usize;
                     if idx < num_sources {
-                        out.push_span(idx, span.start as u32, span.end as u32);
+                        out.push_span(idx, span.start, span.end);
                     }
                 }
             }

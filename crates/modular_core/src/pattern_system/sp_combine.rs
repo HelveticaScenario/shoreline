@@ -249,7 +249,7 @@ where
 
                     let value = f(&inner_hap.value, &outer_hap.value);
                     let context =
-                        ArenaHapContext::combine_in(&inner_hap.context, &outer_hap.context, bump);
+                        ArenaHapContext::combine_in(inner_hap.context, outer_hap.context, bump);
                     out.push(ArenaHap {
                         whole,
                         part,

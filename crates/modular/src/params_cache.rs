@@ -22,7 +22,7 @@ use modular_core::params::{
 static PARAMS_DESERIALIZERS: OnceLock<HashMap<String, ParamsDeserializer>> = OnceLock::new();
 
 fn get_params_deserializers() -> &'static HashMap<String, ParamsDeserializer> {
-    PARAMS_DESERIALIZERS.get_or_init(|| modular_core::dsp::get_params_deserializers())
+    PARAMS_DESERIALIZERS.get_or_init(modular_core::dsp::get_params_deserializers)
 }
 
 static PARAMS_CACHE: OnceLock<Mutex<LruCache<(String, serde_json::Value), CachedParams>>> =

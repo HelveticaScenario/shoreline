@@ -180,15 +180,12 @@ fn detect_wavetable_frame_size(file_path: &Path) -> Option<usize> {
                         .collect();
                     // Only parse if we saw a non-digit terminator within the buffer;
                     // otherwise the number may have been truncated by the 256-byte read cap.
-                    if !digits.is_empty() && digits.len() < stripped.len() {
-                        if let Ok(s) = std::str::from_utf8(&digits) {
-                            if let Ok(n) = s.parse::<usize>() {
-                                if n > 0 {
+                    if !digits.is_empty() && digits.len() < stripped.len()
+                        && let Ok(s) = std::str::from_utf8(&digits)
+                            && let Ok(n) = s.parse::<usize>()
+                                && n > 0 {
                                     return Some(n);
                                 }
-                            }
-                        }
-                    }
                 }
                 // No parseable frame size — keep scanning
             }
@@ -367,8 +364,8 @@ impl WavCache {
         })?;
         let mtime = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
 
-        if let Some(entry) = self.entries.get(&key) {
-            if entry.mtime == mtime {
+        if let Some(entry) = self.entries.get(&key)
+            && entry.mtime == mtime {
                 return Ok(Some(build_wav_load_info(
                     &key,
                     entry.data.channel_count() as u32,
@@ -377,7 +374,6 @@ impl WavCache {
                     mtime_to_epoch_millis(mtime),
                 )));
             }
-        }
 
         let Some(audio) =
             media_audio::decode_audio(&full_path, Some(media_audio::MAX_MEDIA_DURATION_SECONDS))
@@ -426,7 +422,7 @@ impl WavCache {
     }
 
     /// Load a WAV file, returning cached data if mtime hasn't changed.
-    fn load(&mut self, rel_path: &str, engine_sample_rate: f32) -> Result<WavLoadInfo> {
+    fn load(&mut self, rel_path: &str, _engine_sample_rate: f32) -> Result<WavLoadInfo> {
         let full_path = self
             .workspace_path
             .join("wavs")
@@ -442,8 +438,8 @@ impl WavCache {
         let mtime = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
 
         // Cache hit — mtime matches
-        if let Some(entry) = self.entries.get(rel_path) {
-            if entry.mtime == mtime {
+        if let Some(entry) = self.entries.get(rel_path)
+            && entry.mtime == mtime {
                 return Ok(build_wav_load_info(
                     rel_path,
                     entry.data.channel_count() as u32,
@@ -452,7 +448,6 @@ impl WavCache {
                     mtime_to_epoch_millis(mtime),
                 ));
             }
-        }
 
         // Cache miss or stale — decode
         let decoded = media_audio::decode_audio(&full_path, None)
