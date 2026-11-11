@@ -268,23 +268,22 @@ type Signal = number | Note | HZ | ModuleOutput;
  *
  * Can be:
  * - A single {@link Signal}
- * - An array of {@link Signal}s (creates multiple voices)
  * - An iterable of {@link ModuleOutput}s
+ * - An array of {@link Signal}s and {@link Collection}s (creates multiple voices)
  * - A {@link SignalGroup} from \`$g1\`/\`$g2\`/\`$g3\` (cartesian voice expansion)
- * - A pattern from \`$p(...)\`, \`$p.s(...)\` or \`$p.arrange(...)\`, played through a \`$cycle\`
  *
  * @example $saw(["C3", "E3", "G3"]).out()                    // 3-voice chord
  * @example $saw([...$sine("1hz"), ...$sine("2hz")]).out()   // Spread outputs into voices
  * @see {@link Signal} - for single-channel signals
  * @see {@link Collection} - for grouping outputs
  */
-type Poly<T extends Signal = Signal> = OrArray<T> | Iterable<ModuleOutput> | SignalGroup | PatternSource;
+type Poly<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | Iterable<ModuleOutput> | SignalGroup;
 
 /**
- * An axis of an XY scope: signals, collections and patterns, or an array mixing
+ * An axis of an XY scope: signals and collections, or an array mixing
  * them. Every channel is its own trace.
  */
-type ScopeAxis = OrArray<Signal | Iterable<ModuleOutput> | PatternSource>;
+type ScopeAxis = OrArray<Signal | Iterable<ModuleOutput>>;
 
 /**
  * A param value tagged into a cartesian signal group by {@link $g1}, {@link $g2},
@@ -302,16 +301,16 @@ interface SignalGroup {
 
 
 /**
- * A signal input that sums all channels to a single mono value.
- * Structurally identical to {@link Poly}, but signals that the module
- * combines all voices into one control signal rather than preserving polyphony.
+ * A signal input that sums all channels to a single mono value. Takes what
+ * {@link Poly} takes except a signal group: the module combines all voices
+ * into one control signal rather than preserving polyphony.
  *
  * @example $stereoMix($saw("c3"), { width: 0.8 })          // Constant width
  * @example $stereoMix($saw("c3"), { width: $sine("1hz") }) // Oscillating stereo width
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
  * @see {@link Signal} - for single-channel signals
  */
-type Mono<T extends Signal = Signal> = OrArray<T> | Iterable<ModuleOutput> | PatternSource;
+type Mono<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | Iterable<ModuleOutput>;
 
 /**
  * A phase warp produced by the \`$phase.*\` helpers.
@@ -362,13 +361,6 @@ type BufferOutputRef = {
   readonly channels: number;
   readonly frameCount: number;
 };
-
-/**
- * Any pattern value: \`$p(...)\`, \`$p.s(...)\`, \`$p.arrange(...)\`, or a
- * \`.fast\`/\`.slow\`/\`.struct\`/\`.beat\`/\`.glide\` chain. Signal params
- * accept one and play it through a \`$cycle\`.
- */
-type PatternSource = ParsedPattern | SpPattern | ArrangePattern | FastPattern | SlowPattern | StructPattern | BeatPattern | GlidePattern;
 
 type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : never;
 
@@ -441,8 +433,8 @@ type ParsedPattern = {
    * Every curve stays between the two pitches.
    *
    * \`\`\`js
-   * $sine($p("c4 e4 g4").glide("0 0.1 0.25")).out()
-   * $sine($p("c3 g3").glide(0.25, 'expo', 'out')).out()
+   * $sine($p("c4 e4 g4").glide("0 0.1 0.25").c).out()
+   * $sine($p("c3 g3").glide(0.25, 'expo', 'out').c).out()
    * \`\`\`
    */
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
@@ -456,6 +448,8 @@ type ParsedPattern = {
    * \`\`\`
    */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -690,6 +684,8 @@ type SpPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -711,6 +707,8 @@ type ArrangePattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -732,6 +730,8 @@ type FastPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -751,6 +751,8 @@ type SlowPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -777,6 +779,8 @@ type StructPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -803,6 +807,8 @@ type BeatPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /** Shape of a glide ramp. See \`$p(...).glide\`. */
@@ -831,6 +837,8 @@ type GlidePattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -1718,19 +1726,17 @@ function $note(noteName: string): number;
  *
  * Collections support chainable DSP methods, iteration, indexing, and spreading.
  * Bare {@link Signal} literals (numbers, note/Hz strings) are lifted into
- * $signal modules, so they can be mixed in alongside module outputs. A
- * pattern (\`$p(...)\`, \`$p.s(...)\`, \`$p.arrange(...)\`) plays through a
- * \`$cycle\` and contributes its voices.
+ * $signal modules, so they can be mixed in alongside module outputs.
  * @param args One or more {@link ModuleOutput}s or {@link Signal} literals to group
  * @returns A {@link Collection} of the outputs
  * @example $c($sine('c3'), $sine('e3')).amplitude(0.5).out()
  * @example $c(440, 'c4', $sine('e3'))  // Bare number/string lifted into $signal
- * @example $c($p('c4 e4'), 'g4')        // Pattern plays through a $cycle
+ * @example $c($p('c4 e4').c, 'g4')      // A played pattern contributes its voices
  * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access
  * @example [...$c($sine('c3'), $sine('e3'))]             // Spread to array
  * @see {@link $r} - for ranged outputs
  */
-function $c(...args: (Signal | PatternSource | (Signal | PatternSource)[] | Iterable<Signal | PatternSource>)[]): Collection;
+function $c(...args: (Signal | Signal[] | Iterable<Signal>)[]): Collection;
 
 /**
  * Create a {@link CollectionWithRange} from {@link ModuleOutputWithRange} instances.
@@ -1774,7 +1780,7 @@ function $setOutputGain(gain: Mono<Signal>): void;
 function $scopeXY(
   x: ScopeAxis,
   y: ScopeAxis,
-  config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | ModuleOutput | Collection | CollectionWithRange | PatternSource; persistence?: number | ModuleOutput | Collection | CollectionWithRange | PatternSource; lineWidth?: number | ModuleOutput | Collection | CollectionWithRange | PatternSource; upsample?: boolean },
+  config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | ModuleOutput | Collection | CollectionWithRange; persistence?: number | ModuleOutput | Collection | CollectionWithRange; lineWidth?: number | ModuleOutput | Collection | CollectionWithRange; upsample?: boolean },
 ): VideoSignal;
 
 /**
@@ -2235,12 +2241,11 @@ interface VideoFile extends VideoSignal {
 /**
  * A constant, a {@link VideoSignal}, or an audio signal whose live value drives
  * the input: a \`$slider\` / \`$btn\` / \`$toggleBtn\`, or any module output
- * such as an LFO or envelope, with several channels summed to one. A pattern
- * from \`$p(...)\`, \`$p.s(...)\` or \`$p.arrange(...)\` also works: it plays
- * through a \`$cycle\` and its values are used as they are, so
- * \`$p('0 0.5 1')\` steps from 0 to 1.
+ * such as an LFO or envelope, with several channels summed to one. A played
+ * pattern's values are used as they are, so \`$p('0 0.5 1').c\` steps from 0
+ * to 1.
  */
-type VideoValue = number | VideoSignal | ModuleOutput | Collection | CollectionWithRange | PatternSource;
+type VideoValue = number | VideoSignal | ModuleOutput | Collection | CollectionWithRange;
 
 ${generateVideoChainInterfaces()}
 

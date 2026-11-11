@@ -42,8 +42,8 @@ import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { createControls } from './controls';
 import { assertControlsPlaced } from './controlPlacement';
-import { $p, setActiveCycleFactory, type CycleFactory } from './miniNotation';
-import { isPatternValue } from './patternKinds';
+import { $p, setActiveCycleFactory } from './miniNotation';
+import { refusePattern } from './patternKinds';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
 import type {
@@ -399,7 +399,6 @@ export function executePatchScript(
             'DSL execution error: "$cycle" module not found in schemas',
         );
     }
-    const cycleFactory: CycleFactory = $cycle;
     // Numbers convert here; a frequency that includes a signal converts on the
     // audio thread through `_hz`. Note and Hz strings are already pitches, so
     // they are rejected rather than read as a frequency.
@@ -722,10 +721,6 @@ export function executePatchScript(
             if (button) return button.value ? GATE_HIGH_VOLTAGE : 0;
             return undefined;
         },
-        playPattern: (pattern) =>
-            cycleFactory(pattern) as
-                | ModuleOutput
-                | BaseCollection<ModuleOutput>,
         publishTap: (output, slot) => {
             _videoTap(output, slot);
         },
@@ -922,14 +917,10 @@ export function executePatchScript(
         return t;
     }
 
-    // A pattern argument plays through its own `$cycle` before it becomes a
-    // warp signal.
-    const warpSignal = (value: unknown) =>
-        replaceSignals(isPatternValue(value) ? cycleFactory(value) : value);
-
     const warpHelper =
         (type: string, field: string) => (value: unknown, next?: unknown) => {
-            const t = wrapWarp({ type, [field]: warpSignal(value) });
+            refusePattern(value, `$phase.${type}: ${field}`);
+            const t = wrapWarp({ type, [field]: replaceSignals(value) });
             return next !== undefined
                 ? wrapWarp({ type: 'pipe', first: t, second: next })
                 : t;
@@ -1064,7 +1055,7 @@ export function executePatchScript(
     } = analyzeSourceSpans(source, schemas);
     setActiveSpanRegistry(spanRegistry);
     setActiveInterpolationResolutions(interpolationResolutions);
-    setActiveCycleFactory(cycleFactory);
+    setActiveCycleFactory($cycle);
 
     // The user source runs as a function body (an IIFE), not at the script's
     // top level, so top-level `return` is legal in a patch script.

@@ -10,7 +10,7 @@ import {
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
 import { processModuleSchema } from './paramsSchema';
-import { isPatternValue } from './patternKinds';
+import { refusePattern } from './patternKinds';
 import { isSignalGroupLike } from './signalGroups';
 import { buildSignalMapper } from './signalSchemaMapper';
 import {
@@ -231,15 +231,6 @@ type ModuleReturn = SingleOutput | PolyOutput | MultiOutput;
 
 type FactoryFunction = (...args: any[]) => ModuleReturn;
 
-type SourceLocation = { line: number; column: number };
-
-/** Builds one module from call args at an explicit source location. */
-type Instantiator = (
-    args: any[],
-    sourceLocation: SourceLocation | undefined,
-    argumentSpans: ArgumentSpans | undefined,
-) => ModuleReturn;
-
 interface NamespaceTree {
     [key: string]: NamespaceTree | FactoryFunction;
 }
@@ -340,7 +331,6 @@ export class DSLContext {
     factories: Record<string, FactoryFunction> = {};
     namespaceTree: NamespaceTree = {};
     private builder: GraphBuilder;
-    private instantiators = new Map<string, Instantiator>();
 
     constructor(schemas: ModuleSchema[]) {
         this.builder = new GraphBuilder(schemas);
@@ -367,77 +357,33 @@ export class DSLContext {
     }
 
     /**
-     * Create a module factory function that returns outputs directly
+     * A signal param's value with the collections inside an array spread into
+     * its elements. `what` names the param when a pattern in it is refused.
      */
-    private createFactory(schema: ModuleSchema): FactoryFunction {
-        const instantiate = this.createInstantiator(schema);
-        this.instantiators.set(schema.name, instantiate);
-        return (...args: any[]): ModuleReturn => {
-            // Capture source location from stack trace
-            const sourceLocation = captureSourceLocation();
-
-            // Capture argument spans from the pre-analyzed registry
-            const argumentSpans = captureArgumentSpans(sourceLocation);
-
-            return instantiate(args, sourceLocation, argumentSpans);
-        };
-    }
-
-    /**
-     * Wrap a pattern value (`$p(...)`, `$p.s(...)`, `$p.arrange(...)` or a
-     * `.fast`/`.slow`/`.struct`/`.beat` chain) in a `$cycle` module at the
-     * caller's source location; any other value passes through. The `$cycle`
-     * carries no argument spans of its own — the pattern embeds its
-     * highlight spans — so the caller's spans are not reused for it.
-     */
-    private wrapPattern(
-        value: unknown,
-        sourceLocation: SourceLocation | undefined,
-    ): unknown {
-        if (!isPatternValue(value)) {
-            return value;
-        }
-        const cycle = this.instantiators.get('$cycle');
-        if (!cycle) {
-            throw new Error('$cycle module not found in schemas');
-        }
-        return cycle([value], sourceLocation, undefined);
-    }
-
-    /**
-     * Wrap every pattern inside a signal param's value: the value itself, array
-     * elements, and the contents of a `$gN` group.
-     */
-    private wrapSignalParam(
-        value: unknown,
-        sourceLocation: SourceLocation | undefined,
-    ): unknown {
+    private signalParam(value: unknown, what: string): unknown {
         if (isSignalGroupLike(value)) {
-            const signals = this.wrapSignalParam(value.signals, sourceLocation);
-            return {
-                ...value,
-                signals:
-                    signals instanceof BaseCollection ? [...signals] : signals,
-            };
+            return { ...value, signals: this.signalParam(value.signals, what) };
         }
         if (Array.isArray(value)) {
             return value.flatMap((v) => {
-                const wrapped = this.wrapPattern(v, sourceLocation);
-                return wrapped instanceof BaseCollection
-                    ? [...wrapped]
-                    : [wrapped];
+                refusePattern(v, what);
+                return v instanceof BaseCollection ? [...v] : [v];
             });
         }
-        return this.wrapPattern(value, sourceLocation);
+        refusePattern(value, what);
+        return value;
     }
 
-    private createInstantiator(schema: ModuleSchema): Instantiator {
+    /**
+     * Create a module factory function that returns outputs directly
+     */
+    private createFactory(schema: ModuleSchema): FactoryFunction {
         const outputs = schema.outputs || [];
         const processed = processModuleSchema(schema);
         const scaleParamNames = processed.params
             .filter((p) => p.isScaleSignalInput)
             .map((p) => p.name);
-        const patternSignalParamNames = processed.params
+        const signalParamNames = processed.params
             .filter(
                 (p) =>
                     !p.isScaleSignalInput &&
@@ -457,8 +403,7 @@ export class DSLContext {
         const nestedSignalParams = processed.params
             .filter(
                 (p) =>
-                    !p.isScaleSignalInput &&
-                    !patternSignalParamNames.includes(p.name),
+                    !p.isScaleSignalInput && !signalParamNames.includes(p.name),
             )
             .flatMap((p) => {
                 const property = paramsSchema.properties?.[p.name];
@@ -468,7 +413,9 @@ export class DSLContext {
                 return mapper ? [{ mapper, name: p.name }] : [];
             });
 
-        return (args, sourceLocation, argumentSpans): ModuleReturn => {
+        return (...args: any[]): ModuleReturn => {
+            const sourceLocation = captureSourceLocation();
+            const argumentSpans = captureArgumentSpans(sourceLocation);
             const positionalArgs = schema.positionalArgs || [];
             const params: Record<string, any> = {};
             let config: any = {};
@@ -495,17 +442,16 @@ export class DSLContext {
                 }
             }
 
-            // A pattern in a signal param plays through its own `$cycle`.
-            for (const name of patternSignalParamNames) {
-                params[name] = this.wrapSignalParam(
+            for (const name of signalParamNames) {
+                params[name] = this.signalParam(
                     params[name],
-                    sourceLocation,
+                    `${schema.name}: ${name}`,
                 );
             }
             for (const { mapper, name } of nestedSignalParams) {
                 if (params[name] !== undefined) {
-                    params[name] = mapper(params[name], name, (value) =>
-                        this.wrapSignalParam(value, sourceLocation),
+                    params[name] = mapper(params[name], name, (value, path) =>
+                        this.signalParam(value, `${schema.name}: ${path}`),
                     );
                 }
             }
@@ -513,11 +459,13 @@ export class DSLContext {
             // The engine only accepts a signal scale; a spec string is
             // shorthand for the notes of `$chord(spec)`.
             for (const name of scaleParamNames) {
-                if (typeof params[name] === 'string') {
-                    params[name] = this.builder.getFactory('$chord')(
-                        params[name],
-                    );
-                }
+                params[name] =
+                    typeof params[name] === 'string'
+                        ? this.builder.getFactory('$chord')(params[name])
+                        : this.signalParam(
+                              params[name],
+                              `${schema.name}: ${name}`,
+                          );
             }
 
             // Merge argument_span fields carried by any ParsedPattern params
