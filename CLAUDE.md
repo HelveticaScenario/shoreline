@@ -144,6 +144,7 @@ A param whose edits would click (a gain, a cutoff, a mix amount) glides across p
 ### Module Docs
 
 A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crates/modular_core/src/module_docs.rs`), named in `#[module(name = …, docs = NAME_DOCS)]`. A `///` on a `#[module]` struct is a compile error. It holds:
+
 - `summary`: 1–6 words;
 - `description`: 1–3 sentences of inline markdown, never explaining individual params, except to flag a param behaviour surprising enough to need a prominent note (`$adsr`'s sustain);
 - `categories`;
@@ -155,6 +156,8 @@ Monaco shows the description, sections and first example; the Reference pane sho
 ### Reserved Output Names
 
 When adding methods to `BaseCollection`, `Collection`, `CollectionWithRange`, or `DeferredCollection`, add the method name to `RESERVED_OUTPUT_NAMES` in `crates/reserved_output_names.rs`. This is the single source of truth shared by the Rust proc-macro and TypeScript DSL via NAPI.
+
+The list also limits module names. Every module whose first argument is a signal is a chain method of collections (`$lpf` as `sig.lpf(...)`, `$mi.chorus` as `sig.mi.chorus(...)`), so the first segment of a module's name after its `$` cannot be reserved: `#[module]` rejects `$gain` and `$gain.soft`. A module the DSL exposes starts with `$`, an internal one with `_`.
 
 ### Code Organization
 

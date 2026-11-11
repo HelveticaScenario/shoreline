@@ -152,14 +152,14 @@ $sine(seqs).amp($perc(seqs)).out()`;
 });
 
 describe('chaining', () => {
-    test('.$. resolves the receiver by the chained module', () => {
-        expect(ports(`$p('0*8').c.$.perc().out()`, '$perc', 'trigger')).toEqual(
-            ['trig'],
-        );
-        expect(ports(`$p('0*8').c.$.adsr().out()`, '$adsr', 'gate')).toEqual([
+    test('. resolves the receiver by the chained module', () => {
+        expect(ports(`$p('0*8').c.perc().out()`, '$perc', 'trigger')).toEqual([
+            'trig',
+        ]);
+        expect(ports(`$p('0*8').c.adsr().out()`, '$adsr', 'gate')).toEqual([
             'gate',
         ]);
-        expect(ports(`$p('c e g').c.$.saw().out()`, '$saw', 'freq')).toEqual([
+        expect(ports(`$p('c e g').c.saw().out()`, '$saw', 'freq')).toEqual([
             'cv',
         ]);
     });
@@ -225,10 +225,8 @@ describe('resolution records', () => {
         ).toEqual(['3 trigger.0 trig', '3 trigger.1 trig']);
     });
 
-    test('.$. records the chained module param', () => {
-        expect(records(`$p('0*8').c.$.perc().out()`)).toEqual([
-            '1 trigger trig',
-        ]);
+    test('. records the chained module param', () => {
+        expect(records(`$p('0*8').c.perc().out()`)).toEqual(['1 trigger trig']);
     });
 
     test('chain methods record the receiver and argument index', () => {

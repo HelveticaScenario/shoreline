@@ -215,7 +215,7 @@ export function createControls(deps: ControlDeps): Controls & {
 
         /**
          * Create a momentary gate button: a signal module the UI drives to 5V
-         * while the button is held and 0V on release. Chain through .$.hold
+         * while the button is held and 0V on release. Chain through .hold
          * for fixed-length triggers.
          */
         $btn(label, groupRef, ...rest) {

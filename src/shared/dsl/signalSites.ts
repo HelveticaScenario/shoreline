@@ -28,7 +28,7 @@ export interface ModuleSiteInfo {
     positional: string[];
     /** Input class of every signal-taking param. */
     inputs: Record<string, OutputClass>;
-    /** Whether the module is a method of the `.$.` namespace. */
+    /** Whether the module is a chain method of collections. */
     chainable: boolean;
 }
 
@@ -311,37 +311,39 @@ export function collectSignalSites(
         return undefined;
     };
 
-    /** The receiver and method path of `receiver.$.a.b`, if `callee` is one. */
-    const dollarCall = (
-        callee: TS.PropertyAccessExpression,
-    ):
-        | { receiver: TS.Expression; path: string; withMix: boolean }
-        | undefined => {
-        const names: string[] = [];
-        let node: TS.Expression = callee;
-        while (ts.isPropertyAccessExpression(node)) {
-            const name = node.name.text;
-            if (name === '$' || name === '$m') {
-                return names.length > 0
-                    ? {
-                          path: names.join('.'),
-                          receiver: node.expression,
-                          withMix: name === '$m',
-                      }
-                    : undefined;
-            }
-            names.unshift(name);
-            node = node.expression;
-        }
-        return undefined;
-    };
-
     /** Whether `type` is an output or collection: it has their methods. */
     const isOutput = (type: TS.Type): boolean =>
         checker.getPropertyOfType(type, 'outMono') !== undefined;
 
     const receivesSignals = (type: TS.Type): boolean =>
         isUnknown(type) || isOutput(type);
+
+    /**
+     * The receiver and chain module of `receiver.a.b`, if `callee` is a
+     * chain call: the longest trailing path that names a chainable module on
+     * a receiver that reads signals.
+     */
+    const chainCall = (
+        callee: TS.PropertyAccessExpression,
+    ): { receiver: TS.Expression; module: ModuleSiteInfo } | undefined => {
+        const names: string[] = [];
+        let found:
+            | { receiver: TS.Expression; module: ModuleSiteInfo }
+            | undefined;
+        let node: TS.Expression = callee;
+        while (ts.isPropertyAccessExpression(node)) {
+            names.unshift(node.name.text);
+            node = node.expression;
+            const module = own(tables.modules, `$${names.join('.')}`);
+            if (
+                module?.chainable &&
+                receivesSignals(checker.getTypeAtLocation(node))
+            ) {
+                found = { module, receiver: node };
+            }
+        }
+        return found;
+    };
 
     const visitCall = (node: TS.CallExpression): void => {
         const callee = node.expression;
@@ -358,23 +360,16 @@ export function collectSignalSites(
             return;
         }
         const site = position(callee.name);
-        const dollar = dollarCall(callee);
-        const chained = dollar
-            ? own(tables.modules, `$${dollar.path}`)
-            : undefined;
-        if (dollar && chained?.chainable) {
-            const receiverName = chained.positional[0];
+        const chain = chainCall(callee);
+        if (chain) {
+            const receiverName = chain.module.positional[0];
             emitValue(
                 site,
                 receiverName,
-                dollar.receiver,
-                chained.inputs[receiverName] ?? 'cv',
+                chain.receiver,
+                chain.module.inputs[receiverName] ?? 'cv',
             );
-            const args = [...node.arguments];
-            if (dollar.withMix && args.length > 0) {
-                emitValue(site, MIX_SLOT, args.shift()!, 'cv');
-            }
-            emitModuleArgs(site, chained, args, 1);
+            emitModuleArgs(site, chain.module, node.arguments, 1);
             return;
         }
         if (

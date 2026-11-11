@@ -93,7 +93,7 @@ const PULSE_DOCS: ModuleDocs = ModuleDocs {
                 $pulse($chord('C3[m]'), {
                   pwm: $sine('0.3hz').range(-2, 2),
                 })
-                  .$.lpf('c6')
+                  .lpf('c6')
                   .out()
             "#,
         },
@@ -102,7 +102,7 @@ const PULSE_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const seq = $p('c2 c2 eb2 g1').c
                 $pulse(seq)
-                  .$.lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)
+                  .lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)
                   .out()
             "#,
         },

@@ -44,7 +44,7 @@ const CURVE_DOCS: ModuleDocs = ModuleDocs {
         title: "Snappy filter envelope",
         code: r#"
             $saw('c2')
-              .$.lpf(
+              .lpf(
                 $curve(
                   $adsr($clock.o.beatTrigger, { decay: 0.3 }),
                   3,

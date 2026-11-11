@@ -12,9 +12,9 @@ const layout: CodeStyle = {
     useTabs: false,
 };
 
-/** The panel's anchor: the `$eq` callee, or the `eq` of a `.$.eq(` chain. */
+/** The panel's anchor: the `$eq` callee, or the `eq` of a `.eq(` chain. */
 const anchorOf = (source: string) =>
-    source.includes('.$.eq(')
+    source.includes('.eq(')
         ? source.lastIndexOf('eq(')
         : source.lastIndexOf('$eq(');
 

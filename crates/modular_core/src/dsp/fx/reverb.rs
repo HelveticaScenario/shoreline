@@ -254,15 +254,16 @@ const REVERB_DOCS: ModuleDocs = ModuleDocs {
     summary: "Stereo room and hall reverb",
     description: "A dense, natural-sounding reverb for anything from small rooms to long halls, \
                   keeping a stereo source's left and right apart in the tail. Output is fully \
-                  wet, so blend it with `.$m.unstable.reverb(mix)` or send to it from a bus.",
+                  wet, so blend it with `.wet(mix)` or send to it from a bus.",
     categories: &[ModuleCategory::Effect],
     sections: &[],
     examples: &[DocExample {
         title: "Pad in a wide hall",
         code: r#"
             $saw($chord('D3[m7]'))
-              .$.lpf('d5', 1)
-              .$m.unstable.reverb(2.5, { decay: 3, size: 2 })
+              .lpf('d5', 1)
+              .unstable.reverb({ decay: 3, size: 2 })
+              .wet(2.5)
               .out()
         "#,
     }],

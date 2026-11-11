@@ -70,7 +70,7 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
             title: "Thick seven-voice saw",
             code: r#"
                 $saw($unison('c3', 7, 3))
-                  .$.lpf('c6', 1)
+                  .lpf('c6', 1)
                   .out()
             "#,
         },
