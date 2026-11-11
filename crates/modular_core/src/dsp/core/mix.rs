@@ -1,9 +1,14 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use std::mem::MaybeUninit;
+use std::ops::Range;
+
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
+    block_input::{InputScratch, OptionBlockInput, SCRATCH_LEN},
+    dsp::utils::sanitize,
     poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
@@ -100,7 +105,7 @@ const MIX_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$mix", docs = MIX_DOCS, channels_derive = mix_derive_channel_count, args(inputs))]
+#[module(name = "$mix", docs = MIX_DOCS, channels_derive = mix_derive_channel_count, args(inputs), block)]
 pub struct Mix {
     outputs: MixOutputs,
     params: MixParams,
@@ -108,6 +113,75 @@ pub struct Mix {
 }
 
 message_handlers!(impl Mix {});
+
+/// Max mode: keep the value of largest magnitude. NaN comparisons are false,
+/// so NaN never replaces a finite best.
+#[inline(always)]
+fn fold_max(best_abs: &mut f32, best_val: &mut f32, v: f32) {
+    if v.abs() > *best_abs {
+        *best_abs = v.abs();
+        *best_val = v;
+    }
+}
+
+/// Max mode's result from a fold seeded with `best_abs = -1`.
+#[inline(always)]
+fn max_result(best_abs: f32, best_val: f32) -> f32 {
+    if best_abs >= 0.0 { best_val } else { 0.0 }
+}
+
+/// Min mode: keep the nonzero value of smallest magnitude.
+#[inline(always)]
+fn fold_min(best_abs: &mut f32, best_val: &mut f32, v: f32) {
+    if v != 0.0 && v.abs() < *best_abs {
+        *best_abs = v.abs();
+        *best_val = v;
+    }
+}
+
+/// Min mode's result from a fold seeded with `best_abs = inf`.
+#[inline(always)]
+fn min_result(best_abs: f32, best_val: f32) -> f32 {
+    if best_abs.is_finite() { best_val } else { 0.0 }
+}
+
+/// The gain voltage as a multiplier: a cubic curve with 5 V at unity. The cube
+/// is multiplied out, which matches `powf(3.0)` bit for bit on finite inputs.
+#[inline(always)]
+fn gain_curve(amp: f32) -> f32 {
+    let normalized = (amp.abs() * (1.0 / 5.0)).max(0.0);
+    amp.signum() * (normalized * normalized * normalized)
+}
+
+/// Initialise `len` values at `buffer` to `value` and borrow them.
+fn init_slice(buffer: &mut MaybeUninit<[f32; SCRATCH_LEN]>, len: usize, value: f32) -> &mut [f32] {
+    let data = buffer.as_mut_ptr() as *mut f32;
+    // SAFETY: `len <= SCRATCH_LEN`, and every borrowed value is written first.
+    unsafe {
+        for k in 0..len {
+            data.add(k).write(value);
+        }
+        std::slice::from_raw_parts_mut(data, len)
+    }
+}
+
+/// Call `f(n, row)` with each input's row for the `n`th slot of `range`, input
+/// by input. A row holds just that input's channels.
+#[inline(always)]
+fn for_each_input_row(
+    inputs: &[PolySignal],
+    range: Range<usize>,
+    mut f: impl FnMut(usize, &[f32]),
+) -> Option<()> {
+    for input in inputs {
+        let mut scratch = InputScratch::new();
+        let rows = input.block_input(range.clone(), input.channels(), &mut scratch)?;
+        for (n, i) in range.clone().enumerate() {
+            f(n, rows.row(i));
+        }
+    }
+    Some(())
+}
 
 #[doc(hidden)]
 pub fn __bench_make_mix(params: MixParams) -> Mix {
@@ -194,17 +268,9 @@ impl Mix {
                         if channel >= input.channels() {
                             continue;
                         }
-                        let v = input.get_value(channel);
-                        let av = v.abs();
-                        // NaN comparisons return false, so NaN never replaces
-                        // a finite best — matches the old `partial_cmp().
-                        // unwrap_or(Equal)` semantics enough for no-panic.
-                        if av > best_abs {
-                            best_abs = av;
-                            best_val = v;
-                        }
+                        fold_max(&mut best_abs, &mut best_val, input.get_value(channel));
                     }
-                    pre_gain_values[channel] = if best_abs >= 0.0 { best_val } else { 0.0 };
+                    pre_gain_values[channel] = max_result(best_abs, best_val);
                 }
             }
             MixMode::Min => {
@@ -215,34 +281,133 @@ impl Mix {
                         if channel >= input.channels() {
                             continue;
                         }
-                        let v = input.get_value(channel);
-                        if v == 0.0 {
-                            continue;
-                        }
-                        let av = v.abs();
-                        if av < best_abs {
-                            best_abs = av;
-                            best_val = v;
-                        }
+                        fold_min(&mut best_abs, &mut best_val, input.get_value(channel));
                     }
-                    pre_gain_values[channel] = if best_abs.is_finite() { best_val } else { 0.0 };
+                    pre_gain_values[channel] = min_result(best_abs, best_val);
                 }
             }
         }
 
-        // Apply gain with cycling on pre_gain_values. `n * n * n` matches
-        // `powf(3.0)` bit for bit on finite inputs without the generic powf
-        // call.
+        // Apply gain with cycling on pre_gain_values. Outside a glide the gain
+        // reads raw, exactly as `process_block` does.
         for i in 0..output_channels {
             let pre_gain_index = i % max_input_channels;
             let pre_gain_value = pre_gain_values[pre_gain_index];
-            let amp_val = gain.value_or(i, 5.0);
-            let normalized = (amp_val.abs() * (1.0 / 5.0)).max(0.0);
-            let curved = amp_val.signum() * (normalized * normalized * normalized);
-            self.channel_state[i].update(curved, gain.glide_mark(i), sample_rate);
-            let gain_value = *self.channel_state[i];
+            let gain_value = self.channel_state[i].follow(
+                gain_curve(gain.value_or(i, 5.0)),
+                gain.glide_mark(i),
+                sample_rate,
+            );
             self.outputs.sample.set(i, pre_gain_value * gain_value);
         }
+    }
+
+    fn process_block(
+        &mut self,
+        outputs: &mut MixBlockOutputs,
+        range: Range<usize>,
+        _sample_rate: f32,
+    ) -> Option<()> {
+        let output_channels = self.channel_count();
+        let inputs = &self.params.inputs;
+        let gain_param = &self.params.gain;
+        let glides = &mut self.channel_state[..output_channels];
+        let out = &mut outputs.sample;
+        if glides
+            .iter()
+            .enumerate()
+            .any(|(i, glide)| glide.will_glide(gain_param.glide_mark(i)))
+        {
+            return None;
+        }
+        if inputs.is_empty() {
+            for i in range {
+                out.slot_mut(i).fill(0.0);
+            }
+            return Some(());
+        }
+        // Inputs fold into per-slot values over the widest input's channels;
+        // a narrower input leaves its missing channels out.
+        let width = inputs.iter().map(PolySignal::channels).max().unwrap_or(1);
+        let len = range.len() * width;
+        if len > SCRATCH_LEN {
+            return None;
+        }
+        let mut gain_scratch = InputScratch::new();
+        let gain =
+            gain_param.block_input_or(range.clone(), output_channels, 5.0, &mut gain_scratch)?;
+
+        // `pre` ends up holding each slot's pre-gain value per channel.
+        let (mut pre_buffer, mut best_buffer) = (MaybeUninit::uninit(), MaybeUninit::uninit());
+        let pre = init_slice(&mut pre_buffer, len, 0.0);
+        match self.params.mode {
+            MixMode::Sum => {
+                for_each_input_row(inputs, range.clone(), |n, row| {
+                    for (sum, &v) in pre[n * width..].iter_mut().zip(row) {
+                        *sum += v;
+                    }
+                })?;
+            }
+            MixMode::Average => {
+                let mut counts = [0u32; PORT_MAX_CHANNELS];
+                for input in inputs.iter() {
+                    for count in &mut counts[..input.channels()] {
+                        *count += 1;
+                    }
+                }
+                for_each_input_row(inputs, range.clone(), |n, row| {
+                    for (sum, &v) in pre[n * width..].iter_mut().zip(row) {
+                        *sum += v;
+                    }
+                })?;
+                for slot in pre.chunks_exact_mut(width) {
+                    for (value, &count) in slot.iter_mut().zip(&counts) {
+                        *value = if count > 0 {
+                            *value / count as f32
+                        } else {
+                            0.0
+                        };
+                    }
+                }
+            }
+            MixMode::Max => {
+                let best = init_slice(&mut best_buffer, len, -1.0);
+                for_each_input_row(inputs, range.clone(), |n, row| {
+                    let slots = pre[n * width..].iter_mut().zip(&mut best[n * width..]);
+                    for ((value, best_abs), &v) in slots.zip(row) {
+                        fold_max(best_abs, value, v);
+                    }
+                })?;
+                for (value, &best_abs) in pre.iter_mut().zip(best.iter()) {
+                    *value = max_result(best_abs, *value);
+                }
+            }
+            MixMode::Min => {
+                let best = init_slice(&mut best_buffer, len, f32::INFINITY);
+                for_each_input_row(inputs, range.clone(), |n, row| {
+                    let slots = pre[n * width..].iter_mut().zip(&mut best[n * width..]);
+                    for ((value, best_abs), &v) in slots.zip(row) {
+                        fold_min(best_abs, value, v);
+                    }
+                })?;
+                for (value, &best_abs) in pre.iter_mut().zip(best.iter()) {
+                    *value = min_result(best_abs, *value);
+                }
+            }
+        }
+
+        for (n, i) in range.clone().enumerate() {
+            let pre = &pre[n * width..(n + 1) * width];
+            let gains = gain.row(i);
+            for (ch, value) in out.slot_mut(i).iter_mut().enumerate() {
+                *value = sanitize(pre[ch % width] * gain_curve(gains[ch]));
+            }
+        }
+        let last = gain.row(range.end - 1);
+        for (i, glide) in glides.iter_mut().enumerate() {
+            glide.settle(gain_curve(last[i]), gain_param.glide_mark(i));
+        }
+        Some(())
     }
 }
 

@@ -14,7 +14,7 @@ use std::sync::Arc;
 use modular_core::Patch;
 use modular_core::dsp::get_params_deserializers;
 use modular_core::params::DeserializedParams;
-use modular_core::types::{ProcessingMode, SampleBuffer, WavData};
+use modular_core::types::{ProcessingMode, SameIds, SampleBuffer, WavData};
 use serde_json::{Value, json};
 
 pub const SAMPLE_RATE: f32 = 48000.0;
@@ -190,6 +190,31 @@ pub fn check_paths_agree(module_type: &str, params: Value) {
                 "{module_type} {params}: src {src_mode:?}, steps {steps:?}"
             );
         }
+    }
+}
+
+/// `dut` swapped from `before` to `after` params after `BLOCKS` blocks, as the
+/// audio thread swaps patches, then rendered on: the block path matches the
+/// per-sample path before, through and after any glide the swap starts.
+pub fn check_swap_agrees(module_type: &str, before: Value, after: Value) {
+    let run = |dut_mode: ProcessingMode, steps: &[usize]| {
+        let old = build(ProcessingMode::Block, dut_mode, module_type, before.clone());
+        let (mut out, _, _) = render(&old, steps);
+        let new = build(ProcessingMode::Block, dut_mode, module_type, after.clone());
+        for (id, module) in &new.sampleables {
+            module.transfer_state_from(old.sampleables[id].as_ref(), &SameIds);
+        }
+        new.connect_all();
+        out.extend(render(&new, steps).0);
+        out
+    };
+    let expected = run(ProcessingMode::Sample, &[BLOCK_SIZE]);
+    for steps in STEP_PATTERNS {
+        assert_eq!(
+            run(ProcessingMode::Block, steps),
+            expected,
+            "{module_type} {before} → {after}: steps {steps:?}"
+        );
     }
 }
 
