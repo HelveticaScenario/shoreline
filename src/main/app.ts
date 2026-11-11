@@ -1136,7 +1136,6 @@ registerIPCHandler(
                     errors,
                     interpolationResolutions: interpolationResolutionsRecord,
                     moduleIdRemap,
-                    outputResolutions,
                     sliders,
                     sourceLocationMap: sourceLocationRecord,
                     success: false,

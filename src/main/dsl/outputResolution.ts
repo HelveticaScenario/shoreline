@@ -5,6 +5,7 @@
  * always explicit.
  */
 
+import type { ModuleSchema } from '@modular/core';
 import {
     chooseOutput,
     type OutputClass,
@@ -16,30 +17,36 @@ import { captureSourceLocation } from './captureSourceLocation';
 const OUTPUT_SET = Symbol('outputSet');
 
 /** A module's outputs, keyed by the property names they have on the root. */
-interface OutputSet<V> {
+interface OutputSet {
     outputs: readonly ResolvableOutput[];
-    values: Readonly<Record<string, V>>;
+    values: Readonly<Record<string, unknown>>;
 }
 
-type SourceLocation = { line: number; column: number };
+/** The outputs of `schema` under the property names `propertyName` gives them. */
+export function resolvableOutputs(
+    schema: ModuleSchema,
+    propertyName: (output: string) => string,
+): ResolvableOutput[] {
+    return (schema.outputs ?? []).map((o) => ({
+        default: o.default,
+        name: propertyName(o.name),
+        outputType: o.outputType,
+    }));
+}
+
+/** A call's position in the patch source, as `captureSourceLocation` reads it. */
+export type CallSite = { line: number; column: number };
 
 /** Tag `root` as standing for every output in `set`. */
-export function markRoot<V>(root: object, set: OutputSet<V>): void {
+export function markRoot(root: object, set: OutputSet): void {
     Object.defineProperty(root, OUTPUT_SET, { value: set });
 }
 
-function outputSetOf(value: unknown): OutputSet<unknown> | undefined {
+function outputSetOf(value: unknown): OutputSet | undefined {
     if (typeof value !== 'object' || value === null) {
         return undefined;
     }
-    return (value as { [OUTPUT_SET]?: OutputSet<unknown> })[OUTPUT_SET];
-}
-
-/** The user-facing call a chain method (`.amp`, `.out`, …) is running for. */
-interface ChainCall {
-    receiver: unknown;
-    args: readonly unknown[];
-    site: SourceLocation | undefined;
+    return (value as { [OUTPUT_SET]?: OutputSet })[OUTPUT_SET];
 }
 
 /**
@@ -48,7 +55,7 @@ interface ChainCall {
  */
 export class OutputResolver {
     readonly records: OutputResolutionRecord[] = [];
-    private chain: ChainCall | null = null;
+    private inChainCall = false;
 
     /**
      * The output `value` contributes to an input of class `inputClass`;
@@ -57,7 +64,7 @@ export class OutputResolver {
     resolve(
         value: unknown,
         inputClass: OutputClass,
-        site: SourceLocation | undefined,
+        site: CallSite | undefined,
         slot: string,
     ): unknown {
         const set = outputSetOf(value);
@@ -65,62 +72,56 @@ export class OutputResolver {
             return value;
         }
         const name = chooseOutput(set.outputs, inputClass);
-        if (this.chain) {
-            const chainSlot = this.chainArgSlot(value);
-            if (chainSlot !== undefined) {
-                this.record(this.chain.site ?? site, chainSlot, name);
-            }
-        } else {
+        if (!this.inChainCall) {
             this.record(site, slot, name);
         }
         return set.values[name];
     }
 
     /**
-     * Run a chain method's body as the user-facing call on `receiver` with
-     * `args`, so roots resolved inside it are recorded against that call.
-     * Every chain method reads its receiver as `cv`.
+     * Run a chain method's body as one user-facing call. A chain method reads
+     * its receiver and its signal arguments as `cv`, so the roots among them
+     * are recorded here against that call, and the modules the body builds
+     * record nothing.
      */
     withChainCall<T>(
         receiver: unknown,
         args: readonly unknown[],
         body: () => T,
     ): T {
-        if (this.chain) {
+        if (this.inChainCall) {
             return body();
         }
-        const set = outputSetOf(receiver);
-        const site = set ? captureSourceLocation() : undefined;
-        if (set) {
-            this.record(site, 'receiver', chooseOutput(set.outputs, 'cv'));
+        const roots: [slot: string, set: OutputSet][] = [];
+        const collect = (slot: string, value: unknown): void => {
+            const set = outputSetOf(value);
+            if (set) {
+                roots.push([slot, set]);
+            }
+        };
+        collect('receiver', receiver);
+        args.forEach((arg, i) => {
+            collect(String(i), arg);
+            if (Array.isArray(arg)) {
+                arg.forEach((element, j) => collect(`${i}.${j}`, element));
+            }
+        });
+        if (roots.length > 0) {
+            const site = captureSourceLocation();
+            for (const [slot, set] of roots) {
+                this.record(site, slot, chooseOutput(set.outputs, 'cv'));
+            }
         }
-        this.chain = { args, receiver, site };
+        this.inChainCall = true;
         try {
             return body();
         } finally {
-            this.chain = null;
+            this.inChainCall = false;
         }
-    }
-
-    private chainArgSlot(value: unknown): string | undefined {
-        const { args } = this.chain!;
-        for (let i = 0; i < args.length; i++) {
-            const arg = args[i];
-            if (arg === value) {
-                return String(i);
-            }
-            if (Array.isArray(arg)) {
-                const j = arg.indexOf(value);
-                if (j !== -1) {
-                    return `${i}.${j}`;
-                }
-            }
-        }
-        return undefined;
     }
 
     private record(
-        site: SourceLocation | undefined,
+        site: CallSite | undefined,
         slot: string,
         output: string,
     ): void {

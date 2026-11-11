@@ -1,3 +1,4 @@
+import { refusePattern } from '../patternKinds';
 import {
     MAX_SCOPE_TRACES,
     MAX_VIDEO_TAPS,
@@ -182,6 +183,7 @@ export class VideoGraphBuilder implements VideoCore {
     }
 
     value(fn: string, name: string, v: unknown): VideoValue {
+        refusePattern(v, `${fn}: ${name}`);
         if (typeof v === 'number') {
             // The shader holds constants as f32, whose range ends near 3.4e38.
             if (!Number.isFinite(Math.fround(v))) {
@@ -227,6 +229,7 @@ export class VideoGraphBuilder implements VideoCore {
         position: VideoSource = this.ramp('horizontal'),
         config?: VideoAudioConfig,
     ): VideoOutput => {
+        refusePattern(signal, '$v.fromAudio: signal');
         if (
             !(
                 signal instanceof ModuleOutput ||
@@ -371,16 +374,17 @@ export class VideoGraphBuilder implements VideoCore {
         if (Array.isArray(value)) {
             return value.flatMap((v: unknown) => this.channelsOf(fn, name, v));
         }
-        const played =
+        refusePattern(value, `${fn}: ${name}`);
+        const signal =
             typeof value === 'number' || typeof value === 'string'
                 ? this.host.constantSignal(value)
                 : value;
-        if (played instanceof ModuleOutput) return [played];
-        if (played instanceof BaseCollection) {
-            if (played.length === 0) {
+        if (signal instanceof ModuleOutput) return [signal];
+        if (signal instanceof BaseCollection) {
+            if (signal.length === 0) {
                 throw new Error(`${fn}: ${name} has no channels`);
             }
-            return [...played];
+            return [...signal];
         }
         throw new Error(
             `${fn}: ${name} must be an audio signal, a number or an array of them, got ${describe(value)}`,

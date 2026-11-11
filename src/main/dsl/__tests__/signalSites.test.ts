@@ -71,7 +71,7 @@ describe('static resolution', () => {
     test('a cycle resolves as argument, chain receiver and method receiver', () => {
         expect(
             hints(
-                `const cyc = $p('0*8').cycle()\ncyc.$.perc()\n$adsr(cyc)\ncyc.amp(2).out()`,
+                `const cyc = $p('0*8').c\ncyc.$.perc()\n$adsr(cyc)\ncyc.amp(2).out()`,
             ),
         ).toEqual(['cyc‹trig›', '$adsr(cyc‹gate›', 'cyc‹cv›']);
     });
@@ -107,18 +107,18 @@ describe('static resolution', () => {
 
     test('a config-object input resolves by its own type', () => {
         expect(
-            hints(`const seq = $p('c e').cycle()\n$saw('c', { sync: seq })`),
+            hints(`const seq = $p('c e').c\n$saw('c', { sync: seq })`),
         ).toEqual([' { sync: seq‹trig›']);
     });
 
     test('a chain method argument reads cv', () => {
-        expect(
-            hints(`const seq = $p('0 2 5').cycle()\n$sine('c').amp(seq)`),
-        ).toEqual(["'c').amp(seq‹cv›"]);
+        expect(hints(`const seq = $p('0 2 5').c\n$sine('c').amp(seq)`)).toEqual(
+            ["'c').amp(seq‹cv›"],
+        );
     });
 
     test('indexing a root reads cv', () => {
-        expect(hints(`const seq = $p('c e').cycle()\n$perc(seq[0])`)).toEqual([
+        expect(hints(`const seq = $p('c e').c\n$perc(seq[0])`)).toEqual([
             '$perc(seq‹cv›',
         ]);
     });
@@ -126,9 +126,36 @@ describe('static resolution', () => {
     test('named outputs, plain signals and pattern params get no site', () => {
         expect(
             hints(
-                `const seq = $p('c e g').cycle()\n$saw(seq.cv).amp($perc(seq.trig)).out()\n$sine('c').amp(2)\n$cycle($p('c'))`,
+                `const seq = $p('c e g').c\n$saw(seq.cv).amp($perc(seq.trig)).out()\n$sine('c').amp(2)\n$cycle($p('c'))`,
             ),
         ).toEqual([]);
+    });
+
+    test('a signal group resolves the values inside it', () => {
+        expect(
+            hints(`const seq = $p('c e').c\n$perc($g1([seq, seq]))`),
+        ).toEqual(['erc($g1([seq‹trig›', 'g1([seq, seq‹trig›']);
+    });
+
+    test('a mix amount reads cv', () => {
+        expect(
+            hints(
+                `const seq = $p('1 2').c\n$sine('c').$m.lpf(seq, 'c')\n$sine('c').pipeMix((x) => x, seq)`,
+            ),
+        ).toEqual([').$m.lpf(seq‹cv›', 'x) => x, seq‹cv›']);
+    });
+
+    test('only a chain method reads its receiver', () => {
+        expect(
+            hints(`const seq = $p('c e').c\nseq.length\nseq.toString()`),
+        ).toEqual([]);
+    });
+
+    test('an array of roots is marked as one', () => {
+        const sites = collect(
+            `const seq = $p('c e').c\nconst seqs = [seq, seq]\n$perc(seqs)\n$perc(seq)`,
+        );
+        expect(sites.map((site) => site.array)).toEqual([true, false]);
     });
 
     test('an untyped value is left for the runtime', () => {
@@ -142,15 +169,19 @@ describe('agreement with the runtime', () => {
     const sources = [
         `const seq = $p('c e g').c\n$saw(seq).amp($perc(seq)).out()`,
         `$saw($p('c e g').c).amp($perc($p('c*4').c)).out()`,
-        `const cyc = $p('0*8').cycle()\ncyc.$.perc().out()\n$adsr(cyc).out()\ncyc.amp(2).out()`,
-        `$p('0*8').cycle().$.adsr().out()`,
+        `const cyc = $p('0*8').c\ncyc.$.perc().out()\n$adsr(cyc).out()\ncyc.amp(2).out()`,
+        `$p('0*8').c.$.adsr().out()`,
         `const seqs = []\nfor (let i = 0; i < 3; i++) {\n    seqs.push($p('c e g').c)\n}\n$sine(seqs).amp($perc(seqs)).out()`,
         `const a = $p('c').c\nconst b = $p('e').c\n$perc([a, b]).out()`,
-        `const seq = $p('c e').cycle()\n$saw(seq, { sync: seq }).out()`,
+        `const seq = $p('c e').c\n$saw(seq, { sync: seq }).out()`,
         `function voice(s) {\n    return $saw(s).amp($perc(s))\n}\nvoice($p('c e g').c).out()`,
         `$perc($clock).out()\n$tr808.kick($clock).out()`,
-        `const seq = $p('c e').cycle()\nseq.out()\n$sine('c').amp(seq).out()`,
+        `const seq = $p('c e').c\nseq.out()\n$sine('c').amp(seq).out()`,
         `$sine('c').$.lpf($p('c5 c6').c).out()`,
+        `const seq = $p('c e').c\n$saw($g1([seq, seq]), { sync: $g2(seq) }).out()`,
+        `function f(s, m) {\n    return s.$m.lpf(m, 'c')\n}\nf($clock, $p('1 2').c)`,
+        `function f(m) {\n    return $sine('c').pipeMix((x) => x.$.lpf('c'), m)\n}\nf($p('1 2').c).out()`,
+        `function f(s) {\n    return $sine('c').range(s, s)\n}\nf($p('0 1').c).out()`,
     ];
 
     test.each(sources)('%s', (source) => {

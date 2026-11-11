@@ -2,7 +2,6 @@ import type { Monaco } from '../../hooks/useCustomMonaco';
 import { applyDslLibToMonaco } from './monacoHelpers';
 import { registerJsDocLinkProviders } from './jsDocLinkProviders';
 import { registerOutputResolutionHints } from './outputResolutionHints';
-import electronAPI from '../../electronAPI';
 import type { ModuleSchema } from '@modular/core';
 
 export interface MonacoSetupOptions {
@@ -86,9 +85,7 @@ export function setupMonacoJavascript(
         monaco,
         options.schemas ?? [],
     );
-    const outputHints = registerOutputResolutionHints(monaco, () =>
-        electronAPI.getSignalSiteTables(),
-    );
+    const outputHints = registerOutputResolutionHints(monaco);
 
     return () => {
         outputHints.dispose();

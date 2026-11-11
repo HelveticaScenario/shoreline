@@ -15,6 +15,7 @@ import {
     type SignalSite,
     type SignalSiteTables,
 } from '../../../shared/dsl/signalSites';
+import electronAPI from '../../electronAPI';
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import type { DslTypeScriptWorkerApi } from './dslTsWorker';
 
@@ -24,6 +25,8 @@ interface RuntimeFill {
     /** The value's text when the buffer ran. */
     text: string;
     outputs: string[];
+    /** Whether the value is an array whose elements the outputs belong to. */
+    array: boolean;
 }
 
 const runtimeFills = new WeakMap<editor.ITextModel, RuntimeFill[]>();
@@ -33,6 +36,13 @@ const fillListeners = new Set<() => void>();
 
 /** Set once the provider is registered; a run before that has no hints to fill. */
 let active: { monaco: Monaco; tables: Promise<SignalSiteTables> } | null = null;
+
+/** An output name in `outputs`, no more than once. */
+function addOutput(outputs: string[], output: string): void {
+    if (!outputs.includes(output)) {
+        outputs.push(output);
+    }
+}
 
 async function signalSites(
     monaco: Monaco,
@@ -67,38 +77,41 @@ function tailRange(
 }
 
 /**
- * Attach the resolutions recorded by a run of `model`'s current text to the
- * sites the type checker left unresolved.
+ * Attach the resolutions a run of `source` recorded to the sites the type
+ * checker left unresolved. They are dropped when `model` no longer reads as
+ * `source`.
  */
 export async function applyRuntimeResolutions(
     model: editor.ITextModel,
+    source: string,
     records: readonly OutputResolutionRecord[],
 ): Promise<void> {
-    if (!active) {
+    if (!active || model.getValue() !== source) {
         return;
     }
     const { monaco } = active;
-    const version = model.getVersionId();
     const sites = await signalSites(monaco, model, await active.tables);
-    if (model.isDisposed() || model.getVersionId() !== version) {
+    if (model.isDisposed() || model.getValue() !== source) {
         return;
     }
 
-    const outputsBySite = new Map<SignalSite, string[]>();
+    const fillsBySite = new Map<
+        SignalSite,
+        { outputs: string[]; array: boolean }
+    >();
     for (const record of records) {
         const site = siteOfRecord(sites, record);
         if (!site || site.output !== null) {
             continue;
         }
-        const outputs = outputsBySite.get(site) ?? [];
-        if (!outputs.includes(record.output)) {
-            outputs.push(record.output);
-        }
-        outputsBySite.set(site, outputs);
+        const fill = fillsBySite.get(site) ?? { array: false, outputs: [] };
+        addOutput(fill.outputs, record.output);
+        fill.array ||= record.slot !== site.slot;
+        fillsBySite.set(site, fill);
     }
 
-    const entries = [...outputsBySite].map(([site, outputs]) => ({
-        outputs,
+    const entries = [...fillsBySite].map(([site, fill]) => ({
+        ...fill,
         ...tailRange(monaco, model, site.anchor),
     }));
     const previous = runtimeFills.get(model) ?? [];
@@ -115,7 +128,8 @@ export async function applyRuntimeResolutions(
     );
     runtimeFills.set(
         model,
-        entries.map(({ outputs, text }, i) => ({
+        entries.map(({ array, outputs, text }, i) => ({
+            array,
             decorationId: ids[i],
             outputs,
             text,
@@ -131,6 +145,7 @@ function hint(
     model: editor.ITextModel,
     offset: number,
     outputs: readonly string[],
+    array: boolean,
 ): languages.InlayHint {
     const position = model.getPositionAt(offset);
     const label = outputs.map((output) => `.${output}`).join(' | ');
@@ -138,9 +153,9 @@ function hint(
         label,
         position,
         // Accepting the hint writes the output into the code. A site that
-        // resolved several ways has no single text to write.
+        // resolved several ways, or an array, has no single text to write.
         textEdits:
-            outputs.length === 1
+            outputs.length === 1 && !array
                 ? [
                       {
                           range: monaco.Range.fromPositions(position),
@@ -151,15 +166,9 @@ function hint(
     };
 }
 
-/**
- * Register the hints for JavaScript models. `loadTables` is called once, on
- * first use.
- */
-export function registerOutputResolutionHints(
-    monaco: Monaco,
-    loadTables: () => Promise<SignalSiteTables>,
-): IDisposable {
-    active ??= { monaco, tables: loadTables() };
+/** Register the hints for JavaScript models. */
+export function registerOutputResolutionHints(monaco: Monaco): IDisposable {
+    active ??= { monaco, tables: electronAPI.getSignalSiteTables() };
     const { tables } = active;
 
     const provider: languages.InlayHintsProvider = {
@@ -174,7 +183,15 @@ export function registerOutputResolutionHints(
                 if (site.output === null) {
                     unresolved.add(site.anchor);
                 } else {
-                    hints.push(hint(monaco, model, site.anchor, [site.output]));
+                    hints.push(
+                        hint(
+                            monaco,
+                            model,
+                            site.anchor,
+                            [site.output],
+                            site.array,
+                        ),
+                    );
                 }
             }
             // A fill stands only while its value reads as it did when run
@@ -186,7 +203,9 @@ export function registerOutputResolutionHints(
                 }
                 const offset = model.getOffsetAt(tracked.getEndPosition());
                 if (unresolved.has(offset)) {
-                    hints.push(hint(monaco, model, offset, fill.outputs));
+                    hints.push(
+                        hint(monaco, model, offset, fill.outputs, fill.array),
+                    );
                 }
             }
             return {

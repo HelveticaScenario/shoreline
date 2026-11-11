@@ -367,7 +367,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Naming an output yourself always uses that output, whatever the input.',
         examples: [
             "const seq = $p('c e g a').c\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope",
-            "$p('c3 ~ g3 ~').c.$.adsr().out()   // the gate opens the envelope",
+            "const seq = $p('c3 ~ g3 ~').c\n$sine(seq).amp(seq.$.adsr()).out()   // the gate opens the envelope",
             "const seq = $p('c e g a').c\n$sine(seq).amp($adsr(seq.gate)).amp(seq.velocity).out()   // named outputs are used as they are",
         ],
         name: 'Multi-output modules',
@@ -375,7 +375,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     'Mono<Signal>': {
-        definition: 'Signal | Signal[] | Iterable<ModuleOutput>',
+        definition:
+            'Signal | Iterable<ModuleOutput> | (Signal | Iterable<ModuleOutput>)[]',
         description:
             'A signal input that accepts polyphonic connections but sums all channels down to a single mono value. ' +
             'Structurally identical to Poly<Signal>, but signals that the module will not produce per-voice output from this parameter. ' +
@@ -407,7 +408,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     'Poly<Signal>': {
-        definition: 'Signal | Signal[] | Iterable<ModuleOutput>',
+        definition:
+            'Signal | Iterable<ModuleOutput> | (Signal | Iterable<ModuleOutput>)[] | SignalGroup',
         description:
             'A potentially multi-channel signal. Can be an array of Signals for polyphonic patches, ' +
             'or an iterable of ModuleOutputs. When used as input to a module, arrays are expanded to create multiple voices.',

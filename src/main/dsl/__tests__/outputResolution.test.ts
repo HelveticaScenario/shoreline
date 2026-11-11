@@ -33,27 +33,27 @@ function ports(source: string, moduleType: string, param: string): string[] {
 
 describe('resolution by input type', () => {
     test('a pitch input takes the cycle cv', () => {
-        expect(
-            ports(`$saw($p('c e g').cycle()).out()`, '$saw', 'freq'),
-        ).toEqual(['cv']);
+        expect(ports(`$saw($p('c e g').c).out()`, '$saw', 'freq')).toEqual([
+            'cv',
+        ]);
     });
 
     test('a trig input takes the cycle trig', () => {
-        expect(
-            ports(`$perc($p('c e g').cycle()).out()`, '$perc', 'trigger'),
-        ).toEqual(['trig']);
+        expect(ports(`$perc($p('c e g').c).out()`, '$perc', 'trigger')).toEqual(
+            ['trig'],
+        );
     });
 
     test('a gate input takes the cycle gate', () => {
-        expect(
-            ports(`$adsr($p('c e g').cycle()).out()`, '$adsr', 'gate'),
-        ).toEqual(['gate']);
+        expect(ports(`$adsr($p('c e g').c).out()`, '$adsr', 'gate')).toEqual([
+            'gate',
+        ]);
     });
 
     test('a control input takes the default, not another cv output', () => {
         expect(
             ports(
-                `$sine('c').amp($p('0 2 5').cycle()).out()`,
+                `$sine('c').amp($p('0 2 5').c).out()`,
                 '$scaleAndShift',
                 'scale',
             ),
@@ -93,7 +93,7 @@ describe('resolution by input type', () => {
     test('a config-object input resolves by its own type', () => {
         expect(
             ports(
-                `const seq = $p('c e').cycle()\n$saw(seq, { sync: seq }).out()`,
+                `const seq = $p('c e').c\n$saw(seq, { sync: seq }).out()`,
                 '$saw',
                 'sync',
             ),
@@ -104,11 +104,11 @@ describe('resolution by input type', () => {
 describe('explicit outputs', () => {
     test('a named output is never re-resolved', () => {
         expect(
-            ports(`$perc($p('c e g').cycle().cv).out()`, '$perc', 'trigger'),
+            ports(`$perc($p('c e g').c.cv).out()`, '$perc', 'trigger'),
         ).toEqual(['cv']);
-        expect(
-            ports(`$saw($p('c e g').cycle().trig).out()`, '$saw', 'freq'),
-        ).toEqual(['trig']);
+        expect(ports(`$saw($p('c e g').c.trig).out()`, '$saw', 'freq')).toEqual(
+            ['trig'],
+        );
     });
 
     test('the default output has a named property', () => {
@@ -143,24 +143,20 @@ $sine(seqs).amp($perc(seqs)).out()`;
 
 describe('chaining', () => {
     test('.$. resolves the receiver by the chained module', () => {
-        expect(
-            ports(`$p('0*8').cycle().$.perc().out()`, '$perc', 'trigger'),
-        ).toEqual(['trig']);
-        expect(
-            ports(`$p('0*8').cycle().$.adsr().out()`, '$adsr', 'gate'),
-        ).toEqual(['gate']);
-        expect(
-            ports(`$p('c e g').cycle().$.saw().out()`, '$saw', 'freq'),
-        ).toEqual(['cv']);
+        expect(ports(`$p('0*8').c.$.perc().out()`, '$perc', 'trigger')).toEqual(
+            ['trig'],
+        );
+        expect(ports(`$p('0*8').c.$.adsr().out()`, '$adsr', 'gate')).toEqual([
+            'gate',
+        ]);
+        expect(ports(`$p('c e g').c.$.saw().out()`, '$saw', 'freq')).toEqual([
+            'cv',
+        ]);
     });
 
     test('a chain method reads its receiver as cv', () => {
         expect(
-            ports(
-                `$p('c e g').cycle().amp(2).out()`,
-                '$scaleAndShift',
-                'input',
-            ),
+            ports(`$p('c e g').c.amp(2).out()`, '$scaleAndShift', 'input'),
         ).toEqual(['cv']);
     });
 });
@@ -189,7 +185,7 @@ describe('resolution records', () => {
     });
 
     test('.$. records the chained module param', () => {
-        expect(records(`$p('0*8').cycle().$.perc().out()`)).toEqual([
+        expect(records(`$p('0*8').c.$.perc().out()`)).toEqual([
             '1 trigger trig',
         ]);
     });
@@ -197,13 +193,13 @@ describe('resolution records', () => {
     test('chain methods record the receiver and argument index', () => {
         expect(
             records(
-                `const seq = $p('c e g').cycle()\nseq.amp(2).out()\n$sine('c').amp(seq).out()`,
+                `const seq = $p('c e g').c\nseq.amp(2).out()\n$sine('c').amp(seq).out()`,
             ),
         ).toEqual(['2 receiver cv', '3 0 cv']);
     });
 
     test('a receiver that only reads outputs is recorded', () => {
-        expect(records(`const seq = $p('c e g').cycle()\nseq.out()`)).toEqual([
+        expect(records(`const seq = $p('c e g').c\nseq.out()`)).toEqual([
             '2 receiver cv',
         ]);
     });
@@ -211,7 +207,7 @@ describe('resolution records', () => {
     test('named outputs and single-output modules record nothing', () => {
         expect(
             records(
-                `const seq = $p('c e g').cycle()\n$saw(seq.cv).amp($perc(seq.trig)).out()`,
+                `const seq = $p('c e g').c\n$saw(seq.cv).amp($perc(seq.trig)).out()`,
             ),
         ).toEqual([]);
     });

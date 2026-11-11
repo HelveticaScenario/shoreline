@@ -26,7 +26,7 @@ import {
 } from './paramsSchema';
 import { captureSourceLocation } from './captureSourceLocation';
 import { OutputResolver } from './outputResolution';
-import { isPatternValue } from './patternKinds';
+import { isPatternValue, refusePattern } from './patternKinds';
 import {
     assertSignalGroupsTopLevelOnly,
     expandSignalGroups,
@@ -62,8 +62,6 @@ export interface ScopeConfig {
 export interface OutputSchemaWithRange {
     name: string;
     description: string;
-    outputType: string;
-    default?: boolean;
     polyphonic?: boolean;
     minValue?: number;
     maxValue?: number;
@@ -1391,6 +1389,7 @@ export class GraphBuilder {
         // needs no factory.
         let signal: FactoryFunction | undefined;
         const lift = (value: unknown): ModuleOutput[] => {
+            refusePattern(value, '$c: an argument');
             // Scalar literal checked before the iterable branch so a string is
             // one signal rather than spread into characters.
             if (typeof value === 'number' || typeof value === 'string') {
@@ -2872,6 +2871,12 @@ function crossfadeMix(
     const clampFactory = builder.getFactory('$clamp');
     const remapFactory = builder.getFactory('$remap');
     const mixFactory = builder.getFactory('$mix');
+    const amount = builder.outputResolver.resolve(
+        mix,
+        'cv',
+        captureSourceLocation(),
+        'mix',
+    ) as PolySignal;
     const arity = (a: Amplifiable): number =>
         a instanceof BaseCollection ? Math.max(1, a.length) : 1;
     const channels = Math.max(arity(original), arity(result));
@@ -2882,9 +2887,9 @@ function crossfadeMix(
     const wet = cycleToChannels(result as ModuleOutput | Collection, channels);
     return mixFactory([
         dry.amplitude(
-            clampFactory(remapFactory(mix, 5, 0, 0, 5), { max: 5, min: 0 }),
+            clampFactory(remapFactory(amount, 5, 0, 0, 5), { max: 5, min: 0 }),
         ),
-        wet.amplitude(clampFactory(mix, { max: 5, min: 0 }) as PolySignal),
+        wet.amplitude(clampFactory(amount, { max: 5, min: 0 }) as PolySignal),
     ]) as Collection;
 }
 
@@ -3102,71 +3107,4 @@ function valueToSignal(value: unknown): unknown {
     }
     // It's a number
     return value;
-}
-
-/**
- * Methods a user calls on an output or collection that read it, and their
- * signal arguments, as `cv`. `pipe` and `pipeMix` are absent: they run user
- * code, whose own calls are separate call sites.
- */
-export const CHAIN_METHODS = [
-    'amplitude',
-    'amp',
-    'shift',
-    'addHz',
-    'mulHz',
-    'gain',
-    'exp',
-    'add',
-    'sub',
-    'mul',
-    'div',
-    'round',
-    'floor',
-    'ceil',
-    'erratic',
-    'scope',
-    'out',
-    'outMono',
-    'send',
-    'mix',
-    'withRange',
-    'range',
-] as const;
-
-type ChainMethod = (this: unknown, ...args: unknown[]) => unknown;
-
-function builderOf(receiver: unknown): GraphBuilder | undefined {
-    if (receiver instanceof ModuleOutput) {
-        return receiver.builder;
-    }
-    if (receiver instanceof BaseCollection) {
-        return receiver.items[0]?.builder;
-    }
-    return undefined;
-}
-
-// Each chain method runs as one user-facing call, so a module root used as
-// its receiver or as an argument is recorded against that call.
-for (const proto of [
-    ModuleOutput.prototype,
-    ModuleOutputWithRange.prototype,
-    BaseCollection.prototype,
-    Collection.prototype,
-    CollectionWithRange.prototype,
-] as object[]) {
-    for (const name of CHAIN_METHODS) {
-        if (!Object.hasOwn(proto, name)) {
-            continue;
-        }
-        const method = (proto as Record<string, ChainMethod>)[name];
-        (proto as Record<string, ChainMethod>)[name] = function (...args) {
-            const builder = builderOf(this);
-            return builder
-                ? builder.outputResolver.withChainCall(this, args, () =>
-                      method.apply(this, args),
-                  )
-                : method.apply(this, args);
-        };
-    }
 }

@@ -173,7 +173,7 @@ describe('$v inputs from the audio graph', () => {
 
         it('rejects a pattern that is not played', () => {
             expect(() => exec(`$v.out($v.hsv($p('0 1')));`)).toThrow(
-                /hue must be a number, a video signal or an audio signal/,
+                /\$v\.hsv: hue is a pattern, not a signal/,
             );
         });
 

@@ -1,8 +1,8 @@
 /**
  * Finds every place in a patch where a value may be a multi-output module
- * root, and resolves the ones the type checker can name. The
- * editor shows a hint at each site; the runtime's resolution records fill in
- * the sites left unresolved here.
+ * root, and resolves the ones the type checker can name. The editor shows a
+ * hint at each site; the runtime's resolution records fill in the sites left
+ * unresolved here.
  *
  * Takes the `typescript` namespace as an argument: it runs inside Monaco's
  * TypeScript worker against the worker's own compiler.
@@ -22,6 +22,8 @@ export interface ModuleSiteInfo {
     positional: string[];
     /** Input class of every signal-taking param. */
     inputs: Record<string, OutputClass>;
+    /** Whether the module is a method of the `.$.` namespace. */
+    chainable: boolean;
 }
 
 /** Everything about the DSL the collector needs; plain data, built in main. */
@@ -30,8 +32,6 @@ export interface SignalSiteTables {
     roots: Record<string, ResolvableOutput[]>;
     /** Module calls, keyed by dotted call name (`$tr808.kick`). */
     modules: Record<string, ModuleSiteInfo>;
-    /** `.$.` method paths (`lpf`, `tr808.kick`) to module names. */
-    dollar: Record<string, string>;
     /** Methods on an output or collection that read it as `cv`. */
     chainMethods: string[];
 }
@@ -47,6 +47,8 @@ export interface SignalSite {
     anchor: number;
     /** The output the value stands for, or null when only a run can tell. */
     output: string | null;
+    /** Whether the value is an array, each element standing for `output`. */
+    array: boolean;
 }
 
 /**
@@ -78,8 +80,8 @@ export function siteOfRecord(
     }
 }
 
-/** Receiver members that pass the root on untouched, to user code. */
-const PASS_THROUGH_MEMBERS = new Set(['$', '$m', 'pipe', 'pipeMix']);
+/** The helpers that tag a param value into a cartesian signal group. */
+const SIGNAL_GROUP_HELPERS = new Set(['$g1', '$g2', '$g3']);
 
 /**
  * `undefined`: not a root. `null`: may be one, unknown until run. Otherwise
@@ -160,9 +162,16 @@ export function collectSignalSites(
         slot: string,
         anchorNode: TS.Node,
         output: Resolved,
+        array = false,
     ): void => {
         if (output !== undefined) {
-            sites.push({ ...call, anchor: anchorNode.getEnd(), output, slot });
+            sites.push({
+                ...call,
+                anchor: anchorNode.getEnd(),
+                array,
+                output,
+                slot,
+            });
         }
     };
 
@@ -185,11 +194,22 @@ export function collectSignalSites(
             });
             return;
         }
+        if (
+            ts.isCallExpression(value) &&
+            ts.isIdentifier(value.expression) &&
+            SIGNAL_GROUP_HELPERS.has(value.expression.text) &&
+            value.arguments.length === 1
+        ) {
+            emitValue(call, slot, value.arguments[0], inputClass);
+            return;
+        }
+        const type = checker.getTypeAtLocation(value);
         emit(
             call,
             slot,
             expression,
-            resolveType(checker.getTypeAtLocation(value), inputClass),
+            resolveType(type, inputClass),
+            checker.isArrayType(type) || checker.isTupleType(type),
         );
     };
 
@@ -294,10 +314,8 @@ export function collectSignalSites(
         }
         const site = position(callee.name);
         const dollar = dollarCall(callee);
-        const chained = dollar
-            ? tables.modules[tables.dollar[dollar.path]]
-            : undefined;
-        if (dollar && chained) {
+        const chained = dollar ? tables.modules[`$${dollar.path}`] : undefined;
+        if (dollar && chained?.chainable) {
             const receiverName = chained.positional[0];
             emitValue(
                 site,
@@ -305,12 +323,19 @@ export function collectSignalSites(
                 dollar.receiver,
                 chained.inputs[receiverName] ?? 'cv',
             );
-            emitModuleArgs(
-                site,
-                chained,
-                node.arguments.slice(dollar.withMix ? 1 : 0),
-                1,
-            );
+            const args = [...node.arguments];
+            if (dollar.withMix && args.length > 0) {
+                emitValue(site, 'mix', args.shift()!, 'cv');
+            }
+            emitModuleArgs(site, chained, args, 1);
+            return;
+        }
+        if (
+            callee.name.text === 'pipeMix' &&
+            node.arguments.length > 1 &&
+            receivesSignals(checker.getTypeAtLocation(callee.expression))
+        ) {
+            emitValue(site, 'mix', node.arguments[1], 'cv');
             return;
         }
         if (
@@ -323,32 +348,28 @@ export function collectSignalSites(
         }
     };
 
-    /** A member read off a root, other than one of its outputs, reads `cv`. */
+    /** The receiver of a chain method, which reads it as `cv`. */
     const visitMember = (node: TS.PropertyAccessExpression): void => {
-        const member = node.name.text;
-        if (PASS_THROUGH_MEMBERS.has(member)) {
+        const called =
+            ts.isCallExpression(node.parent) && node.parent.expression === node;
+        if (!called || !chainMethods.has(node.name.text)) {
             return;
         }
         const type = checker.getTypeAtLocation(node.expression);
         const outputs = outputsOf(type);
         if (outputs) {
-            if (!outputs.some((o) => o.name === member)) {
-                emit(
-                    position(node.name),
-                    'receiver',
-                    node.expression,
-                    chooseOutput(outputs, 'cv'),
-                );
-            }
-            return;
-        }
-        const called =
-            ts.isCallExpression(node.parent) && node.parent.expression === node;
-        if (called && chainMethods.has(member) && isUnknown(type)) {
+            emit(
+                position(node.name),
+                'receiver',
+                node.expression,
+                chooseOutput(outputs, 'cv'),
+            );
+        } else if (isUnknown(type)) {
             emit(position(node.name), 'receiver', node.expression, null);
         }
     };
 
+    /** An element read off a root is a channel of its `cv` output. */
     const visitIndex = (node: TS.ElementAccessExpression): void => {
         const type = checker.getTypeAtLocation(node.expression);
         const outputs = outputsOf(type);

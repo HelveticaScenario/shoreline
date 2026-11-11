@@ -9,13 +9,11 @@ import {
 } from './GraphBuilder';
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
-import type {
-    OutputClass,
-    ResolvableOutput,
-} from '../../shared/dsl/outputResolutionRule';
-import { markRoot } from './outputResolution';
+import type { OutputClass } from '../../shared/dsl/outputResolutionRule';
+import './chainMethods';
+import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
-import { isPatternValue } from './patternKinds';
+import { refusePattern } from './patternKinds';
 import { isSignalGroupLike } from './signalGroups';
 import { signalParamsOf } from './signalParams';
 import {
@@ -236,15 +234,6 @@ type ModuleReturn = SingleOutput | PolyOutput | MultiOutput;
 
 type FactoryFunction = (...args: any[]) => ModuleReturn;
 
-type SourceLocation = { line: number; column: number };
-
-/** Builds one module from call args at an explicit source location. */
-type Instantiator = (
-    args: any[],
-    sourceLocation: SourceLocation | undefined,
-    argumentSpans: ArgumentSpans | undefined,
-) => ModuleReturn;
-
 interface NamespaceTree {
     [key: string]: NamespaceTree | FactoryFunction;
 }
@@ -345,7 +334,6 @@ export class DSLContext {
     factories: Record<string, FactoryFunction> = {};
     namespaceTree: NamespaceTree = {};
     private builder: GraphBuilder;
-    private instantiators = new Map<string, Instantiator>();
 
     constructor(schemas: ModuleSchema[]) {
         this.builder = new GraphBuilder(schemas);
@@ -372,57 +360,33 @@ export class DSLContext {
     }
 
     /**
-     * Create a module factory function that returns outputs directly
-     */
-    private createFactory(schema: ModuleSchema): FactoryFunction {
-        const instantiate = this.createInstantiator(schema);
-        this.instantiators.set(schema.name, instantiate);
-        return (...args: any[]): ModuleReturn => {
-            // Capture source location from stack trace
-            const sourceLocation = captureSourceLocation();
-
-            // Capture argument spans from the pre-analyzed registry
-            const argumentSpans = captureArgumentSpans(sourceLocation);
-
-            return instantiate(args, sourceLocation, argumentSpans);
-        };
-    }
-
-    /**
      * Prepare a signal param's value for an input of class `inputClass`:
      * resolve every module root in the value itself, array elements, and the
      * contents of a `$gN` group, and spread the collections inside an array.
-     * A pattern anywhere in it is refused: a pattern becomes a signal by
-     * playing it, with `.c` or `.cycle()`. `slot` names the value in
-     * resolution records, `label` in the error.
+     * `slot` names the value in resolution records and, after `module`, when
+     * a pattern in it is refused.
      */
     private signalParam(
         value: unknown,
         inputClass: OutputClass,
-        sourceLocation: SourceLocation | undefined,
         slot: string,
-        label: string,
+        module: string,
+        sourceLocation: CallSite | undefined,
     ): unknown {
         if (isSignalGroupLike(value)) {
-            const signals = this.signalParam(
-                value.signals,
-                inputClass,
-                sourceLocation,
-                slot,
-                label,
-            );
             return {
                 ...value,
-                signals:
-                    signals instanceof BaseCollection ? [...signals] : signals,
+                signals: this.signalParam(
+                    value.signals,
+                    inputClass,
+                    slot,
+                    module,
+                    sourceLocation,
+                ),
             };
         }
         const resolve = (v: unknown, s: string): unknown => {
-            if (isPatternValue(v)) {
-                throw new Error(
-                    `${label} is a pattern, not a signal — play it with .c or .cycle()`,
-                );
-            }
+            refusePattern(v, `${module}: ${s}`);
             return this.builder.outputResolver.resolve(
                 v,
                 inputClass,
@@ -441,21 +405,22 @@ export class DSLContext {
         return resolve(value, slot);
     }
 
-    private createInstantiator(schema: ModuleSchema): Instantiator {
+    /**
+     * Create a module factory function that returns outputs directly
+     */
+    private createFactory(schema: ModuleSchema): FactoryFunction {
         const outputs = schema.outputs || [];
         const defaultOutput = outputs.find((o) => o.default) ?? outputs[0];
-        const resolvableOutputs: ResolvableOutput[] = outputs.map((o) => ({
-            default: o === defaultOutput,
-            name: sanitizeOutputName(o.name),
-            outputType: o.outputType,
-        }));
+        const rootOutputs = resolvableOutputs(schema, sanitizeOutputName);
         const processed = processModuleSchema(schema);
         const scaleParamNames = processed.params
             .filter((p) => p.isScaleSignalInput)
             .map((p) => p.name);
         const signalParams = signalParamsOf(schema, processed);
 
-        return (args, sourceLocation, argumentSpans): ModuleReturn => {
+        return (...args: any[]): ModuleReturn => {
+            const sourceLocation = captureSourceLocation();
+            const argumentSpans = captureArgumentSpans(sourceLocation);
             const positionalArgs = schema.positionalArgs || [];
             const params: Record<string, any> = {};
             let config: any = {};
@@ -486,9 +451,9 @@ export class DSLContext {
                 params[name] = this.signalParam(
                     params[name],
                     inputClass,
-                    sourceLocation,
                     name,
-                    `${schema.name}: ${name}`,
+                    schema.name,
+                    sourceLocation,
                 );
             }
             for (const { mapper, name } of signalParams.nested) {
@@ -497,9 +462,9 @@ export class DSLContext {
                         this.signalParam(
                             value,
                             'cv',
-                            sourceLocation,
                             path,
-                            `${schema.name}: ${name}`,
+                            schema.name,
+                            sourceLocation,
                         ),
                     );
                 }
@@ -614,7 +579,7 @@ export class DSLContext {
                     output.polyphonic ?? false,
                 );
             }
-            markRoot(root, { outputs: resolvableOutputs, values: named });
+            markRoot(root, { outputs: rootOutputs, values: named });
             return Object.assign(root, named);
         };
     }

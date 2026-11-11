@@ -1947,6 +1947,7 @@ function App() {
                 if (model) {
                     void applyRuntimeResolutions(
                         model,
+                        patchCodeValue,
                         result.outputResolutions ?? [],
                     );
                 }

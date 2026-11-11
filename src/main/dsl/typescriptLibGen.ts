@@ -2403,7 +2403,7 @@ const RESERVED_OUTPUT_NAMES: ReadonlySet<string> = new Set(
  * Sanitize output name to avoid conflicts with reserved properties/methods.
  * Appends underscore if the camelCase name is reserved.
  */
-function sanitizeOutputName(name: string): string {
+export function sanitizeOutputName(name: string): string {
     const camelName = toCamelCase(name);
     return RESERVED_OUTPUT_NAMES.has(camelName) ? `${camelName}_` : camelName;
 }
@@ -2437,11 +2437,6 @@ export function qualifiedMultiOutputInterfaceName(moduleSchema: {
         .filter((p: string) => p.length > 0)
         .slice(0, -1);
     return [...namespaces, getMultiOutputInterfaceName(moduleSchema)].join('.');
-}
-
-/** The property an output has on its module's multi-output interface. */
-export function outputPropertyName(name: string): string {
-    return sanitizeOutputName(name);
 }
 
 /**
