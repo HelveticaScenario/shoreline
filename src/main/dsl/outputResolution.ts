@@ -20,7 +20,7 @@ import { isSignalGroupLike } from './signalGroups';
 const OUTPUT_SET = Symbol('outputSet');
 
 /** A module's outputs, keyed by their names on the root's `o`. */
-interface OutputSet {
+export interface OutputSet {
     outputs: readonly ResolvableOutput[];
     values: Readonly<Record<string, unknown>>;
 }
@@ -42,7 +42,8 @@ export function markRoot(root: object, set: OutputSet): void {
     Object.defineProperty(root, OUTPUT_SET, { value: set });
 }
 
-function outputSetOf(value: unknown): OutputSet | undefined {
+/** The outputs a multi-output module's root stands for, if `value` is one. */
+export function outputSetOf(value: unknown): OutputSet | undefined {
     if (typeof value !== 'object' || value === null) {
         return undefined;
     }

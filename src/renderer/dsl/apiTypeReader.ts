@@ -29,12 +29,7 @@ export interface ApiParam {
 export type ApiSignature = readonly ApiParam[];
 
 const SIGNAL_ALIASES = new Set(['Signal', 'Poly', 'Mono']);
-const OUTPUT_TYPES = new Set([
-    'ModuleOutput',
-    'Collection',
-    'CollectionWithRange',
-    'ModuleOutputWithRange',
-]);
+const OUTPUT_TYPES = new Set(['Collection', 'CollectionWithRange']);
 const MAX_DEPTH = 16;
 const NUM = String.raw`[-−]?\d+(?:\.\d+)?`;
 const RANGE_RE = new RegExp(String.raw`(${NUM})\s*(?:–|\.\.)\s*(${NUM})`);

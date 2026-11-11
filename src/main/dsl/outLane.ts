@@ -1,11 +1,11 @@
 import { captureSourceLocation } from './captureSourceLocation';
 import {
     Collection,
+    CollectionWithRange,
     DeferredCollection,
     DeferredModuleOutput,
     type GraphBuilder,
     type ModuleOutput,
-    type ModuleOutputWithRange,
 } from './GraphBuilder';
 
 /** A lane control's tap, with the range its source declares. */
@@ -27,9 +27,9 @@ export interface OutLaneSources {
 }
 
 interface OutLaneControls {
-    active: ModuleOutputWithRange;
-    level: ModuleOutputWithRange;
-    pan: ModuleOutputWithRange;
+    active: CollectionWithRange;
+    level: CollectionWithRange;
+    pan: CollectionWithRange;
 }
 
 /**
@@ -39,11 +39,11 @@ interface OutLaneControls {
  */
 export class OutLane extends Collection {
     /** 5 V while the lane is audible, 0 V while muted or soloed out. */
-    readonly active: ModuleOutputWithRange;
+    readonly active: CollectionWithRange;
     /** The lane's gain in DSL units (5 = unity). */
-    readonly level: ModuleOutputWithRange;
+    readonly level: CollectionWithRange;
     /** The lane's pan (-5 left … +5 right). */
-    readonly pan: ModuleOutputWithRange;
+    readonly pan: CollectionWithRange;
 
     constructor(audio: ModuleOutput[], controls: OutLaneControls) {
         super(...audio);
@@ -84,10 +84,14 @@ export class OutLaneTap {
         this.pan = deferred();
         this.panMin = deferred();
         this.panMax = deferred();
-        this.lane = new OutLane([...this.audio], {
-            active: this.active.withRange(0, 5),
-            level: this.level.withRange(this.levelMin, this.levelMax),
-            pan: this.pan.withRange(this.panMin, this.panMax),
+        this.lane = new OutLane(this.audio.items, {
+            active: new CollectionWithRange(this.active.withRange(0, 5)),
+            level: new CollectionWithRange(
+                this.level.withRange(this.levelMin, this.levelMax),
+            ),
+            pan: new CollectionWithRange(
+                this.pan.withRange(this.panMin, this.panMax),
+            ),
         });
     }
 
