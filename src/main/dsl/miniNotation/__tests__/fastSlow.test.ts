@@ -9,6 +9,17 @@ import {
 } from '../index';
 import { replaceSignals } from '../../GraphBuilder';
 
+describe('playing a pattern outside a patch run', () => {
+    test('.c and .cycle() say a pattern is played only while a patch runs', () => {
+        expect(() => $p('c4 e4').c).toThrow(
+            /only be played while a patch runs/,
+        );
+        expect(() => $p('c4 e4').cycle()).toThrow(
+            /only be played while a patch runs/,
+        );
+    });
+});
+
 describe('.fast / .slow builders', () => {
     test('$p(...).fast(n) builds a FastPattern wrapping the inner pattern', () => {
         const r = $p('c4 e4').fast(2);

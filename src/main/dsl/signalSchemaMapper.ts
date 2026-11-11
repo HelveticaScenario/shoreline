@@ -1,10 +1,10 @@
 type JsonSchema = Record<string, unknown>;
 
-/** Applies `wrap` to the value at each signal position, keyed by its path. */
+/** Applies `map` to the value at each signal position, keyed by its path. */
 export type SignalMapper = (
     value: unknown,
     path: string,
-    wrap: (value: unknown, path: string) => unknown,
+    map: (value: unknown, path: string) => unknown,
 ) => unknown;
 
 const SIGNAL_DEFS = new Set(['PolySignal', 'MonoSignal', 'Signal']);
@@ -32,9 +32,9 @@ export function buildSignalMapper(
         if (typeof node.$ref === 'string') {
             const name = node.$ref.replace('#/$defs/', '');
             if (SIGNAL_DEFS.has(name)) {
-                return (value, path, wrap) => wrap(value, path);
+                return (value, path, map) => map(value, path);
             }
-            // A scale input takes spec strings, never patterns.
+            // The factory prepares a scale input itself.
             if (name === 'ScaleSignal') {
                 return null;
             }
@@ -48,19 +48,19 @@ export function buildSignalMapper(
             if (items.every((m) => m === null)) {
                 return null;
             }
-            return (value, path, wrap) =>
+            return (value, path, map) =>
                 Array.isArray(value)
                     ? value.map((v, i) =>
-                          items[i] ? items[i](v, `${path}.${i}`, wrap) : v,
+                          items[i] ? items[i](v, `${path}.${i}`, map) : v,
                       )
                     : value;
         }
         if (node.type === 'array' && node.items && !Array.isArray(node.items)) {
             const item = build(node.items as JsonSchema, depth + 1);
             return item
-                ? (value, path, wrap) =>
+                ? (value, path, map) =>
                       Array.isArray(value)
-                          ? value.map((v, i) => item(v, `${path}.${i}`, wrap))
+                          ? value.map((v, i) => item(v, `${path}.${i}`, map))
                           : value
                 : null;
         }
@@ -73,7 +73,7 @@ export function buildSignalMapper(
             if (branches.every((b) => b.mapper === null)) {
                 return null;
             }
-            return (value, path, wrap) => {
+            return (value, path, map) => {
                 // A tuple branch applies to an array of exactly its length
                 // whose array-typed slots hold arrays; any other value is a
                 // plain signal.
@@ -86,9 +86,7 @@ export function buildSignalMapper(
                                   (o) => o.tuple && tupleFits(o.tuple, value),
                               )),
                 );
-                return picked?.mapper
-                    ? picked.mapper(value, path, wrap)
-                    : value;
+                return picked?.mapper ? picked.mapper(value, path, map) : value;
             };
         }
         return null;

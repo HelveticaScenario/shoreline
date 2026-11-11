@@ -1,5 +1,6 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+import type { SignalSiteTables } from '../shared/dsl/signalSites';
 import { contextBridge, ipcRenderer } from 'electron/renderer';
 import {
     AppConfig,
@@ -56,6 +57,7 @@ export interface ElectronAPI {
         trigger?: QueuedTrigger,
     ) => Promise<DSLExecuteResult>;
     getDslLibSource: () => Promise<string>;
+    getSignalSiteTables: () => Promise<SignalSiteTables>;
 
     // Synthesizer operations
     synthesizer: {
@@ -217,28 +219,12 @@ export interface ElectronAPI {
     onMenuOpenSettings: (callback: () => void) => () => void;
     onMenuOpenEngineHealth: (callback: () => void) => () => void;
     onMenuOpenModuleProfile: (callback: () => void) => () => void;
-    onMenuMigrateBuffer: (callback: () => void) => () => void;
-    onMenuMigrateWavetable: (callback: () => void) => () => void;
-    onMenuMigrateChebyBlockDC: (callback: () => void) => () => void;
     // UI operations
     showContextMenu: (options: ContextMenuOptions) => Promise<void>;
     onContextMenuCommand: (
         callback: (action: ContextMenuAction) => void,
     ) => () => void;
     showUnsavedChangesDialog: (fileName: string) => Promise<number>;
-
-    // Window operations
-    openHelpWindow: () => Promise<void>;
-    openHelpForSymbol: (
-        symbolType: 'type' | 'module' | 'namespace',
-        symbolName: string,
-    ) => Promise<void>;
-    onNavigateToSymbol: (
-        callback: (data: {
-            symbolType: 'type' | 'module' | 'namespace';
-            symbolName: string;
-        }) => void,
-    ) => () => void;
 
     // Performance window
     performanceWindow: {
@@ -329,29 +315,7 @@ const electronAPI: ElectronAPI = {
     executeDSL: (source, sourceId, trigger) =>
         invokeIPC('DSL_EXECUTE', source, sourceId, trigger),
     getDslLibSource: () => invokeIPC('GET_DSL_LIB_SOURCE'),
-
-    // Window operations
-    openHelpWindow: () => invokeIPC('OPEN_HELP_WINDOW'),
-    openHelpForSymbol: (
-        symbolType: 'type' | 'module' | 'namespace',
-        symbolName: string,
-    ) => invokeIPC('OPEN_HELP_FOR_SYMBOL', symbolType, symbolName),
-    onNavigateToSymbol: (
-        callback: (data: {
-            symbolType: 'type' | 'module' | 'namespace';
-            symbolName: string;
-        }) => void,
-    ) => {
-        const listener = (
-            _event: Electron.IpcRendererEvent,
-            data: {
-                symbolType: 'type' | 'module' | 'namespace';
-                symbolName: string;
-            },
-        ) => callback(data);
-        ipcRenderer.on('navigate-to-symbol', listener);
-        return () => ipcRenderer.removeListener('navigate-to-symbol', listener);
-    },
+    getSignalSiteTables: () => invokeIPC('GET_SIGNAL_SITE_TABLES'),
 
     // Synthesizer operations
     synthesizer: {
@@ -519,11 +483,6 @@ const electronAPI: ElectronAPI = {
     onMenuOpenEngineHealth: menuEventHandler(MENU_CHANNELS.OPEN_ENGINE_HEALTH),
     onMenuOpenModuleProfile: menuEventHandler(
         MENU_CHANNELS.OPEN_MODULE_PROFILE,
-    ),
-    onMenuMigrateBuffer: menuEventHandler(MENU_CHANNELS.MIGRATE_BUFFER),
-    onMenuMigrateWavetable: menuEventHandler(MENU_CHANNELS.MIGRATE_WAVETABLE),
-    onMenuMigrateChebyBlockDC: menuEventHandler(
-        MENU_CHANNELS.MIGRATE_CHEBY_BLOCK_DC,
     ),
 
     // UI operations

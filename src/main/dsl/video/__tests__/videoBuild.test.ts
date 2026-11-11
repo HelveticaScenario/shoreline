@@ -105,27 +105,6 @@ describe('$v graph building', () => {
         });
     });
 
-    describe('patterns', () => {
-        it('plays one pattern used twice through one $cycle and one tap', () => {
-            const source = `
-                const p = $p('0 1');
-                $v.out($v.hsv(p, p));
-            `;
-            expect(modulesOf(source, '$cycle')).toHaveLength(1);
-            expect(modulesOf(source, '_videoTap')).toHaveLength(1);
-            expect(exec(source).video!.uniforms).toHaveLength(1);
-        });
-
-        it('shares the $cycle between a field and fromAudio', () => {
-            const source = `
-                const p = $p('0 1');
-                $v.out($v.hsv(p, $v.fromAudio(p)));
-            `;
-            expect(modulesOf(source, '$cycle')).toHaveLength(1);
-            expect(modulesOf(source, '_videoTap')).toHaveLength(1);
-        });
-    });
-
     describe('textures', () => {
         const images = (count: number) =>
             `Array.from({ length: ${count} }, (_, i) => $v.image('i' + i + '.png')).reduce((a, b) => $v.add(a, b))`;

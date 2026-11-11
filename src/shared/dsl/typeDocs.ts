@@ -1,7 +1,13 @@
 /**
  * Shared type documentation for DSL types.
- * Used by both TypeScript lib generator (JSDoc) and HelpWindow (rendered docs).
+ * Used by both TypeScript lib generator (JSDoc) and the Docs panel (rendered docs).
  */
+
+import {
+    MONO_OUT_OPTIONS,
+    STEREO_OUT_OPTIONS,
+    outOptionsDefinition,
+} from './outOptions';
 
 export interface TypeMethod {
     name: string;
@@ -28,11 +34,13 @@ export const DSL_TYPE_NAMES = [
     'Mono<Signal>',
     'ModuleOutput',
     'ModuleOutputWithRange',
+    'Multi-output modules',
     'Collection',
     'CollectionWithRange',
     'Note',
     'HZ',
     'StereoOutOptions',
+    'MonoOutOptions',
 ] as const;
 
 export type DslTypeName = (typeof DSL_TYPE_NAMES)[number];
@@ -86,18 +94,18 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             },
             {
                 name: 'exp',
-                signature: 'exp(factor?: Poly<Signal>): Collection',
+                signature: 'exp(exponent: Poly<Signal>): Collection',
                 description:
-                    'Apply a power curve to all signals in the collection. Default exponent is 3.',
+                    'Raise all signals in the collection to the power `exponent`; negative values mirror positive ones.',
                 example: '$c(lfo1, lfo2).exp(2)',
             },
             {
                 name: 'scope',
                 signature:
-                    'scope(config?: { msPerFrame?: number; triggerThreshold?: number; range?: [number, number] }): this',
+                    "scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number]; split?: 'vertical' | 'horizontal' }): this",
                 description:
-                    'Add scope visualization for the first output in the collection.',
-                example: '$c(osc1, osc2).scope().out()',
+                    "Add scope visualization for all outputs in the collection, overlaid on one scope. `split: 'vertical'` stacks one scope per channel; `split: 'horizontal'` fits them side by side.",
+                example: "$c(osc1, osc2).scope({ split: 'vertical' }).out()",
             },
             {
                 name: 'out',
@@ -109,7 +117,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             {
                 name: 'outMono',
                 signature:
-                    'outMono(channel?: number, gain?: Poly<Signal>): this',
+                    'outMono(channelOrOptions?: number | MonoOutOptions, gainOrOptions?: Poly<Signal> | MonoOutOptions): this',
                 description:
                     'Send all outputs to a single speaker channel as mono, summed together.',
                 example: '$c(osc1, osc2).outMono(0, 0.3)',
@@ -245,15 +253,15 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             },
             {
                 name: 'exp',
-                signature: 'exp(factor?: Poly<Signal>): ModuleOutput',
+                signature: 'exp(exponent: Poly<Signal>): ModuleOutput',
                 description:
-                    'Apply a power curve to the signal. Creates a $curve module internally. Default exponent is 3.',
-                example: 'lfo.exp(2)  // Quadratic curve',
+                    'Raise the signal to the power `exponent`; negative values mirror positive ones. For a curve that keeps ±5 V at ±5 V, use $curve.',
+                example: 'lfo.exp(2)  // square, keeping the sign',
             },
             {
                 name: 'scope',
                 signature:
-                    'scope(config?: { msPerFrame?: number; triggerThreshold?: number; range?: [number, number] }): this',
+                    'scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number] }): this',
                 description:
                     'Add an oscilloscope visualization for this output. The scope appears as an overlay in the editor.',
                 example:
@@ -269,7 +277,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             {
                 name: 'outMono',
                 signature:
-                    'outMono(channel?: number, gain?: Poly<Signal>): this',
+                    'outMono(channelOrOptions?: number | MonoOutOptions, gainOrOptions?: Poly<Signal> | MonoOutOptions): this',
                 description:
                     'Send this output to a single speaker channel as mono audio.',
                 example: 'lfo.outMono(2, 0.3)',
@@ -351,11 +359,26 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         seeAlso: ['ModuleOutput', 'CollectionWithRange'],
     },
 
+    'Multi-output modules': {
+        description:
+            'A module with several outputs, such as a sequencer with a pitch, a gate and a trigger, can be used without naming one. ' +
+            'Each input takes the output that suits it: a trigger input takes the trigger, a gate input the gate, and everything else the main output. ' +
+            'The editor shows the output it picked beside the value; double-click that hint to write it into the code. ' +
+            'Naming an output yourself always uses that output, whatever the input.',
+        examples: [
+            "const seq = $p('c e g a').c\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope",
+            "const seq = $p('c3 ~ g3 ~').c\n$sine(seq).amp(seq.$.adsr()).out()   // the gate opens the envelope",
+            "const seq = $p('c e g a').c\n$sine(seq).amp($adsr(seq.gate)).amp(seq.velocity).out()   // named outputs are used as they are",
+        ],
+        name: 'Multi-output modules',
+        seeAlso: ['ModuleOutput', 'Collection', 'Signal'],
+    },
+
     'Mono<Signal>': {
-        definition: 'Signal | Signal[] | Iterable<ModuleOutput>',
+        definition: 'Signal | (Signal | Collection)[] | Iterable<ModuleOutput>',
         description:
             'A signal input that accepts polyphonic connections but sums all channels down to a single mono value. ' +
-            'Structurally identical to Poly<Signal>, but signals that the module will not produce per-voice output from this parameter. ' +
+            'Takes what Poly<Signal> takes except a signal group: the module will not produce per-voice output from this parameter. ' +
             'Used for control parameters like tempo, stereo width, or math variables where a single combined value is needed.',
         examples: [
             '$clockDivider(clock.trigger, 4)                  // Clock signal summed to mono',
@@ -384,7 +407,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     'Poly<Signal>': {
-        definition: 'Signal | Signal[] | Iterable<ModuleOutput>',
+        definition:
+            'Signal | (Signal | Collection)[] | Iterable<ModuleOutput> | SignalGroup',
         description:
             'A potentially multi-channel signal. Can be an array of Signals for polyphonic patches, ' +
             'or an iterable of ModuleOutputs. When used as input to a module, arrays are expanded to create multiple voices.',
@@ -413,11 +437,10 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     StereoOutOptions: {
-        definition:
-            'interface { baseChannel?: number; gain?: Poly<Signal>; pan?: Poly<Signal>; width?: Signal }',
+        definition: outOptionsDefinition(STEREO_OUT_OPTIONS),
         description:
             'Options for stereo output routing via the out() method. ' +
-            'Controls base channel, gain, panning, and stereo width.',
+            'Controls base channel, gain, panning, stereo width, and the VU meter label, mute, and solo.',
         examples: [
             "$sine('c').out({ baseChannel: 4 })      // Output of channels 4 and 5",
             "$sine('c').out({ gain: 2.5 })           // 50% gain",
@@ -426,7 +449,31 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             "$sine('c').out({ gain: $perc($pulse('8hz')), pan: $sine('1hz') })  // Modulated",
         ],
         name: 'StereoOutOptions',
-        seeAlso: ['ModuleOutput', 'Collection', 'Poly<Signal>'],
+        seeAlso: [
+            'MonoOutOptions',
+            'ModuleOutput',
+            'Collection',
+            'Poly<Signal>',
+        ],
+    },
+
+    MonoOutOptions: {
+        definition: outOptionsDefinition(MONO_OUT_OPTIONS),
+        description:
+            'Options for mono output routing via the outMono() method. ' +
+            'Controls the output channel, gain, and the VU meter label, mute, and solo.',
+        examples: [
+            "$sine('c').outMono({ channel: 2 })              // Output on channel 2",
+            "$sine('c').outMono({ channel: 2, gain: 2.5 })   // 50% gain",
+            "$sine('c').outMono(0, { label: 'sub' })         // Labelled VU meter",
+        ],
+        name: 'MonoOutOptions',
+        seeAlso: [
+            'StereoOutOptions',
+            'ModuleOutput',
+            'Collection',
+            'Poly<Signal>',
+        ],
     },
 };
 
@@ -447,19 +494,26 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     // ---- Helpers ----
     {
         description:
-            'Convert a frequency in Hertz to a 1V/octave voltage value.',
-        examples: ['$hz(440)    // A4', '$hz(261.63) // ~C4'],
+            'Convert a frequency in Hertz to a 1V/octave voltage value. Numbers and number arrays convert to voltage values; a frequency that includes a signal converts sample by sample, with frequencies at or below 0 Hz read as 0.0001 Hz. Note and Hz strings are already pitches and are rejected.',
+        examples: [
+            '$hz(440)    // A4',
+            '$hz(261.63) // ~C4',
+            '$hz([220, 330]) // two voices',
+            "$hz($slider('pitch', 220, 100, 500)) // a slider in Hz",
+        ],
         group: 'Helpers',
         name: '$hz',
         params: [
             {
                 name: 'frequency',
-                type: 'number',
+                type: 'number | Poly<number | ModuleOutput>',
                 description: 'Frequency in Hz',
             },
         ],
-        returns: 'Voltage value usable as a Signal',
-        signature: '$hz(frequency: number): number',
+        returns:
+            'A voltage value for a number, one per element for a number array, otherwise a Collection',
+        signature:
+            '$hz(frequency: number | Poly<number | ModuleOutput>): number | number[] | Collection',
     },
     {
         description: 'Convert a note name string to a 1V/octave voltage value.',

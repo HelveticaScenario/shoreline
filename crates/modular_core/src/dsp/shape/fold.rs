@@ -8,24 +8,26 @@ use schemars::JsonSchema;
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
 use crate::dsp::utils::adaa::Adaa;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Wavefolding algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum FoldMode {
-    /// A single, smooth fold.
+    /// a single, smooth fold
     #[default]
     Soft,
-    /// A single sharp fold.
+    /// a single sharp fold
     Single,
-    /// A double fold — more harmonics.
+    /// a double fold, more harmonics
     Dual,
-    /// West-coast (Buchla-style) fold — complex, metallic harmonics.
+    /// west-coast (Buchla-style) fold with complex, metallic harmonics
     Westcoast,
-    /// Triangle fold — hard and buzzy.
+    /// triangle fold, hard and buzzy
     Linear,
-    /// Sine fold — wraps the signal smoothly through a sine.
+    /// sine fold, wraps the signal smoothly through a sine
     Sine,
 }
 
@@ -69,16 +71,28 @@ impl Shaper for FoldShaper {
     }
 }
 
+const FOLD_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Wavefolder",
+    description: "Folds peaks back on themselves, adding harmonics that grow \
+                  with level: the west-coast sound when an envelope sweeps the \
+                  drive. Modelled on the Surge XT wavefolder shapes.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "West-coast pluck",
+        code: r#"
+            const seq = $p('c3 eb3 g3 bb2').c
+            const env = $perc(seq, { decay: 0.4 })
+            $sine(seq)
+              .$.unstable.shape.fold('westcoast', env.range(-2, 4))
+              .amp(env)
+              .out()
+        "#,
+    }],
+};
+
 shape_module! {
-    /// Wavefolding, from Surge XT's Wavefolder waveshapers — folds peaks back on
-    /// themselves to add rich harmonics that grow with level. `mode` selects the
-    /// fold shape (soft, single, dual, westcoast, linear, sine); `drive` pushes
-    /// harder into the folds as it rises (−5..5, 0 = unity).
-    ///
-    /// ## Example
-    /// ```js
-    /// $unstable.shape.fold($sine('c3'), 'westcoast', 3).out()
-    /// ```
+    docs = FOLD_DOCS,
     name = "$unstable.shape.fold", ident = Fold, mode = FoldMode, shaper = FoldShaper
 }
 
@@ -104,7 +118,16 @@ mod tests {
 
         for i in 0..4000 {
             let input = PolySignal::mono(Signal::Volts(sig(i)));
-            run::<FoldShaper>(1, &input, &drive, FoldMode::Dual, &state, &mut ch, &mut out);
+            run::<FoldShaper>(
+                1,
+                &input,
+                &drive,
+                FoldMode::Dual,
+                &state,
+                &mut ch,
+                &mut out,
+                sr,
+            );
         }
         for i in 0..256 {
             let input = PolySignal::mono(Signal::Volts(sig(4000 + i)));
@@ -116,6 +139,7 @@ mod tests {
                 &state,
                 &mut ch,
                 &mut out,
+                sr,
             );
             let y = out.get(0);
             assert!(

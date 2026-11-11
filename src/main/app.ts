@@ -43,7 +43,6 @@ import { AppliedPatchState } from './appliedPatchState';
 import { isBufferSwitch } from './bufferSwitch';
 import { createConfigStore, type AppConfig } from './appConfig';
 import { createFallbackWarningChannel } from './fallbackWarning';
-import { sendNavigateToSymbol } from './helpNavigation';
 import {
     handleMediaProtocol,
     mediaFileExists,
@@ -72,6 +71,8 @@ import {
     trackPerformanceWindow,
 } from './performanceWindow';
 import { executePatchScript } from './dsl/executor';
+import { buildSignalSiteTables } from './dsl/signalSiteTables';
+import type { SignalSiteTables } from '../shared/dsl/signalSites';
 import { buildLibSource } from './dsl/typescriptLibGen';
 import type { WavsFolderNode } from './dsl/typescriptLibGen';
 import * as fs from 'fs';
@@ -95,7 +96,7 @@ process.setSourceMapsEnabled(true);
 //
 // This switch must be set before app `ready`, before we know whether the user
 // will ever enable Syphon, so it is necessarily global rather than gated on the
-// feature. The only residual cost is that a *fully covered* Operator window
+// feature. The only residual cost is that a *fully covered* Shoreline window
 // keeps compositing; the heavier background timer/rAF throttling IS gated on the
 // feature at runtime — see applySyphonRenderTuning().
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -199,15 +200,15 @@ function setupSyphonBridge(): void {
 function promptScreenRecordingPermission(): void {
     // In dev, macOS attributes Screen Recording to the *responsible process* —
     // the app that launched the `yarn start` process tree (your terminal or
-    // editor, e.g. Visual Studio Code), not "Operator"/"Electron". A packaged
-    // build run from Finder attributes it to Operator.app, which is the real
+    // editor, e.g. Visual Studio Code), not "Shoreline"/"Electron". A packaged
+    // build run from Finder attributes it to Shoreline.app, which is the real
     // behavior the dialog below describes.
     if (!app.isPackaged) {
         console.warn(
             '[syphon-bridge] Dev permission note: grant Screen Recording to the app ' +
                 'that launched `yarn start` (your terminal / VS Code), then fully quit ' +
-                'and reopen it. Granting "Operator"/"Electron"/"operator-syphon" will ' +
-                'not help in dev. Test the real Operator.app attribution via `yarn package`.',
+                'and reopen it. Granting "Shoreline"/"Electron"/"shoreline-syphon" will ' +
+                'not help in dev. Test the real Shoreline.app attribution via `yarn package`.',
         );
     }
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -216,7 +217,7 @@ function promptScreenRecordingPermission(): void {
             buttons: ['Open System Settings', 'Not Now'],
             defaultId: 0,
             detail:
-                'To publish the Operator window to Syphon, allow Operator under ' +
+                'To publish the Shoreline window to Syphon, allow Shoreline under ' +
                 'Privacy & Security → Screen & System Audio Recording, then enable ' +
                 '“Toggle Syphon Output” again.',
             message: 'Screen Recording permission needed',
@@ -233,7 +234,7 @@ function promptScreenRecordingPermission(): void {
 
 /**
  * Toggles Syphon publishing for the View-menu checkboxes and the
- * `operator.toggleSyphon` command, which share its failure dialog.
+ * `shoreline.toggleSyphon` command, which share its failure dialog.
  * `requested` names the window a checkbox stands for; the command names none
  * (see {@link syphonAction}).
  */
@@ -345,7 +346,7 @@ console.debug = createLogInterceptor('debug');
 // Update Service
 // ========================================================================
 
-const GITHUB_REPO = 'HelveticaScenario/operator';
+const GITHUB_REPO = 'HelveticaScenario/shoreline';
 const UPDATE_FEED_URL = `https://update.electronjs.org/${GITHUB_REPO}`;
 const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
@@ -515,7 +516,7 @@ if (!app.isPackaged && !app.commandLine.hasSwitch('user-data-dir')) {
 // config, or unsaved buffers with an instance the user is running.
 if (BACKGROUND_LAUNCH && !app.commandLine.hasSwitch('user-data-dir')) {
     const profile = fs.mkdtempSync(
-        path.join(os.tmpdir(), 'operator-background-'),
+        path.join(os.tmpdir(), 'shoreline-background-'),
     );
     app.setPath('userData', profile);
     process.on('exit', () =>
@@ -914,7 +915,7 @@ function registerIPCHandler<T extends keyof typeof IPC_CHANNELS>(
 registerIPCHandler('GET_SCHEMAS', () => schemas);
 
 // Syphon window output (macOS): the action lives here, so the renderer's
-// operator.toggleSyphon command (palette/keymap) round-trips through IPC.
+// shoreline.toggleSyphon command (palette/keymap) round-trips through IPC.
 registerIPCHandler('SYPHON_TOGGLE', () => toggleSyphonPublish());
 registerIPCHandler('SYPHON_IS_SUPPORTED', () => SyphonBridge.supported);
 
@@ -925,6 +926,13 @@ registerIPCHandler('GET_DSL_LIB_SOURCE', () => {
         cachedLibSource = buildLibSource(schemas, currentWavsFolderTree);
     }
     return cachedLibSource;
+});
+
+// The schemas are fixed for the life of the process, so the tables are too.
+let cachedSignalSiteTables: SignalSiteTables | null = null;
+registerIPCHandler('GET_SIGNAL_SITE_TABLES', () => {
+    cachedSignalSiteTables ??= buildSignalSiteTables(schemas);
+    return cachedSignalSiteTables;
 });
 
 /** Rebuilds of a patch update whose baseline went stale while it was prepared. */
@@ -1073,6 +1081,7 @@ registerIPCHandler(
                 eqPanels,
                 video,
                 videoPreviews,
+                outputResolutions,
             } = executePatchScript(source, schemas, {
                 inputChannels: synth.inputChannels(),
                 mediaExists: (relative) =>
@@ -1144,6 +1153,7 @@ registerIPCHandler(
                 errors: [],
                 interpolationResolutions: interpolationResolutionsRecord,
                 moduleIdRemap,
+                outputResolutions,
                 sliders,
                 sourceLocationMap: sourceLocationRecord,
                 success: true,
@@ -1884,61 +1894,6 @@ registerIPCHandler('SHOW_UNSAVED_CHANGES_DIALOG', async (fileName: string) => {
     return result.response; // Returns the button index: 0=Save, 1=Don't Save, 2=Cancel
 });
 
-let helpWindow: BrowserWindow | null = null;
-
-const createHelpWindow = () => {
-    if (helpWindow) {
-        if (!BACKGROUND_LAUNCH) helpWindow.focus();
-        return;
-    }
-
-    helpWindow = new BrowserWindow({
-        height: 1000,
-        show: !BACKGROUND_LAUNCH,
-        title: `${app.name} Help`,
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-        },
-        width: 1500,
-    });
-    if (BACKGROUND_LAUNCH) showInBackground(helpWindow);
-
-    // Load the index.html of the app with #help hash
-    if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-        void helpWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL + '#help');
-    } else {
-        void helpWindow.loadFile(
-            path.join(
-                __dirname,
-                `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
-            ),
-            { hash: 'help' },
-        );
-    }
-
-    helpWindow.on('closed', () => {
-        helpWindow = null;
-    });
-};
-
-registerIPCHandler('OPEN_HELP_WINDOW', async () => {
-    createHelpWindow();
-});
-
-registerIPCHandler(
-    'OPEN_HELP_FOR_SYMBOL',
-    async (symbolType: 'type' | 'module' | 'namespace', symbolName: string) => {
-        createHelpWindow();
-        if (helpWindow) {
-            sendNavigateToSymbol(
-                helpWindow.webContents,
-                symbolType,
-                symbolName,
-            );
-        }
-    },
-);
-
 // Config IPC handlers
 registerIPCHandler('CONFIG_GET_PATH', () => {
     configStore.ensureExists();
@@ -1967,17 +1922,17 @@ const KeybindingOverrideSchema = z.object({
     args: z.unknown().optional(),
 });
 
-const KEYBINDINGS_TEMPLATE = `// Operator keybindings — VS Code keybindings.json format.
+const KEYBINDINGS_TEMPLATE = `// Shoreline keybindings — VS Code keybindings.json format.
 //
 // "key" uses VS Code syntax: cmd / ctrl / alt / shift, and chords separated
-// by spaces (e.g. "cmd+k cmd+i"). "command" is an Operator command
-// (operator.*) or a Monaco editor command (editor.action.revealDefinition,
+// by spaces (e.g. "cmd+k cmd+i"). "command" is a Shoreline command
+// (shoreline.*) or a Monaco editor command (editor.action.revealDefinition,
 // cursorDown, ...). Prefix a command with "-" to remove a binding. Changes
 // take effect when you save this file.
 [
-    // { "key": "cmd+enter", "command": "operator.updatePatch" },
-    // { "key": "cmd+.", "command": "operator.stop" },
-    // { "key": "cmd+p", "command": "operator.showCommandPalette" },
+    // { "key": "cmd+enter", "command": "shoreline.updatePatch" },
+    // { "key": "cmd+.", "command": "shoreline.stop" },
+    // { "key": "cmd+p", "command": "shoreline.showCommandPalette" },
     // {
     //     "key": "f12",
     //     "command": "editor.action.revealDefinition",
@@ -2121,7 +2076,7 @@ const createWindow = (): void => {
                     backgroundColor: '#000000',
                     height: 720,
                     show: !BACKGROUND_LAUNCH,
-                    title: 'Operator Performance',
+                    title: 'Shoreline Performance',
                     width: 1280,
                 },
             };
@@ -2257,7 +2212,10 @@ const createMenu = (): void => {
                           },
                           { type: 'separator' },
                           {
-                              ...menuShortcut('operator.openSettings', 'Cmd+,'),
+                              ...menuShortcut(
+                                  'shoreline.openSettings',
+                                  'Cmd+,',
+                              ),
                               click: () => {
                                   if (mainWindow && !mainWindow.isDestroyed()) {
                                       mainWindow.webContents.send(
@@ -2284,7 +2242,7 @@ const createMenu = (): void => {
             label: 'File',
             submenu: [
                 {
-                    ...menuShortcut('operator.newFile', 'CmdOrCtrl+N'),
+                    ...menuShortcut('shoreline.newFile', 'CmdOrCtrl+N'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2295,7 +2253,7 @@ const createMenu = (): void => {
                     label: 'New File',
                 },
                 {
-                    ...menuShortcut('operator.openWorkspace', 'CmdOrCtrl+O'),
+                    ...menuShortcut('shoreline.openWorkspace', 'CmdOrCtrl+O'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2307,7 +2265,7 @@ const createMenu = (): void => {
                 },
                 { type: 'separator' },
                 {
-                    ...menuShortcut('operator.save', 'CmdOrCtrl+S'),
+                    ...menuShortcut('shoreline.save', 'CmdOrCtrl+S'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2318,7 +2276,7 @@ const createMenu = (): void => {
                     label: 'Save',
                 },
                 {
-                    ...menuShortcut('operator.closeBuffer', 'CmdOrCtrl+W'),
+                    ...menuShortcut('shoreline.closeBuffer', 'CmdOrCtrl+W'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2334,7 +2292,7 @@ const createMenu = (): void => {
                     : ([
                           {
                               ...menuShortcut(
-                                  'operator.openSettings',
+                                  'shoreline.openSettings',
                                   'Ctrl+,',
                               ),
                               click: () => {
@@ -2409,7 +2367,7 @@ const createMenu = (): void => {
                 },
                 {
                     ...menuShortcut(
-                        'operator.togglePerformanceWindow',
+                        'shoreline.togglePerformanceWindow',
                         isMac ? 'Ctrl+Shift+V' : 'Ctrl+Shift+Y',
                     ),
                     click: () =>
@@ -2431,7 +2389,7 @@ const createMenu = (): void => {
                         }
                     },
                     ...menuShortcut(
-                        'operator.toggleVuMeters',
+                        'shoreline.toggleVuMeters',
                         'CmdOrCtrl+Shift+M',
                     ),
                     label: 'Toggle VU Meters',
@@ -2444,7 +2402,7 @@ const createMenu = (): void => {
                           {
                               checked: syphonPublishing('editor'),
                               // Funnels through the same toggle as the
-                              // operator.toggleSyphon command (palette/keymap).
+                              // shoreline.toggleSyphon command (palette/keymap).
                               click: () => {
                                   toggleSyphonPublish('editor');
                               },
@@ -2470,7 +2428,7 @@ const createMenu = (): void => {
             label: 'Run',
             submenu: [
                 {
-                    ...menuShortcut('operator.updatePatch', 'Ctrl+Enter'),
+                    ...menuShortcut('shoreline.updatePatch', 'Ctrl+Enter'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2482,7 +2440,7 @@ const createMenu = (): void => {
                 },
                 {
                     ...menuShortcut(
-                        'operator.updatePatchNextBeat',
+                        'shoreline.updatePatchNextBeat',
                         'Ctrl+Shift+Enter',
                     ),
                     click: (_item, focusedWindow) => {
@@ -2497,7 +2455,7 @@ const createMenu = (): void => {
                     label: 'Update Patch (Next Beat)',
                 },
                 {
-                    ...menuShortcut('operator.stop', 'Ctrl+.'),
+                    ...menuShortcut('shoreline.stop', 'Ctrl+.'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2508,7 +2466,7 @@ const createMenu = (): void => {
                     label: 'Stop Sound',
                 },
                 {
-                    ...menuShortcut('operator.cancelQueuedUpdate', 'Ctrl+\\'),
+                    ...menuShortcut('shoreline.cancelQueuedUpdate', 'Ctrl+\\'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2538,57 +2496,20 @@ const createMenu = (): void => {
         {
             role: 'windowMenu',
         },
-        // Help menu — Migrate is cross-platform; Check for Updates is
-        // already in the App menu on macOS, so only add it elsewhere.
+        // Check for Updates is already in the App menu on macOS, so only add
+        // it to Help elsewhere.
         {
             role: 'help',
-            submenu: [
-                {
-                    click: (_item, focusedWindow) => {
-                        if (focusedWindow) {
-                            BrowserWindow.fromId(
-                                focusedWindow.id,
-                            )?.webContents.send(MENU_CHANNELS.MIGRATE_BUFFER);
-                        }
-                    },
-                    label: 'Migrate $cycle / $iCycle to $p / $p.s...',
-                },
-                {
-                    click: (_item, focusedWindow) => {
-                        if (focusedWindow) {
-                            BrowserWindow.fromId(
-                                focusedWindow.id,
-                            )?.webContents.send(
-                                MENU_CHANNELS.MIGRATE_WAVETABLE,
-                            );
-                        }
-                    },
-                    label: 'Migrate $wavetable to pitch-first order...',
-                },
-                {
-                    click: (_item, focusedWindow) => {
-                        if (focusedWindow) {
-                            BrowserWindow.fromId(
-                                focusedWindow.id,
-                            )?.webContents.send(
-                                MENU_CHANNELS.MIGRATE_CHEBY_BLOCK_DC,
-                            );
-                        }
-                    },
-                    label: 'Migrate $cheby to preserve pre-DC-blocker output...',
-                },
-                ...(!isMac
-                    ? ([
-                          { type: 'separator' },
-                          {
-                              click: async () => {
-                                  await checkForUpdateAvailability();
-                              },
-                              label: 'Check for Updates...',
+            submenu: isMac
+                ? []
+                : [
+                      {
+                          click: async () => {
+                              await checkForUpdateAvailability();
                           },
-                      ] satisfies Electron.MenuItemConstructorOptions[])
-                    : []),
-            ],
+                          label: 'Check for Updates...',
+                      },
+                  ],
         },
     ];
 

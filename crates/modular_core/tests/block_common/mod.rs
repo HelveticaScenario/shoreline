@@ -9,11 +9,12 @@
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
+use std::sync::Arc;
 
 use modular_core::Patch;
 use modular_core::dsp::get_params_deserializers;
 use modular_core::params::DeserializedParams;
-use modular_core::types::ProcessingMode;
+use modular_core::types::{ProcessingMode, SameIds, SampleBuffer, WavData};
 use serde_json::{Value, json};
 
 pub const SAMPLE_RATE: f32 = 48000.0;
@@ -30,11 +31,11 @@ pub fn poly_cable(module: &str, channels: usize) -> Value {
 }
 
 /// `src` (a `CHANNELS`-wide saw) and `lfo` (a `CHANNELS`-wide sine) feed
-/// `dut`, a `module_type` with `params`.
+/// `dut`, a `module_type` with `params`. The wav `table` holds [`wavetable`].
 pub fn build(
     src_mode: ProcessingMode,
     dut_mode: ProcessingMode,
-    module_type: &'static str,
+    module_type: &str,
     params: Value,
 ) -> Patch {
     let deserializers = get_params_deserializers();
@@ -64,8 +65,29 @@ pub fn build(
             BLOCK_SIZE,
         )
         .unwrap();
+    patch.wav_data.insert("table".into(), wavetable());
+    for module in patch.sampleables.values() {
+        module.prepare_resources(&patch.wav_data);
+    }
     patch.connect_all();
     patch
+}
+
+/// A 16-frame wavetable of 256-sample cycles, each frame brighter than the last.
+pub fn wavetable() -> Arc<WavData> {
+    const SIZE: usize = 256;
+    let samples = (0..16)
+        .flat_map(|frame| {
+            (0..SIZE).map(move |i| {
+                let phase = std::f32::consts::TAU * i as f32 / SIZE as f32;
+                (phase.sin() + (phase * (2 + frame) as f32).sin() * 0.3) * 0.7
+            })
+        })
+        .collect();
+    Arc::new(WavData::new(
+        SampleBuffer::from_samples(vec![samples], 48_000.0),
+        Some(SIZE),
+    ))
 }
 
 /// Advance every module through `steps` (ascending slot targets ending at
@@ -119,7 +141,7 @@ const STEP_PATTERNS: [&[usize]; 2] = [&[BLOCK_SIZE], &[1, 10, 11, 40, BLOCK_SIZE
 /// Every sample of `dut` under each processing mode and step pattern, checked
 /// against `reference(src, lfo)`.
 pub fn check_module(
-    module_type: &'static str,
+    module_type: &str,
     params: Value,
     reference: impl Fn(&[f32], &[f32]) -> Vec<f32>,
 ) {
@@ -143,7 +165,7 @@ pub fn check_module(
 
 /// Every sample of `dut` under each processing mode and step pattern matches
 /// the per-sample `update` path (`dut` in Sample mode).
-pub fn check_paths_agree(module_type: &'static str, params: Value) {
+pub fn check_paths_agree(module_type: &str, params: Value) {
     let reference = build(
         ProcessingMode::Block,
         ProcessingMode::Sample,
@@ -168,6 +190,31 @@ pub fn check_paths_agree(module_type: &'static str, params: Value) {
                 "{module_type} {params}: src {src_mode:?}, steps {steps:?}"
             );
         }
+    }
+}
+
+/// `dut` swapped from `before` to `after` params after `BLOCKS` blocks, as the
+/// audio thread swaps patches, then rendered on: the block path matches the
+/// per-sample path before, through and after any glide the swap starts.
+pub fn check_swap_agrees(module_type: &str, before: Value, after: Value) {
+    let run = |dut_mode: ProcessingMode, steps: &[usize]| {
+        let old = build(ProcessingMode::Block, dut_mode, module_type, before.clone());
+        let (mut out, _, _) = render(&old, steps);
+        let new = build(ProcessingMode::Block, dut_mode, module_type, after.clone());
+        for (id, module) in &new.sampleables {
+            module.transfer_state_from(old.sampleables[id].as_ref(), &SameIds);
+        }
+        new.connect_all();
+        out.extend(render(&new, steps).0);
+        out
+    };
+    let expected = run(ProcessingMode::Sample, &[BLOCK_SIZE]);
+    for steps in STEP_PATTERNS {
+        assert_eq!(
+            run(ProcessingMode::Block, steps),
+            expected,
+            "{module_type} {before} → {after}: steps {steps:?}"
+        );
     }
 }
 
@@ -201,7 +248,7 @@ unsafe impl GlobalAlloc for CountingAllocator {
 /// count) for several blocks in Block mode, from Sample-mode producers, and
 /// in Sample mode itself, through every step pattern. Requires the binary's
 /// global allocator to be [`CountingAllocator`].
-pub fn allocations_while_rendering(module_type: &'static str, params: Value) -> usize {
+pub fn allocations_while_rendering(module_type: &str, params: Value) -> usize {
     let modes = [
         (ProcessingMode::Block, ProcessingMode::Block),
         (ProcessingMode::Sample, ProcessingMode::Block),

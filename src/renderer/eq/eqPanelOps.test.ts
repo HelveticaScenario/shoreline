@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
-import type { CodeStyle } from '../dsl/objectPropertyInsert';
+import type { CodeStyle } from '../dsl/listEdits';
 import { addSection, changeSection, replayChanges } from './eqPanelOps';
 import type { RawEqParams } from './eqPanelModel';
 import {

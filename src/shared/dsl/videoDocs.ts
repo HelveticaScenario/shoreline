@@ -1,6 +1,6 @@
 /**
  * Documentation for the `$v` video namespace. One table feeds both the
- * generated Monaco typings (JSDoc plus declarations) and the Help window's
+ * generated Monaco typings (JSDoc plus declarations) and the Docs panel's
  * Video page, so the two cannot drift.
  */
 
@@ -38,11 +38,11 @@ export const VIDEO_GROUPS = [
 
 export const VIDEO_INTRO = {
     description:
-        'Video synthesis. Patches build a graph of signals that is drawn per pixel behind the code in the editor when a patch calls `$v.out`. View, Toggle Performance Window (Control+Shift+V on macOS, Ctrl+Shift+Y elsewhere) opens a second window for an audience that shows the same picture with the code laid over it, in a font, size, theme and opacity of its own, set in the Perform tab of the sidebar; View, Toggle Performance Code (Control+Shift+H) fades that code in and out. While the window is open, the picture behind the code takes the shape and resolution of that window, and a copy of the window shows in the corner of the editor. Video signals cannot be connected to audio inputs.\n\nEvery video signal is a color with an alpha at each pixel. A number, such as the frequency of an oscillator or a mix amount, can be given a signal too, and reads its brightness; a gray signal, such as an oscillator or a ramp, gives the same value in every channel. The generators draw at the position of each pixel, so `$v.osc(10)` already varies across the frame; their config takes other coordinates when you want them. The picture shows a signal laid over black by its alpha. As in Hydra, channels may go below 0 or above 1 from one function to the next; they are clipped to 0..1 only where the picture is shown and where a frame is stored for feedback.\n\nSliders, buttons and audio signals can be passed anywhere a number is accepted, and the picture follows them live. So can patterns from `$p(...)`, `$p.s(...)` and `$p.arrange(...)`, which play through their own `$cycle` as they do for any audio parameter; their values are used as they are, so `$p("0 0.25 0.5 0.75")` steps through four hues a cycle. Audio signals are sampled about 60 times a second and used in volts as the audio graph produces them, so scale them to the range an input expects, for example `.range(0, 1)`; `.range(min, max)` on a video signal sets any other range, such as `.range(1, 3)` for a zoom of one to three times. A signal of several channels, such as a chord or a stereo pair, is summed to one.',
+        'Video synthesis. Patches build a graph of signals that is drawn per pixel behind the code in the editor when a patch calls `$v.out`. View, Toggle Performance Window (Control+Shift+V on macOS, Ctrl+Shift+Y elsewhere) opens a second window for an audience that shows the same picture with the code laid over it, in a font, size, theme and opacity of its own, set in the Perform tab of the sidebar; View, Toggle Performance Code (Control+Shift+H) fades that code in and out. While the window is open, the picture behind the code takes the shape and resolution of that window, and a copy of the window shows in the corner of the editor. Video signals cannot be connected to audio inputs.\n\nEvery video signal is a color with an alpha at each pixel. A number, such as the frequency of an oscillator or a mix amount, can be given a signal too, and reads its brightness; a gray signal, such as an oscillator or a ramp, gives the same value in every channel. The generators draw at the position of each pixel, so `$v.osc(10)` already varies across the frame; their config takes other coordinates when you want them. The picture shows a signal laid over black by its alpha. As in Hydra, channels may go below 0 or above 1 from one function to the next; they are clipped to 0..1 only where the picture is shown and where a frame is stored for feedback.\n\nSliders, buttons and audio signals can be passed anywhere a number is accepted, and the picture follows them live. A played pattern is an audio signal like any other, and its values are used as they are, so `$p("0 0.25 0.5 0.75").c` steps through four hues a cycle. Audio signals are sampled about 60 times a second and used in volts as the audio graph produces them, so scale them to the range an input expects, for example `.range(0, 1)`; `.range(min, max)` on a video signal sets any other range, such as `.range(1, 3)` for a zoom of one to three times. A signal of several channels, such as a chord or a stereo pair, is summed to one.',
     examples: [
         '$v.osc(10).$.kaleid(6).$.hsv().out()',
         "$v.out($v.hsv($slider('Hue', 0.3, 0, 1), 1, $slider('Level', 1, 0, 1)))",
-        "$v.out($v.hsv($p('0 0.25 0.5 0.75'), 1, $p.arrange([2, $p('1 0.5')], [1, $p('1')])))",
+        "$v.out($v.hsv($p('0 0.25 0.5 0.75').c, 1, $p.arrange([2, $p('1 0.5')], [1, $p('1')]).c))",
         "$v.out($v.hsv($sine('0.2hz').range(0, 1), 1, $v.shape($sine('1hz').range(0.1, 0.4))))",
         "$v.out($v.hsv($sine(['0.1hz', '0.13hz']).range(0, 0.5)))",
     ],
@@ -92,9 +92,9 @@ export const VIDEO_DOCS: VideoDoc[] = [
         ],
         examples: [
             "$v.out($v.solid($v.ramp(), $v.ramp('vertical'), 0.5))",
-            "$v.out($v.hsv($v.osc(6, $v.time, { input: $v.ramp('radial') })))",
+            "$v.out($v.hsv($v.osc(6, $v.time, 0, { input: $v.ramp('radial') })))",
             "$v.out($v.hsv($v.ramp('angular', { rotate: $v.time.$.osc(0.1) })))",
-            "$v.out($v.solid($v.osc(8, 0, { input: $v.ramp('horizontal', { rotate: 0.125, zoom: 2 }) }), 0.2, 0.5))",
+            "$v.out($v.solid($v.osc(8, 0, 0, { input: $v.ramp('horizontal', { rotate: 0.125, zoom: 2 }) }), 0.2, 0.5))",
         ],
         declarations: [
             "ramp(\n    axis?: 'horizontal' | 'vertical' | 'radial' | 'angular',\n    config?: {\n        zoom?: VideoValue;\n        rotate?: VideoValue;\n        shiftX?: VideoValue;\n        shiftY?: VideoValue;\n    },\n): VideoSignal;",
@@ -104,7 +104,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
         name: 'osc',
         group: 'Generators',
         description:
-            'A gray wave: `freq` cycles across the frame, offset by `phase` cycles. `config.input` runs it along another signal instead, `freq` cycles per unit of that signal, such as a radial ramp for rings or `$v.time` for a pulse that changes over time.',
+            'A wave: `freq` cycles across the frame, offset by `phase` cycles. `config.input` runs it along another signal instead, `freq` cycles per unit of that signal, such as a radial ramp for rings or `$v.time` for a pulse that changes over time. The wave is gray unless `offset` splits it into color: as in Hydra, red runs that far behind green and blue that far ahead, though here the offset is in cycles rather than radians. Where a number is wanted, a split wave gives its brightness, as any color does.',
         params: [
             {
                 name: 'freq',
@@ -112,6 +112,11 @@ export const VIDEO_DOCS: VideoDoc[] = [
                     'Cycles across the frame, or per unit of `config.input` (default 10)',
             },
             { name: 'phase', description: 'Offset in cycles (default 0)' },
+            {
+                name: 'offset',
+                description:
+                    'Cycles red runs behind green and blue ahead of it (default 0, a gray wave)',
+            },
             {
                 name: 'config.shape',
                 description:
@@ -125,10 +130,11 @@ export const VIDEO_DOCS: VideoDoc[] = [
         ],
         examples: [
             '$v.out($v.solid($v.osc(8), 0, 0))',
-            "$v.out($v.solid($v.osc(3, $v.time, { shape: 'saw' }), $v.osc(5, 0, { input: $v.ramp('vertical') }), 0.3))",
+            '$v.osc(10, $v.time.$.mult(0.1), 0.2).out()',
+            "$v.out($v.solid($v.osc(3, $v.time, 0, { shape: 'saw' }), $v.osc(5, 0, 0, { input: $v.ramp('vertical') }), 0.3))",
         ],
         declarations: [
-            "osc(\n    freq?: VideoValue,\n    phase?: VideoValue,\n    config?: { shape?: 'sine' | 'triangle' | 'saw' | 'square'; input?: VideoValue },\n): VideoSignal;",
+            "osc(\n    freq?: VideoValue,\n    phase?: VideoValue,\n    offset?: VideoValue,\n    config?: { shape?: 'sine' | 'triangle' | 'saw' | 'square'; input?: VideoValue },\n): VideoSignal;",
         ],
     },
     {
@@ -140,7 +146,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             {
                 name: 'signal',
                 description:
-                    'An audio signal, such as an oscillator or an envelope, or a pattern from `$p(...)`; several channels are summed to one',
+                    'An audio signal, such as an oscillator, an envelope or a played pattern; several channels are summed to one',
             },
             {
                 name: 'position',
@@ -163,19 +169,19 @@ export const VIDEO_DOCS: VideoDoc[] = [
             "$v.out($v.hsv($v.fromAudio($saw('55hz'), $v.ramp('radial'), { samples: 1024 }), 1, 1))",
         ],
         declarations: [
-            'fromAudio(signal: ModuleOutput | Collection | CollectionWithRange | PatternSource, position?: VideoValue, config?: { samples?: number; trigger?: boolean }): VideoSignal;',
+            'fromAudio(signal: ModuleOutput | Collection | CollectionWithRange, position?: VideoValue, config?: { samples?: number; trigger?: boolean }): VideoSignal;',
         ],
     },
     {
         name: 'scopeXY',
         group: 'Generators',
         description:
-            'An XY oscilloscope: `x` moves a glowing beam across the frame and `y` moves it up, drawn from every audio sample, so two sines a fifth apart trace a Lissajous figure. The beam is white, its opacity its brightness, on a transparent background, so laid over black it shows as a gray beam with a soft glow, laid over other signals it adds light, multiplying it by a color tints it, and `.a` reads its brightness as a gray. It can be warped and blurred like any video signal. Each frame the trail fades by `persistence` and the newest samples are drawn over it. `intensity`, `persistence` and `lineWidth` take sliders, patterns and audio signals as well as numbers, read once a frame and held within their ranges; they have one value for the whole beam, so they do not take video signals.\n\nEach channel is its own signal: the channels of `x` and `y` are paired off in order, the shorter side cycling, and each pair draws one trace. `$scopeXY(x, y, config)` is a shorthand for `$v.scopeXY(x, y, config).out()`.',
+            'An XY oscilloscope: `x` moves a glowing beam across the frame and `y` moves it up, drawn from every audio sample, so two sines a fifth apart trace a Lissajous figure. The beam is white, its opacity its brightness, on a transparent background, so laid over black it shows as a gray beam with a soft glow, laid over other signals it adds light, multiplying it by a color tints it, and `.a` reads its brightness as a gray. It can be warped and blurred like any video signal. Each frame the trail fades by `persistence` and the newest samples are drawn over it. `intensity`, `persistence` and `lineWidth` take sliders and audio signals as well as numbers, read once a frame and held within their ranges; they have one value for the whole beam, so they do not take video signals.\n\nEach channel is its own signal: the channels of `x` and `y` are paired off in order, the shorter side cycling, and each pair draws one trace. `$scopeXY(x, y, config)` is a shorthand for `$v.scopeXY(x, y, config).out()`.',
         params: [
             {
                 name: 'x',
                 description:
-                    'Horizontal signal: an audio signal, a pattern from `$p(...)`, a number, or an array of them; each channel is a trace',
+                    'Horizontal signal: an audio signal, a number, or an array of them; each channel is a trace',
             },
             {
                 name: 'y',
@@ -199,17 +205,17 @@ export const VIDEO_DOCS: VideoDoc[] = [
             {
                 name: 'config.intensity',
                 description:
-                    'Brightness of the beam, 0 to 1 (default 0.6); a number, slider, pattern or audio signal',
+                    'Brightness of the beam, 0 to 1 (default 0.6); a number, slider or audio signal',
             },
             {
                 name: 'config.persistence',
                 description:
-                    'How much of the trail survives each frame, 0 to 1 (default 0.6); a number, slider, pattern or audio signal',
+                    'How much of the trail survives each frame, 0 to 1 (default 0.6); a number, slider or audio signal',
             },
             {
                 name: 'config.lineWidth',
                 description:
-                    'Thickness of the beam: 1 is the standard width, 2 twice as thick, 0.5 half as thick; 0.1 to 5 (default 1); a number, slider, pattern or audio signal. The width is measured against the frame height, so the beam looks the same at any resolution',
+                    'Thickness of the beam: 1 is the standard width, 2 twice as thick, 0.5 half as thick; 0.1 to 5 (default 1); a number, slider or audio signal. The width is measured against the frame height, so the beam looks the same at any resolution',
             },
             {
                 name: 'config.upsample',
@@ -224,7 +230,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             "$scopeXY($sine('c3'), $sine('g3'), { intensity: $slider('Beam', 0.6, 0, 1), lineWidth: $sine('0.25hz').range(0.5, 3) })",
         ],
         declarations: [
-            'scopeXY(x: ScopeAxis, y: ScopeAxis, config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | ModuleOutput | Collection | CollectionWithRange | PatternSource; persistence?: number | ModuleOutput | Collection | CollectionWithRange | PatternSource; lineWidth?: number | ModuleOutput | Collection | CollectionWithRange | PatternSource; upsample?: boolean }): VideoSignal;',
+            'scopeXY(x: ScopeAxis, y: ScopeAxis, config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | ModuleOutput | Collection | CollectionWithRange; persistence?: number | ModuleOutput | Collection | CollectionWithRange; lineWidth?: number | ModuleOutput | Collection | CollectionWithRange; upsample?: boolean }): VideoSignal;',
         ],
     },
     {
@@ -413,12 +419,11 @@ export const VIDEO_DOCS: VideoDoc[] = [
         name: 'image',
         group: 'Generators',
         description:
-            'A picture from the workspace folder (`.png`, `.jpg`, `.gif`, `.webp`, `.bmp` or `.avif`) as a color. It is read at the coordinate being drawn, so warps, kaleidoscopes and feedback move it like any other pattern. Paths are relative to the workspace folder and cannot leave it. An `http://` or `https://` URL works too: the app fetches it itself, so the server needs no special headers.',
+            'A picture from the workspace folder (`.png`, `.jpg`, `.gif`, `.webp`, `.bmp` or `.avif`) as a color. It is read at the coordinate being drawn, so warps, kaleidoscopes and feedback move it like any other pattern. Paths are relative to the workspace folder and cannot leave it.',
         params: [
             {
                 name: 'path',
-                description:
-                    'File to draw, relative to the workspace folder, or an http(s) URL',
+                description: 'File to draw, relative to the workspace folder',
             },
             {
                 name: 'config.fit',
@@ -428,7 +433,6 @@ export const VIDEO_DOCS: VideoDoc[] = [
         ],
         examples: [
             "$v.out($v.image('pictures/photo.png'))",
-            "$v.out($v.image('https://example.com/photo.jpg'))",
             "$v.image('pictures/photo.png', { fit: 'contain' }).$.kaleid(6).$.hue($v.time.$.osc(0.05)).out()",
         ],
         declarations: [
@@ -439,7 +443,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
         name: 'video',
         group: 'Generators',
         description:
-            "A recording from the workspace folder (`.mp4`, `.webm`, `.mov`, `.m4v` or `.ogv`) as a color, played in a loop. The picture is muted; the video's sound is its `.audio` property, an audio signal you route like any other, such as `$v.video('clips/loop.mp4').audio.out()`. The sound plays at the same `speed` between the same `loop` points, starting when the patch starts, and has no sound at speed 0. Reading `.audio` of a file without sound is an error. Sound is read from AAC, ALAC, FLAC, MP3, Vorbis and PCM tracks of up to ten minutes; the sound of a file with Opus audio, as most `.webm` files have, does not play. For a video at a network address, use `$v.stream`, which has no sound. Like `$v.image`, it is read at the coordinate being drawn. It plays while the patch plays, holds its frame when the patch is stopped, and starts over from its loop start when the patch starts. Changing `speed` or `loop` and running the patch again keeps the video playing from where it is. Which formats play depends on the codecs the app's browser engine includes (H.264, HEVC, VP8/VP9 and AV1); `speed` and `loop` are fixed numbers, and video cannot play backwards.",
+            "A recording from the workspace folder (`.mp4`, `.webm`, `.mov`, `.m4v` or `.ogv`) as a color, played in a loop. The picture is muted; the video's sound is its `.audio` property, an audio signal you route like any other, such as `$v.video('clips/loop.mp4').audio.out()`. The sound plays at the same `speed` between the same `loop` points, starting when the patch starts, and has no sound at speed 0. Reading `.audio` of a file without sound is an error. Sound is read from AAC, ALAC, FLAC, MP3, Vorbis and PCM tracks of up to ten minutes; the sound of a file with Opus audio, as most `.webm` files have, does not play. Like `$v.image`, it is read at the coordinate being drawn. It plays while the patch plays, holds its frame when the patch is stopped, and starts over from its loop start when the patch starts. Changing `speed` or `loop` and running the patch again keeps the video playing from where it is. Which formats play depends on the codecs the app's browser engine includes (H.264, HEVC, VP8/VP9 and AV1); `speed` and `loop` are fixed numbers, and video cannot play backwards.",
         params: [
             {
                 name: 'path',
@@ -472,35 +476,10 @@ export const VIDEO_DOCS: VideoDoc[] = [
         ],
     },
     {
-        name: 'stream',
-        group: 'Generators',
-        description:
-            'A video or live stream at an `http://` or `https://` address as a color, played as it arrives with its sound off. The address can be a video file, or an HLS stream when it ends in `.m3u8`; RTSP, RTMP and other protocols the app cannot play are refused. The app fetches the address itself, so the server needs no special headers. It is read at the coordinate being drawn, so warps, kaleidoscopes and feedback move it like any other pattern, and it plays while the patch plays.',
-        params: [
-            {
-                name: 'url',
-                description:
-                    'An http(s) address of a video file or an .m3u8 HLS playlist',
-            },
-            {
-                name: 'config.fit',
-                description:
-                    "How a picture of another shape fills the frame: `'cover'` (default) fills it and crops the overflow, `'contain'` fits the whole picture and leaves transparent bars, `'stretch'` ignores the aspect ratio",
-            },
-        ],
-        examples: [
-            "$v.out($v.stream('https://example.com/live/stream.m3u8'))",
-            "$v.stream('https://example.com/clip.mp4', { fit: 'contain' }).$.hue($v.time.$.osc(0.05)).out()",
-        ],
-        declarations: [
-            "stream(url: string, config?: { fit?: 'cover' | 'contain' | 'stretch' }): VideoSignal;",
-        ],
-    },
-    {
         name: 'camera',
         group: 'Generators',
         description:
-            'The live picture of a camera as a color. It is read at the coordinate being drawn, so warps, kaleidoscopes and feedback move it like any other pattern. The first time a patch uses it the system asks whether Operator may use the camera; if that is refused, allow it under System Settings, Privacy & Security, Camera, and restart Operator.',
+            'The live picture of a camera as a color. It is read at the coordinate being drawn, so warps, kaleidoscopes and feedback move it like any other pattern. The first time a patch uses it the system asks whether Shoreline may use the camera; if that is refused, allow it under System Settings, Privacy & Security, Camera, and restart Shoreline.',
         params: [
             {
                 name: 'config.device',
@@ -525,7 +504,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
         name: 'screen',
         group: 'Generators',
         description:
-            'The live picture of a display as a color, read at the coordinate being drawn like `$v.camera`. The first time a patch uses it the system must allow Operator to record the screen, under System Settings, Privacy & Security, Screen Recording; after allowing it, restart Operator. Showing the display Operator itself is on draws the picture into itself, which makes a tunnel.',
+            'The live picture of a display as a color, read at the coordinate being drawn like `$v.camera`. The first time a patch uses it the system must allow Shoreline to record the screen, under System Settings, Privacy & Security, Screen Recording; after allowing it, restart Shoreline. Showing the display Shoreline itself is on draws the picture into itself, which makes a tunnel.',
         params: [
             {
                 name: 'config.display',
@@ -668,7 +647,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             "Sum of each channel, alpha included, as Hydra's `add`. Nothing is clipped until it is shown or stored in a frame, so a sum past 1 still counts in whatever reads it next.",
         params: [],
         examples: [
-            "$v.out($v.hsv($v.add($v.ramp(), $v.osc(3, 0, { input: $v.ramp('vertical') }))))",
+            "$v.out($v.hsv($v.add($v.ramp(), $v.osc(3, 0, 0, { input: $v.ramp('vertical') }))))",
         ],
         declarations: ['add(a: VideoValue, b: VideoValue): VideoSignal;'],
     },
@@ -789,7 +768,13 @@ export const VIDEO_DOCS: VideoDoc[] = [
         group: 'Shaping',
         description:
             'Multiplies by `gain`, then keeps the fractional part: a sawtooth of the input that repeats `gain` times as the input goes from 0 to 1.',
-        params: [],
+        params: [
+            {
+                name: 'gain',
+                description:
+                    'Repeats as the input goes from 0 to 1 (default 1)',
+            },
+        ],
         examples: ['$v.out($v.hsv($v.wrap($v.ramp(), 4)))'],
         declarations: [
             'wrap(input: VideoValue, gain?: VideoValue): VideoSignal;',
@@ -800,7 +785,12 @@ export const VIDEO_DOCS: VideoDoc[] = [
         group: 'Shaping',
         description:
             'Multiplies by `gain`, then reflects whatever passes 1 back down: a triangle of the input that matches `input × gain` where the input stays under 1 / gain.',
-        params: [],
+        params: [
+            {
+                name: 'gain',
+                description: 'Scale before the fold (default 1)',
+            },
+        ],
         examples: ['$v.out($v.hsv($v.fold($v.ramp(), 3)))'],
         declarations: [
             'fold(input: VideoValue, gain?: VideoValue): VideoSignal;',
@@ -1181,7 +1171,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             },
         ],
         examples: [
-            "$v.out($v.modulateScale($v.hsv($v.osc(10, 0, { input: $v.ramp('radial') })), $v.noise(3, $v.time), 1.5, 1))",
+            "$v.out($v.modulateScale($v.hsv($v.osc(10, 0, 0, { input: $v.ramp('radial') })), $v.noise(3, $v.time), 1.5, 1))",
         ],
         declarations: [
             'modulateScale(input: VideoSignal, modulator: VideoSignal, multiple?: VideoValue, offset?: VideoValue): VideoSignal;',
@@ -1207,7 +1197,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             },
         ],
         examples: [
-            "$v.out($v.modulateRotate($v.hsv($v.osc(8)), $v.osc(3, $v.time, { input: $v.ramp('radial') }), 0.5))",
+            "$v.out($v.modulateRotate($v.hsv($v.osc(8)), $v.osc(3, $v.time, 0, { input: $v.ramp('radial') }), 0.5))",
         ],
         declarations: [
             'modulateRotate(input: VideoSignal, modulator: VideoSignal, multiple?: VideoValue, offset?: VideoValue): VideoSignal;',
@@ -1409,7 +1399,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             },
         ],
         examples: [
-            "$v.out($v.modulateScrollY($v.hsv($v.osc(8, 0, { input: $v.ramp('vertical') })), $v.ramp(), 0.5, 0.1))",
+            "$v.out($v.modulateScrollY($v.hsv($v.osc(8, 0, 0, { input: $v.ramp('vertical') })), $v.ramp(), 0.5, 0.1))",
         ],
         declarations: [
             'modulateScrollY(input: VideoSignal, modulator: VideoSignal, scroll?: VideoValue, speed?: VideoValue): VideoSignal;',
@@ -1700,6 +1690,8 @@ export const VIDEO_DOCS: VideoDoc[] = [
 export interface VideoChainDoc {
     name: string;
     description: string;
+    /** Params the `$v` function of the same name does not document. */
+    params?: VideoDocParam[];
     declarations: string[];
     /** A method of the signal itself that ends or taps a chain, not a member of `.$`. */
     direct?: boolean;
@@ -1800,9 +1792,9 @@ export const VIDEO_CHAIN: VideoChainDoc[] = [
     {
         name: 'osc',
         description:
-            'A gray wave along this signal: `freq` cycles per unit of its brightness, offset by `phase`.',
+            'A wave along this signal: `freq` cycles per unit of its brightness, offset by `phase`, gray unless `offset` puts red and blue that many cycles either side of green.',
         declarations: [
-            "osc(\n    freq: VideoValue,\n    phase?: VideoValue,\n    config?: { shape?: 'sine' | 'triangle' | 'saw' | 'square' },\n): VideoSignal;",
+            "osc(\n    freq: VideoValue,\n    phase?: VideoValue,\n    offset?: VideoValue,\n    config?: { shape?: 'sine' | 'triangle' | 'saw' | 'square' },\n): VideoSignal;",
         ],
     },
     {
@@ -1824,6 +1816,16 @@ export const VIDEO_CHAIN: VideoChainDoc[] = [
         name: 'tint',
         description:
             'Colors this: its brightness becomes the value of a color with the given hue and saturation, so a mask turns into a shape of that color.',
+        params: [
+            {
+                name: 'hue',
+                description: 'Hue, 0 to 1 around the color wheel (default 0)',
+            },
+            {
+                name: 'saturation',
+                description: '0 for gray, 1 for full color (default 1)',
+            },
+        ],
         declarations: [
             'tint(hue?: VideoValue, saturation?: VideoValue): VideoSignal;',
         ],
@@ -1993,6 +1995,10 @@ export const VIDEO_CHAIN: VideoChainDoc[] = [
         name: 'scroll',
         description:
             'Shifts everything this draws right by `x` and up by `y`, as fractions of the frame.',
+        params: [
+            { name: 'x', description: 'Shift right (default 0)' },
+            { name: 'y', description: 'Shift up (default 0)' },
+        ],
         declarations: ['scroll(x?: VideoValue, y?: VideoValue): VideoSignal;'],
     },
     {

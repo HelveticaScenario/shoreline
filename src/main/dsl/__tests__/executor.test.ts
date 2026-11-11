@@ -8,13 +8,15 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import type { PatchGraph } from '@modular/core';
+import type { ModuleSchema, PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
-import { assertControlsPlaced } from '../controls';
+import { assertControlsPlaced } from '../controlPlacement';
 import { type DSLExecutionResult, executePatchScript } from '../executor';
 import { FIRST_LINE_COLUMN_OFFSET } from '../../../shared/dsl/spanTypes';
+import { enoscScalePresets } from '../../../shared/dsl/enoscScales';
 import {
     isBeatPattern,
+    isGlidePattern,
     isFastPattern,
     isParsedPattern,
     isStructPattern,
@@ -155,6 +157,58 @@ describe('signal input variants', () => {
         expect(findModules(patch, '$sine').length).toBe(1);
     });
 
+    test('$hz() of a signal converts through _hz wired to that signal', () => {
+        const patch = execPatch(
+            "const f = $slider('pitch', 220, 100, 500); $sine($hz(f)).out()",
+        );
+        const [conversion] = findModules(patch, '_hz');
+        expect(conversion.params.input).toEqual([
+            expect.objectContaining({
+                type: 'cable',
+                module: '__slider_pitch',
+            }),
+        ]);
+        const [sine] = findModules(patch, '$sine');
+        expect(sine.params.freq).toEqual([
+            expect.objectContaining({ type: 'cable', module: conversion.id }),
+        ]);
+    });
+
+    test('$hz() of a number array converts each number at script time', () => {
+        const patch = execPatch('$saw($hz([220, 440])).out()');
+        expect(findModules(patch, '_hz')).toHaveLength(0);
+        const [saw] = findModules(patch, '$saw');
+        const freq = saw.params.freq as number[];
+        expect(freq[0]).toBeCloseTo(Math.log2(220 / 261.6255653005986));
+        expect(freq[1]).toBeCloseTo(freq[0] + 1);
+    });
+
+    test('$hz() mixing numbers and signals converts on the audio thread', () => {
+        const patch = execPatch(
+            "$saw($hz([220, $slider('pitch', 330, 100, 500)])).out()",
+        );
+        const [conversion] = findModules(patch, '_hz');
+        expect((conversion.params.input as unknown[])[0]).toBe(220);
+    });
+
+    test.each(['"440hz"', '"C4"', '[220, "440hz"]'])(
+        '$hz(%s) rejects note and Hz strings',
+        (arg) => {
+            expect(() => execPatch(`$sine($hz(${arg})).out()`)).toThrow(
+                /already pitches/,
+            );
+        },
+    );
+
+    test.each(['0', '-5', '[220, 0]'])(
+        '$hz(%s) rejects frequencies at or below 0 Hz',
+        (arg) => {
+            expect(() => execPatch(`$sine($hz(${arg})).out()`)).toThrow(
+                /Frequency must be positive/,
+            );
+        },
+    );
+
     test('$note() helper produces a number', () => {
         const patch = execPatch('$sine($note("A4")).out()');
         expect(findModules(patch, '$sine').length).toBe(1);
@@ -221,6 +275,22 @@ describe('polyphony', () => {
         const patch = execPatch('$lpf($saw(["C3", "E3"]), "C5").out()');
         expect(findModules(patch, '$lpf').length).toBe(1);
         expect(findModules(patch, '$saw').length).toBe(1);
+    });
+
+    test('an output with fixed channels keeps them on a wider module', () => {
+        const patch = execPatch(`
+            const cloud = $granular(0, 0, { freq: ['c4', 'e4', 'g4'] })
+            $sine(cloud.voices).out()
+            $saw(cloud).out()
+        `);
+        const perVoice = findModules(patch, '$sine')[0].params.freq;
+        const stereo = findModules(patch, '$saw')[0].params.freq;
+        expect(perVoice).toHaveLength(3);
+        expect(stereo).toHaveLength(2);
+        expect(stereo.map((s: { port: string }) => s.port)).toEqual([
+            'output',
+            'output',
+        ]);
     });
 });
 
@@ -321,16 +391,11 @@ describe('chaining methods', () => {
         expect(findModules(patch, '$scaleAndShift').length).toBeGreaterThan(0);
     });
 
-    test('.exp() creates a curve module', () => {
+    test('.exp() raises to a plain power', () => {
         const patch = execPatch('$sine("C4").exp(2).out()');
         expect(findModules(patch, '$sine').length).toBe(1);
-        expect(findModules(patch, '$curve').length).toBeGreaterThan(0);
-    });
-
-    test('.exp() with default factor creates a curve module', () => {
-        const patch = execPatch('$sine("C4").exp().out()');
-        expect(findModules(patch, '$sine').length).toBe(1);
-        expect(findModules(patch, '$curve').length).toBeGreaterThan(0);
+        const [pow] = findModules(patch, '_arithmetic');
+        expect(pow.params).toMatchObject({ operand: 2, op: 'pow' });
     });
 
     test('.scope() adds a scope entry', () => {
@@ -359,6 +424,21 @@ describe('chaining methods', () => {
         expect(patch.scopes[0].channels.length).toBe(2);
         expect(patch.scopes[0].channels[0].channel).toBe(0);
         expect(patch.scopes[0].channels[1].channel).toBe(1);
+    });
+
+    test('.scope() split mode is carried on the scope entry', () => {
+        const patch = execPatch(
+            '$sine(["C4", "E4"]).scope({ split: "horizontal" }).out()',
+        );
+        expect(patch.scopes).toHaveLength(1);
+        expect(patch.scopes[0].split).toBe('horizontal');
+        expect(patch.scopes[0].channels).toHaveLength(2);
+        expect(execPatch('$sine("C4").scope().out()').scopes[0].split).toBe(
+            undefined,
+        );
+        expect(() =>
+            execPatch('$sine("C4").scope({ split: "diagonal" }).out()'),
+        ).toThrow(/split/);
     });
 
     test('.scope() on indexed output captures single channel', () => {
@@ -461,8 +541,11 @@ describe('sequencing', () => {
         ).toEqual({ start: 3, end: 10 });
     });
 
-    test('a pattern in a poly signal param is wrapped in $cycle', () => {
-        const patch = execPatch('$sine($p("c4 e4")).out()');
+    test('.c is .cycle(), made once per pattern', () => {
+        const patch = execPatch(`
+            const seq = $p("c4 e4");
+            $sine(seq.c).amp($perc(seq.c.trig)).out();
+        `);
         const [cycle] = findModules(patch, '$cycle');
         const [sine] = findModules(patch, '$sine');
         expect(findModules(patch, '$cycle').length).toBe(1);
@@ -471,24 +554,60 @@ describe('sequencing', () => {
         ]);
     });
 
-    test('every pattern kind is accepted by poly and mono signal params', () => {
-        const patch = execPatch(`
-            $sine($p.s("0 2 4", "C(major)")).out();
-            $sine($p.arrange([2, $p("c4")], [1, $p("e4")])).out();
-            $sine($p("c4").fast(2).struct("x ~")).out();
-            $sine([$p("c4"), "e4", $p("g4")]).out();
-            $stereoMix($saw("c3"), { width: $p("0 5") }).out();
-        `);
-        expect(findModules(patch, '$cycle').length).toBe(6);
+    test.each([
+        '$p("c4 e4")',
+        '$p.s("0 2 4", "C(major)")',
+        '$p.arrange([2, $p("c4")], [1, $p("e4")])',
+        '$p("c4").fast(2)',
+        '$p("c4").slow(2)',
+        '$p("c4").struct("x ~")',
+        '$p("c4").beat("0,7", 16)',
+        '$p("c4 e4").glide(0.25)',
+    ])('%s has .c', (pattern) => {
+        const patch = execPatch(`const p = ${pattern}; $sine(p.c).out(); p.c`);
+        expect(findModules(patch, '$cycle').length).toBe(1);
     });
 
-    test('wrapped patterns keep their editor highlight spans', () => {
-        const patch = execPatch('$sine($p("c4 e4")).out()');
-        const [cycle] = findModules(patch, '$cycle');
-        expect(
-            (cycle.params as { pattern: { argument_span?: unknown } }).pattern
-                .argument_span,
-        ).toEqual({ start: 9, end: 16 });
+    test('.cycle() and separately built patterns make their own $cycle', () => {
+        const patch = execPatch(`
+            const p = $p("c4 e4");
+            $sine(p.c).out();
+            $sine(p.cycle()).out();
+            $sine(p.fast(2).c).out();
+            $sine(p.fast(2).c).out();
+        `);
+        expect(findModules(patch, '$cycle').length).toBe(4);
+    });
+
+    test('.c is made again for each run of a pattern kept between runs', () => {
+        const source = '$p.kept ??= $p("c4 e4"); $sine($p.kept.c).out()';
+        execPatch(source);
+        expect(findModules(execPatch(source), '$cycle').length).toBe(1);
+    });
+
+    test('an array in a signal param spreads the collections inside it', () => {
+        const patch = execPatch('$sine([$p("c4, g4").c, "e4"]).out()');
+        const [sine] = findModules(patch, '$sine');
+        expect(sine.params.freq).toHaveLength(3);
+    });
+
+    test.each([
+        '$sine($p("c4 e4")).out()',
+        '$sine([$p("c4"), "e4"]).out()',
+        '$sine($g1($p("c4 e4"))).out()',
+        '$stereoMix($saw("c3"), { width: $p("0 5") }).out()',
+        '$mix([$p("c4 e4"), "g4"]).out()',
+        '$step(["c4", "g4"], $p("1 0")).out()',
+        '$sine("c3").amplitude($p("1 2")).out()',
+        '$sine("c3").out({ gain: $p("3 4") })',
+        '$sine("c3").outMono(1, $p("0.5 1"))',
+        '$signal(1).range($p("0 1"), 5, -5, 5).out()',
+        '$c($sine("c3")).range(0, $p("2 3")).out()',
+        '$c($p("c4 e4")).out()',
+        '$quantizer($sine("c4"), $p("c4 e4 g4")).out()',
+        '$pWarp($sine("c3"), $phase.mirror($p("0 1"))).out()',
+    ])('a pattern is not a signal: %s', (source) => {
+        expect(() => execPatch(source)).toThrow(/is a pattern, not a signal/);
     });
 
     test('MIDI-number and scale-interval signal strings are rejected', () => {
@@ -496,8 +615,8 @@ describe('sequencing', () => {
         expect(() => execPatch('$sine("4s(C:major)").out()')).toThrow();
     });
 
-    test('$c plays pattern objects directly and lifts single values to $signal', () => {
-        const patch = execPatch('$c($p("c4 e4"), "c4", 440).out()');
+    test('$c lifts single values to $signal and takes a played pattern', () => {
+        const patch = execPatch('$c($p("c4 e4").c, "c4", 440).out()');
         expect(findModules(patch, '$cycle').length).toBe(1);
         const lifted = findModules(patch, '$signal').filter(
             (m) => m.params.value === 'c4' || m.params.value === 440,
@@ -505,51 +624,10 @@ describe('sequencing', () => {
         expect(lifted.length).toBe(2);
     });
 
-    test('a pattern inside a $gN group plays through a $cycle', () => {
-        const patch = execPatch('$sine($g1($p("c4 e4"))).out()');
-        expect(findModules(patch, '$cycle').length).toBe(1);
-    });
-
-    test('patterns inside nested signal params play through a $cycle', () => {
-        const patch = execPatch(`
-            $mix([$p("c4 e4"), "g4"]).out();
-            $step([$p("c4 e4"), "g4"], $p("1 0")).out();
-        `);
-        expect(findModules(patch, '$cycle').length).toBe(3);
-    });
-
-    test('patterns work through methods and .out config', () => {
-        const patch = execPatch(
-            '$sine("c3").amplitude($p("1 2")).out({ gain: $p("3 4") })',
-        );
-        expect(findModules(patch, '$cycle').length).toBe(2);
-    });
-
-    test('.range accepts patterns for its bounds', () => {
-        const patch = execPatch(`
-            $signal(1).range($p("0 1"), 5, -5, 5).out();
-            $c($sine("c3")).range($p("0 1"), $p("2 3"), 0, 5).out();
-            $sine("c3").range($p("0 1"), 5).out();
-        `);
-        expect(findModules(patch, '$cycle').length).toBe(4);
-    });
-
-    test('.outMono(channel, pattern) plays the pattern as the gain', () => {
-        const patch = execPatch('$sine("c3").outMono(1, $p("0.5 1"))');
-        expect(findModules(patch, '$cycle').length).toBe(1);
-    });
-
     test('.outMono rejects a pattern in the channel position', () => {
         expect(() => execPatch('$sine("c3").outMono($p("0.5 1"))')).toThrow(
             /first argument is a channel number/,
         );
-    });
-
-    test('$table helpers play patterns as their signals', () => {
-        const patch = execPatch(`
-            $table.mirror($p("0 1"), $table.pwm($p("1 2")));
-        `);
-        expect(findModules(patch, '$cycle').length).toBe(2);
     });
 
     test('$c rejects values that are not signals', () => {
@@ -801,6 +879,27 @@ describe('sequencing', () => {
         ).toBe(true);
     });
 
+    test('.glide captures a string glide argument span for highlighting', () => {
+        const source =
+            'const pat = $p("c4 e4").glide("0 0.25")\n' +
+            'const seq = $cycle(pat)\n' +
+            'seq.out()';
+        const patch = execPatch(source);
+        const pattern = findModules(patch, '$cycle')[0].params.pattern;
+        expect(isGlidePattern(pattern)).toBe(true);
+        if (!isGlidePattern(pattern)) return;
+        // Spans flatten as [inner, glide] — matching the Rust per_source order.
+        expect(pattern.argument_spans.length).toBe(2);
+        const innerSpan = pattern.argument_spans[0];
+        expect(
+            source.slice(innerSpan.start, innerSpan.end).includes('c4 e4'),
+        ).toBe(true);
+        const glideSpan = pattern.argument_spans[1];
+        expect(
+            source.slice(glideSpan.start, glideSpan.end).includes('0 0.25'),
+        ).toBe(true);
+    });
+
     test('.struct / .beat compose with the other pattern builders', () => {
         // .struct on a scale-degree pattern.
         expect(
@@ -1039,10 +1138,8 @@ describe('sequencing', () => {
     });
 
     test('$p.s accepts a reassigned string variable as source', () => {
-        // The inline migration form `$cycle($p.s(pat, key))` (used when an
-        // $iCycle source variable feeds calls with conflicting scales) keeps
-        // `pat` a raw string, so $p.s must consume the variable's runtime
-        // (last-assigned) value.
+        // `$cycle($p.s(pat, key))` with a reassigned `pat` must consume the
+        // variable's runtime (last-assigned) value.
         const source =
             "const key = 'c(maj)'\n" +
             "let pat = '<0 2 4>*16'\n" +
@@ -1759,9 +1856,64 @@ describe('built-in modules', () => {
 // ─── FX modules ──────────────────────────────────────────────────────────────
 
 describe('fx modules', () => {
-    test('$crush', () => {
-        const patch = execPatch('$crush($sine("C4"), 3).out()');
-        expect(findModules(patch, '$crush').length).toBe(1);
+    test('$pWarp', () => {
+        const patch = execPatch(
+            '$pSine($pWarp($ramp("C4"), $phase.crush(3, $phase.feedback(1)))).out()',
+        );
+        const [warp] = findModules(patch, '$pWarp');
+        expect(warp.params.phase).toEqual({
+            type: 'pipe',
+            first: { type: 'crush', amount: 3 },
+            second: { type: 'feedback', amount: 1 },
+        });
+    });
+
+    test('$enosc', () => {
+        const patch = execPatch(
+            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" }).odd.out()',
+        );
+        const [enosc] = findModules(patch, '$enosc');
+        expect(enosc.params.scale).toEqual({ type: 'minor' });
+        expect(enosc.params.phase).toEqual({ type: 'pulsar', amount: 2 });
+        expect(enosc.params.effectOrder).toBe('scf');
+    });
+
+    test('$enosc.scale.custom parses its notes', () => {
+        const patch = execPatch(
+            '$enosc("c2", $enosc.scale.custom(" 0 3.5  7 ", false)).out()',
+        );
+        const [enosc] = findModules(patch, '$enosc');
+        expect(enosc.params.scale).toEqual({
+            type: 'custom',
+            notes: [0, 3.5, 7],
+            repeatsOctave: false,
+        });
+    });
+
+    test('$enosc.scale offers every preset the engine accepts', () => {
+        const presets = enoscScalePresets(schemas as ModuleSchema[]);
+        expect(presets.length).toBe(20);
+        const source = presets
+            .map(({ name }) => `$enosc("c2", $enosc.scale.${name}).out()`)
+            .join('\n');
+        const scales = findModules(execPatch(source), '$enosc').map(
+            (m) => m.params.scale,
+        );
+        expect(scales).toEqual(presets.map(({ name }) => ({ type: name })));
+    });
+
+    test('$enosc.scale.custom rejects a missing repeatsOctave', () => {
+        expect(() =>
+            execPatch('$enosc("c2", $enosc.scale.custom("0 3 7")).out()'),
+        ).toThrow(/repeatsOctave must be true or false/);
+    });
+
+    test('$enosc.scale.custom rejects non-numeric notes', () => {
+        expect(() =>
+            execPatch(
+                '$enosc("c2", $enosc.scale.custom("0 b3 7", true)).out()',
+            ),
+        ).toThrow(/not a space-separated list of numbers/);
     });
 
     test('$fold', () => {
@@ -2633,9 +2785,9 @@ describe('$wavs() and $sampler', () => {
     });
 });
 
-// ─── $table DSL helpers ──────────────────────────────────────────────────────
+// ─── $phase DSL helpers ──────────────────────────────────────────────────────
 
-describe('$table helpers', () => {
+describe('$phase helpers', () => {
     const wavsFolderTree = { wt: 'file' } as const;
     const loadWav = (path: string) => ({
         channels: 1,
@@ -2662,18 +2814,18 @@ describe('$table helpers', () => {
         });
     }
 
-    test('$table.mirror serializes a numeric amount', () => {
+    test('$phase.mirror serializes a numeric amount', () => {
         const patch = execWithWavs(
-            '$wavetable(0, $wavs().wt, 0, { phase: $table.mirror(0.5) }).out()',
+            '$wavetable(0, $wavs().wt, 0, { phase: $phase.mirror(0.5) }).out()',
         ).patch;
         const wt = findModules(patch, '$wavetable');
         expect(wt.length).toBe(1);
         expect(wt[0].params.phase).toEqual({ type: 'mirror', amount: 0.5 });
     });
 
-    test('$table.bend serializes a ModuleOutput as a cable reference', () => {
+    test('$phase.bend serializes a ModuleOutput as a cable reference', () => {
         const patch = execWithWavs(
-            'const lfo = $sine(0)\n$wavetable(0, $wavs().wt, 0, { phase: $table.bend(lfo) }).out()',
+            'const lfo = $sine(0)\n$wavetable(0, $wavs().wt, 0, { phase: $phase.bend(lfo) }).out()',
         ).patch;
         const wt = findModules(patch, '$wavetable');
         expect(wt.length).toBe(1);
@@ -2691,28 +2843,34 @@ describe('$table helpers', () => {
         });
     });
 
-    test('$table variants use camelCase tags matching Rust deserializer', () => {
+    test('$phase variants use camelCase tags matching Rust deserializer', () => {
         const patch = execWithWavs(
-            `const a = $wavetable(0, $wavs().wt, 0, { phase: $table.sync(1) }).out()
-             const b = $wavetable(0, $wavs().wt, 0, { phase: $table.fold(0.2) }).out()
-             const c = $wavetable(0, $wavs().wt, 0, { phase: $table.pwm(0.5) }).out()`,
+            `const a = $wavetable(0, $wavs().wt, 0, { phase: $phase.sync(1) }).out()
+             const b = $wavetable(0, $wavs().wt, 0, { phase: $phase.fold(0.2) }).out()
+             const c = $wavetable(0, $wavs().wt, 0, { phase: $phase.pwm(0.5) }).out()
+             const d = $wavetable(0, $wavs().wt, 0, { phase: $phase.pulsar(1) }).out()
+             const e = $wavetable(0, $wavs().wt, 0, { phase: $phase.crush(2) }).out()
+             const f = $wavetable(0, $wavs().wt, 0, { phase: $phase.feedback(3) }).out()`,
         ).patch;
-        const tables = findModules(patch, '$wavetable').map(
+        const warps = findModules(patch, '$wavetable').map(
             (m) => m.params.phase,
         );
-        expect(tables).toEqual(
+        expect(warps).toEqual(
             expect.arrayContaining([
                 { type: 'sync', ratio: 1 },
                 { type: 'fold', amount: 0.2 },
                 { type: 'pwm', width: 0.5 },
+                { type: 'pulsar', amount: 1 },
+                { type: 'crush', amount: 2 },
+                { type: 'feedback', amount: 3 },
             ]),
         );
     });
 
-    test('optional second param composes two tables into a pipe descriptor', () => {
+    test('optional second param composes two warps into a pipe descriptor', () => {
         const patch = execWithWavs(
             `$wavetable(0, $wavs().wt, 0, {
-                phase: $table.mirror(0.5, $table.bend(0.3))
+                phase: $phase.mirror(0.5, $phase.bend(0.3))
             }).out()`,
         ).patch;
         const wt = findModules(patch, '$wavetable');
@@ -2727,7 +2885,7 @@ describe('$table helpers', () => {
     test('second param chains left-to-right: mirror -> bend -> fold', () => {
         const patch = execWithWavs(
             `$wavetable(0, $wavs().wt, 0, {
-                phase: $table.mirror(0.5, $table.bend(0.3, $table.fold(0.2)))
+                phase: $phase.mirror(0.5, $phase.bend(0.3, $phase.fold(0.2)))
             }).out()`,
         ).patch;
         const wt = findModules(patch, '$wavetable');
@@ -2742,10 +2900,10 @@ describe('$table helpers', () => {
         });
     });
 
-    test('.pipe passes table to closure and returns result', () => {
+    test('.pipe passes the warp to the closure and returns the result', () => {
         const patch = execWithWavs(
             `$wavetable(0, $wavs().wt, 0, {
-                phase: $table.mirror(0.5).pipe(t => t)
+                phase: $phase.mirror(0.5).pipe(t => t)
             }).out()`,
         ).patch;
         const wt = findModules(patch, '$wavetable');
@@ -2755,11 +2913,11 @@ describe('$table helpers', () => {
     test('.pipe closure can build a pipe descriptor', () => {
         const patch = execWithWavs(
             `$wavetable(0, $wavs().wt, 0, {
-                phase: $table.mirror(0.5).pipe(t => $table.bend(0.3, t))
+                phase: $phase.mirror(0.5).pipe(t => $phase.bend(0.3, t))
             }).out()`,
         ).patch;
         const wt = findModules(patch, '$wavetable');
-        // t is mirror; $table.bend(0.3, t) = pipe(bend, mirror) — bend feeds into mirror
+        // t is mirror; $phase.bend(0.3, t) = pipe(bend, mirror) — bend feeds into mirror
         expect(wt[0].params.phase).toEqual({
             type: 'pipe',
             first: { type: 'bend', amount: 0.3 },

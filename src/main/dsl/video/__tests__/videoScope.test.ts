@@ -41,10 +41,10 @@ describe('$v.scopeXY', () => {
         expect(taps(patch)).toHaveLength(4);
     });
 
-    it('takes an axis mixing collections, numbers, notes and patterns', () => {
+    it('takes an axis mixing collections, numbers and notes', () => {
         const { video } = exec(`
             $scopeXY(
-                [$sine('c3').range(-1, 1), 2, 'e3', $p('c3 e3')],
+                [$sine('c3').range(-1, 1), 2, 'e3', $sine('g3')],
                 $saw(['c2', 'g2']),
             )
         `);
@@ -184,15 +184,6 @@ describe('$v.scopeXY settings driven by signals', () => {
         expect(video!.uniforms[slot].kind).toBe('tap');
     });
 
-    it('plays a pattern', () => {
-        const { video } = exec(`
-            $v.scopeXY($sine('c4'), $sine('g4'), {
-                persistence: $p('0.2 0.9'),
-            }).out()
-        `);
-        expect(video!.scopes[0].persistence.kind).toBe('uniform');
-    });
-
     it('keeps the slots of settings when renumbering', () => {
         const { video } = exec(`
             const unused = $v.solid($slider('Unused', 1, 0, 1), 0, 0)
@@ -212,8 +203,6 @@ describe('$v.scopeXY settings driven by signals', () => {
             exec(
                 `$v.scopeXY($sine('c4'), $sine('g4'), { intensity: $v.osc(2) }).out()`,
             ),
-        ).toThrow(
-            /intensity takes a number, a slider, a pattern or an audio signal/,
-        );
+        ).toThrow(/intensity takes a number, a slider or an audio signal/);
     });
 });

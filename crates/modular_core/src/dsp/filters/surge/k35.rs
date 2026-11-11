@@ -9,6 +9,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::{fasttan, fasttanh_clamped};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// K35 coefficient slots (Surge `k35_coeffs`).
 const K35_G: usize = 0;
@@ -31,16 +33,16 @@ const K35_2Z: usize = 2;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum K35Saturation {
-    /// Linear — no saturation.
+    /// clean and linear
     #[default]
     None,
-    /// ×1 drive into the saturator.
+    /// a touch of grit in the resonance
     Mild,
-    /// ×2 drive.
+    /// audible growl
     Moderate,
-    /// ×3 drive.
+    /// thick, distorted resonance
     Heavy,
-    /// ×4 drive.
+    /// fully driven, screaming resonance
     Extreme,
 }
 
@@ -193,41 +195,61 @@ impl Filter for K35Hp {
     }
 }
 
+const K35_LP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Korg 35 lowpass",
+    description: "The lowpass from the early Korg MS-20: bright, aggressive resonance that \
+                  turns snarling as `saturation` rises.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Snarling lead",
+        code: r#"
+            const lead = $saw($p('c3 eb3 g3 bb3').c)
+            const sweep = $sine('0.5hz').range('c4', 'c7')
+            $unstable.filter
+              .k35Lp(lead, sweep, 4, { saturation: 'heavy' })
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge XT's K35 lowpass — the Korg 35 sallen-key filter (from Odin 2), with a
-    /// saturator in the resonance feedback path. Oversampled 2× when saturating.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; screams near the top.
-    /// - **saturation** — `'none'`, `'mild'`, `'moderate'`, `'heavy'`, `'extreme'`.
-    ///
-    /// ```js
-    /// $unstable.filter.k35Lp($saw('c2'), 'c4', 3, { saturation: 'moderate' })
-    /// ```
+    docs = K35_LP_DOCS,
     name = "$unstable.filter.k35Lp", ident = K35LpFilter, kernel = K35Lp,
     output_doc = "lowpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
-        /// feedback saturation: none, mild, moderate, heavy, extreme (default none)
+        #[input("how hard the resonance feedback saturates", default = "none")]
         saturation: K35Saturation,
     },
     mode = |p| p.saturation,
 }
 
+const K35_HP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Korg 35 highpass",
+    description: "The highpass from the early Korg MS-20: thins a sound with a sharp, \
+                  whistling resonance that grits up as `saturation` rises.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Whistling highpass on a saw",
+        code: r#"
+            $unstable.filter
+              .k35Hp($saw('c2'), $sine('0.15hz').range('c3', 'c6'), 4, {
+                saturation: 'mild',
+              })
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge XT's K35 highpass — the Korg 35 sallen-key filter (from Odin 2), with a
-    /// saturator in the resonance feedback path. Oversampled 2× when saturating.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; screams near the top.
-    /// - **saturation** — `'none'`, `'mild'`, `'moderate'`, `'heavy'`, `'extreme'`.
-    ///
-    /// ```js
-    /// $unstable.filter.k35Hp($saw('c2'), 'c4', 3, { saturation: 'mild' })
-    /// ```
+    docs = K35_HP_DOCS,
     name = "$unstable.filter.k35Hp", ident = K35HpFilter, kernel = K35Hp,
     output_doc = "highpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
-        /// feedback saturation: none, mild, moderate, heavy, extreme (default none)
+        #[input("how hard the resonance feedback saturates", default = "none")]
         saturation: K35Saturation,
     },
     mode = |p| p.saturation,

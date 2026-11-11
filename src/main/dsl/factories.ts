@@ -1,6 +1,6 @@
 import type { ModuleSchema } from '@modular/core';
-import { deriveChannelCount, getReservedOutputNames } from '@modular/core';
-import type { ModuleOutput } from './GraphBuilder';
+import { deriveChannelCount } from '@modular/core';
+import type { ModuleOutput, ScopeConfig } from './GraphBuilder';
 import {
     BaseCollection,
     GraphBuilder,
@@ -9,13 +9,20 @@ import {
 } from './GraphBuilder';
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
+import {
+    chooseOutput,
+    elementSlot,
+    type OutputClass,
+} from '../../shared/dsl/outputResolutionRule';
+import './chainMethods';
+import { sanitizeOutputName } from './outputNames';
+import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
-import { isPatternValue } from './patternKinds';
+import { refusePattern } from './patternKinds';
 import { isSignalGroupLike } from './signalGroups';
-import { buildSignalMapper } from './signalSchemaMapper';
+import { signalParamsOf } from './signalParams';
 import {
     captureSourceLocation,
-    getDSLWrapperLineOffset,
     setDSLWrapperLineOffset,
 } from './captureSourceLocation';
 
@@ -98,7 +105,7 @@ function isArrangePatternLike(
 
 /**
  * Structural check for a `.fast(...)` / `.slow(...)` / `.struct(...)` /
- * `.beat(...)` wrapper. Like `SpPattern` and `ArrangePattern`, it carries a
+ * `.beat(...)` / `.glide(...)` wrapper. Like `SpPattern` and `ArrangePattern`, it carries a
  * flat `argument_spans[i]` list — the wrapped pattern's per-source spans —
  * used to map runtime per-source highlights back to editor literals.
  */
@@ -112,7 +119,8 @@ function isPatternWrapperLike(
         value.__kind === 'FastPattern' ||
         value.__kind === 'SlowPattern' ||
         value.__kind === 'StructPattern' ||
-        value.__kind === 'BeatPattern'
+        value.__kind === 'BeatPattern' ||
+        value.__kind === 'GlidePattern'
     );
 }
 
@@ -130,9 +138,7 @@ function captureArgumentSpans(
         return undefined;
     }
 
-    // Build the call site key matching what ts-morph produced.
-    // Both ts-morph and V8 stack traces use 1-based lines and columns.
-    const key: CallSiteKey = `${sourceLocation.line + getDSLWrapperLineOffset()}:${sourceLocation.column}`;
+    const key: CallSiteKey = `${sourceLocation.line}:${sourceLocation.column}`;
 
     const entry = activeSpanRegistry.get(key);
     if (!entry) {
@@ -233,15 +239,6 @@ type ModuleReturn = SingleOutput | PolyOutput | MultiOutput;
 
 type FactoryFunction = (...args: any[]) => ModuleReturn;
 
-type SourceLocation = { line: number; column: number };
-
-/** Builds one module from call args at an explicit source location. */
-type Instantiator = (
-    args: any[],
-    sourceLocation: SourceLocation | undefined,
-    argumentSpans: ArgumentSpans | undefined,
-) => ModuleReturn;
-
 interface NamespaceTree {
     [key: string]: NamespaceTree | FactoryFunction;
 }
@@ -255,32 +252,6 @@ function sanitizeIdentifier(name: string): string {
         id = `_${id}`;
     }
     return id || '_';
-}
-
-/**
- * Convert snake_case to camelCase
- */
-function toCamelCase(str: string): string {
-    return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
-/**
- * Reserved property names that conflict with ModuleOutput, Collection, or CollectionWithRange
- * methods/properties. Output names matching these will be suffixed with an underscore.
- *
- * Single source of truth: `crates/reserved_output_names.rs`
- */
-const RESERVED_OUTPUT_NAMES: ReadonlySet<string> = new Set(
-    getReservedOutputNames(),
-);
-
-/**
- * Sanitize output name to avoid conflicts with reserved properties/methods.
- * Appends underscore if the camelCase name is reserved.
- */
-function sanitizeOutputName(name: string): string {
-    const camelName = toCamelCase(name);
-    return RESERVED_OUTPUT_NAMES.has(camelName) ? `${camelName}_` : camelName;
 }
 
 /**
@@ -342,7 +313,6 @@ export class DSLContext {
     factories: Record<string, FactoryFunction> = {};
     namespaceTree: NamespaceTree = {};
     private builder: GraphBuilder;
-    private instantiators = new Map<string, Instantiator>();
 
     constructor(schemas: ModuleSchema[]) {
         this.builder = new GraphBuilder(schemas);
@@ -369,108 +339,66 @@ export class DSLContext {
     }
 
     /**
+     * Prepare a signal param's value for an input of class `inputClass`:
+     * resolve every module root in the value itself, array elements, and the
+     * contents of a `$gN` group, and spread the collections inside an array.
+     * `slot` names the value in resolution records and, after `module`, when
+     * a pattern in it is refused.
+     */
+    private signalParam(
+        value: unknown,
+        inputClass: OutputClass,
+        slot: string,
+        module: string,
+        sourceLocation: CallSite | undefined,
+    ): unknown {
+        if (isSignalGroupLike(value)) {
+            return {
+                ...value,
+                signals: this.signalParam(
+                    value.signals,
+                    inputClass,
+                    slot,
+                    module,
+                    sourceLocation,
+                ),
+            };
+        }
+        const resolve = (v: unknown, s: string): unknown => {
+            refusePattern(v, `${module}: ${s}`);
+            return this.builder.outputResolver.resolve(
+                v,
+                inputClass,
+                sourceLocation,
+                s,
+            );
+        };
+        if (Array.isArray(value)) {
+            return value.flatMap((v, i) => {
+                const resolved = resolve(v, elementSlot(slot, i));
+                return resolved instanceof BaseCollection
+                    ? [...resolved]
+                    : [resolved];
+            });
+        }
+        return resolve(value, slot);
+    }
+
+    /**
      * Create a module factory function that returns outputs directly
      */
     private createFactory(schema: ModuleSchema): FactoryFunction {
-        const instantiate = this.createInstantiator(schema);
-        this.instantiators.set(schema.name, instantiate);
-        return (...args: any[]): ModuleReturn => {
-            // Capture source location from stack trace
-            const sourceLocation = captureSourceLocation();
-
-            // Capture argument spans from the pre-analyzed registry
-            const argumentSpans = captureArgumentSpans(sourceLocation);
-
-            return instantiate(args, sourceLocation, argumentSpans);
-        };
-    }
-
-    /**
-     * Wrap a pattern value (`$p(...)`, `$p.s(...)`, `$p.arrange(...)` or a
-     * `.fast`/`.slow`/`.struct`/`.beat` chain) in a `$cycle` module at the
-     * caller's source location; any other value passes through. The `$cycle`
-     * carries no argument spans of its own — the pattern embeds its
-     * highlight spans — so the caller's spans are not reused for it.
-     */
-    private wrapPattern(
-        value: unknown,
-        sourceLocation: SourceLocation | undefined,
-    ): unknown {
-        if (!isPatternValue(value)) {
-            return value;
-        }
-        const cycle = this.instantiators.get('$cycle');
-        if (!cycle) {
-            throw new Error('$cycle module not found in schemas');
-        }
-        return cycle([value], sourceLocation, undefined);
-    }
-
-    /**
-     * Wrap every pattern inside a signal param's value: the value itself, array
-     * elements, and the contents of a `$gN` group.
-     */
-    private wrapSignalParam(
-        value: unknown,
-        sourceLocation: SourceLocation | undefined,
-    ): unknown {
-        if (isSignalGroupLike(value)) {
-            const signals = this.wrapSignalParam(value.signals, sourceLocation);
-            return {
-                ...value,
-                signals:
-                    signals instanceof BaseCollection ? [...signals] : signals,
-            };
-        }
-        if (Array.isArray(value)) {
-            return value.flatMap((v) => {
-                const wrapped = this.wrapPattern(v, sourceLocation);
-                return wrapped instanceof BaseCollection
-                    ? [...wrapped]
-                    : [wrapped];
-            });
-        }
-        return this.wrapPattern(value, sourceLocation);
-    }
-
-    private createInstantiator(schema: ModuleSchema): Instantiator {
         const outputs = schema.outputs || [];
+        const rootOutputs = resolvableOutputs(schema);
         const processed = processModuleSchema(schema);
         const scaleParamNames = processed.params
             .filter((p) => p.isScaleSignalInput)
             .map((p) => p.name);
-        const patternSignalParamNames = processed.params
-            .filter(
-                (p) =>
-                    !p.isScaleSignalInput &&
-                    (p.kind === 'signal' ||
-                        p.kind === 'polySignal' ||
-                        p.isPolySignalInput ||
-                        p.isMonoSignalInput),
-            )
-            .map((p) => p.name);
+        const signalParams = signalParamsOf(schema, processed);
 
-        // Params that nest signals inside arrays or tuples, which the flat
-        // signal list above does not cover.
-        const paramsSchema = schema.paramsSchema as {
-            properties?: Record<string, Record<string, unknown>>;
-            $defs?: Record<string, Record<string, unknown>>;
-        };
-        const nestedSignalParams = processed.params
-            .filter(
-                (p) =>
-                    !p.isScaleSignalInput &&
-                    !patternSignalParamNames.includes(p.name),
-            )
-            .flatMap((p) => {
-                const property = paramsSchema.properties?.[p.name];
-                const mapper = property
-                    ? buildSignalMapper(property, paramsSchema.$defs)
-                    : null;
-                return mapper ? [{ mapper, name: p.name }] : [];
-            });
-
-        return (args, sourceLocation, argumentSpans): ModuleReturn => {
+        return (...args: any[]): ModuleReturn => {
+            const sourceLocation = captureSourceLocation();
+            const argumentSpans = captureArgumentSpans(sourceLocation);
             const positionalArgs = schema.positionalArgs || [];
             const params: Record<string, any> = {};
             let config: any = {};
@@ -497,17 +425,25 @@ export class DSLContext {
                 }
             }
 
-            // A pattern in a signal param plays through its own `$cycle`.
-            for (const name of patternSignalParamNames) {
-                params[name] = this.wrapSignalParam(
+            for (const { inputClass, name } of signalParams.flat) {
+                params[name] = this.signalParam(
                     params[name],
+                    inputClass,
+                    name,
+                    schema.name,
                     sourceLocation,
                 );
             }
-            for (const { mapper, name } of nestedSignalParams) {
+            for (const { mapper, name } of signalParams.nested) {
                 if (params[name] !== undefined) {
-                    params[name] = mapper(params[name], name, (value) =>
-                        this.wrapSignalParam(value, sourceLocation),
+                    params[name] = mapper(params[name], name, (value, path) =>
+                        this.signalParam(
+                            value,
+                            'cv',
+                            path,
+                            schema.name,
+                            sourceLocation,
+                        ),
                     );
                 }
             }
@@ -604,30 +540,25 @@ export class DSLContext {
                 const output = outputs[0];
                 return node._output(output.name, output.polyphonic ?? false);
             }
-            // Multiple outputs - create hybrid object extending the default output
-            // Find the default output (or use first if none marked)
-            const defaultOutput = outputs.find((o) => o.default) || outputs[0];
-            const defaultValue = node._output(
-                defaultOutput.name,
-                defaultOutput.polyphonic ?? false,
-            );
-
-            // Create the additional output properties
-            const additionalOutputs: Record<
+            // Multiple outputs: the root carries every output as a named
+            // property, each a separate untagged object. Read as a signal
+            // itself, the root is the output a `cv` input takes.
+            const named: Record<
                 string,
                 ModuleOutput | Collection | CollectionWithRange
             > = {};
+            let root: ModuleOutput | Collection | CollectionWithRange;
+            const cvOutput = chooseOutput(rootOutputs, 'cv');
             for (const output of outputs) {
-                if (output.name === defaultOutput.name) continue;
-                const safeName = sanitizeOutputName(output.name);
-                additionalOutputs[safeName] = node._output(
-                    output.name,
-                    output.polyphonic ?? false,
-                );
+                const name = sanitizeOutputName(output.name);
+                const polyphonic = output.polyphonic ?? false;
+                named[name] = node._output(output.name, polyphonic);
+                if (name === cvOutput) {
+                    root = node._output(output.name, polyphonic);
+                }
             }
-
-            // Return hybrid object: default output with additional properties
-            return Object.assign(defaultValue, additionalOutputs);
+            markRoot(root!, { outputs: rootOutputs, values: named });
+            return Object.assign(root!, named);
         };
     }
 
@@ -640,11 +571,7 @@ export class DSLContext {
 
     scope<T extends ModuleOutput | Collection | CollectionWithRange>(
         target: T,
-        config?: {
-            msPerFrame?: number;
-            triggerThreshold?: number;
-            scale?: number;
-        },
+        config?: ScopeConfig,
     ): T {
         const loc = captureSourceLocation();
         if (
