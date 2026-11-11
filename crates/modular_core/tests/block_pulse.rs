@@ -39,3 +39,12 @@ fn allocation_free() {
         0
     );
 }
+
+#[test]
+fn swap_agrees_through_width_and_pwm_glides() {
+    check_swap_agrees(
+        "$pulse",
+        json!({ "freq": [0.0, 0.5, 1.0, 1.5], "width": 1.0, "pwm": 0.0 }),
+        json!({ "freq": [0.0, 0.5, 1.0, 1.5], "width": 4.0, "pwm": cable("lfo", 0) }),
+    );
+}
