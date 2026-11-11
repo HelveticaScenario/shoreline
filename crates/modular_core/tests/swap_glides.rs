@@ -263,3 +263,31 @@ fn unchanged_phase_warp_amount_does_not_glide() {
     step(&patch);
     assert!((out(&patch, "warp") - 0.6).abs() < 1e-6);
 }
+
+#[test]
+fn block_mix_glides_an_edited_gain() {
+    let mix = |gain: f32| {
+        graph(vec![(
+            "mix",
+            "$mix",
+            json!({ "inputs": [1.0], "gain": gain }),
+        )])
+    };
+    let patch = build(&mix(0.0));
+    patch.connect_all();
+    for _ in 0..100 {
+        step(&patch);
+    }
+    let patch = swap(&patch, &mix(5.0), &SameIds);
+    let mut prev = 0.0;
+    for frame in 0..4800 {
+        step(&patch);
+        let y = patch.sampleables["mix"].get_value_at("output", 0, 0);
+        assert!(
+            y >= prev && y - prev < 0.1,
+            "frame {frame}: {prev} → {y} is not a glide"
+        );
+        prev = y;
+    }
+    assert_eq!(prev, 1.0, "settles exactly on unity gain");
+}
