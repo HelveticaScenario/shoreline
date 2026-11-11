@@ -984,6 +984,11 @@ function App() {
             });
     }, [refreshFileTree]);
 
+    useEffect(
+        () => electronAPI.filesystem.onTreeChange(() => void refreshFileTree()),
+        [refreshFileTree],
+    );
+
     const selectWorkspaceFolder = useCallback(async () => {
         // Check for dirty file-backed buffers before switching
         const dirtyFileBuffers = buffers.filter(

@@ -88,6 +88,23 @@ describe('stringLiteralAt', () => {
         });
     });
 
+    test('skips block comments and regular expressions before the literal', () => {
+        const comment = "/* don't */ $sampler('/wa')";
+        expect(stringLiteralAt(comment, 24)?.contentStart).toBe(23);
+        const regex = "x.replace(/'/g, '') + $sampler('/wa')";
+        expect(stringLiteralAt(regex, 34)?.contentStart).toBe(33);
+        expect(stringLiteralAt("f(/[/']/, '/a')", 13)?.contentStart).toBe(12);
+    });
+
+    test('a slash after a value divides', () => {
+        expect(stringLiteralAt("a / 2 + f('/x')", 13)?.contentStart).toBe(12);
+    });
+
+    test('nothing inside a block comment or regular expression', () => {
+        expect(stringLiteralAt("/* '/a' */", 6)).toBeNull();
+        expect(stringLiteralAt("x(/'/a'/)", 6)).toBeNull();
+    });
+
     test('nothing inside a line comment', () => {
         expect(stringLiteralAt("// '/wavs/kick.wav'", 6)).toBeNull();
     });

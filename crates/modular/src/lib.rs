@@ -342,29 +342,38 @@ impl WavCache {
             .collect()
     }
 
-    /// The file a workspace-rooted `/...` path names. The path must stay
-    /// inside the workspace.
+    /// The file a workspace-rooted `/...` path names. Every segment after the
+    /// leading `/` must be a plain name, and the file, with links followed,
+    /// must lie inside the workspace folder.
     fn workspace_file(&self, path: &str) -> Result<PathBuf> {
-        let relative = path.strip_prefix('/').ok_or_else(|| {
-            napi::Error::from_reason(format!(
-                "WAV path must start with \"/\" (the workspace folder): {path}"
-            ))
-        })?;
-        let relative = std::path::Path::new(relative);
-        if relative.as_os_str().is_empty()
-            || relative.is_absolute()
-            || relative.components().any(|c| {
-                matches!(
-                    c,
-                    std::path::Component::ParentDir | std::path::Component::Prefix(_)
-                )
-            })
-        {
+        if self.workspace_path.as_os_str().is_empty() {
             return Err(napi::Error::from_reason(format!(
-                "WAV path must name a file inside the workspace folder: {path}"
+                "open a workspace folder to load {path}"
             )));
         }
-        Ok(self.workspace_path.join(relative))
+        let outside = || {
+            napi::Error::from_reason(format!(
+                "WAV path must name a file inside the workspace folder: {path}"
+            ))
+        };
+        let relative = std::path::Path::new(path.strip_prefix('/').ok_or_else(outside)?);
+        let mut components = relative.components().peekable();
+        if components.peek().is_none()
+            || !components.all(|c| matches!(c, std::path::Component::Normal(_)))
+        {
+            return Err(outside());
+        }
+        let file = std::fs::canonicalize(self.workspace_path.join(relative)).map_err(|e| {
+            napi::Error::from_reason(format!("no file {path} in the workspace folder ({e})"))
+        })?;
+        let root = std::fs::canonicalize(&self.workspace_path).map_err(|e| {
+            napi::Error::from_reason(format!("cannot read the workspace folder ({e})"))
+        })?;
+        if file.starts_with(&root) {
+            Ok(file)
+        } else {
+            Err(outside())
+        }
     }
 
     /// Decode the audio track of a workspace media file, returning cached data
@@ -2513,15 +2522,44 @@ mod wav_cache_tests {
     #[test]
     fn paths_resolve_from_the_workspace_root_and_stay_inside_it() {
         let workspace = temp_workspace("paths");
+        let outside = temp_workspace("paths_outside");
+        std::fs::File::create(workspace.join("wavs").join("kick.wav")).expect("write wav");
+        std::fs::File::create(outside.join("wavs").join("secret.wav")).expect("write wav");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(outside.join("wavs"), workspace.join("linked")).expect("link");
         let cache = WavCache::new(workspace.clone());
-        let _ = std::fs::remove_dir_all(&workspace);
 
-        assert_eq!(
-            cache.workspace_file("/wavs/kick.wav").expect("rooted path"),
-            workspace.join("wavs").join("kick.wav")
+        let resolved = cache.workspace_file("/wavs/kick.wav");
+        let escapes: Vec<_> = [
+            "wavs/kick.wav",
+            "/",
+            "//wavs/kick.wav",
+            "/../kick.wav",
+            "/wavs/../../kick.wav",
+            "/./wavs/kick.wav",
+            "/linked/secret.wav",
+        ]
+        .into_iter()
+        .filter(|bad| cache.workspace_file(bad).is_ok())
+        .collect();
+        let _ = std::fs::remove_dir_all(&workspace);
+        let _ = std::fs::remove_dir_all(&outside);
+
+        assert!(
+            resolved.expect("rooted path").ends_with("wavs/kick.wav"),
+            "a plain rooted path resolves inside the workspace"
         );
-        for bad in ["wavs/kick.wav", "/", "/../kick.wav", "/wavs/../../kick.wav"] {
-            assert!(cache.workspace_file(bad).is_err(), "{bad} must be refused");
-        }
+        assert!(escapes.is_empty(), "accepted {escapes:?}");
+    }
+
+    #[test]
+    fn without_a_workspace_no_path_resolves() {
+        let cache = WavCache::new(std::path::PathBuf::new());
+        let error = cache.workspace_file("/kick.wav").expect_err("no workspace");
+        assert!(
+            error.reason.contains("open a workspace folder"),
+            "{}",
+            error.reason
+        );
     }
 }

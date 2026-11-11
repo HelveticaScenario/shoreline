@@ -8,8 +8,8 @@ const EXAMPLE_PATHS: Record<AssetKind, string> = {
 
 /**
  * Returns `path` as written when it starts with `/` (the workspace folder),
- * stays inside it and ends in an extension of `kind`; otherwise throws an
- * error naming `fn`.
+ * continues with plain `/`-separated names and ends in an extension of `kind`;
+ * otherwise throws an error naming `fn`.
  */
 export function assetPath(fn: string, path: unknown, kind: AssetKind): string {
     if (typeof path !== 'string' || !path.startsWith('/')) {
@@ -26,9 +26,13 @@ export function assetPath(fn: string, path: unknown, kind: AssetKind): string {
             `${fn}: a file is a path starting with "/" (the workspace folder), like '${EXAMPLE_PATHS[kind]}', got ${JSON.stringify(path)}`,
         );
     }
-    if (path.split('/').includes('..')) {
+    const segments = path.slice(1).split('/');
+    if (
+        path.includes('\\') ||
+        segments.some((s) => s === '' || s === '.' || s === '..')
+    ) {
         throw new Error(
-            `${fn}: path must stay inside the workspace folder, got "${path}"`,
+            `${fn}: path must stay inside the workspace folder, with a plain name between each "/", got ${JSON.stringify(path)}`,
         );
     }
     const extensions = ASSET_EXTENSIONS[kind];

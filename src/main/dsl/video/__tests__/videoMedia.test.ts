@@ -137,9 +137,17 @@ describe('$v media sources', () => {
             expect(() => exec(`$v.image('pictures/photo.png');`)).toThrow(
                 /\$v\.image: a file is a path starting with "\/"/,
             );
-            expect(() => exec(`$v.image('/../photo.png');`)).toThrow(
-                /path must stay inside the workspace folder/,
-            );
+            for (const path of [
+                '/../photo.png',
+                '//photo.png',
+                '/./photo.png',
+                '/pictures//photo.png',
+                '/pictures\\\\photo.png',
+            ]) {
+                expect(() => exec(`$v.image('${path}');`)).toThrow(
+                    /path must stay inside the workspace folder, with a plain name between each "\/"/,
+                );
+            }
             expect(() => exec(`$v.image('/notes.txt');`)).toThrow(
                 /"\/notes\.txt" must be one of \.png/,
             );
@@ -239,7 +247,7 @@ describe('$v media sources', () => {
             expect(() =>
                 exec(`$v.video('/clips/silent.mp4').audio.out();`),
             ).toThrow(
-                /\$v\.video\(\.\.\.\)\.audio: "clips\/silent\.mp4" has no audio/,
+                /\$v\.video\(\.\.\.\)\.audio: "\/clips\/silent\.mp4" has no audio/,
             );
         });
 

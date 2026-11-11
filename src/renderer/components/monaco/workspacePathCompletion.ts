@@ -20,22 +20,46 @@ export interface StringLiteralSpan {
     closed: boolean;
 }
 
+/** Characters after which a `/` starts a regular expression rather than dividing. */
+const BEFORE_REGEX = new Set('(,=:[!&|?{};+-*%<>~^'.split(''));
+
 /**
  * The string literal whose contents hold `column` (1-based; the column just
  * after the opening quote and the closing quote's own column both count), or
- * null. Scans the one line, so a template literal spanning lines is missed.
+ * null. Scans the one line, skipping comments and regular expressions, so a
+ * comment or template literal spanning lines is missed.
  */
 export function stringLiteralAt(
     line: string,
     column: number,
 ): StringLiteralSpan | null {
+    let previous = '';
     let i = 0;
     while (i < line.length) {
         const ch = line[i];
         if (ch === '/' && line[i + 1] === '/') {
             return null;
         }
+        if (ch === '/' && line[i + 1] === '*') {
+            const end = line.indexOf('*/', i + 2);
+            if (end === -1) return null;
+            i = end + 2;
+            continue;
+        }
+        if (ch === '/' && (previous === '' || BEFORE_REGEX.has(previous))) {
+            let j = i + 1;
+            let inClass = false;
+            while (j < line.length && (inClass || line[j] !== '/')) {
+                if (line[j] === '[') inClass = true;
+                else if (line[j] === ']') inClass = false;
+                j += line[j] === '\\' ? 2 : 1;
+            }
+            previous = '/';
+            i = j + 1;
+            continue;
+        }
         if (ch !== "'" && ch !== '"' && ch !== '`') {
+            if (ch.trim() !== '') previous = ch;
             i++;
             continue;
         }
@@ -53,6 +77,7 @@ export function stringLiteralAt(
         if (column >= span.contentStart && column <= span.contentEnd) {
             return span;
         }
+        previous = ch;
         i = j + 1;
     }
     return null;

@@ -723,9 +723,49 @@ function explorerFileType(filename: string): FileTreeEntry['fileType'] {
     return assetKind(filename);
 }
 
+let workspaceWatcher: fs.FSWatcher | null = null;
+
 /**
- * Recursively build file tree for JavaScript files
+ * Tells the renderer when files in the workspace folder change, so its
+ * explorer stays current. A change arrives as a burst of events, which are
+ * coalesced into one notice; hidden files and `node_modules` are ignored, as
+ * the explorer does.
  */
+function watchWorkspace(root: string | null): void {
+    workspaceWatcher?.close();
+    workspaceWatcher = null;
+    if (!root) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+        workspaceWatcher = fs.watch(
+            root,
+            { recursive: true },
+            (_event, filename) => {
+                if (
+                    filename
+                        ?.split(/[\\/]/)
+                        .some((p) => p.startsWith('.') || p === 'node_modules')
+                ) {
+                    return;
+                }
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(() => {
+                    timer = null;
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send(
+                            IPC_CHANNELS.FS_TREE_ON_CHANGE,
+                        );
+                    }
+                }, 150);
+            },
+        );
+        workspaceWatcher.on('error', () => watchWorkspace(null));
+    } catch {
+        console.warn('Failed to watch the workspace folder');
+    }
+}
+
+/** The workspace's patches and loadable assets, folder by folder. */
 function buildFileTree(
     dirPath: string,
     relativePath: string = '',
@@ -1444,6 +1484,7 @@ registerIPCHandler('FS_SELECT_WORKSPACE', async () => {
     const workspaceRoot = result.filePaths[0];
     currentWorkspaceRoot = workspaceRoot;
     console.log('Workspace selected:', workspaceRoot);
+    watchWorkspace(workspaceRoot);
 
     // Save to config (load-merge-save to preserve other settings)
     configStore.update((config) => {
@@ -2437,6 +2478,8 @@ app.on('ready', () => {
             console.log('Restored last opened folder:', currentWorkspaceRoot);
         }
     }
+
+    watchWorkspace(currentWorkspaceRoot);
 
     // Audio configuration is already restored during Synthesizer initialization
     // (the config is passed to the constructor)

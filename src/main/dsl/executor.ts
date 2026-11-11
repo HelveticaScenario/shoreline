@@ -763,7 +763,7 @@ export function executePatchScript(
             }
             const info = timedWavLoad(() => options.loadMediaAudio!(path));
             if (info === null) {
-                throw new Error(`$v.video(...).audio: "${path}" has no audio`);
+                throw new Error(`$v.video(...).audio: "/${path}" has no audio`);
             }
             return _mediaAudio(wavRef(info), playback) as Collection;
         },

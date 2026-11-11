@@ -183,6 +183,8 @@ export interface ElectronAPI {
             IPCHandlers[typeof IPC_CHANNELS.FS_GET_WORKSPACE]
         >;
         listFiles: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_LIST_FILES]>;
+        /** Calls `callback` when files in the workspace folder change. */
+        onTreeChange: (callback: () => void) => () => void;
         readFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_READ_FILE]>;
         writeFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_WRITE_FILE]>;
         renameFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_RENAME_FILE]>;
@@ -277,7 +279,6 @@ export interface ElectronAPI {
         /** Push command -> accelerator so the app menu shows live shortcuts. */
         setAccelerators: (accelerators: Record<string, string>) => void;
     };
-
 
     // Main process log forwarding
     onMainLog: (callback: (entry: MainLogEntry) => void) => () => void;
@@ -439,6 +440,8 @@ const electronAPI: ElectronAPI = {
 
         listFiles: (...args) => invokeIPC('FS_LIST_FILES', ...args),
 
+        onTreeChange: menuEventHandler(IPC_CHANNELS.FS_TREE_ON_CHANGE),
+
         moveFile: (...args) => invokeIPC('FS_MOVE_FILE', ...args),
 
         readFile: (...args) => invokeIPC('FS_READ_FILE', ...args),
@@ -539,7 +542,6 @@ const electronAPI: ElectronAPI = {
 
     // Main process log forwarding
     onMainLog: menuEventHandler(IPC_CHANNELS.MAIN_LOG),
-
 
     // OS shell operations
     shell: {
