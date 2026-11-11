@@ -77,6 +77,42 @@ describe('computeControlQuickFixes — a control replaces a single-value $c/$sig
         );
     });
 
+    test('a ranged $c keeps the control inside it', () => {
+        // A slider's .range takes no input range, so it cannot stand in.
+        expect(wrapped(`$sine($c(|2).range(100, 200, 0, 10)).out();`)).toBe(
+            `$sine($c($slider('args', 2, 0, 5)).range(100, 200, 0, 10)).out();`,
+        );
+        const ranged = fixesAt(
+            `const lfo = $signal(|2);\n$sine(lfo.range(100, 200, 0, 10)).out();`,
+        );
+        for (const f of ranged.fixes) {
+            expect(apply(ranged.source, f)).toContain('const lfo = $signal(');
+        }
+    });
+
+    test('a patch with its own $c keeps the call', () => {
+        const { source, fixes } = fixesAt(
+            `const $c = (x) => x * 2;\n$saw($c(|2)).out();`,
+        );
+        for (const f of fixes) {
+            expect(apply(source, f)).toContain('$c(');
+        }
+    });
+
+    test('a slot no control drives keeps the call as it was', () => {
+        const { source, fixes } = fixesAt(`$lpf($c(|1), '1000hz').out();`);
+        for (const f of fixes) {
+            expect(apply(source, f)).toContain('$lpf($c(');
+        }
+    });
+
+    test('the title shows the literal without spacing or comments', () => {
+        const { fixes } = fixesAt(`$saw($c( 'a|3' )).out();`);
+        expect(wrapFix(fixes).title).toBe(
+            `Replace $c('a3') with a note $slider`,
+        );
+    });
+
     test('a $c of several values keeps the control inside it', () => {
         expect(wrapped(`$saw($c('a|3', 'c4')).out();`)).toBe(
             `$saw($c($slider('args', 'a3', 'a1', 'a5'), 'c4')).out();`,
@@ -108,6 +144,16 @@ describe('computeControlQuickFixes — a slider back to $c', () => {
             `$saw($slider('f', 'a3', 'a1', |'a5')).out();`,
         );
         expect(unwrapFix(fixes)!.title).toBe(`Replace $slider with $c('a3')`);
+    });
+
+    test('is not offered for a ranged slider or a patch with its own $c', () => {
+        for (const text of [
+            `$sine($slider('f', 2, 0, |5).range(100, 200)).out();`,
+            `const v = $slider('f', 2, 0, |5);\n$sine(v.range(1, 2)).out();`,
+            `const $c = (x) => x;\n$sine($slider('f', 2, 0, |5)).out();`,
+        ]) {
+            expect(unwrapFix(fixesAt(text).fixes), text).toBe(undefined);
+        }
     });
 
     test('is not offered outside a slider', () => {

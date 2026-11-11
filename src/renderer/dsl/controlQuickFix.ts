@@ -2,8 +2,9 @@
  * Quick-fix analysis for turning DSL params into Control panel controls.
  *
  * Given a patch source and a cursor offset, produces the actions the editor
- * can offer there: replacing an existing literal argument with a control, or
- * adding a control for a signal param the call doesn't set yet. Every API
+ * can offer there: replacing an existing literal argument (or a `$c`/`$signal`
+ * holding just one) with a control, adding a control for a signal param the
+ * call doesn't set yet, or turning a `$slider` back into a `$c`. Every API
  * call resolves — module factories and chains, functions, and signal methods
  * (paramCallResolver.ts) — and which control, and its label, range, and
  * initial value, come from the param's metadata (paramControls.ts).
@@ -26,6 +27,13 @@ import type { ParamRef } from './apiParamControls';
 import type { ApiIndex } from './apiSignatures';
 import { addFixes, dedupeLabel } from './controlAddFixes';
 import type { CodeStyle, TextEdit } from './listEdits';
+import {
+    createSwapCheck,
+    LIFT_TO_SLIDER,
+    liftText,
+    singleLiteralSignal,
+    unwrapFixes,
+} from './controlSwap';
 import { introducesSyntaxErrors, parseErrors } from './syntaxCheck';
 import { asLiteral, createCallResolver } from './paramCallResolver';
 import { wrapChoices } from './paramControls';
@@ -82,6 +90,7 @@ export function computeControlQuickFixes(
         cursorOffset >= n.getStart(file) && cursorOffset <= n.getEnd();
 
     const resolveCall = createCallResolver(file, schemas, index);
+    const swappable = createSwapCheck(file);
     const existingLabels = collectRootLabels(file);
     const label = (base: string) => dedupeLabel(base, existingLabels);
 
@@ -95,7 +104,7 @@ export function computeControlQuickFixes(
     ): ControlQuickFix[] => {
         const onLiteral = containsCursor(node);
         const consumed = ts.isCallExpression(node)
-            ? `Replace ${shortCallText(node, file)} with `
+            ? `Replace ${liftText(node, file)} with `
             : null;
         return wrapChoices(param.label, literal, param.spec, label, quote).map(
             (choice) => ({
@@ -112,14 +121,17 @@ export function computeControlQuickFixes(
         );
     };
 
-    /** The param `expr` sets as a call argument or option member. */
-    const paramOf = (expr: ts.Expression): ParamRef | null => {
+    /**
+     * The slot `expr` fills as an argument or option member of a call that
+     * resolves, with the param a control can drive there (null when none
+     * can); null when `expr` fills no such slot.
+     */
+    const slotOf = (expr: ts.Expression): { param: ParamRef | null } | null => {
         const parent = expr.parent;
         if (ts.isCallExpression(parent)) {
-            const index = parent.arguments.indexOf(expr);
-            return index >= 0
-                ? (resolveCall(parent)?.argParam(index) ?? null)
-                : null;
+            const at = parent.arguments.indexOf(expr);
+            const resolved = at >= 0 ? resolveCall(parent) : null;
+            return resolved ? { param: resolved.argParam(at) } : null;
         }
         if (ts.isPropertyAssignment(parent) && parent.initializer === expr) {
             const obj = parent.parent;
@@ -127,37 +139,48 @@ export function computeControlQuickFixes(
             if (!call || !ts.isCallExpression(call)) {
                 return null;
             }
-            const key = propertyName(parent);
             const members = resolveCall(call)?.options(
                 call.arguments.indexOf(obj),
             );
-            return (key && members?.get(key)) || null;
+            if (!members) {
+                return null;
+            }
+            const key = propertyName(parent);
+            return { param: (key && members.get(key)) || null };
         }
         return null;
     };
 
     /**
      * Fixes replacing the `$c`/`$signal` call `call`, holding just
-     * `literal`, with a control. The control takes the param the call sets
-     * when one offers a choice; otherwise the call's own value param, or a
-     * generic 0–5 control where that offers none (`$signal` takes audio),
-     * named after that param or the variable the call initializes.
+     * `literal`, with a control, or null when the control cannot stand in
+     * for it. In a call's slot the control takes that slot's param, and
+     * replaces the call only where a literal there would get a control.
+     * Elsewhere it takes the call's own value param, or a generic 0–5
+     * control where that offers none (`$signal` takes audio), named after
+     * the variable or object key the call initializes.
      */
     const consumeFixes = (
         call: ts.CallExpression,
         literal: ParamLiteral,
-    ): ControlQuickFix[] => {
-        const outer = paramOf(call);
-        const fromOuter = outer ? wrapFixes(call, literal, outer) : [];
-        if (fromOuter.length > 0) {
-            return fromOuter;
+    ): ControlQuickFix[] | null => {
+        if (!swappable(call, LIFT_TO_SLIDER)) {
+            return null;
         }
-        const declared =
-            ts.isVariableDeclaration(call.parent) &&
-            ts.isIdentifier(call.parent.name)
-                ? call.parent.name.text
-                : null;
-        const name = outer?.label ?? declared ?? 'value';
+        const slot = slotOf(call);
+        if (slot) {
+            const fixes = slot.param
+                ? wrapFixes(call, literal, slot.param)
+                : [];
+            return fixes.length > 0 ? fixes : null;
+        }
+        const parent = call.parent;
+        const name =
+            (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)
+                ? parent.name.text
+                : ts.isPropertyAssignment(parent)
+                  ? propertyName(parent)
+                  : null) ?? 'value';
         const own = resolveCall(call)?.argParam(0);
         const fromOwn = own
             ? wrapFixes(call, literal, { ...own, label: name })
@@ -172,8 +195,12 @@ export function computeControlQuickFixes(
             const consumable =
                 singleLiteralSignal(node, file) ??
                 (node.parent && singleLiteralSignal(node.parent, file));
-            if (consumable && containsCursor(consumable.call)) {
-                return consumeFixes(consumable.call, consumable.literal);
+            const consumed =
+                consumable && containsCursor(consumable.call)
+                    ? consumeFixes(consumable.call, consumable.literal)
+                    : null;
+            if (consumed) {
+                return consumed;
             }
             const literal = asLiteral(node, file);
             const parent = node.parent;
@@ -202,10 +229,12 @@ export function computeControlQuickFixes(
             }
             const init = node.initializer;
             const consumable = singleLiteralSignal(init, file);
-            if (consumable) {
-                return consumeFixes(consumable.call, consumable.literal);
+            const consumed =
+                consumable && consumeFixes(consumable.call, consumable.literal);
+            if (consumed) {
+                return consumed;
             }
-            const param = paramOf(init);
+            const param = slotOf(init)?.param;
             const literal = asLiteral(init, file);
             return param && literal ? wrapFixes(init, literal, param) : [];
         }
@@ -214,7 +243,7 @@ export function computeControlQuickFixes(
 
     const fixes = [
         ...(argWraps.length > 0 ? argWraps : optionWraps),
-        ...unwrapFixes(file, literalsAtCursor, containsCursor),
+        ...unwrapFixes(file, literalsAtCursor, containsCursor, swappable),
     ];
 
     // "Add … for <param>" — signal params the innermost resolvable call
@@ -238,68 +267,6 @@ export function computeControlQuickFixes(
 
 /** The start of a wrap choice's title, before the control it names. */
 const WRAP_TITLE_HEAD = /^(?:Wrap '[^']*' in|Replace '[^']*' with) /;
-
-/** Calls that only lift a value into a signal; a control can replace one
- *  holding a single literal outright. */
-const SIGNAL_LIFTS = new Set(['$c', '$signal']);
-
-/** `node` as a `$c`/`$signal` call holding just one literal. */
-function singleLiteralSignal(
-    node: ts.Node,
-    file: ts.SourceFile,
-): { call: ts.CallExpression; literal: ParamLiteral } | null {
-    if (
-        !ts.isCallExpression(node) ||
-        !ts.isIdentifier(node.expression) ||
-        !SIGNAL_LIFTS.has(node.expression.text) ||
-        node.arguments.length !== 1
-    ) {
-        return null;
-    }
-    const literal = asLiteral(node.arguments[0], file);
-    return literal ? { call: node, literal } : null;
-}
-
-/**
- * "Replace $slider with $c(…)": the innermost `$slider` call at the cursor
- * becomes a `$c` of its value, as written.
- */
-function unwrapFixes(
-    file: ts.SourceFile,
-    atCursor: readonly ts.Node[],
-    containsCursor: (n: ts.Node) => boolean,
-): ControlQuickFix[] {
-    const slider = atCursor.find(
-        (n): n is ts.CallExpression =>
-            ts.isCallExpression(n) &&
-            ts.isIdentifier(n.expression) &&
-            n.expression.text === '$slider' &&
-            containsCursor(n),
-    );
-    const value = slider?.arguments[1];
-    if (!slider || !value || !asLiteral(value, file)) {
-        return [];
-    }
-    const newText = `$c(${value.getText(file)})`;
-    return [
-        {
-            caretOffset: newText.length,
-            controlOffset: 0,
-            kind: 'unwrap',
-            newText,
-            span: { end: slider.getEnd(), start: slider.getStart(file) },
-            title: `Replace $slider with ${newText}`,
-        },
-    ];
-}
-
-/** `call`'s text when short, otherwise its callee and `(…)`. */
-function shortCallText(call: ts.CallExpression, file: ts.SourceFile): string {
-    const text = call.getText(file);
-    return text.length <= 24 && !text.includes('\n')
-        ? text
-        : `${call.expression.getText(file)}(…)`;
-}
 
 /**
  * The deepest node or token whose full range, leading trivia included,
