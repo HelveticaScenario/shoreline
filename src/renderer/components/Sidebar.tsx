@@ -46,7 +46,7 @@ interface SidebarProps {
     performContent: ReactNode;
     /** The docs show as a tab here while their location is the sidebar. */
     docs: DocsState;
-    /** The app's one editable copy of the config file. */
+    /** The app's editable copy of the config file. */
     config: AppConfig;
     onConfigChange: (partial: Partial<AppConfig>) => void;
     /** False until the config file has been read. */

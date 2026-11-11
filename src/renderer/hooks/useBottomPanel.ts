@@ -119,6 +119,13 @@ export function useBottomPanel(
     const height = config.bottomPanelHeight ?? DEFAULT_HEIGHT;
     const [docsTarget, setDocsTarget] = useState<DocsTarget | null>(null);
     const [reveals, setReveals] = useState(0);
+    // The docs mount afresh in their new place and show a target on mount,
+    // so a move forgets the last one.
+    const [targetLocation, setTargetLocation] = useState(docsLocation);
+    if (docsLocation !== targetLocation) {
+        setTargetLocation(docsLocation);
+        setDocsTarget(null);
+    }
 
     // The commands are registered once and read the latest values here.
     const current = useRef({ tab, docsLocation });

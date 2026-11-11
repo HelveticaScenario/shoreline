@@ -541,14 +541,20 @@ export function VuMeterPanel({
     const mainOutput = outputs.find((o) => o.main) ?? null;
     const anySolo = channelOutputs.some((o) => o.solo);
     const panelRef = useRef<HTMLDivElement>(null);
-    const [height, setHeight] = useState(0);
+    // A resize re-renders the strips only when it crosses a threshold.
+    const [showPan, setShowPan] = useState(false);
+    const [showReadout, setShowReadout] = useState(false);
     // Measured before the first paint, so the strips open with their knobs.
     useLayoutEffect(() => {
         const panel = panelRef.current;
         if (!panel) return;
-        setHeight(panel.getBoundingClientRect().height);
+        const fit = (height: number) => {
+            setShowPan(height >= PAN_MIN_HEIGHT);
+            setShowReadout(height >= READOUT_MIN_HEIGHT);
+        };
+        fit(panel.getBoundingClientRect().height);
         const observer = new ResizeObserver(([entry]) =>
-            setHeight(entry.borderBoxSize[0].blockSize),
+            fit(entry.borderBoxSize[0].blockSize),
         );
         observer.observe(panel);
         return () => observer.disconnect();
@@ -568,8 +574,8 @@ export function VuMeterPanel({
         registerCanvas,
         registerPanPointer,
         registerReadout,
-        showPan: height >= PAN_MIN_HEIGHT,
-        showReadout: height >= READOUT_MIN_HEIGHT,
+        showPan,
+        showReadout,
         unregisterCanvas,
         unregisterPanPointer,
         unregisterReadout,
