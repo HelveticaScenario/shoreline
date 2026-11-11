@@ -202,9 +202,10 @@ export function collectSignalSites(
         }
     };
 
-    /** Whether `.name` can be written straight after `value`. */
+    /** Whether `.name` can be written straight after `value`; a shorthand `{ key }` cannot take one. */
     const takesMember = (value: TS.Expression): boolean =>
-        ts.isIdentifier(value) ||
+        (ts.isIdentifier(value) &&
+            !ts.isShorthandPropertyAssignment(value.parent)) ||
         ts.isPropertyAccessExpression(value) ||
         ts.isElementAccessExpression(value) ||
         ts.isCallExpression(value) ||

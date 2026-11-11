@@ -381,7 +381,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Takes what Poly<Signal> takes except a signal group: the module will not produce per-voice output from this parameter. ' +
             'Used for control parameters like tempo, stereo width, or math variables where a single combined value is needed.',
         examples: [
-            '$clockDivider(clock.trigger, 4)                  // Clock signal summed to mono',
+            '$clockDivider(clock.o.trigger, 4)                // Clock signal summed to mono',
             '$stereoMix(osc, { width: lfo })                  // Width control summed to mono',
             '$math("x + y", { x: osc1, y: osc2 })            // Variables summed to single values',
         ],
@@ -414,7 +414,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'or an iterable of ModuleOutputs. When used as input to a module, arrays are expanded to create multiple voices.',
         examples: [
             'filter.lpf(["C3", "E3", "G3"], { cutoff: 1000 })  // 3-voice chord',
-            'osc.saw([...seq.pitch])                           // Spread sequencer outputs',
+            'osc.saw([...seq.o.pitch])                         // Spread sequencer outputs',
             'mix.add(osc1.out, osc2.out, osc3.out)             // Multiple ModuleOutputs',
         ],
         name: 'Poly<Signal>',

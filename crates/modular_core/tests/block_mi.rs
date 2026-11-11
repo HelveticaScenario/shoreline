@@ -143,7 +143,7 @@ fn resonator_outputs_stay_in_range() {
                     "input": poly_cable("src", CHANNELS) }),
         ] {
             let patch = build(ProcessingMode::Block, ProcessingMode::Block, module, params);
-            for port in ["output", "exciter"] {
+            for port in [default_port(module).as_str(), "exciter"] {
                 let peak = render_ports(&patch, port, 200)
                     .iter()
                     .fold(0.0f32, |m, v| m.max(v.abs()));
