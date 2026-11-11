@@ -169,10 +169,10 @@ fn resonator_instances_draw_their_own_grains() {
 
 /// Two instances triggered alike draw their own consonant noise. The
 /// consonant a trigger plays follows the vowel, and only unvoiced ones carry
-/// noise, so the vowel sweeps until one does.
+/// noise, so the vowel sweeps down from the top of its range until one does.
 #[test]
 fn vowel_instances_draw_their_own_noise() {
-    let differ = (0..=10).any(|step| {
+    let differ = (0..=10).rev().any(|step| {
         let params = json!({
             "freq": 0.0,
             "vowel": step as f32 * 0.5,
@@ -190,8 +190,8 @@ fn vowel_instances_draw_their_own_noise() {
             "$mi.lpcVowel",
             params,
         );
-        let a = render_ports(&a, "excitation", 500);
-        let b = render_ports(&b, "excitation", 500);
+        let a = render_ports(&a, "excitation", 8);
+        let b = render_ports(&b, "excitation", 8);
         a.iter().zip(&b).any(|(x, y)| x != y)
     });
     assert!(differ, "every vowel drew identical noise");

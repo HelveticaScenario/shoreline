@@ -6,8 +6,8 @@ on:
             - master
 
 jobs:
-    test:
-        name: Unit + Rust tests
+    unit:
+        name: Unit tests
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
@@ -27,8 +27,8 @@ jobs:
             - name: Setup Rust (pinned via rust-toolchain.toml)
               run: rustup toolchain install
 
-            - name: Rust formatting (cargo fmt --check)
-              run: cargo fmt -p modular_core -p modular_derive -p modular -- --check
+            - name: Cache Rust build
+              uses: Swatinem/rust-cache@v2
 
             # The vitest suite loads the N-API binding at import time
             # (factories.ts -> @modular/core), so CI must build the native
@@ -43,14 +43,12 @@ jobs:
             - name: Install dependencies
               run: yarn install --frozen-lockfile
 
+            # The tests need a working binding, not a shipping one, so the
+            # build skips link-time optimisation.
             - name: Build native module
               run: yarn build-native
-
-            # Non-gating: surfaces clippy findings as annotations without
-            # failing the build (the tree is not yet clippy-clean).
-            - name: Clippy (informational)
-              continue-on-error: true
-              run: cargo clippy -p modular_core -p modular_derive -p modular --all-targets
+              env:
+                  CARGO_PROFILE_RELEASE_LTO: 'off'
 
             - name: Verify generated grammar is in sync
               run: |
@@ -65,6 +63,42 @@ jobs:
             - name: Verify committed parser-parity fixture is in sync
               run: git diff --exit-code crates/modular_core/src/pattern_system/__fixtures__/peggy_parser_parity.json
 
+    rust:
+        name: Rust tests
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  submodules: recursive
+                  lfs: true
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: 'yarn'
+
+            - name: Setup Rust (pinned via rust-toolchain.toml)
+              run: rustup toolchain install
+
+            - name: Cache Rust build
+              uses: Swatinem/rust-cache@v2
+
+            - name: Rust formatting (cargo fmt --check)
+              run: cargo fmt -p modular_core -p modular_derive -p modular -- --check
+
+            # Clippy checks the `modular` crate, which links cpal (ALSA + JACK)
+            # and udev on Linux.
+            - name: Install system deps (cpal — ALSA/JACK)
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y libasound2-dev libudev-dev libjack-jackd2-dev
+
+            # The strudel-parity fixture generator imports @strudel/mini.
+            - name: Install dependencies
+              run: yarn install --frozen-lockfile
+
             # Generate the strudel-parity fixtures (not committed), then run the
             # pure-DSP crate tests.
             - name: Rust tests (modular_core)
@@ -74,3 +108,22 @@ jobs:
               env:
                   NO_COLOR: 1
                   CARGO_TERM_COLOR: never
+
+            # Non-gating: surfaces clippy findings as annotations without
+            # failing the build (the tree is not yet clippy-clean).
+            - name: Clippy (informational)
+              continue-on-error: true
+              run: cargo clippy -p modular_core -p modular_derive -p modular --all-targets
+
+    # The branch ruleset requires this check name; it passes only when every
+    # test job does.
+    all:
+        name: Unit + Rust tests
+        if: always()
+        needs: [unit, rust]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Require every test job to pass
+              run: |
+                  test "${{ needs.unit.result }}" = success
+                  test "${{ needs.rust.result }}" = success
