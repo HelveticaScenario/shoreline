@@ -132,7 +132,7 @@ struct AdsrParams {
     curve: Option<PolySignal>,
     #[input(
         "rising edge restarts the attack from the current level, without a jump; follows the gate when not patched",
-        type = gate,
+        type = trig,
     )]
     #[deserr(default)]
     retrigger: Option<PolySignal>,
