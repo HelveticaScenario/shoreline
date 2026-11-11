@@ -73,14 +73,14 @@ const FOLD_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Slow fold sweep",
-            code: "$sine('c2').$.fold($sine('0.2hz').range(0, 5)).out()",
+            code: "$sine('c2').fold($sine('0.2hz').range(0, 5)).out()",
         },
         DocExample {
             title: "Folded plucks",
             code: r#"
                 const notes = $p('c3 g3 eb3 bb2').c
                 $sine(notes)
-                  .$.fold($perc(notes, { decay: 0.4 }), {
+                  .fold($perc(notes, { decay: 0.4 }), {
                     freq: notes,
                   })
                   .out()

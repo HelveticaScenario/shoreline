@@ -64,7 +64,7 @@ const STEP_DOCS: ModuleDocs = ModuleDocs {
                 $saw(
                   $step(['c2', 'eb2', 'g2', 'bb1'], $clock.o.beatTrigger),
                 )
-                  .$.lpf('c4', 2)
+                  .lpf('c4', 2)
                   .out()
             "#,
         },
@@ -77,7 +77,7 @@ const STEP_DOCS: ModuleDocs = ModuleDocs {
                   'c5',
                 ]
                 const cutoff = $step(sweeps, $clock.o.barTrigger)
-                $pulse('c3').$.lpf(cutoff, 1).out()
+                $pulse('c3').lpf(cutoff, 1).out()
             "#,
         },
     ],

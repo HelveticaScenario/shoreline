@@ -158,13 +158,12 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                 example: "$c(osc1, osc2).pipeMix(s => $lpf(s, '1000hz')).out()",
             },
             {
-                name: 'mix',
-                signature:
-                    'mix(channels?: number, mode?: "sum" | "average" | "max" | "min"): Collection',
+                name: 'wet',
+                signature: 'wet(mix?: Poly<Signal>): Collection',
                 description:
-                    "Fold this collection's channels down to a target channel count by panning them evenly across the output field (equal-power). " +
-                    'Builds a $mixDown module. channels defaults to 1 (mono); mode controls how channels landing on the same output combine.',
-                example: '$saw($spread(0, 5, 3)).mix(2).out()',
+                    'Every module whose first argument is a signal is also a method of this collection: `sig.lpf(...)` is `$lpf(sig, ...)`. ' +
+                    '`.wet` after one crossfades the signal it was called on against the result: 0 is dry, 5 is wet, and the default 2.5 an equal mix.',
+                example: "$saw('c3').lpf('800hz').plate().wet(1.5).out()",
             },
         ],
         name: 'Collection',
@@ -312,13 +311,12 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                 example: "$saw('c4').pipeMix(s => $lpf(s, '1000hz')).out()",
             },
             {
-                name: 'mix',
-                signature:
-                    'mix(channels?: number, mode?: "sum" | "average" | "max" | "min"): Collection',
+                name: 'wet',
+                signature: 'wet(mix?: Poly<Signal>): Collection',
                 description:
-                    "Fold this output's channels down to a target channel count by panning them evenly across the output field (equal-power). " +
-                    'Builds a $mixDown module. channels defaults to 1 (mono); mode controls how channels landing on the same output combine.',
-                example: '$saw($spread(0, 5, 3)).mix(2).out()',
+                    'Every module whose first argument is a signal is also a method of this output: `sig.lpf(...)` is `$lpf(sig, ...)`. ' +
+                    '`.wet` after one crossfades the signal it was called on against the result: 0 is dry, 5 is wet, and the default 2.5 an equal mix.',
+                example: "$saw('c3').lpf('800hz').plate().wet(1.5).out()",
             },
             {
                 name: 'range',
@@ -367,7 +365,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Its outputs are also listed by name under `.o`, as in `seq.o.gate`; naming one yourself always uses that output, whatever the input.',
         examples: [
             "const seq = $p('c e g a').c\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope",
-            "const seq = $p('c3 ~ g3 ~').c\n$sine(seq).amp(seq.$.adsr()).out()   // the gate opens the envelope",
+            "const seq = $p('c3 ~ g3 ~').c\n$sine(seq).amp(seq.adsr()).out()   // the gate opens the envelope",
             "const seq = $p('c e g a').c\n$sine(seq).amp($adsr(seq.o.gate)).amp(seq.o.velocity).out()   // named outputs are used as they are",
         ],
         name: 'Multi-output modules',
@@ -745,10 +743,10 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Create a momentary gate button in the Control panel: 5V while held, 0V otherwise. Chain through .$.hold for a fixed-length trigger per press.',
+            'Create a momentary gate button in the Control panel: 5V while held, 0V otherwise. Chain through .hold for a fixed-length trigger per press.',
         examples: [
             '$sine("c4").amplitude($adsr($btn("play"))).out();',
-            '// fixed 100 ms trigger per press, however long the button is held\n$sine("c4").amplitude($adsr($btn("hit").$.hold(0.1))).out();',
+            '// fixed 100 ms trigger per press, however long the button is held\n$sine("c4").amplitude($adsr($btn("hit").hold(0.1))).out();',
         ],
         group: 'Controls',
         name: '$btn',

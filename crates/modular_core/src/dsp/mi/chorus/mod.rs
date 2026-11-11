@@ -63,7 +63,7 @@ const CHORUS_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const strings = $mi
                   .divideDown($chord('C3[m7]'), { registration: 1 })
-                  .$.lpf('c6', 1)
+                  .lpf('c6', 1)
                 $mi.chorus(strings, { amount: 4 }).out()
             "#,
         },

@@ -54,7 +54,7 @@ const LPF_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const seq = $p('c2 c2 [eb2 c3] g1').c
                 $saw(seq)
-                  .$.lpf($perc(seq, { decay: 0.2 }).range('c3', 'c7'), 4)
+                  .lpf($perc(seq, { decay: 0.2 }).range('c3', 'c7'), 4)
                   .out()
             "#,
         },
@@ -62,7 +62,7 @@ const LPF_DOCS: ModuleDocs = ModuleDocs {
             title: "Slow pad sweep",
             code: r#"
                 $saw($chord('C3[m7]'))
-                  .$.lpf($sine('0.05hz').range('c4', 'c7'), 1)
+                  .lpf($sine('0.05hz').range('c4', 'c7'), 1)
                   .out()
             "#,
         },

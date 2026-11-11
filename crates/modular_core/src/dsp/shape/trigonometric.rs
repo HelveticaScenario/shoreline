@@ -86,7 +86,7 @@ const TRIGONOMETRIC_DOCS: ModuleDocs = ModuleDocs {
         title: "Ringing sweep",
         code: r#"
             $sine('c3')
-              .$.unstable.shape.trigonometric(
+              .unstable.shape.trigonometric(
                 'cyc7',
                 $sine('0.2hz').range(-3, 2),
               )

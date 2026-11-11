@@ -76,7 +76,7 @@ describe('computeControlQuickFixes — wrap chained sugar arguments', () => {
 
     test('sugar on a deep chain still resolves', () => {
         const { source, fixes } = fixesAt(
-            `$sine(0).$.lpf('100hz').amplitude(0.|3).out();`,
+            `$sine(0).lpf('100hz').amplitude(0.|3).out();`,
         );
         const fix = wrapFix(fixes);
         expect(apply(source, fix)).toContain(
@@ -85,30 +85,19 @@ describe('computeControlQuickFixes — wrap chained sugar arguments', () => {
     });
 });
 
-describe('computeControlQuickFixes — wrap .$./.$m. chain arguments', () => {
-    test('.$. maps arguments past the injected signal', () => {
-        const { source, fixes } = fixesAt(
-            `$sine(0).$.lpf('100hz', 2.|5).out();`,
-        );
+describe('computeControlQuickFixes — wrap chain module arguments', () => {
+    test('a chain module maps arguments past the receiver', () => {
+        const { source, fixes } = fixesAt(`$sine(0).lpf('100hz', 2.|5).out();`);
         const fix = wrapFix(fixes);
         expect(fix.title).toBe(`Wrap 'resonance' in $slider`);
         expect(apply(source, fix)).toContain(
-            `.$.lpf('100hz', $slider('resonance', 2.5, 0, 5))`,
+            `.lpf('100hz', $slider('resonance', 2.5, 0, 5))`,
         );
     });
 
-    test('.$m. shifts the mapping by the leading mix argument', () => {
+    test('.wet mix wraps with the crossfade range', () => {
         const { source, fixes } = fixesAt(
-            `$sine(0).$m.lpf(2.5, '100hz', 1.|0).out();`,
-        );
-        const fix = wrapFix(fixes);
-        expect(fix.title).toBe(`Wrap 'resonance' in $slider`);
-        expect(apply(source, fix)).toContain(`$slider('resonance', 1.0, 0, 5)`);
-    });
-
-    test('.$m. mix argument wraps with the crossfade range', () => {
-        const { source, fixes } = fixesAt(
-            `$sine(0).$m.lpf(2.|5, '100hz').out();`,
+            `$sine(0).lpf('100hz').wet(2.|5).out();`,
         );
         const fix = wrapFix(fixes);
         expect(fix.title).toBe(`Wrap 'mix' in $slider`);
@@ -128,7 +117,7 @@ describe('computeControlQuickFixes — namespaced modules', () => {
 
     test('dotted chain path resolves', () => {
         const { source, fixes } = fixesAt(
-            `$sine(0).$.unstable.filter.lp('100hz', 2.|5).out();`,
+            `$sine(0).unstable.filter.lp('100hz', 2.|5).out();`,
         );
         const fix = wrapFix(fixes);
         expect(fix.title).toBe(`Wrap 'resonance' in $slider`);
@@ -238,7 +227,7 @@ describe('computeControlQuickFixes — add sliders for missing params', () => {
     });
 
     test('chains treat the injected signal as supplied', () => {
-        const { fixes } = fixesAt(`$sine(0).$.lpf('100hz'|).out();`);
+        const { fixes } = fixesAt(`$sine(0).lpf('100hz'|).out();`);
         const titles = addTitles(fixes);
         expect(titles).toContain(`Add slider for 'resonance'`);
         expect(titles).not.toContain(`Add slider for 'input'`);
@@ -586,7 +575,7 @@ describe('computeControlQuickFixes — literal and layout edge cases', () => {
 
     test('a JS global method is not mistaken for a sugar method', () => {
         expect(fixesAt(`Math.exp(1|);`).fixes).toEqual([]);
-        expect(fixesAt(`JSON.$.lpf('100hz', 2|);`).fixes).toEqual([]);
+        expect(fixesAt(`JSON.lpf('100hz', 2|);`).fixes).toEqual([]);
     });
 
     test('sugar on a const the patch declares still resolves', () => {

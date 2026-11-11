@@ -120,7 +120,7 @@ const MULTIMODE_DOCS: ModuleDocs = ModuleDocs {
             title: "Resonant sweep morphing from lowpass to highpass",
             code: r#"
                 $saw('c2')
-                  .$.multimode(
+                  .multimode(
                     $sine('0.1hz').range(-1, 2),
                     3.8,
                     $sine('0.07hz').range(0, 5),
@@ -132,7 +132,7 @@ const MULTIMODE_DOCS: ModuleDocs = ModuleDocs {
             title: "Wavefolded sine",
             code: r#"
                 $sine('c3')
-                  .$.multimode('c6', 1, 0, { drive: 3, fold: 3 })
+                  .multimode('c6', 1, 0, { drive: 3, fold: 3 })
                   .out()
             "#,
         },

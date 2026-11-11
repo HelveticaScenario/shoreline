@@ -489,7 +489,7 @@ export function executePatchScript(
      *
      * Returns the wet `$delayRead` output with the captured `buffer` attached
      * as a property for additional taps. Mix the dry signal back yourself
-     * (`$mix([input, $delay(input, time)])`) or use `.$m.delay(mix, time)`.
+     * (`$mix([input, $delay(input, time)])`) or use `.delay(time).wet(mix)`.
      */
     const $delay = (
         input: Collection | ModuleOutput,
@@ -548,10 +548,8 @@ export function executePatchScript(
         );
     };
 
-    // Expose `$delay` on the `.$` / `.$m` chainable namespaces. It is DSL
-    // sugar rather than a module schema, so it is registered explicitly here
-    // instead of being discovered via `qualifiesForDollarChain`.
-    builder.registerDollarMethod('delay', (self, ...args) =>
+    // `$delay` is a DSL helper, not a module, so it is made a chain method here.
+    builder.registerChainMethod('delay', (self, ...args) =>
         $delay(
             self as Collection | ModuleOutput,
             ...(args as [PolySignal, DelayOptions?]),

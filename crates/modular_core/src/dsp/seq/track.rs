@@ -64,7 +64,7 @@ const TRACK_DOCS: ModuleDocs = ModuleDocs {
               ],
               { interpolationType: 'cubicIn' },
             )
-            $saw('c2').$.lpf(cutoff, 3).out()
+            $saw('c2').lpf(cutoff, 3).out()
         "#,
     }],
 };

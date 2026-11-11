@@ -19,11 +19,13 @@ import {
     UNITY_OUT_GAIN,
 } from '../../shared/dsl/vuMeterTypes';
 import type { ProcessedModuleSchema } from './paramsSchema';
+import { processSchemas } from './paramsSchema';
 import {
-    dollarMethodName,
-    processSchemas,
-    qualifiesForDollarChain,
-} from './paramsSchema';
+    createChainInstaller,
+    drySourceOf,
+    type ChainFunction,
+    type ChainHost,
+} from './chainModules';
 import { captureSourceLocation } from './captureSourceLocation';
 import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
 import { OutputResolver } from './outputResolution';
@@ -87,23 +89,6 @@ export type PolySignal = OrArray<Signal> | Iterable<ModuleOutput>;
 
 /** Structural type satisfied by every chainable output kind (output or collection). */
 type Amplifiable = { amplitude(factor: PolySignal): Collection };
-
-/**
- * Runtime shape of a `.$.`/`.$m.` proxy: every qualifying module is exposed as
- * a method, looked up lazily by name. User-facing per-module signatures come
- * from the generated `DollarChain`/`DollarMixChain` interfaces, not this type.
- */
-type DollarChainProxy = Record<string, (...args: unknown[]) => unknown>;
-
-/**
- * A node in the `.$.` namespace tree: leaf methods (`fold` → `$unstable.shape.fold`)
- * plus child sub-namespaces (`shape` → node), so dotted module names of any depth
- * (`$unstable.shape.fold` → `.$.unstable.shape.fold`) resolve by walking segments.
- */
-interface DollarNamespaceNode {
-    leaves: Map<string, string>;
-    children: Map<string, DollarNamespaceNode>;
-}
 
 /** Groove template; mirrors Rust `GrooveTemplate` (camelCase). */
 export interface GrooveTemplate {
@@ -456,36 +441,6 @@ export class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
     }
 
     /**
-     * Offset all pitches by an absolute frequency amount, in Hz.
-     * Creates an $addHz module internally.
-     */
-    addHz(offset: PolySignal): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        const factory = this.items[0].builder.getFactory('$addHz');
-        if (!factory) {
-            throw new Error('Factory for util.addHz not registered');
-        }
-        return factory(this.items, offset) as Collection;
-    }
-
-    /**
-     * Multiply all pitches by a frequency factor (2 = octave up, 0.5 = down).
-     * Creates a $mulHz module internally.
-     */
-    mulHz(factor: PolySignal): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        const factory = this.items[0].builder.getFactory('$mulHz');
-        if (!factory) {
-            throw new Error('Factory for util.mulHz not registered');
-        }
-        return factory(this.items, factor) as Collection;
-    }
-
-    /**
      * Scale all outputs by a factor with a perceptual (audio taper) curve
      * (5 = unity, 0 = silence). Chains $curve → $scaleAndShift with exponent 3.
      *
@@ -689,52 +644,12 @@ export class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
     }
 
     /**
-     * Chainable module namespace. Every module whose first argument is a
-     * (poly)signal becomes a method here, receiving this collection as that
-     * argument.
-     * @example $c(a, b).$.lpf('100hz')  // ≡ $lpf($c(a, b), '100hz')
+     * Crossfade the signal this collection was chained from against it:
+     * `sig.lpf('800hz').wet(2.5)` (0 = dry, 5 = wet, 2.5 = equal).
      */
-    get $(): DollarChainProxy {
+    wet(mix: PolySignal = 2.5): Collection {
         const builder = this.items[0]?.builder;
-        return builder
-            ? builder.makeDollarChain(this, false)
-            : emptyDollarChain();
-    }
-
-    /**
-     * Like {@link $}, but each method takes a leading `mix` signal that
-     * crossfades the dry input against the wet result (0 = dry, 5 = wet,
-     * 2.5 = equal).
-     * @example $c(a, b).$m.lpf(2.5, '100hz')
-     */
-    get $m(): DollarChainProxy {
-        const builder = this.items[0]?.builder;
-        return builder
-            ? builder.makeDollarChain(this, true)
-            : emptyDollarChain();
-    }
-
-    /**
-     * Fold this collection's channels down to `channels` output channels by
-     * panning them evenly across the output field (equal-power). Builds a
-     * \$mixDown module. Defaults to mono.
-     */
-    mix(
-        channels?: number,
-        mode?: 'sum' | 'average' | 'max' | 'min',
-    ): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        const factory = this.items[0].builder.getFactory('$mixDown');
-        if (!factory) {
-            throw new Error('Factory for $mixDown not registered');
-        }
-        return factory(
-            this.items,
-            channels,
-            mode !== undefined ? { mode } : undefined,
-        ) as Collection;
+        return builder ? wetMix(builder, this, mix) : new Collection();
     }
 
     /**
@@ -1018,37 +933,15 @@ export interface SourceLocation {
  * Note: Factory functions add overhead from channel count derivation but provide
  * consistency across all module creation paths.
  */
-export class GraphBuilder {
+export class GraphBuilder implements ChainHost {
     /** Resolves multi-output module roots and records each choice. */
     readonly outputResolver = new OutputResolver();
     private modules = new Map<string, ModuleSpec>();
     private counters = new Map<string, number>();
     private schemas: ProcessedModuleSchema[] = [];
     private schemaByName = new Map<string, ProcessedModuleSchema>();
-    /** Maps a flat `.$.` method name (e.g. `lpf`) to its module name (e.g. `$lpf`). */
-    private dollarLookup = new Map<string, string>();
-    /**
-     * Namespace tree for dotted modules' `.$.` methods: e.g. `$unstable.shape.fold`
-     * is reached as `sig.$.unstable.shape.fold(...)`, mirroring the global
-     * `$unstable.shape.fold(...)` namespace and avoiding leaf-name collisions with
-     * flat modules like `$fold`. Arbitrary nesting depth is supported.
-     */
-    private dollarNamespaceRoot: DollarNamespaceNode = {
-        leaves: new Map(),
-        children: new Map(),
-    };
-    /**
-     * `.$.` / `.$m.` methods backed by DSL sugar rather than a module schema
-     * (e.g. `delay`). Each takes the chained signal as its first argument and
-     * returns the processed result, mirroring a module factory.
-     */
-    private syntheticDollarMethods = new Map<
-        string,
-        (
-            self: ModuleOutput | BaseCollection<ModuleOutput>,
-            ...args: unknown[]
-        ) => ModuleOutput | BaseCollection<ModuleOutput>
-    >();
+    /** Chain methods backed by a DSL helper rather than a module (`delay`). */
+    private chainHelpers = new Map<string, ChainFunction>();
     private scopes: ScopeWithLocation[] = [];
     /** `ui: true` EQ panels, collected by `toPatch`. */
     private eqPanels: EqPanelDef[] = [];
@@ -1090,130 +983,24 @@ export class GraphBuilder {
     constructor(schemas: ModuleSchema[]) {
         this.schemas = processSchemas(schemas);
         this.schemaByName = new Map(this.schemas.map((s) => [s.name, s]));
-        for (const schema of this.schemas) {
-            if (!qualifiesForDollarChain(schema)) {
-                continue;
-            }
-            const leaf = dollarMethodName(schema.name);
-            const base = schema.name.startsWith('$')
-                ? schema.name.slice(1)
-                : schema.name;
-            const segments = base.split('.');
-            if (segments.length === 1) {
-                this.dollarLookup.set(leaf, schema.name);
-            } else {
-                // Walk (creating) the namespace path — every segment but the last
-                // — then register the leaf method at the terminal node.
-                let node = this.dollarNamespaceRoot;
-                for (const seg of segments.slice(0, -1)) {
-                    let child = node.children.get(seg);
-                    if (child === undefined) {
-                        child = { leaves: new Map(), children: new Map() };
-                        node.children.set(seg, child);
-                    }
-                    node = child;
-                }
-                node.leaves.set(leaf, schema.name);
-            }
-        }
+        chains.addModules(this.schemas);
+    }
+
+    /** The function behind chain path `path`: `lpf` is the `$lpf` factory. */
+    chainFunction(path: string): ChainFunction {
+        return (
+            this.chainHelpers.get(path) ??
+            (this.getFactory(`$${path}`) as ChainFunction)
+        );
     }
 
     /**
-     * Build a `.$.` (or `.$m.` when `withMix`) chainable-module proxy for
-     * `self`. Each qualifying module ($lpf → `.lpf(...)`) becomes a method that
-     * injects `self` as the module's first (signal) argument. With `withMix`,
-     * the method takes a leading `mix` signal that crossfades dry/wet via
-     * {@link crossfadeMix}. Unknown property names and symbols return
-     * `undefined`, so `then`/iterator probes stay inert.
+     * Make DSL helper `fn` chain method `name`. It takes the chained signal
+     * first, as a module factory does.
      */
-    makeDollarChain(
-        self: ModuleOutput | BaseCollection<ModuleOutput>,
-        withMix: boolean,
-    ): DollarChainProxy {
-        return new Proxy({} as DollarChainProxy, {
-            get: (_target, prop) => {
-                if (typeof prop !== 'string') {
-                    return undefined;
-                }
-                const moduleName = this.dollarLookup.get(prop);
-                if (moduleName !== undefined) {
-                    return this.dollarLeaf(self, withMix, moduleName);
-                }
-                const synthetic = this.syntheticDollarMethods.get(prop);
-                if (synthetic !== undefined) {
-                    if (!withMix) {
-                        return (...args: unknown[]) => synthetic(self, ...args);
-                    }
-                    return (mix: PolySignal, ...args: unknown[]) =>
-                        crossfadeMix(this, self, synthetic(self, ...args), mix);
-                }
-                const namespace = this.dollarNamespaceRoot.children.get(prop);
-                if (namespace !== undefined) {
-                    return this.makeDollarNamespace(self, withMix, namespace);
-                }
-                return undefined;
-            },
-        });
-    }
-
-    /**
-     * A single chainable leaf method: inject `self` as the module's first
-     * (signal) argument, or crossfade dry/wet when `withMix`.
-     */
-    private dollarLeaf(
-        self: ModuleOutput | BaseCollection<ModuleOutput>,
-        withMix: boolean,
-        moduleName: string,
-    ) {
-        const factory = this.getFactory(moduleName);
-        if (!withMix) {
-            return (...args: unknown[]) => factory(self, ...args);
-        }
-        return (mix: PolySignal, ...args: unknown[]) =>
-            crossfadeMix(this, self, factory(self, ...args), mix);
-    }
-
-    /**
-     * A nested proxy for a dotted namespace (e.g. `sig.$.unstable.shape`),
-     * resolving leaf methods against the node and recursing into child
-     * sub-namespaces so any nesting depth chains correctly.
-     */
-    private makeDollarNamespace(
-        self: ModuleOutput | BaseCollection<ModuleOutput>,
-        withMix: boolean,
-        node: DollarNamespaceNode,
-    ): DollarChainProxy {
-        return new Proxy({} as DollarChainProxy, {
-            get: (_target, prop) => {
-                if (typeof prop !== 'string') {
-                    return undefined;
-                }
-                const moduleName = node.leaves.get(prop);
-                if (moduleName !== undefined) {
-                    return this.dollarLeaf(self, withMix, moduleName);
-                }
-                const child = node.children.get(prop);
-                if (child !== undefined) {
-                    return this.makeDollarNamespace(self, withMix, child);
-                }
-                return undefined;
-            },
-        });
-    }
-
-    /**
-     * Register a `.$.` / `.$m.` method backed by DSL sugar (e.g. `delay`).
-     * `fn` receives the chained signal as its first argument, exactly like a
-     * module factory injects `self`. Resolved by {@link makeDollarChain}.
-     */
-    registerDollarMethod(
-        name: string,
-        fn: (
-            self: ModuleOutput | BaseCollection<ModuleOutput>,
-            ...args: unknown[]
-        ) => ModuleOutput | BaseCollection<ModuleOutput>,
-    ): void {
-        this.syntheticDollarMethods.set(name, fn);
+    registerChainMethod(name: string, fn: ChainFunction): void {
+        this.chainHelpers.set(name, fn);
+        chains.addMethod(name);
     }
 
     /**
@@ -2417,28 +2204,6 @@ export class ModuleOutput {
     }
 
     /**
-     * Offset this pitch by an absolute frequency amount, in Hz.
-     *
-     * The V/Oct signal is converted to Hz, the offset is added, then the
-     * result is converted back to V/Oct. Creates an $addHz module.
-     */
-    addHz(offset: PolySignal): Collection {
-        const factory = this.builder.getFactory('$addHz');
-        return factory(this, offset) as Collection;
-    }
-
-    /**
-     * Multiply this pitch by a frequency factor (2 = octave up, 0.5 = down).
-     *
-     * The V/Oct signal is converted to Hz, multiplied, then converted back
-     * to V/Oct. Creates a $mulHz module.
-     */
-    mulHz(factor: PolySignal): Collection {
-        const factory = this.builder.getFactory('$mulHz');
-        return factory(this, factor) as Collection;
-    }
-
-    /**
      * Scale this output by a factor with a perceptual (audio taper) curve
      * (5 = unity, 0 = silence). Chains $curve → $scaleAndShift with exponent 3.
      *
@@ -2591,43 +2356,11 @@ export class ModuleOutput {
     }
 
     /**
-     * Chainable module namespace. Every module whose first argument is a
-     * (poly)signal becomes a method here, receiving this output as that
-     * argument.
-     * @example $sine(0).$.lpf('100hz')  // ≡ $lpf($sine(0), '100hz')
+     * Crossfade the signal this output was chained from against it:
+     * `sig.lpf('800hz').wet(2.5)` (0 = dry, 5 = wet, 2.5 = equal).
      */
-    get $(): DollarChainProxy {
-        return this.builder.makeDollarChain(this, false);
-    }
-
-    /**
-     * Like {@link $}, but each method takes a leading `mix` signal that
-     * crossfades the dry input against the wet result (0 = dry, 5 = wet,
-     * 2.5 = equal).
-     * @example $sine(0).$m.lpf(2.5, '100hz')
-     */
-    get $m(): DollarChainProxy {
-        return this.builder.makeDollarChain(this, true);
-    }
-
-    /**
-     * Fold this output's channels down to `channels` output channels by panning
-     * them evenly across the output field (equal-power). Builds a \$mixDown
-     * module. Defaults to mono.
-     */
-    mix(
-        channels?: number,
-        mode?: 'sum' | 'average' | 'max' | 'min',
-    ): Collection {
-        const factory = this.builder.getFactory('$mixDown');
-        if (!factory) {
-            throw new Error('Factory for $mixDown not registered');
-        }
-        return factory(
-            this,
-            channels,
-            mode !== undefined ? { mode } : undefined,
-        ) as Collection;
+    wet(mix: PolySignal = 2.5): Collection {
+        return wetMix(this.builder, this, mix);
     }
 
     /**
@@ -2845,8 +2578,8 @@ export class DeferredCollection extends BaseCollection<DeferredModuleOutput> {
 /**
  * Crossfade `original` (dry) against `result` (wet) by `mix` (0 = dry, 5 = wet,
  * 2.5 = equal). The dry leg is amplitude-scaled by `mix` remapped 5→0, the wet
- * leg by `mix` clamped to 0–5, then both sum through `$mix`. Backs both
- * `.pipeMix` and the `.$m.` chainable namespace.
+ * leg by `mix` clamped to 0–5, then both sum through `$mix`. Backs `.pipeMix`
+ * and `.wet`.
  *
  * Both legs are first broadcast to the wider of the two channel counts via
  * {@link cycleToChannels} so a mismatched dry/wet width is not truncated — `$mix`
@@ -2884,21 +2617,29 @@ function crossfadeMix(
     ]) as Collection;
 }
 
-/**
- * The `.$`/`.$m` proxy for an empty collection: every method yields an empty
- * `Collection`, matching the empty-collection convention used by the other
- * chainable methods (no builder is available, so no module is instantiated).
- */
-function emptyDollarChain(): DollarChainProxy {
-    return new Proxy({} as DollarChainProxy, {
-        get(_target, prop) {
-            if (typeof prop !== 'string') {
-                return undefined;
-            }
-            return () => new Collection();
-        },
-    });
+/** `receiver.wet(mix)`: fade the signal `receiver` was chained from against it. */
+function wetMix(
+    builder: GraphBuilder,
+    receiver: ModuleOutput | BaseCollection<ModuleOutput>,
+    mix: PolySignal,
+): Collection {
+    const dry = drySourceOf(receiver);
+    if (dry === undefined) {
+        throw new Error(
+            ".wet() follows a chained module, as in sig.lpf('800hz').wet(2.5)",
+        );
+    }
+    return crossfadeMix(builder, dry as Amplifiable, receiver, mix);
 }
+
+const chains = createChainInstaller({
+    empty: () => new Collection(),
+    hostOf: (receiver) =>
+        receiver instanceof ModuleOutput
+            ? receiver.builder
+            : (receiver as BaseCollection<ModuleOutput>).items[0]?.builder,
+    prototypes: [ModuleOutput.prototype, BaseCollection.prototype],
+});
 
 type Replacer = (key: string, value: unknown) => unknown;
 

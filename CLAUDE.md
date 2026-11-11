@@ -132,9 +132,9 @@ Use it to verify the "no heap allocation on the audio thread" rule above. Notes:
 ### Adding/Changing Module Params
 
 1. Update param structs + DSP in `crates/modular_core/src/dsp/**/*.rs`.
-   - Put `#[params]` above the params struct's `#[derive(...)]` and document every field with `#[input("description", …)]` (never `///`). Signal fields need `type` (`audio`, `control`, `pitch`, `frequency`, `gate`, `trig`). `range` is the usable range shown in the docs: values past it are clamped, rejected or do nothing more, and either side may be open (`(0.0, ..)`). `control_range` is a control's slider span, required when `range` is open. A default that depends on other params adds `default_doc`, the default in words (`"0 if decay is set, otherwise 5"`), which the docs show in place of the number. Outputs are documented only in `#[output("name", "description", type = …)]`, where `type` is `cv`, `gate` or `trig`.
-   - The docs list params and outputs in declaration order, so declare them in the order a musician reads them, positional params first in call order (`tests/input_metadata.rs` checks the positionals).
-   - Descriptions are short and musical. They don't restate what the editor already shows beside them: the range, the default or the V/Oct unit.
+    - Put `#[params]` above the params struct's `#[derive(...)]` and document every field with `#[input("description", …)]` (never `///`). Signal fields need `type` (`audio`, `control`, `pitch`, `frequency`, `gate`, `trig`). `range` is the usable range shown in the docs: values past it are clamped, rejected or do nothing more, and either side may be open (`(0.0, ..)`). `control_range` is a control's slider span, required when `range` is open. A default that depends on other params adds `default_doc`, the default in words (`"0 if decay is set, otherwise 5"`), which the docs show in place of the number. Outputs are documented only in `#[output("name", "description", type = …)]`, where `type` is `cv`, `gate` or `trig`.
+    - The docs list params and outputs in declaration order, so declare them in the order a musician reads them, positional params first in call order (`tests/input_metadata.rs` checks the positionals).
+    - Descriptions are short and musical. They don't restate what the editor already shows beside them: the range, the default or the V/Oct unit.
 2. Wire schema/validators in category modules (e.g., `oscillators/mod.rs` via `install_constructors` / `install_param_validators`).
 3. Rebuild N-API (`yarn build-native`) to refresh `crates/modular/index.d.ts`.
 4. Adjust DSL factories in `src/main/dsl/factories.ts` if needed.
@@ -144,6 +144,7 @@ A param whose edits would click (a gain, a cutoff, a mix amount) glides across p
 ### Module Docs
 
 A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crates/modular_core/src/module_docs.rs`), named in `#[module(name = …, docs = NAME_DOCS)]`. A `///` on a `#[module]` struct is a compile error. It holds:
+
 - `summary`: 1–6 words;
 - `description`: 1–3 sentences of inline markdown, never explaining individual params, except to flag a param behaviour surprising enough to need a prominent note (`$adsr`'s sustain);
 - `categories`;
@@ -155,6 +156,8 @@ Monaco shows the description, sections and first example; the Reference pane sho
 ### Reserved Output Names
 
 When adding methods to `ModuleOutput`, `ModuleOutputWithRange`, `BaseCollection`, `Collection`, or `CollectionWithRange`, add the method name to `RESERVED_OUTPUT_NAMES` in `crates/reserved_output_names.rs`. This is the single source of truth shared by the Rust proc-macro and TypeScript DSL via NAPI.
+
+The list also limits module names. Every module whose first argument is a signal is a chain method of outputs and collections (`$lpf` as `sig.lpf(...)`, `$mi.chorus` as `sig.mi.chorus(...)`), so the first segment of a module's name after its `$` cannot be reserved: `#[module]` rejects `$gain` and `$gain.soft`. A module the DSL exposes starts with `$`, an internal one with `_`.
 
 ### Code Organization
 

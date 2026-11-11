@@ -13,6 +13,26 @@ include!(concat!(
     "/../reserved_output_names.rs"
 ));
 
+/// Why `name` cannot name a module, if it cannot. A module the DSL exposes
+/// starts with `$` and an internal one with `_`. The first segment after the
+/// `$` is a property of outputs and collections, so it cannot be reserved.
+pub(crate) fn module_name_error(name: &str) -> Option<String> {
+    if name.starts_with('_') {
+        return None;
+    }
+    let Some(path) = name.strip_prefix('$') else {
+        return Some(format!(
+            "Module name '{name}' must start with `$`, or with `_` for an internal module"
+        ));
+    };
+    let head = path.split('.').next().unwrap_or(path);
+    RESERVED_OUTPUT_NAMES.contains(&head).then(|| {
+        format!(
+            "Module name '{name}' is reserved: `.{head}` is a built-in member of outputs and collections. Reserved names are: {RESERVED_OUTPUT_NAMES:?}"
+        )
+    })
+}
+
 /// What an output emits: a continuous voltage, or a gate or trigger on the
 /// 0–5 V convention.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

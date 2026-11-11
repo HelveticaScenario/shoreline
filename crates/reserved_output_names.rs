@@ -1,8 +1,12 @@
-/// Reserved output names that cannot be used as module output port names.
-/// These names conflict with built-in properties and methods on `ModuleOutput`,
-/// `ModuleOutputWithRange`, `BaseCollection`, `Collection`, `CollectionWithRange`,
-/// `DeferredModuleOutput`, and `DeferredCollection`, as well as JavaScript built-in
-/// property names.
+/// Names taken by the built-in properties and methods of `ModuleOutput`,
+/// `ModuleOutputWithRange`, `BaseCollection`, `Collection`,
+/// `CollectionWithRange`, `DeferredModuleOutput` and `DeferredCollection`,
+/// and by JavaScript built-in properties.
+///
+/// A module output cannot take one of these names. Nor can the first segment
+/// of a module's name after its `$`: every chainable module is also a method
+/// of outputs and collections (`$lpf` as `.lpf(...)`, `$mi.chorus` as
+/// `.mi.chorus(...)`), so `$gain` or `$gain.soft` would shadow `.gain(...)`.
 ///
 /// This file is the single source of truth. It is `include!()`-ed by both
 /// `modular_derive` (compile-time validation) and `modular` (NAPI export to JS).
@@ -15,6 +19,7 @@ const RESERVED_OUTPUT_NAMES: &[&str] = &[
     "moduleId",
     "portName",
     "channel",
+    "o",
     // ModuleOutput methods
     "amplitude",
     "amp",
@@ -29,14 +34,13 @@ const RESERVED_OUTPUT_NAMES: &[&str] = &[
     "round",
     "floor",
     "ceil",
-    "addHz",
-    "mulHz",
     "scope",
     "out",
     "outMono",
     "pipe",
     "pipeMix",
-    "mix",
+    "send",
+    "wet",
     "toString",
     // ModuleOutputWithRange properties
     "minValue",
@@ -45,14 +49,18 @@ const RESERVED_OUTPUT_NAMES: &[&str] = &[
     "range",
     // ModuleOutput / BaseCollection internal converter methods
     "withRange",
+    "rounded",
     // BaseCollection / Collection / CollectionWithRange properties
     "items",
     "length",
     // BaseCollection methods
     "slice",
     "chunk",
-    // DeferredModuleOutput / DeferredCollection methods
+    // DeferredModuleOutput / DeferredCollection properties and methods
     "set",
+    "resolve",
+    "resolvedModuleOutput",
+    "resolving",
     // JavaScript built-in property names
     "constructor",
     "prototype",

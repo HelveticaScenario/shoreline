@@ -209,7 +209,7 @@ struct DattorroState {
 const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
     summary: "Classic plate reverb",
     description: "The classic Dattorro plate: a bright, smooth stereo tail that suits vocals, \
-                  plucks and drums. Output is fully wet, so blend it with `.$m.dattorro(mix)` or \
+                  plucks and drums. Output is fully wet, so blend it with `.wet(mix)` or \
                   send to it from a bus.",
     categories: &[ModuleCategory::Effect],
     sections: &[],
@@ -219,7 +219,8 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
             const notes = $p('c4 eb4 g4 bb4').c
             $sine(notes)
               .amp($perc(notes, { decay: 0.2 }))
-              .$m.dattorro(2, { decay: 3 })
+              .dattorro({ decay: 3 })
+              .wet(2)
               .out()
         "#,
     }],

@@ -9,13 +9,12 @@ import {
     getEnumVariants,
 } from '../../shared/dsl/schemaTypeResolver';
 import {
-    dollarMethodName,
+    chainMethodName,
     processModuleSchema,
-    qualifiesForDollarChain,
+    qualifiesForChain,
 } from './paramsSchema';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 import {
-    generateVideoChainInterfaces,
     generateVideoChainMembers,
     generateVideoNamespace,
 } from './videoLibGen';
@@ -924,7 +923,7 @@ interface RangedErraticOptions extends ErraticOptions {
  * @see {@link Collection} - for grouping multiple outputs
  * @see {@link Signal} - ModuleOutput is a valid Signal
  */
-interface ModuleOutput {
+interface ModuleOutput extends ModuleChain {
   /** The unique identifier of the module this output belongs to */
   readonly moduleId: string;
   /** The name of the output port */
@@ -1011,26 +1010,6 @@ interface ModuleOutput {
    * @example $sine($saw('0.5hz').range(-4, 0).ceil().add('c4')).out()  // octaves down from C4
    */
   ceil(): Collection;
-
-  /**
-   * Offset this pitch by an absolute frequency amount, in Hz. The V/Oct signal
-   * is converted to Hz, the offset added, then converted back. Creates an
-   * $addHz module internally.
-   * @param offset Hz offset as {@link Poly<Signal>}
-   * @returns The retuned {@link Collection} for chaining
-   * @example $saw('C4').addHz(0.5)  // slight detune
-   */
-  addHz(offset: Poly<Signal>): Collection;
-
-  /**
-   * Multiply this pitch by a frequency factor (2 = octave up, 0.5 = down).
-   * The V/Oct signal is converted to Hz, multiplied, then converted back.
-   * Creates a $mulHz module internally.
-   * @param factor Frequency multiplier as {@link Poly<Signal>}
-   * @returns The retuned {@link Collection} for chaining
-   * @example $saw('C4').mulHz(1.5)  // up a just fifth
-   */
-  mulHz(factor: Poly<Signal>): Collection;
 
     /**
      * Scale the signal by a factor with a perceptual (audio taper) curve
@@ -1155,19 +1134,16 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
   pipeMix(pipeFn: (self: this) => ModuleOutput | Collection, mix?: Poly<Signal> ): Collection;
 
   /**
-   * Fold this output's channels down to a target channel count by panning them
-   * evenly across the output field with an equal-power law. Creates a \\$mixDown
-   * module internally.
+   * Crossfade the signal this output was chained from against it. Follows a
+   * chained module: \`sig.lpf('800hz').wet(2.5)\` mixes \`sig\` with its
+   * filtered copy.
    *
-   * @param channels Target output channel count (1–16). Defaults to 1 (mono).
-   * @param mode How channels landing on the same output combine. Defaults to "sum".
-   * @returns A Collection from the \\$mixDown output
+   * @param mix Dry/wet crossfade as {@link Poly<Signal>}. 0 = dry only, 5 = wet only. Default is 2.5 for an equal mix.
+   * @returns A Collection from the \\$mix output
    *
-   * @example
-   * // Fold a 3-voice spread down to stereo
-   * $saw($spread(0, 5, 3)).mix(2).out()
+   * @example $saw('c3').plate().wet(1.5).out()
    */
-  mix(channels?: number, mode?: "sum" | "average" | "max" | "min"): Collection;
+  wet(mix?: Poly<Signal>): Collection;
 
   /**
    * Remap this output from an explicit input range to a new output range.
@@ -1188,22 +1164,6 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    * @returns This output for chaining
    */
   send(bus: Bus, gain?: Poly<Signal>): this;
-
-  /**
-   * Chainable module namespace. Every module whose first argument is a
-   * {@link Poly<Signal>} becomes a method here, receiving this output as that
-   * argument.
-   * @example $sine(0).$.lpf('100hz')  // ≡ $lpf($sine(0), '100hz')
-   */
-  readonly $: DollarChain;
-
-  /**
-   * Like {@link $}, but each method takes a leading \`mix\` signal that
-   * crossfades the dry input against the wet result (0 = dry, 5 = wet,
-   * 2.5 = equal).
-   * @example $sine(0).$m.lpf(2.5, '100hz')
-   */
-  readonly $m: DollarMixChain;
 }
 
 /**
@@ -1286,6 +1246,7 @@ interface ModuleOutputWithRange extends ModuleOutput {
 }
 
 
+interface BaseCollection<T extends ModuleOutput> extends ModuleChain {}
 class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
   /** Number of outputs in the collection */
   readonly length: number;
@@ -1376,20 +1337,6 @@ class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
    * @see {@link ModuleOutput.ceil}
    */
   ceil(): Collection;
-
-  /**
-   * Offset all pitches by an absolute frequency amount, in Hz.
-   * @param offset Hz offset as {@link Poly<Signal>}
-   * @see {@link ModuleOutput.addHz}
-   */
-  addHz(offset: Poly<Signal>): Collection;
-
-  /**
-   * Multiply all pitches by a frequency factor (2 = octave up, 0.5 = down).
-   * @param factor Frequency multiplier as {@link Poly<Signal>}
-   * @see {@link ModuleOutput.mulHz}
-   */
-  mulHz(factor: Poly<Signal>): Collection;
 
     /**
      * Scale all signals by a factor with a perceptual (audio taper) curve
@@ -1519,19 +1466,16 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
   pipeMix(pipeFn: (self: this) => ModuleOutput | Collection, mix?: Poly<Signal> ): Collection;
 
   /**
-   * Fold this collection's channels down to a target channel count by panning
-   * them evenly across the output field with an equal-power law. Creates a
-   * \\$mixDown module internally.
+   * Crossfade the signal this collection was chained from against it. Follows a
+   * chained module: \`sig.lpf('800hz').wet(2.5)\` mixes \`sig\` with its
+   * filtered copy.
    *
-   * @param channels Target output channel count (1–16). Defaults to 1 (mono).
-   * @param mode How channels landing on the same output combine. Defaults to "sum".
-   * @returns A Collection from the \\$mixDown output
+   * @param mix Dry/wet crossfade as {@link Poly<Signal>}. 0 = dry only, 5 = wet only. Default is 2.5 for an equal mix.
+   * @returns A Collection from the \\$mix output
    *
-   * @example
-   * // Fold a 3-voice spread down to stereo
-   * $saw($spread(0, 5, 3)).mix(2).out()
+   * @example $saw('c3').plate().wet(1.5).out()
    */
-  mix(channels?: number, mode?: "sum" | "average" | "max" | "min"): Collection;
+  wet(mix?: Poly<Signal>): Collection;
 
   /**
    * Register all outputs in this collection as a send to a bus, with optional gain.
@@ -1540,22 +1484,6 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    * @returns This collection for chaining
    */
   send(bus: Bus, gain?: Poly<Signal>): this;
-
-  /**
-   * Chainable module namespace. Every module whose first argument is a
-   * {@link Poly<Signal>} becomes a method here, receiving this collection as
-   * that argument.
-   * @example $c($sine('c3'), $sine('e3')).$.lpf('100hz')  // ≡ $lpf($c($sine('c3'), $sine('e3')), '100hz')
-   */
-  readonly $: DollarChain;
-
-  /**
-   * Like {@link $}, but each method takes a leading \`mix\` signal that
-   * crossfades the dry input against the wet result (0 = dry, 5 = wet,
-   * 2.5 = equal).
-   * @example $c($sine('c3'), $sine('e3')).$m.lpf(2.5, '100hz')
-   */
-  readonly $m: DollarMixChain;
 }
 
 /**
@@ -1894,7 +1822,7 @@ function $slider(label: string, value: Note, min: Note, max: Note, group?: Contr
 
 /**
  * Create a momentary gate button in the Control panel: 5V while held, 0V
- * otherwise. Chain through .$.hold for a fixed-length trigger per press.
+ * otherwise. Chain through .hold for a fixed-length trigger per press.
  *
  * @param label Display label for the button (must be a string literal, unique within its group)
  * @param group The {@link ControlGroup} to place the button in (a $cGroup call or a const bound to one)
@@ -1904,7 +1832,7 @@ function $slider(label: string, value: Note, min: Note, max: Note, group?: Contr
  * $sine('c4').amplitude($adsr($btn("play"))).out();
  * @example
  * // fixed 100 ms trigger per press, however long the button is held
- * $sine('c4').amplitude($adsr($btn("hit").$.hold(0.1))).out();
+ * $sine('c4').amplitude($adsr($btn("hit").hold(0.1))).out();
  */
 function $btn(label: string, group?: ControlGroup): CollectionWithRange;
 
@@ -2238,7 +2166,7 @@ ${generateVideoChainMembers()}
 /**
  * A video file's picture from \`$v.video\`: a {@link VideoSignal} that also
  * has the file's sound as \`audio\`, an audio signal. Chaining from it, such
- * as \`.$.hsv()\`, gives a plain {@link VideoSignal}; \`out\` and
+ * as \`.hsv()\`, gives a plain {@link VideoSignal}; \`out\` and
  * \`preview\` return the file itself.
  */
 interface VideoFile extends VideoSignal {
@@ -2254,8 +2182,6 @@ interface VideoFile extends VideoSignal {
  * to 1.
  */
 type VideoValue = number | VideoSignal | ModuleOutput | Collection | CollectionWithRange;
-
-${generateVideoChainInterfaces()}
 
 /**
  * A frame store from \`$v.buffer\`: \`write\` a signal into it, and \`read\`
@@ -2506,7 +2432,7 @@ function optionsText(
 
 /**
  * Build the trailing `config?: { ... }` argument shared by the factory-function
- * and `.$.`-method renderers: every non-positional param, plus an optional
+ * and chain-method renderers: every non-positional param, plus an optional
  * `id`. `config` is required only when some non-positional param is required.
  * Returns the rendered argument and the nested `@param config` doc lines.
  */
@@ -2567,21 +2493,17 @@ function buildConfigArg(moduleSchema: Schema): {
 
 /**
  * Build the parameter list and JSDoc lines shared by the factory-function and
- * `.$.`-method renderers. `positionalStart` drops leading positionals (1 for
- * `.$.`, whose receiver is injected as the first argument); `leadParams` are
- * prepended to the parameter list (the `.$m.` `mix` crossfade); `leadDocLines`
- * are prepended before the module's own documentation. The module's docs
+ * chain-method renderers. `positionalStart` drops leading positionals (1 for
+ * a chain method, whose receiver is the first argument); `leadDocLines` are
+ * prepended before the module's own documentation. The module's docs
  * (`renderDocContentJsDoc`) and every `@param` are always included, so the
- * factory and `.$.` surfaces carry identical docs and cannot drift.
+ * factory and chain surfaces carry identical docs and cannot drift.
  */
 function buildSignature(
     moduleSchema: Schema,
     opts: {
         positionalStart: number;
-        leadParams?: { decl: string; doc: string }[];
         leadDocLines?: string[];
-        /** Document the main output as `@returns` (default true). */
-        returnsDoc?: boolean;
     },
 ): { args: string[]; docLines: string[] } {
     const { paramsSchema } = moduleSchema;
@@ -2601,11 +2523,6 @@ function buildSignature(
     docLines.push(
         ...renderDocContentJsDoc(moduleSchema.docs, moduleSchema.name),
     );
-
-    for (const lead of opts.leadParams ?? []) {
-        args.push(lead.decl);
-        docLines.push(lead.doc);
-    }
 
     for (let i = 0; i < positionals.length; i++) {
         const arg = positionals[i];
@@ -2652,77 +2569,44 @@ function buildSignature(
         docLines.push(`@param config Configuration object`);
     }
 
-    if (opts.returnsDoc ?? true) {
-        const outputs = moduleSchema.outputs ?? [];
-        // A module without a default output returns all its outputs.
-        const main = outputs.find((o) => o.default);
-        const doc = main && withMeta(main.description, formatOutputMeta(main));
-        if (doc) {
-            docLines.push(`@returns ${doc}`);
-        }
+    const outputs = moduleSchema.outputs ?? [];
+    // A module without a default output returns all its outputs.
+    const main = outputs.find((o) => o.default);
+    const doc = main && withMeta(main.description, formatOutputMeta(main));
+    if (doc) {
+        docLines.push(`@returns ${doc}`);
     }
 
     return { args, docLines };
 }
 
 /**
- * Render one method of the `.$.` (or `.$m.` when `withMix`) chainable namespace
- * for `moduleSchema`: the module's factory with its first positional dropped
- * (it becomes the chained signal receiver). For `.$m.`, a required leading
- * `mix` signal crossfades dry/wet and the return type collapses to
- * `Collection`. Carries the module's docs, like the factory.
+ * Render the chain method of `moduleSchema`: the module's factory without
+ * its first positional, which the receiver supplies. Carries the module's
+ * docs, like the factory.
  *
- * Only called on schemas passing `qualifiesForDollarChain`, which guarantees
- * `dollarMethodName` yields a valid TS identifier for the interface member.
+ * Only called on schemas passing `qualifiesForChain`, which guarantees
+ * `chainMethodName` yields a valid TS identifier for the interface member.
  */
-function renderDollarMethod(
-    moduleSchema: Schema,
-    withMix: boolean,
-    indent: string,
-): string[] {
-    const rawName = moduleSchema.name.split('.').pop()!;
-    const methodName = dollarMethodName(moduleSchema.name);
-
-    const leadDocLines = withMix
-        ? [
-              `Chain through \`${rawName}\`, crossfading the dry input against`,
-              'the wet result by a leading `mix` signal (0 = dry, 5 = wet,',
-              '2.5 = equal). Equivalent to `.pipeMix(s => ' +
-                  `${rawName}(s, ...), mix)\`.`,
-              '',
-          ]
-        : [
-              `Chain through \`${rawName}\` with this signal as its first`,
-              `argument. Equivalent to \`${rawName}(this, ...)\`.`,
-              '',
-          ];
-
-    const leadParams = withMix
-        ? [
-              {
-                  decl: 'mix: Poly<Signal>',
-                  doc: '@param mix Dry/wet crossfade as {@link Poly<Signal>}. 0 = dry input only, 5 = wet result only, 2.5 = equal.',
-              },
-          ]
-        : [];
-
+function renderChainMethod(moduleSchema: Schema, indent: string): string[] {
+    const methodName = chainMethodName(moduleSchema.name);
     const { args, docLines } = buildSignature(moduleSchema, {
         positionalStart: 1,
-        leadParams,
-        leadDocLines,
-        returnsDoc: !withMix,
+        leadDocLines: [
+            `Chain through \`${moduleSchema.name}\` with this signal as its first`,
+            `argument. Equivalent to \`${moduleSchema.name}(this, ...)\`.`,
+            '',
+        ],
     });
-
-    const returnType = withMix
-        ? 'Collection'
-        : getFactoryReturnType(moduleSchema);
 
     const lines: string[] = [`${indent}/**`];
     for (const line of docLines) {
         lines.push(`${indent} * ${line}`);
     }
     lines.push(`${indent} */`);
-    lines.push(`${indent}${methodName}(${args.join(', ')}): ${returnType};`);
+    lines.push(
+        `${indent}${methodName}(${args.join(', ')}): ${getFactoryReturnType(moduleSchema)};`,
+    );
     return lines;
 }
 
@@ -2896,13 +2780,12 @@ export function generateDSL(schemas: Schemas): string {
         'export function $buffer(input: ModuleOutput | Collection | number, lengthSeconds: number, config?: { id?: string }): BufferOutputRef;',
     );
     lines.push('');
-    // Shared inline options type for `$delay`, `.$.delay`, and `.$m.delay`.
+    // Shared inline options type for `$delay` and `.delay`.
     const delayOpts =
         'opts?: { feedback?: Poly<Signal>; feedbackCb?: (mixed: Collection) => Collection | ModuleOutput; maxTime?: number }';
-    // Shared documentation body for `$delay` / `.$.delay` / `.$m.delay`: all
-    // three render the same body, and the chain forms prepend a header for
-    // their call convention. These are synthetic chain methods, so the doc is
-    // hand-written rather than schema-derived.
+    // Shared documentation body for `$delay` and `.delay`; the chain form
+    // prepends a header for its call convention. `$delay` is a DSL helper, so
+    // the doc is hand-written rather than schema-derived.
     const delayBody = [
         'Delay with feedback: sum the input with the attenuated feedback,',
         'optionally process that mix through `feedbackCb`, write it into a',
@@ -2921,7 +2804,7 @@ export function generateDSL(schemas: Schemas): string {
         '$mix([src, $delay(src, 0.25, { feedback: 3 })]).out()',
         '',
         '// lowpass in the loop — echoes darken on every repeat',
-        "src.$.delay(0.5, { feedbackCb: (m) => m.$.lpf('800hz') }).out()",
+        "src.delay(0.5, { feedbackCb: (m) => m.lpf('800hz') }).out()",
         '```',
     ];
     // Render the `$delay` doc at `indent`, prepending optional `header` lines
@@ -2934,43 +2817,33 @@ export function generateDSL(schemas: Schemas): string {
         out.push(...delayBody.map(line), `${indent} */`);
         return out;
     };
-    // Chain-form headers, mirroring `renderDollarMethod`'s lead docs.
-    const dollarDelayHeader = [
+    const chainDelayHeader = [
         'Chain through `$delay` with this signal as its first argument.',
         'Equivalent to `$delay(this, time, opts)`.',
-    ];
-    const dollarMixDelayHeader = [
-        'Chain through `$delay`, crossfading the dry input against the wet',
-        'result by a leading `mix` signal (0 = dry, 5 = wet, 2.5 = equal).',
-        'Equivalent to `.pipeMix(s => $delay(s, time, opts), mix)`.',
     ];
     lines.push(...renderDelayDoc('', []));
     lines.push(
         `export function $delay(input: Collection | ModuleOutput, time: Poly<Signal>, ${delayOpts}): Collection & { buffer: BufferOutputRef };`,
     );
 
-    // `.$.` / `.$m.` chainable module namespaces. The qualifying set matches the
-    // runtime `dollarLookup` exactly (shared `qualifiesForDollarChain` predicate
-    // over the same schemas), so the two cannot drift.
-    const dollarSchemas = userFacingSchemas.filter((s) =>
-        qualifiesForDollarChain(
-            processModuleSchema(s as unknown as ModuleSchema),
-        ),
+    // Chain methods. The qualifying set matches the runtime's exactly: both
+    // apply `qualifiesForChain` to the same schemas.
+    const chainSchemas = userFacingSchemas.filter((s) =>
+        qualifiesForChain(processModuleSchema(s as unknown as ModuleSchema)),
     );
 
     // Flat modules (`$lpf`) become direct members; dotted modules
     // (`$unstable.shape.fold`) nest under a namespace tree of any depth
-    // (`.$.unstable.shape.fold`), mirroring the global namespace and keeping leaf
+    // (`.unstable.shape.fold`), mirroring the global namespace and keeping leaf
     // names like `fold` from colliding with flat modules like `$fold`.
-    interface DollarTypeNode {
+    interface ChainTypeNode {
         leaves: Schema[];
-        children: Map<string, DollarTypeNode>;
+        children: Map<string, ChainTypeNode>;
     }
-    const dollarRoot: DollarTypeNode = { leaves: [], children: new Map() };
-    for (const s of dollarSchemas) {
-        const base = s.name.startsWith('$') ? s.name.slice(1) : s.name;
-        const segments = base.split('.');
-        let node = dollarRoot;
+    const chainRoot: ChainTypeNode = { leaves: [], children: new Map() };
+    for (const s of chainSchemas) {
+        const segments = s.name.slice(1).split('.');
+        let node = chainRoot;
         for (const seg of segments.slice(0, -1)) {
             let child = node.children.get(seg);
             if (child === undefined) {
@@ -2987,75 +2860,55 @@ export function generateDSL(schemas: Schemas): string {
             .filter(Boolean)
             .map((w) => w[0].toUpperCase() + w.slice(1))
             .join('');
-    const sortedChildren = (node: DollarTypeNode): string[] =>
+    const sortedChildren = (node: ChainTypeNode): string[] =>
         [...node.children.keys()].sort();
 
-    // Emit a sub-interface (dry and mix) for every namespace node, so
-    // `.$.unstable.shape.fold` yields `DollarChainUnstable { shape:
-    // DollarChainUnstableShape }` and `DollarChainUnstableShape { fold(...) }`.
+    // Emit a sub-interface for every namespace node, so `.unstable.shape.fold`
+    // yields `ModuleChainUnstable { shape: ModuleChainUnstableShape }` and
+    // `ModuleChainUnstableShape { fold(...) }`.
     const emitNamespaceInterfaces = (
-        node: DollarTypeNode,
+        node: ChainTypeNode,
         path: string[],
     ): void => {
         for (const seg of sortedChildren(node)) {
             emitNamespaceInterfaces(node.children.get(seg)!, [...path, seg]);
         }
         const dotted = path.join('.');
-        for (const [prefix, iface, withMix] of [
-            ['.$', 'DollarChain', false],
-            ['.$m', 'DollarMixChain', true],
-        ] as const) {
-            lines.push('');
-            lines.push(
-                `/** Methods of the \`${prefix}.${dotted}\` chainable namespace. */`,
-            );
-            lines.push(`interface ${iface}${pascal(dotted)} {`);
-            for (const s of node.leaves) {
-                lines.push(...renderDollarMethod(s, withMix, '  '));
-            }
-            for (const seg of sortedChildren(node)) {
-                lines.push(
-                    `  ${seg}: ${iface}${pascal([...path, seg].join('.'))};`,
-                );
-            }
-            lines.push('}');
+        lines.push('');
+        lines.push(`/** The \`$${dotted}\` modules as chain methods. */`);
+        lines.push(`interface ModuleChain${pascal(dotted)} {`);
+        for (const s of node.leaves) {
+            lines.push(...renderChainMethod(s, '  '));
         }
+        for (const seg of sortedChildren(node)) {
+            lines.push(
+                `  readonly ${seg}: ModuleChain${pascal([...path, seg].join('.'))};`,
+            );
+        }
+        lines.push('}');
     };
-    for (const seg of sortedChildren(dollarRoot)) {
-        emitNamespaceInterfaces(dollarRoot.children.get(seg)!, [seg]);
+    for (const seg of sortedChildren(chainRoot)) {
+        emitNamespaceInterfaces(chainRoot.children.get(seg)!, [seg]);
     }
 
     lines.push('');
     lines.push(
-        '/** Methods of the `.$` chainable module namespace (see {@link ModuleOutput.$}). */',
+        '/**',
+        ' * The chain methods of outputs and collections: every module whose first',
+        ' * argument is a {@link Poly<Signal>}, with the receiver as that argument.',
+        " * @example $sine(0).lpf('100hz')  // ≡ $lpf($sine(0), '100hz')",
+        ' */',
     );
-    lines.push('interface DollarChain {');
-    for (const s of dollarRoot.leaves) {
-        lines.push(...renderDollarMethod(s, false, '  '));
+    lines.push('interface ModuleChain {');
+    for (const s of chainRoot.leaves) {
+        lines.push(...renderChainMethod(s, '  '));
     }
-    for (const seg of sortedChildren(dollarRoot)) {
-        lines.push(`  ${seg}: DollarChain${pascal(seg)};`);
+    for (const seg of sortedChildren(chainRoot)) {
+        lines.push(`  readonly ${seg}: ModuleChain${pascal(seg)};`);
     }
     lines.push(
-        ...renderDelayDoc('  ', dollarDelayHeader),
+        ...renderDelayDoc('  ', chainDelayHeader),
         `  delay(time: Poly<Signal>, ${delayOpts}): Collection & { buffer: BufferOutputRef };`,
-    );
-    lines.push('}');
-
-    lines.push('');
-    lines.push(
-        '/** Methods of the `.$m` chainable module namespace (see {@link ModuleOutput.$m}). */',
-    );
-    lines.push('interface DollarMixChain {');
-    for (const s of dollarRoot.leaves) {
-        lines.push(...renderDollarMethod(s, true, '  '));
-    }
-    for (const seg of sortedChildren(dollarRoot)) {
-        lines.push(`  ${seg}: DollarMixChain${pascal(seg)};`);
-    }
-    lines.push(
-        ...renderDelayDoc('  ', dollarMixDelayHeader),
-        `  delay(mix: Poly<Signal>, time: Poly<Signal>, ${delayOpts}): Collection;`,
     );
     lines.push('}');
 
