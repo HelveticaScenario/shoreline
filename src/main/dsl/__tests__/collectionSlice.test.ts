@@ -117,6 +117,29 @@ describe('BaseCollection indexing and iteration', () => {
         expect(tail.o.gate.items).toEqual(gate.items.slice(1));
     });
 
+    test('a root output of another width stays whole in its slices', () => {
+        const stereo = new Collection(...makeOutputs(2));
+        const voices = new Collection(
+            ...Array.from(
+                { length: 4 },
+                (_, i) => new ModuleOutput(builder, 'test-1', 'voices', i),
+            ),
+        );
+        const root = Object.assign(new Collection(...stereo.items), {
+            o: { stereo, voices },
+        });
+        markRoot(root, { outputs: [], values: root.o });
+
+        const { o } = root[1] as unknown as { o: typeof root.o };
+        expect(o.stereo.items).toEqual([stereo.items[1]]);
+        expect(o.voices).toBe(voices);
+    });
+
+    test('a collection serializes to JSON', () => {
+        const col = new Collection(...makeOutputs(1));
+        expect(() => JSON.stringify(col)).not.toThrow();
+    });
+
     test('iteration and spreading give the index views', () => {
         const col = new Collection(...makeOutputs(3));
         expect([...col]).toEqual([col[0], col[1], col[2]]);

@@ -100,9 +100,6 @@ export function siteOfRecord(
 /** The helpers that tag a param value into a cartesian signal group. */
 const SIGNAL_GROUP_HELPERS = new Set(['$g1', '$g2', '$g3']);
 
-/** Methods of a root that return a plain collection of its `cv` output. */
-const COLLECTION_BUILDERS = new Set(['slice', 'chunk']);
-
 /**
  * `undefined`: not a root. `null`: may be one, unknown until run. Otherwise
  * the output name.
@@ -237,13 +234,6 @@ export function collectSignalSites(
             value.arguments.length === 1
         ) {
             emitValue(call, slot, value.arguments[0], inputClass);
-            return;
-        }
-        if (
-            ts.isCallExpression(value) &&
-            ts.isPropertyAccessExpression(value.expression) &&
-            COLLECTION_BUILDERS.has(value.expression.name.text)
-        ) {
             return;
         }
         const type = checker.getTypeAtLocation(value);

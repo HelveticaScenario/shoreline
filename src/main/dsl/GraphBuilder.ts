@@ -380,7 +380,6 @@ export class BaseCollection<T extends ModuleOutput> {
         this.items.push(...args);
         for (let i = 0; i < args.length; i++) {
             Object.defineProperty(this, i, {
-                enumerable: true,
                 get: () => this.channel(i),
             });
         }
@@ -800,8 +799,8 @@ function carriedOf(collection: AnyCollection): object | undefined {
 /**
  * Make `sliced` a root standing for the same channels of every output of the
  * root `set` came from, so each input still takes the output that fits it:
- * `$perc(seq[1])` takes channel 1 of the trigger. An output narrower than the
- * root cycles its channels.
+ * `$perc(seq[1])` takes channel 1 of the trigger. An output whose width
+ * differs from the root's, such as a fixed-width one, stays whole.
  */
 function sliceRoot(
     sliced: object,
@@ -817,12 +816,10 @@ function sliceRoot(
     const values: Record<string, unknown> = {};
     for (const [name, value] of Object.entries(set.values)) {
         values[name] =
-            value instanceof BaseCollection && value.length > 0
+            value instanceof BaseCollection && value.length === rootChannels
                 ? new (value.constructor as new (
                       ...args: ModuleOutput[]
-                  ) => AnyCollection)(
-                      ...indices.map((i) => value.items[i % value.length]),
-                  )
+                  ) => AnyCollection)(...indices.map((i) => value.items[i]))
                 : value;
     }
     markRoot(sliced, { outputs: set.outputs, values });
