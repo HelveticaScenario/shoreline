@@ -1,6 +1,6 @@
 import type { ModuleSchema } from '@modular/core';
 import { deriveChannelCount, getReservedOutputNames } from '@modular/core';
-import type { ModuleOutput } from './GraphBuilder';
+import type { ModuleOutput, ScopeConfig } from './GraphBuilder';
 import {
     BaseCollection,
     GraphBuilder,
@@ -15,7 +15,6 @@ import { isSignalGroupLike } from './signalGroups';
 import { buildSignalMapper } from './signalSchemaMapper';
 import {
     captureSourceLocation,
-    getDSLWrapperLineOffset,
     setDSLWrapperLineOffset,
 } from './captureSourceLocation';
 
@@ -98,7 +97,7 @@ function isArrangePatternLike(
 
 /**
  * Structural check for a `.fast(...)` / `.slow(...)` / `.struct(...)` /
- * `.beat(...)` wrapper. Like `SpPattern` and `ArrangePattern`, it carries a
+ * `.beat(...)` / `.glide(...)` wrapper. Like `SpPattern` and `ArrangePattern`, it carries a
  * flat `argument_spans[i]` list — the wrapped pattern's per-source spans —
  * used to map runtime per-source highlights back to editor literals.
  */
@@ -112,7 +111,8 @@ function isPatternWrapperLike(
         value.__kind === 'FastPattern' ||
         value.__kind === 'SlowPattern' ||
         value.__kind === 'StructPattern' ||
-        value.__kind === 'BeatPattern'
+        value.__kind === 'BeatPattern' ||
+        value.__kind === 'GlidePattern'
     );
 }
 
@@ -130,9 +130,7 @@ function captureArgumentSpans(
         return undefined;
     }
 
-    // Build the call site key matching what ts-morph produced.
-    // Both ts-morph and V8 stack traces use 1-based lines and columns.
-    const key: CallSiteKey = `${sourceLocation.line + getDSLWrapperLineOffset()}:${sourceLocation.column}`;
+    const key: CallSiteKey = `${sourceLocation.line}:${sourceLocation.column}`;
 
     const entry = activeSpanRegistry.get(key);
     if (!entry) {
@@ -640,11 +638,7 @@ export class DSLContext {
 
     scope<T extends ModuleOutput | Collection | CollectionWithRange>(
         target: T,
-        config?: {
-            msPerFrame?: number;
-            triggerThreshold?: number;
-            scale?: number;
-        },
+        config?: ScopeConfig,
     ): T {
         const loc = captureSourceLocation();
         if (

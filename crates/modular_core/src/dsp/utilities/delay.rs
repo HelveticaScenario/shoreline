@@ -1,31 +1,74 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{Buffer, PolySignal, poly::PolyOutput};
 
 fn delay_read_derive_channel_count(params: &DelayReadParams) -> usize {
     params.buffer.channel_count().max(params.time.channels())
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct DelayReadParams {
+    #[input("buffer to read, from a `$buffer`")]
     buffer: Buffer,
-    /// Delay time in seconds (e.g. 0.5 for 500ms)
-    #[signal(default = 0.1, range = (0.0, 5.0))]
+    #[input(
+        "how far behind the newest recorded sample to read, in seconds; capped at the buffer's length",
+        type = control,
+        default = 0.1,
+        range = (0.0, ..),
+        control_range = (0.0, 5.0),
+    )]
     time: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct DelayReadOutputs {
-    #[output("output", "delayed signal", default)]
+    #[output("output", "the delayed signal", type = cv, default)]
     sample: PolyOutput,
 }
 
-/// Reads a signal from a buffer at a specified delay time relative to the write position.
-#[module(name = "$delayRead", channels_derive = delay_read_derive_channel_count, args(buffer, time))]
+const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Delay tap on a buffer",
+    description: "Plays a `$buffer` back a set time behind what it is recording: one \
+                  tap of a delay line. Several taps on one buffer make multi-tap \
+                  echoes, and a modulated time gives chorus and flanging. `$delay` \
+                  builds a complete feedback delay from these parts.",
+    categories: &[ModuleCategory::Effect, ModuleCategory::Utility],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Two-tap echo",
+            code: r#"
+                const voice = $saw($cycle($p('c3 eb3 g3 ~'))).amp(
+                  $perc($clock.beatTrigger, { decay: 0.15 }),
+                )
+                voice.out()
+                const echoes = $buffer(voice, 1)
+                $delayRead(echoes, 0.375).amp(2.5).out()
+                $delayRead(echoes, 0.75).amp(1.25).out()
+            "#,
+        },
+        DocExample {
+            title: "Chorused chord",
+            code: r#"
+                const voice = $saw($chord('C3[m7]'))
+                voice.out()
+                $delayRead(
+                  $buffer(voice, 0.1),
+                  $sine('0.3hz').range(0.01, 0.02),
+                ).out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$delayRead", docs = DELAY_READ_DOCS, channels_derive = delay_read_derive_channel_count, args(buffer, time))]
 pub struct DelayRead {
     outputs: DelayReadOutputs,
     params: DelayReadParams,
@@ -42,32 +85,32 @@ impl DelayRead {
         let slot = self.current_block_index();
         self.params.buffer.ensure_source_updated_to(slot + 1);
 
-        // Effective write position for this slot = base (set by the
-        // source's `tick_buffers` at block start) + `current_block_index`.
-        // Without the per-slot offset every slot in the block would read
-        // the same delay position — 64× sample-and-hold artefact at
-        // `block_size = 64`.
-        let write_index = (self.params.buffer.read_write_index() as f64) + (slot as f64);
         let frame_count = self.params.buffer.frame_count();
         let channels = self.channel_count();
+        // This slot's write position is the base the source's `tick_buffers`
+        // set at block start plus `slot`. Inside a feedback cycle the source
+        // may still be computing this slot, so that frame holds data from a
+        // full buffer ago and the newest written frame is the one before it.
+        let unwritten = usize::from(!self.params.buffer.source_wrote_slot(slot));
+        let newest = (self.params.buffer.read_write_index() + slot + frame_count)
+            .wrapping_sub(unwritten)
+            % frame_count.max(1);
 
         for channel in 0..channels {
             let delay_time_secs = (self.params.time.get_value(channel) as f64).max(0.0);
-            let delay_frames = delay_time_secs * (sample_rate as f64);
-            let read_frame = write_index - delay_frames;
-
-            let wrapped_frame = if frame_count > 0 {
-                read_frame.rem_euclid(frame_count as f64) as f32
-            } else {
-                0.0
-            };
+            // The longest delay is `frame_count - 1` frames whichever cycle
+            // member runs first; with `unwritten`, `back` counts from the
+            // frame before the write position.
+            let delay_frames =
+                (delay_time_secs * (sample_rate as f64)).min(frame_count.saturating_sub(1) as f64);
+            let back = (delay_frames - unwritten as f64).max(0.0);
 
             let buf_channels = self.params.buffer.channel_count().max(1);
             let buf_channel = channel % buf_channels;
             let value = self
                 .params
                 .buffer
-                .read_hermite_wrapped(buf_channel, wrapped_frame);
+                .read_hermite_behind(buf_channel, newest, back as f32);
             self.outputs.sample.set(channel, value);
         }
     }

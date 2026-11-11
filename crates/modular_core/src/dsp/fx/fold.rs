@@ -6,23 +6,36 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::dsp::fx::enosc_tables::{aa_fold, lookup_fold};
+use crate::dsp::fx::enosc_tables::{self, aa_fold, fold_amount, lookup_fold};
 use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
 use crate::dsp::utils::voct_to_hz;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
-use crate::types::Clickless;
+use crate::types::SwapGlide;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FoldParams {
-    /// input signal to fold (bipolar, typically -5 to 5)
+    #[input(
+        "signal to fold",
+        type = audio,
+        range = (-5.0, 5.0),
+    )]
     input: PolySignal,
-    /// fold amount (0-5, where 0 = bypass, 5 = maximum folding)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the signal folds: 0 clean, 5 most folds",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     amount: PolySignal,
-    /// pitch of the source signal in V/Oct (optional, reduces aliasing at high frequencies)
-    #[signal(type = pitch)]
+    #[input(
+        "pitch of the incoming signal; patch it to reduce aliasing on high notes",
+        type = pitch,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
 }
@@ -30,13 +43,13 @@ struct FoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FoldOutputs {
-    #[output("output", "folded signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "folded signal", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
 #[derive(Default, Clone, Copy)]
 struct ChannelState {
-    amount: Clickless,
+    amount: SwapGlide,
     /// Onset fade-in — suppresses the click when the module is first added
     /// (`amount` snaps to its full value on the first sample, so the output
     /// would otherwise jump from silence).
@@ -50,10 +63,33 @@ struct FoldState {
     fade_inc: f32,
 }
 
-/// Wavefolder that reflects the signal back when it exceeds a threshold,
-/// producing dense, harmonically rich tones. Higher amounts create more
-/// complex, metallic timbres.
-#[module(name = "$fold", args(input, amount), has_init)]
+const FOLD_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Wavefolder",
+    description: "Folds the signal back on itself as it grows, turning a plain sine or triangle \
+                  into dense, metallic west-coast tones. Sweep or envelope it for that classic \
+                  animated timbre.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Slow fold sweep",
+            code: "$sine('c2').$.fold($sine('0.2hz').range(0, 5)).out()",
+        },
+        DocExample {
+            title: "Folded plucks",
+            code: r#"
+                const notes = $cycle($p('c3 g3 eb3 bb2'))
+                $sine(notes)
+                  .$.fold($perc(notes.trig, { decay: 0.4 }), {
+                    freq: notes,
+                  })
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$fold", docs = FOLD_DOCS, args(input, amount), has_init)]
 pub struct Fold {
     outputs: FoldOutputs,
     state: FoldState,
@@ -67,6 +103,7 @@ impl Fold {
     /// so it stays correct even though `transfer_state_from` swaps the whole
     /// `state` struct on a patch update.
     fn init(&mut self, sample_rate: f32) {
+        enosc_tables::prime();
         self.state.fade_inc = FadeIn::increment(DEFAULT_FADE_IN_SECS, sample_rate);
     }
 
@@ -81,12 +118,12 @@ impl Fold {
             let input = self.params.input.get_value(ch);
             let amount_raw = self.params.amount.get_value(ch);
 
-            // Smooth amount parameter to avoid clicks
-            state.amount.update(amount_raw);
+            state
+                .amount
+                .update(amount_raw, self.params.amount.glide_mark(ch), sample_rate);
             let amount = *state.amount;
 
-            // Normalize amount from [0, 5] to [0, 1] for table lookup
-            let amount_norm = (amount / 5.0).clamp(0.0, 1.0);
+            let amount_norm = fold_amount((amount / 5.0).clamp(0.0, 1.0));
 
             // Apply anti-aliasing when freq is connected
             let amount_norm = if freq_connected {
@@ -117,7 +154,7 @@ message_handlers!(impl Fold {});
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{OutputStruct, Signal};
+    use crate::types::{Connect, OutputStruct, Signal};
 
     fn make(input: f32, amount: f32) -> Fold {
         let mut outputs = FoldOutputs::default();
@@ -139,18 +176,22 @@ mod tests {
     }
 
     /// Largest single-sample output jump while `amount` is stepped from 0 to a
-    /// low target that crosses the old passthrough threshold (param 0.025). A
-    /// constant input means any jump is a transition artifact, not signal.
+    /// low target across the bypass hand-off. A constant input means any jump
+    /// is a transition artifact, not signal.
     fn max_step_through_threshold(input: f32, target_amount: f32) -> f32 {
         let mut fold = make(input, 0.0);
-        // Settle the amount smoother at 0.
+        // Settle at amount 0.
         for _ in 0..256 {
             fold.update(48000.0);
         }
         let mut prev = fold.outputs.sample.get(0);
         let mut max_step = 0.0_f32;
-        // Step the param; the Clickless smoother drives the transition.
+        // Step the param through a patch swap, whose glide drives the transition.
+        let before = fold.params.amount.clone();
         fold.params.amount = PolySignal::mono(Signal::Volts(target_amount));
+        fold.params
+            .amount
+            .mark_glides(Some(&before), 1, &crate::types::SameIds);
         for _ in 0..4000 {
             fold.update(48000.0);
             let cur = fold.outputs.sample.get(0);
@@ -162,12 +203,11 @@ mod tests {
 
     #[test]
     fn no_click_sweeping_through_low_amount() {
-        // Regression: stepping `amount` to a low setting used to cross a hard
-        // passthrough/fold discontinuity (~2.7 V jump) around param 0.025. The
-        // crossfade in `lookup_fold` keeps the transition continuous. Worst-case
-        // input is full-scale (input_norm = -1).
+        // Stepping `amount` from 0 to a low setting crosses the bypass hand-off
+        // without a jump. Worst-case input is full-scale (input_norm = -1).
         for &input in &[-5.0f32, -2.5, 2.5, 5.0] {
-            for &target in &[0.05f32, 0.1, 0.2] {
+            // The hand-off spans params 0.17 to 0.41.
+            for &target in &[0.3f32, 0.45, 1.0] {
                 let step = max_step_through_threshold(input, target);
                 assert!(
                     step < 0.2,

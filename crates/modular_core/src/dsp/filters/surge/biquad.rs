@@ -19,9 +19,9 @@ use super::filter_core::{N_COEFFS, N_REGISTERS};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum FilterSlope {
-    /// 12 dB/oct (2-pole).
+    /// 12 dB/oct, a gentler slope
     Db12,
-    /// 24 dB/oct (4-pole).
+    /// 24 dB/oct, a steeper slope
     #[default]
     Db24,
 }
@@ -38,12 +38,12 @@ impl FilterSlope {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum BiquadDrive {
-    /// State-variable form (cleanest, mildest resonance).
+    /// smooth, with the mildest resonance
     #[default]
     Standard,
-    /// Coupled state-space form with a heavier resonance/clip character.
+    /// heavier resonance that clips harder
     Driven,
-    /// Normalized-lattice form (high numerical precision).
+    /// clean and precise, even at very low cutoffs
     Clean,
 }
 

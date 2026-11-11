@@ -125,6 +125,8 @@ export interface AppConfig {
     performanceScrollSpeed?: number;
     /** Theme id for the code's colors in the performance window; absent follows the editor's theme. */
     performanceTheme?: string;
+    /** Which side of the window the sidebar sits on. Default 'right'. */
+    sidebarSide?: 'left' | 'right';
     /** VU meter panel visibility. Default false. */
     vuPanelVisible?: boolean;
     /** VU meter panel height in px (84–480). Default 150. */
@@ -268,7 +270,7 @@ export interface FileContextMenuOptions {
  * One row in the editor context menu, built in the renderer and shipped to
  * the main process, which materializes a native menu.
  *
- *  - `command`: an Operator registry command. Clicking echoes `commandId`
+ *  - `command`: a Shoreline registry command. Clicking echoes `commandId`
  *    back via ON_CONTEXT_MENU_COMMAND and the renderer runs `executeCommand`.
  *  - `role`: a native Electron clipboard role. The OS performs cut/copy/paste
  *    against the focused editor directly — no round-trip — which is also why
@@ -393,10 +395,6 @@ export const IPC_CHANNELS = {
     MENU_SET_ACCELERATORS: 'ui:menu-set-accelerators',
     SHOW_UNSAVED_CHANGES_DIALOG: 'ui:show-unsaved-changes-dialog',
 
-    // Window operations
-    OPEN_HELP_WINDOW: 'modular:window:open-help',
-    OPEN_HELP_FOR_SYMBOL: 'modular:window:open-help-for-symbol',
-
     // Config operations
     CONFIG_GET_PATH: 'modular:config:get-path',
     CONFIG_READ: 'modular:config:read',
@@ -441,9 +439,6 @@ export const IPC_CHANNELS = {
 
 export const MENU_CHANNELS = {
     CLOSE_BUFFER: 'modular:menu:close-buffer',
-    MIGRATE_BUFFER: 'modular:menu:migrate-buffer',
-    MIGRATE_CHEBY_BLOCK_DC: 'modular:menu:migrate-cheby-block-dc',
-    MIGRATE_WAVETABLE: 'modular:menu:migrate-wavetable',
     NEW_FILE: 'modular:menu:new-file',
     OPEN_ENGINE_HEALTH: 'modular:menu:open-engine-health',
     OPEN_MODULE_PROFILE: 'modular:menu:open-module-profile',
@@ -595,13 +590,6 @@ export interface IPCHandlers {
     [IPC_CHANNELS.SHOW_UNSAVED_CHANGES_DIALOG]: (
         fileName: string,
     ) => Promise<number>;
-
-    // Window operations
-    [IPC_CHANNELS.OPEN_HELP_WINDOW]: () => void;
-    [IPC_CHANNELS.OPEN_HELP_FOR_SYMBOL]: (
-        symbolType: 'type' | 'module' | 'namespace',
-        symbolName: string,
-    ) => void;
 
     // Config operations
     [IPC_CHANNELS.CONFIG_GET_PATH]: () => string;

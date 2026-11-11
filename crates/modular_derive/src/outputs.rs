@@ -2,6 +2,7 @@ use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
+use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 use syn::{Data, DeriveInput, Fields, LitStr, Token, Type};
 
@@ -12,12 +13,48 @@ include!(concat!(
     "/../reserved_output_names.rs"
 ));
 
+/// What an output emits: a continuous voltage, or a gate or trigger on the
+/// 0–5 V convention.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum OutputType {
+    Cv,
+    Gate,
+    Trig,
+}
+
+impl OutputType {
+    fn parse(ident: &Ident) -> syn::Result<Self> {
+        Ok(match ident.to_string().as_str() {
+            "cv" => Self::Cv,
+            "gate" => Self::Gate,
+            "trig" => Self::Trig,
+            other => {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    format!("unknown output type `{other}`; expected cv, gate or trig"),
+                ));
+            }
+        })
+    }
+
+    /// The matching `crate::types::OutputType` variant.
+    fn variant(self) -> TokenStream2 {
+        match self {
+            Self::Cv => quote! { crate::types::OutputType::Cv },
+            Self::Gate => quote! { crate::types::OutputType::Gate },
+            Self::Trig => quote! { crate::types::OutputType::Trig },
+        }
+    }
+}
+
 /// Parsed output attribute data
 struct OutputAttr {
     name: LitStr,
     description: Option<LitStr>,
+    output_type: OutputType,
     is_default: bool,
     range: Option<(f64, f64)>,
+    channels: Option<u32>,
 }
 
 /// Precision type for output fields
@@ -33,16 +70,22 @@ struct OutputField {
     output_name: LitStr,
     precision: OutputPrecision,
     description: TokenStream2,
+    output_type: OutputType,
     is_default: bool,
     range: Option<(f64, f64)>,
+    /// Fixed channel count of a `PolyOutput`, independent of the module's.
+    channels: Option<u32>,
 }
 
 /// Parse output attribute tokens into OutputAttr
 /// Supports:
-/// - #[output("name", "description")]
-/// - #[output("name", "description", default)]
-/// - #[output("name", "description", range = (-1.0, 1.0))]
-/// - #[output("name", "description", default, range = (-1.0, 1.0))]
+/// - #[output("name", "description", type = cv)]
+/// - #[output("name", "description", type = gate, default)]
+/// - #[output("name", "description", type = cv, range = (-1.0, 1.0))]
+/// - #[output("name", "description", type = cv, channels = 2)]
+///
+/// `type` is required. Gate and trig outputs emit 0–5 V, so they take no
+/// `range`.
 fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
     use syn::Result as SynResult;
     use syn::parse::{Parse, ParseStream};
@@ -50,8 +93,10 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
     struct OutputAttrParser {
         name: LitStr,
         description: Option<LitStr>,
+        output_type: OutputType,
         is_default: bool,
         range: Option<(f64, f64)>,
+        channels: Option<u32>,
     }
 
     impl Parse for OutputAttrParser {
@@ -88,9 +133,10 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
             // Parse description string
             let description: LitStr = input.parse()?;
 
-            // Parse optional attributes (default, range)
+            let mut output_type: Option<OutputType> = None;
             let mut is_default = false;
             let mut range: Option<(f64, f64)> = None;
+            let mut channels: Option<u32> = None;
             while input.peek(Token![,]) {
                 input.parse::<Token![,]>()?;
 
@@ -98,10 +144,15 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                     break;
                 }
 
-                // Check for `default` keyword
-                if input.peek(syn::Ident) {
-                    let ident: Ident = input.parse()?;
-                    if ident == "default" {
+                if input.peek(syn::Ident::peek_any) {
+                    let ident = Ident::parse_any(input)?;
+                    if ident == "type" {
+                        input.parse::<Token![=]>()?;
+                        if output_type.is_some() {
+                            return Err(syn::Error::new(ident.span(), "duplicate `type`"));
+                        }
+                        output_type = Some(OutputType::parse(&Ident::parse_any(input)?)?);
+                    } else if ident == "default" {
                         is_default = true;
                     } else if ident == "range" {
                         input.parse::<Token![=]>()?;
@@ -111,11 +162,19 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                         content.parse::<Token![,]>()?;
                         let max: syn::LitFloat = content.parse()?;
                         range = Some((min.base10_parse()?, max.base10_parse()?));
+                    } else if ident == "channels" {
+                        input.parse::<Token![=]>()?;
+                        let n: syn::LitInt = input.parse()?;
+                        let value: u32 = n.base10_parse()?;
+                        if value == 0 {
+                            return Err(syn::Error::new(n.span(), "channels must be at least 1"));
+                        }
+                        channels = Some(value);
                     } else {
                         return Err(syn::Error::new(
                             ident.span(),
                             format!(
-                                "Unknown output attribute '{}'. Expected 'default' or 'range'",
+                                "Unknown output attribute '{}'. Expected 'type', 'default', 'range' or 'channels'",
                                 ident
                             ),
                         ));
@@ -123,11 +182,32 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                 }
             }
 
+            let Some(output_type) = output_type else {
+                return Err(syn::Error::new(
+                    name.span(),
+                    format!("output '{name_value}' needs a `type` (cv, gate or trig)"),
+                ));
+            };
+            let range = match output_type {
+                OutputType::Cv => range,
+                OutputType::Gate | OutputType::Trig => {
+                    if range.is_some() {
+                        return Err(syn::Error::new(
+                            name.span(),
+                            "gate and trig outputs take no range; they emit 0–5 V",
+                        ));
+                    }
+                    Some((0.0, 5.0))
+                }
+            };
+
             Ok(OutputAttrParser {
                 name,
                 description: Some(description),
+                output_type,
                 is_default,
                 range,
+                channels,
             })
         }
     }
@@ -137,8 +217,10 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
     Ok(OutputAttr {
         name: parsed.name,
         description: parsed.description,
+        output_type: parsed.output_type,
         is_default: parsed.is_default,
         range: parsed.range,
+        channels: parsed.channels,
     })
 }
 
@@ -166,6 +248,15 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                             .into();
                         }
                     };
+
+                    if let Some(doc) = f.attrs.iter().find(|a| a.path().is_ident("doc")) {
+                        return syn::Error::new(
+                            doc.span(),
+                            "output docs live in `#[output(\"name\", \"…\")]`, not `///`",
+                        )
+                        .to_compile_error()
+                        .into();
+                    }
 
                     // Detect field precision (f32 or PolySignal)
                     let precision = match &f.ty {
@@ -206,13 +297,24 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                         .map(|d| quote!(#d.to_string()))
                         .unwrap_or(quote!("".to_string()));
 
+                    if output_attr.channels.is_some() && precision != OutputPrecision::PolySignal {
+                        return syn::Error::new(
+                            f.span(),
+                            "`channels` applies only to PolyOutput fields",
+                        )
+                        .to_compile_error()
+                        .into();
+                    }
+
                     out.push(OutputField {
                         field_name,
                         output_name,
                         precision,
                         description,
+                        output_type: output_attr.output_type,
                         is_default: output_attr.is_default,
                         range: output_attr.range,
+                        channels: output_attr.channels,
                     });
                 }
                 out
@@ -304,6 +406,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .map(|o| {
             let output_name = &o.output_name;
             let description = &o.description;
+            let output_type = o.output_type.variant();
             let is_polyphonic = o.precision == OutputPrecision::PolySignal;
             let is_default = o.is_default;
             let min_value = match o.range {
@@ -314,14 +417,20 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 Some((_, max)) => quote! { Some(#max) },
                 None => quote! { None },
             };
+            let channels = match o.channels {
+                Some(n) => quote! { Some(#n) },
+                None => quote! { None },
+            };
             quote! {
                 crate::types::OutputSchema {
                     name: #output_name.to_string(),
                     description: #description,
+                    output_type: #output_type,
                     polyphonic: #is_polyphonic,
                     default: #is_default,
                     min_value: #min_value,
                     max_value: #max_value,
+                    channels: #channels,
                 }
             }
         })
@@ -332,8 +441,12 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .filter(|o| o.precision == OutputPrecision::PolySignal)
         .map(|o| {
             let field_name = &o.field_name;
-            quote! {
-                self.#field_name.set_channels(channels);
+            match o.channels {
+                Some(n) => {
+                    let n = n as usize;
+                    quote! { self.#field_name.set_channels(#n); }
+                }
+                None => quote! { self.#field_name.set_channels(channels); },
             }
         })
         .collect();
@@ -379,8 +492,8 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .collect();
 
     // Each port is sized to its true width: f32 outputs are mono (1 channel,
-    // broadcast to consumers via cycling-on-read), PolyOutput ports get the
-    // module's derived channel count.
+    // broadcast to consumers via cycling-on-read), PolyOutput ports get their
+    // fixed `channels` or else the module's derived channel count.
     let block_new_inits: Vec<_> = outputs
         .iter()
         .map(|o| {
@@ -389,9 +502,15 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 OutputPrecision::F32 => {
                     quote! { #field_name: crate::block_port::BlockPort::new(block_size, 1) }
                 }
-                OutputPrecision::PolySignal => {
-                    quote! { #field_name: crate::block_port::BlockPort::new(block_size, channel_count) }
-                }
+                OutputPrecision::PolySignal => match o.channels {
+                    Some(n) => {
+                        let n = n as usize;
+                        quote! { #field_name: crate::block_port::BlockPort::new(block_size, #n) }
+                    }
+                    None => quote! {
+                        #field_name: crate::block_port::BlockPort::new(block_size, channel_count)
+                    },
+                },
             }
         })
         .collect();
@@ -545,4 +664,37 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
     let mut all_generated = quote!(#generated);
     all_generated.extend(block_generated);
     all_generated.into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(src: &str) -> syn::Result<OutputAttr> {
+        parse_output_attr(src.parse().unwrap())
+    }
+
+    fn err(src: &str) -> String {
+        match parse(src) {
+            Ok(_) => panic!("expected an error for {src}"),
+            Err(e) => e.to_string(),
+        }
+    }
+
+    #[test]
+    fn reads_the_output_type() {
+        let attr = parse(r#""gate", "high while a note plays", type = gate"#).unwrap();
+        assert_eq!(attr.output_type, OutputType::Gate);
+        assert_eq!(attr.range, Some((0.0, 5.0)));
+        let attr = parse(r#""output", "the mix", default, type = cv"#).unwrap();
+        assert!(attr.output_type == OutputType::Cv && attr.is_default);
+    }
+
+    #[test]
+    fn requires_a_known_output_type() {
+        assert!(err(r#""output", "the mix", default"#).contains("needs a `type`"));
+        assert!(err(r#""output", "the mix", type = audio"#).contains("unknown output type"));
+        assert!(err(r#""output", "the mix", type = cv, type = gate"#).contains("duplicate"));
+        assert!(err(r#""gate", "held", type = gate, range = (0.0, 5.0)"#).contains("no range"));
+    }
 }
