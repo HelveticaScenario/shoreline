@@ -26,3 +26,4 @@
 - [ ] pass whole buffers through modules, not just one sample at a time
 - [ ] end of chain parametric eq
 - [ ] send-return channels
+- [ ] slim down e2e/docsRender.test.ts: it walks every module card at three widths (10+ min); maybe a sample of modules or unit-level checks would do
