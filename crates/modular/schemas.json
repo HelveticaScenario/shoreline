@@ -31206,6 +31206,253 @@
     ]
   },
   {
+    "name": "$mi.vowel",
+    "docs": {
+      "summary": "Sung and spoken vowels",
+      "description": "Mutable Instruments Plaits' vowel synthesis: three generations of speech synthesizer, a formant filter bank, SAM and a speak-and-spell's LPC, singing vowels at the pitch, with consonants on `trigger`.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Morphing vowels",
+          "code": "const vowel = $sine('0.15hz').range(0, 5)\n$mi.vowel('c2', { vowel, model: 0 }).out()"
+        },
+        {
+          "title": "Robot syllables",
+          "code": "const seq = $p('c3 eb3 g3 <bb2 f3>').c\n$mi.vowel(seq, { trigger: seq, model: 5 }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "VowelParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the voice's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "starts a syllable: a short consonant before the vowel, picked from the knobs and pitch, or a brief drop in pitch on the formant-filter model. Unpatched, the vowel sustains",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model": {
+          "description": "the synthesis, crossfading from a formant-filter voice (0) to SAM's buzzy sine formants (2.5) to an LPC voice like a speak-and-spell (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vowel": {
+          "description": "which vowel: open a (0) through e, i and o to closed u (5) on the formant-filter and LPC voices; SAM sweeps its own nine vowels, roughly open to closed",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formantShift": {
+          "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the voice",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "excitation",
+        "description": "the glottal source the formants shape: pulses, a buzz, or the LPC voice's pulses and noise",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the voice's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "starts a syllable: a short consonant before the vowel, picked from the knobs and pitch, or a brief drop in pitch on the formant-filter model. Unpatched, the vowel sustains",
+        "paramType": "trig"
+      },
+      {
+        "name": "model",
+        "description": "the synthesis, crossfading from a formant-filter voice (0) to SAM's buzzy sine formants (2.5) to an LPC voice like a speak-and-spell (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "vowel",
+        "description": "which vowel: open a (0) through e, i and o to closed u (5) on the formant-filter and LPC voices; SAM sweeps its own nine vowels, roughly open to closed",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "formantShift",
+        "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.waveTerrain",
     "docs": {
       "summary": "Wave terrain oscillator",

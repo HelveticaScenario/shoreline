@@ -18,6 +18,7 @@ pub mod six_op;
 pub mod string;
 pub mod swarm;
 pub mod two_op;
+pub mod vowel;
 pub mod wave_terrain;
 pub mod waveshaper;
 pub mod z_osc;
@@ -34,6 +35,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     string::MiString::install_constructor(map);
     swarm::Swarm::install_constructor(map);
     two_op::TwoOp::install_constructor(map);
+    vowel::Vowel::install_constructor(map);
     wave_terrain::WaveTerrain::install_constructor(map);
     waveshaper::Waveshaper::install_constructor(map);
     z_osc::ZOsc::install_constructor(map);
@@ -51,6 +53,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     string::MiString::install_params_deserializer(map);
     swarm::Swarm::install_params_deserializer(map);
     two_op::TwoOp::install_params_deserializer(map);
+    vowel::Vowel::install_params_deserializer(map);
     wave_terrain::WaveTerrain::install_params_deserializer(map);
     waveshaper::Waveshaper::install_params_deserializer(map);
     z_osc::ZOsc::install_params_deserializer(map);
@@ -69,6 +72,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         string::MiString::get_schema(),
         swarm::Swarm::get_schema(),
         two_op::TwoOp::get_schema(),
+        vowel::Vowel::get_schema(),
         wave_terrain::WaveTerrain::get_schema(),
         waveshaper::Waveshaper::get_schema(),
         z_osc::ZOsc::get_schema(),

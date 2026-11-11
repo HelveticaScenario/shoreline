@@ -73,6 +73,7 @@ fn allocation_free() {
         "$mi.string",
         "$mi.swarm",
         "$mi.twoOp",
+        "$mi.vowel",
         "$mi.waveTerrain",
         "$mi.waveshaper",
         "$mi.zOsc",
@@ -97,6 +98,20 @@ fn six_op_allocation_free() {
             "$mi.sixOp",
             json!({ "freq": poly_cable("lfo", CHANNELS), "gate": poly_cable("src", CHANNELS),
                     "bank": cable("lfo", 1), "patch": cable("lfo", 2), "envelope": cable("lfo", 3) })
+        ),
+        0
+    );
+}
+
+/// Syllables on every model, with the vowel and formant shift moving,
+/// allocate nothing.
+#[test]
+fn vowel_allocation_free() {
+    assert_eq!(
+        allocations_while_rendering(
+            "$mi.vowel",
+            json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS),
+                    "model": cable("lfo", 1), "vowel": cable("lfo", 2), "formantShift": cable("lfo", 3) })
         ),
         0
     );
