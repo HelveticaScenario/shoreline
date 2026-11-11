@@ -53,10 +53,10 @@ function collect(source: string): SignalSite[] {
 /** Each site as `<text before the anchor>‹output›`, in source order. */
 function hints(source: string): string[] {
     return collect(source)
-        .sort((a, b) => a.anchor - b.anchor)
+        .sort((a, b) => a.end - b.end)
         .map((site) => {
-            const lineStart = source.lastIndexOf('\n', site.anchor - 1) + 1;
-            const before = source.slice(lineStart, site.anchor).trim();
+            const lineStart = source.lastIndexOf('\n', site.end - 1) + 1;
+            const before = source.slice(lineStart, site.end).trim();
             return `${before.slice(-12)}‹${site.output ?? '?'}›`;
         });
 }
@@ -79,7 +79,7 @@ describe('static resolution', () => {
     test('an inline chain puts the hint after the receiver', () => {
         const source = `$p('0*8').c.$.perc().out()`;
         const [site] = collect(source);
-        expect(source.slice(0, site.anchor)).toBe(`$p('0*8').c`);
+        expect(source.slice(0, site.end)).toBe(`$p('0*8').c`);
         expect(site.output).toBe('trig');
     });
 
@@ -176,11 +176,38 @@ describe('static resolution', () => {
         ).toEqual([]);
     });
 
-    test('an array of roots is marked as one', () => {
+    test('only a value a member can follow is insertable', () => {
         const sites = collect(
-            `const seq = $p('c e').c\nconst seqs = [seq, seq]\n$perc(seqs)\n$perc(seq)`,
+            `const seq = $p('c e').c\nconst seqs = [seq, seq]\n$perc(seq)\n$perc(seqs)\n$perc(true ? seq : seq)\n$perc((seq))`,
         );
-        expect(sites.map((site) => site.array)).toEqual([true, false]);
+        expect(sites.map((site) => site.insertable)).toEqual([
+            true,
+            false,
+            false,
+            true,
+        ]);
+    });
+
+    test('a slice or chunk of a root is a plain collection', () => {
+        expect(
+            hints(
+                `const seq = $p('c e').c\n$perc(seq.slice(0, 1))\n$perc(seq.chunk(1))`,
+            ),
+        ).toEqual([]);
+    });
+
+    test('arguments after a spread are not placed', () => {
+        expect(
+            hints(`const seq = $p('c e').c\n$saw(...[seq], { sync: seq })`),
+        ).toEqual([]);
+    });
+
+    test('a name shared with Object.prototype is not a root or a module', () => {
+        expect(
+            hints(
+                `const seq = $p('c e').c\n$perc(seq.toString)\nfunction valueOf() {}\nvalueOf[0]\ntoString(seq)`,
+            ),
+        ).toEqual([]);
     });
 
     test('an untyped value is left for the runtime', () => {
@@ -207,6 +234,9 @@ describe('agreement with the runtime', () => {
         `function f(s, m) {\n    return s.$m.lpf(m, 'c')\n}\nf($clock, $p('1 2').c)`,
         `function f(m) {\n    return $sine('c').pipeMix((x) => x.$.lpf('c'), m)\n}\nf($p('1 2').c).out()`,
         `function f(s) {\n    return $sine('c').range(s, s)\n}\nf($p('0 1').c).out()`,
+        `function f(s) {\n    return $sine('c').amp($g1([s, s])).out({ gain: $g1(s) })\n}\nf($p('0 1').c)`,
+        `function f(s) {\n    return $mix([[s, 2.5]]).amp($step([s, 'c'], s))\n}\nf($p('0 1').c).out()`,
+        `function f(s) {\n    return $quantizer($sine('c'), s)\n}\nf($p('c, e, g').c).out()`,
         `function f(s) {\n    return $sine('c').erratic(1, { trigger: s, speed: s })\n}\nf($p('0 1').c).out({ gain: $p('1 2').c })`,
         `function f(s) {\n    return $delay(s, s, { feedback: s, feedbackCb: (m) => m.$.lpf(s) })\n}\nf($p('0 1').c)`,
         `function f(s) {\n    return $sine('c').$m.delay(s, s)\n}\nf($p('0 1').c)`,

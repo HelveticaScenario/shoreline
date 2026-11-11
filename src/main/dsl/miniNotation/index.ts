@@ -791,7 +791,7 @@ function factorArgumentSpans(
     return [...innerSpans, factorSpan];
 }
 
-export type CycleFactory = (pattern: unknown, ...rest: unknown[]) => unknown;
+type CycleFactory = (pattern: unknown, ...rest: unknown[]) => unknown;
 
 /**
  * The `$cycle` factory of the active DSL execution, which `.cycle(...)` and
@@ -829,7 +829,8 @@ function sharedCycle(pattern: SectionPattern): unknown {
 /**
  * Attach the `.cycle(...)` / `.fast(...)` / `.slow(...)` / `.struct(...)` /
  * `.beat(...)` / `.glide(...)` methods and the `.c` getter to a pattern
- * object. `Object.assign` types the result; the
+ * object. Reading `.c` is what makes its `$cycle`. `Object.assign` types the
+ * methods; the
  * `defineProperty` calls then flip the methods to non-enumerable so
  * `JSON.stringify` (the IPC clone) and `Object.keys`/`entries` skip them and
  * only the wire-shape fields cross the boundary — the same trick `$p.s` uses

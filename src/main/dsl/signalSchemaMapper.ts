@@ -34,7 +34,7 @@ export function buildSignalMapper(
             if (SIGNAL_DEFS.has(name)) {
                 return (value, path, map) => map(value, path);
             }
-            // A scale input takes a spec string, not a signal.
+            // The factory prepares a scale input itself.
             if (name === 'ScaleSignal') {
                 return null;
             }

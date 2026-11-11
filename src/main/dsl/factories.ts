@@ -1,5 +1,5 @@
 import type { ModuleSchema } from '@modular/core';
-import { deriveChannelCount, getReservedOutputNames } from '@modular/core';
+import { deriveChannelCount } from '@modular/core';
 import type { ModuleOutput, ScopeConfig } from './GraphBuilder';
 import {
     BaseCollection,
@@ -11,9 +11,11 @@ import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
 import {
     chooseOutput,
+    elementSlot,
     type OutputClass,
 } from '../../shared/dsl/outputResolutionRule';
 import './chainMethods';
+import { sanitizeOutputName } from './outputNames';
 import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
 import { refusePattern } from './patternKinds';
@@ -253,32 +255,6 @@ function sanitizeIdentifier(name: string): string {
 }
 
 /**
- * Convert snake_case to camelCase
- */
-function toCamelCase(str: string): string {
-    return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
-/**
- * Reserved property names that conflict with ModuleOutput, Collection, or CollectionWithRange
- * methods/properties. Output names matching these will be suffixed with an underscore.
- *
- * Single source of truth: `crates/reserved_output_names.rs`
- */
-const RESERVED_OUTPUT_NAMES: ReadonlySet<string> = new Set(
-    getReservedOutputNames(),
-);
-
-/**
- * Sanitize output name to avoid conflicts with reserved properties/methods.
- * Appends underscore if the camelCase name is reserved.
- */
-function sanitizeOutputName(name: string): string {
-    const camelName = toCamelCase(name);
-    return RESERVED_OUTPUT_NAMES.has(camelName) ? `${camelName}_` : camelName;
-}
-
-/**
  * Build a nested namespace tree from module schemas
  * Mirrors the logic in typescriptLibGen.ts buildTreeFromSchemas()
  */
@@ -399,7 +375,7 @@ export class DSLContext {
         };
         if (Array.isArray(value)) {
             return value.flatMap((v, i) => {
-                const resolved = resolve(v, `${slot}.${i}`);
+                const resolved = resolve(v, elementSlot(slot, i));
                 return resolved instanceof BaseCollection
                     ? [...resolved]
                     : [resolved];
@@ -413,7 +389,7 @@ export class DSLContext {
      */
     private createFactory(schema: ModuleSchema): FactoryFunction {
         const outputs = schema.outputs || [];
-        const rootOutputs = resolvableOutputs(schema, sanitizeOutputName);
+        const rootOutputs = resolvableOutputs(schema);
         const processed = processModuleSchema(schema);
         const scaleParamNames = processed.params
             .filter((p) => p.isScaleSignalInput)

@@ -50,12 +50,43 @@ export function chooseOutput(
     return fallback.name;
 }
 
+/** The slot of a chain method's receiver. */
+export const RECEIVER_SLOT = 'receiver';
+
+/** The slot of the mix amount of `.$m.x(mix, …)` and `.pipeMix(fn, mix)`. */
+export const MIX_SLOT = 'mix';
+
+/** The slot of element `index` of the array at `slot`. */
+export function elementSlot(slot: string, index: number): string {
+    return `${slot}.${index}`;
+}
+
+/** The slot of the array that element slot `slot` belongs to, if it is one. */
+export function arraySlotOf(slot: string): string | undefined {
+    const dot = slot.lastIndexOf('.');
+    return dot !== -1 && /^\d+$/.test(slot.slice(dot + 1))
+        ? slot.slice(0, dot)
+        : undefined;
+}
+
+/** The slot of a chain method's argument `index`. */
+export function argumentSlot(index: number): string {
+    return String(index);
+}
+
+/** The slot of field `key` of the options object at argument `index`. */
+export function optionSlot(index: number, key: string): string {
+    return `${index}.${key}`;
+}
+
 /**
  * One contextual resolution made while a patch ran. `line`/`column` are the
  * call site as V8 reports it (first-line columns carry
- * `FIRST_LINE_COLUMN_OFFSET`). `slot` names the value within that call: a
- * param name for a module call, with `.i` for an array element, or `receiver`
- * or an argument index for a chain method. `output` is the property name of
+ * `FIRST_LINE_COLUMN_OFFSET`). `slot` names the value within that call: for a
+ * module call or `$delay`, the param name or the path into a param that
+ * nests signals; for a chain method, `RECEIVER_SLOT`, an `argumentSlot` or an
+ * `optionSlot`; `MIX_SLOT` for a mix amount; any of them through
+ * `elementSlot` for an element of an array. `output` is the property name of
  * the chosen output.
  */
 export interface OutputResolutionRecord {

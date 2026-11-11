@@ -8,11 +8,14 @@
 import type { ModuleSchema } from '@modular/core';
 import {
     chooseOutput,
+    elementSlot,
     type OutputClass,
     type OutputResolutionRecord,
     type ResolvableOutput,
 } from '../../shared/dsl/outputResolutionRule';
 import { captureSourceLocation } from './captureSourceLocation';
+import { sanitizeOutputName } from './outputNames';
+import { isSignalGroupLike } from './signalGroups';
 
 const OUTPUT_SET = Symbol('outputSet');
 
@@ -22,14 +25,11 @@ interface OutputSet {
     values: Readonly<Record<string, unknown>>;
 }
 
-/** The outputs of `schema` under the property names `propertyName` gives them. */
-export function resolvableOutputs(
-    schema: ModuleSchema,
-    propertyName: (output: string) => string,
-): ResolvableOutput[] {
+/** The outputs of `schema` under the property names they have on a root. */
+export function resolvableOutputs(schema: ModuleSchema): ResolvableOutput[] {
     return (schema.outputs ?? []).map((o) => ({
         default: o.default,
-        name: propertyName(o.name),
+        name: sanitizeOutputName(o.name),
         outputType: o.outputType,
     }));
 }
@@ -87,17 +87,21 @@ export class OutputResolver {
     /**
      * Run `body` as one user-facing call that builds its modules out of
      * sight: a chain method or a helper such as `$delay`. The roots among
-     * `slots`, and inside the arrays among them, are recorded here against
-     * that call, and the modules the body builds record nothing.
+     * `slots`, and inside the arrays and `$gN` groups among them, are
+     * recorded here against that call, and the modules the body builds
+     * record nothing.
      */
     withCall<T>(slots: readonly CallSlot[], body: () => T): T {
         if (this.inCall) {
             return body();
         }
         const roots: [string, OutputSet, OutputClass][] = [];
-        for (const [slot, value, inputClass] of slots) {
+        for (const [slot, slotValue, inputClass] of slots) {
+            const value = isSignalGroupLike(slotValue)
+                ? slotValue.signals
+                : slotValue;
             const values: [string, unknown][] = Array.isArray(value)
-                ? value.map((element, i) => [`${slot}.${i}`, element])
+                ? value.map((element, i) => [elementSlot(slot, i), element])
                 : [[slot, value]];
             for (const [s, v] of values) {
                 const set = outputSetOf(v);

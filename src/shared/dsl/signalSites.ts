@@ -10,7 +10,13 @@
 
 import type * as TS from 'typescript';
 import {
+    argumentSlot,
+    arraySlotOf,
     chooseOutput,
+    elementSlot,
+    MIX_SLOT,
+    optionSlot,
+    RECEIVER_SLOT,
     type OutputClass,
     type OutputResolutionRecord,
     type ResolvableOutput,
@@ -26,18 +32,22 @@ export interface ModuleSiteInfo {
     chainable: boolean;
 }
 
+/**
+ * Methods on an output or collection that read it, and the signals among
+ * their arguments, as `cv`. Each lists the fields of its options object that
+ * read another class.
+ */
+export type ChainMethods = Readonly<
+    Record<string, Readonly<Record<string, OutputClass>>>
+>;
+
 /** Everything about the DSL the collector needs; plain data, built in main. */
 export interface SignalSiteTables {
     /** Outputs of each root type, keyed by its qualified type name. */
     roots: Record<string, ResolvableOutput[]>;
     /** Module calls, keyed by dotted call name (`$tr808.kick`). */
     modules: Record<string, ModuleSiteInfo>;
-    /**
-     * Methods on an output or collection that read it, and the signals among
-     * their arguments, as `cv`. Each lists the fields of its options object
-     * that read another class.
-     */
-    chainMethods: Record<string, Record<string, OutputClass>>;
+    chainMethods: ChainMethods;
 }
 
 /** One value position in a patch. */
@@ -47,12 +57,16 @@ export interface SignalSite {
     column: number;
     /** Matches `OutputResolutionRecord.slot`. */
     slot: string;
-    /** Document offset just after the value, where its hint goes. */
-    anchor: number;
+    /** Document offsets of the value. Its hint goes at `end`. */
+    start: number;
+    end: number;
     /** The output the value stands for, or null when only a run can tell. */
     output: string | null;
-    /** Whether the value is an array, each element standing for `output`. */
-    array: boolean;
+    /**
+     * Whether writing `.output` straight after the value names that output:
+     * true of a name, a member or a call that is one root, not an array.
+     */
+    insertable: boolean;
 }
 
 /**
@@ -70,22 +84,24 @@ export function siteOfRecord(
     const atCall = sites.filter(
         (s) => s.line === record.line && s.column === column,
     );
-    let slot = record.slot;
-    for (;;) {
+    for (
+        let slot: string | undefined = record.slot;
+        slot !== undefined;
+        slot = arraySlotOf(slot)
+    ) {
         const site = atCall.find((s) => s.slot === slot);
         if (site) {
             return site;
         }
-        const dot = slot.lastIndexOf('.');
-        if (dot === -1 || !/^\d+$/.test(slot.slice(dot + 1))) {
-            return undefined;
-        }
-        slot = slot.slice(0, dot);
     }
+    return undefined;
 }
 
 /** The helpers that tag a param value into a cartesian signal group. */
 const SIGNAL_GROUP_HELPERS = new Set(['$g1', '$g2', '$g3']);
+
+/** Methods of a root that return a plain collection of its `cv` output. */
+const COLLECTION_BUILDERS = new Set(['slice', 'chunk']);
 
 /**
  * `undefined`: not a root. `null`: may be one, unknown until run. Otherwise
@@ -125,7 +141,7 @@ export function collectSignalSites(
 
     const outputsOf = (type: TS.Type): ResolvableOutput[] | undefined => {
         const symbol = type.aliasSymbol ?? type.getSymbol();
-        return symbol ? tables.roots[qualifiedName(symbol)] : undefined;
+        return symbol ? own(tables.roots, qualifiedName(symbol)) : undefined;
     };
 
     const isUnknown = (type: TS.Type): boolean =>
@@ -170,20 +186,29 @@ export function collectSignalSites(
     const emit = (
         call: { line: number; column: number },
         slot: string,
-        anchorNode: TS.Node,
+        value: TS.Node,
         output: Resolved,
-        array = false,
+        insertable: boolean,
     ): void => {
         if (output !== undefined) {
             sites.push({
                 ...call,
-                anchor: anchorNode.getEnd(),
-                array,
+                end: value.getEnd(),
+                insertable,
                 output,
                 slot,
+                start: value.getStart(sourceFile),
             });
         }
     };
+
+    /** Whether `.name` can be written straight after `value`. */
+    const takesMember = (value: TS.Expression): boolean =>
+        ts.isIdentifier(value) ||
+        ts.isPropertyAccessExpression(value) ||
+        ts.isElementAccessExpression(value) ||
+        ts.isCallExpression(value) ||
+        ts.isParenthesizedExpression(value);
 
     /** A value written at `slot` of the call at `call`. */
     const emitValue = (
@@ -199,7 +224,7 @@ export function collectSignalSites(
         if (ts.isArrayLiteralExpression(value)) {
             value.elements.forEach((element, i) => {
                 if (!ts.isSpreadElement(element)) {
-                    emitValue(call, `${slot}.${i}`, element, inputClass);
+                    emitValue(call, elementSlot(slot, i), element, inputClass);
                 }
             });
             return;
@@ -213,13 +238,22 @@ export function collectSignalSites(
             emitValue(call, slot, value.arguments[0], inputClass);
             return;
         }
+        if (
+            ts.isCallExpression(value) &&
+            ts.isPropertyAccessExpression(value.expression) &&
+            COLLECTION_BUILDERS.has(value.expression.name.text)
+        ) {
+            return;
+        }
         const type = checker.getTypeAtLocation(value);
         emit(
             call,
             slot,
             expression,
             resolveType(type, inputClass),
-            checker.isArrayType(type) || checker.isTupleType(type),
+            takesMember(expression) &&
+                !checker.isArrayType(type) &&
+                !checker.isTupleType(type),
         );
     };
 
@@ -247,7 +281,9 @@ export function collectSignalSites(
         args: readonly TS.Expression[],
         first: number,
     ): void => {
-        args.forEach((arg, i) => {
+        const spread = args.findIndex((arg) => ts.isSpreadElement(arg));
+        const placed = spread === -1 ? args : args.slice(0, spread);
+        placed.forEach((arg, i) => {
             const index = first + i;
             if (index < info.positional.length) {
                 const name = info.positional[index];
@@ -345,7 +381,7 @@ export function collectSignalSites(
             );
             const args = [...node.arguments];
             if (dollar.withMix && args.length > 0) {
-                emitValue(site, 'mix', args.shift()!, 'cv');
+                emitValue(site, MIX_SLOT, args.shift()!, 'cv');
             }
             emitModuleArgs(site, chained, args, 1);
             return;
@@ -355,7 +391,7 @@ export function collectSignalSites(
             node.arguments.length > 1 &&
             receivesSignals(checker.getTypeAtLocation(callee.expression))
         ) {
-            emitValue(site, 'mix', node.arguments[1], 'cv');
+            emitValue(site, MIX_SLOT, node.arguments[1], 'cv');
             return;
         }
         const optionClasses = chainMethod(callee.name.text);
@@ -363,41 +399,21 @@ export function collectSignalSites(
             optionClasses &&
             receivesSignals(checker.getTypeAtLocation(callee.expression))
         ) {
+            emitValue(site, RECEIVER_SLOT, callee.expression, 'cv');
             node.arguments.forEach((arg, i) => {
                 if (ts.isObjectLiteralExpression(arg)) {
                     forEachField(arg, (key, value) =>
                         emitValue(
                             site,
-                            `${i}.${key}`,
+                            optionSlot(i, key),
                             value,
                             optionClasses[key] ?? 'cv',
                         ),
                     );
                 } else {
-                    emitValue(site, String(i), arg, 'cv');
+                    emitValue(site, argumentSlot(i), arg, 'cv');
                 }
             });
-        }
-    };
-
-    /** The receiver of a chain method, which reads it as `cv`. */
-    const visitMember = (node: TS.PropertyAccessExpression): void => {
-        const called =
-            ts.isCallExpression(node.parent) && node.parent.expression === node;
-        if (!called || !chainMethod(node.name.text)) {
-            return;
-        }
-        const type = checker.getTypeAtLocation(node.expression);
-        const outputs = outputsOf(type);
-        if (outputs) {
-            emit(
-                position(node.name),
-                'receiver',
-                node.expression,
-                chooseOutput(outputs, 'cv'),
-            );
-        } else if (isUnknown(type)) {
-            emit(position(node.name), 'receiver', node.expression, null);
         }
     };
 
@@ -408,9 +424,10 @@ export function collectSignalSites(
         if (outputs) {
             emit(
                 position(node.argumentExpression),
-                'receiver',
+                RECEIVER_SLOT,
                 node.expression,
                 chooseOutput(outputs, 'cv'),
+                takesMember(node.expression),
             );
         }
     };
@@ -418,8 +435,6 @@ export function collectSignalSites(
     const visit = (node: TS.Node): void => {
         if (ts.isCallExpression(node)) {
             visitCall(node);
-        } else if (ts.isPropertyAccessExpression(node)) {
-            visitMember(node);
         } else if (ts.isElementAccessExpression(node)) {
             visitIndex(node);
         }

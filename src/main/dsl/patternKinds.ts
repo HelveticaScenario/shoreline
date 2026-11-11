@@ -14,7 +14,7 @@ export const PATTERN_KINDS: ReadonlySet<unknown> = new Set([
     'GlidePattern',
 ]);
 
-export interface PatternValue {
+interface PatternValue {
     readonly __kind: string;
 }
 

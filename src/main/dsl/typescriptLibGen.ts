@@ -1,4 +1,3 @@
-import { getReservedOutputNames } from '@modular/core';
 import type { ModuleSchema } from '@modular/core';
 import type {
     JSONSchema,
@@ -33,6 +32,7 @@ import {
     withMeta,
 } from '../../shared/dsl/paramRange';
 import { chooseOutput } from '../../shared/dsl/outputResolutionRule';
+import { sanitizeOutputName } from './outputNames';
 import { renderDocContentJsDoc } from '../../shared/dsl/referenceDocs';
 export type { WavsFolderNode } from './executor';
 
@@ -269,7 +269,7 @@ type Signal = number | Note | HZ | ModuleOutput;
  * Can be:
  * - A single {@link Signal}
  * - An iterable of {@link ModuleOutput}s
- * - An array of any of these (creates multiple voices)
+ * - An array of {@link Signal}s and {@link Collection}s (creates multiple voices)
  * - A {@link SignalGroup} from \`$g1\`/\`$g2\`/\`$g3\` (cartesian voice expansion)
  *
  * @example $saw(["C3", "E3", "G3"]).out()                    // 3-voice chord
@@ -277,7 +277,7 @@ type Signal = number | Note | HZ | ModuleOutput;
  * @see {@link Signal} - for single-channel signals
  * @see {@link Collection} - for grouping outputs
  */
-type Poly<T extends Signal = Signal> = OrArray<T | Iterable<ModuleOutput>> | SignalGroup;
+type Poly<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | Iterable<ModuleOutput> | SignalGroup;
 
 /**
  * An axis of an XY scope: signals and collections, or an array mixing
@@ -301,16 +301,16 @@ interface SignalGroup {
 
 
 /**
- * A signal input that sums all channels to a single mono value.
- * Structurally identical to {@link Poly}, but signals that the module
- * combines all voices into one control signal rather than preserving polyphony.
+ * A signal input that sums all channels to a single mono value. Takes what
+ * {@link Poly} takes except a signal group: the module combines all voices
+ * into one control signal rather than preserving polyphony.
  *
  * @example $stereoMix($saw("c3"), { width: 0.8 })          // Constant width
  * @example $stereoMix($saw("c3"), { width: $sine("1hz") }) // Oscillating stereo width
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
  * @see {@link Signal} - for single-channel signals
  */
-type Mono<T extends Signal = Signal> = OrArray<T | Iterable<ModuleOutput>>;
+type Mono<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | Iterable<ModuleOutput>;
 
 /**
  * A phase warp produced by the \`$phase.*\` helpers.
@@ -2379,34 +2379,6 @@ function capitalizeName(name: string): string {
         return name;
     }
     return name.charAt(0).toUpperCase() + name.slice(1);
-}
-
-/**
- * Convert snake_case to camelCase
- */
-function toCamelCase(str: string): string {
-    return str.replace(/_([a-z])/g, (_, letter: string) =>
-        letter.toUpperCase(),
-    );
-}
-
-/**
- * Reserved property names that conflict with ModuleOutput, Collection, or CollectionWithRange
- * methods/properties. Output names matching these will be suffixed with an underscore.
- *
- * Single source of truth: `crates/reserved_output_names.rs`
- */
-const RESERVED_OUTPUT_NAMES: ReadonlySet<string> = new Set(
-    getReservedOutputNames(),
-);
-
-/**
- * Sanitize output name to avoid conflicts with reserved properties/methods.
- * Appends underscore if the camelCase name is reserved.
- */
-export function sanitizeOutputName(name: string): string {
-    const camelName = toCamelCase(name);
-    return RESERVED_OUTPUT_NAMES.has(camelName) ? `${camelName}_` : camelName;
 }
 
 /**

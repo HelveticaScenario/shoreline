@@ -25,8 +25,10 @@ import {
     qualifiesForDollarChain,
 } from './paramsSchema';
 import { captureSourceLocation } from './captureSourceLocation';
+import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
 import { OutputResolver } from './outputResolution';
 import { isPatternValue, refusePattern } from './patternKinds';
+import { isPlainObject } from './plainObject';
 import {
     assertSignalGroupsTopLevelOnly,
     expandSignalGroups,
@@ -232,22 +234,9 @@ export interface MonoOutGroup extends OutGroupVuState {
 }
 
 /**
- * True for a plain `{ ... }` literal. Patch scripts evaluate in a vm realm
- * whose `Object.prototype` is a different object from the host's, so
- * plainness is judged by chain depth (a prototype that is itself the chain
- * root) rather than identity.
- */
-export function isPlainObject(v: unknown): v is Record<string, unknown> {
-    if (typeof v !== 'object' || v === null || Array.isArray(v)) {
-        return false;
-    }
-    const proto = Object.getPrototypeOf(v);
-    return proto === null || Object.getPrototypeOf(proto) === null;
-}
-
-/**
  * Distinguishes MonoOutOptions from a gain PolySignal (number | string |
- * array | ModuleOutput | iterable). A pattern is a plain object too.
+ * array | ModuleOutput | iterable). A pattern is a plain object too, and is
+ * left to be refused as a gain.
  */
 function isMonoOutOptions(v: unknown): v is MonoOutOptions {
     return isPlainObject(v) && !isPatternValue(v);
@@ -2877,7 +2866,7 @@ function crossfadeMix(
         mix,
         'cv',
         captureSourceLocation(),
-        'mix',
+        MIX_SLOT,
     ) as PolySignal;
     const arity = (a: Amplifiable): number =>
         a instanceof BaseCollection ? Math.max(1, a.length) : 1;

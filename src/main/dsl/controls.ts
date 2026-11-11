@@ -15,6 +15,7 @@ import type { SliderDefinition } from '../../shared/dsl/sliderTypes';
 import { parseSliderValue } from '../../shared/dsl/sliderUnits';
 import { captureSourceLocation } from './factories';
 import type { CollectionWithRange } from './GraphBuilder';
+import { isPlainObject } from './plainObject';
 
 export interface ControlDeps {
     /**
@@ -90,19 +91,6 @@ function controlModuleId(
 
 function inGroup(group: string[]): string {
     return group.length > 0 ? ` in group "${group.join(' / ')}"` : '';
-}
-
-/**
- * True for a plain `{ ... }` literal. Patch scripts evaluate in a vm realm
- * whose `Object.prototype` differs from the host's, so plainness is judged by
- * prototype-chain depth rather than identity.
- */
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-    if (typeof v !== 'object' || v === null || Array.isArray(v)) {
-        return false;
-    }
-    const proto = Object.getPrototypeOf(v);
-    return proto === null || Object.getPrototypeOf(proto) === null;
 }
 
 export function createControls(deps: ControlDeps): Controls & {

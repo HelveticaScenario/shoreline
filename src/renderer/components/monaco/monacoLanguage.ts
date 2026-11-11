@@ -81,10 +81,7 @@ export function setupMonacoJavascript(
 
     const languageConfiguration = configureJavascriptPairs(monaco);
     const { extraLib, extraLibModel } = applyDslLibToMonaco(monaco, libSource);
-    const jsDocLinks = registerJsDocLinkProviders(
-        monaco,
-        options.schemas ?? [],
-    );
+    const jsDocLinks = registerJsDocLinkProviders(monaco, options.schemas ?? []);
     const outputHints = registerOutputResolutionHints(monaco);
 
     return () => {

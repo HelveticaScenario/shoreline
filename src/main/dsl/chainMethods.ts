@@ -4,27 +4,30 @@
  * Imported for its effect on the prototypes.
  */
 
-import type { OutputClass } from '../../shared/dsl/outputResolutionRule';
+import {
+    argumentSlot,
+    optionSlot,
+    RECEIVER_SLOT,
+    type OutputClass,
+} from '../../shared/dsl/outputResolutionRule';
+import type { ChainMethods } from '../../shared/dsl/signalSites';
 import {
     BaseCollection,
     Collection,
     CollectionWithRange,
-    isPlainObject,
     ModuleOutput,
     ModuleOutputWithRange,
     type GraphBuilder,
 } from './GraphBuilder';
 import type { CallSlot } from './outputResolution';
+import { isPlainObject } from './plainObject';
+import { isSignalGroupLike } from './signalGroups';
 
 /**
- * Methods a user calls on an output or collection that read it, and the
- * signals among their arguments, as `cv`. Each lists the fields of its
- * options object that read another class. `pipe` and `pipeMix` are absent:
- * they run user code, whose own calls are separate call sites.
+ * `pipe` and `pipeMix` are absent: they run user code, whose own calls are
+ * separate call sites.
  */
-export const CHAIN_METHODS: Readonly<
-    Record<string, Readonly<Record<string, OutputClass>>>
-> = {
+export const CHAIN_METHODS: ChainMethods = {
     add: {},
     addHz: {},
     amp: {},
@@ -66,13 +69,13 @@ function slotsOf(
     optionClasses: Readonly<Record<string, OutputClass>>,
 ): CallSlot[] {
     return args.flatMap((arg, i): CallSlot[] =>
-        isPlainObject(arg)
+        isPlainObject(arg) && !isSignalGroupLike(arg)
             ? Object.entries(arg).map(([key, value]) => [
-                  `${i}.${key}`,
+                  optionSlot(i, key),
                   value,
                   optionClasses[key] ?? 'cv',
               ])
-            : [[String(i), arg, 'cv']],
+            : [[argumentSlot(i), arg, 'cv']],
     );
 }
 
@@ -93,7 +96,7 @@ for (const proto of [
             return builder
                 ? builder.outputResolver.withCall(
                       [
-                          ['receiver', this, 'cv'],
+                          [RECEIVER_SLOT, this, 'cv'],
                           ...slotsOf(args, optionClasses),
                       ],
                       () => method.apply(this, args),

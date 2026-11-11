@@ -8,7 +8,13 @@
  * text is unchanged.
  */
 
-import type { editor, IDisposable, languages } from 'monaco-editor';
+import type {
+    editor,
+    IDisposable,
+    languages,
+    Position,
+    Range,
+} from 'monaco-editor';
 import type { OutputResolutionRecord } from '../../../shared/dsl/outputResolutionRule';
 import {
     siteOfRecord,
@@ -19,67 +25,50 @@ import electronAPI from '../../electronAPI';
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import type { DslTypeScriptWorkerApi } from './dslTsWorker';
 
-/** A site the runtime resolved, tracked through edits by a decoration. */
+/** A site the runtime resolved, its value tracked through edits by a decoration. */
 interface RuntimeFill {
     decorationId: string;
-    /** The value's text when the buffer ran. */
+    /** The value's text and slot when the buffer ran. */
     text: string;
+    slot: string;
     outputs: string[];
-    /** Whether the value is an array whose elements the outputs belong to. */
-    array: boolean;
+    insertable: boolean;
 }
+
+/** The provider's state, set once it is registered. */
+let active: {
+    monaco: Monaco;
+    tables: Promise<SignalSiteTables>;
+    /** Makes Monaco request the hints afresh. */
+    refresh: () => void;
+} | null = null;
 
 const runtimeFills = new WeakMap<editor.ITextModel, RuntimeFill[]>();
 
-/** Called when a model's runtime fills change, to make Monaco re-request hints. */
-const fillListeners = new Set<() => void>();
-
-/** Set once the provider is registered; a run before that has no hints to fill. */
-let active: { monaco: Monaco; tables: Promise<SignalSiteTables> } | null = null;
-
-/** An output name in `outputs`, no more than once. */
-function addOutput(outputs: string[], output: string): void {
-    if (!outputs.includes(output)) {
-        outputs.push(output);
-    }
-}
-
-async function signalSites(
-    monaco: Monaco,
-    model: editor.ITextModel,
-    tables: SignalSiteTables,
-): Promise<SignalSite[]> {
+async function signalSites(model: editor.ITextModel): Promise<SignalSite[]> {
+    const { monaco, tables } = active!;
     const getWorker = await monaco.typescript.getJavaScriptWorker();
     const worker = (await getWorker(
         model.uri,
     )) as unknown as DslTypeScriptWorkerApi;
-    return worker.getSignalSites(model.uri.toString(), tables);
+    return worker.getSignalSites(model.uri.toString(), await tables);
 }
 
-/** The run of identifier characters ending at `offset`: the value's tail. */
-function tailRange(
-    monaco: Monaco,
-    model: editor.ITextModel,
-    offset: number,
-): { range: import('monaco-editor').Range; text: string } {
-    const end = model.getPositionAt(offset);
-    const line = model.getLineContent(end.lineNumber).slice(0, end.column - 1);
-    const text = line.match(/[\w$]+$|.$/)?.[0] ?? '';
-    return {
-        range: new monaco.Range(
-            end.lineNumber,
-            end.column - text.length,
-            end.lineNumber,
-            end.column,
-        ),
-        text,
-    };
+function rangeOf(model: editor.ITextModel, site: SignalSite): Range {
+    const start = model.getPositionAt(site.start);
+    const end = model.getPositionAt(site.end);
+    return new active!.monaco.Range(
+        start.lineNumber,
+        start.column,
+        end.lineNumber,
+        end.column,
+    );
 }
 
 /**
  * Attach the resolutions a run of `source` recorded to the sites the type
- * checker left unresolved. They are dropped when `model` no longer reads as
- * `source`.
+ * checker left unresolved. Nothing changes when `model` no longer reads as
+ * `source`: a record is only as good as the text it was made from.
  */
 export async function applyRuntimeResolutions(
     model: editor.ITextModel,
@@ -89,76 +78,69 @@ export async function applyRuntimeResolutions(
     if (!active || model.getValue() !== source) {
         return;
     }
-    const { monaco } = active;
-    const sites = await signalSites(monaco, model, await active.tables);
+    const sites = await signalSites(model);
     if (model.isDisposed() || model.getValue() !== source) {
         return;
     }
 
-    const fillsBySite = new Map<
-        SignalSite,
-        { outputs: string[]; array: boolean }
-    >();
+    const fills = new Map<SignalSite, Omit<RuntimeFill, 'decorationId'>>();
     for (const record of records) {
         const site = siteOfRecord(sites, record);
         if (!site || site.output !== null) {
             continue;
         }
-        const fill = fillsBySite.get(site) ?? { array: false, outputs: [] };
-        addOutput(fill.outputs, record.output);
-        fill.array ||= record.slot !== site.slot;
-        fillsBySite.set(site, fill);
+        const fill = fills.get(site) ?? {
+            insertable: site.insertable,
+            outputs: [],
+            slot: site.slot,
+            text: model.getValueInRange(rangeOf(model, site)),
+        };
+        if (!fill.outputs.includes(record.output)) {
+            fill.outputs.push(record.output);
+        }
+        // An element's record names what the element stands for, which
+        // cannot be written after the array it sits in.
+        fill.insertable &&= record.slot === site.slot;
+        fills.set(site, fill);
     }
 
-    const entries = [...fillsBySite].map(([site, fill]) => ({
-        ...fill,
-        ...tailRange(monaco, model, site.anchor),
-    }));
-    const previous = runtimeFills.get(model) ?? [];
     const ids = model.deltaDecorations(
-        previous.map((fill) => fill.decorationId),
-        entries.map(({ range }) => ({
+        (runtimeFills.get(model) ?? []).map((fill) => fill.decorationId),
+        [...fills.keys()].map((site) => ({
             options: {
                 stickiness:
-                    monaco.editor.TrackedRangeStickiness
+                    active!.monaco.editor.TrackedRangeStickiness
                         .NeverGrowsWhenTypingAtEdges,
             },
-            range,
+            range: rangeOf(model, site),
         })),
     );
     runtimeFills.set(
         model,
-        entries.map(({ array, outputs, text }, i) => ({
-            array,
+        [...fills.values()].map((fill, i) => ({
+            ...fill,
             decorationId: ids[i],
-            outputs,
-            text,
         })),
     );
-    for (const listener of fillListeners) {
-        listener();
-    }
+    active.refresh();
 }
 
 function hint(
-    monaco: Monaco,
-    model: editor.ITextModel,
-    offset: number,
+    position: Position,
     outputs: readonly string[],
-    array: boolean,
+    insertable: boolean,
 ): languages.InlayHint {
-    const position = model.getPositionAt(offset);
     const label = outputs.map((output) => `.${output}`).join(' | ');
     return {
         label,
         position,
-        // Accepting the hint writes the output into the code. A site that
-        // resolved several ways, or an array, has no single text to write.
+        // Accepting the hint writes the output into the code, where one
+        // output can be written after the value.
         textEdits:
-            outputs.length === 1 && !array
+            outputs.length === 1 && insertable
                 ? [
                       {
-                          range: monaco.Range.fromPositions(position),
+                          range: active!.monaco.Range.fromPositions(position),
                           text: label,
                       },
                   ]
@@ -168,44 +150,39 @@ function hint(
 
 /** Register the hints for JavaScript models. */
 export function registerOutputResolutionHints(monaco: Monaco): IDisposable {
-    active ??= { monaco, tables: electronAPI.getSignalSiteTables() };
-    const { tables } = active;
-
     const provider: languages.InlayHintsProvider = {
         async provideInlayHints(model, range, token) {
-            const sites = await signalSites(monaco, model, await tables);
+            const sites = await signalSites(model);
             if (token.isCancellationRequested || model.isDisposed()) {
                 return { dispose: () => {}, hints: [] };
             }
             const hints: languages.InlayHint[] = [];
-            const unresolved = new Set<number>();
+            const unresolved = new Map<number, SignalSite>();
             for (const site of sites) {
                 if (site.output === null) {
-                    unresolved.add(site.anchor);
+                    unresolved.set(site.end, site);
                 } else {
                     hints.push(
                         hint(
-                            monaco,
-                            model,
-                            site.anchor,
+                            model.getPositionAt(site.end),
                             [site.output],
-                            site.array,
+                            site.insertable,
                         ),
                     );
                 }
             }
-            // A fill stands only while its value reads as it did when run
-            // and the type checker still cannot resolve that site.
+            // A fill stands only while its value reads as it did when run and
+            // is still an unresolved site of the same slot.
             for (const fill of runtimeFills.get(model) ?? []) {
                 const tracked = model.getDecorationRange(fill.decorationId);
                 if (!tracked || model.getValueInRange(tracked) !== fill.text) {
                     continue;
                 }
-                const offset = model.getOffsetAt(tracked.getEndPosition());
-                if (unresolved.has(offset)) {
-                    hints.push(
-                        hint(monaco, model, offset, fill.outputs, fill.array),
-                    );
+                const end = tracked.getEndPosition();
+                if (
+                    unresolved.get(model.getOffsetAt(end))?.slot === fill.slot
+                ) {
+                    hints.push(hint(end, fill.outputs, fill.insertable));
                 }
             }
             return {
@@ -221,16 +198,19 @@ export function registerOutputResolutionHints(monaco: Monaco): IDisposable {
     const register = () =>
         monaco.languages.registerInlayHintsProvider('javascript', provider);
     let registration = register();
-    const refresh = () => {
-        registration.dispose();
-        registration = register();
+    active = {
+        monaco,
+        refresh: () => {
+            registration.dispose();
+            registration = register();
+        },
+        tables: electronAPI.getSignalSiteTables(),
     };
-    fillListeners.add(refresh);
 
     return {
         dispose() {
-            fillListeners.delete(refresh);
             registration.dispose();
+            active = null;
         },
     };
 }

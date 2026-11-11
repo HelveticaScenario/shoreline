@@ -82,12 +82,22 @@ describe('resolution by input type', () => {
         ).toEqual(['heads']);
     });
 
-    test('with nothing matching, the default is used', () => {
+    test('a cv input takes the default', () => {
         // The clock's playhead is two channels wide.
         expect(ports(`$saw($clock).out()`, '$saw', 'freq')).toEqual([
             'playhead',
             'playhead',
         ]);
+    });
+
+    test('with nothing matching, the default is used', () => {
+        expect(
+            ports(
+                `$sine($coinFlip($clock.beatTrigger, 2.5)).out()`,
+                '$sine',
+                'freq',
+            ),
+        ).toEqual(['heads']);
     });
 
     test('a config-object input resolves by its own type', () => {
@@ -177,6 +187,17 @@ describe('a root read as a signal itself', () => {
     test('is the output a cv input takes', () => {
         expect(ports(`$sine($p('c e').c[0]).out()`, '$sine', 'freq')).toEqual([
             'cv',
+        ]);
+    });
+});
+
+describe('a call that throws', () => {
+    test('leaves the next call recording as usual', () => {
+        const { outputResolutions } = run(
+            `const seq = $p('c e').c\ntry { $sine('c').amp($p('c')) } catch {}\n$adsr(seq).out()`,
+        );
+        expect(outputResolutions.map((r) => `${r.slot} ${r.output}`)).toEqual([
+            'gate gate',
         ]);
     });
 });

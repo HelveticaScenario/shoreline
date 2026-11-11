@@ -1,13 +1,20 @@
 import type { ModuleSchema } from '@modular/core';
-import type { SignalSiteTables } from '../../shared/dsl/signalSites';
+import type {
+    ModuleSiteInfo,
+    SignalSiteTables,
+} from '../../shared/dsl/signalSites';
 import { CHAIN_METHODS } from './chainMethods';
 import { resolvableOutputs } from './outputResolution';
 import { processModuleSchema, qualifiesForDollarChain } from './paramsSchema';
 import { signalParamsOf } from './signalParams';
-import {
-    qualifiedMultiOutputInterfaceName,
-    sanitizeOutputName,
-} from './typescriptLibGen';
+import { qualifiedMultiOutputInterfaceName } from './typescriptLibGen';
+
+/** `$delay(input, time, { feedback })`: a helper called like a module. */
+export const DELAY_SITE: ModuleSiteInfo = {
+    chainable: true,
+    inputs: { feedback: 'cv', input: 'cv', time: 'cv' },
+    positional: ['input', 'time'],
+};
 
 /**
  * Describe the DSL to the editor's signal-site collector, in the names the
@@ -18,14 +25,7 @@ export function buildSignalSiteTables(
 ): SignalSiteTables {
     const tables: SignalSiteTables = {
         chainMethods: CHAIN_METHODS,
-        // `$delay(input, time, { feedback })` is a helper, not a module.
-        modules: {
-            $delay: {
-                chainable: true,
-                inputs: { feedback: 'cv', input: 'cv', time: 'cv' },
-                positional: ['input', 'time'],
-            },
-        },
+        modules: { $delay: DELAY_SITE },
         roots: {},
     };
 
@@ -42,7 +42,7 @@ export function buildSignalSiteTables(
         };
         if ((schema.outputs ?? []).length > 1) {
             tables.roots[qualifiedMultiOutputInterfaceName(schema)] =
-                resolvableOutputs(schema, sanitizeOutputName);
+                resolvableOutputs(schema);
         }
     }
     return tables;

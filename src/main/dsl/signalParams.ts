@@ -14,10 +14,7 @@ export interface SignalParams {
     nested: { name: string; mapper: SignalMapper }[];
 }
 
-/**
- * The signal-taking params of a module. A scale input is neither kind: it
- * takes spec strings, never module roots.
- */
+/** The signal-taking params of a module. */
 export function signalParamsOf(
     schema: ModuleSchema,
     processed: ProcessedModuleSchema,
@@ -25,11 +22,11 @@ export function signalParamsOf(
     const flat = processed.params
         .filter(
             (p) =>
-                !p.isScaleSignalInput &&
-                (p.kind === 'signal' ||
-                    p.kind === 'polySignal' ||
-                    p.isPolySignalInput ||
-                    p.isMonoSignalInput),
+                p.kind === 'signal' ||
+                p.kind === 'polySignal' ||
+                p.isPolySignalInput ||
+                p.isMonoSignalInput ||
+                p.isScaleSignalInput,
         )
         .map((p) => ({
             inputClass: paramTypeClass(p.paramType),
@@ -42,7 +39,7 @@ export function signalParamsOf(
         $defs?: Record<string, Record<string, unknown>>;
     };
     const nested = processed.params
-        .filter((p) => !p.isScaleSignalInput && !flatNames.has(p.name))
+        .filter((p) => !flatNames.has(p.name))
         .flatMap((p) => {
             const property = paramsSchema.properties?.[p.name];
             const mapper = property

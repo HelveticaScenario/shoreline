@@ -132,54 +132,25 @@ describe('$v inputs from the audio graph', () => {
         );
     });
 
-    describe('played patterns', () => {
-        it('takes a played pattern wherever a field is accepted', () => {
-            const { video, patch } = exec(`
-                $v.out($v.hsv($p('0 1.25 2.5 3.75').c, 5, 5));
-            `);
+    describe('patterns', () => {
+        it('takes a played pattern as an audio signal', () => {
+            const { video } = exec(`$v.out($v.hsv($p('0 1.25 2.5').c, 5, 5));`);
             expect(video!.uniforms.map((u) => u.kind)).toEqual(['tap']);
-            expect(
-                Object.values(patch.modules).some(
-                    (m) => m.moduleType === '$cycle',
-                ),
-            ).toBe(true);
         });
 
-        it('takes the sample, arrange and chained pattern forms too', () => {
-            for (const pattern of [
-                `$p.s('0 2 4', 'C(major)')`,
-                `$p.arrange([2, $p('0 5')], [1, $p('2.5')])`,
-                `$p('0 5').fast(2)`,
-                `$p('0 5').slow(2)`,
-            ]) {
-                const { video } = exec(`$v.out($v.hsv(${pattern}.c));`);
-                expect(video!.uniforms.map((u) => u.kind)).toEqual(['tap']);
-            }
-        });
-
-        it('takes a played pattern in a chained method or a config field', () => {
-            const { video } = exec(`
-                $v.ramp('horizontal', { zoom: $p('1 2').c }).$.hsv($p('0 1').c).out();
-            `);
-            expect(video!.uniforms).toHaveLength(2);
-        });
-
-        it('reads a played pattern through fromAudio', () => {
-            const { video } = exec(`
-                $v.out($v.hsv($v.fromAudio($p('0 1').c)));
-            `);
-            expect(video!.histories).toHaveLength(1);
-        });
-
-        it('rejects a pattern that is not played', () => {
-            expect(() => exec(`$v.out($v.hsv($p('0 1')));`)).toThrow(
-                /\$v\.hsv: hue is a pattern, not a signal/,
-            );
-        });
-
-        it('sums a pattern that makes several voices', () => {
-            const { video } = exec(`$v.out($v.hsv($p('0,1').c));`);
-            expect(video!.uniforms.map((u) => u.kind)).toEqual(['tap']);
+        it.each([
+            [`$v.out($v.hsv($p('0 1')));`, /\$v\.hsv: hue is a pattern/],
+            [
+                `$v.out($v.hsv($v.fromAudio($p('0 1'))));`,
+                /\$v\.fromAudio: signal is a pattern/,
+            ],
+            [`$scopeXY($p('c3 e3'), $sine('c4'))`, /x is a pattern/],
+            [
+                `$v.scopeXY($sine('c4'), $sine('g4'), { persistence: $p('0.2 0.9') }).out()`,
+                /persistence is a pattern/,
+            ],
+        ])('refuses a pattern that is not played: %s', (source, message) => {
+            expect(() => exec(source)).toThrow(message);
         });
     });
 
