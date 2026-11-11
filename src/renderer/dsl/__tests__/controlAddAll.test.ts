@@ -32,12 +32,11 @@ describe('computeControlQuickFixes — add controls for all unset params', () =>
         );
     });
 
-    test('a gate gets a toggle', () => {
+    test('a gate gets a toggle and a trigger a button', () => {
         const { source, fix } = addAll(`$adsr(|).out();`);
         const out = apply(source, fix!);
         expect(out).toContain(`$adsr($toggleBtn('gate', false), {`);
-        expect(out).toContain(`retrigger: $toggleBtn('retrigger', false)`);
-        expect(out).not.toContain('$btn(');
+        expect(out).toContain(`retrigger: $btn('retrigger')`);
     });
 
     test('fills the open positional slots, then the config object', () => {
@@ -78,7 +77,7 @@ describe('computeControlQuickFixes — add controls for all unset params', () =>
     });
 
     test('is not offered when only one param is unset', () => {
-        expect(addAll(`$sine(0).$.lpf('100hz'|).out();`).fix).toBeUndefined();
+        expect(addAll(`$sine(0).lpf('100hz'|).out();`).fix).toBeUndefined();
     });
 
     test('formats like Format Document', async () => {
