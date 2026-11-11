@@ -21,9 +21,9 @@ import './DocsPanel.css';
 type Page = 'types' | 'globals' | 'reference' | 'video';
 
 const PAGES: { id: Page; label: string }[] = [
+    { id: 'reference', label: 'Reference' },
     { id: 'types', label: 'Types' },
     { id: 'globals', label: 'Globals' },
-    { id: 'reference', label: 'Reference' },
     { id: 'video', label: 'Video' },
 ];
 
@@ -135,7 +135,7 @@ const TypeCard: React.FC<TypeCardProps> = ({
 );
 
 export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
-    const [activePage, setActivePage] = useState<Page>('types');
+    const [activePage, setActivePage] = useState<Page>('reference');
     const [searchQuery, setSearchQuery] = useState('');
     const [category, setCategory] = useState<string | null>(null);
     const [schemas, setSchemas] = useState<Schemas>();

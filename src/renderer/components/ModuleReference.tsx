@@ -1,7 +1,15 @@
-import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
 import moduleCategories from '@modular/core/moduleCategories.json';
 import { ReferenceCard } from './ReferenceCard';
+import { Sash } from './Sash';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type { Schema } from '../../shared/dsl/schemaTypeResolver';
 import type { ReferenceEntry } from '../../shared/dsl/referenceDocs';
@@ -9,6 +17,47 @@ import { moduleToReferenceEntry } from '../../shared/dsl/referenceDocs';
 
 const CARD_GAP_PX = 15;
 const ESTIMATED_CARD_HEIGHT_PX = 320;
+
+const INDEX_ID = 'docs-module-index';
+const INDEX_WIDTH_STORAGE_KEY = 'modular_docs_index_width';
+const INDEX_MIN_WIDTH = 120;
+/** Room kept for the cards when the index grows. */
+const CARDS_MIN_WIDTH = 240;
+
+function indexMaxWidth(): number {
+    const reference = document.getElementById(INDEX_ID)?.parentElement;
+    const width = reference?.getBoundingClientRect().width ?? 0;
+    return Math.max(INDEX_MIN_WIDTH, width - CARDS_MIN_WIDTH);
+}
+
+/** The index width in pixels, remembered across launches. `null` means the
+ *  stylesheet's default width. */
+function useIndexWidth(): [number | null, (width: number | null) => void] {
+    const [width, setWidth] = useState<number | null>(() => {
+        try {
+            const stored = Number(
+                window.localStorage.getItem(INDEX_WIDTH_STORAGE_KEY),
+            );
+            if (stored > 0) return Math.max(stored, INDEX_MIN_WIDTH);
+        } catch {}
+        return null;
+    });
+
+    useEffect(() => {
+        try {
+            if (width === null) {
+                window.localStorage.removeItem(INDEX_WIDTH_STORAGE_KEY);
+            } else {
+                window.localStorage.setItem(
+                    INDEX_WIDTH_STORAGE_KEY,
+                    String(width),
+                );
+            }
+        } catch {}
+    }, [width]);
+
+    return [width, setWidth];
+}
 
 interface ModuleReferenceProps {
     /** Already sorted in display order. */
@@ -57,6 +106,7 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
 }) => {
     const cardsRef = useRef<HTMLDivElement>(null);
     const indexRef = useRef<HTMLUListElement>(null);
+    const [indexWidth, setIndexWidth] = useIndexWidth();
 
     const entries = useMemo(
         () => modules.map(moduleToReferenceEntry),
@@ -144,7 +194,24 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
 
     return (
         <div className="module-reference">
-            <div className="module-index">
+            <div
+                id={INDEX_ID}
+                className="module-index"
+                style={{
+                    width: indexWidth ?? undefined,
+                    maxWidth: `calc(100% - ${CARDS_MIN_WIDTH}px)`,
+                }}
+            >
+                <Sash
+                    panelId={INDEX_ID}
+                    axis="x"
+                    grow={1}
+                    min={INDEX_MIN_WIDTH}
+                    max={indexMaxWidth}
+                    label="Resize module index"
+                    className="module-index-sash"
+                    onSizeChange={setIndexWidth}
+                />
                 <input
                     type="text"
                     placeholder="Search modules..."

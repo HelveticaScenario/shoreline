@@ -348,11 +348,22 @@
 .docs-panel .module-index {
     display: flex;
     flex-direction: column;
-    flex: 0 0 200px;
-    min-width: 0;
+    position: relative;
+    flex: 0 0 auto;
+    width: 200px;
+    min-width: 120px;
     gap: var(--sp-1);
     padding: var(--sp-1);
     border-right: 1px solid var(--border-subtle);
+}
+
+.docs-panel .module-index-sash {
+    right: -1px;
+}
+
+.docs-panel .module-index-sash::after {
+    left: auto;
+    right: 0;
 }
 
 .docs-panel .module-index-list {
