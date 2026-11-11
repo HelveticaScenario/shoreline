@@ -2318,15 +2318,15 @@ const createMenu = (): void => {
                     click: () => {
                         if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send(
-                                MENU_CHANNELS.TOGGLE_VU_METERS,
+                                MENU_CHANNELS.TOGGLE_MIXER,
                             );
                         }
                     },
                     ...menuShortcut(
-                        'shoreline.toggleVuMeters',
+                        'shoreline.toggleMixer',
                         'CmdOrCtrl+Shift+M',
                     ),
-                    label: 'Toggle VU Meters',
+                    label: 'Toggle Mixer',
                 },
                 // Publish the window as a Syphon source (macOS 14+ only; hidden
                 // elsewhere so the helper never crash-loops on an unsupported OS).

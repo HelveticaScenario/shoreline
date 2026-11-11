@@ -221,15 +221,22 @@ export const configSchema = {
             enum: ['left', 'right'],
             type: 'string',
         },
-        vuPanelVisible: {
-            default: false,
-            description: 'Show the VU meter panel at the bottom of the window',
-            type: 'boolean',
+        docsLocation: {
+            default: 'bottom',
+            description:
+                'Where the docs open: a panel under the editor or a sidebar tab',
+            enum: ['bottom', 'sidebar'],
+            type: 'string',
         },
-        vuPanelHeight: {
-            default: 150,
-            description: 'Height of the VU meter panel in pixels',
-            maximum: 480,
+        bottomPanel: {
+            description:
+                'The panel open under the editor; leave unset to collapse it',
+            enum: ['mixer', 'docs'],
+            type: 'string',
+        },
+        bottomPanelHeight: {
+            default: 200,
+            description: 'Height of the panel under the editor in pixels',
             minimum: 84,
             type: 'number',
         },

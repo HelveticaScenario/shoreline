@@ -4,7 +4,7 @@ export interface DocsTarget {
     name: string;
 }
 
-/** Opens the Docs sidebar tab, revealing a {@link DocsTarget} when given one. */
+/** Brings the docs forward, revealing a {@link DocsTarget} when given one. */
 export const SHOW_DOCS_COMMAND = 'shoreline.showDocs';
 
 const SYMBOL_TYPES: ReadonlySet<string> = new Set([
