@@ -17,5 +17,5 @@ pub mod polyblep;
 pub mod random;
 pub mod ratio;
 pub mod sine;
-pub(in crate::dsp::mi) mod tables;
+pub mod tables;
 pub mod units;

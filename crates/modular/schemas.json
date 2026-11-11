@@ -30444,6 +30444,316 @@
     ]
   },
   {
+    "name": "$mi.speak",
+    "docs": {
+      "summary": "Speak-and-spell words",
+      "description": "Mutable Instruments Plaits' talking voice: a speak-and-spell's LPC-10 synth saying colours, numbers, letters and synth words at the pitch you play.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Hello",
+          "code": "const word = $cycle($p('7 4 11 11 14'))\nconst trigger = word.o.trig\n$mi.speak('c3', { trigger, bank: 2, word }).out()"
+        },
+        {
+          "title": "Scanned machine voice",
+          "code": "const scan = $sine('0.05hz').range(0, 21)\n$mi.speak('c2', { bank: 4, word: scan, prosody: 5 }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SpeakParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the voice's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "says the word `word` picks, then falls silent until the next trigger; silent too until the first trigger and after `bank` changes. Unpatched, the voice holds the sound `word` scans to",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bank": {
+          "description": "which word list: colours (0), the numbers zero to ten (1), the letters (2), the NATO alphabet (3) or synthesizer words (4)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "word": {
+          "description": "which word, counting from 0: in the numbers bank, 3 says \"three\"; past a bank's last word, its last. Unpatched trigger, scrubs through the words, each whole number in the middle of its word",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formantShift": {
+          "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5); towards the ends a deep voice speaks slower, a high one faster",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prosody": {
+          "description": "how far the voice follows the recorded intonation of each word: a monotone at the pitch (0) to the word's own rise and fall around it (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "speed": {
+          "description": "how fast a triggered word is said: four times slower (0) to four times faster (5) than recorded",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accent": {
+          "description": "how loud each triggered word is; unpatched trigger, full level",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the voice",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      },
+      {
+        "name": "excitation",
+        "description": "the glottal pulses and the noise of unvoiced sounds that the LPC filter shapes",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the voice's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "says the word `word` picks, then falls silent until the next trigger; silent too until the first trigger and after `bank` changes. Unpatched, the voice holds the sound `word` scans to",
+        "paramType": "trig"
+      },
+      {
+        "name": "bank",
+        "description": "which word list: colours (0), the numbers zero to ten (1), the letters (2), the NATO alphabet (3) or synthesizer words (4)",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 4.0,
+        "controlMin": 0.0,
+        "controlMax": 4.0
+      },
+      {
+        "name": "word",
+        "description": "which word, counting from 0: in the numbers bank, 3 says \"three\"; past a bank's last word, its last. Unpatched trigger, scrubs through the words, each whole number in the middle of its word",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 25.0,
+        "controlMin": 0.0,
+        "controlMax": 25.0
+      },
+      {
+        "name": "formantShift",
+        "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5); towards the ends a deep voice speaks slower, a high one faster",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "prosody",
+        "description": "how far the voice follows the recorded intonation of each word: a monotone at the pitch (0) to the word's own rise and fall around it (5)",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "speed",
+        "description": "how fast a triggered word is said: four times slower (0) to four times faster (5) than recorded",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "accent",
+        "description": "how loud each triggered word is; unpatched trigger, full level",
+        "paramType": "control",
+        "defaultValue": 4.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.string",
     "docs": {
       "summary": "Plucked and bowed string",

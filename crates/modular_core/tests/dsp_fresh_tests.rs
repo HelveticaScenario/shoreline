@@ -321,6 +321,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.particles"
         | "$mi.phaseDistortion"
         | "$mi.sixOp"
+        | "$mi.speak"
         | "$mi.string"
         | "$mi.swarm"
         | "$mi.twoOp"
