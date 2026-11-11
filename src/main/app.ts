@@ -759,7 +759,10 @@ function watchWorkspace(root: string | null): void {
                 }, 150);
             },
         );
-        workspaceWatcher.on('error', () => watchWorkspace(null));
+        workspaceWatcher.on('error', (error) => {
+            console.warn('Stopped watching the workspace folder:', error);
+            watchWorkspace(null);
+        });
     } catch {
         console.warn('Failed to watch the workspace folder');
     }

@@ -96,6 +96,26 @@ describe('stringLiteralAt', () => {
         expect(stringLiteralAt("f(/[/']/, '/a')", 13)?.contentStart).toBe(12);
     });
 
+    /** Whether the literal holding `'/wa'` on `line` is found. */
+    const findsPath = (line: string) => {
+        const quote = line.indexOf("'/wa");
+        return stringLiteralAt(line, quote + 3)?.contentStart === quote + 2;
+    };
+
+    test('code after a comment closed from lines above is scanned', () => {
+        expect(findsPath(" */ $sampler('/wa')")).toBe(true);
+    });
+
+    test('division after postfix ++, at line start and before a space', () => {
+        expect(findsPath("i++ / 2; f('/wa')")).toBe(true);
+        expect(findsPath("i++/2; f('/wa')")).toBe(true);
+        expect(findsPath("/ 2 + f('/wa')")).toBe(true);
+    });
+
+    test('a slash after a keyword starts a regular expression', () => {
+        expect(findsPath("return /'/.test(s) || f('/wa')")).toBe(true);
+    });
+
     test('a slash after a value divides', () => {
         expect(stringLiteralAt("a / 2 + f('/x')", 13)?.contentStart).toBe(12);
     });

@@ -23,6 +23,26 @@ export interface StringLiteralSpan {
 /** Characters after which a `/` starts a regular expression rather than dividing. */
 const BEFORE_REGEX = new Set('(,=:[!&|?{};+-*%<>~^'.split(''));
 
+/** Keywords after which a `/` starts a regular expression. */
+const KEYWORD_BEFORE_REGEX =
+    /\b(?:return|typeof|instanceof|in|of|new|delete|void|throw|case|do|else|yield|await)\s*$/;
+
+/**
+ * Whether the `/` at `i` starts a regular expression. A regular expression
+ * never starts with a space, as formatted code writes it, and postfix `++` or
+ * `--` ends a value.
+ */
+function startsRegex(line: string, i: number): boolean {
+    if (line[i + 1] === ' ' || line[i + 1] === undefined) return false;
+    const before = line.slice(0, i).trimEnd();
+    if (before === '' || KEYWORD_BEFORE_REGEX.test(before)) return true;
+    const last = before[before.length - 1];
+    if ((last === '+' || last === '-') && before[before.length - 2] === last) {
+        return false;
+    }
+    return BEFORE_REGEX.has(last);
+}
+
 /**
  * The string literal whose contents hold `column` (1-based; the column just
  * after the opening quote and the closing quote's own column both count), or
@@ -33,12 +53,16 @@ export function stringLiteralAt(
     line: string,
     column: number,
 ): StringLiteralSpan | null {
-    let previous = '';
     let i = 0;
     while (i < line.length) {
         const ch = line[i];
         if (ch === '/' && line[i + 1] === '/') {
             return null;
+        }
+        // A close with no open on this line ends a comment from lines above.
+        if (ch === '*' && line[i + 1] === '/') {
+            i += 2;
+            continue;
         }
         if (ch === '/' && line[i + 1] === '*') {
             const end = line.indexOf('*/', i + 2);
@@ -46,7 +70,7 @@ export function stringLiteralAt(
             i = end + 2;
             continue;
         }
-        if (ch === '/' && (previous === '' || BEFORE_REGEX.has(previous))) {
+        if (ch === '/' && startsRegex(line, i)) {
             let j = i + 1;
             let inClass = false;
             while (j < line.length && (inClass || line[j] !== '/')) {
@@ -54,12 +78,10 @@ export function stringLiteralAt(
                 else if (line[j] === ']') inClass = false;
                 j += line[j] === '\\' ? 2 : 1;
             }
-            previous = '/';
             i = j + 1;
             continue;
         }
         if (ch !== "'" && ch !== '"' && ch !== '`') {
-            if (ch.trim() !== '') previous = ch;
             i++;
             continue;
         }
@@ -77,7 +99,6 @@ export function stringLiteralAt(
         if (column >= span.contentStart && column <= span.contentEnd) {
             return span;
         }
-        previous = ch;
         i = j + 1;
     }
     return null;
