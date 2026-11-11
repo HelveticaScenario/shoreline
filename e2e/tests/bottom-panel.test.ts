@@ -48,8 +48,10 @@ test.describe('bottom panel', () => {
     test('one panel shows at a time and its button collapses it', async ({
         window,
     }) => {
-        const mixer = window.getByRole('button', { name: 'Mixer' });
-        const docs = window.getByRole('button', { name: 'Docs' });
+        // The docs page has buttons of its own, such as the mixer category.
+        const bar = window.getByRole('navigation', { name: 'Bottom panels' });
+        const mixer = bar.getByRole('button', { name: 'Mixer' });
+        const docs = bar.getByRole('button', { name: 'Docs' });
         const panel = window.locator('#app-bottom-panel');
 
         await expect(panel).toBeHidden();

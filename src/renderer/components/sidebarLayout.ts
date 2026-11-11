@@ -1,4 +1,5 @@
 import { type CSSProperties, useEffect, useState } from 'react';
+import { useStoredSize } from '../hooks/useStoredSize';
 
 export type SidebarSide = 'left' | 'right';
 
@@ -39,25 +40,7 @@ export function useSidebarWidth(): [
     number | null,
     (width: number | null) => void,
 ] {
-    const [width, setWidth] = useState<number | null>(() => {
-        try {
-            const stored = Number(
-                window.localStorage.getItem(WIDTH_STORAGE_KEY),
-            );
-            if (stored > 0) return clampWidth(stored);
-        } catch {}
-        return null;
-    });
-
-    useEffect(() => {
-        try {
-            if (width === null)
-                window.localStorage.removeItem(WIDTH_STORAGE_KEY);
-            else window.localStorage.setItem(WIDTH_STORAGE_KEY, String(width));
-        } catch {}
-    }, [width]);
-
-    return [width, setWidth];
+    return useStoredSize(WIDTH_STORAGE_KEY, clampWidth);
 }
 
 /** Whether the sidebar panel is open, remembered across launches. */

@@ -31,17 +31,15 @@ test.describe('DSL editor interaction', () => {
         await expect(stopBtn).toBeVisible();
     });
 
-    test('Docs tab shows the type and module reference', async ({
-        window,
-    }) => {
+    test('Docs tab shows the type and module reference', async ({ window }) => {
         await window.getByRole('button', { name: 'Docs' }).click();
         const docs = window.locator('.docs-panel');
-        await expect(docs.locator('.type-card').first()).toBeVisible({
+        await expect(docs.locator('.module-card').first()).toBeVisible({
             timeout: 15_000,
         });
 
-        await docs.getByRole('button', { name: 'Reference' }).click();
-        await expect(docs.locator('.module-card').first()).toBeVisible();
+        await docs.getByRole('button', { name: 'Types' }).click();
+        await expect(docs.locator('.type-card').first()).toBeVisible();
     });
 });
 
