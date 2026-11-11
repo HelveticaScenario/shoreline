@@ -71,6 +71,7 @@ fn patch(voice: &str, channels: usize) -> Patch {
                     DeserializedParams {
                         params: cached.params,
                         channel_count: cached.channel_count,
+                        f64_inputs: false,
                     },
                     ProcessingMode::Block,
                 )

@@ -48,6 +48,7 @@ fn median_hit_peak(module_type: &str, mut params: Value, channels: usize) -> f32
                     DeserializedParams {
                         params: cached.params,
                         channel_count: cached.channel_count,
+                        f64_inputs: false,
                     },
                     ProcessingMode::Block,
                 )

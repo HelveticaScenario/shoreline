@@ -573,6 +573,17 @@ export interface ModuleSpec {
   params: any
 }
 
+/**
+ * The precision of an output's values, named in `#[output(precision = …)]`.
+ * `F64` is for a value such as a song position, which keeps growing past
+ * where f32 can resolve a single sample. `Inherit` is f64 when any of the
+ * module's cables comes from an f64 output, so arithmetic on an f64 value
+ * keeps its precision.
+ */
+export type OutputPrecision =  'f32'|
+'f64'|
+'inherit';
+
 export interface OutputSchema {
   name: string
   description: string
@@ -591,6 +602,8 @@ export interface OutputSchema {
    * module's derived channel count.
    */
   channels?: number
+  /** An `OutputPrecision` value. */
+  precision: string
 }
 
 /**

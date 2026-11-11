@@ -83,9 +83,7 @@ describe('resolution by input type', () => {
     });
 
     test('a cv input takes the default', () => {
-        // The clock's playhead is two channels wide.
         expect(ports(`$saw($clock).out()`, '$saw', 'freq')).toEqual([
-            'playhead',
             'playhead',
         ]);
     });
@@ -124,7 +122,7 @@ describe('explicit outputs', () => {
     test('the default output has a named property', () => {
         expect(
             ports(`$perc($clock.o.playhead).out()`, '$perc', 'trigger'),
-        ).toEqual(['playhead', 'playhead']);
+        ).toEqual(['playhead']);
     });
 });
 

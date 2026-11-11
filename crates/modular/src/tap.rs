@@ -34,14 +34,17 @@ impl<'a> Tap<'a> {
     ) -> Option<Self> {
         let module = sampleables.get(module_id)?.as_ref();
         Some(match module.port_view(port) {
+            // An f64 port's channel starts with its nearest f32, which is
+            // all a scope or meter needs.
             Some(PortView {
                 data,
                 channels,
+                lanes,
                 processed,
             }) => Tap::View {
                 data,
-                stride: channels,
-                offset: channel % channels,
+                stride: channels * lanes,
+                offset: (channel % channels) * lanes,
                 processed,
             },
             None => Tap::Module {

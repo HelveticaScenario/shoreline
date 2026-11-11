@@ -375,6 +375,10 @@ fn a_rescan_finds_a_window_that_opened_behind_the_seam() {
 
 #[test]
 fn curve_and_mode_shape_the_ramp() {
+    // A power-of-two cycle length makes every phase step exact, so the onset
+    // lands on its sample and the steep middle of `inOut` reads true.
+    const CYCLE: usize = 256;
+    let tempo = SAMPLE_RATE as f64 * 60.0 * 4.0 / CYCLE as f64;
     let halfway = |curve: &str, mode: &str| {
         let pattern = json!({
             "__kind": "GlidePattern",
@@ -383,10 +387,10 @@ fn curve_and_mode_shape_the_ramp() {
             "curve": curve,
             "mode": mode,
         });
-        let patch = cycle_patch(pattern, Some(1));
-        let t = trace(&patch, 0, SAMPLES_PER_CYCLE);
+        let patch = cycle_patch_at(pattern, Some(1), tempo);
+        let t = trace(&patch, 0, CYCLE);
         let onset = onsets(&t)[1];
-        (t[onset - SAMPLES_PER_CYCLE / 8].0, t[onset].0)
+        (t[onset - CYCLE / 8].0, t[onset].0)
     };
     for (curve, mode, expected) in [
         ("linear", "out", 0.5),

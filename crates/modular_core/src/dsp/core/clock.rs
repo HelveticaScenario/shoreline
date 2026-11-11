@@ -100,7 +100,7 @@ const CLOCK_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "_clock",
     docs = CLOCK_DOCS,
-    channels = 2,
+    channels = 1,
     args(tempo, numerator, denominator),
     clock_sync,
     patch_update
@@ -116,8 +116,9 @@ pub struct Clock {
 struct ClockOutputs {
     #[output(
         "playhead",
-        "bar playhead: channel 0 is the position within the bar (0 to 1), channel 1 the count of completed bars",
+        "song position in bars: 2.5 is halfway through the third bar",
         type = cv,
+        precision = f64,
         default
     )]
     playhead: PolyOutput,
@@ -170,12 +171,19 @@ impl Clock {
     /// buffer switch is applied under Ableton Link: the shared timeline drives
     /// `phase` via external sync, so only the locally-accumulated bar count is
     /// reset, restarting the incoming song at bar 0. The next `update` recomputes
-    /// `playhead` channel 1 from this value; a backward phase step from the
-    /// post-swap re-fill is not a bar wrap, so the index stays at zero until a
-    /// genuine wrap advances it.
+    /// `playhead` from this value; a backward phase step from the post-swap
+    /// re-fill is not a bar wrap, so the index stays at zero until a genuine
+    /// wrap advances it.
     pub fn reset_loop_index_impl(&mut self) {
         self.state.loop_index = 0;
-        self.outputs.playhead.set(1, 0.0);
+        self.publish_playhead();
+    }
+
+    /// Publish the song position: completed bars plus the phase within the
+    /// current bar.
+    fn publish_playhead(&mut self) {
+        let bars = self.state.loop_index as f64 + self.state.phase;
+        self.outputs.playhead.set_f64(0, bars);
     }
 
     /// Groove outputs for a transport parked at zero.
@@ -186,7 +194,7 @@ impl Clock {
     }
 
     fn update_groove(&mut self, sample_rate: f32) {
-        let straight = self.outputs.playhead.get(0) as f64 + self.outputs.playhead.get(1) as f64;
+        let straight = self.outputs.playhead.get_f64(0);
         let frame = self
             .state
             .groove
@@ -269,8 +277,7 @@ impl Clock {
 
             // Update remaining outputs
             self.outputs.beat_in_bar = (sync.bar_phase * numerator).floor() as f32;
-            self.outputs.playhead.set(0, sync.bar_phase as f32);
-            self.outputs.playhead.set(1, self.state.loop_index as f32);
+            self.publish_playhead();
             self.outputs.ramp = sync.bar_phase as f32 * 5.0;
 
             self.update_groove(sample_rate);
@@ -322,8 +329,7 @@ impl Clock {
         // phase goes from 0..1 over one bar, each beat occupies 1/numerator of the bar
         self.outputs.beat_in_bar = (self.state.phase * numerator).floor() as f32;
 
-        self.outputs.playhead.set(0, self.state.phase as f32);
-        self.outputs.playhead.set(1, self.state.loop_index as f32);
+        self.publish_playhead();
 
         // Generate ramp output (0 to 5V over one bar)
         self.outputs.ramp = self.state.phase as f32 * 5.0;
@@ -386,8 +392,7 @@ impl Clock {
                 self.state.phase = 0.0;
                 self.state.ppq_phase = 0.0;
                 self.state.beat_phase = 0.0;
-                self.outputs.playhead.set(0, 0.0);
-                self.outputs.playhead.set(1, 0.0);
+                self.outputs.playhead.set_f64(0, 0.0);
                 self.state.loop_index = 0;
                 self.outputs.beat_in_bar = 0.0;
                 self.state.bar_schmitt.reset();
@@ -411,8 +416,7 @@ impl Clock {
                 self.outputs.bar_trigger = 0.0;
                 self.outputs.beat_trigger = 0.0;
                 self.outputs.ppq_trigger = 0.0;
-                self.outputs.playhead.set(0, 0.0);
-                self.outputs.playhead.set(1, 0.0);
+                self.outputs.playhead.set_f64(0, 0.0);
                 self.state.loop_index = 0;
                 self.outputs.beat_in_bar = 0.0;
                 self.park_groove();
@@ -452,11 +456,15 @@ impl Default for ClockParams {
 #[cfg(test)]
 impl Default for Clock {
     fn default() -> Self {
+        use crate::types::OutputStruct;
+        let mut outputs = ClockOutputs::default();
+        outputs.set_all_channels(1);
+        outputs.make_f64_outputs(false);
         Self {
-            outputs: ClockOutputs::default(),
+            outputs,
             state: ClockState::default(),
             params: ClockParams::default(),
-            _channel_count: 2,
+            _channel_count: 1,
             _block_index: Default::default(),
         }
     }
@@ -869,9 +877,9 @@ mod tests {
             "no wrap after reset must keep loop_index at zero"
         );
         assert_eq!(
-            c.outputs.playhead.get(1),
-            0.0,
-            "playhead bar-count channel must read zero after reset"
+            c.outputs.playhead.get_f64(0),
+            0.10,
+            "playhead must count no completed bars after reset"
         );
 
         // The next genuine wrap resumes counting from one.
@@ -958,9 +966,9 @@ mod tests {
                 "loop_index must stay 0 across the new bar's opening (sample {i})"
             );
             assert_eq!(
-                c.outputs.playhead.get(1),
+                c.outputs.playhead.get_f64(0).floor(),
                 0.0,
-                "playhead bar-count must read 0 right after reset (sample {i})"
+                "playhead must count no completed bars right after reset (sample {i})"
             );
             let is_high = c.outputs.bar_trigger == 5.0;
             if is_high && !was_high {

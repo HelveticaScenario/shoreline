@@ -219,6 +219,7 @@ mod tests {
             DeserializedParams {
                 params: cached.params,
                 channel_count: cached.channel_count,
+                f64_inputs: false,
             },
             1,
             crate::types::ProcessingMode::Block,

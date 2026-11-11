@@ -138,7 +138,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "y",
@@ -147,7 +148,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "z",
@@ -156,7 +158,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -349,7 +352,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "tilt",
@@ -358,7 +362,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "roll",
@@ -367,7 +372,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -509,7 +515,8 @@
         "description": "the input, unchanged",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -665,7 +672,8 @@
         "description": "the mix, keeping each channel separate rather than folding to mono",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -818,7 +826,8 @@
         "description": "the input channels spread evenly across the output channels with equal-power panning",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -969,7 +978,8 @@
         "description": "stereo mix: left on channel 0, right on channel 1",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -1113,10 +1123,11 @@
     "outputs": [
       {
         "name": "playhead",
-        "description": "bar playhead: channel 0 is the position within the bar (0 to 1), channel 1 the count of completed bars",
+        "description": "song position in bars: 2.5 is halfway through the third bar",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f64"
       },
       {
         "name": "barTrigger",
@@ -1125,7 +1136,8 @@
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "beatTrigger",
@@ -1134,7 +1146,8 @@
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "ramp",
@@ -1143,7 +1156,8 @@
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "ppqTrigger",
@@ -1152,35 +1166,40 @@
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "beatInBar",
         "description": "the current beat within the bar, counting from 0",
         "outputType": "cv",
         "polyphonic": false,
-        "default": false
+        "default": false,
+        "precision": "f32"
       },
       {
         "name": "tempo",
         "description": "the current tempo in beats per minute",
         "outputType": "cv",
         "polyphonic": false,
-        "default": false
+        "default": false,
+        "precision": "f32"
       },
       {
         "name": "barLength",
         "description": "quarter notes per bar: 4 in 4/4, 3 in 6/8",
         "outputType": "cv",
         "polyphonic": false,
-        "default": false
+        "default": false,
+        "precision": "f32"
       },
       {
         "name": "grooveOffset",
         "description": "how far the global groove shifts the playhead, in bars",
         "outputType": "cv",
         "polyphonic": false,
-        "default": false
+        "default": false,
+        "precision": "f32"
       },
       {
         "name": "grooveVelocity",
@@ -1189,7 +1208,8 @@
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "grooveTrigger",
@@ -1198,7 +1218,8 @@
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -1214,7 +1235,7 @@
         "name": "denominator"
       }
     ],
-    "channels": 2
+    "channels": 1
   },
   {
     "name": "$tr808.kick",
@@ -1371,7 +1392,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -1575,7 +1597,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -1757,7 +1780,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -1930,7 +1954,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -2106,7 +2131,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -2252,7 +2278,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -2392,7 +2419,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -2559,7 +2587,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -2757,7 +2786,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       },
       {
         "name": "closed",
@@ -2766,7 +2796,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       },
       {
         "name": "open",
@@ -2775,7 +2806,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -2967,7 +2999,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -3150,7 +3183,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -3333,7 +3367,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -3516,7 +3551,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -3699,7 +3735,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -3882,7 +3919,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -4087,7 +4125,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -4301,7 +4340,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -4467,7 +4507,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -4607,7 +4648,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -4774,7 +4816,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -4957,7 +5000,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -5140,7 +5184,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -5403,7 +5448,8 @@
         "description": "compressed signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -5636,28 +5682,32 @@
         "description": "input passed through unchanged",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       },
       {
         "name": "low",
         "description": "frequencies below lowMidFreq",
         "outputType": "cv",
         "polyphonic": true,
-        "default": false
+        "default": false,
+        "precision": "f32"
       },
       {
         "name": "mid",
         "description": "frequencies between lowMidFreq and midHighFreq",
         "outputType": "cv",
         "polyphonic": true,
-        "default": false
+        "default": false,
+        "precision": "f32"
       },
       {
         "name": "high",
         "description": "frequencies above midHighFreq",
         "outputType": "cv",
         "polyphonic": true,
-        "default": false
+        "default": false,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -5805,7 +5855,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -5960,7 +6011,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -6170,7 +6222,8 @@
         "description": "stereo reverb, fully wet, as left and right channels",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -6393,7 +6446,8 @@
         "description": "overdriven signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -6528,7 +6582,8 @@
         "description": "the input, centred on 0 V",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -6697,7 +6752,8 @@
         "description": "stereo reverb, fully wet, as left and right channels",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -6875,7 +6931,8 @@
         "description": "the input with grit added",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -7097,7 +7154,8 @@
         "description": "stereo reverb, fully wet, as left and right channels",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -7349,7 +7407,8 @@
         "description": "stereo reverb, fully wet, as left and right channels",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -7540,7 +7599,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -7754,7 +7814,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -8067,7 +8128,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "channels": 2
+        "channels": 2,
+        "precision": "f32"
       },
       {
         "name": "voices",
@@ -8076,7 +8138,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -8439,7 +8502,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "channels": 2
+        "channels": 2,
+        "precision": "f32"
       },
       {
         "name": "voices",
@@ -8448,7 +8512,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -8664,7 +8729,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -8942,7 +9008,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -9202,7 +9269,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -9414,7 +9482,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -9642,7 +9711,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -9797,7 +9867,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -9925,7 +9996,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -10074,7 +10146,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -10324,7 +10397,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -10705,7 +10779,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "main",
@@ -10714,7 +10789,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "aux",
@@ -10723,7 +10799,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -11024,7 +11101,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -11793,7 +11871,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "odd",
@@ -11802,7 +11881,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "even",
@@ -11811,7 +11891,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "low",
@@ -11820,7 +11901,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "high",
@@ -11829,7 +11911,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "root",
@@ -11838,7 +11921,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "other",
@@ -11847,7 +11931,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -12329,7 +12414,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -12497,7 +12583,8 @@
         "description": "filtered signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -12686,7 +12773,8 @@
         "description": "phase-shifted signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -12857,7 +12945,8 @@
         "description": "filtered signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -13010,7 +13099,8 @@
         "description": "filtered signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -13165,7 +13255,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "lp12",
@@ -13174,7 +13265,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "bp",
@@ -13183,7 +13275,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "hp",
@@ -13192,7 +13285,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -13375,7 +13469,8 @@
         "description": "gated signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -13590,7 +13685,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       },
       {
         "name": "lp",
@@ -13599,7 +13695,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       },
       {
         "name": "bp",
@@ -13608,7 +13705,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       },
       {
         "name": "hp",
@@ -13617,7 +13715,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -10.0,
-        "maxValue": 10.0
+        "maxValue": 10.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -13921,7 +14020,8 @@
         "description": "equalized signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -14096,7 +14196,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -14293,7 +14394,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -14500,7 +14602,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -14692,7 +14795,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -14844,7 +14948,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -15026,7 +15131,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -15208,7 +15314,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -15390,7 +15497,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -15577,7 +15685,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -15764,7 +15873,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -15936,7 +16046,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -16108,7 +16219,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -16280,7 +16392,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -16452,7 +16565,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -16639,7 +16753,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -16876,7 +16991,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -17064,7 +17180,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -17252,7 +17369,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -17440,7 +17558,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -17628,7 +17747,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -17816,7 +17936,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -17999,7 +18120,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -18182,7 +18304,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -18365,7 +18488,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -18548,7 +18672,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -18731,7 +18856,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -18924,7 +19050,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -19116,7 +19243,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -19268,7 +19396,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -19460,7 +19589,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -19780,7 +19910,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 1.0
+        "maxValue": 1.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -19905,7 +20036,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 1.0
+        "maxValue": 1.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -20022,7 +20154,8 @@
         "description": "the detuned pitch",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -20221,7 +20354,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -20415,7 +20549,8 @@
         "description": "the result",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "inherit"
       }
     ],
     "bufferOutputs": [],
@@ -20562,7 +20697,8 @@
         "description": "the signal in whole volts",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "inherit"
       }
     ],
     "bufferOutputs": [],
@@ -20705,7 +20841,8 @@
         "description": "one channel per buffer channel, read at the position",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -20826,7 +20963,8 @@
         "description": "the input, passed through",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [
@@ -21041,7 +21179,8 @@
         "description": "one pitch per note, lowest first; with `inversion` patched, one more channel, the notes rotating across them",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       },
       {
         "name": "level",
@@ -21050,7 +21189,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -21191,7 +21331,8 @@
         "description": "the clamped signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -21338,7 +21479,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -21472,7 +21614,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "tails",
@@ -21481,7 +21624,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -21632,7 +21776,8 @@
         "description": "the counter, from 0 to length",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -21776,7 +21921,8 @@
         "description": "the bent signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -21936,7 +22082,8 @@
         "description": "the delayed signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -22146,7 +22293,8 @@
         "description": "the varied signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -22323,7 +22471,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -22473,7 +22622,8 @@
         "description": "the smoothed signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -22604,7 +22754,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -22718,7 +22869,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -22889,7 +23041,8 @@
         "description": "the expression's result",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -23068,7 +23221,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "pos",
@@ -23077,7 +23231,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "neg",
@@ -23086,7 +23241,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -23247,7 +23403,8 @@
         "description": "the scaled pitch",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -23371,7 +23528,8 @@
         "description": "the frequency as a V/Oct pitch",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -23506,7 +23664,8 @@
         "description": "the rescaled signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -23671,7 +23830,8 @@
         "description": "the voltage captured at the last trigger",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -23796,7 +23956,8 @@
         "description": "the tracked or held voltage",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -23933,7 +24094,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -24104,7 +24266,8 @@
         "description": "the snapped pitch",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       },
       {
         "name": "trig",
@@ -24113,7 +24276,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -24260,7 +24424,8 @@
         "description": "the scaled and shifted signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "inherit"
       }
     ],
     "bufferOutputs": [],
@@ -24335,7 +24500,8 @@
         "description": "the value, ramping smoothly to each new setting",
         "outputType": "cv",
         "polyphonic": false,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -24469,7 +24635,8 @@
         "description": "one value per channel, from min to max",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -24628,7 +24795,8 @@
         "description": "the detuned copies, each a full set of the input channels",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -24763,7 +24931,8 @@
         "description": "the input, passed through",
         "outputType": "cv",
         "polyphonic": false,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -24893,7 +25062,8 @@
         "description": "the wrapped signal",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "inherit"
       }
     ],
     "bufferOutputs": [],
@@ -27322,7 +27492,8 @@
         "description": "pitch of the current or last note",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       },
       {
         "name": "gate",
@@ -27331,7 +27502,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "trig",
@@ -27340,7 +27512,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "velocity",
@@ -27349,7 +27522,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -27553,7 +27727,8 @@
         "description": "the value at the current position, curved between keyframes",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -27705,7 +27880,8 @@
         "description": "the current step's value",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -27950,7 +28126,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "sd",
@@ -27959,7 +28136,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "hh",
@@ -27968,7 +28146,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "bdAccent",
@@ -27977,7 +28156,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "sdAccent",
@@ -27986,7 +28166,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "hhAccent",
@@ -27995,7 +28176,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -28291,7 +28473,8 @@
         "description": "how far the groove shifts the playhead, in cycles; pass to a sequencer's `groove`",
         "outputType": "cv",
         "polyphonic": false,
-        "default": true
+        "default": true,
+        "precision": "f32"
       },
       {
         "name": "velocity",
@@ -28300,7 +28483,8 @@
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "trigger",
@@ -28309,7 +28493,8 @@
         "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -28457,7 +28642,8 @@
         "description": "pitch of the voice's note, including pitch bend",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       },
       {
         "name": "gate",
@@ -28466,7 +28652,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "velocity",
@@ -28475,7 +28662,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "aftertouch",
@@ -28484,7 +28672,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "retrigger",
@@ -28493,7 +28682,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "pitchWheel",
@@ -28502,7 +28692,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "modWheel",
@@ -28511,7 +28702,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -28589,7 +28781,8 @@
         "polyphonic": false,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -28786,7 +28979,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -28972,7 +29166,8 @@
         "description": "the chorused signal, as left and right channels",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -29158,7 +29353,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -29356,7 +29552,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -29607,7 +29804,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "exciter",
@@ -29616,7 +29814,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -29870,7 +30069,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "raw",
@@ -29879,7 +30079,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -30111,7 +30312,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -30366,7 +30568,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -30657,7 +30860,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "excitation",
@@ -30666,7 +30870,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -30956,7 +31161,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "exciter",
@@ -30965,7 +31171,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -31218,7 +31425,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "sine",
@@ -31227,7 +31435,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -31454,7 +31663,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "subOctave",
@@ -31463,7 +31673,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -31681,7 +31892,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "excitation",
@@ -31690,7 +31902,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -31903,7 +32116,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "excitation",
@@ -31912,7 +32126,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -32125,7 +32340,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "excitation",
@@ -32134,7 +32350,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -32351,7 +32568,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "pm",
@@ -32360,7 +32578,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -32582,7 +32801,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       },
       {
         "name": "overtones",
@@ -32591,7 +32811,8 @@
         "polyphonic": true,
         "default": false,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -32809,7 +33030,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -33092,7 +33314,8 @@
         "description": "the mix of all playing grains",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -33240,7 +33463,8 @@
         "description": "the media file's audio",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -33461,7 +33685,8 @@
         "description": "the played sample",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true
+        "default": true,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -33632,7 +33857,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -33838,7 +34064,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -34009,7 +34236,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -34190,7 +34418,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -34366,7 +34595,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -34572,7 +34802,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -34713,7 +34944,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],
@@ -34851,7 +35083,8 @@
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "precision": "f32"
       }
     ],
     "bufferOutputs": [],

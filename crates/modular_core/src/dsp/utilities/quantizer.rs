@@ -36,7 +36,7 @@ impl Connect for ScaleSignal {
     fn connect(&mut self, patch: &Patch) {
         self.0.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
         self.0.collect_cables(sink);
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {

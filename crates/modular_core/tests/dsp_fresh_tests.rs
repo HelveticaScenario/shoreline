@@ -51,6 +51,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
     let deserialized = DeserializedParams {
         params: cached.params,
         channel_count: cached.channel_count,
+        f64_inputs: false,
     };
     constructors
         .get(module_type)
@@ -476,6 +477,7 @@ fn all_constructors_produce_valid_modules() {
         let deserialized = DeserializedParams {
             params: cached.params,
             channel_count: cached.channel_count,
+            f64_inputs: false,
         };
         let module = constructor(
             &format!("test-{name}"),
@@ -508,6 +510,7 @@ fn all_constructors_can_tick() {
         let deserialized = DeserializedParams {
             params: cached.params,
             channel_count: cached.channel_count,
+            f64_inputs: false,
         };
         let module = constructor(
             &format!("test-{name}"),
@@ -1435,7 +1438,7 @@ fn clock_meter_change_keeps_beat_triggers_on_bar_grid() {
         process_frame(&new_patch);
         let is_high = clock.get_value_at("beatTrigger", 0, 0) > 2.5;
         if is_high && !was_high {
-            edge_phases.push(clock.get_value_at("playhead", 0, 0));
+            edge_phases.push(clock.get_value_at_f64("playhead", 0, 0).fract() as f32);
         }
         was_high = is_high;
     }

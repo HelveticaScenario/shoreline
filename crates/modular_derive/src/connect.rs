@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{Attribute, Data, DeriveInput, Fields, LitStr, Token, punctuated::Punctuated};
+use syn::{Attribute, Data, DeriveInput, Fields, LitStr};
 
 use crate::utils::{
     is_mono_signal_type, is_option_mono_signal_type, is_option_poly_signal_type,
@@ -13,16 +13,14 @@ use crate::utils::{
 struct DefaultConnectionAttr {
     module: Ident,
     port: String,
-    /// For Signal: single channel. For PolySignal: multiple channels.
-    channels: Vec<usize>,
+    channel: usize,
 }
 
-/// Parse `#[default_connection(id = "...", port = "...", channel = N)]` for Signal
-/// or `#[default_connection(id = "...", port = "...", channels = [N, M, ...])]` for PolySignal
+/// Parse `#[default_connection(module = ..., port = "...", channel = N)]`.
 fn parse_default_connection_attr(attr: &Attribute) -> syn::Result<DefaultConnectionAttr> {
     let mut module: Option<Ident> = None;
     let mut port: Option<String> = None;
-    let mut channels: Vec<usize> = Vec::new();
+    let mut channel: Option<usize> = None;
 
     attr.parse_nested_meta(|meta| {
         if meta.path.is_ident("module") {
@@ -35,21 +33,10 @@ fn parse_default_connection_attr(attr: &Attribute) -> syn::Result<DefaultConnect
             Ok(())
         } else if meta.path.is_ident("channel") {
             let value: syn::LitInt = meta.value()?.parse()?;
-            channels = vec![value.base10_parse()?];
-            Ok(())
-        } else if meta.path.is_ident("channels") {
-            meta.value()?;
-            let content;
-            syn::bracketed!(content in meta.input);
-            let parsed: Punctuated<syn::LitInt, Token![,]> =
-                Punctuated::parse_terminated(&content)?;
-            channels = parsed
-                .into_iter()
-                .map(|lit| lit.base10_parse())
-                .collect::<syn::Result<Vec<usize>>>()?;
+            channel = Some(value.base10_parse()?);
             Ok(())
         } else {
-            Err(meta.error("expected `module`, `port`, `channel`, or `channels`"))
+            Err(meta.error("expected `module`, `port` or `channel`"))
         }
     })?;
 
@@ -57,17 +44,13 @@ fn parse_default_connection_attr(attr: &Attribute) -> syn::Result<DefaultConnect
         .ok_or_else(|| syn::Error::new(attr.span(), "missing `module` in default_connection"))?;
     let port =
         port.ok_or_else(|| syn::Error::new(attr.span(), "missing `port` in default_connection"))?;
-    if channels.is_empty() {
-        return Err(syn::Error::new(
-            attr.span(),
-            "missing `channel` or `channels` in default_connection",
-        ));
-    }
+    let channel = channel
+        .ok_or_else(|| syn::Error::new(attr.span(), "missing `channel` in default_connection"))?;
 
     Ok(DefaultConnectionAttr {
         module,
         port,
-        channels,
+        channel,
     })
 }
 
@@ -95,6 +78,7 @@ fn emit_field_named_struct(
         let dc = parse_default_connection_attr(attr)?;
         let module = &dc.module;
         let port = &dc.port;
+        let ch = dc.channel;
         let is_poly = is_poly_signal_type(&field.ty);
         let is_mono = is_mono_signal_type(&field.ty);
         let is_option_poly = is_option_poly_signal_type(&field.ty);
@@ -102,29 +86,20 @@ fn emit_field_named_struct(
         let is_option_signal = is_option_signal_type(&field.ty);
 
         if is_poly || is_mono || is_option_poly || is_option_mono {
-            // Generate PolySignal/MonoSignal default
-            let cable_exprs: Vec<TokenStream2> = dc
-                .channels
-                .iter()
-                .map(|ch| {
-                    quote! { crate::types::WellKnownModule::#module.to_cable(#ch, #port) }
-                })
-                .collect();
+            let cable = quote! { crate::types::WellKnownModule::#module.to_cable(#ch, #port) };
 
             if is_option_poly {
                 default_stmts.extend(quote_spanned! {field.span()=>
                     if self.#field_ident.is_none() {
-                        self.#field_ident = Some(crate::poly::PolySignal::poly(&[
-                            #(#cable_exprs),*
-                        ]));
+                        self.#field_ident = Some(crate::poly::PolySignal::poly(&[#cable]));
                     }
                 });
             } else if is_option_mono {
                 default_stmts.extend(quote_spanned! {field.span()=>
                     if self.#field_ident.is_none() {
-                        self.#field_ident = Some(crate::poly::MonoSignal::from_poly(crate::poly::PolySignal::poly(&[
-                            #(#cable_exprs),*
-                        ])));
+                        self.#field_ident = Some(crate::poly::MonoSignal::from_poly(
+                            crate::poly::PolySignal::poly(&[#cable]),
+                        ));
                     }
                 });
             } else {
@@ -138,8 +113,6 @@ fn emit_field_named_struct(
                 ));
             }
         } else if is_option_signal {
-            // Option<Signal> default (single channel)
-            let ch = dc.channels.first().copied().unwrap_or(0);
             default_stmts.extend(quote_spanned! {field.span()=>
                 if self.#field_ident.is_none() {
                     self.#field_ident = Some(crate::types::WellKnownModule::#module.to_cable(#ch, #port));
@@ -416,7 +389,7 @@ pub fn impl_connect_macro(ast: &DeriveInput) -> TokenStream {
             fn connect(&mut self, patch: &crate::Patch) {
                 #connect_body
             }
-            fn collect_cables(&self, sink: &mut Vec<String>) {
+            fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
                 #collect_cables_body
             }
             fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
