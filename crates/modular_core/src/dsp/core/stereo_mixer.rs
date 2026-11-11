@@ -1,6 +1,10 @@
+use std::ops::Range;
+
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
+    block_input::{InputScratch, OptionBlockInput},
+    dsp::utils::sanitize,
     poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
@@ -41,6 +45,9 @@ struct StereoMixerOutputs {
 #[derive(Default, Clone, Copy)]
 struct ChannelState {
     pan: SwapGlide,
+    /// The final pan the cached gains were computed for, and the
+    /// `(left, right)` gains.
+    gain_cache: Option<(f32, f32, f32)>,
 }
 
 const STEREO_MIX_DOCS: ModuleDocs = ModuleDocs {
@@ -65,7 +72,8 @@ const STEREO_MIX_DOCS: ModuleDocs = ModuleDocs {
     docs = STEREO_MIX_DOCS,
     channels = 2,
     args(input),
-    has_init
+    has_init,
+    block
 )]
 pub struct StereoMixer {
     outputs: StereoMixerOutputs,
@@ -93,59 +101,135 @@ impl StereoMixer {
         self.channel_state = vec![ChannelState::default(); input_channels].into_boxed_slice();
     }
 
+    /// Outside a glide, reads width and pan raw, exactly as `process_block`
+    /// does.
     pub fn update(&mut self, sample_rate: f32) {
-        let input_channels = self.params.input.channels();
-
-        // Width: 0 = no spread, 5 = full ±5V spread across voices. Defaults to
-        // 0 (no spread) when no width signal is connected.
-        self.state.width_buffer.update(
-            self.params.width.value_or(0.0).clamp(0.0, 5.0),
-            self.params.width.glide_mark(),
+        let p = &self.params;
+        let width = self.state.width_buffer.follow(
+            p.width.value_or(0.0).clamp(0.0, 5.0),
+            p.width.glide_mark(),
             sample_rate,
         );
-        let width = *self.state.width_buffer;
+        let (left, right) = mix_sample(
+            &mut self.channel_state[..p.input.channels()],
+            width,
+            |ch| p.input.get_value(ch),
+            |ch, glide| {
+                glide.follow(
+                    p.pan.value_or_zero(ch).clamp(-5.0, 5.0),
+                    p.pan.glide_mark(ch),
+                    sample_rate,
+                )
+            },
+        );
+        self.outputs.sample.set(0, left);
+        self.outputs.sample.set(1, right);
+    }
 
-        let mut left_sum = 0.0f32;
-        let mut right_sum = 0.0f32;
-
-        for ch in 0..input_channels {
-            let input = self.params.input.get_value(ch);
-
-            // Base pan from cycling PolySignal (-5 to +5 range, 0 = center)
-            let pan_glide = &mut self.channel_state[ch].pan;
-            pan_glide.update(
-                self.params.pan.value_or_zero(ch).clamp(-5.0, 5.0),
-                self.params.pan.glide_mark(ch),
-                sample_rate,
-            );
-            let base_pan = **pan_glide;
-
-            // Calculate width spread offset:
-            // Voices spread from -width to +width relative to base pan
-            // Voice 0 -> -width, last voice -> +width
-            let spread_offset = if input_channels > 1 {
-                let voice_pos = ch as f32 / (input_channels - 1) as f32; // 0.0 to 1.0
-                (voice_pos - 0.5) * 2.0 * width // -width to +width
-            } else {
-                0.0 // Single voice stays at base pan
-            };
-
-            // Final pan position, clamped to valid range
-            let pan = (base_pan + spread_offset).clamp(-5.0, 5.0);
-
-            // Convert -5..+5 to 0..1 (0 = full left, 1 = full right)
-            let pan_norm = (pan + 5.0) / 10.0;
-
-            // Equal power panning
-            let left_gain = (1.0 - pan_norm).sqrt();
-            let right_gain = pan_norm.sqrt();
-
-            left_sum += input * left_gain;
-            right_sum += input * right_gain;
+    fn process_block(
+        &mut self,
+        outputs: &mut StereoMixerBlockOutputs,
+        range: Range<usize>,
+        _sample_rate: f32,
+    ) -> Option<()> {
+        let p = &self.params;
+        let input_channels = p.input.channels();
+        let width_glide = &mut self.state.width_buffer;
+        let channel_state = &mut self.channel_state[..input_channels];
+        let gliding = width_glide.will_glide(p.width.glide_mark())
+            || channel_state
+                .iter()
+                .enumerate()
+                .any(|(ch, state)| state.pan.will_glide(p.pan.glide_mark(ch)));
+        if gliding {
+            return None;
         }
+        let mut scratch: [InputScratch; 3] = std::array::from_fn(|_| InputScratch::new());
+        let [s0, s1, s2] = &mut scratch;
+        let input = p.input.block_input(range.clone(), input_channels, s0)?;
+        let pan = p
+            .pan
+            .block_input_or(range.clone(), input_channels, 0.0, s1)?;
+        let width = match &p.width {
+            Some(width) => {
+                let width = width.poly();
+                Some(width.block_input(range.clone(), width.channels(), s2)?)
+            }
+            None => None,
+        };
+        let width_at = |i: usize| {
+            width
+                .map_or(0.0, |width| width.row(i).iter().sum::<f32>())
+                .clamp(0.0, 5.0)
+        };
+        for i in range.clone() {
+            let (input, pan) = (input.row(i), pan.row(i));
+            let (left, right) = mix_sample(
+                channel_state,
+                width_at(i),
+                |ch| input[ch],
+                |ch, _| pan[ch].clamp(-5.0, 5.0),
+            );
+            let out = outputs.sample.slot_mut(i);
+            out[0] = sanitize(left);
+            out[1] = sanitize(right);
+        }
+        let last = range.end - 1;
+        width_glide.settle(width_at(last), p.width.glide_mark());
+        for (ch, (state, &pan)) in channel_state.iter_mut().zip(pan.row(last)).enumerate() {
+            state.pan.settle(pan.clamp(-5.0, 5.0), p.pan.glide_mark(ch));
+        }
+        Some(())
+    }
+}
 
-        self.outputs.sample.set(0, left_sum); // Left
-        self.outputs.sample.set(1, right_sum); // Right
+/// One sample of the stereo mix: each channel `input(ch)` placed at the base
+/// pan `pan(ch, glide)` returns, spread by `width`, summed into `(left, right)`.
+#[inline(always)]
+fn mix_sample(
+    channel_state: &mut [ChannelState],
+    width: f32,
+    input: impl Fn(usize) -> f32,
+    mut pan: impl FnMut(usize, &mut SwapGlide) -> f32,
+) -> (f32, f32) {
+    let input_channels = channel_state.len();
+    let mut left_sum = 0.0f32;
+    let mut right_sum = 0.0f32;
+
+    for (ch, state) in channel_state.iter_mut().enumerate() {
+        let input = input(ch);
+        let base_pan = pan(ch, &mut state.pan);
+
+        // Voices spread from -width (voice 0) to +width (last voice) around
+        // their base pan.
+        let spread_offset = if input_channels > 1 {
+            let voice_pos = ch as f32 / (input_channels - 1) as f32;
+            (voice_pos - 0.5) * 2.0 * width
+        } else {
+            0.0
+        };
+
+        let (left_gain, right_gain) = state.gains((base_pan + spread_offset).clamp(-5.0, 5.0));
+        left_sum += input * left_gain;
+        right_sum += input * right_gain;
+    }
+    (left_sum, right_sum)
+}
+
+impl ChannelState {
+    /// The equal-power `(left, right)` gains for `pan`, cached while it holds.
+    #[inline(always)]
+    fn gains(&mut self, pan: f32) -> (f32, f32) {
+        match self.gain_cache {
+            Some((cached, left, right)) if cached == pan => (left, right),
+            _ => {
+                // -5..+5 to 0..1: 0 full left, 1 full right.
+                let pan_norm = (pan + 5.0) / 10.0;
+                let gains = ((1.0 - pan_norm).sqrt(), pan_norm.sqrt());
+                self.gain_cache = Some((pan, gains.0, gains.1));
+                gains
+            }
+        }
     }
 }
 
