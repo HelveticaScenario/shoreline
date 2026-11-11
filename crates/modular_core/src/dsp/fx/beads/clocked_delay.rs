@@ -35,7 +35,7 @@ struct ClockedDelayParams {
     input: PolySignal,
     /// Transport playhead in bars, setting the tempo and the phase of the
     /// repeats' windows.
-    #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
+    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(skip)]
     #[schemars(skip)]
     playhead: Option<MonoSignal>,

@@ -97,7 +97,7 @@ struct DrumMapParams {
         range = (0.0, ..),
         control_range = (0.0, 1.0),
     )]
-    #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
+    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
     #[input(

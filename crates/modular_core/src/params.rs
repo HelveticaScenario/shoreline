@@ -26,14 +26,15 @@ pub trait CloneableParams: Send + 'static {
     fn clone_box(&self) -> Box<dyn CloneableParams>;
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any>;
 
-    /// Walk the params and push every producer module ID it references
+    /// Walk the params and push every producer output it references
     /// (cables, buffer sources, table-internal signals) into `sink`.
     ///
     /// Used to build the cable adjacency map before module construction so
-    /// `graph_analysis::analyze` can decide whether each module needs `Block`
-    /// or `Sample` processing and compute the cache-efficient processing
-    /// order, without requiring the audio thread to know the params type.
-    fn collect_cables(&self, sink: &mut Vec<String>);
+    /// `graph_analysis` can decide whether each module needs `Block` or
+    /// `Sample` processing, compute the cache-efficient processing order, and
+    /// find the modules that read f64 outputs, without requiring the audio
+    /// thread to know the params type.
+    fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>);
 }
 
 impl<T: Clone + Send + 'static + crate::types::Connect> CloneableParams for T {
@@ -43,7 +44,7 @@ impl<T: Clone + Send + 'static + crate::types::Connect> CloneableParams for T {
     fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
         self
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
         <T as crate::types::Connect>::collect_cables(self, sink)
     }
 }
@@ -66,6 +67,10 @@ pub struct DeserializedParams {
     pub params: Box<dyn CloneableParams>,
     /// Derived output channel count for this module.
     pub channel_count: usize,
+    /// Whether any of the module's cables comes from an f64 output, which
+    /// makes its `precision = inherit` outputs f64. Set by the patch's
+    /// precision analysis before construction.
+    pub f64_inputs: bool,
 }
 
 /// Cached portion of deserialized params (excludes argument spans).

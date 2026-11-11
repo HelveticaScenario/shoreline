@@ -71,6 +71,7 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
             min_value: None,
             max_value: None,
             channels: None,
+            precision: crate::types::OutputPrecision::F32,
         }]
     }
 
@@ -116,7 +117,10 @@ struct BufferWriteBlockOutputs {
 }
 
 impl BufferWriteBlockOutputs {
-    pub fn new(block_size: usize, channel_count: usize) -> Self {
+    /// Whether any port has `precision = inherit`.
+    pub const INHERITS: bool = false;
+
+    pub fn new(block_size: usize, channel_count: usize, _inherit: bool) -> Self {
         Self {
             sample: crate::block_port::BlockPort::new(block_size, channel_count),
         }
@@ -139,6 +143,15 @@ impl BufferWriteBlockOutputs {
     }
 
     #[inline]
+    pub fn get_at_f64(&self, port_idx: usize, ch: usize, index: usize) -> f64 {
+        self.get_at(port_idx, ch, index) as f64
+    }
+
+    pub fn same_layout(&self, _other: &Self) -> bool {
+        true
+    }
+
+    #[inline]
     pub fn channels_at(&self, port_idx: usize) -> usize {
         match port_idx {
             0 => self.sample.channels(),
@@ -147,9 +160,9 @@ impl BufferWriteBlockOutputs {
     }
 
     #[inline]
-    pub fn data_at(&self, port_idx: usize) -> Option<(*const f32, usize)> {
+    pub fn data_at(&self, port_idx: usize) -> Option<(*const f32, usize, usize)> {
         match port_idx {
-            0 => Some((self.sample.as_ptr(), self.sample.channels())),
+            0 => Some((self.sample.as_ptr(), self.sample.channels(), 1)),
             _ => None,
         }
     }
@@ -486,6 +499,7 @@ mod tests {
         let deserialized = DeserializedParams {
             params: cached.params,
             channel_count: cached.channel_count,
+            f64_inputs: false,
         };
         constructors
             .get(module_type)

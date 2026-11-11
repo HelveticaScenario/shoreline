@@ -144,6 +144,7 @@ fn render(port: &Port, samples: usize) -> Vec<f32> {
                 DeserializedParams {
                     params: cached.params,
                     channel_count: cached.channel_count,
+                    f64_inputs: false,
                 },
                 ProcessingMode::Block,
             )],

@@ -116,7 +116,7 @@ struct Loaded {
 impl crate::types::Connect for Loaded {
     fn apply_default_connections(&mut self) {}
     fn connect(&mut self, _patch: &Patch) {}
-    fn collect_cables(&self, _sink: &mut Vec<String>) {}
+    fn collect_cables(&self, _sink: &mut Vec<crate::types::CableSource>) {}
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {}
     fn mark_glides(
         &mut self,

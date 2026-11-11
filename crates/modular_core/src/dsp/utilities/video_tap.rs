@@ -298,7 +298,7 @@ mod tests {
     }
 
     fn render_blocks(tap: &mut VideoTap, blocks: impl Iterator<Item = f32>) {
-        let mut outputs = VideoTapBlockOutputs::new(256, 1);
+        let mut outputs = VideoTapBlockOutputs::new(256, 1, false);
         for v in blocks {
             tap.params.input = MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v)));
             tap.process_block(&mut outputs, 0..256, SR);
