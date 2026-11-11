@@ -14,6 +14,17 @@ use crate::types::ProcessingMode;
 const SR: f32 = 48_000.0;
 const BLOCK: usize = 64;
 
+/// The output drum `voice` gives when read as a signal itself.
+fn default_port(voice: &str) -> String {
+    let outputs = super::schemas()
+        .into_iter()
+        .find(|s| s.name == voice)
+        .unwrap()
+        .outputs;
+    let default = outputs.iter().position(|o| o.default).unwrap_or(0);
+    outputs[default].name.clone()
+}
+
 /// Every drum voice.
 fn voices() -> Vec<String> {
     super::schemas().into_iter().map(|s| s.name).collect()
@@ -136,6 +147,7 @@ fn render(patch: &Patch, blocks: usize, out: &mut [Vec<f32>]) {
 /// [`render`], each block run up to each of `steps` in turn, the drum
 /// first so its reads pull its sources.
 fn render_by(patch: &Patch, blocks: usize, steps: &[usize], out: &mut [Vec<f32>]) {
+    let port = default_port(patch.sampleables["drum"].get_module_type());
     for _ in 0..blocks {
         for module in patch.sampleables.values() {
             module.start_block();
@@ -146,9 +158,8 @@ fn render_by(patch: &Patch, blocks: usize, steps: &[usize], out: &mut [Vec<f32>]
             }
         }
         for (ch, samples) in out.iter_mut().enumerate() {
-            samples.extend(
-                (0..BLOCK).map(|i| patch.sampleables["drum"].get_value_at("output", ch, i)),
-            );
+            samples
+                .extend((0..BLOCK).map(|i| patch.sampleables["drum"].get_value_at(&port, ch, i)));
         }
     }
 }

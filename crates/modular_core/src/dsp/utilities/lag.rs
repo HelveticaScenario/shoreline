@@ -70,7 +70,7 @@ const SLEW_DOCS: ModuleDocs = ModuleDocs {
                   $slew(
                     $sah(
                       $noise('white').range('c3', 'c5'),
-                      $clock.beatTrigger,
+                      $clock.o.beatTrigger,
                     ),
                     { fall: 0.05 },
                   ),

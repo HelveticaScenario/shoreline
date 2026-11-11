@@ -1,7 +1,7 @@
 /**
  * Contextual outputs. The value a multi-output module's factory returns is a
  * root: it stands for whichever of the module's outputs fits the input it is
- * plugged into. A named output (`seq.trig`) is never a root, so naming one is
+ * plugged into. A named output (`seq.o.trig`) is never a root, so naming one is
  * always explicit.
  */
 
@@ -19,13 +19,13 @@ import { isSignalGroupLike } from './signalGroups';
 
 const OUTPUT_SET = Symbol('outputSet');
 
-/** A module's outputs, keyed by the property names they have on the root. */
+/** A module's outputs, keyed by their names on the root's `o`. */
 interface OutputSet {
     outputs: readonly ResolvableOutput[];
     values: Readonly<Record<string, unknown>>;
 }
 
-/** The outputs of `schema` under the property names they have on a root. */
+/** The outputs of `schema` under their names on a root's `o`. */
 export function resolvableOutputs(schema: ModuleSchema): ResolvableOutput[] {
     return (schema.outputs ?? []).map((o) => ({
         default: o.default,

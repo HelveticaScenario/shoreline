@@ -828,8 +828,9 @@ fn from_graph_process_frame_advances_all_modules() {
 #[test]
 fn chord_outputs_spec_voltages() {
     let module = make_module("$chord", "chord", json!({ "chord": "C3[maj7]" }));
+    let slot = Stepper::new().tick(module.as_ref());
     for (ch, semis) in [-12.0_f32, -8.0, -5.0, -1.0].iter().enumerate() {
-        let v = *collect_channel(module.as_ref(), ch, 1).last().unwrap();
+        let v = module.get_value_at("pitch", ch, slot);
         assert!(approx_eq(v, semis / 12.0, 1e-5), "channel {ch}: {v}");
     }
 }
@@ -865,8 +866,13 @@ fn quantizer_hold_survives_state_transfer() {
         "q",
         json!({ "input": 4.0 / 12.0, "scale": c_major_triad, "gate": 5.0 }),
     );
+    let mut stepper = Stepper::new();
+    let mut slot = 0;
+    for _ in 0..64 {
+        slot = stepper.tick(old.as_ref());
+    }
     assert!(approx_eq(
-        settle_and_read(old.as_ref(), 64),
+        old.get_value_at("pitch", 0, slot),
         4.0 / 12.0,
         1e-5
     ));
@@ -882,7 +888,7 @@ fn quantizer_hold_survives_state_transfer() {
     let mut stepper = Stepper::new();
     for _ in 0..64 {
         let slot = stepper.tick(new.as_ref());
-        let out = new.get_value_at(DEFAULT_PORT, 0, slot);
+        let out = new.get_value_at("pitch", 0, slot);
         assert!(
             approx_eq(out, 4.0 / 12.0, 1e-5),
             "expected held E4, got {out}"

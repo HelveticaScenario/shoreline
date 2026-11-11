@@ -63,14 +63,14 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
         5 => {
             let knobs = json!({ "terrain": 5.0 * h, "radius": 5.0 * t, "offset": 5.0 * m });
             [
-                port("$mi.waveTerrain", knobs.clone(), "output"),
+                port("$mi.waveTerrain", knobs.clone(), "height"),
                 port("$mi.waveTerrain", knobs, "pm"),
             ]
         }
         9 => {
             let knobs = json!({ "shape": 5.0 * h, "fold": 5.0 * t, "asymmetry": 5.0 * m });
             [
-                port("$mi.waveshaper", knobs.clone(), "output"),
+                port("$mi.waveshaper", knobs.clone(), "shaped"),
                 port("$mi.waveshaper", knobs, "overtones"),
             ]
         }
@@ -78,7 +78,7 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
             let knobs =
                 json!({ "ratio": 5.0 * h, "index": 5.0 * t, "feedback": (2.0 * m - 1.0) * 5.0 });
             [
-                port("$mi.twoOp", knobs.clone(), "output"),
+                port("$mi.twoOp", knobs.clone(), "fm"),
                 port("$mi.twoOp", knobs, "subOctave"),
             ]
         }
@@ -104,26 +104,26 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
         16 => {
             let knobs = json!({ "density": 5.0 * t, "spread": 5.0 * h, "grainSize": 5.0 * m });
             [
-                port("$mi.swarm", knobs.clone(), "output"),
+                port("$mi.swarm", knobs.clone(), "saw"),
                 port("$mi.swarm", knobs, "sine"),
             ]
         }
         18 => {
             let knobs = json!({ "density": 5.0 * t, "spread": 5.0 * h, "resonance": 5.0 * m });
             [
-                port("$mi.particles", knobs.clone(), "output"),
+                port("$mi.particles", knobs.clone(), "filtered"),
                 port("$mi.particles", knobs, "raw"),
             ]
         }
         19 | 20 => {
-            let module = if engine == 19 {
-                "$mi.string"
+            let (module, body) = if engine == 19 {
+                ("$mi.string", "strings")
             } else {
-                "$mi.modal"
+                ("$mi.modal", "body")
             };
             let knobs = json!({ "structure": 5.0 * h, "brightness": 5.0 * t, "decay": 5.0 * m });
             [
-                port(module, knobs.clone(), "output"),
+                port(module, knobs.clone(), body),
                 port(module, knobs, "exciter"),
             ]
         }

@@ -50,7 +50,7 @@ struct CrossoverParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CrossoverOutputs {
-    #[output("output", "input passed through unchanged", type = cv, default)]
+    #[output("thru", "input passed through unchanged", type = cv, default)]
     sample: PolyOutput,
     #[output("low", "frequencies below lowMidFreq", type = cv)]
     low: PolyOutput,
@@ -141,8 +141,8 @@ struct ChannelState {
 const XOVER_DOCS: ModuleDocs = ModuleDocs {
     summary: "Three-band crossover",
     description: "Splits a sound into low, mid and high bands at two crossover points, so each \
-                  band can be processed on its own and mixed back together. The main output \
-                  passes the sound through unchanged; tap `.low`, `.mid` and `.high` for the bands.",
+                  band can be processed on its own and mixed back together. Its `thru` output \
+                  passes the sound through unchanged; tap `.o.low`, `.o.mid` and `.o.high` for the bands.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
@@ -150,9 +150,9 @@ const XOVER_DOCS: ModuleDocs = ModuleDocs {
         code: r#"
             const bands = $xover($saw('c2'))
             $mix([
-              bands.low,
-              bands.mid.amp($sine('4hz').range(0, 5)),
-              bands.high,
+              bands.o.low,
+              bands.o.mid.amp($sine('4hz').range(0, 5)),
+              bands.o.high,
             ]).out()
         "#,
     }],

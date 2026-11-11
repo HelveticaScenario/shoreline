@@ -77,14 +77,12 @@ describe('.$. chainable namespace', () => {
         expect(moduleTypes(patch)).toContain('$sine');
     });
 
-    test('multi-output module exposes its extra outputs (.low/.mid/.high)', () => {
+    test('multi-output module exposes its outputs on .o', () => {
         const sig = builder.getFactory('$sine')(0);
         const xover = (
             sig as unknown as { $: Record<string, () => unknown> }
-        ).$.xover() as Record<string, unknown>;
-        expect(xover).toHaveProperty('low');
-        expect(xover).toHaveProperty('mid');
-        expect(xover).toHaveProperty('high');
+        ).$.xover() as { o: Record<string, unknown> };
+        expect(Object.keys(xover.o)).toEqual(['thru', 'low', 'mid', 'high']);
     });
 
     test('unknown methods, symbols, and `then` resolve to undefined', () => {

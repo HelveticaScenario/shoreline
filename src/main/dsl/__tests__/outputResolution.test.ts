@@ -75,7 +75,7 @@ describe('resolution by input type', () => {
     test('a trig input falls back to a gate', () => {
         expect(
             ports(
-                `$perc($coinFlip($clock.beatTrigger, 2.5)).out()`,
+                `$perc($coinFlip($clock.o.beatTrigger, 2.5)).out()`,
                 '$perc',
                 'trigger',
             ),
@@ -93,7 +93,7 @@ describe('resolution by input type', () => {
     test('with nothing matching, the default is used', () => {
         expect(
             ports(
-                `$sine($coinFlip($clock.beatTrigger, 2.5)).out()`,
+                `$sine($coinFlip($clock.o.beatTrigger, 2.5)).out()`,
                 '$sine',
                 'freq',
             ),
@@ -114,16 +114,16 @@ describe('resolution by input type', () => {
 describe('explicit outputs', () => {
     test('a named output is never re-resolved', () => {
         expect(
-            ports(`$perc($p('c e g').c.cv).out()`, '$perc', 'trigger'),
+            ports(`$perc($p('c e g').c.o.cv).out()`, '$perc', 'trigger'),
         ).toEqual(['cv']);
-        expect(ports(`$saw($p('c e g').c.trig).out()`, '$saw', 'freq')).toEqual(
-            ['trig'],
-        );
+        expect(
+            ports(`$saw($p('c e g').c.o.trig).out()`, '$saw', 'freq'),
+        ).toEqual(['trig']);
     });
 
     test('the default output has a named property', () => {
         expect(
-            ports(`$perc($clock.playhead).out()`, '$perc', 'trigger'),
+            ports(`$perc($clock.o.playhead).out()`, '$perc', 'trigger'),
         ).toEqual(['playhead', 'playhead']);
     });
 });
@@ -248,7 +248,7 @@ describe('resolution records', () => {
     test('named outputs and single-output modules record nothing', () => {
         expect(
             records(
-                `const seq = $p('c e g').c\n$saw(seq.cv).amp($perc(seq.trig)).out()`,
+                `const seq = $p('c e g').c\n$saw(seq.o.cv).amp($perc(seq.o.trig)).out()`,
             ),
         ).toEqual([]);
     });

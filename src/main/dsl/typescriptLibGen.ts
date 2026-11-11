@@ -984,7 +984,7 @@ interface ModuleOutput {
    * Divide this signal by another, sample by sample. Dividing by 0 gives 0.
    * @param operand Divisor as {@link Poly<Signal>}
    * @returns The quotient as a {@link Collection} for chaining
-   * @example $clockedDelay($saw('c3').amp($perc($clock.beatTrigger)), { bars: $sine('0.1hz').range(1, 4).round().div(8) }).out()  // 1/8 to 4/8 of a bar
+   * @example $clockedDelay($saw('c3').amp($perc($clock.o.beatTrigger)), { bars: $sine('0.1hz').range(1, 4).round().div(8) }).out()  // 1/8 to 4/8 of a bar
    */
   div(operand: Poly<Signal>): Collection;
 
@@ -1230,7 +1230,7 @@ interface DeferredModuleOutput extends ModuleOutput {
  * @example
  * const lfo = $sine('2hz')             // Outputs -5 to +5
  * lfo.range(200, 2000)                 // Remap to 200-2000
- * $adsr($clock.beatTrigger, { attack: 0.1 }).range(0, 1)
+ * $adsr($clock.o.beatTrigger, { attack: 0.1 }).range(0, 1)
  *
  * @see {@link ModuleOutput} - base interface
  * @see {@link CollectionWithRange} - for collections of ranged outputs
@@ -1259,8 +1259,8 @@ interface ModuleOutputWithRange extends ModuleOutput {
    * @param amount Depth (0–5) as {@link Poly<Signal>}
    * @param options Trigger, speed, bias, mode, and sparse ({@link RangedErraticOptions})
    * @returns A {@link CollectionWithRange} with the same range
-   * @example $saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock.beatTrigger })).out()
-   * @example $saw('c3').amp($sine('4hz').range(0, 5).erratic(5, { mode: 'blend', sparse: true, speed: 5, trigger: $clock.beatTrigger })).out()  // usually a new level each beat, sometimes close to the sine
+   * @example $saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock.o.beatTrigger })).out()
+   * @example $saw('c3').amp($sine('4hz').range(0, 5).erratic(5, { mode: 'blend', sparse: true, speed: 5, trigger: $clock.o.beatTrigger })).out()  // usually a new level each beat, sometimes close to the sine
    */
   erratic(amount: Poly<Signal>, options?: RangedErraticOptions): CollectionWithRange;
 
@@ -1754,7 +1754,7 @@ function $r(...args: (ModuleOutputWithRange | Iterable<ModuleOutputWithRange>)[]
  * // Play a loop at the tempo it was recorded at
  * const loop = '/wavs/loop.wav'
  * $setTempo($wavMeta(loop).bpm ?? 120)
- * $sampler(loop, $clock.barTrigger).out()
+ * $sampler(loop, $clock.o.barTrigger).out()
  */
 function $wavMeta(path: string): WavMeta;
 
@@ -1771,7 +1771,7 @@ function $setTempo(tempo: number): void;
  * @param gain Gain as a {@link Mono<Signal>} (2.5 is default, 5.0 is unity)
  * @example $setOutputGain(2.5) // 50% gain (default)
  * @example $setOutputGain(5.0) // unity
- * @example $setOutputGain($adsr($clock.beatTrigger, {})) // modulate gain from envelope
+ * @example $setOutputGain($adsr($clock.o.beatTrigger, {})) // modulate gain from envelope
  */
 function $setOutputGain(gain: Mono<Signal>): void;
 
@@ -1828,8 +1828,8 @@ interface GrooveTemplate {
 
 /**
  * Set the global groove. Every $cycle and $drumMap starts its notes on it,
- * keeping their lengths, unless given its own groove or playhead; $clock.grooveOffset,
- * $clock.grooveVelocity and $clock.grooveTrigger expose it directly.
+ * keeping their lengths, unless given its own groove or playhead; $clock.o.grooveOffset,
+ * $clock.o.grooveVelocity and $clock.o.grooveTrigger expose it directly.
  * @param template Groove template, e.g. from $swing
  * @example $setGroove($swing(0.6))  // MPC-style 60% sixteenth swing
  * @example $setGroove({ timing: [0, 0.2, 0, 0.15], velocity: [1, 0.6, 0.8, 0.5] })
@@ -2401,8 +2401,8 @@ function getMultiOutputInterfaceName(moduleSchema: { name: string }): string {
 
 /**
  * Generate interface definition for multi-output modules.
- * The interface extends the type of the output a `cv` input takes and has a
- * property for every output.
+ * The interface extends the type of the output a `cv` input takes, and its
+ * `o` has a property for every output.
  */
 function generateMultiOutputInterface(
     moduleSchema: Schema,
@@ -2427,13 +2427,15 @@ function generateMultiOutputInterface(
         `${indent} * Used directly, it stands for the output that fits the input it`,
     );
     lines.push(
-        `${indent} * is plugged into (\`${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); a named output is`,
+        `${indent} * is plugged into (\`o.${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); an output named`,
     );
-    lines.push(`${indent} * always that output.`);
+    lines.push(`${indent} * through \`o\` is always that output.`);
     lines.push(`${indent} */`);
     lines.push(
         `${indent}export interface ${interfaceName} extends ${baseType} {`,
     );
+    lines.push(`${indent}  /** The module's outputs by name. */`);
+    lines.push(`${indent}  readonly o: {`);
 
     for (const output of outputs) {
         const outputType = getOutputType(output);
@@ -2441,11 +2443,12 @@ function generateMultiOutputInterface(
 
         const doc = withMeta(output.description, formatOutputMeta(output));
         if (doc) {
-            lines.push(`${indent}  /** ${doc} */`);
+            lines.push(`${indent}    /** ${doc} */`);
         }
-        lines.push(`${indent}  readonly ${safeName}: ${outputType};`);
+        lines.push(`${indent}    readonly ${safeName}: ${outputType};`);
     }
 
+    lines.push(`${indent}  };`);
     lines.push(`${indent}}`);
     return lines;
 }

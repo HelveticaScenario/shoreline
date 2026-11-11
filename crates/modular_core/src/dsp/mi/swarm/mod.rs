@@ -89,7 +89,7 @@ struct SwarmParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SwarmOutputs {
-    #[output("output", "the swarm of saws", type = cv, default, range = (-5.0, 5.0))]
+    #[output("saw", "the swarm of saws", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
     #[output(
         "sine",
@@ -116,7 +116,7 @@ const SWARM_DOCS: ModuleDocs = ModuleDocs {
             title: "Bursts",
             code: r#"
                 const seq = $cycle($p('c3 [~ c3] eb3 <g3 bb2>'))
-                $mi.swarm(seq, { trigger: seq.trig }).sine.out()
+                $mi.swarm(seq, { trigger: seq.o.trig }).o.sine.out()
             "#,
         },
     ],

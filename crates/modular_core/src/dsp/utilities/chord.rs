@@ -81,7 +81,7 @@ fn invert(notes: &[f32], inversion: f32, pitches: &mut [f32], levels: &mut [f32]
 #[serde(rename_all = "camelCase")]
 struct ChordOutputs {
     #[output(
-        "output",
+        "pitch",
         "one pitch per note, lowest first; with `inversion` patched, one more channel, the notes rotating across them",
         type = cv,
         default
@@ -181,7 +181,7 @@ const CHORD_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const inv = $sine('0.05hz').range(0, 4)
                 const c = $chord('C3[maj7]', { inversion: inv })
-                $saw(c).amplitude(c.level).out()
+                $saw(c).amplitude(c.o.level).out()
             "#,
         },
         DocExample {

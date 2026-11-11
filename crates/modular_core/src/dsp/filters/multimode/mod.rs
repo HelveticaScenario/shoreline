@@ -97,7 +97,7 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MultimodeOutputs {
-    #[output("output", "response selected by mode", type = cv, default, range = (-10.0, 10.0))]
+    #[output("morph", "response selected by mode", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output("lp", "lowpass, the output at mode 0", type = cv, range = (-10.0, 10.0))]
     lp: PolyOutput,
