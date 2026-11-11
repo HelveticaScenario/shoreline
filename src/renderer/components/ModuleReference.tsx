@@ -109,6 +109,9 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
     // virtualizer keeps its offset in step, so re-measuring cannot shift the pane back.
     useLayoutEffect(() => {
         virtualizer.scrollToOffset(0);
+        if (indexRef.current) {
+            indexRef.current.scrollLeft = 0;
+        }
     }, [virtualizer, searchQuery, category]);
 
     const virtualItems = virtualizer.getVirtualItems();
@@ -120,7 +123,7 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
     );
     const topName = topItem && filteredModules[topItem.index]?.name;
 
-    // Scrolls the index alone; `scrollIntoView` would also move the panes around it.
+    // Scrolls the index alone; the panes around it must not move.
     useLayoutEffect(() => {
         const list = indexRef.current;
         const active = list?.querySelector<HTMLElement>('button.active');
@@ -137,7 +140,7 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
         } else if (bottom > list.scrollTop + list.clientHeight) {
             list.scrollTop = bottom - list.clientHeight;
         }
-    }, [topName]);
+    }, [topName, filteredModules]);
 
     return (
         <div className="module-reference">
@@ -176,27 +179,29 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
                 </ul>
             </div>
             <div className="module-reference-main">
-                <div
-                    className="module-categories"
-                    role="group"
-                    aria-label="Categories"
-                >
-                    {categories.map(({ name, description }) => (
-                        <button
-                            key={name}
-                            aria-pressed={category === name}
-                            className={category === name ? 'active' : ''}
-                            title={description}
-                            onClick={() =>
-                                onCategoryChange(
-                                    category === name ? null : name,
-                                )
-                            }
-                        >
-                            {name}
-                        </button>
-                    ))}
-                </div>
+                {categories.length > 0 && (
+                    <div
+                        className="module-categories"
+                        role="group"
+                        aria-label="Categories"
+                    >
+                        {categories.map(({ name, description }) => (
+                            <button
+                                key={name}
+                                aria-pressed={category === name}
+                                className={category === name ? 'active' : ''}
+                                title={description}
+                                onClick={() =>
+                                    onCategoryChange(
+                                        category === name ? null : name,
+                                    )
+                                }
+                            >
+                                {name}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <div ref={cardsRef} className="module-cards">
                     {filteredModules.length === 0 && modules.length > 0 && (
                         <p className="module-reference-empty">

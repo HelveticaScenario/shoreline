@@ -362,12 +362,16 @@
     padding: 0;
     overflow: auto;
     list-style: none;
+    /* One column as wide as the longest name, never narrower than the list,
+       so every row's hover background spans the scrolled width. */
+    display: grid;
+    grid-template-columns: minmax(max-content, auto);
+    align-content: start;
 }
 
 .docs-panel .module-index-list button {
     display: block;
-    width: max-content;
-    min-width: 100%;
+    width: 100%;
     padding: 2px 6px;
     background: none;
     border: none;
