@@ -98,6 +98,14 @@ impl LagProcessor {
                 state.current_value = sanitize(input);
                 state.initialized = true;
             }
+            // Arrived at the input: the step below would add +0.0, a no-op
+            // except that it turns -0.0 into +0.0, so -0.0 still steps.
+            if input.to_bits() == state.current_value.to_bits()
+                && input.to_bits() != (-0.0f32).to_bits()
+            {
+                self.outputs.sample.set(ch, state.current_value);
+                continue;
+            }
 
             let fall_time = self.params.fall.value_or(ch, 0.01).max(0.001);
             let rise_time = self.params.rise.value_or(ch, fall_time).max(0.001);
@@ -125,3 +133,64 @@ impl LagProcessor {
 }
 
 message_handlers!(impl LagProcessor {});
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{OutputStruct, Signal};
+
+    const SR: f32 = 48_000.0;
+
+    fn make() -> LagProcessor {
+        let mut outputs = LagProcessorOutputs::default();
+        outputs.set_all_channels(1);
+        LagProcessor {
+            params: LagProcessorParams {
+                input: PolySignal::mono(Signal::Volts(0.0)),
+                rise: Some(PolySignal::mono(Signal::Volts(0.002))),
+                fall: None,
+            },
+            outputs,
+            _channel_count: 1,
+            _block_index: Default::default(),
+            channel_state: vec![SlewChannelState::default()].into_boxed_slice(),
+        }
+    }
+
+    /// One step of the slew limiter toward `input`, rise 0.002 s/V and the
+    /// default fall.
+    fn reference_step(current: &mut Option<f32>, input: f32) -> f32 {
+        let value = current.get_or_insert(sanitize(input));
+        let max_rise = 1.0 / (0.002f32.max(0.001) * SR);
+        let max_fall = 1.0 / (0.01f32.max(0.001) * SR);
+        let diff = input - *value;
+        let change = if diff > 0.0 {
+            diff.min(max_rise)
+        } else {
+            diff.max(-max_fall)
+        };
+        *value = sanitize(*value + change);
+        *value
+    }
+
+    #[test]
+    fn held_inputs_match_the_stepped_limiter_bit_for_bit() {
+        let held = [
+            (-0.0, 10),
+            (5.0, 3000),
+            (0.0, 3000),
+            (-0.0, 10),
+            (2.5, 2000),
+        ];
+        let mut module = make();
+        let mut reference = None;
+        for (input, samples) in held {
+            module.params.input = PolySignal::mono(Signal::Volts(input));
+            for _ in 0..samples {
+                module.update(SR);
+                let want = reference_step(&mut reference, input);
+                assert_eq!(module.outputs.sample.get(0).to_bits(), want.to_bits());
+            }
+        }
+    }
+}
