@@ -77,19 +77,6 @@ describe('computeControlQuickFixes — a control replaces a single-value $c/$sig
         );
     });
 
-    test('a ranged $c keeps the control inside it', () => {
-        // A slider's .range takes no input range, so it cannot stand in.
-        expect(wrapped(`$sine($c(|2).range(100, 200, 0, 10)).out();`)).toBe(
-            `$sine($c($slider('args', 2, 0, 5)).range(100, 200, 0, 10)).out();`,
-        );
-        const ranged = fixesAt(
-            `const lfo = $signal(|2);\n$sine(lfo.range(100, 200, 0, 10)).out();`,
-        );
-        for (const f of ranged.fixes) {
-            expect(apply(ranged.source, f)).toContain('const lfo = $signal(');
-        }
-    });
-
     test('a patch with its own $c keeps the call', () => {
         const { source, fixes } = fixesAt(
             `const $c = (x) => x * 2;\n$saw($c(|2)).out();`,
@@ -146,14 +133,18 @@ describe('computeControlQuickFixes — a slider back to $c', () => {
         expect(unwrapFix(fixes)!.title).toBe(`Replace $slider with $c('a3')`);
     });
 
-    test('is not offered for a ranged slider or a patch with its own $c', () => {
-        for (const text of [
+    test('swaps plainly, leaving any .range call as written', () => {
+        const { source, fixes } = fixesAt(
             `$sine($slider('f', 2, 0, |5).range(100, 200)).out();`,
-            `const v = $slider('f', 2, 0, |5);\n$sine(v.range(1, 2)).out();`,
-            `const $c = (x) => x;\n$sine($slider('f', 2, 0, |5)).out();`,
-        ]) {
-            expect(unwrapFix(fixesAt(text).fixes), text).toBe(undefined);
-        }
+        );
+        expect(apply(source, unwrapFix(fixes)!)).toBe(
+            `$sine($c(2).range(100, 200)).out();`,
+        );
+    });
+
+    test('is not offered in a patch with its own $c', () => {
+        const text = `const $c = (x) => x;\n$sine($slider('f', 2, 0, |5)).out();`;
+        expect(unwrapFix(fixesAt(text).fixes)).toBe(undefined);
     });
 
     test('is not offered outside a slider', () => {

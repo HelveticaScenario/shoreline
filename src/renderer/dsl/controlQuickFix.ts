@@ -28,8 +28,7 @@ import type { ApiIndex } from './apiSignatures';
 import { addFixes, dedupeLabel } from './controlAddFixes';
 import type { CodeStyle, TextEdit } from './listEdits';
 import {
-    createSwapCheck,
-    LIFT_TO_SLIDER,
+    declaresSwapNames,
     liftText,
     singleLiteralSignal,
     unwrapFixes,
@@ -90,7 +89,7 @@ export function computeControlQuickFixes(
         cursorOffset >= n.getStart(file) && cursorOffset <= n.getEnd();
 
     const resolveCall = createCallResolver(file, schemas, index);
-    const swappable = createSwapCheck(file);
+    const swappable = !declaresSwapNames(file);
     const existingLabels = collectRootLabels(file);
     const label = (base: string) => dedupeLabel(base, existingLabels);
 
@@ -164,7 +163,7 @@ export function computeControlQuickFixes(
         call: ts.CallExpression,
         literal: ParamLiteral,
     ): ControlQuickFix[] | null => {
-        if (!swappable(call, LIFT_TO_SLIDER)) {
+        if (!swappable) {
             return null;
         }
         const slot = slotOf(call);
@@ -243,7 +242,9 @@ export function computeControlQuickFixes(
 
     const fixes = [
         ...(argWraps.length > 0 ? argWraps : optionWraps),
-        ...unwrapFixes(file, literalsAtCursor, containsCursor, swappable),
+        ...(swappable
+            ? unwrapFixes(file, literalsAtCursor, containsCursor)
+            : []),
     ];
 
     // "Add … for <param>" — signal params the innermost resolvable call

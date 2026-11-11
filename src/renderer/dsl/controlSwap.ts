@@ -1,7 +1,9 @@
 /**
- * Swaps between a `$c`/`$signal` holding one literal and a `$slider`: the
- * checks that a swap keeps the patch's behaviour, and the fix turning a
- * slider back into a `$c`.
+ * Swaps between a `$c`/`$signal` holding one literal and a `$slider`, and
+ * the fix turning a slider back into a `$c`. A swap is a plain substitution:
+ * a slider's `.range(outMin, outMax)` maps from its own min and max where a
+ * `$c`'s takes the input range too, and calls the swap leaves behind are
+ * the user's to adjust.
  */
 import ts from 'typescript';
 
@@ -13,22 +15,13 @@ import type { ParamLiteral } from './paramControls';
  *  holding a single literal outright. */
 const SIGNAL_LIFTS = new Set(['$c', '$signal']);
 
-/** The callees a swap between a lift and a slider leaves in the code. */
-export const LIFT_TO_SLIDER = ['$c', '$signal', '$slider'];
-
 /**
- * Whether `call` can be swapped between a `$c`/`$signal` and a `$slider`
- * without changing what the patch does. Neither swap holds where the patch
- * declares its own binding of one of `callees`, or where the call's value —
- * the call itself, or the variable it initializes — has `.range` called on
- * it: a slider's `.range(outMin, outMax)` maps from its own min and max,
- * where a `$c`'s takes the input range as well.
+ * Whether the patch declares its own `$c`, `$signal` or `$slider`, so a swap
+ * between them would replace or call the patch's binding.
  */
-export function createSwapCheck(
-    file: ts.SourceFile,
-): (call: ts.CallExpression, callees: readonly string[]) => boolean {
-    const declared = new Set<string>();
-    const ranged = new Set<string>();
+export function declaresSwapNames(file: ts.SourceFile): boolean {
+    const names = new Set(['$c', '$signal', '$slider']);
+    let found = false;
     const visit = (node: ts.Node) => {
         if (
             (ts.isVariableDeclaration(node) ||
@@ -36,38 +29,17 @@ export function createSwapCheck(
                 ts.isBindingElement(node) ||
                 ts.isFunctionDeclaration(node)) &&
             node.name &&
-            ts.isIdentifier(node.name)
+            ts.isIdentifier(node.name) &&
+            names.has(node.name.text)
         ) {
-            declared.add(node.name.text);
+            found = true;
         }
-        if (
-            ts.isPropertyAccessExpression(node) &&
-            node.name.text === 'range' &&
-            ts.isIdentifier(node.expression)
-        ) {
-            ranged.add(node.expression.text);
+        if (!found) {
+            ts.forEachChild(node, visit);
         }
-        ts.forEachChild(node, visit);
     };
     visit(file);
-    return (call, callees) => {
-        if (callees.some((name) => declared.has(name))) {
-            return false;
-        }
-        const parent = call.parent;
-        if (
-            ts.isPropertyAccessExpression(parent) &&
-            parent.expression === call &&
-            parent.name.text === 'range'
-        ) {
-            return false;
-        }
-        return !(
-            ts.isVariableDeclaration(parent) &&
-            ts.isIdentifier(parent.name) &&
-            ranged.has(parent.name.text)
-        );
-    };
+    return found;
 }
 
 /** `node` as a `$c`/`$signal` call holding just one literal. */
@@ -95,7 +67,6 @@ export function unwrapFixes(
     file: ts.SourceFile,
     atCursor: readonly ts.Node[],
     containsCursor: (n: ts.Node) => boolean,
-    swappable: (call: ts.CallExpression, callees: readonly string[]) => boolean,
 ): ControlQuickFix[] {
     const slider = atCursor.find(
         (n): n is ts.CallExpression =>
@@ -105,12 +76,7 @@ export function unwrapFixes(
             containsCursor(n),
     );
     const value = slider?.arguments[1];
-    if (
-        !slider ||
-        !value ||
-        !asLiteral(value, file) ||
-        !swappable(slider, LIFT_TO_SLIDER)
-    ) {
+    if (!slider || !value || !asLiteral(value, file)) {
         return [];
     }
     const newText = `$c(${value.getText(file)})`;
