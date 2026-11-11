@@ -1745,9 +1745,9 @@ describe('buttons', () => {
         ).toThrow('already used by a button');
     });
 
-    test('$btn chains through .$.hold for fixed-length triggers', () => {
+    test('$btn chains through .hold for fixed-length triggers', () => {
         const result = exec(
-            '$sine("c4").amplitude($adsr($btn("hit").$.hold(0.2))).out()',
+            '$sine("c4").amplitude($adsr($btn("hit").hold(0.2))).out()',
         );
         const holds = findModules(result.patch, '$hold');
         expect(holds.length).toBe(1);
@@ -2377,7 +2377,7 @@ describe('$delay', () => {
 
     test('feedbackCb processes the mix before it is written to the buffer', () => {
         const patch = execPatch(
-            '$delay($sine("C4"), 0.25, { feedbackCb: (m) => m.$.lpf("800hz") }).out()',
+            '$delay($sine("C4"), 0.25, { feedbackCb: (m) => m.lpf("800hz") }).out()',
         );
         const lpf = findModules(patch, '$lpf');
         expect(lpf.length).toBe(1);
@@ -2390,18 +2390,18 @@ describe('$delay', () => {
         expect(bufSrc).toBe(lpf[0].id);
     });
 
-    test('.$.delay is equivalent to $delay(self, ...)', () => {
+    test('.delay is equivalent to $delay(self, ...)', () => {
         const types = (p: PatchGraph) =>
             p.modules.map((m) => m.moduleType).sort();
         const direct = execPatch('$delay($sine("C4"), 0.25).out()');
-        const chained = execPatch('$sine("C4").$.delay(0.25).out()');
+        const chained = execPatch('$sine("C4").delay(0.25).out()');
         expect(types(chained)).toEqual(types(direct));
     });
 
-    test('.$m.delay crossfades the dry signal against the wet delay', () => {
-        const patch = execPatch('$sine("C4").$m.delay(2.5, 0.25).out()');
+    test('.delay(...).wet crossfades the dry signal against the wet delay', () => {
+        const patch = execPatch('$sine("C4").delay(0.25).wet(2.5).out()');
         expect(findModules(patch, '$delayRead').length).toBe(1);
-        // crossfadeMix remaps the dry leg — absent from the plain `.$.` form
+        // crossfadeMix remaps the dry leg — absent from the plain `.` form
         expect(findModules(patch, '$remap').length).toBeGreaterThanOrEqual(1);
     });
 
@@ -2763,11 +2763,13 @@ describe('$phase helpers', () => {
     });
 });
 
-// ─── $mixDown / .mix() fold-down ───────────────────────────────────────────────
+// ─── $mixDown fold-down ────────────────────────────────────────────────────────
 
-describe('$mixDown and Collection.mix()', () => {
-    test('.mix(2) on a 3-voice spread builds one $mixDown folding 3→2', () => {
-        const patch = execPatch('$saw($spread(0, 5, 3)).mix(2).scope().out()');
+describe('$mixDown', () => {
+    test('.mixDown(2) on a 3-voice spread builds one $mixDown folding 3→2', () => {
+        const patch = execPatch(
+            '$saw($spread(0, 5, 3)).mixDown(2).scope().out()',
+        );
         const mixDowns = findModules(patch, '$mixDown');
         expect(mixDowns.length).toBe(1);
         expect(mixDowns[0].params.channels).toBe(2);
@@ -2778,7 +2780,7 @@ describe('$mixDown and Collection.mix()', () => {
         expect(patch.scopes[0].channels.length).toBe(2);
     });
 
-    test('$mixDown(src, 2) factory form matches the .mix() shorthand', () => {
+    test('$mixDown(src, 2) factory form matches the chain form', () => {
         const patch = execPatch(
             '$mixDown($saw($spread(0, 5, 3)), 2).scope().out()',
         );
@@ -2786,21 +2788,23 @@ describe('$mixDown and Collection.mix()', () => {
         expect(patch.scopes[0].channels.length).toBe(2);
     });
 
-    test('.mix() defaults to mono', () => {
-        const patch = execPatch('$saw($spread(0, 5, 3)).mix().scope().out()');
+    test('.mixDown() defaults to mono', () => {
+        const patch = execPatch(
+            '$saw($spread(0, 5, 3)).mixDown().scope().out()',
+        );
         expect(findModules(patch, '$mixDown').length).toBe(1);
         expect(patch.scopes[0].channels.length).toBe(1);
     });
 
-    test('.mix(2, "average") rides mode through the config object', () => {
+    test('.mixDown(2, { mode }) sets how channels combine', () => {
         const patch = execPatch(
-            '$saw($spread(0, 5, 3)).mix(2, "average").scope().out()',
+            '$saw($spread(0, 5, 3)).mixDown(2, { mode: "average" }).scope().out()',
         );
         expect(findModules(patch, '$mixDown')[0].params.mode).toBe('average');
     });
 
-    test('ModuleOutput.mix(2) pans a single channel to stereo center', () => {
-        const patch = execPatch('$saw("c4").mix(2).scope().out()');
+    test('.mixDown(2) pans a single channel to stereo center', () => {
+        const patch = execPatch('$saw("c4").mixDown(2).scope().out()');
         expect(findModules(patch, '$mixDown').length).toBe(1);
         expect(patch.scopes[0].channels.length).toBe(2);
     });

@@ -27,7 +27,6 @@ import { isSignalGroupLike } from './signalGroups';
  */
 export const CHAIN_METHODS: ChainMethods = {
     add: {},
-    addHz: {},
     amp: {},
     amplitude: {},
     ceil: {},
@@ -36,9 +35,7 @@ export const CHAIN_METHODS: ChainMethods = {
     exp: {},
     floor: {},
     gain: {},
-    mix: {},
     mul: {},
-    mulHz: {},
     out: {},
     outMono: {},
     range: {},
@@ -47,6 +44,7 @@ export const CHAIN_METHODS: ChainMethods = {
     send: {},
     shift: {},
     sub: {},
+    wet: {},
 };
 
 type ChainMethod = (this: unknown, ...args: unknown[]) => unknown;

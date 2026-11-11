@@ -103,7 +103,7 @@ describe('computeControlQuickFixes — API methods and functions', () => {
     });
 
     test('a summary naming another param documents none of the first', () => {
-        const { fixes } = fixesAt(`$sine('c4').$.delay(|)`);
+        const { fixes } = fixesAt(`$sine('c4').delay(|)`);
         expect(addTitles(fixes)).toEqual([]);
     });
 
@@ -123,7 +123,7 @@ describe('computeControlQuickFixes — API methods and functions', () => {
     });
 
     test('non-signal params and control calls offer nothing', () => {
-        expect(fixesAt(`$sine('c4').mix(2|)`).fixes).toEqual([]);
+        expect(fixesAt(`$sine('c4').mixDown(2|)`).fixes).toEqual([]);
         expect(fixesAt(`$setTempo(120|)`).fixes).toEqual([]);
         expect(
             fixesAt(`$slider('x', 1|, 0, 5)`).fixes.map((f) => f.kind),
@@ -142,13 +142,13 @@ describe('computeControlQuickFixes — video', () => {
         expect(apply(direct.source, wrapFix(direct.fixes))).toContain(
             `$v.osc($slider('freq', 4, 0, 5), $v.time)`,
         );
-        const chain = fixesAt(`$v.time.$.osc(0.|1)`);
+        const chain = fixesAt(`$v.time.osc(0.|1)`);
         expect(apply(chain.source, wrapFix(chain.fixes))).toContain(
-            `.$.osc($slider('freq', 0.1, 0, 5))`,
+            `.osc($slider('freq', 0.1, 0, 5))`,
         );
-        const mix = fixesAt(`$v.ramp().$m.osc(1|, 4)`);
+        const mix = fixesAt(`$v.ramp().osc(4).wet(1|)`);
         expect(apply(mix.source, wrapFix(mix.fixes))).toContain(
-            `.$m.osc($slider('mix', 1, 0, 1), 4)`,
+            `.osc(4).wet($slider('mix', 1, 0, 1))`,
         );
     });
 
@@ -178,15 +178,15 @@ describe('computeControlQuickFixes — video', () => {
     });
 
     test('chains and methods take the defaults of the function they forward to', () => {
-        const { source, fixes } = fixesAt(`$v.time.$.warp({ zoom: 2, | })`);
+        const { source, fixes } = fixesAt(`$v.time.warp({ zoom: 2, | })`);
         expect(apply(source, addFix(fixes, 'rotate'))).toContain(
             `rotate: $slider('rotate', 0, 0, 5)`,
         );
-        const osc = fixesAt(`$v.time.$.osc(0.1, 0|)`);
+        const osc = fixesAt(`$v.time.osc(0.1, 0|)`);
         expect(addTitles(osc.fixes)).toEqual([`Add slider for 'offset'`]);
-        const fold = fixesAt(`$v.time.$.fold(|)`);
+        const fold = fixesAt(`$v.time.fold(|)`);
         expect(apply(fold.source, addFix(fold.fixes, 'gain'))).toContain(
-            `.$.fold($slider('gain', 1, 0, 5))`,
+            `.fold($slider('gain', 1, 0, 5))`,
         );
         const range = fixesAt(`$v.time.range(0|)`);
         expect(apply(range.source, addFix(range.fixes, 'max'))).toContain(
@@ -195,11 +195,11 @@ describe('computeControlQuickFixes — video', () => {
     });
 
     test('chain-only functions and buffers document their own defaults', () => {
-        const scroll = fixesAt(`$v.time.$.scroll(0.1|)`);
+        const scroll = fixesAt(`$v.time.scroll(0.1|)`);
         expect(apply(scroll.source, addFix(scroll.fixes, 'y'))).toContain(
-            `.$.scroll(0.1, $slider('y', 0, 0, 5))`,
+            `.scroll(0.1, $slider('y', 0, 0, 5))`,
         );
-        const tint = fixesAt(`$v.time.$.tint(0.3|)`);
+        const tint = fixesAt(`$v.time.tint(0.3|)`);
         expect(apply(tint.source, addFix(tint.fixes, 'saturation'))).toContain(
             `$slider('saturation', 1, 0, 5)`,
         );
@@ -228,17 +228,17 @@ describe('computeControlQuickFixes — video', () => {
         expect(apply(range.source, wrapFix(range.fixes))).toContain(
             `.range($slider('min', 0.2, 0, 5), 1)`,
         );
-        const fold = fixesAt(`$v.out($v.osc(4).$.fold(2|))`);
+        const fold = fixesAt(`$v.out($v.osc(4).fold(2|))`);
         expect(wrapFix(fold.fixes).title).toBe(`Wrap 'gain' in $slider`);
         expect(addTitles(fold.fixes)).toEqual([]);
-        const mult = fixesAt(`$v.out($v.osc(4).$.mult(2|))`);
+        const mult = fixesAt(`$v.out($v.osc(4).mult(2|))`);
         expect(wrapFix(mult.fixes).title).toBe(`Wrap 'b' in $slider`);
     });
 
     test('the family follows consts, channels, and video values', () => {
-        const bound = fixesAt(`const o = $v.osc(4)\n$v.out(o.$.fold(2|))`);
+        const bound = fixesAt(`const o = $v.osc(4)\n$v.out(o.fold(2|))`);
         expect(wrapFix(bound.fixes).title).toBe(`Wrap 'gain' in $slider`);
-        const channel = fixesAt(`$v.out($v.time.$.osc(0.1).r.range(0|, 1))`);
+        const channel = fixesAt(`$v.out($v.time.osc(0.1).r.range(0|, 1))`);
         expect(wrapFix(channel.fixes).title).toBe(`Wrap 'min' in $slider`);
         const value = fixesAt(`$v.out($v.time.range(0|, 1))`);
         expect(wrapFix(value.fixes).title).toBe(`Wrap 'min' in $slider`);
@@ -252,7 +252,7 @@ describe('computeControlQuickFixes — video', () => {
     });
 
     test('an audio chain resolves to its module', () => {
-        const { fixes } = fixesAt(`$sine('c4').$.fold(2|).out()`);
+        const { fixes } = fixesAt(`$sine('c4').fold(2|).out()`);
         expect(wrapFix(fixes).title).toBe(`Wrap 'amount' in $slider`);
     });
 });
@@ -281,16 +281,16 @@ describe('docHints', () => {
 
 describe('computeControlQuickFixes — stray and trailing commas', () => {
     test('a positional add after a trailing comma takes it as its separator', () => {
-        const { source, fixes } = fixesAt(`$sine(0).$.lpf('100hz',|).out()`);
+        const { source, fixes } = fixesAt(`$sine(0).lpf('100hz',|).out()`);
         expect(apply(source, addFix(fixes, 'resonance'))).toBe(
-            `$sine(0).$.lpf('100hz', $slider('resonance', 0, 0, 5)).out()`,
+            `$sine(0).lpf('100hz', $slider('resonance', 0, 0, 5)).out()`,
         );
     });
 
     test('stray commas in the edited argument list are dropped', () => {
-        const { source, fixes } = fixesAt(`$sine(0).$.lpf('100hz',,|).out()`);
+        const { source, fixes } = fixesAt(`$sine(0).lpf('100hz',,|).out()`);
         expect(apply(source, addFix(fixes, 'resonance'))).toBe(
-            `$sine(0).$.lpf('100hz', $slider('resonance', 0, 0, 5)).out()`,
+            `$sine(0).lpf('100hz', $slider('resonance', 0, 0, 5)).out()`,
         );
         const empty = fixesAt(`$saw(,|).out()`);
         expect(apply(empty.source, empty.fixes[0])).toBe(
@@ -313,10 +313,10 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
 
     test('a multi-line argument list gets the new argument on its own line', () => {
         const { source, fixes } = fixesAt(
-            `$sine(0).$.lpf(\n  '100hz',|\n).out()`,
+            `$sine(0).lpf(\n  '100hz',|\n).out()`,
         );
         expect(apply(source, addFix(fixes, 'resonance'))).toBe(
-            `$sine(0).$.lpf(\n  '100hz',\n  $slider('resonance', 0, 0, 5),\n).out()`,
+            `$sine(0).lpf(\n  '100hz',\n  $slider('resonance', 0, 0, 5),\n).out()`,
         );
     });
 
@@ -331,19 +331,19 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
 
     test('stray commas around a comment are dropped, the comment kept', () => {
         const { source, fixes } = fixesAt(
-            `$sine(0).$.lpf('100hz', /* c */ ,,|).out()`,
+            `$sine(0).lpf('100hz', /* c */ ,,|).out()`,
         );
         expect(apply(source, addFix(fixes, 'resonance'))).toBe(
-            `$sine(0).$.lpf('100hz', $slider('resonance', 0, 0, 5) /* c */ ).out()`,
+            `$sine(0).lpf('100hz', $slider('resonance', 0, 0, 5) /* c */ ).out()`,
         );
     });
 
     test('a comma inside a comment is never taken for a separator', () => {
         const { source, fixes } = fixesAt(
-            `$sine(0).$.lpf('100hz' /* a, b */,|).out()`,
+            `$sine(0).lpf('100hz' /* a, b */,|).out()`,
         );
         expect(apply(source, addFix(fixes, 'resonance'))).toBe(
-            `$sine(0).$.lpf('100hz' /* a, b */, $slider('resonance', 0, 0, 5)).out()`,
+            `$sine(0).lpf('100hz' /* a, b */, $slider('resonance', 0, 0, 5)).out()`,
         );
     });
 
@@ -363,14 +363,14 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
 
 describe('control quick-fixes never produce malformed JavaScript', () => {
     const VALID = [
-        `const bus = $bus((m) => m.out())\n$pulse('a3', { width: 2.5, pwm: 1 }).$.lpf('100hz', 2,).out({ gain: 2.5 })\n$sine('c4').send(bus, 1).amp(0.5)`,
-        `$sine(0).$m.lpf(2.5, '100hz', 1.0).outMono(0, 2.5)\n$setOutputGain(2.5)\n$c('a3').erratic(1, { speed: 1.5, })`,
+        `const bus = $bus((m) => m.out())\n$pulse('a3', { width: 2.5, pwm: 1 }).lpf('100hz', 2,).out({ gain: 2.5 })\n$sine('c4').send(bus, 1).amp(0.5)`,
+        `$sine(0).lpf('100hz', 1.0).wet(2.5).outMono(0, 2.5)\n$setOutputGain(2.5)\n$c('a3').erratic(1, { speed: 1.5, })`,
         `function f() {\n  return $saw(\n    'a3', // pitch\n    { width: 1 /* x */ },\n  ).out()\n}\n$phase.bend(1.5, $phase.fold(1))`,
-        `$v.out($v.osc(4, $v.time).$.osc(0.1).$m.osc(1, 4))\n$adsr($pulse('2hz'), { attack: 0.1 }).range(0, 5)`,
+        `$v.out($v.osc(4, $v.time).osc(0.1).osc(4).wet(1))\n$adsr($pulse('2hz'), { attack: 0.1 }).range(0, 5)`,
     ];
     const BROKEN = [
         `$pulse('a3',, { width: 2.5 },,).out(\n$sine('c4').out({ gain: 2,, })`,
-        `$sine(0).$.lpf('100hz' 2).out({ gain: 1 pan: 0 })\n$saw(,).send(bus,)`,
+        `$sine(0).lpf('100hz' 2).out({ gain: 1 pan: 0 })\n$saw(,).send(bus,)`,
     ];
 
     /** Every fix at every cursor position in `source`, raw and formatted. */

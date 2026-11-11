@@ -84,7 +84,7 @@ const FOLD_DOCS: ModuleDocs = ModuleDocs {
             const seq = $p('c3 eb3 g3 bb2').c
             const env = $perc(seq, { decay: 0.4 })
             $sine(seq)
-              .$.unstable.shape.fold('westcoast', env.range(-2, 4))
+              .unstable.shape.fold('westcoast', env.range(-2, 4))
               .amp(env)
               .out()
         "#,

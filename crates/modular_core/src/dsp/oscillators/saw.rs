@@ -110,7 +110,7 @@ const SAW_DOCS: ModuleDocs = ModuleDocs {
             title: "Acid bass sweep",
             code: r#"
                 const seq = $p('c2 c2 [c3 c2] eb2').c
-                $saw(seq).$.lpf($sine('0.25hz').range('c3', 'c6'), 4).out()
+                $saw(seq).lpf($sine('0.25hz').range('c3', 'c6'), 4).out()
             "#,
         },
         DocExample {

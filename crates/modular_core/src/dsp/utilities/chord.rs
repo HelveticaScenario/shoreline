@@ -174,7 +174,7 @@ const CHORD_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Warm maj7 pad",
-            code: "$saw($chord('C3[maj7]')).$.lpf('c5', 1).out()",
+            code: "$saw($chord('C3[maj7]')).lpf('c5', 1).out()",
         },
         DocExample {
             title: "Gliding through the inversions",

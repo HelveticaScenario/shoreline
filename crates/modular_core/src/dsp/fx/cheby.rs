@@ -86,7 +86,7 @@ const CHEBY_DOCS: ModuleDocs = ModuleDocs {
         code: r#"
             const bass = $p('c2 c2 eb2 g1').c
             $sine(bass)
-              .$.cheby($sine('0.25hz').range(0, 4), { freq: bass })
+              .cheby($sine('0.25hz').range(0, 4), { freq: bass })
               .out()
         "#,
     }],

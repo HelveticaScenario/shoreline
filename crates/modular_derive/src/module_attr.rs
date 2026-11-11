@@ -161,6 +161,9 @@ impl syn::parse::Parse for ModuleAttrArgs {
                 "missing `name` in #[module(...)]",
             )
         })?;
+        if let Some(message) = crate::outputs::module_name_error(&name.value()) {
+            return Err(syn::Error::new(name.span(), message));
+        }
         let docs = docs.ok_or_else(|| {
             syn::Error::new(
                 proc_macro2::Span::call_site(),

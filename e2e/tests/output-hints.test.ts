@@ -51,10 +51,10 @@ test.describe('output resolution hints', () => {
     });
 
     test('a chain shows the hint after its receiver', async ({ window }) => {
-        await setSource(window, `$p('0*8').c.$.perc().out()`);
+        await setSource(window, `$p('0*8').c.perc().out()`);
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
-            .toContain(`$p('0*8').c.o.trig.$.perc().out()`);
+            .toContain(`$p('0*8').c.o.trig.perc().out()`);
     });
 
     test('an array built in a loop shows hints before the patch runs', async ({

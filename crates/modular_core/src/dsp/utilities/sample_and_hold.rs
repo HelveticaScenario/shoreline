@@ -55,7 +55,7 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
             title: "Stepped random filter",
             code: r#"
                 $saw('c2')
-                  .$.lpf(
+                  .lpf(
                     $sah(
                       $noise('white').range('c4', 'c7'),
                       $clock.o.beatTrigger,

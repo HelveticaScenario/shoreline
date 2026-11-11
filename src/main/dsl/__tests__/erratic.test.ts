@@ -97,13 +97,12 @@ describe('.erratic()', () => {
         expect(params.mode).toBeUndefined();
     });
 
-    test('_erratic is not a global or a .$ method', () => {
+    test('_erratic is not a global', () => {
         const run = (src: string) =>
             executePatchScript(src, schemas, {
                 sampleRate: 48_000,
                 workspaceRoot: '/workspace',
             });
         expect(() => run('$erratic(0, 1).out()')).toThrow();
-        expect(() => run('$sine(0).$.erratic(1).out()')).toThrow();
     });
 });
