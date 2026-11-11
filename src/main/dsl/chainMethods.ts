@@ -1,5 +1,5 @@
 /**
- * The chain methods of outputs and collections, each run as one user-facing
+ * The chain methods of collections, each run as one user-facing
  * call so the module roots it reads are recorded against that call.
  * Imported for its effect on the prototypes.
  */
@@ -15,8 +15,6 @@ import {
     BaseCollection,
     Collection,
     CollectionWithRange,
-    ModuleOutput,
-    ModuleOutputWithRange,
     type GraphBuilder,
 } from './GraphBuilder';
 import type { CallSlot } from './outputResolution';
@@ -52,9 +50,6 @@ export const CHAIN_METHODS: ChainMethods = {
 type ChainMethod = (this: unknown, ...args: unknown[]) => unknown;
 
 function builderOf(receiver: unknown): GraphBuilder | undefined {
-    if (receiver instanceof ModuleOutput) {
-        return receiver.builder;
-    }
     if (receiver instanceof BaseCollection) {
         return receiver.items[0]?.builder;
     }
@@ -78,8 +73,6 @@ function slotsOf(
 }
 
 for (const proto of [
-    ModuleOutput.prototype,
-    ModuleOutputWithRange.prototype,
     BaseCollection.prototype,
     Collection.prototype,
     CollectionWithRange.prototype,

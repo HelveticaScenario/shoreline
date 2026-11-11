@@ -16,9 +16,9 @@ import {
     DeferredModuleOutput,
     type GraphBuilder,
     ModuleOutput,
-    ModuleOutputWithRange,
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
+import { OutLane } from '../outLane';
 import { processModuleSchema, qualifiesForChain } from '../paramsSchema';
 
 const EXECUTION_OPTIONS = {
@@ -142,7 +142,7 @@ describe('chain modules', () => {
         }
     });
 
-    test('every chainable module is a method of outputs and collections', () => {
+    test('every chainable module is a method of a collection', () => {
         expect(CHAIN_PATHS.length).toBeGreaterThan(0);
         const sig = builder.getFactory('$sine')(0);
         for (const receiver of [sig, builder.$c(sig)]) {
@@ -175,37 +175,37 @@ describe('reserved names', () => {
         }
     });
 
-    test('every built-in member of an output or collection is reserved', () => {
+    test('every built-in member of a collection is reserved', () => {
         const chained = new Set([
             ...CHAIN_PATHS.map((path) => path.split('.')[0]),
             'delay',
         ]);
         const membersOf = (classes: { prototype: object }[]) =>
             classes.flatMap((cls) => Object.getOwnPropertyNames(cls.prototype));
-        // The chain methods themselves sit on the two base prototypes.
-        const base = membersOf([ModuleOutput, BaseCollection]).filter(
+        // The chain methods themselves sit on the base prototype.
+        const base = membersOf([BaseCollection]).filter(
             (member) => !chained.has(member),
         );
         const subclasses = membersOf([
-            ModuleOutputWithRange,
-            DeferredModuleOutput,
             Collection,
             CollectionWithRange,
             DeferredCollection,
+            OutLane,
         ]);
         // Fields are own properties of an instance, not of its prototype.
         const sig = builder.getFactory('$sine')(0) as Collection;
         const fields = [
-            sig[0],
-            sig.withRange(0, 1)[0],
-            new DeferredModuleOutput(builder),
             sig,
+            sig.withRange(0, 1),
+            new DeferredCollection(new DeferredModuleOutput(builder)),
         ]
             .flatMap((instance) => Object.keys(instance))
             .filter((member) => !/^\d+$/.test(member));
-        for (const member of [...base, ...subclasses, ...fields]) {
-            expect(reserved.has(member), member).toBe(true);
-        }
+        expect(
+            [...base, ...subclasses, ...fields].filter(
+                (member) => !reserved.has(member),
+            ),
+        ).toEqual([]);
     });
 });
 
@@ -344,11 +344,13 @@ describe('namespaced chain modules', () => {
     });
 });
 
-// ─── ModuleOutput.pipeMix crossfades ─────────────────────────────────────────
+// ─── pipeMix crossfades dry against wet ──────────────────────────────────────
 
-describe('ModuleOutput.pipeMix', () => {
+describe('pipeMix', () => {
     test('produces a $remap/$clamp crossfade, not a bare 2-input $mix', () => {
-        const out = new ModuleOutput(builder, 'src-1', 'out', 0);
+        const out = new Collection(
+            new ModuleOutput(builder, 'src-1', 'out', 0),
+        );
         out.pipeMix(
             (s) => builder.getFactory('$lpf')(s, '100hz') as Collection,
         );

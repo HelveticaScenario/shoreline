@@ -541,6 +541,22 @@ describe('sequencing', () => {
         ).toEqual({ start: 3, end: 10 });
     });
 
+    test('a channel of a sequence feeds each input its fitting output', () => {
+        const patch = execPatch(`
+            const seq = $p('[c4,e4] [g4,b4]').c;
+            $sine(seq[1]).amp($perc(seq[1])).out();
+        `);
+        const [cycle] = findModules(patch, '$cycle');
+        const [sine] = findModules(patch, '$sine');
+        const [perc] = findModules(patch, '$perc');
+        expect(sine.params.freq).toMatchObject([
+            { channel: 1, module: cycle.id, port: 'cv' },
+        ]);
+        expect(perc.params.trigger).toMatchObject([
+            { channel: 1, module: cycle.id, port: 'trig' },
+        ]);
+    });
+
     test('.c is .cycle(), made once per pattern', () => {
         const patch = execPatch(`
             const seq = $p("c4 e4");
@@ -2396,6 +2412,18 @@ describe('$delay', () => {
         expect(findModules(patch, '$buffer').length).toBe(1);
         // one read in the feedback loop, one for the external tap
         expect(findModules(patch, '$delayRead').length).toBe(2);
+    });
+
+    test('slices and channels of a delay keep its buffer', () => {
+        const patch = execPatch(
+            'const d = $delay($sine(["C4", "E4"]), 0.25)\n$delayRead(d[1].buffer, 0.5).out()\n$delayRead(d.slice(0, 1).buffer, 0.75).out()',
+        );
+        const [buffer] = findModules(patch, '$buffer');
+        const reads = findModules(patch, '$delayRead');
+        expect(reads).toHaveLength(3);
+        for (const read of reads) {
+            expect(read.params.buffer).toMatchObject({ module: buffer.id });
+        }
     });
 
     test('sizes the feedback path to the widest polysignal param', () => {

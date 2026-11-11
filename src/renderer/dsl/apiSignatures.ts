@@ -156,13 +156,16 @@ export function indexApiSignatures(libSource: string): ApiIndex {
         }
     };
     const addMethods = (
-        members: ts.NodeArray<ts.TypeElement>,
+        members: readonly (ts.TypeElement | ts.ClassElement)[],
         thisIsVideo: boolean,
     ) => {
         const family = families[thisIsVideo ? 'video' : 'audio'];
         for (const m of members) {
             const name = m.name && memberName(m.name);
-            if (name && ts.isMethodSignature(m)) {
+            if (
+                name &&
+                (ts.isMethodSignature(m) || ts.isMethodDeclaration(m))
+            ) {
                 push(family.methods, name, m);
                 if (types.isVideo(m.type, thisIsVideo)) {
                     family.returnsVideo.add(name);
@@ -221,6 +224,8 @@ export function indexApiSignatures(libSource: string): ApiIndex {
                     types.isVideoInterface(node.name.text),
                 );
             }
+        } else if (ts.isClassDeclaration(node) && node.name) {
+            addMethods(node.members, types.isVideoInterface(node.name.text));
         } else if (ts.isTypeAliasDeclaration(node)) {
             forEachTypeLiteral(node.type, (lit) =>
                 addMethods(lit.members, false),

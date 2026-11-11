@@ -28,7 +28,12 @@ import {
 } from './chainModules';
 import { captureSourceLocation } from './captureSourceLocation';
 import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
-import { OutputResolver } from './outputResolution';
+import {
+    markRoot,
+    OutputResolver,
+    type OutputSet,
+    outputSetOf,
+} from './outputResolution';
 import { isPatternValue, refusePattern } from './patternKinds';
 import { isPlainObject } from './plainObject';
 import {
@@ -84,11 +89,10 @@ export type ResolvedModuleOutput = z.infer<typeof ResolvedModuleOutput>;
 
 // Type definitions for Collection system
 export type OrArray<T> = T | T[];
+/** One channel: a constant, a note/Hz string, or a module output channel. */
 export type Signal = number | string | ModuleOutput;
-export type PolySignal = OrArray<Signal> | Iterable<ModuleOutput>;
-
-/** Structural type satisfied by every chainable output kind (output or collection). */
-type Amplifiable = { amplitude(factor: PolySignal): Collection };
+export type AnyCollection = BaseCollection<ModuleOutput>;
+export type PolySignal = OrArray<Signal | AnyCollection>;
 
 /** Groove template; mirrors Rust `GrooveTemplate` (camelCase). */
 export interface GrooveTemplate {
@@ -269,15 +273,7 @@ function controlSourceTap(
     ) {
         return undefined;
     }
-    let single: unknown = value;
-    if (
-        !(value instanceof ModuleOutput) &&
-        typeof (value as unknown as Record<symbol, unknown>)[
-            Symbol.iterator
-        ] === 'function'
-    ) {
-        single = [...(value as Iterable<unknown>)][0];
-    }
+    const single = toSignalArray(value)[0];
     if (single instanceof ModuleOutput) {
         return {
             channel: single.channel ?? 0,
@@ -340,43 +336,61 @@ export class Bus {
 }
 
 /**
- * Normalize a {@link PolySignal} into a flat array of scalar {@link Signal}s.
- * Scalars (number, string, ModuleOutput) wrap to a single-element array;
- * arrays and collections spread. The scalar cases are guarded before the
- * spread because strings are themselves iterable.
+ * Normalize a {@link PolySignal} into a flat array of single-channel
+ * {@link Signal}s: collections contribute their channels, arrays flatten.
  */
 function toSignalArray(v: PolySignal): Signal[] {
-    if (
-        typeof v === 'number' ||
-        typeof v === 'string' ||
-        v instanceof ModuleOutput
-    ) {
-        return [v];
+    if (Array.isArray(v)) {
+        return v.flatMap(toSignalArray);
     }
-    return [...v];
+    if (v instanceof BaseCollection) {
+        return v.items;
+    }
+    return [v];
 }
 
 /**
- * BaseCollection provides iterable, indexable container for ModuleOutput arrays
- * with chainable DSP methods (amplitude, shift, scope, out).
+ * BaseCollection is the DSL's only signal type: an ordered set of channels,
+ * each a {@link ModuleOutput}, with chainable DSP methods. Indexing and
+ * iteration yield one-channel collections of the same class, so DSL code never
+ * holds a bare channel; a one-channel collection is its own channel 0.
  */
-export class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
-    [index: number]: T;
+export class BaseCollection<T extends ModuleOutput> {
+    [index: number]: this;
+    /** The channels. Internal plumbing; DSL code sees only collections. */
     readonly items: T[] = [];
+    private readonly channelViews: (this | undefined)[] = [];
 
     constructor(...args: T[]) {
         this.items.push(...args);
-        for (const [i, arg] of args.entries()) {
-            this[i] = arg;
+        for (let i = 0; i < args.length; i++) {
+            Object.defineProperty(this, i, {
+                get: () => this.channel(i),
+            });
         }
+    }
+
+    /** Channel `i` as a one-channel collection of this collection's class. */
+    private channel(i: number): this {
+        if (this.items.length === 1) {
+            return this;
+        }
+        let view = this.channelViews[i];
+        if (view === undefined) {
+            view = this.slice(i, i + 1);
+            this.channelViews[i] = view;
+        }
+        return view;
     }
 
     get length(): number {
         return this.items.length;
     }
 
-    [Symbol.iterator](): Iterator<T> {
-        return this.items.values();
+    *[Symbol.iterator](): Iterator<this> {
+        for (let i = 0; i < this.items.length; i++) {
+            yield this.channel(i);
+        }
     }
 
     /**
@@ -385,7 +399,16 @@ export class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
      */
     slice(start?: number, end?: number): this {
         const ctor = this.constructor as new (...args: T[]) => this;
-        return new ctor(...this.items.slice(start, end));
+        const sliced = new ctor(...this.items.slice(start, end));
+        const set = outputSetOf(this);
+        if (set) {
+            sliceRoot(sliced, set, this.items.length, start, end);
+        }
+        const carried = carriedOf(this);
+        if (carried) {
+            withCarried(sliced, carried);
+        }
+        return sliced;
     }
 
     /**
@@ -607,12 +630,12 @@ export class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
      * @returns
      */
     send(bus: Bus, gain?: PolySignal): this {
-        bus.addSend([...this], gain);
+        bus.addSend(this.items, gain);
         return this;
     }
 
     pipe<U>(pipelineFunc: (self: this) => U): U;
-    pipe<U extends ModuleOutput | Iterable<ModuleOutput>, E>(
+    pipe<U extends PolySignal, E>(
         pipelineFunc: (self: this, item: E) => U,
         array: E[],
     ): Collection;
@@ -624,19 +647,12 @@ export class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
             return pipelineFunc(this);
         }
         return this.items[0].builder.$c(
-            ...arrays[0].map(
-                (item) =>
-                    pipelineFunc(this, item) as
-                        | ModuleOutput
-                        | Iterable<ModuleOutput>,
-            ),
+            ...arrays[0].map((item) => pipelineFunc(this, item) as PolySignal),
         );
     }
 
     pipeMix(
-        pipelineFunc: (
-            self: this,
-        ) => ModuleOutput | BaseCollection<ModuleOutput>,
+        pipelineFunc: (self: this) => AnyCollection,
         mix: PolySignal = 2.5,
     ): Collection {
         const result = pipelineFunc(this);
@@ -668,9 +684,61 @@ export class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
         );
     }
 
+    /** A one-channel collection reads as its channel, so it interpolates into patterns. */
     toString(): string {
+        if (this.items.length === 1) {
+            return this.items[0].toString();
+        }
         return `[${this.items.map((item) => item.toString()).join(',')}]`;
     }
+}
+
+const CARRIED = Symbol('carried');
+
+/**
+ * `collection` with `props` assigned, which its slices, channels and chunks
+ * keep too.
+ */
+export function withCarried<C extends AnyCollection, P extends object>(
+    collection: C,
+    props: P,
+): C & P {
+    Object.defineProperty(collection, CARRIED, { value: props });
+    return Object.assign(collection, props);
+}
+
+function carriedOf(collection: AnyCollection): object | undefined {
+    return (collection as { [CARRIED]?: object })[CARRIED];
+}
+
+/**
+ * Make `sliced` a root standing for the same channels of every output of the
+ * root `set` came from, so each input still takes the output that fits it:
+ * `$perc(seq[1])` takes channel 1 of the trigger. An output whose width
+ * differs from the root's, such as a fixed-width one, stays whole.
+ */
+function sliceRoot(
+    sliced: object,
+    set: OutputSet,
+    rootChannels: number,
+    start?: number,
+    end?: number,
+): void {
+    const indices = Array.from({ length: rootChannels }, (_, i) => i).slice(
+        start,
+        end,
+    );
+    const values: Record<string, unknown> = {};
+    for (const [name, value] of Object.entries(set.values)) {
+        values[name] =
+            value instanceof BaseCollection && value.length === rootChannels
+                ? new (value.constructor as new (
+                      ...args: ModuleOutput[]
+                  ) => AnyCollection)(...indices.map((i) => value.items[i]))
+                : value;
+    }
+    markRoot(sliced, { outputs: set.outputs, values });
+    Object.assign(sliced, { o: Object.freeze(values) });
 }
 
 type ArithmeticOp = 'add' | 'sub' | 'mul' | 'div' | 'pow';
@@ -879,12 +947,17 @@ export class CollectionWithRange extends BaseCollection<ModuleOutputWithRange> {
  * Create a CollectionWithRange from ModuleOutputWithRange instances
  */
 export const $r = (
-    ...args: (ModuleOutputWithRange | Iterable<ModuleOutputWithRange>)[]
+    ...args: OrArray<BaseCollection<ModuleOutputWithRange>>[]
 ): CollectionWithRange =>
     new CollectionWithRange(
-        ...args.flatMap((arg) =>
-            arg instanceof ModuleOutputWithRange ? [arg] : [...arg],
-        ),
+        ...args.flat().flatMap((arg) => {
+            if (!(arg instanceof CollectionWithRange)) {
+                throw new Error(
+                    '$r: every argument must be a ranged collection',
+                );
+            }
+            return arg.items;
+        }),
     );
 
 /**
@@ -896,12 +969,12 @@ export const $r = (
  * when it carries no channels.
  */
 export const cycleToChannels = (
-    signal: ModuleOutput | Collection,
+    signal: AnyCollection,
     channels: number,
-): ModuleOutput | Collection => {
-    const items = signal instanceof BaseCollection ? [...signal] : [signal];
+): AnyCollection => {
+    const { items } = signal;
     if (items.length === 0) return signal;
-    return items[0].builder.$c(
+    return new Collection(
         ...Array.from({ length: channels }, (_, i) => items[i % items.length]),
     );
 };
@@ -912,7 +985,7 @@ export const cycleToChannels = (
  */
 export type FactoryFunction = (
     ...args: unknown[]
-) => ModuleOutput | Collection | CollectionWithRange;
+) => Collection | CollectionWithRange;
 
 /**
  * Source location information for mapping validation errors back to DSL code.
@@ -966,7 +1039,7 @@ export class GraphBuilder implements ChainHost {
     /** Whether $setTempo was explicitly called in the DSL */
     private tempoExplicitlySet: boolean = false;
     /** Global output gain signal. */
-    private outputGain: Signal = DEFAULT_OUTPUT_GAIN;
+    private outputGain: PolySignal = DEFAULT_OUTPUT_GAIN;
     /** Time signature numerator (beats per bar) for ROOT_CLOCK */
     private timeSignatureNumerator: number = 4;
     /** Time signature denominator (beat value) for ROOT_CLOCK */
@@ -976,7 +1049,7 @@ export class GraphBuilder implements ChainHost {
     private busses: Bus[] = [];
     private endOfChainCb: (
         mixed: Collection,
-    ) => ModuleOutput | Collection | CollectionWithRange = (e) => e;
+    ) => Collection | CollectionWithRange = (e) => e;
     private processingBusses: boolean = false;
     private processingEndOfChain: boolean = false;
 
@@ -1107,7 +1180,7 @@ export class GraphBuilder implements ChainHost {
      * Set the global output gain
      * @param gain - Signal value for output gain (2.5 is default, 5.0 is unity)
      */
-    setOutputGain(gain: Signal): void {
+    setOutputGain(gain: PolySignal): void {
         this.outputGain = gain;
     }
 
@@ -1129,9 +1202,7 @@ export class GraphBuilder implements ChainHost {
     }
 
     setEndOfChainCb(
-        cb: (
-            mixed: Collection,
-        ) => ModuleOutput | Collection | CollectionWithRange,
+        cb: (mixed: Collection) => Collection | CollectionWithRange,
     ): void {
         if (this.processingEndOfChain) {
             throw new Error(
@@ -1155,14 +1226,14 @@ export class GraphBuilder implements ChainHost {
 
     /**
      * Create a Collection from outputs. Each argument is flattened into the
-     * Collection's channels: ModuleOutputs pass through, iterables (other
-     * Collections, arrays) are spread, and bare Signal literals — numbers and
+     * Collection's channels: collections contribute their channels, arrays
+     * are spread, and bare Signal literals — numbers and
      * note/Hz strings — are lifted into `$signal` modules, so `$c(440, 'c4',
      * osc)` works alongside `$c(osc1, osc2)`. Lifting nests, so scalars inside
      * an array argument are handled too. Lifting a scalar needs the `$signal`
      * factory, hence a builder method.
      */
-    $c(...args: (Signal | Iterable<Signal>)[]): Collection {
+    $c(...args: PolySignal[]): Collection {
         // Resolved on the first scalar: a Collection of only ModuleOutputs
         // needs no factory.
         let signal: FactoryFunction | undefined;
@@ -1172,10 +1243,13 @@ export class GraphBuilder implements ChainHost {
             // one signal rather than spread into characters.
             if (typeof value === 'number' || typeof value === 'string') {
                 signal ??= this.getFactory('$signal');
-                return [...(signal(value) as Collection)];
+                return signal(value).items;
             }
             if (value instanceof ModuleOutput) {
                 return [value];
+            }
+            if (value instanceof BaseCollection) {
+                return value.items;
             }
             if (
                 typeof value !== 'object' ||
@@ -1351,30 +1425,24 @@ export class GraphBuilder implements ChainHost {
                     // reads post-gain, pre-mute like a post-fader DAW meter.
                     const mixSignals: ModuleOutput[] =
                         group.type === 'stereo'
-                            ? [
-                                  ...(stereoMixerFactory(group.outputs, {
-                                      pan: panSource,
-                                      width: group.width ?? 0,
-                                  }) as Collection),
-                              ]
+                            ? stereoMixerFactory(group.outputs, {
+                                  pan: panSource,
+                                  width: group.width ?? 0,
+                              }).items
                             : [
-                                  (
-                                      stereoMixerFactory(group.outputs, {
-                                          pan: -5,
-                                          width: 0,
-                                      }) as Collection
-                                  )[0],
+                                  stereoMixerFactory(group.outputs, {
+                                      pan: -5,
+                                      width: 0,
+                                  }).items[0],
                               ];
 
                     const curvedAmp = curveFactory(gainSource, GAIN_CURVE_EXP);
-                    let outputSignals: ModuleOutput[] = [
-                        ...(scaleAndShiftFactory(
-                            mixSignals,
-                            curvedAmp,
-                            undefined,
-                            { id: tapId },
-                        ) as Collection),
-                    ];
+                    let outputSignals: ModuleOutput[] = scaleAndShiftFactory(
+                        mixSignals,
+                        curvedAmp,
+                        undefined,
+                        { id: tapId },
+                    ).items;
 
                     // Mute/solo gate stage. The gate $signal holds 5 (unity in
                     // $scaleAndShift scale terms) or 0 (silence); the VU panel
@@ -1403,11 +1471,11 @@ export class GraphBuilder implements ChainHost {
                         outputSignals,
                         smoothed,
                     ) as Collection;
-                    outputSignals = [...gated];
+                    outputSignals = gated.items;
 
                     if (group.label !== undefined) {
                         lanesByLabel.set(group.label, {
-                            active: muteSig[0],
+                            active: muteSig.items[0],
                             audio: outputSignals,
                             level: gainSource,
                             pan: panSource,
@@ -1516,9 +1584,9 @@ export class GraphBuilder implements ChainHost {
                 ? (this.outputGain as number)
                 : null;
             const masterGainSignal = masterGainControllable
-                ? (smoothControlFactory(this.outputGain, {
+                ? smoothControlFactory(this.outputGain, {
                       id: '__vuGain_main',
-                  }) as ModuleOutput)
+                  })
                 : this.outputGain;
             const gainedMix =
                 this.endOfChainCb(finalMix).gain(masterGainSignal);
@@ -1565,12 +1633,12 @@ export class GraphBuilder implements ChainHost {
             if (typeof value === 'number') {
                 let constant = constants.get(value);
                 if (!constant) {
-                    constant = this.$c(value)[0];
+                    constant = this.$c(value).items[0];
                     constants.set(value, constant);
                 }
                 return constant;
             }
-            return this.$c(value)[0];
+            return this.$c(value).items[0];
         };
         // A lane control is the first channel of its source, declaring that
         // channel's own range when it has one.
@@ -2026,8 +2094,8 @@ export class GraphBuilder implements ChainHost {
 }
 
 /**
- * ModuleNode represents a module instance in the DSL (internal use only)
- * Users interact with ModuleOutput directly, not ModuleNode
+ * ModuleNode represents a module instance in the DSL (internal use only).
+ * DSL code sees only the collections of its outputs.
  */
 export class ModuleNode {
     readonly builder: GraphBuilder;
@@ -2079,13 +2147,10 @@ export class ModuleNode {
     }
 
     /**
-     * Get an output port of this module
+     * An output port of this module, as a collection of its channels: ranged
+     * when the port declares a value range. A mono port is one channel.
      */
-    _output(
-        portName: string,
-        polyphonic: boolean = false,
-    ): ModuleOutput | Collection | ModuleOutputWithRange | CollectionWithRange {
-        // Verify output exists
+    _output(portName: string): Collection | CollectionWithRange {
         const outputSchema = this.schema.outputs.find(
             (o) => o.name === portName,
         ) as OutputSchemaWithRange | undefined;
@@ -2095,55 +2160,38 @@ export class ModuleNode {
             );
         }
 
-        // Check if this output has range metadata
-        const hasRange =
-            outputSchema.minValue !== undefined &&
-            outputSchema.maxValue !== undefined;
-
-        if (polyphonic) {
-            // Return Collection(WithRange) for each channel of the output
-            const channels = outputSchema.channels ?? this.channelCount;
-            if (hasRange) {
-                const outputs: ModuleOutputWithRange[] = [];
-                for (let i = 0; i < channels; i++) {
-                    outputs.push(
+        const channels = outputSchema.polyphonic
+            ? (outputSchema.channels ?? this.channelCount)
+            : 1;
+        const { minValue, maxValue } = outputSchema;
+        if (minValue !== undefined && maxValue !== undefined) {
+            return new CollectionWithRange(
+                ...Array.from(
+                    { length: channels },
+                    (_, i) =>
                         new ModuleOutputWithRange(
                             this.builder,
                             this.id,
                             portName,
                             i,
-                            outputSchema.minValue!,
-                            outputSchema.maxValue!,
+                            minValue,
+                            maxValue,
                         ),
-                    );
-                }
-                return new CollectionWithRange(...outputs);
-            }
-            const outputs: ModuleOutput[] = [];
-            for (let i = 0; i < channels; i++) {
-                outputs.push(
-                    new ModuleOutput(this.builder, this.id, portName, i),
-                );
-            }
-            return new Collection(...outputs);
-        }
-
-        if (hasRange) {
-            return new ModuleOutputWithRange(
-                this.builder,
-                this.id,
-                portName,
-                0,
-                outputSchema.minValue!,
-                outputSchema.maxValue!,
+                ),
             );
         }
-        return new ModuleOutput(this.builder, this.id, portName);
+        return new Collection(
+            ...Array.from(
+                { length: channels },
+                (_, i) => new ModuleOutput(this.builder, this.id, portName, i),
+            ),
+        );
     }
 }
 
 /**
- * ModuleOutput represents an output port that can be connected or transformed
+ * One channel of a module output port. Internal plumbing: the DSL hands out
+ * collections of these, never a bare channel.
  */
 export class ModuleOutput {
     readonly builder: GraphBuilder;
@@ -2163,193 +2211,7 @@ export class ModuleOutput {
         this.channel = channel;
     }
 
-    /**
-     * Scale this output by a linear factor (5 = unity, 2.5 = half, 10 = 2x).
-     *
-     * For perceptual (audio-taper) volume control, use {@link gain} instead.
-     */
-    amplitude(factor: PolySignal): Collection {
-        const factory = this.builder.getFactory('$scaleAndShift');
-        return factory(this, factor) as Collection;
-    }
-
-    /** Alias for {@link amplitude} */
-    amp(factor: PolySignal): Collection {
-        return this.amplitude(factor);
-    }
-
-    /**
-     * Shift this output by an offset
-     */
-    shift(offset: PolySignal): Collection {
-        const factory = this.builder.getFactory('$scaleAndShift');
-        return factory(this, undefined, offset) as Collection;
-    }
-
-    /**
-     * Scale this output by a factor with a perceptual (audio taper) curve
-     * (5 = unity, 0 = silence). Chains $curve → $scaleAndShift with exponent 3.
-     *
-     * For linear amplitude scaling, use {@link amplitude} instead.
-     */
-    gain(level: PolySignal): Collection {
-        const curveFactory = this.builder.getFactory('$curve');
-        const scaleFactory = this.builder.getFactory('$scaleAndShift');
-        const curvedLevel = curveFactory(level, GAIN_CURVE_EXP);
-        return scaleFactory(this, curvedLevel) as Collection;
-    }
-
-    /**
-     * Raise this output to the power `exponent`, sample by sample; negative
-     * values mirror positive ones.
-     */
-    exp(exponent: PolySignal): Collection {
-        return arithmetic(this.builder, this, exponent, 'pow');
-    }
-
-    /** Add `operand` to this output, sample by sample. */
-    add(operand: PolySignal): Collection {
-        return arithmetic(this.builder, this, operand, 'add');
-    }
-
-    /** Subtract `operand` from this output, sample by sample. */
-    sub(operand: PolySignal): Collection {
-        return arithmetic(this.builder, this, operand, 'sub');
-    }
-
-    /**
-     * Multiply this output by `operand`, sample by sample (2 = double).
-     * To change amplitude with a 0–5 V signal such as `$adsr`, see
-     * {@link amp} and {@link gain}.
-     */
-    mul(operand: PolySignal): Collection {
-        return arithmetic(this.builder, this, operand, 'mul');
-    }
-
-    /** Divide this output by `operand`, sample by sample; dividing by 0 gives 0. */
-    div(operand: PolySignal): Collection {
-        return arithmetic(this.builder, this, operand, 'div');
-    }
-
-    /** Round this output to the nearest whole volt, halves away from zero. */
-    round(): Collection {
-        return round(this.builder, this, 'round');
-    }
-
-    /** Round this output down to a whole volt. */
-    floor(): Collection {
-        return round(this.builder, this, 'floor');
-    }
-
-    /** Round this output up to a whole volt. */
-    ceil(): Collection {
-        return round(this.builder, this, 'ceil');
-    }
-
-    /**
-     * Apply a wandering random shift of up to ±`amount` (0–5), where 5 shifts
-     * by up to ±5 V.
-     */
-    erratic(amount: PolySignal, options: ErraticOptions = {}): Collection {
-        return erratic(this.builder, this, amount, options);
-    }
-
-    scope(config?: Omit<ScopeConfig, 'split'>): this {
-        const loc = captureSourceLocation();
-        this.builder.addScope(this, config, loc);
-        return this;
-    }
-
-    /**
-     * Send this output to speakers as stereo
-     * @param options.baseChannel - Base output channel (0-62, default 0)
-     * @param options.gain - Output gain (adds util.scaleAndShift after stereo mix)
-     * @param options.pan - Pan position (-5 = left, 0 = center, +5 = right)
-     * @param options.width - Stereo width/spread (0 = no spread, 5 = full spread, default 0)
-     * @param options.label - Label shown on this output's VU meter
-     * @param options.mute - Silence this output (still metered)
-     * @param options.solo - When any output is soloed, only soloed outputs are audible
-     */
-    out(options: StereoOutOptions = {}): this {
-        const loc = captureSourceLocation();
-        this.builder.addOut(this, { baseChannel: 0, ...options }, loc);
-        return this;
-    }
-
-    /**
-     * Send this output to speakers as mono
-     * @param channelOrOptions - Output channel (0-63, default 0), or `{ channel, gain, label, mute, solo }` options
-     * @param gainOrOptions - Output gain, or the same options (an explicit `channel` there wins)
-     */
-    outMono(
-        channelOrOptions: number | MonoOutOptions = 0,
-        gainOrOptions?: PolySignal | MonoOutOptions,
-    ): this {
-        const loc = captureSourceLocation();
-        this.builder.addOutMono(
-            this,
-            resolveMonoOutArgs(channelOrOptions, gainOrOptions),
-            loc,
-        );
-        return this;
-    }
-
-    /**
-     * Add self to the send-return bus
-     *
-     * @param bus
-     * @param gain
-     * @returns
-     */
-    send(bus: Bus, gain?: PolySignal): this {
-        bus.addSend(this, gain);
-        return this;
-    }
-
-    pipe<U>(pipelineFunc: (self: this) => U): U;
-    pipe<U extends ModuleOutput | Iterable<ModuleOutput>, E>(
-        pipelineFunc: (self: this, item: E) => U,
-        array: E[],
-    ): Collection;
-    pipe<U>(
-        pipelineFunc: (self: this, ...args: unknown[]) => U,
-        ...arrays: unknown[][]
-    ): U | Collection {
-        if (arrays.length === 0) {
-            return pipelineFunc(this);
-        }
-        return this.builder.$c(
-            ...arrays[0].map(
-                (item) =>
-                    pipelineFunc(this, item) as
-                        | ModuleOutput
-                        | Iterable<ModuleOutput>,
-            ),
-        );
-    }
-
-    pipeMix(
-        pipelineFunc: (
-            self: this,
-        ) => ModuleOutput | BaseCollection<ModuleOutput>,
-        mix: PolySignal = 2.5,
-    ): Collection {
-        const result = pipelineFunc(this);
-        return crossfadeMix(this.builder, this, result, mix);
-    }
-
-    /**
-     * Crossfade the signal this output was chained from against it:
-     * `sig.lpf('800hz').wet(2.5)` (0 = dry, 5 = wet, 2.5 = equal).
-     */
-    wet(mix: PolySignal = 2.5): Collection {
-        return wetMix(this.builder, this, mix);
-    }
-
-    /**
-     * Wrap this output as a {@link ModuleOutputWithRange} carrying a known value
-     * range. Internal plumbing for `.range()`; not part of the DSL surface.
-     */
+    /** This channel carrying a known value range. */
     withRange(min: Signal, max: Signal): ModuleOutputWithRange {
         return new ModuleOutputWithRange(
             this.builder,
@@ -2361,30 +2223,12 @@ export class ModuleOutput {
         );
     }
 
-    /**
-     * Remap this output from explicit input range to output range
-     */
-    range(
-        outMin: PolySignal,
-        outMax: PolySignal,
-        inMin: PolySignal,
-        inMax: PolySignal,
-    ): CollectionWithRange {
-        const factory = this.builder.getFactory('$remap');
-        return (
-            factory(this, outMin, outMax, inMin, inMax) as Collection
-        ).withRange(outMin, outMax);
-    }
-
     toString(): string {
         return `module(${this.moduleId}:${this.portName}:${this.channel})`;
     }
 }
 
-/**
- * ModuleOutputWithRange extends ModuleOutput with known output range metadata.
- * Provides .range() method to easily remap the output to a new range.
- */
+/** A {@link ModuleOutput} channel with a known value range. */
 export class ModuleOutputWithRange extends ModuleOutput {
     readonly minValue: Signal;
     readonly maxValue: Signal;
@@ -2406,67 +2250,12 @@ export class ModuleOutputWithRange extends ModuleOutput {
     withRange(_min: Signal, _max: Signal): ModuleOutputWithRange {
         return this;
     }
-
-    /**
-     * Remap this output from its known range to a new range.
-     * Creates a remap module internally.
-     */
-    range(outMin: PolySignal, outMax: PolySignal): CollectionWithRange {
-        const factory = this.builder.getFactory('$remap');
-        return (
-            factory(
-                this,
-                outMin,
-                outMax,
-                this.minValue,
-                this.maxValue,
-            ) as Collection
-        ).withRange(outMin, outMax);
-    }
-
-    /**
-     * Apply a wandering random shift scaled to this output's range: `amount` 5
-     * shifts by up to half the range either way. Clamps to the range unless
-     * `mode` is `'shift'`.
-     */
-    erratic(
-        amount: PolySignal,
-        options: RangedErraticOptions = {},
-    ): CollectionWithRange {
-        return erratic(this.builder, this, amount, options, {
-            min: this.minValue,
-            max: this.maxValue,
-        }) as CollectionWithRange;
-    }
-
-    /** Round to the nearest whole volt; the range rounds with it. */
-    round(): CollectionWithRange {
-        return this.rounded('round');
-    }
-
-    /** Round down to a whole volt; the range rounds with it. */
-    floor(): CollectionWithRange {
-        return this.rounded('floor');
-    }
-
-    /** Round up to a whole volt; the range rounds with it. */
-    ceil(): CollectionWithRange {
-        return this.rounded('ceil');
-    }
-
-    private rounded(mode: RoundMode): CollectionWithRange {
-        return round(this.builder, this, mode, {
-            min: [this.minValue],
-            max: [this.maxValue],
-        }) as CollectionWithRange;
-    }
 }
 
 /**
- * DeferredModuleOutput is a placeholder for a signal that will be assigned later.
- * Useful for feedback loops and forward references in the DSL.
- * Supports the same chainable methods as ModuleOutput (amplitude, shift, scope, out, outMono).
- * Transforms are stored and applied when the deferred signal is resolved.
+ * DeferredModuleOutput is a channel placeholder for a signal assigned later,
+ * for feedback loops and forward references. Cables to it resolve at the end
+ * of the script to the channel it was set to.
  */
 export class DeferredModuleOutput extends ModuleOutput {
     private resolvedModuleOutput: ModuleOutput | null = null;
@@ -2484,14 +2273,13 @@ export class DeferredModuleOutput extends ModuleOutput {
     }
 
     /**
-     * Set the actual signal this deferred output should resolve to.
-     * Bare Signal literals (numbers, note/Hz strings) are lifted into $signal
-     * modules, matching `$c`.
-     * @param signal - The signal to resolve to (number, string, or ModuleOutput)
+     * Set the channel this placeholder resolves to. Bare Signal literals
+     * (numbers, note/Hz strings) are lifted into $signal modules, matching
+     * `$c`.
      */
     set(signal: Signal): void {
         if (typeof signal === 'number' || typeof signal === 'string') {
-            this.resolvedModuleOutput = this.builder.$c(signal)[0];
+            this.resolvedModuleOutput = this.builder.$c(signal).items[0];
             return;
         }
         this.resolvedModuleOutput = signal;
@@ -2544,7 +2332,7 @@ export class DeferredCollection extends BaseCollection<DeferredModuleOutput> {
         if (this.items.length === 0) {
             return;
         }
-        const outputsArr = [...this.items[0].builder.$c(outputs)];
+        const outputsArr = this.items[0].builder.$c(outputs).items;
         if (outputsArr.length === 0) {
             throw new Error(
                 'DeferredCollection.set() requires at least one signal',
@@ -2571,8 +2359,8 @@ export class DeferredCollection extends BaseCollection<DeferredModuleOutput> {
  */
 function crossfadeMix(
     builder: GraphBuilder,
-    original: Amplifiable,
-    result: Amplifiable,
+    original: AnyCollection,
+    result: AnyCollection,
     mix: PolySignal = 2.5,
 ): Collection {
     const clampFactory = builder.getFactory('$clamp');
@@ -2584,14 +2372,9 @@ function crossfadeMix(
         captureSourceLocation(),
         MIX_SLOT,
     ) as PolySignal;
-    const arity = (a: Amplifiable): number =>
-        a instanceof BaseCollection ? Math.max(1, a.length) : 1;
-    const channels = Math.max(arity(original), arity(result));
-    const dry = cycleToChannels(
-        original as ModuleOutput | Collection,
-        channels,
-    );
-    const wet = cycleToChannels(result as ModuleOutput | Collection, channels);
+    const channels = Math.max(original.length, result.length, 1);
+    const dry = cycleToChannels(original, channels);
+    const wet = cycleToChannels(result, channels);
     return mixFactory([
         dry.amplitude(
             clampFactory(remapFactory(amount, 5, 0, 0, 5), { max: 5, min: 0 }),
@@ -2603,7 +2386,7 @@ function crossfadeMix(
 /** `receiver.wet(mix)`: fade the signal `receiver` was chained from against it. */
 function wetMix(
     builder: GraphBuilder,
-    receiver: ModuleOutput | BaseCollection<ModuleOutput>,
+    receiver: AnyCollection,
     mix: PolySignal,
 ): Collection {
     const dry = drySourceOf(receiver);
@@ -2612,19 +2395,14 @@ function wetMix(
             ".wet() follows a chained module, as in sig.lpf('800hz').wet(2.5)",
         );
     }
-    return crossfadeMix(builder, dry as Amplifiable, receiver, mix);
+    return crossfadeMix(builder, dry as AnyCollection, receiver, mix);
 }
 
 const chains = createChainInstaller({
     empty: () => new Collection(),
-    hostOf: (receiver) =>
-        receiver instanceof ModuleOutput
-            ? receiver.builder
-            : (receiver as BaseCollection<ModuleOutput>).items[0]?.builder,
-    prototypes: [ModuleOutput.prototype, BaseCollection.prototype],
+    hostOf: (receiver) => (receiver as AnyCollection).items[0]?.builder,
+    prototypes: [BaseCollection.prototype],
     subclasses: [
-        ModuleOutputWithRange.prototype,
-        DeferredModuleOutput.prototype,
         Collection.prototype,
         CollectionWithRange.prototype,
         DeferredCollection.prototype,
@@ -2681,11 +2459,25 @@ export function replaceValues(input: unknown, replacer: Replacer): unknown {
     return walk('', input);
 }
 
+/**
+ * A collection as a param value: the array of its channels. Nested in an
+ * array or object (a tuple element, a nested field), a one-channel collection
+ * is that channel, so it fills a single-signal slot.
+ */
+function collectionValue(
+    key: string,
+    value: AnyCollection,
+    replaceChannel: (channel: ModuleOutput) => unknown,
+): unknown {
+    return key !== '' && value.items.length === 1
+        ? replaceChannel(value.items[0])
+        : value.items;
+}
+
 export function replaceSignals(input: unknown): unknown {
-    return replaceValues(input, (_key, value) => {
-        // Replace Collection instances with their items array
+    return replaceValues(input, (key, value) => {
         if (value instanceof BaseCollection) {
-            return [...value];
+            return collectionValue(key, value, valueToSignal);
         }
 
         return valueToSignal(value);
@@ -2768,10 +2560,11 @@ function replaceDeferred(
         }
         return value;
     }
-    return replaceValues(input, (_key, value) => {
-        // Replace Collection instances with their items array
+    return replaceValues(input, (key, value) => {
         if (value instanceof BaseCollection) {
-            return [...value];
+            return collectionValue(key, value, (channel) =>
+                replace(valueToSignal(channel)),
+            );
         }
 
         return replace(value);
@@ -2794,12 +2587,8 @@ function firstChannel(value: unknown): Signal {
     ) {
         return value;
     }
-    if (
-        typeof value === 'object' &&
-        value !== null &&
-        Symbol.iterator in value
-    ) {
-        const [first] = value as Iterable<unknown>;
+    if (value instanceof BaseCollection || Array.isArray(value)) {
+        const [first] = toSignalArray(value as PolySignal);
         return first === undefined ? 0 : firstChannel(first);
     }
     return 0;

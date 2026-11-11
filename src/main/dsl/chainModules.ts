@@ -1,10 +1,10 @@
 /**
  * Chain modules: every module whose first argument is a signal is also a
- * method of outputs and collections, with the receiver as that argument, so
+ * method of collections, with the receiver as that argument, so
  * `sig.lpf('800hz')` is `$lpf(sig, '800hz')`. A dotted module nests the same
  * way: `sig.mi.chorus()` is `$mi.chorus(sig)`.
  *
- * The methods live on the output prototypes, which every builder shares, and
+ * The methods live on the collection prototype, which every builder shares, and
  * each call finds its function through the receiver's own builder.
  */
 
@@ -116,7 +116,7 @@ export function createChainInstaller(target: ChainTarget): ChainInstaller {
         for (const proto of [...target.prototypes, ...target.subclasses]) {
             if (name in proto) {
                 throw new Error(
-                    `Chain method "${name}" collides with a built-in member of an output`,
+                    `Chain method "${name}" collides with a built-in member of a collection`,
                 );
             }
         }

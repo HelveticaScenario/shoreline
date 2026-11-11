@@ -590,7 +590,7 @@ export function processSchemas(
 }
 
 /**
- * Whether a module is a chain method of outputs and collections.
+ * Whether a module is a chain method of collections.
  *
  * A module qualifies when its name starts with `$`, its first positional
  * argument is a `signal` or `polySignal` — so the receiver can be that

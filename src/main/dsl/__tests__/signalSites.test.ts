@@ -117,10 +117,10 @@ describe('static resolution', () => {
         );
     });
 
-    test('indexing a root reads cv', () => {
-        expect(hints(`const seq = $p('c e').c\n$perc(seq[0])`)).toEqual([
-            '$perc(seq‹cv›',
-        ]);
+    test('a channel of a root resolves per input', () => {
+        expect(
+            hints(`const seq = $p('c e').c\n$saw(seq[0]).amp($perc(seq[0]))`),
+        ).toEqual(['$saw(seq[0]‹cv›', '$perc(seq[0]‹trig›']);
     });
 
     test('named outputs, plain signals and pattern params get no site', () => {
@@ -195,12 +195,12 @@ describe('static resolution', () => {
         expect(sites.map((site) => site.insertable)).toEqual([false]);
     });
 
-    test('a slice or chunk of a root is a plain collection', () => {
+    test('a slice or chunk of a root resolves per input', () => {
         expect(
             hints(
-                `const seq = $p('c e').c\n$perc(seq.slice(0, 1))\n$perc(seq.chunk(1))`,
+                `const seq = $p('c e').c\n$perc(seq.slice(0, 1))\n$saw(seq.chunk(1))`,
             ),
-        ).toEqual([]);
+        ).toEqual(['.slice(0, 1)‹trig›', 'seq.chunk(1)‹cv›']);
     });
 
     test('arguments after a spread are not placed', () => {
@@ -247,6 +247,7 @@ describe('agreement with the runtime', () => {
         `function f(s) {\n    return $sine('c').erratic(1, { trigger: s, speed: s })\n}\nf($p('0 1').c).out({ gain: $p('1 2').c })`,
         `function f(s) {\n    return $delay(s, s, { feedback: s, feedbackCb: (m) => m.lpf(s) })\n}\nf($p('0 1').c)`,
         `function f(s) {\n    return $sine('c').delay(s).wet(s)\n}\nf($p('0 1').c)`,
+        `const seq = $p('[c,e] [g,b]').c\n$perc(seq.slice(1)).out()\n$saw(seq.chunk(1)).amp($perc(seq[1])).out()\nseq.slice(1).perc().out()`,
     ];
 
     test.each(sources)('%s', (source) => {
