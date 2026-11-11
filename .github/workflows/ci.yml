@@ -22,8 +22,8 @@ jobs:
                   node-version: 24
                   cache: 'yarn'
 
-            # Installs the channel + components (rustfmt, clippy) pinned in
-            # rust-toolchain.toml — the single source of truth for the version.
+            # Installs the channel pinned in rust-toolchain.toml — the single
+            # source of truth for the version.
             - name: Setup Rust (pinned via rust-toolchain.toml)
               run: rustup toolchain install
 
@@ -79,14 +79,13 @@ jobs:
                   node-version: 24
                   cache: 'yarn'
 
+            # Installs the channel + components (rustfmt, clippy) pinned in
+            # rust-toolchain.toml — the single source of truth for the version.
             - name: Setup Rust (pinned via rust-toolchain.toml)
               run: rustup toolchain install
 
             - name: Cache Rust build
               uses: Swatinem/rust-cache@v2
-
-            - name: Rust formatting (cargo fmt --check)
-              run: cargo fmt -p modular_core -p modular_derive -p modular -- --check
 
             # Clippy checks the `modular` crate, which links cpal (ALSA + JACK)
             # and udev on Linux.
@@ -95,9 +94,12 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install -y libasound2-dev libudev-dev libjack-jackd2-dev
 
-            # The strudel-parity fixture generator imports @strudel/mini.
+            # The strudel-parity fixture generator imports @strudel/mini; this
+            # job never launches Electron.
             - name: Install dependencies
               run: yarn install --frozen-lockfile
+              env:
+                  ELECTRON_SKIP_BINARY_DOWNLOAD: 1
 
             # Generate the strudel-parity fixtures (not committed), then run the
             # pure-DSP crate tests.
@@ -109,14 +111,22 @@ jobs:
                   NO_COLOR: 1
                   CARGO_TERM_COLOR: never
 
+            # Formatting and clippy run after the tests and whatever their
+            # outcome, so one failure never hides the others' findings.
+            - name: Rust formatting (cargo fmt --check)
+              if: ${{ !cancelled() }}
+              run: cargo fmt -p modular_core -p modular_derive -p modular -- --check
+
             # Non-gating: surfaces clippy findings as annotations without
             # failing the build (the tree is not yet clippy-clean).
             - name: Clippy (informational)
+              if: ${{ !cancelled() }}
               continue-on-error: true
               run: cargo clippy -p modular_core -p modular_derive -p modular --all-targets
 
     # The branch ruleset requires this check name; it passes only when every
-    # test job does.
+    # job in `needs` succeeded. It runs even on cancellation, because a skipped
+    # required check counts as passing.
     all:
         name: Unit + Rust tests
         if: always()
@@ -125,5 +135,5 @@ jobs:
         steps:
             - name: Require every test job to pass
               run: |
-                  test "${{ needs.unit.result }}" = success
-                  test "${{ needs.rust.result }}" = success
+                  echo '${{ toJSON(needs) }}'
+                  test -z "$(echo '${{ toJSON(needs.*.result) }}' | tr -d '[]", \n' | sed 's/success//g')"

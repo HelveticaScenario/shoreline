@@ -190,8 +190,8 @@ fn vowel_instances_draw_their_own_noise() {
             "$mi.lpcVowel",
             params,
         );
-        let a = render_ports(&a, "excitation", 8);
-        let b = render_ports(&b, "excitation", 8);
+        let a = render_ports(&a, "excitation", 64);
+        let b = render_ports(&b, "excitation", 64);
         a.iter().zip(&b).any(|(x, y)| x != y)
     });
     assert!(differ, "every vowel drew identical noise");
