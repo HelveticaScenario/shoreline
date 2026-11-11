@@ -2622,6 +2622,13 @@ const chains = createChainInstaller({
             ? receiver.builder
             : (receiver as BaseCollection<ModuleOutput>).items[0]?.builder,
     prototypes: [ModuleOutput.prototype, BaseCollection.prototype],
+    subclasses: [
+        ModuleOutputWithRange.prototype,
+        DeferredModuleOutput.prototype,
+        Collection.prototype,
+        CollectionWithRange.prototype,
+        DeferredCollection.prototype,
+    ],
 });
 
 type Replacer = (key: string, value: unknown) => unknown;

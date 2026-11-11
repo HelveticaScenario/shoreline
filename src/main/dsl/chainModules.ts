@@ -23,6 +23,8 @@ export interface ChainHost {
 export interface ChainTarget {
     /** The prototypes that take the chain methods. */
     prototypes: readonly object[];
+    /** Prototypes below those, whose members would shadow a chain method. */
+    subclasses: readonly object[];
     /** The host of `receiver`, or undefined for an empty collection. */
     hostOf(receiver: unknown): ChainHost | undefined;
     /** What a chain call on a receiver without a host returns. */
@@ -111,7 +113,7 @@ export function createChainInstaller(target: ChainTarget): ChainInstaller {
         if (installed.has(name)) {
             return;
         }
-        for (const proto of target.prototypes) {
+        for (const proto of [...target.prototypes, ...target.subclasses]) {
             if (name in proto) {
                 throw new Error(
                     `Chain method "${name}" collides with a built-in member of an output`,

@@ -2604,9 +2604,13 @@ function renderChainMethod(moduleSchema: Schema, indent: string): string[] {
         lines.push(`${indent} * ${line}`);
     }
     lines.push(`${indent} */`);
-    lines.push(
-        `${indent}${methodName}(${args.join(', ')}): ${getFactoryReturnType(moduleSchema)};`,
-    );
+    // The chain interfaces sit outside the module's namespace, so a
+    // multi-output interface is named in full.
+    const returnType =
+        (moduleSchema.outputs ?? []).length > 1
+            ? qualifiedMultiOutputInterfaceName(moduleSchema)
+            : getFactoryReturnType(moduleSchema);
+    lines.push(`${indent}${methodName}(${args.join(', ')}): ${returnType};`);
     return lines;
 }
 

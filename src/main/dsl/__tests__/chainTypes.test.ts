@@ -19,8 +19,8 @@ const OPTIONS: ts.CompilerOptions = {
 
 const lib = buildLibSource(schemas);
 
-/** The messages of the errors the editor would show in `source`. */
-function errors(source: string): string[] {
+/** The messages of the errors in `file` of a program holding `source`. */
+function errors(source: string, file = 'patch.js'): string[] {
     const files: Record<string, string> = {
         'dsl.d.ts': lib,
         'patch.js': source,
@@ -35,7 +35,7 @@ function errors(source: string): string[] {
     host.readFile = (name) => files[name] ?? ts.sys.readFile(name);
     const program = ts.createProgram(Object.keys(files), OPTIONS, host);
     return ts
-        .getPreEmitDiagnostics(program, program.getSourceFile('patch.js'))
+        .getPreEmitDiagnostics(program, program.getSourceFile(file))
         .map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n'));
 }
 
@@ -53,6 +53,19 @@ test('chain modules and .wet type on outputs, collections and named outputs', ()
                 `$saw('c3').addHz(2).mulHz(1.5).out()`,
                 `$v.osc(8).hsv().kaleid(5).wet(0.5).out()`,
             ].join('\n'),
+        ),
+    ).toEqual([]);
+});
+
+test('a chained multi-output module keeps its outputs', () => {
+    expect(errors(`$clock.tr808.hiHat().o.open.out()`)).toEqual([]);
+    expect(errors(`$clock.tr808.hiHat().o.notThere`)).toHaveLength(1);
+});
+
+test('the generated lib names only types it declares', () => {
+    expect(
+        errors('', 'dsl.d.ts').filter((message) =>
+            message.startsWith('Cannot find name'),
         ),
     ).toEqual([]);
 });

@@ -180,27 +180,31 @@ describe('reserved names', () => {
             ...CHAIN_PATHS.map((path) => path.split('.')[0]),
             'delay',
         ]);
-        const sig = builder.getFactory('$sine')(0) as Collection;
-        const members = [
-            ModuleOutput,
+        const membersOf = (classes: { prototype: object }[]) =>
+            classes.flatMap((cls) => Object.getOwnPropertyNames(cls.prototype));
+        // The chain methods themselves sit on the two base prototypes.
+        const base = membersOf([ModuleOutput, BaseCollection]).filter(
+            (member) => !chained.has(member),
+        );
+        const subclasses = membersOf([
             ModuleOutputWithRange,
             DeferredModuleOutput,
-            BaseCollection,
             Collection,
             CollectionWithRange,
             DeferredCollection,
-        ].flatMap((cls) => Object.getOwnPropertyNames(cls.prototype));
+        ]);
         // Fields are own properties of an instance, not of its prototype.
+        const sig = builder.getFactory('$sine')(0) as Collection;
         const fields = [
             sig[0],
             sig.withRange(0, 1)[0],
             new DeferredModuleOutput(builder),
             sig,
-        ].flatMap((instance) => Object.keys(instance));
-        for (const member of [...members, ...fields]) {
-            if (!chained.has(member) && !/^\d+$/.test(member)) {
-                expect(reserved.has(member), member).toBe(true);
-            }
+        ]
+            .flatMap((instance) => Object.keys(instance))
+            .filter((member) => !/^\d+$/.test(member));
+        for (const member of [...base, ...subclasses, ...fields]) {
+            expect(reserved.has(member), member).toBe(true);
         }
     });
 });

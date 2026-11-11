@@ -72,9 +72,10 @@ export function createFamilyReader(
         if (!receiver) {
             return null;
         }
-        // A chain module makes an audio value; so does any audio method.
-        return receiver === 'video' &&
-            api.video.returnsVideo.has(callee.name.text)
+        if (receiver === 'audio' && chain.chain !== null) {
+            return 'audio';
+        }
+        return api[receiver].returnsVideo.has(callee.name.text)
             ? 'video'
             : 'audio';
     };
