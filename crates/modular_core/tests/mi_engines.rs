@@ -50,6 +50,16 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
                 port("$mi.phaseDistortion", knobs(false), "output"),
             ]
         }
+        2..=4 => {
+            // Plaits picks the patch from `harmonics`; the driver centres it on
+            // one. The cases scrub (trigger unpatched), where Plaits' second
+            // voice never gates and the module's one voice sounds alike.
+            let knobs = json!({ "bank": engine - 2, "patch": (h * 32.64).floor(), "brightness": 5.0 * t, "envelope": 5.0 * m });
+            [
+                port("$mi.sixOp", knobs.clone(), "output"),
+                port("$mi.sixOp", knobs, "output"),
+            ]
+        }
         5 => {
             let knobs = json!({ "terrain": 5.0 * h, "radius": 5.0 * t, "offset": 5.0 * m });
             [

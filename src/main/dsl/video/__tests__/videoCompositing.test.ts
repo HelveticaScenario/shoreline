@@ -18,7 +18,7 @@ describe('$v alpha and compositing', () => {
     });
 
     it('keeps the alpha of a picture through color adjustments', () => {
-        const wgsl = wgslOf(`$v.image('a.png').$.hue(0.2).out();`);
+        const wgsl = wgslOf(`$v.image('/a.png').$.hue(0.2).out();`);
         expect(wgsl).toContain(
             'return vec4f(hsv_to_rgb(hsv.x + amount, hsv.y, hsv.z), c.a);',
         );
@@ -28,9 +28,11 @@ describe('$v alpha and compositing', () => {
     });
 
     it('lays one signal over another by the alpha of the top one', () => {
-        const chained = wgslOf(`$v.hsv(0.6).$.layer($v.image('a.png')).out();`);
+        const chained = wgslOf(
+            `$v.hsv(0.6).$.layer($v.image('/a.png')).out();`,
+        );
         const called = wgslOf(
-            `$v.out($v.layer($v.hsv(0.6), $v.image('a.png')));`,
+            `$v.out($v.layer($v.hsv(0.6), $v.image('/a.png')));`,
         );
         expect(chained).toBe(called);
         expect(called).toContain(
@@ -81,7 +83,7 @@ describe('$v alpha and compositing', () => {
 
     it('keeps the dark side with invert, mirroring the edge', () => {
         const wgsl = wgslOf(
-            `$v.image('a.png').$.luma(0.2, 0.1, { invert: true }).out();`,
+            `$v.image('/a.png').$.luma(0.2, 0.1, { invert: true }).out();`,
         );
         expect(wgsl).toMatch(/video_luma_key_below\(v\d+, 0\.2, 0\.1\)/);
         expect(wgsl).toContain(

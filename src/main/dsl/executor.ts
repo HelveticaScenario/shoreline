@@ -55,6 +55,7 @@ import type {
 import { compileVideoGraph } from './video/wgslCompiler';
 import { VIDEO_DOCS } from '../../shared/dsl/videoDocs';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
+import { assetPath } from './assetPath';
 
 // Augment Array.prototype with pipe() for TypeScript
 declare global {
@@ -89,10 +90,6 @@ export interface DSLExecutionResult {
     outputResolutions: OutputResolutionRecord[];
 }
 
-export interface WavsFolderNode {
-    [name: string]: WavsFolderNode | 'file';
-}
-
 /** The bands of a `$xover`. */
 type XoverBands = Collection & {
     o: { low: Collection; mid: Collection; high: Collection };
@@ -118,16 +115,24 @@ interface LoadedWav {
 }
 
 /** The `wav` parameter value that refers to decoded audio held by the engine. */
-function wavRef(path: string, info: LoadedWav) {
+function wavRef(info: LoadedWav) {
     return {
         type: 'wav_ref' as const,
-        path,
+        path: info.path,
+        channels: info.channels,
+        mtime: info.mtime,
+    };
+}
+
+/** What `$wavMeta` reports about a file. */
+function wavMeta(info: LoadedWav) {
+    return {
+        path: info.path,
         channels: info.channels,
         sampleRate: info.sampleRate,
         frameCount: info.frameCount,
         duration: info.duration,
         bitDepth: info.bitDepth,
-        mtime: info.mtime,
         ...(info.pitch != null && { pitch: info.pitch }),
         ...(info.playback != null && { playback: info.playback }),
         ...(info.bpm != null && { bpm: info.bpm }),
@@ -164,7 +169,7 @@ export interface DSLExecutionOptions {
     /** Whether a workspace-relative path names an existing file, for media errors. */
     mediaExists?: (path: string) => boolean;
     workspaceRoot?: string | null;
-    wavsFolderTree?: WavsFolderNode | null;
+    /** Decodes a WAV file named by a `/`-rooted workspace path. */
     loadWav?: (path: string) => LoadedWav;
     /**
      * Decodes the audio track of a workspace media file, or returns null when
@@ -755,9 +760,9 @@ export function executePatchScript(
             }
             const info = timedWavLoad(() => options.loadMediaAudio!(path));
             if (info === null) {
-                throw new Error(`$v.video(...).audio: "${path}" has no audio`);
+                throw new Error(`$v.video(...).audio: "/${path}" has no audio`);
             }
-            return _mediaAudio(wavRef(info.path, info), playback) as Collection;
+            return _mediaAudio(wavRef(info), playback) as Collection;
         },
         mediaExists: options.mediaExists,
         sourceLocation: captureSourceLocation,
@@ -769,11 +774,6 @@ export function executePatchScript(
         ...args: Parameters<VideoGraphBuilder['scopeXY']>
     ): VideoOutput => videoBuilder.out(videoBuilder.scopeXY(...args));
 
-    /**
-     * Load WAV samples from the wavs/ folder.
-     * Returns a proxy tree matching the folder structure; leaf nodes trigger
-     * loadWav() and return `{ type: 'wav_ref', path, channels }` objects.
-     */
     // Wall-clock time this run spends inside synchronous loadWav host calls.
     // The vm timeout below measures total wall-clock time of the run, so this
     // distinguishes a patch stuck in a loop from one legitimately spending
@@ -799,112 +799,18 @@ export function executePatchScript(
         }
     };
 
-    const $wavs = (): unknown => {
-        const tree = options.wavsFolderTree;
-        if (!tree) {
-            return new Proxy(
-                {},
-                {
-                    get(_target, prop) {
-                        throw new Error(
-                            `$wavs().${String(prop)}: no wavs/ folder found in workspace`,
-                        );
-                    },
-                },
-            );
+    /** Decodes the file at a `/`-rooted workspace path, or an error naming `fn`. */
+    const loadWavFile = (fn: string, path: unknown): LoadedWav => {
+        const rooted = assetPath(fn, path, 'wav');
+        if (!options.loadWav) {
+            throw new Error(`${fn}: WAV loading is not available`);
         }
-
-        // Memoize the lexicographically-sorted list of direct file basenames
-        // per folder node, so numeric-index resolution sorts at most once
-        // per node regardless of how many `$wavs()[i]` calls happen.
-        const sortedFilesCache = new WeakMap<WavsFolderNode, string[]>();
-        function sortedFileList(node: WavsFolderNode): string[] {
-            const cached = sortedFilesCache.get(node);
-            if (cached) return cached;
-            const files = Object.entries(node)
-                .filter(([, v]) => v === 'file')
-                .map(([k]) => k)
-                .sort((a, b) => a.localeCompare(b));
-            sortedFilesCache.set(node, files);
-            return files;
-        }
-
-        function makeProxy(node: WavsFolderNode, pathParts: string[]): unknown {
-            // Resolve a known file leaf (basename `fileName` exists in `node`
-            // as a `'file'`) into a `WavHandle`. Single source of truth
-            // shared by named-key access and numeric-index access.
-            function loadFile(fileName: string): unknown {
-                const relPath = [...pathParts, fileName].join('/');
-                if (!options.loadWav) {
-                    throw new Error('$wavs(): loadWav function not provided');
-                }
-                return wavRef(
-                    relPath,
-                    timedWavLoad(() => options.loadWav!(relPath)),
-                );
-            }
-
-            return new Proxy(
-                {},
-                {
-                    get(_target, prop) {
-                        if (typeof prop !== 'string') return undefined;
-
-                        // Numeric index access wraps modulo the file count of
-                        // this folder. Only direct files participate
-                        // (subfolders excluded — they get their own index).
-                        if (/^-?(0|[1-9][0-9]*)$/.test(prop)) {
-                            const files = sortedFileList(node);
-                            if (files.length === 0) {
-                                const fullPath = [
-                                    ...pathParts,
-                                    `[${prop}]`,
-                                ].join('/');
-                                throw new Error(
-                                    `$wavs(): "${fullPath}" — no wav files in this folder to index into`,
-                                );
-                            }
-                            const i = parseInt(prop, 10);
-                            const wrapped =
-                                ((i % files.length) + files.length) %
-                                files.length;
-                            return loadFile(files[wrapped]);
-                        }
-
-                        const child = node[prop];
-                        if (child === undefined) {
-                            const fullPath = [...pathParts, prop].join('/');
-                            throw new Error(
-                                `$wavs(): "${fullPath}" not found. Available: ${Object.keys(node).join(', ') || '(empty)'}`,
-                            );
-                        }
-
-                        if (child === 'file') {
-                            return loadFile(prop);
-                        }
-
-                        // Directory node — return nested proxy
-                        return makeProxy(child, [...pathParts, prop]);
-                    },
-                    ownKeys() {
-                        return Object.keys(node);
-                    },
-                    getOwnPropertyDescriptor(_target, prop) {
-                        if (typeof prop === 'string' && prop in node) {
-                            return {
-                                configurable: true,
-                                enumerable: true,
-                                writable: false,
-                            };
-                        }
-                        return undefined;
-                    },
-                },
-            );
-        }
-
-        return makeProxy(tree, []);
+        return timedWavLoad(() => options.loadWav!(rooted));
     };
+    context.setWavResolver((module, path) => wavRef(loadWavFile(module, path)));
+
+    /** The format, tempo, loops and cue points of a WAV file. */
+    const $wavMeta = (path: string) => wavMeta(loadWavFile('$wavMeta', path));
 
     /**
      * $phase.* DSL helpers produce phase-warp descriptors for modules that
@@ -1052,8 +958,7 @@ export function executePatchScript(
         $delay,
         $ott,
         $cross,
-        // WAV sample loading
-        $wavs,
+        $wavMeta,
         // Built-in modules
         $clock,
         $input: rootInput,

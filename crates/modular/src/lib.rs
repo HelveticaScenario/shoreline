@@ -342,6 +342,40 @@ impl WavCache {
             .collect()
     }
 
+    /// The file a workspace-rooted `/...` path names. Every segment after the
+    /// leading `/` must be a plain name, and the file, with links followed,
+    /// must lie inside the workspace folder.
+    fn workspace_file(&self, path: &str) -> Result<PathBuf> {
+        if self.workspace_path.as_os_str().is_empty() {
+            return Err(napi::Error::from_reason(format!(
+                "open a workspace folder to load {path}"
+            )));
+        }
+        let outside = || {
+            napi::Error::from_reason(format!(
+                "WAV path must name a file inside the workspace folder: {path}"
+            ))
+        };
+        let relative = std::path::Path::new(path.strip_prefix('/').ok_or_else(outside)?);
+        let mut components = relative.components().peekable();
+        if components.peek().is_none()
+            || !components.all(|c| matches!(c, std::path::Component::Normal(_)))
+        {
+            return Err(outside());
+        }
+        let file = std::fs::canonicalize(self.workspace_path.join(relative)).map_err(|e| {
+            napi::Error::from_reason(format!("no file {path} in the workspace folder ({e})"))
+        })?;
+        let root = std::fs::canonicalize(&self.workspace_path).map_err(|e| {
+            napi::Error::from_reason(format!("cannot read the workspace folder ({e})"))
+        })?;
+        if file.starts_with(&root) {
+            Ok(file)
+        } else {
+            Err(outside())
+        }
+    }
+
     /// Decode the audio track of a workspace media file, returning cached data
     /// if mtime hasn't changed. `None` means the file has no audio track. The
     /// entry is keyed `media:<path>`, which is also the path of the returned
@@ -426,26 +460,21 @@ impl WavCache {
     }
 
     /// Load a WAV file, returning cached data if mtime hasn't changed.
-    fn load(&mut self, rel_path: &str, engine_sample_rate: f32) -> Result<WavLoadInfo> {
-        let full_path = self
-            .workspace_path
-            .join("wavs")
-            .join(format!("{}.wav", rel_path));
+    /// `path` starts with `/`, which is the workspace root, and is also the
+    /// cache key a `Wav` parameter uses to find the decoded audio.
+    fn load(&mut self, path: &str, engine_sample_rate: f32) -> Result<WavLoadInfo> {
+        let full_path = self.workspace_file(path)?;
 
         let metadata = std::fs::metadata(&full_path).map_err(|e| {
-            napi::Error::from_reason(format!(
-                "WAV file not found: {} ({})",
-                full_path.display(),
-                e
-            ))
+            napi::Error::from_reason(format!("no file {path} in the workspace folder ({e})"))
         })?;
         let mtime = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
 
         // Cache hit — mtime matches
-        if let Some(entry) = self.entries.get(rel_path) {
+        if let Some(entry) = self.entries.get(path) {
             if entry.mtime == mtime {
                 return Ok(build_wav_load_info(
-                    rel_path,
+                    path,
                     entry.data.channel_count() as u32,
                     entry.data.frame_count() as u32,
                     &entry.metadata,
@@ -506,7 +535,7 @@ impl WavCache {
         })?;
 
         let info = build_wav_load_info(
-            rel_path,
+            path,
             num_channels as u32,
             frame_count as u32,
             &metadata,
@@ -514,7 +543,7 @@ impl WavCache {
         );
 
         self.entries.insert(
-            rel_path.to_string(),
+            path.to_string(),
             WavCacheEntry {
                 data: wav_data,
                 mtime,
@@ -1374,7 +1403,8 @@ impl Synthesizer {
         }
     }
 
-    /// Load a WAV file into the cache, returning metadata about the loaded sample.
+    /// Load a WAV file into the cache, returning metadata about the loaded
+    /// sample. `path` starts with `/`, the workspace root.
     #[napi]
     pub fn load_wav(&mut self, path: String) -> Result<WavLoadInfo> {
         self.wav_cache.load(&path, self.sample_rate)
@@ -2389,11 +2419,11 @@ mod wav_cache_tests {
         let file_len = std::fs::metadata(&wav_path).expect("stat wav").len();
 
         let mut cache = WavCache::new(workspace.clone());
-        let result = cache.load("hostile", 48000.0);
+        let result = cache.load("/wavs/hostile.wav", 48000.0);
         let _ = std::fs::remove_dir_all(&workspace);
 
         result.expect("a wav with an overlong data chunk must decode");
-        let frames = cache.entries["hostile"].data.frame_count() as u64;
+        let frames = cache.entries["/wavs/hostile.wav"].data.frame_count() as u64;
         assert!(
             frames > 0 && frames <= file_len / 2,
             "decoded {} frames from a {}-byte file",
@@ -2438,11 +2468,11 @@ mod wav_cache_tests {
             .expect("write wav");
 
         let mut cache = WavCache::new(workspace.clone());
-        let result = cache.load("trunc", 48000.0);
+        let result = cache.load("/wavs/trunc.wav", 48000.0);
         let _ = std::fs::remove_dir_all(&workspace);
 
         result.expect("truncated stereo wav must decode without error");
-        let data = &cache.entries["trunc"].data;
+        let data = &cache.entries["/wavs/trunc.wav"].data;
         assert_eq!(data.channel_count(), 2);
         // 3001 interleaved samples hold 1500 whole frames.
         assert_eq!(data.frame_count(), 1500);
@@ -2479,13 +2509,57 @@ mod wav_cache_tests {
             .and_then(|mut f| f.write_all(&bytes))
             .expect("write wav");
         let mut cache = WavCache::new(workspace.clone());
-        let result = cache.load("odd", 48000.0);
+        let result = cache.load("/wavs/odd.wav", 48000.0);
         let _ = std::fs::remove_dir_all(&workspace);
 
         let info = result.expect("a wav with an odd-length chunk must decode");
         assert_eq!(info.frame_count, 4);
-        let data = &cache.entries["odd"].data;
+        let data = &cache.entries["/wavs/odd.wav"].data;
         assert_eq!(data.channel_count(), 1);
         assert_eq!(data.frame_count(), 4);
+    }
+
+    #[test]
+    fn paths_resolve_from_the_workspace_root_and_stay_inside_it() {
+        let workspace = temp_workspace("paths");
+        let outside = temp_workspace("paths_outside");
+        std::fs::File::create(workspace.join("wavs").join("kick.wav")).expect("write wav");
+        std::fs::File::create(outside.join("wavs").join("secret.wav")).expect("write wav");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(outside.join("wavs"), workspace.join("linked")).expect("link");
+        let cache = WavCache::new(workspace.clone());
+
+        let resolved = cache.workspace_file("/wavs/kick.wav");
+        let escapes: Vec<_> = [
+            "wavs/kick.wav",
+            "/",
+            "//wavs/kick.wav",
+            "/../kick.wav",
+            "/wavs/../../kick.wav",
+            "/./wavs/kick.wav",
+            "/linked/secret.wav",
+        ]
+        .into_iter()
+        .filter(|bad| cache.workspace_file(bad).is_ok())
+        .collect();
+        let _ = std::fs::remove_dir_all(&workspace);
+        let _ = std::fs::remove_dir_all(&outside);
+
+        assert!(
+            resolved.expect("rooted path").ends_with("wavs/kick.wav"),
+            "a plain rooted path resolves inside the workspace"
+        );
+        assert!(escapes.is_empty(), "accepted {escapes:?}");
+    }
+
+    #[test]
+    fn without_a_workspace_no_path_resolves() {
+        let cache = WavCache::new(std::path::PathBuf::new());
+        let error = cache.workspace_file("/kick.wav").expect_err("no workspace");
+        assert!(
+            error.reason.contains("open a workspace folder"),
+            "{}",
+            error.reason
+        );
     }
 }

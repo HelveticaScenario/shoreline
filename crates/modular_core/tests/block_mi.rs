@@ -69,6 +69,7 @@ fn allocation_free() {
         "$mi.modal",
         "$mi.particles",
         "$mi.phaseDistortion",
+        "$mi.sixOp",
         "$mi.string",
         "$mi.swarm",
         "$mi.twoOp",
@@ -85,6 +86,20 @@ fn allocation_free() {
             "{module}"
         );
     }
+}
+
+/// Played notes, with the patch and bank switching under them, allocate
+/// nothing.
+#[test]
+fn six_op_allocation_free() {
+    assert_eq!(
+        allocations_while_rendering(
+            "$mi.sixOp",
+            json!({ "freq": poly_cable("lfo", CHANNELS), "gate": poly_cable("src", CHANNELS),
+                    "bank": cable("lfo", 1), "patch": cable("lfo", 2), "envelope": cable("lfo", 3) })
+        ),
+        0
+    );
 }
 
 #[test]

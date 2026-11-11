@@ -984,13 +984,10 @@ function App() {
             });
     }, [refreshFileTree]);
 
-    // Refresh file tree when wavs/ folder changes
-    useEffect(() => {
-        const unsubscribe = electronAPI.onWavsChange(() => {
-            void refreshFileTree();
-        });
-        return unsubscribe;
-    }, [refreshFileTree]);
+    useEffect(
+        () => electronAPI.filesystem.onTreeChange(() => void refreshFileTree()),
+        [refreshFileTree],
+    );
 
     const selectWorkspaceFolder = useCallback(async () => {
         // Check for dirty file-backed buffers before switching
