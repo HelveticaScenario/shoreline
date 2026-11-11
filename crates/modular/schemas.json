@@ -20282,7 +20282,7 @@
       {
         "name": "retrigger",
         "description": "rising edge restarts the attack from the current level, without a jump; follows the gate when not patched",
-        "paramType": "gate"
+        "paramType": "trig"
       }
     ],
     "positionalArgs": [
