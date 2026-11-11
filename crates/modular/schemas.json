@@ -28749,6 +28749,178 @@
     ]
   },
   {
+    "name": "$mi.chorus",
+    "docs": {
+      "summary": "Stereo ensemble chorus",
+      "description": "Mutable Instruments Plaits' ensemble: three delay taps per side, crossed between the sides and swept by a slow and a fast LFO, for the lush shimmer of a string machine. After `$mi.divideDown` and a low-pass it makes Plaits' string machine.",
+      "categories": [
+        "effect"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "String machine",
+          "code": "const strings = $mi\n  .divideDown($chord('C3[m7]'), { registration: 1 })\n  .$.lpf('c6', 1)\n$mi.chorus(strings, { amount: 4 }).out()"
+        },
+        {
+          "title": "Wide pad",
+          "code": "$mi.chorus($saw('c3'), { amount: 5, depth: 5 }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "ChorusParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to thicken; even channels feed the left side, odd the right, and an odd last channel feeds both",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "amount": {
+          "description": "how much chorus joins the dry signal, from none (0) to an even blend (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MonoSignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "depth": {
+          "description": "how far the slow and fast swirl sweeps, from a slight shimmer (0) to a deep, wobbling ensemble (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MonoSignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "MonoSignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the chorused signal, as left and right channels",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to thicken; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        "paramType": "audio"
+      },
+      {
+        "name": "amount",
+        "description": "how much chorus joins the dry signal, from none (0) to an even blend (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "depth",
+        "description": "how far the slow and fast swirl sweeps, from a slight shimmer (0) to a deep, wobbling ensemble (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      }
+    ],
+    "channels": 2
+  },
+  {
     "name": "$mi.divideDown",
     "docs": {
       "summary": "Divide-down string-machine oscillator",

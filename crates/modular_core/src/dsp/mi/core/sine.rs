@@ -15,6 +15,13 @@ pub fn sine(phase: f32) -> f32 {
     a + (b - a) * fractional
 }
 
+/// Plaits' `SineRaw`: the table entry at a 32-bit `phase`, without
+/// interpolation.
+#[inline(always)]
+pub fn sine_raw(phase: u32) -> f32 {
+    LUT_SINE[(phase >> (32 - SINE_LUT_BITS)) as usize]
+}
+
 /// Plaits' `SinePM`: the table read at a 32-bit `phase` offset by `pm` cycles,
 /// for `pm` within ±32. The offset is truncated to 1/2²⁶ of a cycle, as in Plaits.
 #[inline(always)]
