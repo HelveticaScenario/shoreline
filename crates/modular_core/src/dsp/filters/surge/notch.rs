@@ -8,16 +8,18 @@ use schemars::JsonSchema;
 use super::biquad::{FilterSlope, iir12_b, iir24_b};
 use super::coeffs::{bound_freq, note_to_omega, to_normalized_lattice};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Notch width character.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserr, JsonSchema, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum NotchStyle {
-    /// Wide notch with a strong resonance response.
+    /// wide notch with a strong resonance response
     #[default]
     Standard,
-    /// Narrower, gentler notch.
+    /// narrower, gentler notch
     Mild,
 }
 
@@ -86,23 +88,31 @@ fn coeff_notch(freq_semi: f32, reso: f32, mild: bool, rate: f32) -> [f32; N_COEF
     to_normalized_lattice(a0inv, a1, a2, b0, b1, b2, 0.005)
 }
 
+const NOTCH_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Surge notch filter",
+    description: "Cuts a hole at the cutoff and leaves the rest; swept slowly it gives a \
+                  hollow, phaser-like motion.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Hollow notch sweep",
+        code: r#"
+            $unstable.filter
+              .notch($saw('c2'), $sine('0.2hz').range('c3', 'c6'), 1)
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge notch filter (the "12 dB" / "24 dB" vember notch).
-    ///
-    /// - **cutoff** — notch center in V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; shapes the notch width per `style`.
-    /// - **slope** — `'db12'` or `'db24'`.
-    /// - **style** — `'standard'` (wide) or `'mild'` (gentle).
-    ///
-    /// ```js
-    /// $unstable.filter.notch($saw('c2'), 'c4', 1, { slope: 'db12', style: 'mild' })
-    /// ```
+    docs = NOTCH_DOCS,
     name = "$unstable.filter.notch", ident = NotchFilter, kernel = NotchBiquad,
     output_doc = "notch output",
+    cutoff_doc = "centre frequency of the notch",
     params = {
-        /// slope: 12 or 24 dB/oct (default 24)
+        #[input("how steeply it cuts", default = "db24")]
         slope: FilterSlope,
-        /// notch width: standard or mild (default standard)
+        #[input("how wide and strong the notch is", default = "standard")]
         style: NotchStyle,
     },
     mode = |p| NotchMode {

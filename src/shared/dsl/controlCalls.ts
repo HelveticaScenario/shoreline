@@ -13,7 +13,9 @@
  * found here, and the control panel, which builds its group tree from it.
  */
 
-import { ts } from 'ts-morph';
+import ts from 'typescript';
+
+import { propertyName } from './ast/names';
 
 export type ControlKind = '$slider' | '$btn' | '$toggleBtn' | '$cGroup';
 
@@ -68,18 +70,6 @@ function groupProperty(
                 ts.isShorthandPropertyAssignment(p)) &&
             propertyName(p) === 'group',
     );
-}
-
-/** A property's static key, or null for a computed or spread member. */
-export function propertyName(p: ts.ObjectLiteralElementLike): string | null {
-    if (ts.isSpreadAssignment(p) || !p.name) {
-        return null;
-    }
-    return ts.isIdentifier(p.name) ||
-        ts.isStringLiteral(p.name) ||
-        ts.isNumericLiteral(p.name)
-        ? p.name.text
-        : null;
 }
 
 /**
@@ -234,8 +224,19 @@ function opensScope(node: ts.Node): boolean {
     );
 }
 
-/** Every control call in the file, in order of their names in the text. */
-export function findControlCalls(sourceFile: ts.SourceFile): ControlCall[] {
+const found = new WeakMap<ts.SourceFile, readonly ControlCall[]>();
+
+/**
+ * Every control call in the file, in order of their names in the text.
+ * Computed once per parsed file, so the result is shared and read-only.
+ */
+export function findControlCalls(
+    sourceFile: ts.SourceFile,
+): readonly ControlCall[] {
+    const known = found.get(sourceFile);
+    if (known) {
+        return known;
+    }
     const calls: ControlCall[] = [];
     const scopes: Scope[] = [];
 
@@ -260,5 +261,7 @@ export function findControlCalls(sourceFile: ts.SourceFile): ControlCall[] {
     visit(sourceFile);
     // The walk visits an enclosing call before a control call nested in its
     // arguments; order by where each call's name appears instead.
-    return calls.sort((a, b) => a.name.pos - b.name.pos);
+    calls.sort((a, b) => a.name.pos - b.name.pos);
+    found.set(sourceFile, calls);
+    return calls;
 }

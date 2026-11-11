@@ -1,0 +1,187 @@
+import { describe, expect, test } from 'vitest';
+
+import schemas from '@modular/core/schemas.json';
+import { buildLibSource } from '../../../main/dsl/typescriptLibGen';
+import {
+    formatOutputMeta,
+    formatPlainMeta,
+    formatSignalMeta,
+    paramMeta,
+    withMeta,
+} from '../paramRange';
+
+describe('formatSignalMeta', () => {
+    test('control shows range and default', () => {
+        expect(
+            formatSignalMeta(
+                {
+                    defaultValue: 2.5,
+                    maxValue: 5,
+                    minValue: 0,
+                    paramType: 'control',
+                },
+                false,
+            ),
+        ).toBe('0–5, default 2.5');
+    });
+
+    test('a default in words replaces the number', () => {
+        expect(
+            formatSignalMeta(
+                {
+                    defaultDoc: '0 if decay is set, otherwise 5',
+                    defaultValue: 5,
+                    maxValue: 5,
+                    minValue: 0,
+                    paramType: 'control',
+                },
+                false,
+            ),
+        ).toBe('0–5, default 0 if decay is set, otherwise 5');
+    });
+
+    test('open and symmetric ranges', () => {
+        const meta = { defaultValue: 0, paramType: 'control' };
+        expect(formatSignalMeta({ ...meta, minValue: 0 }, true)).toBe('≥ 0');
+        expect(formatSignalMeta({ ...meta, maxValue: 5 }, true)).toBe('≤ 5');
+        expect(
+            formatSignalMeta({ ...meta, maxValue: 5, minValue: -5 }, true),
+        ).toBe('±5');
+    });
+
+    test('an undeclared default is not shown', () => {
+        expect(
+            formatSignalMeta(
+                { maxValue: 5, minValue: -5, paramType: 'control' },
+                false,
+            ),
+        ).toBe('±5');
+    });
+
+    test('negative bounds and kilohertz read naturally', () => {
+        expect(
+            formatSignalMeta(
+                { maxValue: 5.7, minValue: -5, paramType: 'control' },
+                true,
+            ),
+        ).toBe('−5–5.7');
+        expect(
+            formatSignalMeta(
+                { defaultValue: 3, minValue: -3.71, paramType: 'frequency' },
+                false,
+            ),
+        ).toBe('≥ 20 Hz, default 2.09 kHz');
+    });
+
+    test('a required param shows no default', () => {
+        expect(
+            formatSignalMeta(
+                {
+                    defaultValue: 0,
+                    maxValue: 5,
+                    minValue: 0,
+                    paramType: 'control',
+                },
+                true,
+            ),
+        ).toBe('0–5');
+    });
+
+    test('pitch reads in notes, frequency in hz', () => {
+        expect(
+            formatSignalMeta({ defaultValue: 0, paramType: 'pitch' }, false),
+        ).toBe('note, default C4');
+        expect(
+            formatSignalMeta(
+                {
+                    defaultValue: 0,
+                    maxValue: 1,
+                    minValue: -1,
+                    paramType: 'frequency',
+                },
+                false,
+            ),
+        ).toBe('131 Hz–523 Hz, default 262 Hz');
+    });
+
+    test('gate and trig name their convention; audio adds nothing', () => {
+        expect(
+            formatSignalMeta({ defaultValue: 0, paramType: 'gate' }, false),
+        ).toBe('gate');
+        expect(
+            formatSignalMeta({ defaultValue: 0, paramType: 'trig' }, false),
+        ).toBe('trigger');
+        expect(
+            formatSignalMeta({ defaultValue: 0, paramType: 'audio' }, true),
+        ).toBeUndefined();
+    });
+});
+
+describe('formatPlainMeta', () => {
+    test('declared bounds and default', () => {
+        expect(formatPlainMeta({ default: 6, maximum: 16, minimum: 1 })).toBe(
+            '1–16, default 6',
+        );
+    });
+
+    test("an unsigned integer's implicit floor is hidden", () => {
+        expect(
+            formatPlainMeta({ format: 'uint32', minimum: 0, type: 'integer' }),
+        ).toBeUndefined();
+    });
+
+    test('boolean default', () => {
+        expect(formatPlainMeta({ default: false, type: 'boolean' })).toBe(
+            'default false',
+        );
+    });
+});
+
+test('formatOutputMeta and withMeta', () => {
+    const out = (outputType: string, minValue?: number, maxValue?: number) =>
+        formatOutputMeta({ maxValue, minValue, name: 'o', outputType });
+    expect(out('cv', 0, 5)).toBe('0–5');
+    expect(out('cv', -5, 5)).toBe('±5');
+    expect(out('cv')).toBeUndefined();
+    expect(out('gate', 0, 5)).toBe('gate');
+    expect(out('trig', 0, 5)).toBe('trigger');
+    expect(withMeta('level', '0–5')).toBe('level (0–5)');
+    expect(withMeta('level', undefined)).toBe('level');
+});
+
+describe('every declared range reaches the generated docs', () => {
+    const lib = buildLibSource(schemas);
+    // `_`-prefixed modules are internal and not declared in the DSL lib.
+    const publicModules = schemas.filter((m) => !m.name.startsWith('_'));
+
+    test('signal params', () => {
+        for (const module of publicModules) {
+            for (const p of module.signalParams) {
+                const meta = paramMeta(module, p.name);
+                if (meta) {
+                    expect(lib, `${module.name}.${p.name}`).toContain(
+                        `(${meta})`,
+                    );
+                }
+            }
+        }
+    });
+
+    test('options sit inline on their param line', () => {
+        expect(lib).not.toMatch(/\n\s*\*\s+-\s+`"/);
+        expect(lib).toContain('Options: `"throughZero"` through-zero');
+    });
+
+    test('main outputs as @returns', () => {
+        for (const module of publicModules) {
+            const main =
+                module.outputs.find((o) => o.default) ?? module.outputs[0];
+            const meta = main && formatOutputMeta(main);
+            if (meta) {
+                expect(lib, module.name).toContain(
+                    `@returns ${main.description} (${meta})`,
+                );
+            }
+        }
+    });
+});

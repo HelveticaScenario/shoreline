@@ -29,9 +29,9 @@ export declare class Synthesizer {
   /**
    * Absolute path to the directory where panic logs are written. Matches
    * Electron's `app.getPath('logs')` convention per OS:
-   * - macOS:   `~/Library/Logs/Operator/`
-   * - Linux:   `~/.config/Operator/logs/`
-   * - Windows: `%APPDATA%\Operator\logs\`
+   * - macOS:   `~/Library/Logs/Shoreline/`
+   * - Linux:   `~/.config/Shoreline/logs/`
+   * - Windows: `%APPDATA%\Shoreline\logs\`
    */
   panicLogDir(): string
   getScopes(): Array<[ScopeBufferKey, Float32Array, ScopeStats]>
@@ -458,6 +458,76 @@ export interface WavTimeSignature {
   num: number
   den: number
 }
+export interface DocExampleSchema {
+  title: string
+  code: string
+}
+
+export interface DocSectionSchema {
+  title: string
+  body: string
+  table?: DocTableSchema
+  examples: Array<DocExampleSchema>
+}
+
+export interface DocTableSchema {
+  columns: Array<string>
+  rows: Array<Array<string>>
+}
+
+/**
+ * A grouping for the module reference. Every module lists at least one in
+ * its `ModuleDocs`, and may belong to several.
+ */
+export type ModuleCategory = /** Oscillators and other sound sources. */
+'oscillator'|
+/** Phase ramps and warps plus the oscillators they drive. */
+'phase'|
+/** Filters and EQs that shape a signal's spectrum. */
+'filter'|
+/** Waveshapers and saturators. */
+'distortion'|
+/** Audio effects such as reverb and delay. */
+'effect'|
+/** Compressors and other level control. */
+'dynamics'|
+/** Envelope generators and followers. */
+'envelope'|
+/** Slowly moving control sources. */
+'modulation'|
+/** Random and chaotic sources. */
+'random'|
+/** Patterns and clocks for transport-synced sequencing. */
+'sequencer'|
+/** Gate and trigger processing. */
+'gate'|
+/** V/Oct pitch conversion plus scales and chords. */
+'pitch'|
+/** Drum voices and drum pattern generators. */
+'drum'|
+/** Playback of recorded audio and media files. */
+'sampler'|
+/** Combining and panning channels. */
+'mixer'|
+/** Arithmetic and range transforms on signals. */
+'math'|
+/** MIDI input. */
+'midi'|
+/** General signal plumbing such as routing and smoothing. */
+'utility';
+
+export interface ModuleDocsSchema {
+  summary: string
+  description: string
+  /**
+   * Typed as strings in TypeScript so `schemas.json` imports, whose string
+   * literals widen, still satisfy this interface.
+   */
+  categories: Array<string>
+  sections: Array<DocSectionSchema>
+  examples: Array<DocExampleSchema>
+}
+
 export interface ModuleIdRemap {
   from: string
   to: string
@@ -465,8 +535,7 @@ export interface ModuleIdRemap {
 
 export interface ModuleSchema {
   name: string
-  /** Documentation extracted from `///` doc comments on the module struct. */
-  documentation: string
+  docs: ModuleDocsSchema
   paramsSchema: Record<string, unknown>
   outputs: Array<OutputSchema>
   /**
@@ -504,6 +573,8 @@ export interface ModuleSpec {
 export interface OutputSchema {
   name: string
   description: string
+  /** An `OutputType` value. */
+  outputType: string
   /** Whether this output is polyphonic (PolyOutput) or monophonic (f32/f64) */
   polyphonic: boolean
   /** Whether this is the default output for the module */
@@ -512,7 +583,28 @@ export interface OutputSchema {
   minValue?: number
   /** The maximum value of the raw output range (before any remapping) */
   maxValue?: number
+  /**
+   * Fixed channel count of a polyphonic output; `None` follows the
+   * module's derived channel count.
+   */
+  channels?: number
 }
+
+/**
+ * What an output emits, named in `#[output(type = …)]`: a continuous
+ * voltage, or a gate or trigger on the 0–5 V convention.
+ */
+export type OutputType =  'cv'|
+'gate'|
+'trig';
+
+/** The kind of voltage a signal input reads, named in `#[input(type = …)]`. */
+export type ParamType =  'audio'|
+'control'|
+'pitch'|
+'frequency'|
+'gate'|
+'trig';
 
 export interface PatchGraph {
   modules: Array<ModuleSpec>
@@ -531,6 +623,8 @@ export interface Scope {
   triggerThreshold?: [number, ScopeMode]
   /** Voltage range for display (default [-5.0, 5.0]). The scope displays from range[0] to range[1]. */
   range: [number, number]
+  /** Draw each channel in its own scope instead of overlaying them. */
+  split?: ScopeSplit
 }
 
 export interface ScopeBufferKey {
@@ -550,21 +644,48 @@ export interface ScopeChannel {
 export type ScopeMode =  'Wait'|
 'Roll';
 
+/** How a split scope arranges its per-channel views. */
+export type ScopeSplit = /** Stacked top to bottom at full width. */
+'vertical'|
+/** Side by side in equal shares of the width. */
+'horizontal';
+
 /** Statistics computed from scope buffer data */
 export interface ScopeStats {
   min: number
   max: number
   peakToPeak: number
   readOffset: number
+  /**
+   * How far, in buffer samples, the trigger crossing lies before the first
+   * sample (0 to 1); 0 for an untriggered scope. Drawing each sample this
+   * much later pins the crossing to the same spot every frame.
+   */
+  triggerOffset: number
 }
 
 export interface SignalParamSchema {
   name: string
   description: string
-  signalType: string
-  defaultValue: number
-  minValue: number
-  maxValue: number
+  /** A `ParamType` value. */
+  paramType: string
+  /** What a disconnected input reads, when it reads a fixed value. */
+  defaultValue?: number
+  /**
+   * The default in words, for one that depends on other params; the docs
+   * show it in place of `default_value`.
+   */
+  defaultDoc?: string
+  /** Lower bound of the usable range; `None` when unbounded below. */
+  minValue?: number
+  /** Upper bound of the usable range; `None` when unbounded above. */
+  maxValue?: number
+  /**
+   * Slider span of a `control` input; set for every control, `None`
+   * otherwise.
+   */
+  controlMin?: number
+  controlMax?: number
 }
 
 /** One VU meter's loudness snapshot, joined to its `VuMeterSpec` by `module_id`. */

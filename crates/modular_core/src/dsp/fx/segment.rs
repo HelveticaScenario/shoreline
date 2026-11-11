@@ -8,20 +8,32 @@ use schemars::JsonSchema;
 
 use crate::dsp::fx::enosc_tables::{aa_segment, interpolate_segment};
 use crate::dsp::utils::voct_to_hz;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
-use crate::types::Clickless;
+use crate::types::SwapGlide;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SegmentParams {
-    /// input signal to shape (bipolar, typically -5 to 5)
+    #[input(
+        "signal to shape",
+        type = audio,
+        range = (-5.0, 5.0),
+    )]
     input: PolySignal,
-    /// segment shape amount (0-5, morphs between 8 shapes)
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "morphs through 8 shapes: 0 clean, higher squares off and then ripples",
+        type = control,
+        range = (0.0, 5.0),
+    )]
     amount: PolySignal,
-    /// pitch of the source signal in V/Oct (optional, reduces aliasing at high frequencies)
-    #[signal(type = pitch)]
+    #[input(
+        "pitch of the incoming signal; patch it to reduce aliasing on high notes",
+        type = pitch,
+    )]
     #[deserr(default)]
     freq: Option<PolySignal>,
 }
@@ -29,20 +41,29 @@ struct SegmentParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SegmentOutputs {
-    #[output("output", "segment-shaped signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "shaped signal", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
 #[derive(Default, Clone, Copy)]
 struct ChannelState {
-    amount: Clickless,
+    amount: SwapGlide,
 }
 
-/// Waveshaper that morphs through 8 distinct tonal shapes as you sweep the
-/// amount control. Low settings pass the signal cleanly; mid settings compress
-/// and square it off; high settings introduce stepped, ripple-like overtone
-/// patterns. Works best on simple waveforms like sines or triangles.
-#[module(name = "$segment", args(input, amount))]
+const SEGMENT_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Morphing waveshaper",
+    description: "Morphs a signal through eight shapes as `amount` rises: clean at first, then \
+                  squashed and squared off, then stepped and rippling with overtones. Works best \
+                  on simple waveforms like sines and triangles.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Slowly morphing sine",
+        code: "$sine('c3').$.segment($sine('0.1hz').range(0, 5)).out()",
+    }],
+};
+
+#[module(name = "$segment", docs = SEGMENT_DOCS, args(input, amount))]
 pub struct Segment {
     outputs: SegmentOutputs,
     channel_state: Box<[ChannelState]>,
@@ -60,8 +81,9 @@ impl Segment {
             let input = self.params.input.get_value(ch);
             let amount_raw = self.params.amount.get_value(ch);
 
-            // Smooth amount parameter to avoid clicks
-            state.amount.update(amount_raw);
+            state
+                .amount
+                .update(amount_raw, self.params.amount.glide_mark(ch), sample_rate);
             let amount = *state.amount;
 
             // Normalize amount from [0, 5] to [0, 1] for table lookup
