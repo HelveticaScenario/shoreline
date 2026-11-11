@@ -250,14 +250,14 @@ describe('filters', () => {
 describe('envelopes', () => {
     test('$adsr with gate input and config', () => {
         const patch = execPatch(
-            '$adsr($clock.beatTrigger, { attack: 0.1, decay: 0.2, sustain: 3, release: 0.5 }).out()',
+            '$adsr($clock.o.beatTrigger, { attack: 0.1, decay: 0.2, sustain: 3, release: 0.5 }).out()',
         );
         expect(findModules(patch, '$adsr').length).toBe(1);
     });
 
     test('$perc with trigger', () => {
         const patch = execPatch(
-            '$perc($clock.beatTrigger, { decay: 0.3 }).out()',
+            '$perc($clock.o.beatTrigger, { decay: 0.3 }).out()',
         );
         expect(findModules(patch, '$perc').length).toBe(1);
     });
@@ -280,7 +280,7 @@ describe('polyphony', () => {
     test('an output with fixed channels keeps them on a wider module', () => {
         const patch = execPatch(`
             const cloud = $granular(0, 0, { freq: ['c4', 'e4', 'g4'] })
-            $sine(cloud.voices).out()
+            $sine(cloud.o.voices).out()
             $saw(cloud).out()
         `);
         const perVoice = findModules(patch, '$sine')[0].params.freq;
@@ -288,8 +288,8 @@ describe('polyphony', () => {
         expect(perVoice).toHaveLength(3);
         expect(stereo).toHaveLength(2);
         expect(stereo.map((s: { port: string }) => s.port)).toEqual([
-            'output',
-            'output',
+            'stereo',
+            'stereo',
         ]);
     });
 });
@@ -487,7 +487,7 @@ describe('modulation routing', () => {
     test('subtractive synth voice (osc → env → filter)', () => {
         const source = `
             const osc = $saw("C3")
-            const env = $adsr($clock.beatTrigger, { attack: 0.01, decay: 0.3, sustain: 2, release: 0.5 })
+            const env = $adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.3, sustain: 2, release: 0.5 })
             $lpf(osc, env.range("C3", "C6")).out()
         `;
         const patch = execPatch(source);
@@ -544,7 +544,7 @@ describe('sequencing', () => {
     test('.c is .cycle(), made once per pattern', () => {
         const patch = execPatch(`
             const seq = $p("c4 e4");
-            $sine(seq.c).amp($perc(seq.c.trig)).out();
+            $sine(seq.c).amp($perc(seq.c.o.trig)).out();
         `);
         const [cycle] = findModules(patch, '$cycle');
         const [sine] = findModules(patch, '$sine');
@@ -1180,14 +1180,14 @@ describe('utilities', () => {
 
     test('$sah (sample and hold)', () => {
         const patch = execPatch(
-            '$sah($noise("white"), $clock.beatTrigger).out()',
+            '$sah($noise("white"), $clock.o.beatTrigger).out()',
         );
         expect(findModules(patch, '$sah').length).toBe(1);
     });
 
     test('$slew', () => {
         const patch = execPatch(
-            '$slew($clock.beatTrigger, { rise: 0.01, fall: 0.01 }).out()',
+            '$slew($clock.o.beatTrigger, { rise: 0.01, fall: 0.01 }).out()',
         );
         expect(findModules(patch, '$slew').length).toBe(1);
     });
@@ -1208,14 +1208,14 @@ describe('utilities', () => {
         }>;
         expect(scale).toHaveLength(4);
         expect(
-            scale.every((c) => c.module === chord.id && c.port === 'output'),
+            scale.every((c) => c.module === chord.id && c.port === 'pitch'),
         ).toBe(true);
     });
 
     test('$quantizer takes a signal scale and a gate', () => {
         const patch = execPatch(
             'const midi = $midiCV({ channels: 4 })\n' +
-                '$quantizer($sine("1hz"), midi, { gate: midi.gate }).out()',
+                '$quantizer($sine("1hz"), midi, { gate: midi.o.gate }).out()',
         );
         expect(findModules(patch, '$chord').length).toBe(0);
         const [midi] = findModules(patch, '$midiCV');
@@ -1257,7 +1257,7 @@ describe('utilities', () => {
     });
 
     test('$clockDivider', () => {
-        const patch = execPatch('$clockDivider($clock.beatTrigger, 4).out()');
+        const patch = execPatch('$clockDivider($clock.o.beatTrigger, 4).out()');
         expect(findModules(patch, '$clockDivider').length).toBe(1);
     });
 
@@ -1813,14 +1813,14 @@ describe('built-in modules', () => {
     test('$clock is available and has outputs', () => {
         // Use $clock outputs as trigger input to an envelope
         const patch = execPatch(
-            '$adsr($clock.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
+            '$adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
         );
         expect(patch.modules.find((m) => m.id === 'ROOT_CLOCK')).toBeDefined();
     });
 
-    test('$clock.beatTrigger can modulate another module', () => {
+    test('$clock.o.beatTrigger can modulate another module', () => {
         const patch = execPatch(
-            '$adsr($clock.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
+            '$adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
         );
         expect(patch.modules.find((m) => m.id === 'ROOT_CLOCK')).toBeDefined();
         expect(findModules(patch, '$adsr').length).toBe(1);
@@ -1870,7 +1870,7 @@ describe('fx modules', () => {
 
     test('$enosc', () => {
         const patch = execPatch(
-            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" }).odd.out()',
+            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" }).o.odd.out()',
         );
         const [enosc] = findModules(patch, '$enosc');
         expect(enosc.params.scale).toEqual({ type: 'minor' });
@@ -2021,7 +2021,7 @@ describe('complex patches', () => {
         const source = `
             const seq = $cycle($p("c3 e3 g3 b3"))
             const osc = $saw(seq)
-            const env = $adsr($clock.beatTrigger, { attack: 0.01, decay: 0.2, sustain: 2, release: 0.3 })
+            const env = $adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.2, sustain: 2, release: 0.3 })
             $lpf(osc, env.range("C3", "C6")).out()
         `;
         const patch = execPatch(source);

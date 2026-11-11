@@ -167,7 +167,7 @@ const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
             title: "Chopped and rearranged loop",
             code: r#"
                 const order = $p('0 2 1 3 0 0 3 2').c
-                $sampler($wavs().pad, order.trig, {
+                $sampler($wavs().pad, order.o.trig, {
                   slice: [[0, 0.25, 0.5, 0.75], order],
                   fade: 2,
                 }).out()
@@ -175,7 +175,7 @@ const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Kick on every beat",
-            code: "$sampler($wavs().kick, $clock.beatTrigger).out()",
+            code: "$sampler($wavs().kick, $clock.o.beatTrigger).out()",
         },
     ],
 };

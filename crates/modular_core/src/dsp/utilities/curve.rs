@@ -46,7 +46,7 @@ const CURVE_DOCS: ModuleDocs = ModuleDocs {
             $saw('c2')
               .$.lpf(
                 $curve(
-                  $adsr($clock.beatTrigger, { decay: 0.3 }),
+                  $adsr($clock.o.beatTrigger, { decay: 0.3 }),
                   3,
                 ).range('c3', 'c7', 0, 5),
                 2,

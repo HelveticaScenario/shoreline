@@ -93,6 +93,11 @@ export interface WavsFolderNode {
     [name: string]: WavsFolderNode | 'file';
 }
 
+/** The bands of a `$xover`. */
+type XoverBands = Collection & {
+    o: { low: Collection; mid: Collection; high: Collection };
+};
+
 /** What the engine reports about a decoded WAV or media audio track. */
 interface LoadedWav {
     channels: number;
@@ -628,34 +633,26 @@ export function executePatchScript(
         const midHighFreq = config.midHighFreq ?? hz(2500);
         const xoverConf = { lowMidFreq, midHighFreq };
 
-        const bands = $xover(input, xoverConf) as Collection & {
-            low: Collection;
-            mid: Collection;
-            high: Collection;
-        };
+        const bands = $xover(input, xoverConf) as XoverBands;
 
         // Split the side-chain through an identical crossover so each band's
         // compressor keys off the matching frequency range of the sidechain.
         const scBands =
             config.sidechain !== undefined
-                ? ($xover(config.sidechain, xoverConf) as Collection & {
-                      low: Collection;
-                      mid: Collection;
-                      high: Collection;
-                  })
+                ? ($xover(config.sidechain, xoverConf) as XoverBands)
                 : null;
 
-        const lowComp = $comp(bands.low, {
+        const lowComp = $comp(bands.o.low, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.low }),
+            ...(scBands !== null && { sidechain: scBands.o.low }),
         });
-        const midComp = $comp(bands.mid, {
+        const midComp = $comp(bands.o.mid, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.mid }),
+            ...(scBands !== null && { sidechain: scBands.o.mid }),
         });
-        const highComp = $comp(bands.high, {
+        const highComp = $comp(bands.o.high, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.high }),
+            ...(scBands !== null && { sidechain: scBands.o.high }),
         });
 
         // Per-band trim — $scaleAndShift convention: scale=5 → unity gain.

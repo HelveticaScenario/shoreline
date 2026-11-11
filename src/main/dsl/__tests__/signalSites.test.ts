@@ -126,7 +126,7 @@ describe('static resolution', () => {
     test('named outputs, plain signals and pattern params get no site', () => {
         expect(
             hints(
-                `const seq = $p('c e g').c\n$saw(seq.cv).amp($perc(seq.trig)).out()\n$sine('c').amp(2)\n$cycle($p('c'))`,
+                `const seq = $p('c e g').c\n$saw(seq.o.cv).amp($perc(seq.o.trig)).out()\n$sine('c').amp(2)\n$cycle($p('c'))`,
             ),
         ).toEqual([]);
     });

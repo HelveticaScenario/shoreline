@@ -83,7 +83,7 @@ const SINE_DOCS: ModuleDocs = ModuleDocs {
             title: "FM bell",
             code: r#"
                 $sine('c4', { fm: $sine('c5').range(-3, 3) })
-                  .amp($perc($clock.beatTrigger, { decay: 1 }))
+                  .amp($perc($clock.o.beatTrigger, { decay: 1 }))
                   .out()
             "#,
         },

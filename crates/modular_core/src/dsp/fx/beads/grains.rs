@@ -122,7 +122,7 @@ struct GranularParams {
 #[serde(rename_all = "camelCase")]
 struct GranularOutputs {
     #[output(
-        "output",
+        "stereo",
         "stereo mix of every voice, as left and right channels",
         type = cv,
         default,

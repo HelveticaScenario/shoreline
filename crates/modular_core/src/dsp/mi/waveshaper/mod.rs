@@ -81,7 +81,7 @@ struct WaveshaperParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WaveshaperOutputs {
-    #[output("output", "the shaped and folded wave", type = cv, default, range = (-5.0, 5.0))]
+    #[output("shaped", "the shaped and folded wave", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
     #[output(
         "overtones",
@@ -109,7 +109,10 @@ const WAVESHAPER_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Bumpy overtones",
-            code: "$mi.waveshaper('g2', { shape: 4, fold: 3 }).overtones.out()",
+            code: r#"
+                const shaper = $mi.waveshaper('g2', { shape: 4, fold: 3 })
+                shaper.o.overtones.out()
+            "#,
         },
     ],
 };
