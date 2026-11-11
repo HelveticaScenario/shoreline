@@ -125,7 +125,9 @@ describe('computeControlQuickFixes — API methods and functions', () => {
     test('non-signal params and control calls offer nothing', () => {
         expect(fixesAt(`$sine('c4').mixDown(2|)`).fixes).toEqual([]);
         expect(fixesAt(`$setTempo(120|)`).fixes).toEqual([]);
-        expect(fixesAt(`$slider('x', 1|, 0, 5)`).fixes).toEqual([]);
+        expect(
+            fixesAt(`$slider('x', 1|, 0, 5)`).fixes.map((f) => f.kind),
+        ).toEqual(['unwrap']);
     });
 
     test('an unknown option object blocks option adds', () => {
