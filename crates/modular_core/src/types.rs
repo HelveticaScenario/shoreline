@@ -2634,6 +2634,9 @@ pub struct OutputSchema {
     /// An `OutputType` value.
     #[napi(ts_type = "string")]
     pub output_type: OutputType,
+    /// Whether this output is polyphonic (PolyOutput) or monophonic (f32/f64)
+    #[serde(default)]
+    pub polyphonic: bool,
     /// Whether this is the default output for the module
     #[serde(default)]
     pub default: bool,

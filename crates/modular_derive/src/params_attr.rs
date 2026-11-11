@@ -247,30 +247,6 @@ fn is_signal_field(ty: &Type) -> bool {
         || is_option_mono_signal_type(ty)
 }
 
-/// Whether `ty` is a bare `Signal` or wraps one (`Option<Signal>`,
-/// `Vec<Signal>`, …). A param carries signals only as `PolySignal` or
-/// `MonoSignal`, so every input reads as a collection in the DSL.
-fn contains_bare_signal(ty: &Type) -> bool {
-    match ty {
-        Type::Path(path) => path.path.segments.iter().any(|seg| {
-            seg.ident == "Signal"
-                || match &seg.arguments {
-                    syn::PathArguments::AngleBracketed(args) => args.args.iter().any(|arg| {
-                        matches!(arg, syn::GenericArgument::Type(inner) if contains_bare_signal(inner))
-                    }),
-                    _ => false,
-                }
-        }),
-        Type::Array(array) => contains_bare_signal(&array.elem),
-        Type::Slice(slice) => contains_bare_signal(&slice.elem),
-        Type::Tuple(tuple) => tuple.elems.iter().any(contains_bare_signal),
-        Type::Reference(reference) => contains_bare_signal(&reference.elem),
-        Type::Paren(paren) => contains_bare_signal(&paren.elem),
-        Type::Group(group) => contains_bare_signal(&group.elem),
-        _ => false,
-    }
-}
-
 const NUMERIC_TYPES: &[&str] = &[
     "u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize", "f32", "f64",
 ];
@@ -498,12 +474,6 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                 ));
             }
             continue;
-        }
-        if contains_bare_signal(&field.ty) {
-            return Err(syn::Error::new(
-                field.ty.span(),
-                "params take signals as `PolySignal` or `MonoSignal`, never a bare `Signal`",
-            ));
         }
         if let Some(doc) = field.attrs.iter().find(|a| a.path().is_ident("doc")) {
             return Err(syn::Error::new(

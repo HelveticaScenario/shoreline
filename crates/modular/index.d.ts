@@ -578,6 +578,8 @@ export interface OutputSchema {
   description: string
   /** An `OutputType` value. */
   outputType: string
+  /** Whether this output is polyphonic (PolyOutput) or monophonic (f32/f64) */
+  polyphonic: boolean
   /** Whether this is the default output for the module */
   default: boolean
   /** The minimum value of the raw output range (before any remapping) */

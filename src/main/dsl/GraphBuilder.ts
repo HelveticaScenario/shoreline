@@ -64,6 +64,7 @@ export interface ScopeConfig {
 export interface OutputSchemaWithRange {
     name: string;
     description: string;
+    polyphonic?: boolean;
     minValue?: number;
     maxValue?: number;
     /** Fixed channel count; absent outputs follow the module's channel count. */
@@ -2311,7 +2312,7 @@ export class ModuleNode {
 
     /**
      * An output port of this module, as a collection of its channels: ranged
-     * when the port declares a value range.
+     * when the port declares a value range. A mono port is one channel.
      */
     _output(portName: string): Collection | CollectionWithRange {
         const outputSchema = this.schema.outputs.find(
@@ -2323,7 +2324,9 @@ export class ModuleNode {
             );
         }
 
-        const channels = outputSchema.channels ?? this.channelCount;
+        const channels = outputSchema.polyphonic
+            ? (outputSchema.channels ?? this.channelCount)
+            : 1;
         const { minValue, maxValue } = outputSchema;
         if (minValue !== undefined && maxValue !== undefined) {
             return new CollectionWithRange(

@@ -65,3 +65,21 @@ pub fn is_mono_signal_type(ty: &Type) -> bool {
 pub fn is_option_mono_signal_type(ty: &Type) -> bool {
     is_type(ty, is_mono_signal_type)
 }
+
+/// Check if a type is Option<Signal>
+pub fn is_option_signal_type(ty: &Type) -> bool {
+    is_type(ty, is_signal_type)
+}
+
+/// Check if a type is exactly Signal
+pub fn is_signal_type(ty: &Type) -> bool {
+    match ty {
+        Type::Path(tp) => tp
+            .path
+            .segments
+            .last()
+            .map(|seg| seg.ident == "Signal")
+            .unwrap_or(false),
+        _ => false,
+    }
+}

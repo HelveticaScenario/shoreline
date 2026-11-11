@@ -16,7 +16,7 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
-use crate::{MonoSignal, PolyOutput, param_errors::ModuleParamErrors};
+use crate::{MonoSignal, param_errors::ModuleParamErrors};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
@@ -55,14 +55,13 @@ struct GrooveOutputs {
         "offset",
         "how far the groove shifts the playhead, in cycles; pass to a sequencer's `groove`",
         type = cv,
-        default,
-        channels = 1
+        default
     )]
-    offset: PolyOutput,
-    #[output("velocity", "velocity of the current groove step; pass to a sequencer's `velocity`", type = cv, range = (0.0, 5.0), channels = 1)]
-    velocity: PolyOutput,
-    #[output("trigger", "fires at the start of each grooved step", type = trig, channels = 1)]
-    trigger: PolyOutput,
+    offset: f32,
+    #[output("velocity", "velocity of the current groove step; pass to a sequencer's `velocity`", type = cv, range = (0.0, 5.0))]
+    velocity: f32,
+    #[output("trigger", "fires at the start of each grooved step", type = trig)]
+    trigger: f32,
 }
 
 const GROOVE_DOCS: ModuleDocs = ModuleDocs {
@@ -144,9 +143,9 @@ impl Groove {
         let frame = self
             .state
             .advance(&self.params.template, straight, sample_rate);
-        self.outputs.offset.set(0, frame.offset);
-        self.outputs.velocity.set(0, frame.velocity);
-        self.outputs.trigger.set(0, frame.trigger);
+        self.outputs.offset = frame.offset;
+        self.outputs.velocity = frame.velocity;
+        self.outputs.trigger = frame.trigger;
     }
 }
 

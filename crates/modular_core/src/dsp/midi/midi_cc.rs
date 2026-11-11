@@ -9,7 +9,6 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::PolyOutput;
 use crate::types::{DeviceName, MidiControlChange, MidiControlChange14Bit};
 
 #[params]
@@ -42,8 +41,8 @@ struct MidiCcParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MidiCcOutputs {
-    #[output("output", "the controller's value: 0 at its minimum, 5 at its maximum", type = cv, default, range = (0.0, 5.0), channels = 1)]
-    output: PolyOutput,
+    #[output("output", "the controller's value: 0 at its minimum, 5 at its maximum", type = cv, default, range = (0.0, 5.0))]
+    output: f32,
 }
 
 /// State for the MidiCc module.
@@ -144,7 +143,7 @@ impl MidiCc {
             self.state.smoothed_value = target;
         }
 
-        self.outputs.output.set(0, self.state.smoothed_value);
+        self.outputs.output = self.state.smoothed_value;
     }
 }
 

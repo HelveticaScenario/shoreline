@@ -17,8 +17,8 @@ use modular_core::poly::PolyOutput;
 
 #[derive(modular_derive::Outputs)]
 struct SimpleOutputs {
-    #[output("value", "A value", type = cv, default, channels = 1)]
-    value: PolyOutput,
+    #[output("value", "A value", type = cv, default)]
+    value: f32,
     #[output("poly", "Poly out", type = cv)]
     poly: PolyOutput,
 }
@@ -34,7 +34,7 @@ fn block_outputs_struct_exists() {
 #[test]
 fn copy_from_inner_fills_block_outputs() {
     let inner = SimpleOutputs {
-        value: PolyOutput::mono(2.5),
+        value: 2.5,
         poly: PolyOutput::mono(1.0),
     };
     let mut bo = SimpleBlockOutputs::new(4, 1);
@@ -60,7 +60,7 @@ fn port_index_returns_none_for_unknown() {
 #[test]
 fn get_at_reads_correct_port() {
     let inner = SimpleOutputs {
-        value: PolyOutput::mono(7.5),
+        value: 7.5,
         poly: PolyOutput::mono(3.5),
     };
     let mut bo = SimpleBlockOutputs::new(4, 1);
@@ -80,7 +80,7 @@ fn channels_at_reports_port_width() {
     let bo = SimpleBlockOutputs::new(4, 3);
     let value_idx = SimpleBlockOutputs::port_index("value").unwrap();
     let poly_idx = SimpleBlockOutputs::port_index("poly").unwrap();
-    // A fixed-width port keeps its `channels`; others carry the module's.
+    // An f32 port is always mono; a poly port carries the module's channels.
     assert_eq!(bo.channels_at(value_idx), 1);
     assert_eq!(bo.channels_at(poly_idx), 3);
     assert_eq!(bo.channels_at(99), 0);

@@ -57,10 +57,18 @@ struct OutputAttr {
     channels: Option<u32>,
 }
 
+/// Precision type for output fields
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum OutputPrecision {
+    F32,
+    PolySignal,
+}
+
 /// Parsed output field data
 struct OutputField {
     field_name: Ident,
     output_name: LitStr,
+    precision: OutputPrecision,
     description: TokenStream2,
     output_type: OutputType,
     is_default: bool,
@@ -250,19 +258,33 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                         .into();
                     }
 
-                    let is_poly_output = matches!(
-                        &f.ty,
-                        Type::Path(tp) if tp.qself.is_none()
-                            && tp.path.segments.last().is_some_and(|seg| seg.ident == "PolyOutput")
-                    );
-                    if !is_poly_output {
-                        return syn::Error::new(
-                            f.ty.span(),
-                            "Output fields must have type PolyOutput; a mono output is `PolyOutput` with `channels = 1`",
-                        )
-                        .to_compile_error()
-                        .into();
-                    }
+                    // Detect field precision (f32 or PolySignal)
+                    let precision = match &f.ty {
+                        Type::Path(tp) => {
+                            let type_name =
+                                tp.path.segments.last().map(|seg| seg.ident.to_string());
+                            match type_name.as_deref() {
+                                Some("f32") => OutputPrecision::F32,
+                                Some("PolyOutput") => OutputPrecision::PolySignal,
+                                _ => {
+                                    return syn::Error::new(
+                                        f.ty.span(),
+                                        "Output fields must have type f32 or PolyOutput",
+                                    )
+                                    .to_compile_error()
+                                    .into();
+                                }
+                            }
+                        }
+                        _ => {
+                            return syn::Error::new(
+                                f.ty.span(),
+                                "Output fields must have type f32, or PolyOutput",
+                            )
+                            .to_compile_error()
+                            .into();
+                        }
+                    };
 
                     let output_attr = match parse_output_attr(output_attr_tokens) {
                         Ok(v) => v,
@@ -275,9 +297,19 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                         .map(|d| quote!(#d.to_string()))
                         .unwrap_or(quote!("".to_string()));
 
+                    if output_attr.channels.is_some() && precision != OutputPrecision::PolySignal {
+                        return syn::Error::new(
+                            f.span(),
+                            "`channels` applies only to PolyOutput fields",
+                        )
+                        .to_compile_error()
+                        .into();
+                    }
+
                     out.push(OutputField {
                         field_name,
                         output_name,
+                        precision,
                         description,
                         output_type: output_attr.output_type,
                         is_default: output_attr.is_default,
@@ -360,7 +392,12 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .iter()
         .map(|o| {
             let field_name = &o.field_name;
-            quote! { #field_name: crate::poly::PolyOutput::default() }
+            match o.precision {
+                OutputPrecision::F32 => quote! { #field_name: 0.0 },
+                OutputPrecision::PolySignal => {
+                    quote! { #field_name: crate::poly::PolyOutput::default() }
+                }
+            }
         })
         .collect();
 
@@ -370,6 +407,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
             let output_name = &o.output_name;
             let description = &o.description;
             let output_type = o.output_type.variant();
+            let is_polyphonic = o.precision == OutputPrecision::PolySignal;
             let is_default = o.is_default;
             let min_value = match o.range {
                 Some((min, _)) => quote! { Some(#min) },
@@ -388,6 +426,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                     name: #output_name.to_string(),
                     description: #description,
                     output_type: #output_type,
+                    polyphonic: #is_polyphonic,
                     default: #is_default,
                     min_value: #min_value,
                     max_value: #max_value,
@@ -399,6 +438,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
 
     let set_channels_stmts: Vec<_> = outputs
         .iter()
+        .filter(|o| o.precision == OutputPrecision::PolySignal)
         .map(|o| {
             let field_name = &o.field_name;
             match o.channels {
@@ -451,19 +491,25 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         })
         .collect();
 
-    // Each port gets its fixed `channels` or else the module's derived
-    // channel count.
+    // Each port is sized to its true width: f32 outputs are mono (1 channel,
+    // broadcast to consumers via cycling-on-read), PolyOutput ports get their
+    // fixed `channels` or else the module's derived channel count.
     let block_new_inits: Vec<_> = outputs
         .iter()
         .map(|o| {
             let field_name = &o.field_name;
-            match o.channels {
-                Some(n) => {
-                    let n = n as usize;
-                    quote! { #field_name: crate::block_port::BlockPort::new(block_size, #n) }
+            match o.precision {
+                OutputPrecision::F32 => {
+                    quote! { #field_name: crate::block_port::BlockPort::new(block_size, 1) }
                 }
-                None => quote! {
-                    #field_name: crate::block_port::BlockPort::new(block_size, channel_count)
+                OutputPrecision::PolySignal => match o.channels {
+                    Some(n) => {
+                        let n = n as usize;
+                        quote! { #field_name: crate::block_port::BlockPort::new(block_size, #n) }
+                    }
+                    None => quote! {
+                        #field_name: crate::block_port::BlockPort::new(block_size, channel_count)
+                    },
                 },
             }
         })
@@ -513,17 +559,26 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .iter()
         .map(|o| {
             let field_name = &o.field_name;
-            quote! {
-                {
-                    // Write each of this port's channels. `get_cycling`
-                    // fills the port even when the producer is narrower
-                    // than the port width; reads at higher consumer
-                    // channels wrap via BlockPort::get's modulo.
-                    let poly = &inner.#field_name;
-                    for ch in 0..self.#field_name.channels() {
-                        self.#field_name.set(slot, ch, poly.get_cycling(ch));
+            match o.precision {
+                OutputPrecision::F32 => quote! {
+                    // f32 output is mono: write the single value to the port's
+                    // one channel. Consumers on any channel read it back via
+                    // BlockPort::get's cycling (`ch % 1 == 0`), preserving the
+                    // mono-broadcast semantics downstream cables rely on.
+                    self.#field_name.set(slot, 0, inner.#field_name);
+                },
+                OutputPrecision::PolySignal => quote! {
+                    {
+                        // Write each of this port's channels. `get_cycling`
+                        // fills the port even when the producer is narrower
+                        // than the port width; reads at higher consumer
+                        // channels wrap via BlockPort::get's modulo.
+                        let poly = &inner.#field_name;
+                        for ch in 0..self.#field_name.channels() {
+                            self.#field_name.set(slot, ch, poly.get_cycling(ch));
+                        }
                     }
-                }
+                },
             }
         })
         .collect();
@@ -537,8 +592,8 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
 
         impl #block_outputs_name {
             /// Allocate all ports for the given block size and channel count.
-            /// Call only on the main thread. Ports without a fixed
-            /// `channels` are sized to `channel_count`.
+            /// Call only on the main thread. f32 ports are mono; PolyOutput
+            /// ports are sized to `channel_count`.
             pub fn new(block_size: usize, channel_count: usize) -> Self {
                 Self {
                     #(#block_new_inits,)*
