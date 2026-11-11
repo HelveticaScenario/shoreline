@@ -910,12 +910,12 @@ interface RangedErraticOptions extends ErraticOptions {
  * chainable DSP methods. Indexing and iteration give one-channel collections
  * of the same type, so \`osc[0]\` is still a signal with every method.
  */
-class BaseCollection<Self> implements Iterable<Self> {
+class BaseCollection {
   /** Number of channels in the collection */
   readonly length: number;
   /** Channel \`index\` as a one-channel collection */
-  readonly [index: number]: Self;
-  [Symbol.iterator](): Iterator<Self>;
+  readonly [index: number]: this;
+  [Symbol.iterator](): Iterator<this>;
 
   /**
    * A collection of the same type holding the channels from \`start\` up to but
@@ -1234,7 +1234,7 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
  * @see {@link CollectionWithRange} - for signals with a known range
  * @see {@link $c} - helper to create Collection
  */
-class Collection extends BaseCollection<Collection> {
+class Collection extends BaseCollection {
   protected constructor();
 }
 
@@ -1252,7 +1252,7 @@ class Collection extends BaseCollection<Collection> {
  * @see {@link Collection} - for signals without a known range
  * @see {@link $r} - helper to create CollectionWithRange
  */
-class CollectionWithRange extends BaseCollection<CollectionWithRange> {
+class CollectionWithRange extends BaseCollection {
   protected constructor();
 
   /**
@@ -1305,7 +1305,7 @@ class CollectionWithRange extends BaseCollection<CollectionWithRange> {
  * use it as a signal now and call .set() before the end of the script, for
  * feedback loops and forward references.
  */
-class DeferredCollection extends BaseCollection<DeferredCollection> {
+class DeferredCollection extends BaseCollection {
   protected constructor();
 
   /**
@@ -1325,9 +1325,6 @@ class DeferredCollection extends BaseCollection<DeferredCollection> {
  */
 class OutLane extends Collection {
   private constructor();
-  /** Channel \`index\` as a one-channel lane tap, keeping the lane's controls */
-  readonly [index: number]: OutLane;
-  [Symbol.iterator](): Iterator<OutLane>;
   /** 5V while the lane is audible, 0V while it is muted or silenced by another out's solo. */
   readonly active: CollectionWithRange;
   /**
@@ -2101,11 +2098,6 @@ function generateMultiOutputInterface(
     lines.push(
         `${indent}export interface ${interfaceName} extends ${baseType} {`,
     );
-    lines.push(
-        `${indent}  /** Channel \`index\` of every output, choosing an output the same way */`,
-    );
-    lines.push(`${indent}  readonly [index: number]: ${interfaceName};`);
-    lines.push(`${indent}  [Symbol.iterator](): Iterator<${interfaceName}>;`);
     lines.push(`${indent}  /** The module's outputs by name. */`);
     lines.push(`${indent}  readonly o: {`);
 
