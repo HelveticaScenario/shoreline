@@ -1,24 +1,39 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::wrap,
     poly::{PolyOutput, PolySignal, PolySignalExt},
-    types::Clickless,
+    types::SwapGlide,
 };
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PPulseOscillatorParams {
-    /// phasor input (0–1, wraps at boundaries)
-    #[signal(range = (0.0, 1.0))]
+    #[input(
+        "phase to read the wave at, usually from `$ramp`: the range is one cycle; values outside wrap",
+        type = audio,
+        range = (0.0, 1.0),
+    )]
     phase: PolySignal,
-    /// pulse width (0-5, 2.5 is square)
-    #[signal(default = 2.5, range = (0.0, 5.0))]
+    #[input(
+        "pulse width: 0 a thin high spike, 2.5 square, 5 a thin low notch",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<PolySignal>,
-    /// pulse width modulation CV — added to the width parameter
+    #[input(
+        "pulse width modulation, added to `width`",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pwm: Option<PolySignal>,
 }
@@ -26,29 +41,40 @@ struct PPulseOscillatorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PPulseOscillatorOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the pulse wave", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
-/// Per-channel state for width smoothing and phase tracking
+/// Per-channel state for width glide and phase tracking
 #[derive(Default, Clone, Copy)]
 struct ChannelState {
-    width: Clickless,
+    width: SwapGlide,
+    pwm: SwapGlide,
     prev_phase: f32,
 }
 
-/// Phase-driven pulse/square oscillator with pulse width modulation.
-///
-/// Instead of a frequency input, this oscillator is driven by an external
-/// phasor signal (0–1). Connect a `ramp` or other phase source to `phase`
-/// and use phase-distortion modules between them for complex timbres.
-///
-/// The `width` parameter sets the duty cycle: 0 = narrow pulse,
-/// 2.5 = square wave, 5 = inverted narrow pulse.
-/// `pwm` is added to `width` for modulation.
-///
-/// Output range is **±5V**.
-#[module(name = "$pPulse", args(phase))]
+const P_PULSE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Phase-driven pulse",
+    description: "The pulse wave of `$pulse`, following a phase input instead \
+                  of its own pitch. Warp the phase with `$pWarp` to reshape the \
+                  cycle before it is read.",
+    categories: &[ModuleCategory::Oscillator, ModuleCategory::Phase],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Mirrored pulse sweep",
+        code: r#"
+            $pPulse(
+              $pWarp(
+                $ramp('c3'),
+                $phase.mirror($sine('0.3hz').range(0, 5)),
+              ),
+              { width: 1 },
+            ).out()
+        "#,
+    }],
+};
+
+#[module(name = "$pPulse", docs = P_PULSE_DOCS, args(phase))]
 pub struct PPulseOscillator {
     outputs: PPulseOscillatorOutputs,
     channel_state: Box<[ChannelState]>,
@@ -56,15 +82,23 @@ pub struct PPulseOscillator {
 }
 
 impl PPulseOscillator {
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let num_channels = self.channel_count();
 
         for ch in 0..num_channels {
             let state = &mut self.channel_state[ch];
 
-            let base_width = self.params.width.value_or(ch, 2.5);
-            let pwm = self.params.pwm.value_or(ch, 0.0);
-            state.width.update((base_width + pwm).clamp(0.0, 5.0));
+            state.width.update(
+                self.params.width.value_or(ch, 2.5),
+                self.params.width.glide_mark(ch),
+                sample_rate,
+            );
+            state.pwm.update(
+                self.params.pwm.value_or(ch, 0.0),
+                self.params.pwm.glide_mark(ch),
+                sample_rate,
+            );
+            let width = (*state.width + *state.pwm).clamp(0.0, 5.0);
 
             let phase = wrap(0.0..1.0, self.params.phase.get_value(ch));
 
@@ -80,7 +114,7 @@ impl PPulseOscillator {
             state.prev_phase = phase;
 
             // Pulse width (0.0 to 1.0, 0.5 is square wave)
-            let pulse_width = (*state.width / 5.0).clamp(0.01, 0.99);
+            let pulse_width = (width / 5.0).clamp(0.01, 0.99);
 
             // Naive pulse wave
             let mut pulse = if phase < pulse_width { 1.0 } else { -1.0 };

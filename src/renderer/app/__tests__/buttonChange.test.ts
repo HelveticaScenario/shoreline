@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import { applyButtonChange, applyGroupCollapse } from '../buttonChange';
 import type { SliderEditModel } from '../sliderChange';
-import type { CodeStyle } from '../../dsl/objectPropertyInsert';
+import type { CodeStyle } from '../../dsl/listEdits';
 
 const TOGGLE = { callStart: 0, mode: 'toggle' as const };
 const GATE = { callStart: 0, mode: 'gate' as const };

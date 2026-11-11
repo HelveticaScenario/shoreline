@@ -1,19 +1,20 @@
 use std::ops::Range;
 
 use crate::dsp::utils::{SchmittTrigger, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PercussionEnvelopeParams {
-    /// trigger input (rising edge triggers envelope)
-    #[signal(type = trig, range = (0.0, 5.0))]
+    #[input("rising edge restarts the envelope from its current level", type = trig)]
     trigger: PolySignal,
-    /// decay time in seconds
-    #[signal(default = 0.1, range = (0.0, 10.0))]
+    #[input("how long the envelope takes to die away, in seconds", type = control, default = 0.1, range = (0.001, ..), control_range = (0.001, 10.0))]
     #[deserr(default)]
     decay: Option<PolySignal>,
 }
@@ -21,7 +22,7 @@ struct PercussionEnvelopeParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PercussionEnvelopeOutputs {
-    #[output("output", "envelope output", default, range = (0.0, 5.0))]
+    #[output("output", "the envelope", type = cv, default, range = (0.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -36,19 +37,34 @@ struct ChannelState {
     decay_cache: Option<(f32, f32)>,
 }
 
-/// Simple envelope for percussive sounds.
-///
-/// A rising edge on **trigger** starts the envelope at 5 V, which then
-/// decays exponentially to 0 V over the **decay** time. Perfect for
-/// hi-hats, kicks, and other transient sounds.
-///
-/// Output range is **0–5 V**.
-///
-/// ```js
-/// // short percussive hit
-/// $noise("white").amplitude($perc($clock.beatTrigger, { decay: 0.1 })).out()
-/// ```
-#[module(name = "$perc", args(trigger), block)]
+const PERC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Percussive decay envelope",
+    description: "Jumps to full level on each trigger and dies away: the quickest way \
+                  to make plucks, hits and hats.",
+    categories: &[ModuleCategory::Envelope],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Noise hi-hat",
+            code: r#"
+                $noise('white')
+                  .amp($perc($clock.beatTrigger, { decay: 0.05 }))
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Plucked bass",
+            code: r#"
+                const notes = $cycle($p('c2 c2 eb2 g1'))
+                $saw(notes)
+                  .amp($perc(notes.trig, { decay: 0.2 }))
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$perc", docs = PERC_DOCS, args(trigger), block)]
 pub struct PercussionEnvelope {
     outputs: PercussionEnvelopeOutputs,
     params: PercussionEnvelopeParams,

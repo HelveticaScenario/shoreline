@@ -5,14 +5,18 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 
 pub mod add_hz;
 pub mod adsr;
+pub mod arithmetic;
 pub mod buffer;
 pub mod chord;
 pub mod chord_names;
 pub mod clamp;
 pub mod clock_divider;
+pub mod coin_flip;
 pub mod curve;
 pub mod delay;
+pub mod erratic;
 pub mod hold;
+pub mod hz;
 pub mod lag;
 pub mod logic;
 pub mod math;
@@ -25,6 +29,7 @@ pub mod sample_and_hold;
 pub mod scale;
 pub mod scale_and_shift;
 pub mod scale_names;
+pub mod scan;
 pub mod smooth_control;
 pub mod spread;
 pub mod unison;
@@ -38,13 +43,18 @@ pub use scale::{FixedRoot, ScaleSpec};
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     add_hz::AddHz::install_constructor(map);
     adsr::Adsr::install_constructor(map);
+    arithmetic::Arithmetic::install_constructor(map);
+    arithmetic::Round::install_constructor(map);
     buffer::BufRead::install_constructor(map);
     buffer::BufferWrite::install_constructor(map);
     chord::Chord::install_constructor(map);
     clamp::Clamp::install_constructor(map);
     clock_divider::ClockDivider::install_constructor(map);
+    coin_flip::CoinFlip::install_constructor(map);
+    scan::Scan::install_constructor(map);
     curve::Curve::install_constructor(map);
     delay::DelayRead::install_constructor(map);
+    erratic::Erratic::install_constructor(map);
     hold::Hold::install_constructor(map);
     lag::LagProcessor::install_constructor(map);
     logic::RisingEdgeDetector::install_constructor(map);
@@ -52,6 +62,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     math::Math::install_constructor(map);
     motion_follower::MotionFollower::install_constructor(map);
     mul_hz::MulHz::install_constructor(map);
+    hz::Hz::install_constructor(map);
     remap::Remap::install_constructor(map);
     sample_and_hold::SampleAndHold::install_constructor(map);
     sample_and_hold::TrackAndHold::install_constructor(map);
@@ -68,13 +79,18 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
 pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer>) {
     add_hz::AddHz::install_params_deserializer(map);
     adsr::Adsr::install_params_deserializer(map);
+    arithmetic::Arithmetic::install_params_deserializer(map);
+    arithmetic::Round::install_params_deserializer(map);
     buffer::BufRead::install_params_deserializer(map);
     buffer::BufferWrite::install_params_deserializer(map);
     chord::Chord::install_params_deserializer(map);
     clamp::Clamp::install_params_deserializer(map);
     clock_divider::ClockDivider::install_params_deserializer(map);
+    coin_flip::CoinFlip::install_params_deserializer(map);
+    scan::Scan::install_params_deserializer(map);
     curve::Curve::install_params_deserializer(map);
     delay::DelayRead::install_params_deserializer(map);
+    erratic::Erratic::install_params_deserializer(map);
     hold::Hold::install_params_deserializer(map);
     lag::LagProcessor::install_params_deserializer(map);
     logic::RisingEdgeDetector::install_params_deserializer(map);
@@ -82,6 +98,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     math::Math::install_params_deserializer(map);
     motion_follower::MotionFollower::install_params_deserializer(map);
     mul_hz::MulHz::install_params_deserializer(map);
+    hz::Hz::install_params_deserializer(map);
     remap::Remap::install_params_deserializer(map);
     sample_and_hold::SampleAndHold::install_params_deserializer(map);
     sample_and_hold::TrackAndHold::install_params_deserializer(map);
@@ -99,13 +116,18 @@ pub fn schemas() -> Vec<ModuleSchema> {
     vec![
         add_hz::AddHz::get_schema(),
         adsr::Adsr::get_schema(),
+        arithmetic::Arithmetic::get_schema(),
+        arithmetic::Round::get_schema(),
         buffer::BufRead::get_schema(),
         buffer::BufferWrite::get_schema(),
         chord::Chord::get_schema(),
         clamp::Clamp::get_schema(),
         clock_divider::ClockDivider::get_schema(),
+        coin_flip::CoinFlip::get_schema(),
+        scan::Scan::get_schema(),
         curve::Curve::get_schema(),
         delay::DelayRead::get_schema(),
+        erratic::Erratic::get_schema(),
         hold::Hold::get_schema(),
         lag::LagProcessor::get_schema(),
         logic::RisingEdgeDetector::get_schema(),
@@ -113,6 +135,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         math::Math::get_schema(),
         motion_follower::MotionFollower::get_schema(),
         mul_hz::MulHz::get_schema(),
+        hz::Hz::get_schema(),
         remap::Remap::get_schema(),
         sample_and_hold::SampleAndHold::get_schema(),
         sample_and_hold::TrackAndHold::get_schema(),

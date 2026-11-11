@@ -180,8 +180,8 @@ describe('$v chaining', () => {
 
         it('chains osc to the same shader as the nested call', () => {
             expect(
-                wgslOf(`$v.ramp().$.osc(8, 0.5, { shape: 'saw' }).out();`),
-            ).toBe(wgslOf(`$v.out($v.osc(8, 0.5, { shape: 'saw' }));`));
+                wgslOf(`$v.ramp().$.osc(8, 0.5, 0, { shape: 'saw' }).out();`),
+            ).toBe(wgslOf(`$v.out($v.osc(8, 0.5, 0, { shape: 'saw' }));`));
         });
 
         it('mixes an osc into the signal with $m', () => {

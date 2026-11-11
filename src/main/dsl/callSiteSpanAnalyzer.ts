@@ -8,10 +8,15 @@
  * Designed to be extensible — any DSL function whose view zone needs to know
  * its full call expression span can be added to the tracking sets.
  */
+import ts from 'typescript';
 
-import { Node, type SourceFile } from 'ts-morph';
-
-import type { CallSiteKey, CallSiteSpanRegistry } from './sourceAnalysisTypes';
+import {
+    callSiteKey,
+    lineColumn,
+    v8CallAnchor,
+} from '../../shared/dsl/ast/position';
+import { forEachDescendant } from '../../shared/dsl/ast/walk';
+import type { CallSiteSpanRegistry } from './sourceAnalysisTypes';
 
 /** Method names tracked for call expression spans (property access calls) */
 const DSL_METHODS_TO_TRACK = new Set([
@@ -30,76 +35,33 @@ const DSL_FUNCTIONS_TO_TRACK = new Set([
     '$eq',
 ]);
 
+function isTracked(call: ts.CallExpression): boolean {
+    const callee = call.expression;
+    if (ts.isPropertyAccessExpression(callee)) {
+        return DSL_METHODS_TO_TRACK.has(callee.name.text);
+    }
+    return ts.isIdentifier(callee) && DSL_FUNCTIONS_TO_TRACK.has(callee.text);
+}
+
 /**
- * Analyze call site expression spans in a parsed source file.
- *
- * Walks all call expressions and records the full span (start/end lines)
- * for tracked DSL methods and functions. Keys are computed in user-source
- * coordinates so the renderer can look up directly from
- * captureSourceLocation's {line, column} values.
- *
- * @param sourceFile - The ts-morph SourceFile to analyze
- * @param firstLineColumnOffset - Column offset for the first line
- * @returns Registry mapping call site keys to expression spans
+ * The start and end lines of every tracked call in `file`, keyed in
+ * patch-source coordinates so the renderer can look one up directly from a
+ * `captureSourceLocation()` result.
  */
 export function analyzeCallSiteSpans(
-    sourceFile: SourceFile,
-    firstLineColumnOffset: number,
+    file: ts.SourceFile,
 ): CallSiteSpanRegistry {
     const callSiteSpans: CallSiteSpanRegistry = new Map();
-
-    sourceFile.forEachDescendant((node: Node) => {
-        if (!Node.isCallExpression(node)) {
+    forEachDescendant(file, (node) => {
+        if (!ts.isCallExpression(node) || !isTracked(node)) {
             return;
         }
-
-        const call = node;
-        const expression = call.getExpression();
-
-        let callStartPos: number;
-
-        if (Node.isPropertyAccessExpression(expression)) {
-            // Method call like .scope() — V8 reports position of the method name
-            const methodName = expression.getName();
-            if (!DSL_METHODS_TO_TRACK.has(methodName)) {
-                return;
-            }
-            callStartPos = expression.getNameNode().getStart();
-        } else if (Node.isIdentifier(expression)) {
-            // Standalone call like $slider()
-            const funcName = expression.getText();
-            if (!DSL_FUNCTIONS_TO_TRACK.has(funcName)) {
-                return;
-            }
-            callStartPos = call.getStart();
-        } else {
-            return;
-        }
-
-        // Compute key in user-source coordinates so the renderer can look up
-        // Directly from captureSourceLocation's {line, column} values.
-        // Key format: "${userLine}:${v8Column}" where:
-        //   UserLine = tsMorphLine (1-based, same as captureSourceLocation().line)
-        //   V8Column = tsMorphCol + firstLineColumnOffset for line 1, else tsMorphCol
-        //              (1-based, same as captureSourceLocation().column)
-        const { line: startTsMorphLine, column: startTsMorphCol } =
-            sourceFile.getLineAndColumnAtPos(callStartPos);
-        const v8Column =
-            startTsMorphCol +
-            (startTsMorphLine === 1 ? firstLineColumnOffset : 0);
-        const key: CallSiteKey = `${startTsMorphLine}:${v8Column}`;
-
-        // Compute the end line of the full call expression (including closing paren)
-        const callEnd = call.getEnd();
-        const { line: endTsMorphLine } = sourceFile.getLineAndColumnAtPos(
-            callEnd - 1,
-        );
-
-        callSiteSpans.set(key, {
-            endLine: endTsMorphLine,
-            startLine: startTsMorphLine,
+        const anchor = v8CallAnchor(node, file);
+        callSiteSpans.set(callSiteKey(file, anchor), {
+            // The line holding the call's last character, its closing paren.
+            endLine: lineColumn(file, node.getEnd() - 1).line,
+            startLine: lineColumn(file, anchor).line,
         });
     });
-
     return callSiteSpans;
 }
