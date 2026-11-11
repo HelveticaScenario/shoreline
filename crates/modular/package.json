@@ -1,11 +1,11 @@
 {
     "name": "@modular/core",
     "version": "0.0.1-0",
-    "description": "Native Rust DSP engine for Operator",
+    "description": "Native Rust DSP engine for Shoreline",
     "main": "index.js",
     "repository": {
         "type": "git",
-        "url": "https://github.com/HelveticaScenario/operator.git"
+        "url": "https://github.com/HelveticaScenario/shoreline.git"
     },
     "license": "AGPL",
     "module": "index.js",
@@ -20,10 +20,11 @@
     "files": [
         "index.d.ts",
         "index.js",
+        "moduleCategories.json",
         "schemas.json"
     ],
     "napi": {
-        "binaryName": "operator",
+        "binaryName": "shoreline",
         "targets": [
             "x86_64-pc-windows-msvc",
             "x86_64-apple-darwin",
@@ -42,9 +43,9 @@
     "scripts": {
         "artifacts": "napi artifacts",
         "bench": "node --import @oxc-node/core/register benchmark/bench.ts",
-        "build": "node ../../scripts/napi-build.mjs --platform --release --esm && node ../../scripts/copy-debuginfo.mjs && cargo run -p modular_core --bin generate-schemas --release -- schemas.json",
-        "build:debug": "node ../../scripts/napi-build.mjs --platform --esm && cargo run -p modular_core --bin generate-schemas -- schemas.json",
-        "build:alloc": "node ../../scripts/napi-build.mjs --platform --release --esm --features=alloc-detector && node ../../scripts/copy-debuginfo.mjs && cargo run -p modular_core --bin generate-schemas --release -- schemas.json",
+        "build": "node ../../scripts/napi-build.mjs --platform --release --esm && node ../../scripts/copy-debuginfo.mjs && cargo run -p modular_core --bin generate-schemas --release -- schemas.json moduleCategories.json",
+        "build:debug": "node ../../scripts/napi-build.mjs --platform --esm && cargo run -p modular_core --bin generate-schemas -- schemas.json moduleCategories.json",
+        "build:alloc": "node ../../scripts/napi-build.mjs --platform --release --esm --features=alloc-detector && node ../../scripts/copy-debuginfo.mjs && cargo run -p modular_core --bin generate-schemas --release -- schemas.json moduleCategories.json",
         "format": "run-p format:rs format:toml",
         "format:toml": "taplo format",
         "format:rs": "cargo fmt",

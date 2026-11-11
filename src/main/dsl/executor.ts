@@ -35,15 +35,13 @@ import { createOutLane, type OutLane } from './outLane';
 import { analyzeSourceSpans } from './analyzeSource';
 import type { CallSiteSpanRegistry } from './analyzeSource';
 import type { InterpolationResolutionMap } from '../../shared/dsl/spanTypes';
-import {
-    FIRST_LINE_COLUMN_OFFSET,
-    setActiveInterpolationResolutions,
-} from '../../shared/dsl/spanTypes';
+import { setActiveInterpolationResolutions } from '../../shared/dsl/spanTypes';
 import type { SliderDefinition } from '../../shared/dsl/sliderTypes';
 import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
 import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
-import { assertControlsPlaced, createControls } from './controls';
+import { createControls } from './controls';
+import { assertControlsPlaced } from './controlPlacement';
 import { $p, setActiveCycleFactory, type CycleFactory } from './miniNotation';
 import { isPatternValue } from './patternKinds';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
@@ -54,6 +52,7 @@ import type {
 } from '../../shared/video/videoGraph';
 import { compileVideoGraph } from './video/wgslCompiler';
 import { VIDEO_DOCS } from '../../shared/dsl/videoDocs';
+import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 
 // Augment Array.prototype with pipe() for TypeScript
 declare global {
@@ -401,6 +400,29 @@ export function executePatchScript(
         );
     }
     const cycleFactory: CycleFactory = $cycle;
+    // Numbers convert here; a frequency that includes a signal converts on the
+    // audio thread through `_hz`. Note and Hz strings are already pitches, so
+    // they are rejected rather than read as a frequency.
+    const $hz = (frequency: number | PolySignal) => {
+        if (typeof frequency === 'number') {
+            return hz(frequency);
+        }
+        const items = Array.isArray(frequency) ? frequency : [frequency];
+        for (const item of items) {
+            if (typeof item === 'string') {
+                throw new Error(
+                    `$hz takes a frequency in Hz, not "${item}": note and Hz strings are already pitches`,
+                );
+            }
+            if (typeof item === 'number') {
+                hz(item);
+            }
+        }
+        if (items.every((item) => typeof item === 'number')) {
+            return items.map((item) => hz(item));
+        }
+        return builder.getFactory('_hz')(frequency) as Collection;
+    };
     const $mix = userNamespaceTree['$mix'];
     const $delayRead = userNamespaceTree['$delayRead'];
     const $clamp = userNamespaceTree['$clamp'];
@@ -868,22 +890,21 @@ export function executePatchScript(
     };
 
     /**
-     * $table.* DSL helpers produce phase-warp table descriptors for the
-     * `$wavetable` oscillator (and any future modules that accept a `Table`).
+     * $phase.* DSL helpers produce phase-warp descriptors for modules that
+     * accept a `PhaseWarp` (`$wavetable`, `$enosc`, `$pWarp`).
      *
      * Each helper returns a plain JSON object whose shape matches the Rust
-     * `Table` enum deserializer (`#[serde(tag = "type", rename_all = "camelCase")]`).
+     * `PhaseWarp` deserializer (`#[serde(tag = "type", rename_all = "camelCase")]`).
      *
      * Inner signal-valued fields are passed through `replaceSignals` so that
      * ModuleOutputs / Collections are converted to the same wire format used
-     * for module-factory params. This matches the existing mechanism used by
-     * `_setParam` in GraphBuilder.
+     * for module-factory params.
      *
-     * Tables are composable: each returned descriptor has a `.pipe(next)` method
-     * that feeds this table's output phase into `next`. The optional second
-     * argument to each helper is a shorthand for `.pipe(next)`.
+     * Warps are composable: each returned descriptor has a `.pipe(fn)` method,
+     * and the optional second argument to each helper feeds this warp's output
+     * phase into `next`.
      */
-    function wrapTable(descriptor: Record<string, unknown>): Record<
+    function wrapWarp(descriptor: Record<string, unknown>): Record<
         string,
         unknown
     > & {
@@ -902,65 +923,83 @@ export function executePatchScript(
     }
 
     // A pattern argument plays through its own `$cycle` before it becomes a
-    // table signal.
-    const tableSignal = (value: unknown) =>
+    // warp signal.
+    const warpSignal = (value: unknown) =>
         replaceSignals(isPatternValue(value) ? cycleFactory(value) : value);
 
-    const $table = {
-        mirror: (amount: unknown, next?: unknown) => {
-            const t = wrapTable({
-                type: 'mirror',
-                amount: tableSignal(amount),
-            });
+    const warpHelper =
+        (type: string, field: string) => (value: unknown, next?: unknown) => {
+            const t = wrapWarp({ type, [field]: warpSignal(value) });
             return next !== undefined
-                ? wrapTable({ type: 'pipe', first: t, second: next })
+                ? wrapWarp({ type: 'pipe', first: t, second: next })
                 : t;
-        },
-        bend: (amount: unknown, next?: unknown) => {
-            const t = wrapTable({
-                type: 'bend',
-                amount: tableSignal(amount),
-            });
-            return next !== undefined
-                ? wrapTable({ type: 'pipe', first: t, second: next })
-                : t;
-        },
-        sync: (ratio: unknown, next?: unknown) => {
-            const t = wrapTable({ type: 'sync', ratio: tableSignal(ratio) });
-            return next !== undefined
-                ? wrapTable({ type: 'pipe', first: t, second: next })
-                : t;
-        },
-        fold: (amount: unknown, next?: unknown) => {
-            const t = wrapTable({
-                type: 'fold',
-                amount: tableSignal(amount),
-            });
-            return next !== undefined
-                ? wrapTable({ type: 'pipe', first: t, second: next })
-                : t;
-        },
-        pwm: (width: unknown, next?: unknown) => {
-            const t = wrapTable({ type: 'pwm', width: tableSignal(width) });
-            return next !== undefined
-                ? wrapTable({ type: 'pipe', first: t, second: next })
-                : t;
-        },
+        };
+
+    const $phase = {
+        mirror: warpHelper('mirror', 'amount'),
+        bend: warpHelper('bend', 'amount'),
+        sync: warpHelper('sync', 'ratio'),
+        fold: warpHelper('fold', 'amount'),
+        pwm: warpHelper('pwm', 'width'),
+        pulsar: warpHelper('pulsar', 'amount'),
+        crush: warpHelper('crush', 'amount'),
+        feedback: warpHelper('feedback', 'amount'),
     };
+
+    /**
+     * `$enosc.scale.*` holds the `EnoscScale` descriptors `$enosc`'s `scale`
+     * param takes: each preset is `{ type: <preset> }`, and `custom` returns
+     * `{ type: 'custom', notes, repeatsOctave }`. The engine validates them.
+     */
+    // Each preset is a getter, so every use gets its own descriptor object.
+    const enoscScale: Record<string, unknown> = {};
+    for (const { name: type } of enoscScalePresets(schemas)) {
+        Object.defineProperty(enoscScale, type, {
+            get: () => ({ type }),
+            enumerable: true,
+        });
+    }
+    enoscScale.custom = (notes: string, repeatsOctave: unknown) => {
+        if (typeof notes !== 'string') {
+            throw new TypeError(
+                '$enosc.scale.custom: notes must be a space-separated string of semitones, e.g. "0 3 7"',
+            );
+        }
+        const values = notes.trim().split(/\s+/).filter(Boolean).map(Number);
+        if (values.some((v) => !Number.isFinite(v))) {
+            throw new TypeError(
+                `$enosc.scale.custom: "${notes}" is not a space-separated list of numbers`,
+            );
+        }
+        if (typeof repeatsOctave !== 'boolean') {
+            throw new TypeError(
+                '$enosc.scale.custom: repeatsOctave must be true or false',
+            );
+        }
+        return { type: 'custom', notes: values, repeatsOctave };
+    };
+    const enoscFactory = userNamespaceTree['$enosc'];
+    if (typeof enoscFactory === 'function') {
+        Object.defineProperty(enoscFactory, 'scale', {
+            value: Object.freeze(enoscScale),
+            enumerable: true,
+            configurable: true,
+        });
+    }
 
     const dslGlobals = {
         // Prefixed namespace tree (modules and namespaces, minus _clock)
         ...userNamespaceTree,
         // Helper functions with $ prefix
-        $hz: hz,
+        $hz,
         $note: note,
         // Mini-notation parser — wraps a string in a ParsedPattern that
         // $cycle consumes as a positional argument. Carries
         // $p.s(source, scale) for scale-degree patterns (integer degrees
         // resolved through a scale string into voltage atoms for $cycle).
         $p,
-        // Phase-warp table descriptors for $wavetable
-        $table,
+        // Phase-warp descriptors for $wavetable, $enosc and $pWarp
+        $phase,
         // Collection helpers
         $c: builder.$c.bind(builder),
         $r,
@@ -1016,22 +1055,13 @@ export function executePatchScript(
     const wrapperLineCount = 3;
     setDSLWrapperLineOffset(wrapperLineCount);
 
-    // The function body template indents the first line of source with 4 spaces
-    // This affects the column reported by V8 for the first line only
-    const firstLineColumnOffset = FIRST_LINE_COLUMN_OFFSET;
-
     // Analyze source code to extract argument spans before execution
     // The registry maps call-site keys (line:column) to argument span info
     const {
         registry: spanRegistry,
         interpolationResolutions,
         callSiteSpans,
-    } = analyzeSourceSpans(
-        source,
-        schemas,
-        wrapperLineCount,
-        firstLineColumnOffset,
-    );
+    } = analyzeSourceSpans(source, schemas);
     setActiveSpanRegistry(spanRegistry);
     setActiveInterpolationResolutions(interpolationResolutions);
     setActiveCycleFactory(cycleFactory);

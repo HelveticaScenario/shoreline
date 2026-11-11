@@ -1,9 +1,10 @@
-use std::mem::MaybeUninit;
 use std::ops::Range;
 
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
@@ -20,35 +21,47 @@ fn default_voices() -> usize {
     5
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams, BlockInputs)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct SupersawParams {
-    /// pitch in V/Oct (0V = C4)
+    #[input("oscillator pitch", type = pitch)]
     freq: PolySignal,
-    /// number of supersaw voices (1–64)
+    #[input(
+        "number of detuned saws stacked per note; each is its own output channel",
+        range = (1, 64),
+    )]
     #[serde(default = "default_voices")]
     #[deserr(default = default_voices())]
     voices: usize,
-    /// detune spread in semitones (default 0.18)
-    #[signal(type = control, default = 0.18, range = (0, 12))]
+    #[input(
+        "spread between the lowest and highest saw, in semitones",
+        type = control,
+        default = 0.18,
+        range = (0.0, ..),
+        control_range = (0.0, 12.0),
+    )]
     #[deserr(default)]
     detune: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user)
+    #[input(
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
+        type = audio,
+    )]
     #[deserr(default)]
     fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    /// hard sync source — rising edges reset every detuned voice's phase
+    #[input("hard sync: each rising edge restarts every saw of that note", type = trig)]
     #[deserr(default)]
     #[block_input(optional)]
     sync: Option<PolySignal>,
-    /// when true, each freshly started voice stays silent until its output
-    /// first crosses zero. Because voices start at random phases, this prevents
-    /// a click when the patch begins. Default true.
+    #[input(
+        "each new saw stays silent until it first crosses zero, so random starting phases cannot click"
+    )]
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]
     wait_for_zero_cross: bool,
@@ -61,7 +74,7 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SupersawOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the stacked saws, one channel per voice", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -71,25 +84,34 @@ pub fn supersaw_derive_channel_count(params: &SupersawParams) -> usize {
     params.voices.clamp(1, PORT_MAX_CHANNELS)
 }
 
-/// Supersaw oscillator with multiple detuned sawtooth voices and PolyBLEP anti-aliasing.
-///
-/// Generates a classic supersaw sound by stacking multiple sawtooth oscillators
-/// with symmetric detuning. Each input channel is processed by all voices,
-/// creating a rich, full sound.
-///
-/// - **freq** — pitch in V/Oct (0V = C4)
-/// - **voices** — number of detuned saw voices (1–64, default 5)
-/// - **detune** — detune spread in semitones (default 0.18)
-///
-/// Output range is **±5V** with gain compensation for input channel count.
-///
-/// ## Example
-///
-/// ```js
-/// $supersaw('c3').out()
-/// $supersaw('c3', { voices: 7, detune: 0.3 }).out()
-/// ```
-#[module(name = "$supersaw", channels_derive = supersaw_derive_channel_count, has_init, patch_update, args(freq), block)]
+const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Detuned saw stack",
+    description: "A stack of detuned sawtooths for huge trance leads, pads and \
+                  chords. Each saw comes out on its own channel, ready to spread \
+                  across stereo with `$stereoMix` or `$mixDown`.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Trance chord",
+            code: r#"
+                $supersaw($chord('A2[m]'), { voices: 7, detune: 0.3 })
+                  .$.lpf('c6', 1)
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Wide lead sweep",
+            code: r#"
+                $supersaw('a3', { detune: 0.3 })
+                  .$.lpf($sine('0.1hz').range('c5', 'c7'))
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$supersaw", docs = SUPERSAW_DOCS, channels_derive = supersaw_derive_channel_count, has_init, patch_update, args(freq), block)]
 pub struct Supersaw {
     outputs: SupersawOutputs,
     params: SupersawParams,
@@ -256,7 +278,7 @@ impl Supersaw {
         let mut detune = [0.0f32; PORT_MAX_CHANNELS];
         for input_ch in 0..input_channels {
             let pitch = p.freq.get_value(input_ch);
-            let fm = p.fm.value_or(input_ch, SupersawParams::FM_DEFAULT);
+            let fm = p.fm.value_or(input_ch, 0.0);
             base_freq[input_ch] = apply_fm(pitch, fm, p.fm_mode);
             detune[input_ch] = p.detune.value_or(input_ch, SupersawParams::DETUNE_DEFAULT);
         }
@@ -297,11 +319,10 @@ impl Supersaw {
 
         // Each voice's phase increment, `[voice * input_channels + input_ch]`.
         // Held pitch, FM and detune fill it once for the whole range.
-        let mut increments =
-            [const { MaybeUninit::<f32>::uninit() }; PORT_MAX_CHANNELS * PORT_MAX_CHANNELS];
+        let mut increments = [0.0f32; PORT_MAX_CHANNELS * PORT_MAX_CHANNELS];
         let held = freq.is_constant() && fm.is_constant() && detune.is_constant();
         let (voice_t, inv_sample_rate) = (self.state.voice_t, self.state.inv_sample_rate);
-        let fill = |increments: &mut [MaybeUninit<f32>], i: usize| {
+        let fill = |increments: &mut [f32], i: usize| {
             let (freq, fm, detune) = (freq.row(i), fm.row(i), detune.row(i));
             let mut base_freq = [0.0f32; PORT_MAX_CHANNELS];
             for (base, (&pitch, &fm)) in base_freq.iter_mut().zip(freq.iter().zip(fm)) {
@@ -309,13 +330,13 @@ impl Supersaw {
             }
             for voice in 0..voices {
                 for input_ch in 0..input_channels {
-                    increments[voice * input_channels + input_ch].write(voice_increment(
+                    increments[voice * input_channels + input_ch] = voice_increment(
                         voices,
                         voice_t[voice],
                         base_freq[input_ch],
                         detune[input_ch],
                         inv_sample_rate,
-                    ));
+                    );
                 }
             }
         };
@@ -338,10 +359,8 @@ impl Supersaw {
                 let cells = &mut self.channel_state[voice * PORT_MAX_CHANNELS..][..input_channels];
                 let voice_increments = &increments[voice * input_channels..][..input_channels];
                 let mut accum = 0.0f32;
-                for ((cell, dt), &frac) in cells.iter_mut().zip(voice_increments).zip(&sync_frac) {
-                    // SAFETY: `fill` wrote every voice's `input_channels`
-                    // increments for this slot.
-                    accum += cell.step(unsafe { dt.assume_init() }, frac);
+                for ((cell, &dt), &frac) in cells.iter_mut().zip(voice_increments).zip(&sync_frac) {
+                    accum += cell.step(dt, frac);
                 }
                 *out = sanitize(accum * self.state.gain);
             }

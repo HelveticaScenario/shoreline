@@ -4,6 +4,8 @@
 
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Stateless — the sine shaper carries no history.
 #[derive(Clone, Copy, Default)]
@@ -18,14 +20,25 @@ impl Shaper for SineShaper {
     }
 }
 
+const SINE_SHAPE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Sine shaper",
+    description: "Bends the signal through a sine curve for smooth added \
+                  harmonics; pushed harder, a pure tone folds into a hollow, \
+                  bell-like one.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Sweeping sine harmonics",
+        code: r#"
+            $sine('c3')
+              .$.unstable.shape.sine($sine('0.2hz').range(0, 4))
+              .out()
+        "#,
+    }],
+};
+
 shape_module! {
-    /// Sine shaper, from Surge XT's Effect waveshaper — reshapes the signal
-    /// through a sine curve for smooth added harmonics. Higher `drive` pushes
-    /// further through the curve for more harmonics (−5..5, 0 = unity).
-    ///
-    /// ## Example
-    /// ```js
-    /// $unstable.shape.sine($sine('c3'), 3).out()
-    /// ```
-    name = "$unstable.shape.sine", ident = Sine, shaper = SineShaper
+    docs = SINE_SHAPE_DOCS,
+    name = "$unstable.shape.sine", ident = Sine, shaper = SineShaper,
+    drive_doc = "how hard the signal hits the shaper: -5 = -12 dB, 0 unity, +5 = +12 dB",
 }

@@ -5,6 +5,7 @@ import type {
     Scope,
     ScopeChannel,
     ScopeMode,
+    ScopeSplit,
 } from '@modular/core';
 import type { VuMeterDef } from '../../shared/dsl/vuMeterTypes';
 import {
@@ -47,6 +48,15 @@ export type ScopeWithLocation = Scope & {
     headless?: boolean;
 };
 
+/** Options accepted by `.scope()`. */
+export interface ScopeConfig {
+    msPerFrame?: number;
+    triggerThreshold?: number;
+    triggerWaitToRender?: boolean;
+    range?: [number, number];
+    split?: ScopeSplit;
+}
+
 // Extended OutputSchema interface that includes optional range
 export interface OutputSchemaWithRange {
     name: string;
@@ -54,6 +64,8 @@ export interface OutputSchemaWithRange {
     polyphonic?: boolean;
     minValue?: number;
     maxValue?: number;
+    /** Fixed channel count; absent outputs follow the module's channel count. */
+    channels?: number;
 }
 
 const ResolvedModuleOutput = z.object({
@@ -171,6 +183,24 @@ export interface MonoOutOptions {
     mute?: boolean;
     /** When any output is soloed, only soloed outputs are audible */
     solo?: boolean;
+}
+
+/** Options for `.erratic()` on a signal without a known range */
+export interface ErraticOptions {
+    /** Rising edge samples and holds the current random value */
+    trigger?: PolySignal;
+    /** How fast the variation wanders: 0 = frozen, 5 = a fresh value every sample (default 2) */
+    speed?: PolySignal;
+    /** Leans the variation upward (positive) or downward (negative); ±5 makes it one-sided (default 0) */
+    bias?: PolySignal;
+    /** Draw a random depth per value: low amounts mostly stay near the input with rare big jumps, high amounts mostly jump (default false) */
+    sparse?: boolean;
+}
+
+/** Options for `.erratic()` on a ranged signal */
+export interface RangedErraticOptions extends ErraticOptions {
+    /** `'clamp'` adds a random offset and clamps to the range; `'shift'` adds it unclamped; `'blend'` moves toward a random value in the range (default `'clamp'`) */
+    mode?: 'clamp' | 'shift' | 'blend';
 }
 
 /** VU meter / mute / solo state shared by both out group kinds */
@@ -485,28 +515,91 @@ export class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
     }
 
     /**
-     * Apply a power curve to all outputs. Creates a $curve module internally.
+     * Raise all outputs to the power `exponent`, sample by sample; negative
+     * values mirror positive ones.
      */
-    exp(factor: PolySignal = GAIN_CURVE_EXP): Collection {
+    exp(exponent: PolySignal): Collection {
         if (this.items.length === 0) {
             return new Collection();
         }
-        const factory = this.items[0].builder.getFactory('$curve');
-        if (!factory) {
-            throw new Error('Factory for $curve not registered');
+        return arithmetic(this.items[0].builder, this.items, exponent, 'pow');
+    }
+
+    /** Add `operand` to all outputs, sample by sample. */
+    add(operand: PolySignal): Collection {
+        if (this.items.length === 0) {
+            return new Collection();
         }
-        return factory(this.items, factor) as Collection;
+        return arithmetic(this.items[0].builder, this.items, operand, 'add');
+    }
+
+    /** Subtract `operand` from all outputs, sample by sample. */
+    sub(operand: PolySignal): Collection {
+        if (this.items.length === 0) {
+            return new Collection();
+        }
+        return arithmetic(this.items[0].builder, this.items, operand, 'sub');
+    }
+
+    /**
+     * Multiply all outputs by `operand`, sample by sample (2 = double).
+     * To change amplitude with a 0–5 V signal such as `$adsr`, see
+     * {@link amp} and {@link gain}.
+     */
+    mul(operand: PolySignal): Collection {
+        if (this.items.length === 0) {
+            return new Collection();
+        }
+        return arithmetic(this.items[0].builder, this.items, operand, 'mul');
+    }
+
+    /** Divide all outputs by `operand`, sample by sample; dividing by 0 gives 0. */
+    div(operand: PolySignal): Collection {
+        if (this.items.length === 0) {
+            return new Collection();
+        }
+        return arithmetic(this.items[0].builder, this.items, operand, 'div');
+    }
+
+    /** Round all outputs to the nearest whole volt, halves away from zero. */
+    round(): Collection {
+        if (this.items.length === 0) {
+            return new Collection();
+        }
+        return round(this.items[0].builder, this.items, 'round');
+    }
+
+    /** Round all outputs down to a whole volt. */
+    floor(): Collection {
+        if (this.items.length === 0) {
+            return new Collection();
+        }
+        return round(this.items[0].builder, this.items, 'floor');
+    }
+
+    /** Round all outputs up to a whole volt. */
+    ceil(): Collection {
+        if (this.items.length === 0) {
+            return new Collection();
+        }
+        return round(this.items[0].builder, this.items, 'ceil');
+    }
+
+    /**
+     * Apply a wandering random shift of up to ±`amount` (0–5) to all outputs,
+     * where 5 shifts by up to ±5 V.
+     */
+    erratic(amount: PolySignal, options: ErraticOptions = {}): Collection {
+        if (this.items.length === 0) {
+            return new Collection();
+        }
+        return erratic(this.items[0].builder, this.items, amount, options);
     }
 
     /**
      * Add scope visualization for all outputs in the collection
      */
-    scope(config?: {
-        msPerFrame?: number;
-        triggerThreshold?: number;
-        triggerWaitToRender?: boolean;
-        range?: [number, number];
-    }): this {
+    scope(config?: ScopeConfig): this {
         if (this.items.length > 0) {
             const loc = captureSourceLocation();
             this.items[0].builder.addScope(this.items, config, loc);
@@ -683,6 +776,103 @@ function playPattern(builder: GraphBuilder, value: PolySignal): PolySignal {
         : value;
 }
 
+type ArithmeticOp = 'add' | 'sub' | 'mul' | 'div' | 'pow';
+type RoundMode = 'round' | 'floor' | 'ceil';
+
+/** `input op operand`, sample by sample, through an `_arithmetic` module. */
+function arithmetic(
+    builder: GraphBuilder,
+    input: ModuleOutput | ModuleOutput[],
+    operand: PolySignal,
+    op: ArithmeticOp,
+): Collection {
+    if (operand === undefined) {
+        throw new Error(
+            op === 'pow'
+                ? '.exp() needs an exponent'
+                : `.${op}() needs an operand`,
+        );
+    }
+    return builder.getFactory('_arithmetic')(input, operand, {
+        op,
+    }) as Collection;
+}
+
+/** `x` rounded to a whole number as `_round` rounds it in `mode`. */
+function roundNumber(x: number, mode: RoundMode): number {
+    switch (mode) {
+        case 'floor':
+            return Math.floor(x);
+        case 'ceil':
+            return Math.ceil(x);
+        case 'round':
+            return Math.sign(x) * Math.round(Math.abs(x));
+    }
+}
+
+/**
+ * Round `input` to whole volts through a `_round` module. With a `range`,
+ * the result carries that range rounded the same way: numbers round here,
+ * other bounds through their own `_round`, never through their own methods,
+ * so a ranged bound does not round its range in turn.
+ */
+function round(
+    builder: GraphBuilder,
+    input: ModuleOutput | ModuleOutput[],
+    mode: RoundMode,
+    range?: { min: Signal[]; max: Signal[] },
+): Collection {
+    const factory = builder.getFactory('_round');
+    const rounded = factory(input, { mode }) as Collection;
+    if (!range) {
+        return rounded;
+    }
+    // Outputs sharing a bound signal share its rounding.
+    const roundedBounds = new Map<Signal, Signal>();
+    const roundBound = (bound: Signal): Signal => {
+        if (typeof bound === 'number') {
+            return roundNumber(bound, mode);
+        }
+        let out = roundedBounds.get(bound);
+        if (out === undefined) {
+            out = (factory(bound, { mode }) as Collection).items[0];
+            roundedBounds.set(bound, out);
+        }
+        return out;
+    };
+    return rounded.withRange(
+        range.min.map(roundBound),
+        range.max.map(roundBound),
+    );
+}
+
+/**
+ * Apply an `_erratic` random variation to `input`. With a `range`, the variation
+ * scales to the range's width, `mode` applies (clamping by default), and the
+ * result carries the range; without one, it is an unclamped shift scaled to ±5 V.
+ */
+function erratic(
+    builder: GraphBuilder,
+    input: ModuleOutput | ModuleOutput[],
+    amount: PolySignal,
+    { trigger, speed, bias, sparse, mode = 'clamp' }: RangedErraticOptions,
+    range?: { min: PolySignal; max: PolySignal },
+): Collection {
+    const factory = builder.getFactory('_erratic');
+    const options = { trigger, speed, bias, sparse };
+    if (!range) {
+        return factory(input, amount, options) as Collection;
+    }
+    return (
+        factory(input, amount, {
+            ...options,
+            mode,
+            min: range.min,
+            max: range.max,
+        }) as Collection
+    ).withRange(range.min, range.max);
+}
+
 /**
  * Collection of ModuleOutput instances.
  * Use .range(outMin, outMax, inMin, inMax) to remap with explicit input range.
@@ -748,6 +938,49 @@ export class CollectionWithRange extends BaseCollection<ModuleOutputWithRange> {
                 this.items.map((o) => o.maxValue),
             ) as Collection
         ).withRange(outMin, outMax);
+    }
+
+    /**
+     * Apply a wandering random shift to all outputs, scaled to each output's
+     * range: `amount` 5 shifts by up to half the range either way. Clamps to
+     * the range unless `mode` is `'shift'`.
+     */
+    erratic(
+        amount: PolySignal,
+        options: RangedErraticOptions = {},
+    ): CollectionWithRange {
+        if (this.items.length === 0) {
+            return new CollectionWithRange();
+        }
+        return erratic(this.items[0].builder, this.items, amount, options, {
+            min: this.items.map((o) => o.minValue),
+            max: this.items.map((o) => o.maxValue),
+        }) as CollectionWithRange;
+    }
+
+    /** Round all outputs to the nearest whole volt; the ranges round with them. */
+    round(): CollectionWithRange {
+        return this.rounded('round');
+    }
+
+    /** Round all outputs down to a whole volt; the ranges round with them. */
+    floor(): CollectionWithRange {
+        return this.rounded('floor');
+    }
+
+    /** Round all outputs up to a whole volt; the ranges round with them. */
+    ceil(): CollectionWithRange {
+        return this.rounded('ceil');
+    }
+
+    private rounded(mode: RoundMode): CollectionWithRange {
+        if (this.items.length === 0) {
+            return new CollectionWithRange();
+        }
+        return round(this.items[0].builder, this.items, mode, {
+            min: this.items.map((o) => o.minValue),
+            max: this.items.map((o) => o.maxValue),
+        }) as CollectionWithRange;
     }
 }
 
@@ -1959,15 +2192,24 @@ export class GraphBuilder {
 
     addScope(
         value: ModuleOutput | ModuleOutput[],
-        config: {
-            msPerFrame?: number;
-            triggerThreshold?: number;
-            triggerWaitToRender?: boolean;
-            range?: [number, number];
-        } = {},
+        config: ScopeConfig = {},
         sourceLocation?: { line: number; column: number },
     ) {
-        const { msPerFrame = 500, triggerThreshold, range = [-5, 5] } = config;
+        const {
+            msPerFrame = 500,
+            triggerThreshold,
+            range = [-5, 5],
+            split,
+        } = config;
+        if (
+            split !== undefined &&
+            split !== 'vertical' &&
+            split !== 'horizontal'
+        ) {
+            throw new Error(
+                `scope split must be 'vertical' or 'horizontal', got ${JSON.stringify(split)}`,
+            );
+        }
         const realTriggerThreshold: number | undefined =
             triggerThreshold !== undefined
                 ? triggerThreshold * 1000
@@ -1993,6 +2235,7 @@ export class GraphBuilder {
             msPerFrame,
             range,
             sourceLocation,
+            split,
             triggerThreshold: thresh,
         });
     }
@@ -2116,10 +2359,11 @@ export class ModuleNode {
             outputSchema.maxValue !== undefined;
 
         if (polyphonic) {
-            // Return Collection(WithRange) for each channel (based on derived channel count)
+            // Return Collection(WithRange) for each channel of the output
+            const channels = outputSchema.channels ?? this.channelCount;
             if (hasRange) {
                 const outputs: ModuleOutputWithRange[] = [];
-                for (let i = 0; i < this.channelCount; i++) {
+                for (let i = 0; i < channels; i++) {
                     outputs.push(
                         new ModuleOutputWithRange(
                             this.builder,
@@ -2134,7 +2378,7 @@ export class ModuleNode {
                 return new CollectionWithRange(...outputs);
             }
             const outputs: ModuleOutput[] = [];
-            for (let i = 0; i < this.channelCount; i++) {
+            for (let i = 0; i < channels; i++) {
                 outputs.push(
                     new ModuleOutput(this.builder, this.id, portName, i),
                 );
@@ -2236,19 +2480,61 @@ export class ModuleOutput {
     }
 
     /**
-     * Apply a power curve to this output. Creates a $curve module internally.
+     * Raise this output to the power `exponent`, sample by sample; negative
+     * values mirror positive ones.
      */
-    exp(factor: PolySignal = GAIN_CURVE_EXP): Collection {
-        const factory = this.builder.getFactory('$curve');
-        return factory(this, factor) as Collection;
+    exp(exponent: PolySignal): Collection {
+        return arithmetic(this.builder, this, exponent, 'pow');
     }
 
-    scope(config?: {
-        msPerFrame?: number;
-        triggerThreshold?: number;
-        triggerWaitToRender?: boolean;
-        range?: [number, number];
-    }): this {
+    /** Add `operand` to this output, sample by sample. */
+    add(operand: PolySignal): Collection {
+        return arithmetic(this.builder, this, operand, 'add');
+    }
+
+    /** Subtract `operand` from this output, sample by sample. */
+    sub(operand: PolySignal): Collection {
+        return arithmetic(this.builder, this, operand, 'sub');
+    }
+
+    /**
+     * Multiply this output by `operand`, sample by sample (2 = double).
+     * To change amplitude with a 0–5 V signal such as `$adsr`, see
+     * {@link amp} and {@link gain}.
+     */
+    mul(operand: PolySignal): Collection {
+        return arithmetic(this.builder, this, operand, 'mul');
+    }
+
+    /** Divide this output by `operand`, sample by sample; dividing by 0 gives 0. */
+    div(operand: PolySignal): Collection {
+        return arithmetic(this.builder, this, operand, 'div');
+    }
+
+    /** Round this output to the nearest whole volt, halves away from zero. */
+    round(): Collection {
+        return round(this.builder, this, 'round');
+    }
+
+    /** Round this output down to a whole volt. */
+    floor(): Collection {
+        return round(this.builder, this, 'floor');
+    }
+
+    /** Round this output up to a whole volt. */
+    ceil(): Collection {
+        return round(this.builder, this, 'ceil');
+    }
+
+    /**
+     * Apply a wandering random shift of up to ±`amount` (0–5), where 5 shifts
+     * by up to ±5 V.
+     */
+    erratic(amount: PolySignal, options: ErraticOptions = {}): Collection {
+        return erratic(this.builder, this, amount, options);
+    }
+
+    scope(config?: Omit<ScopeConfig, 'split'>): this {
         const loc = captureSourceLocation();
         this.builder.addScope(this, config, loc);
         return this;
@@ -2455,6 +2741,43 @@ export class ModuleOutputWithRange extends ModuleOutput {
             ) as Collection
         ).withRange(outMin, outMax);
     }
+
+    /**
+     * Apply a wandering random shift scaled to this output's range: `amount` 5
+     * shifts by up to half the range either way. Clamps to the range unless
+     * `mode` is `'shift'`.
+     */
+    erratic(
+        amount: PolySignal,
+        options: RangedErraticOptions = {},
+    ): CollectionWithRange {
+        return erratic(this.builder, this, amount, options, {
+            min: this.minValue,
+            max: this.maxValue,
+        }) as CollectionWithRange;
+    }
+
+    /** Round to the nearest whole volt; the range rounds with it. */
+    round(): CollectionWithRange {
+        return this.rounded('round');
+    }
+
+    /** Round down to a whole volt; the range rounds with it. */
+    floor(): CollectionWithRange {
+        return this.rounded('floor');
+    }
+
+    /** Round up to a whole volt; the range rounds with it. */
+    ceil(): CollectionWithRange {
+        return this.rounded('ceil');
+    }
+
+    private rounded(mode: RoundMode): CollectionWithRange {
+        return round(this.builder, this, mode, {
+            min: [this.minValue],
+            max: [this.maxValue],
+        }) as CollectionWithRange;
+    }
 }
 
 /**
@@ -2622,7 +2945,7 @@ export function replaceValues(input: unknown, replacer: Replacer): unknown {
 
         // Opaque payloads (ParsedPattern from $p(), SpPattern from $p.s(),
         // ArrangePattern from $p.arrange(), and the .fast()/.slow()/.struct()/
-        // .beat() wrappers) must be preserved verbatim — walking them would
+        // .beat()/.glide() wrappers) must be preserved verbatim — walking them would
         // collapse the nulls in `accidental`/`octave`/weight slots to 0 via
         // valueToSignal, producing zero-duration haps and silence. Returning the
         // wrapper verbatim also preserves the nested pattern payloads it carries.
@@ -2701,9 +3024,8 @@ export function replaceDeferredStrings(
     if (typeof input === 'object' && input !== null) {
         // Opaque pattern payloads (ParsedPattern from $p(), SpPattern from
         // $p.s(), ArrangePattern from $p.arrange(), and the .fast()/.slow()/
-        // .struct()/.beat() wrappers) are JSON-only data with no deferred-output
-        // strings; mirror the replaceValues short-circuit and return them
-        // verbatim instead of deep-walking their mini-notation AST sub-tree.
+        // .struct()/.beat()/.glide() wrappers) are JSON-only data with no
+        // deferred-output strings, so they return verbatim, as in replaceValues.
         // SignalGroup wrappers are deliberately NOT listed here either — their
         // signals payload may carry deferred-output strings to resolve.
         if (isPatternValue(input)) {
