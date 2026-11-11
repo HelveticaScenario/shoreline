@@ -3,7 +3,7 @@
 //! its output gain): the engine's knobs map onto the module's params, and its
 //! `out` and `aux` reach the same level, spectrum and polarity once both have
 //! settled. String and modal draw the same grains as Plaits, from the seed
-//! the test pins. The per-sample fixtures compare waveforms; this pins the
+//! the test pins. The drums are struck on a steady pulse as well as droning. The per-sample fixtures compare waveforms; this pins the
 //! knob mappings and output gains.
 
 use modular_core::Patch;
@@ -29,11 +29,14 @@ struct Port {
     module: &'static str,
     params: Value,
     port: &'static str,
+    /// Samples between strikes, for a module whose `trigger` is patched.
+    trigger_period: Option<f32>,
 }
 
 /// The module outputs standing in for Plaits' `out` and `aux` in `engine` at
-/// these knobs (0–1), at `freq` V/Oct.
-fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
+/// these knobs (0–1), at `freq` V/Oct, struck every `trigger_period` samples
+/// or with the trigger unpatched.
+fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<f32>) -> [Port; 2] {
     let port = |module, params: Value, port| {
         let mut params = params;
         params["freq"] = json!(freq);
@@ -41,6 +44,7 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
             module,
             params,
             port,
+            trigger_period,
         }
     };
     match engine {
@@ -154,6 +158,31 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
                 port(module, knobs, "exciter"),
             ]
         }
+        21 => {
+            // Plaits' harmonics raises attack FM, then self FM, then drive on
+            // the analog drum, and the FM envelope then its decay on the
+            // synthetic one, whose dirt follows harmonics while it drones.
+            let kick = json!({
+                "tone": 5.0 * t,
+                "decay": 5.0 * m,
+                "attackFm": 5.0 * (4.0 * h).min(1.0),
+                "selfFm": 5.0 * (4.0 * h - 1.0).clamp(0.0, 1.0),
+                "drive": 5.0 * (2.0 * h - 1.0).max(0.0),
+            });
+            let mut synth = json!({
+                "tone": 5.0 * t,
+                "decay": 5.0 * m,
+                "fmEnvelope": 5.0 * (2.0 * h).min(1.0),
+                "fmDecay": 5.0 * (2.0 * h - 1.0).max(0.0),
+            });
+            if trigger_period.is_none() {
+                synth["dirt"] = json!(5.0 * h);
+            }
+            [
+                port("$mi.kick", kick, "output"),
+                port("$mi.synthKick", synth, "output"),
+            ]
+        }
         _ => panic!("no module for engine {engine}"),
     }
 }
@@ -174,22 +203,36 @@ fn word_index(bank: usize, address: f32) -> f32 {
     index as f32 - 0.5 + (position - start) / (end - start)
 }
 
-/// `samples` of `port`, in volts.
+/// `samples` of `port`, in volts. A patched trigger comes from a pulse wave,
+/// which rises on its first sample.
 fn render(port: &Port, samples: usize) -> Vec<f32> {
     let deserializers = get_params_deserializers();
-    let cached = deserializers[port.module](port.params.clone()).unwrap();
+    let mut modules = vec![("dut", port.module, port.params.clone())];
+    if let Some(period) = port.trigger_period {
+        let hz = SAMPLE_RATE / period;
+        modules.push((
+            "clock",
+            "$pulse",
+            json!({ "freq": (hz / 261.625_57).log2() }),
+        ));
+        modules[0].2["trigger"] =
+            json!({ "type": "cable", "module": "clock", "port": "output", "channel": 0 });
+    }
     let mut patch = Patch::new();
     patch
         .insert_modules(
-            [(
-                "dut".to_string(),
-                port.module.to_string(),
-                DeserializedParams {
-                    params: cached.params,
-                    channel_count: cached.channel_count,
-                },
-                ProcessingMode::Block,
-            )],
+            modules.into_iter().map(|(id, module, params)| {
+                let cached = deserializers[module](params).unwrap();
+                (
+                    id.to_string(),
+                    module.to_string(),
+                    DeserializedParams {
+                        params: cached.params,
+                        channel_count: cached.channel_count,
+                    },
+                    ProcessingMode::Block,
+                )
+            }),
             SAMPLE_RATE,
             BLOCK,
         )
@@ -197,8 +240,10 @@ fn render(port: &Port, samples: usize) -> Vec<f32> {
     patch.connect_all();
     let mut out = Vec::with_capacity(samples);
     while out.len() < samples {
+        for module in patch.sampleables.values() {
+            module.start_block();
+        }
         let dut = &patch.sampleables["dut"];
-        dut.start_block();
         dut.ensure_processed_to(BLOCK);
         for index in 0..BLOCK {
             out.push(dut.get_value_at(port.port, 0, index));
@@ -352,15 +397,19 @@ fn matches_plaits_engines() {
     modular_core::dsp::utils::rng::TEST_SEED_BASE.set(Some(1));
     let mut rest = &floats[..];
     while !rest.is_empty() {
-        let [engine, note, h, t, m, samples] = rest[..6] else {
+        let [engine, note, h, t, m, trigger_period, samples] = rest[..7] else {
             unreachable!()
         };
         let samples = samples as usize;
-        let case = &rest[6..6 + 2 * samples];
-        rest = &rest[6 + 2 * samples..];
+        let case = &rest[7..7 + 2 * samples];
+        rest = &rest[7 + 2 * samples..];
         let engine = engine as i32;
         let freq = (note - 60.0) / 12.0 + plaits_tuning();
-        for (output, port) in ports(engine, freq, h, t, m).iter().enumerate() {
+        let trigger_period = (trigger_period > 0.0).then_some(trigger_period);
+        for (output, port) in ports(engine, freq, h, t, m, trigger_period)
+            .iter()
+            .enumerate()
+        {
             let expected: Vec<f32> = case.iter().skip(output).step_by(2).copied().collect();
             let actual = render(port, samples);
             let name = format!(

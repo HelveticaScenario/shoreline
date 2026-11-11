@@ -66,6 +66,7 @@ fn allocation_free() {
         "$mi.additive",
         "$mi.divideDown",
         "$mi.formant",
+        "$mi.kick",
         "$mi.modal",
         "$mi.particles",
         "$mi.phaseDistortion",
@@ -73,6 +74,7 @@ fn allocation_free() {
         "$mi.speak",
         "$mi.string",
         "$mi.swarm",
+        "$mi.synthKick",
         "$mi.twoOp",
         "$mi.formantVowel",
         "$mi.samVowel",
@@ -138,6 +140,28 @@ fn speak_allocation_free() {
     );
 }
 
+/// Strikes, with every knob moving under them, allocate nothing.
+#[test]
+fn kick_allocation_free() {
+    for (module, knobs) in [
+        (
+            "$mi.kick",
+            ["tone", "decay", "attackFm", "selfFm", "drive", "accent"],
+        ),
+        (
+            "$mi.synthKick",
+            ["tone", "decay", "dirt", "fmEnvelope", "fmDecay", "accent"],
+        ),
+    ] {
+        let mut params =
+            json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS) });
+        for (i, knob) in knobs.into_iter().enumerate() {
+            params[knob] = cable("lfo", i % CHANNELS);
+        }
+        assert_eq!(allocations_while_rendering(module, params), 0, "{module}");
+    }
+}
+
 #[test]
 fn chorus_allocation_free() {
     assert_eq!(
@@ -181,6 +205,27 @@ fn resonator_instances_draw_their_own_grains() {
             "{module}: identical grains"
         );
     }
+}
+
+/// Two gritty drones with the same settings draw their own phase noise.
+#[test]
+fn synth_kick_instances_draw_their_own_noise() {
+    let params = json!({ "freq": 0.0, "dirt": 5.0 });
+    let a = build(
+        ProcessingMode::Block,
+        ProcessingMode::Block,
+        "$mi.synthKick",
+        params.clone(),
+    );
+    let b = build(
+        ProcessingMode::Block,
+        ProcessingMode::Block,
+        "$mi.synthKick",
+        params,
+    );
+    let a = render_ports(&a, "output", 64);
+    let b = render_ports(&b, "output", 64);
+    assert!(a.iter().zip(&b).any(|(x, y)| x != y), "identical noise");
 }
 
 /// Two instances triggered alike draw their own consonant noise. The

@@ -29405,6 +29405,609 @@
     ]
   },
   {
+    "name": "$mi.kick",
+    "docs": {
+      "summary": "Analog bass drum",
+      "description": "Mutable Instruments Plaits' 808-style bass drum: a pulse rings a resonant filter whose pitch jumps on the attack and bends with its own level, then an overdrive. Leave `trigger` unpatched and it drones as a sine.",
+      "categories": [
+        "drum"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Four on the floor",
+          "code": "$mi.kick('g1', { trigger: $p('c*4').c, decay: 3 }).out()"
+        },
+        {
+          "title": "Driven, bending kick",
+          "code": "const hits = $p('c ~ ~ c ~ ~ c ~').c\n$mi.kick('e1', { trigger: hits, decay: 4, drive: 4 }).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiKickParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the drum's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "strikes the drum. Unpatched, the drum drones: a sine at the pitch, bent by `selfFm`, as loud as `accent` and `decay` together allow",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tone": {
+          "description": "how bright the hit is: a muffled thump (0) to a bright body with a clicky attack (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decay": {
+          "description": "how long the drum rings, from a short thud (0) to a long boom (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attackFm": {
+          "description": "how far the pitch jumps up for the first few milliseconds of each hit, for a sharper attack",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "selfFm": {
+          "description": "how far the pitch rises with the drum's level, so it bends down as the hit fades",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "drive": {
+          "description": "overdrive, from a gentle saturation (0) to a heavy one (5); it eases off on high notes and is gone by 3 kHz",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accent": {
+          "description": "how hard each hit is: louder, with a harder attack; unpatched trigger, scales the drone's level",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the drum",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the drum's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "strikes the drum. Unpatched, the drum drones: a sine at the pitch, bent by `selfFm`, as loud as `accent` and `decay` together allow",
+        "paramType": "trig"
+      },
+      {
+        "name": "tone",
+        "description": "how bright the hit is: a muffled thump (0) to a bright body with a clicky attack (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "decay",
+        "description": "how long the drum rings, from a short thud (0) to a long boom (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "attackFm",
+        "description": "how far the pitch jumps up for the first few milliseconds of each hit, for a sharper attack",
+        "paramType": "control",
+        "defaultValue": 5.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "selfFm",
+        "description": "how far the pitch rises with the drum's level, so it bends down as the hit fades",
+        "paramType": "control",
+        "defaultValue": 5.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "drive",
+        "description": "overdrive, from a gentle saturation (0) to a heavy one (5); it eases off on high notes and is gone by 3 kHz",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "accent",
+        "description": "how hard each hit is: louder, with a harder attack; unpatched trigger, scales the drone's level",
+        "paramType": "control",
+        "defaultValue": 4.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
+    "name": "$mi.synthKick",
+    "docs": {
+      "summary": "Synthetic bass drum",
+      "description": "Mutable Instruments Plaits' synthetic bass drum, a little like a 909: a sine swept down in pitch, with a click and a burst of noise on the attack. Leave `trigger` unpatched and its body drones.",
+      "categories": [
+        "drum"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Four on the floor",
+          "code": "$mi.synthKick('a1', { trigger: $p('c*4').c }).out()"
+        },
+        {
+          "title": "Long, gritty sweep",
+          "code": "const trigger = $p('c ~ c ~ ~ c ~ ~').c\nconst kick = $mi.synthKick('e1', {\n  trigger,\n  decay: 4,\n  dirt: 4,\n  fmDecay: 3,\n})\nkick.out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiSynthKickParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the drum's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "strikes the drum. Unpatched, the drum drones: its body at the pitch, as loud as `accent` and `decay` together allow",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tone": {
+          "description": "how bright the hit is and how loud its click and noise: a soft, round thump (0) to a bright, clicky one (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decay": {
+          "description": "how long the body rings, from a short blip (0) to a long boom (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dirt": {
+          "description": "grit: a clean sine body (0) to a jittery, pointed one (5); it eases off on high notes and is gone by 6 kHz",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmEnvelope": {
+          "description": "how far the pitch sweeps down onto the note at the start of each hit: none (0) to from 4.5 times the pitch (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmDecay": {
+          "description": "how long the pitch sweep takes, from 8 ms (0) to 40 ms (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accent": {
+          "description": "how hard each hit is: louder, with a harder attack; unpatched trigger, scales the drone's level",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the drum",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the drum's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "strikes the drum. Unpatched, the drum drones: its body at the pitch, as loud as `accent` and `decay` together allow",
+        "paramType": "trig"
+      },
+      {
+        "name": "tone",
+        "description": "how bright the hit is and how loud its click and noise: a soft, round thump (0) to a bright, clicky one (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "decay",
+        "description": "how long the body rings, from a short blip (0) to a long boom (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "dirt",
+        "description": "grit: a clean sine body (0) to a jittery, pointed one (5); it eases off on high notes and is gone by 6 kHz",
+        "paramType": "control",
+        "defaultValue": 1.6875,
+        "defaultDoc": "2 less 1.25 × (decay ÷ 5)², so a longer decay is cleaner",
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fmEnvelope",
+        "description": "how far the pitch sweeps down onto the note at the start of each hit: none (0) to from 4.5 times the pitch (5)",
+        "paramType": "control",
+        "defaultValue": 5.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fmDecay",
+        "description": "how long the pitch sweep takes, from 8 ms (0) to 40 ms (5)",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "accent",
+        "description": "how hard each hit is: louder, with a harder attack; unpatched trigger, scales the drone's level",
+        "paramType": "control",
+        "defaultValue": 4.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.modal",
     "docs": {
       "summary": "Modal resonator",

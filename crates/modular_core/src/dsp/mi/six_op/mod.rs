@@ -12,7 +12,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
-        mi::core::{phase::limit_frequency, random::Random},
+        mi::core::{dsp::soft_clip, phase::limit_frequency, random::Random},
         oscillators::{FmMode, apply_fm},
         utils::{
             SchmittTrigger,
@@ -164,18 +164,6 @@ struct Knobs {
 #[inline(always)]
 fn knob(volts: f32) -> f32 {
     (volts * 0.2).clamp(0.0, 1.0)
-}
-
-/// Plaits' `SoftClip`.
-#[inline(always)]
-fn soft_clip(x: f32) -> f32 {
-    if x < -3.0 {
-        -1.0
-    } else if x > 3.0 {
-        1.0
-    } else {
-        x * (27.0 + x * x) / (27.0 + 9.0 * x * x)
-    }
 }
 
 /// One channel: Plaits' `SixOpEngine` with one voice, a sample at a time.

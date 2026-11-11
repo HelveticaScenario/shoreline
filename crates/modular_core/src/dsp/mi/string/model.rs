@@ -4,6 +4,7 @@
 
 use crate::dsp::mi::core::{
     delay_line::DelayLine,
+    dsp::per_sample,
     filter::{Svf, tan_fast},
     interpolate::linear,
     random::Random,
@@ -234,17 +235,6 @@ impl StringModel {
         }
         let [newest, previous] = self.out_sample;
         previous + (newest - previous) * self.src_phase
-    }
-}
-
-/// A one-pole coefficient per sample at 48 kHz as the same time constant at
-/// the rate `to_48k` describes. A coefficient of 1 or more follows at once at
-/// any rate, so it stays as it is.
-fn per_sample(coefficient: f32, to_48k: f32) -> f32 {
-    if coefficient >= 1.0 {
-        coefficient
-    } else {
-        (1.0 - (1.0 - f64::from(coefficient)).powf(1.0 / f64::from(to_48k))) as f32
     }
 }
 
