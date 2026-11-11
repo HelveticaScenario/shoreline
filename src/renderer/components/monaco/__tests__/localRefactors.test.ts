@@ -6,6 +6,7 @@ import type { RefactorStyle } from '../localRefactors';
 
 const STYLE: RefactorStyle = {
     convertTabsToSpaces: true,
+    eol: '\n',
     semi: true,
     singleQuote: true,
     tabSize: 2,
@@ -122,6 +123,31 @@ describe('localRefactors', () => {
         expect(out).toBe(
             `function voice(n) {\n  const newLocal = n * 2;\n  return newLocal + 1;\n}\n`,
         );
+        expect(out.slice(result.renameOffset, result.renameOffset! + 8)).toBe(
+            'newLocal',
+        );
+    });
+
+    test('a CRLF buffer gets CRLF edits and a rename offset into them', () => {
+        const { source, start, end } = selection(
+            `function voice(n) {\r\n  return [n * 2] + 1;\r\n}\r\n`,
+        );
+        const service = serviceFor({ [FILE]: source });
+        const extract = localRefactors(service, FILE, start, end, false).find(
+            (r) => r.kind === 'refactor.extract.constant',
+        )!;
+        const result = localRefactorEdits(
+            ts,
+            service,
+            FILE,
+            start,
+            end,
+            extract.refactor,
+            extract.action,
+            { ...STYLE, eol: '\r\n' },
+        )!;
+        const out = applyEdits(source, result.edits);
+        expect(out).not.toMatch(/[^\r]\n/);
         expect(out.slice(result.renameOffset, result.renameOffset! + 8)).toBe(
             'newLocal',
         );

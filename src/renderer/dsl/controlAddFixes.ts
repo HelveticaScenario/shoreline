@@ -45,6 +45,10 @@ export function addFixes(
 ): ControlQuickFix[] {
     const { quote } = layout;
     const args = call.arguments;
+    // A spread argument may fill any slot, so none counts as open.
+    if (args.some(ts.isSpreadElement)) {
+        return [];
+    }
     const slots = addSlots(file, call, resolved);
     const label = (base: string) => dedupeLabel(base, taken);
     const fixes: ControlQuickFix[] = [];
@@ -218,11 +222,7 @@ function addFix(
     };
 }
 
-/**
- * The call's option object and its unset members. An option argument that
- * is some other expression (a variable, a call) may already set any member,
- * so none is offered.
- */
+/** The call's option object and its unset members. */
 function addSlots(
     file: ts.SourceFile,
     call: ts.CallExpression,
@@ -234,13 +234,18 @@ function addSlots(
     );
     const found = optionsIndex >= 0 ? args[optionsIndex] : undefined;
     const obj = found && ts.isObjectLiteralExpression(found) ? found : null;
-    const opaque = args.some(
-        (a, i) =>
-            resolved.options(i) &&
-            !ts.isObjectLiteralExpression(a) &&
-            !asLiteral(a, file) &&
-            !isKeywordLiteral(a),
-    );
+    // An option argument that is some other expression (a variable, a
+    // call), or an object with a spread, computed key, method or accessor,
+    // may already set any member.
+    const opaque =
+        obj?.properties.some((p) => optionKey(p) === null) ||
+        args.some(
+            (a, i) =>
+                resolved.options(i) &&
+                !ts.isObjectLiteralExpression(a) &&
+                !asLiteral(a, file) &&
+                !isKeywordLiteral(a),
+        );
     if (opaque) {
         return { members: [], obj };
     }

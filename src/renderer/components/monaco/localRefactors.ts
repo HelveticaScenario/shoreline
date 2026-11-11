@@ -33,6 +33,8 @@ export interface RefactorStyle {
     convertTabsToSpaces: boolean;
     singleQuote: boolean;
     semi: boolean;
+    /** The buffer's line ending, which the edits and rename offset use. */
+    eol: string;
 }
 
 /**
@@ -100,6 +102,7 @@ export function localRefactorEdits(
         ...ts.getDefaultFormatCodeSettings(),
         convertTabsToSpaces: style.convertTabsToSpaces,
         indentSize: style.tabSize,
+        newLineCharacter: style.eol,
         semicolons: style.semi
             ? ts.SemicolonPreference.Insert
             : ts.SemicolonPreference.Remove,

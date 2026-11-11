@@ -65,6 +65,18 @@ describe('computeControlQuickFixes — add controls for all unset params', () =>
         );
     });
 
+    test('nothing is added where a spread or computed key may set it', () => {
+        for (const text of [
+            `$pulse('a3', { ...cfg| }).out();`,
+            `$pulse('a3', { [k]: 1| }).out();`,
+            `$pulse('a3', { width: 1, get pwm() { return 0; }| }).out();`,
+            `$pulse(...args|).out();`,
+        ]) {
+            const { fixes } = fixesAt(text);
+            expect(fixes.filter((f) => f.kind !== 'wrap')).toEqual([]);
+        }
+    });
+
     test('is not offered when only one param is unset', () => {
         expect(addAll(`$sine(0).$.lpf('100hz'|).out();`).fix).toBeUndefined();
     });

@@ -131,6 +131,7 @@ export function registerRefactorProvider(
                 refactor.action,
                 {
                     convertTabsToSpaces: options.insertSpaces,
+                    eol: model.getEOL(),
                     semi: format.semi ?? true,
                     singleQuote: format.singleQuote ?? true,
                     tabSize: options.tabSize,
