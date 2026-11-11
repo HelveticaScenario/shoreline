@@ -87,6 +87,17 @@ fn allocation_free() {
     }
 }
 
+#[test]
+fn chorus_allocation_free() {
+    assert_eq!(
+        allocations_while_rendering(
+            "$mi.chorus",
+            json!({ "input": poly_cable("src", 2), "amount": cable("lfo", 0), "depth": cable("lfo", 1) })
+        ),
+        0
+    );
+}
+
 fn render_ports(patch: &modular_core::Patch, port: &str, calls: usize) -> Vec<f32> {
     let mut out = Vec::new();
     for _ in 0..calls {
