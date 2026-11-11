@@ -95,3 +95,13 @@ fn allocation_free() {
         0
     );
 }
+
+#[test]
+fn swap_agrees_through_a_gain_glide() {
+    let inputs = json!([poly_cable("src", CHANNELS), cable("lfo", 1)]);
+    check_swap_agrees(
+        "$mix",
+        json!({ "inputs": inputs.clone(), "gain": 1.0 }),
+        json!({ "inputs": inputs, "gain": [4.0, 6.0] }),
+    );
+}
