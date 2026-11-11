@@ -226,3 +226,64 @@ fn stays_finite() {
         }
     }
 }
+
+/// Levels in 10 ms windows.
+fn envelope_of(x: &[f32], sample_rate: f32) -> Vec<f32> {
+    x.chunks((sample_rate * 0.01) as usize).map(rms).collect()
+}
+
+/// `envelope` runs from snappy (0) to slow (5), and the release is shortest
+/// around 1.5.
+#[test]
+fn envelope_knob_runs_from_snappy_to_slow() {
+    let sample_rate = 48000.0;
+    // Windows until the attack reaches half its peak.
+    let attack = |envelope: f32| {
+        let levels = envelope_of(
+            &render(sample_rate, 261.63, 2.0, 20.0, true, envelope, 4.0),
+            sample_rate,
+        );
+        let held = &levels[..levels.len() / 2];
+        let peak = held.iter().fold(0.0f32, |m, &v| m.max(v));
+        held.iter().position(|&v| v >= 0.5 * peak).unwrap()
+    };
+    let (fast, middle, slow) = (attack(0.0), attack(2.5), attack(5.0));
+    assert!(
+        fast < middle && middle < slow,
+        "attack windows: {fast}, {middle}, {slow}"
+    );
+
+    // Windows from the gate's fall until the level is below a tenth of its
+    // level at the fall.
+    let release = |envelope: f32| {
+        let levels = envelope_of(
+            &render(sample_rate, 261.63, 2.0, 11.0, true, envelope, 8.0),
+            sample_rate,
+        );
+        let fall = levels.len() / 2;
+        let at_fall = levels[fall - 1];
+        levels[fall..]
+            .iter()
+            .position(|&v| v < 0.1 * at_fall)
+            .unwrap_or(levels.len())
+    };
+    let (zero, short, five) = (release(0.0), release(1.5), release(5.0));
+    assert!(
+        short < zero && short < five,
+        "release windows: {zero}, {short}, {five}"
+    );
+}
+
+/// Unpatching the gate forgets its last state, so a gate patched again while
+/// high still rises: the note it starts loads the patch selected then.
+#[test]
+fn a_gate_patched_again_rises() {
+    let state = SixOpState::new(48000.0);
+    let mut ch = channel(1);
+    for _ in 0..100 {
+        ch.step(0.005, knobs(0.0, 0.0, 2.5, 2.5, 4.0), Some(true), &state);
+    }
+    assert!(ch.gate);
+    ch.step(0.005, knobs(0.0, 0.0, 2.5, 2.5, 4.0), None, &state);
+    assert!(!ch.gate);
+}

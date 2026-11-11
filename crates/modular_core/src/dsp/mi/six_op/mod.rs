@@ -68,7 +68,7 @@ struct SixOpParams {
     #[deserr(default)]
     brightness: Option<PolySignal>,
     #[input(
-        "envelope speed, from slow attacks and long tails (0) to snappy (5), the release longest around 1.5; unpatched gate, the point in the envelopes the note sits at",
+        "envelope speed, from snappy (0) to slow attacks and long tails (5), the release shortest around 1.5; unpatched gate, the point in the envelopes the note sits at",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -270,6 +270,9 @@ impl Channel {
                 voice.load_patch(patch, rates);
                 voice.parameters.sustain = true;
                 voice.parameters.gate = false;
+                // A gate patched again later starts from low, so its first
+                // high loads the patch then selected.
+                self.gate = false;
             }
             Some(high) => {
                 if high && !self.gate {

@@ -167,7 +167,7 @@ static const Case kCases[] = {
     // Pitch envelope and delayed LFO, retriggered fast, envelope sweeping.
     {1, {13, 13}, true, 1200, 0.25f, 0.01f, -1.0f, 2.0f},
     // Two-operator feedback loop (algorithm 6), fixed-frequency operators,
-    // snappy envelopes.
+    // slow envelopes.
     {1, {25, 25}, true, 1600, -0.5f, 0.0f, 4.5f, 3.5f},
     // Scrubbed: amplitude LFO, envelope and brightness sweeping.
     {2, {11, 11}, false, 8000, -1.5f, 0.0f, -1.0f, -1.0f},
@@ -176,7 +176,7 @@ static const Case kCases[] = {
     // Notes alternating between two patches, each retriggering in the
     // other's release.
     {2, {0, 3}, true, 2000, 0.5f, 0.0f, 3.0f, -1.0f},
-    // Slow envelopes, retriggered in their long releases.
+    // Snappy envelopes, retriggered in their releases.
     {0, {18, 9}, true, 2600, -2.0f, 0.02f, 0.5f, 2.5f},
 };
 

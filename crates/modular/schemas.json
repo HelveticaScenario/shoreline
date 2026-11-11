@@ -30237,7 +30237,7 @@
           ]
         },
         "envelope": {
-          "description": "envelope speed, from slow attacks and long tails (0) to snappy (5), the release longest around 1.5; unpatched gate, the point in the envelopes the note sits at",
+          "description": "envelope speed, from snappy (0) to slow attacks and long tails (5), the release shortest around 1.5; unpatched gate, the point in the envelopes the note sits at",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -30413,7 +30413,7 @@
       },
       {
         "name": "envelope",
-        "description": "envelope speed, from slow attacks and long tails (0) to snappy (5), the release longest around 1.5; unpatched gate, the point in the envelopes the note sits at",
+        "description": "envelope speed, from snappy (0) to slow attacks and long tails (5), the release shortest around 1.5; unpatched gate, the point in the envelopes the note sits at",
         "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,

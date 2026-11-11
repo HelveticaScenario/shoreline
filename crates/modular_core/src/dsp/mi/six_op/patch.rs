@@ -185,7 +185,9 @@ impl Patch {
         let pitch_rate = std::array::from_fn(|j| clamp(data[102 + j], 99));
         let pitch_level = std::array::from_fn(|j| clamp(data[106 + j], 99));
         let feedback = data[111] & 0x7;
-        let sensitivity = LUT_PITCH_MOD_SENSITIVITY[usize::from(data[116] >> 4)];
+        // A 3-bit field; the clamp keeps a malformed byte inside the table.
+        let sensitivity = LUT_PITCH_MOD_SENSITIVITY
+            [usize::from(data[116] >> 4).min(LUT_PITCH_MOD_SENSITIVITY.len() - 1)];
         Self {
             op,
             pitch_envelope: EnvelopeShape::pitch(pitch_rate, pitch_level),
