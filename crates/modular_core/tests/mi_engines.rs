@@ -8,6 +8,7 @@
 
 use modular_core::Patch;
 use modular_core::dsp::get_params_deserializers;
+use modular_core::dsp::mi::core::tables::{LPC_BANK_WORDS, LPC_WORD_STARTS};
 use modular_core::params::DeserializedParams;
 use modular_core::types::ProcessingMode;
 use serde_json::{Value, json};
@@ -101,7 +102,7 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
                 port("$mi.additive", knobs("organ"), "output"),
             ]
         }
-        15 => {
+        15 if h < 0.4 => {
             // The vowel path, where harmonics sounds one synth alone: the
             // formant filters at 0, SAM at 1/6 and LPC just below 1/3.
             let module = match h {
@@ -113,6 +114,18 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
             [
                 port(module, knobs.clone(), "output"),
                 port(module, knobs, "excitation"),
+            ]
+        }
+        15 => {
+            // The word banks, scanned by morph with the trigger unpatched, as
+            // the word index that scans to the same frame.
+            // Plaits' quantiser picks bank `floor(6 v - 0.1) - 1` from
+            // `v = (6 h - 2) * 0.275`, rising from its initial 0.
+            let bank = (((6.0 * h - 2.0) * 0.275) * 6.0 - 0.1).floor() - 1.0;
+            let knobs = json!({ "bank": bank, "word": word_index(bank as usize, m), "formantShift": 5.0 * t });
+            [
+                port("$mi.speak", knobs.clone(), "output"),
+                port("$mi.speak", knobs, "excitation"),
             ]
         }
         16 => {
@@ -143,6 +156,22 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
         }
         _ => panic!("no module for engine {engine}"),
     }
+}
+
+/// The `$mi.speak` word index that scans to Plaits' address `address` in
+/// `bank`: word i spans i - 0.5 to i + 0.5 of its frames.
+fn word_index(bank: usize, address: f32) -> f32 {
+    let words =
+        &LPC_WORD_STARTS[usize::from(LPC_BANK_WORDS[bank])..=usize::from(LPC_BANK_WORDS[bank + 1])];
+    let first = f32::from(words[0]);
+    let position = first + address * (f32::from(words[words.len() - 1]) - first - 1.0001);
+    let index = words
+        .iter()
+        .rposition(|&s| f32::from(s) <= position)
+        .unwrap()
+        .min(words.len() - 2);
+    let (start, end) = (f32::from(words[index]), f32::from(words[index + 1]));
+    index as f32 - 0.5 + (position - start) / (end - start)
 }
 
 /// `samples` of `port`, in volts.
@@ -339,7 +368,15 @@ fn matches_plaits_engines() {
                 port.module, port.port
             );
             let inverted: Vec<f32> = actual.iter().map(|v| -v).collect();
-            assert_sounds_alike(&name, &actual, &expected, 0.1, 0.6, 3.0);
+            // The word banks' glottal pulses alias around the 8 kHz synthesis
+            // clock, so the excitation's top octaves swing about 1 dB with a
+            // tenth of a cent of pitch; `speak.f32` pins its waveform.
+            let near_db = if port.module == "$mi.speak" && port.port == "excitation" {
+                1.5
+            } else {
+                0.6
+            };
+            assert_sounds_alike(&name, &actual, &expected, 0.1, near_db, 3.0);
             // Particles draw Plaits' values in Plaits' order on its block
             // timing, so they match its engine sample for sample, to the
             // rounding of a pitch given in volts.

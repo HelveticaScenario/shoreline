@@ -35,21 +35,12 @@ function closedControl(
     };
 }
 
-/** An audio crossfade (`.$m.`, `.pipeMix`): 0 = dry, 5 = wet, 2.5 =
+/** An audio crossfade (`.wet`, `.pipeMix`): 0 = dry, 5 = wet, 2.5 =
  *  equal. */
 const MIX_SPEC = closedControl(0, 5, 2.5);
 
 /** A video crossfade: 0 = the signal, 1 = the result, 0.5 = half way. */
 const VIDEO_MIX_SPEC = closedControl(0, 1, 0.5);
-
-/** The leading `mix` argument of a `.$m.` chain call. */
-export function mixRef(family: Family): ParamRef {
-    return {
-        knownDefault: true,
-        label: 'mix',
-        spec: family === 'video' ? VIDEO_MIX_SPEC : MIX_SPEC,
-    };
-}
 
 /** Spec of a signal param nothing states a range for: a 0–5 knob with no
  *  usable range, so its unit sliders take their full span. */
@@ -84,9 +75,6 @@ export const API_CONTROLS: Record<
 > = {
     audio: {
         $setOutputGain: { gain: { spec: { ...LEVEL, defaultValue: 2.5 } } },
-        addHz: {
-            offset: { label: 'addHz', module: '$addHz', param: 'offset' },
-        },
         amp: {
             factor: { label: 'amp', module: '$scaleAndShift', param: 'scale' },
         },
@@ -108,9 +96,6 @@ export const API_CONTROLS: Record<
                 range: { max: 5, min: 0 },
             },
         },
-        mulHz: {
-            factor: { label: 'mulHz', module: '$mulHz', param: 'factor' },
-        },
         out: {
             gain: { spec: LEVEL },
             pan: { spec: closedControl(-5, 5, 0) },
@@ -129,9 +114,11 @@ export const API_CONTROLS: Record<
                 param: 'shift',
             },
         },
+        wet: { mix: { spec: MIX_SPEC } },
     },
     video: {
         pipeMix: { mix: { spec: VIDEO_MIX_SPEC } },
+        wet: { mix: { spec: VIDEO_MIX_SPEC } },
     },
 };
 

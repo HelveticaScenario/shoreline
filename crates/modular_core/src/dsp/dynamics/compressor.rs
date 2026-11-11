@@ -245,8 +245,8 @@ const COMP_DOCS: ModuleDocs = ModuleDocs {
             title: "Pad pumping to the beat",
             code: r#"
                 $saw($chord('C3[m9]'))
-                  .$.lpf('c5')
-                  .$.comp({
+                  .lpf('c5')
+                  .comp({
                     sidechain: $perc($clock.o.beatTrigger, { decay: 0.2 }),
                     threshold: 1,
                     ratio: 8,

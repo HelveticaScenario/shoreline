@@ -80,7 +80,7 @@ describe('$v in the DSL executor', () => {
 
         it('maps each channel from 0 to 1 onto min to max', () => {
             const wgsl = wgslOf(`
-                $v.out($v.hsv($v.ramp('angular', { zoom: $v.time.$.osc(1).range(1, 3) })));
+                $v.out($v.hsv($v.ramp('angular', { zoom: $v.time.osc(1).range(1, 3) })));
             `);
             expect(wgsl).toContain('return vec4f(lo + x * (hi - lo), c.a);');
             expect(wgsl).toMatch(/video_range\(v\d+, 1\.0, 3\.0\)/);

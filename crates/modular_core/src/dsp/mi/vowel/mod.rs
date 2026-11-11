@@ -12,7 +12,7 @@ use crate::{
         mi::core::{
             filter::tan_dirty,
             limiter::{Limiter, LimiterRates},
-            lpc::SYNTHESIS_RATE,
+            lpc::{CORRECTED_SAMPLE_RATE, SYNTHESIS_RATE},
             phase::{limit_frequency, max_frequency},
         },
         utils::SchmittTrigger,
@@ -20,13 +20,11 @@ use crate::{
     types::{GlideMark, SwapGlide},
 };
 
-use lpc::CORRECTED_SAMPLE_RATE;
-
 /// Plaits' gain into its limiter and its excitation gain, at ±5 V full
 /// scale; both outputs clip at ±5 V as Plaits does.
-const PRE_GAIN: f32 = 0.7;
-const OUTPUT_GAIN: f32 = -5.0;
-const EXCITATION_GAIN: f32 = -0.8 * 5.0;
+pub(super) const PRE_GAIN: f32 = 0.7;
+pub(super) const OUTPUT_GAIN: f32 = -5.0;
+pub(super) const EXCITATION_GAIN: f32 = -0.8 * 5.0;
 
 /// The `vowel` and `formantShift` default every module declares.
 const KNOB_DEFAULT: f32 = 2.5;

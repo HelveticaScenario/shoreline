@@ -5,7 +5,7 @@ import type {
 } from '../../shared/dsl/signalSites';
 import { CHAIN_METHODS } from './chainMethods';
 import { resolvableOutputs } from './outputResolution';
-import { processModuleSchema, qualifiesForDollarChain } from './paramsSchema';
+import { processModuleSchema, qualifiesForChain } from './paramsSchema';
 import { signalParamsOf } from './signalParams';
 import { qualifiedMultiOutputInterfaceName } from './typescriptLibGen';
 
@@ -33,7 +33,7 @@ export function buildSignalSiteTables(
         const processed = processModuleSchema(schema);
         const { flat, nested } = signalParamsOf(schema, processed);
         tables.modules[schema.name] = {
-            chainable: qualifiesForDollarChain(processed),
+            chainable: qualifiesForChain(processed),
             inputs: Object.fromEntries([
                 ...flat.map((p) => [p.name, p.inputClass] as const),
                 ...nested.map((p) => [p.name, 'cv'] as const),

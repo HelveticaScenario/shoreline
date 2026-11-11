@@ -146,7 +146,7 @@ const LORENZ_DOCS: ModuleDocs = ModuleDocs {
             title: "Wandering filter sweep",
             code: r#"
                 $saw('c2')
-                  .$.lpf($lorenz({ rate: 0.2 }).range('c3', 'c6'), 3)
+                  .lpf($lorenz({ rate: 0.2 }).range('c3', 'c6'), 3)
                   .out()
             "#,
         },

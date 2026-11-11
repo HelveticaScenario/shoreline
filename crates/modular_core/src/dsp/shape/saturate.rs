@@ -57,8 +57,8 @@ const SATURATE_DOCS: ModuleDocs = ModuleDocs {
         title: "Driven bass",
         code: r#"
             $saw('c2')
-              .$.unstable.shape.saturate('soft', 3)
-              .$.lpf('c5')
+              .unstable.shape.saturate('soft', 3)
+              .lpf('c5')
               .out()
         "#,
     }],

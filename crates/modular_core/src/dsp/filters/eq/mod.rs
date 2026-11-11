@@ -89,7 +89,7 @@ const EQ_DOCS: ModuleDocs = ModuleDocs {
         table: None,
         examples: &[DocExample {
             title: "Start empty and build the EQ by hand",
-            code: "$saw('c2').$.eq({ ui: true }).out()",
+            code: "$saw('c2').eq({ ui: true }).out()",
         }],
     }],
     examples: &[
@@ -97,7 +97,7 @@ const EQ_DOCS: ModuleDocs = ModuleDocs {
             title: "Warm lows with a sweeping mid dip",
             code: r#"
                 $saw('c2')
-                  .$.eq({
+                  .eq({
                     sections: [
                       { type: 'lowShelf', freq: '150hz', gain: 3 },
                       {
@@ -117,7 +117,7 @@ const EQ_DOCS: ModuleDocs = ModuleDocs {
             title: "A darker left channel, a brighter right one",
             code: r#"
                 $saw(['c2', 'g2'])
-                  .$.eq({
+                  .eq({
                     sections: [
                       [{ type: 'highShelf', freq: '3000hz', gain: -6 }],
                       [{ type: 'highShelf', freq: '3000hz', gain: 4 }],

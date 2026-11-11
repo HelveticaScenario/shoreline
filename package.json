@@ -9,11 +9,11 @@
         "url": "https://github.com/HelveticaScenario/shoreline"
     },
     "scripts": {
-        "start": "yarn build-native && yarn build-syphon-bridge && concurrently --handle-input --default-input-target app -n app,rust -c blue,yellow 'node scripts/start-dev.mjs' 'yarn watch-native'",
+        "start": "yarn build-native && yarn build-syphon-bridge && concurrently --kill-others --handle-input --default-input-target app -n app,rust -c blue,yellow 'node scripts/start-dev.mjs' 'yarn watch-native'",
         "start:debug": "yarn build-native-debug && electron-forge start --inspect-electron",
         "start:no-watch": "yarn build-native && electron-forge start",
         "profile": "yarn build-native-profile && electron-forge start",
-        "start:alloc": "yarn build-native-alloc && yarn build-syphon-bridge && concurrently --handle-input --default-input-target app -n app,rust -c blue,yellow 'node scripts/start-dev.mjs' 'yarn watch-native-alloc'",
+        "start:alloc": "yarn build-native-alloc && yarn build-syphon-bridge && concurrently --kill-others --handle-input --default-input-target app -n app,rust -c blue,yellow 'node scripts/start-dev.mjs' 'yarn watch-native-alloc'",
         "package": "yarn build-native && yarn build-syphon-bridge --require && electron-forge package",
         "make": "yarn build-native && yarn build-syphon-bridge --require --universal && electron-forge make",
         "forge-publish": "yarn build-native && yarn build-syphon-bridge --require --universal && electron-forge publish",

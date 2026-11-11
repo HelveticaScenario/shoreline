@@ -14,9 +14,8 @@ import schemas from '../crates/modular/schemas.json';
 import { test, expect, openUntitledBuffer } from './fixtures';
 import { formatOutputMeta, paramMeta } from '../src/shared/dsl/paramRange';
 import {
-    dollarMethodName,
     processSchemas,
-    qualifiesForDollarChain,
+    qualifiesForChain,
 } from '../src/main/dsl/paramsSchema';
 
 type Schema = (typeof schemas)[number];
@@ -27,7 +26,7 @@ const MODULES = schemas.filter(
 );
 const CHAINABLE = new Set(
     processSchemas(schemas as never)
-        .filter(qualifiesForDollarChain)
+        .filter(qualifiesForChain)
         .map((s) => s.name),
 );
 
@@ -44,12 +43,9 @@ const LEAKS: [string, RegExp][] = [
     ['object', /\[object /],
 ];
 
-/** The chain path after `.$.`, e.g. `unstable.filter.lp` for `$unstable.filter.lp`. */
+/** The chain path after `.`, e.g. `unstable.filter.lp` for `$unstable.filter.lp`. */
 function chainPath(name: string): string {
-    const parts = name.split('.');
-    parts[0] = parts[0].replace(/^\$/, '');
-    parts[parts.length - 1] = dollarMethodName(parts[parts.length - 1]);
-    return parts.join('.');
+    return name.replace(/^\$/, '');
 }
 
 function leaks(text: string): string[] {
@@ -212,25 +208,23 @@ test.describe('docs render', () => {
             }
             await window.keyboard.press('Escape');
 
-            // Hover on the `.$.` and `.$m.` chain forms.
+            // Hover on the chain form.
             if (CHAINABLE.has(name)) {
-                for (const via of ['$', '$m']) {
-                    const code = `$saw('c3').${via}.${chainPath(name)}()`;
-                    await setCode(window, code, code.length - 2);
-                    await triggerUntilVisible(
-                        window,
-                        'editor.action.showHover',
-                        HOVER,
-                    );
-                    const text = await captureWidget(
-                        window,
-                        HOVER,
-                        'Chain through',
-                        shotPath(`hover${via}`, shotName),
-                    );
-                    check(`${name} .${via}. hover`, text);
-                    await window.keyboard.press('Escape');
-                }
+                const code = `$saw('c3').${chainPath(name)}()`;
+                await setCode(window, code, code.length - 2);
+                await triggerUntilVisible(
+                    window,
+                    'editor.action.showHover',
+                    HOVER,
+                );
+                const text = await captureWidget(
+                    window,
+                    HOVER,
+                    'Chain through',
+                    shotPath('hoverChain', shotName),
+                );
+                check(`${name} chain hover`, text);
+                await window.keyboard.press('Escape');
             }
 
             // Completion details.

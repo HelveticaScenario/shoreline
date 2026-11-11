@@ -73,7 +73,7 @@ const JUP6F_DOCS: ModuleDocs = ModuleDocs {
             title: "Breathing analog pad",
             code: r#"
                 $saw($chord('C3[maj9]'))
-                  .$.jup6f($sine('0.1hz').range('c4', 'c7'), 2.5)
+                  .jup6f($sine('0.1hz').range('c4', 'c7'), 2.5)
                   .out()
             "#,
         },

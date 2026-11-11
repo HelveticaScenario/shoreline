@@ -1,8 +1,8 @@
 import { getReservedOutputNames } from '@modular/core';
 
 /**
- * Property names taken by the methods and properties of ModuleOutput,
- * Collection and CollectionWithRange. Single source of truth:
+ * Property names taken by the methods and properties of Collection and
+ * CollectionWithRange. Single source of truth:
  * `crates/reserved_output_names.rs`.
  */
 const RESERVED_OUTPUT_NAMES: ReadonlySet<string> = new Set(

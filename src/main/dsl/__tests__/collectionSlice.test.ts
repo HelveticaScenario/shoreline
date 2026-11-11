@@ -1,5 +1,5 @@
 /**
- * Tests for BaseCollection.slice and BaseCollection.chunk.
+ * Tests for BaseCollection indexing, iteration, slice and chunk.
  */
 
 import { beforeAll, describe, expect, test } from 'vitest';
@@ -12,6 +12,7 @@ import {
     GraphBuilder,
     ModuleOutput,
 } from '../GraphBuilder';
+import { markRoot, outputSetOf } from '../outputResolution';
 
 let builder: GraphBuilder;
 
@@ -33,7 +34,7 @@ describe('BaseCollection.slice', () => {
         expect(sliced).toBeInstanceOf(Collection);
         expect(sliced.items).toEqual([outs[1], outs[2]]);
         expect(sliced.length).toBe(2);
-        expect(sliced[0]).toBe(outs[1]);
+        expect(sliced[0].items).toEqual([outs[1]]);
     });
 
     test('follows Array.prototype.slice index semantics', () => {
@@ -74,6 +75,99 @@ describe('BaseCollection.slice', () => {
         const sliced = deferred.slice(0, 2);
         expect(sliced).toBeInstanceOf(DeferredCollection);
         expect(sliced.items).toEqual(deferred.items.slice(0, 2));
+    });
+});
+
+describe('BaseCollection indexing and iteration', () => {
+    test('an index is a one-channel collection of that channel', () => {
+        const outs = makeOutputs(3);
+        const col = new Collection(...outs);
+        expect(col[1]).toBeInstanceOf(Collection);
+        expect(col[1].items).toEqual([outs[1]]);
+        expect(col[1]).toBe(col[1]);
+        expect(col[3]).toBeUndefined();
+    });
+
+    test('a one-channel collection is its own channel 0', () => {
+        const col = new Collection(...makeOutputs(2));
+        expect(col[0][0]).toBe(col[0]);
+        expect([...col[0]]).toEqual([col[0]]);
+    });
+
+    test("a root's channels and slices keep every output's same channels", () => {
+        const cv = new Collection(...makeOutputs(3));
+        const gate = new Collection(
+            ...Array.from(
+                { length: 3 },
+                (_, i) => new ModuleOutput(builder, 'test-1', 'gate', i),
+            ),
+        );
+        const root = Object.assign(new Collection(...cv.items), {
+            o: { cv, gate },
+        });
+        markRoot(root, { outputs: [], values: root.o });
+
+        const [, second] = root;
+        expect(second.items).toEqual([cv.items[1]]);
+        const { o } = second as unknown as { o: typeof root.o };
+        expect(o.gate.items).toEqual([gate.items[1]]);
+        expect(outputSetOf(second)?.values).toBe(o);
+
+        const tail = root.slice(1) as unknown as { o: typeof root.o };
+        expect(tail.o.gate.items).toEqual(gate.items.slice(1));
+    });
+
+    test('a root output of another width stays whole in its slices', () => {
+        const stereo = new Collection(...makeOutputs(2));
+        const voices = new Collection(
+            ...Array.from(
+                { length: 4 },
+                (_, i) => new ModuleOutput(builder, 'test-1', 'voices', i),
+            ),
+        );
+        const root = Object.assign(new Collection(...stereo.items), {
+            o: { stereo, voices },
+        });
+        markRoot(root, { outputs: [], values: root.o });
+
+        const { o } = root[1] as unknown as { o: typeof root.o };
+        expect(o.stereo.items).toEqual([stereo.items[1]]);
+        expect(o.voices).toBe(voices);
+    });
+
+    test('a collection serializes to JSON', () => {
+        const col = new Collection(...makeOutputs(1));
+        expect(() => JSON.stringify(col)).not.toThrow();
+    });
+
+    test('iteration and spreading give the index views', () => {
+        const col = new Collection(...makeOutputs(3));
+        expect([...col]).toEqual([col[0], col[1], col[2]]);
+        const [first, , third] = col;
+        expect(first).toBe(col[0]);
+        expect(third).toBe(col[2]);
+    });
+
+    test('a ranged channel keeps its range', () => {
+        const ranged = new CollectionWithRange(
+            ...makeOutputs(2).map((o, i) => o.withRange(i, i + 10)),
+        );
+        expect(ranged[1]).toBeInstanceOf(CollectionWithRange);
+        expect(ranged[1].items[0].minValue).toBe(1);
+        expect(ranged[1].items[0].maxValue).toBe(11);
+    });
+
+    test('a deferred channel sets its own placeholder', () => {
+        const deferred = new DeferredCollection(
+            ...Array.from(
+                { length: 2 },
+                () => new DeferredModuleOutput(builder),
+            ),
+        );
+        const target = new ModuleOutput(builder, 'src-1', 'out', 0);
+        deferred[1].set(new Collection(target));
+        expect(deferred.items[1].resolve()).toBe(target);
+        expect(deferred.items[0].resolve()).toBeNull();
     });
 });
 
