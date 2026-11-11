@@ -34,6 +34,7 @@ export const DSL_TYPE_NAMES = [
     'Mono<Signal>',
     'ModuleOutput',
     'ModuleOutputWithRange',
+    'Multi-output modules',
     'Collection',
     'CollectionWithRange',
     'Note',
@@ -358,11 +359,26 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         seeAlso: ['ModuleOutput', 'CollectionWithRange'],
     },
 
+    'Multi-output modules': {
+        description:
+            'A module with several outputs, such as a sequencer with a pitch, a gate and a trigger, can be used without naming one. ' +
+            'Each input takes the output that suits it: a trigger input takes the trigger, a gate input the gate, and everything else the main output. ' +
+            'The editor shows the output it picked beside the value; double-click that hint to write it into the code. ' +
+            'Naming an output yourself always uses that output, whatever the input.',
+        examples: [
+            "const seq = $p('c e g a').c\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope",
+            "const seq = $p('c3 ~ g3 ~').c\n$sine(seq).amp(seq.$.adsr()).out()   // the gate opens the envelope",
+            "const seq = $p('c e g a').c\n$sine(seq).amp($adsr(seq.gate)).amp(seq.velocity).out()   // named outputs are used as they are",
+        ],
+        name: 'Multi-output modules',
+        seeAlso: ['ModuleOutput', 'Collection', 'Signal'],
+    },
+
     'Mono<Signal>': {
-        definition: 'Signal | Signal[] | Iterable<ModuleOutput>',
+        definition: 'Signal | (Signal | Collection)[] | Iterable<ModuleOutput>',
         description:
             'A signal input that accepts polyphonic connections but sums all channels down to a single mono value. ' +
-            'Structurally identical to Poly<Signal>, but signals that the module will not produce per-voice output from this parameter. ' +
+            'Takes what Poly<Signal> takes except a signal group: the module will not produce per-voice output from this parameter. ' +
             'Used for control parameters like tempo, stereo width, or math variables where a single combined value is needed.',
         examples: [
             '$clockDivider(clock.trigger, 4)                  // Clock signal summed to mono',
@@ -391,7 +407,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     'Poly<Signal>': {
-        definition: 'Signal | Signal[] | Iterable<ModuleOutput>',
+        definition:
+            'Signal | (Signal | Collection)[] | Iterable<ModuleOutput> | SignalGroup',
         description:
             'A potentially multi-channel signal. Can be an array of Signals for polyphonic patches, ' +
             'or an iterable of ModuleOutputs. When used as input to a module, arrays are expanded to create multiple voices.',

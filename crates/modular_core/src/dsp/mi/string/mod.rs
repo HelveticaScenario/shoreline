@@ -124,8 +124,8 @@ const STRING_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Plucked arpeggio",
             code: r#"
-                const seq = $cycle($p('c3 g3 e4 <b3 a3>'))
-                $mi.string(seq, { trigger: seq.trig }).out()
+                const seq = $p('c3 g3 e4 <b3 a3>').c
+                $mi.string(seq, { trigger: seq }).out()
             "#,
         },
         DocExample {

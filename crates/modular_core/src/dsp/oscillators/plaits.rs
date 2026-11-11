@@ -312,9 +312,9 @@ const MACRO_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Struck modal melody",
             code: r#"
-                const seq = $cycle($p('c4 g4 eb4 <bb4 f4>'))
+                const seq = $p('c4 g4 eb4 <bb4 f4>').c
                 $macro(seq, 'modalResonator', {
-                  trigger: seq.trig,
+                  trigger: seq,
                   timbre: 1,
                   lpgDecay: 3,
                 }).out()

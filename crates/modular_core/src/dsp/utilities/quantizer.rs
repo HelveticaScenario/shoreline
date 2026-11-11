@@ -216,7 +216,7 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
                   'C(major)',
                 )
                 $sine(melody)
-                  .amp($perc(melody.trig, { decay: 0.3 }))
+                  .amp($perc(melody, { decay: 0.3 }))
                   .out()
             "#,
         },
@@ -226,7 +226,7 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
                 const midi = $midiCV({ channels: 4 })
                 $sine(
                   $quantizer($sine('0.1hz').range('c3', 'c5'), midi, {
-                    gate: midi.gate,
+                    gate: midi,
                   }),
                 ).out()
             "#,

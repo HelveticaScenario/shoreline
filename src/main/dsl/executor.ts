@@ -42,8 +42,10 @@ import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { createControls } from './controls';
 import { assertControlsPlaced } from './controlPlacement';
-import { $p, setActiveCycleFactory, type CycleFactory } from './miniNotation';
-import { isPatternValue } from './patternKinds';
+import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
+import { $p, setActiveCycleFactory } from './miniNotation';
+import { DELAY_SITE } from './signalSiteTables';
+import { refusePattern } from './patternKinds';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
 import type {
@@ -52,6 +54,8 @@ import type {
 } from '../../shared/video/videoGraph';
 import { compileVideoGraph } from './video/wgslCompiler';
 import { VIDEO_DOCS } from '../../shared/dsl/videoDocs';
+import { enoscScalePresets } from '../../shared/dsl/enoscScales';
+import { assetPath } from './assetPath';
 
 // Augment Array.prototype with pipe() for TypeScript
 declare global {
@@ -82,10 +86,8 @@ export interface DSLExecutionResult {
     video: CompiledVideoShader | null;
     /** One entry per `$v.preview` call, in the order the shader draws them */
     videoPreviews: VideoPreviewSite[];
-}
-
-export interface WavsFolderNode {
-    [name: string]: WavsFolderNode | 'file';
+    /** Every contextual output choice made while the script ran */
+    outputResolutions: OutputResolutionRecord[];
 }
 
 /** What the engine reports about a decoded WAV or media audio track. */
@@ -108,16 +110,24 @@ interface LoadedWav {
 }
 
 /** The `wav` parameter value that refers to decoded audio held by the engine. */
-function wavRef(path: string, info: LoadedWav) {
+function wavRef(info: LoadedWav) {
     return {
         type: 'wav_ref' as const,
-        path,
+        path: info.path,
+        channels: info.channels,
+        mtime: info.mtime,
+    };
+}
+
+/** What `$wavMeta` reports about a file. */
+function wavMeta(info: LoadedWav) {
+    return {
+        path: info.path,
         channels: info.channels,
         sampleRate: info.sampleRate,
         frameCount: info.frameCount,
         duration: info.duration,
         bitDepth: info.bitDepth,
-        mtime: info.mtime,
         ...(info.pitch != null && { pitch: info.pitch }),
         ...(info.playback != null && { playback: info.playback }),
         ...(info.bpm != null && { bpm: info.bpm }),
@@ -154,7 +164,7 @@ export interface DSLExecutionOptions {
     /** Whether a workspace-relative path names an existing file, for media errors. */
     mediaExists?: (path: string) => boolean;
     workspaceRoot?: string | null;
-    wavsFolderTree?: WavsFolderNode | null;
+    /** Decodes a WAV file named by a `/`-rooted workspace path. */
     loadWav?: (path: string) => LoadedWav;
     /**
      * Decodes the audio track of a workspace media file, or returns null when
@@ -398,7 +408,6 @@ export function executePatchScript(
             'DSL execution error: "$cycle" module not found in schemas',
         );
     }
-    const cycleFactory: CycleFactory = $cycle;
     // Numbers convert here; a frequency that includes a signal converts on the
     // audio thread through `_hz`. Note and Hz strings are already pitches, so
     // they are rejected rather than read as a frequency.
@@ -482,35 +491,56 @@ export function executePatchScript(
         time: PolySignal,
         opts?: DelayOptions,
     ): Collection & { buffer: BufferOutputRef } => {
-        const feedback = $clamp(opts?.feedback ?? 2.5, {
-            min: 0,
-            max: 5,
-        }) as Collection;
-        const maxTime = opts?.maxTime ?? 5;
-        // Size the feedback path to the widest polysignal param so a poly
-        // `time` or `feedback` is not truncated when it exceeds `input`.
-        const channels = Math.max(
-            1,
-            polyChannels(input),
-            polyChannels(time),
-            polyChannels(opts?.feedback ?? 2.5),
+        const signals: Record<string, unknown> = {
+            feedback: opts?.feedback,
+            input,
+            time,
+        };
+        // The modules are built out of sight, so the module roots among the
+        // signals are recorded against the `$delay` call itself.
+        return builder.outputResolver.withCall(
+            Object.entries(DELAY_SITE.inputs).map(([name, inputClass]) => [
+                name,
+                signals[name],
+                inputClass,
+            ]),
+            () => {
+                const feedback = $clamp(opts?.feedback ?? 2.5, {
+                    min: 0,
+                    max: 5,
+                }) as Collection;
+                const maxTime = opts?.maxTime ?? 5;
+                // Size the feedback path to the widest polysignal param so a poly
+                // `time` or `feedback` is not truncated when it exceeds `input`.
+                const channels = Math.max(
+                    1,
+                    polyChannels(input),
+                    polyChannels(time),
+                    polyChannels(opts?.feedback ?? 2.5),
+                );
+                const def = $deferred(channels);
+                // Broadcast a narrower input across the feedback width so every channel
+                // is excited by the dry signal (otherwise the extra channels carry
+                // only feedback and decay to silence — `$mix` skips, not cycles, a
+                // narrower input group's missing channels).
+                const mixed = $mix([
+                    cycleToChannels(input, channels),
+                    def,
+                ]) as Collection;
+                // Colour every recirculation: process the dry-plus-feedback mix before
+                // it is written to the buffer.
+                const { feedbackCb } = opts ?? {};
+                const buffered = feedbackCb
+                    ? builder.outputResolver.withUserCode(() =>
+                          feedbackCb(mixed),
+                      )
+                    : mixed;
+                const buf = $buffer(buffered, maxTime);
+                const delayed = $delayRead(buf, time) as Collection;
+                def.set(delayed.amp(feedback as unknown as Signal));
+                return Object.assign(delayed, { buffer: buf });
+            },
         );
-        const def = $deferred(channels);
-        // Broadcast a narrower input across the feedback width so every channel
-        // is excited by the dry signal (otherwise the extra channels carry
-        // only feedback and decay to silence — `$mix` skips, not cycles, a
-        // narrower input group's missing channels).
-        const mixed = $mix([
-            cycleToChannels(input, channels),
-            def,
-        ]) as Collection;
-        // Colour every recirculation: process the dry-plus-feedback mix before
-        // it is written to the buffer.
-        const buffered = opts?.feedbackCb ? opts.feedbackCb(mixed) : mixed;
-        const buf = $buffer(buffered, maxTime);
-        const delayed = $delayRead(buf, time) as Collection;
-        def.set(delayed.amp(feedback as unknown as Signal));
-        return Object.assign(delayed, { buffer: buf });
     };
 
     // Expose `$delay` on the `.$` / `.$m` chainable namespaces. It is DSL
@@ -721,10 +751,6 @@ export function executePatchScript(
             if (button) return button.value ? GATE_HIGH_VOLTAGE : 0;
             return undefined;
         },
-        playPattern: (pattern) =>
-            cycleFactory(pattern) as
-                | ModuleOutput
-                | BaseCollection<ModuleOutput>,
         publishTap: (output, slot) => {
             _videoTap(output, slot);
         },
@@ -737,9 +763,9 @@ export function executePatchScript(
             }
             const info = timedWavLoad(() => options.loadMediaAudio!(path));
             if (info === null) {
-                throw new Error(`$v.video(...).audio: "${path}" has no audio`);
+                throw new Error(`$v.video(...).audio: "/${path}" has no audio`);
             }
-            return _mediaAudio(wavRef(info.path, info), playback) as Collection;
+            return _mediaAudio(wavRef(info), playback) as Collection;
         },
         mediaExists: options.mediaExists,
         sourceLocation: captureSourceLocation,
@@ -751,11 +777,6 @@ export function executePatchScript(
         ...args: Parameters<VideoGraphBuilder['scopeXY']>
     ): VideoOutput => videoBuilder.out(videoBuilder.scopeXY(...args));
 
-    /**
-     * Load WAV samples from the wavs/ folder.
-     * Returns a proxy tree matching the folder structure; leaf nodes trigger
-     * loadWav() and return `{ type: 'wav_ref', path, channels }` objects.
-     */
     // Wall-clock time this run spends inside synchronous loadWav host calls.
     // The vm timeout below measures total wall-clock time of the run, so this
     // distinguishes a patch stuck in a loop from one legitimately spending
@@ -781,116 +802,22 @@ export function executePatchScript(
         }
     };
 
-    const $wavs = (): unknown => {
-        const tree = options.wavsFolderTree;
-        if (!tree) {
-            return new Proxy(
-                {},
-                {
-                    get(_target, prop) {
-                        throw new Error(
-                            `$wavs().${String(prop)}: no wavs/ folder found in workspace`,
-                        );
-                    },
-                },
-            );
+    /** Decodes the file at a `/`-rooted workspace path, or an error naming `fn`. */
+    const loadWavFile = (fn: string, path: unknown): LoadedWav => {
+        const rooted = assetPath(fn, path, 'wav');
+        if (!options.loadWav) {
+            throw new Error(`${fn}: WAV loading is not available`);
         }
-
-        // Memoize the lexicographically-sorted list of direct file basenames
-        // per folder node, so numeric-index resolution sorts at most once
-        // per node regardless of how many `$wavs()[i]` calls happen.
-        const sortedFilesCache = new WeakMap<WavsFolderNode, string[]>();
-        function sortedFileList(node: WavsFolderNode): string[] {
-            const cached = sortedFilesCache.get(node);
-            if (cached) return cached;
-            const files = Object.entries(node)
-                .filter(([, v]) => v === 'file')
-                .map(([k]) => k)
-                .sort((a, b) => a.localeCompare(b));
-            sortedFilesCache.set(node, files);
-            return files;
-        }
-
-        function makeProxy(node: WavsFolderNode, pathParts: string[]): unknown {
-            // Resolve a known file leaf (basename `fileName` exists in `node`
-            // as a `'file'`) into a `WavHandle`. Single source of truth
-            // shared by named-key access and numeric-index access.
-            function loadFile(fileName: string): unknown {
-                const relPath = [...pathParts, fileName].join('/');
-                if (!options.loadWav) {
-                    throw new Error('$wavs(): loadWav function not provided');
-                }
-                return wavRef(
-                    relPath,
-                    timedWavLoad(() => options.loadWav!(relPath)),
-                );
-            }
-
-            return new Proxy(
-                {},
-                {
-                    get(_target, prop) {
-                        if (typeof prop !== 'string') return undefined;
-
-                        // Numeric index access wraps modulo the file count of
-                        // this folder. Only direct files participate
-                        // (subfolders excluded — they get their own index).
-                        if (/^-?(0|[1-9][0-9]*)$/.test(prop)) {
-                            const files = sortedFileList(node);
-                            if (files.length === 0) {
-                                const fullPath = [
-                                    ...pathParts,
-                                    `[${prop}]`,
-                                ].join('/');
-                                throw new Error(
-                                    `$wavs(): "${fullPath}" — no wav files in this folder to index into`,
-                                );
-                            }
-                            const i = parseInt(prop, 10);
-                            const wrapped =
-                                ((i % files.length) + files.length) %
-                                files.length;
-                            return loadFile(files[wrapped]);
-                        }
-
-                        const child = node[prop];
-                        if (child === undefined) {
-                            const fullPath = [...pathParts, prop].join('/');
-                            throw new Error(
-                                `$wavs(): "${fullPath}" not found. Available: ${Object.keys(node).join(', ') || '(empty)'}`,
-                            );
-                        }
-
-                        if (child === 'file') {
-                            return loadFile(prop);
-                        }
-
-                        // Directory node — return nested proxy
-                        return makeProxy(child, [...pathParts, prop]);
-                    },
-                    ownKeys() {
-                        return Object.keys(node);
-                    },
-                    getOwnPropertyDescriptor(_target, prop) {
-                        if (typeof prop === 'string' && prop in node) {
-                            return {
-                                configurable: true,
-                                enumerable: true,
-                                writable: false,
-                            };
-                        }
-                        return undefined;
-                    },
-                },
-            );
-        }
-
-        return makeProxy(tree, []);
+        return timedWavLoad(() => options.loadWav!(rooted));
     };
+    context.setWavResolver((module, path) => wavRef(loadWavFile(module, path)));
+
+    /** The format, tempo, loops and cue points of a WAV file. */
+    const $wavMeta = (path: string) => wavMeta(loadWavFile('$wavMeta', path));
 
     /**
      * $phase.* DSL helpers produce phase-warp descriptors for modules that
-     * accept a `PhaseWarp` (`$wavetable`, `$pWarp`).
+     * accept a `PhaseWarp` (`$wavetable`, `$enosc`, `$pWarp`).
      *
      * Each helper returns a plain JSON object whose shape matches the Rust
      * `PhaseWarp` deserializer (`#[serde(tag = "type", rename_all = "camelCase")]`).
@@ -921,14 +848,10 @@ export function executePatchScript(
         return t;
     }
 
-    // A pattern argument plays through its own `$cycle` before it becomes a
-    // warp signal.
-    const warpSignal = (value: unknown) =>
-        replaceSignals(isPatternValue(value) ? cycleFactory(value) : value);
-
     const warpHelper =
         (type: string, field: string) => (value: unknown, next?: unknown) => {
-            const t = wrapWarp({ type, [field]: warpSignal(value) });
+            refusePattern(value, `$phase.${type}: ${field}`);
+            const t = wrapWarp({ type, [field]: replaceSignals(value) });
             return next !== undefined
                 ? wrapWarp({ type: 'pipe', first: t, second: next })
                 : t;
@@ -945,6 +868,47 @@ export function executePatchScript(
         feedback: warpHelper('feedback', 'amount'),
     };
 
+    /**
+     * `$enosc.scale.*` holds the `EnoscScale` descriptors `$enosc`'s `scale`
+     * param takes: each preset is `{ type: <preset> }`, and `custom` returns
+     * `{ type: 'custom', notes, repeatsOctave }`. The engine validates them.
+     */
+    // Each preset is a getter, so every use gets its own descriptor object.
+    const enoscScale: Record<string, unknown> = {};
+    for (const { name: type } of enoscScalePresets(schemas)) {
+        Object.defineProperty(enoscScale, type, {
+            get: () => ({ type }),
+            enumerable: true,
+        });
+    }
+    enoscScale.custom = (notes: string, repeatsOctave: unknown) => {
+        if (typeof notes !== 'string') {
+            throw new TypeError(
+                '$enosc.scale.custom: notes must be a space-separated string of semitones, e.g. "0 3 7"',
+            );
+        }
+        const values = notes.trim().split(/\s+/).filter(Boolean).map(Number);
+        if (values.some((v) => !Number.isFinite(v))) {
+            throw new TypeError(
+                `$enosc.scale.custom: "${notes}" is not a space-separated list of numbers`,
+            );
+        }
+        if (typeof repeatsOctave !== 'boolean') {
+            throw new TypeError(
+                '$enosc.scale.custom: repeatsOctave must be true or false',
+            );
+        }
+        return { type: 'custom', notes: values, repeatsOctave };
+    };
+    const enoscFactory = userNamespaceTree['$enosc'];
+    if (typeof enoscFactory === 'function') {
+        Object.defineProperty(enoscFactory, 'scale', {
+            value: Object.freeze(enoscScale),
+            enumerable: true,
+            configurable: true,
+        });
+    }
+
     const dslGlobals = {
         // Prefixed namespace tree (modules and namespaces, minus _clock)
         ...userNamespaceTree,
@@ -956,7 +920,7 @@ export function executePatchScript(
         // $p.s(source, scale) for scale-degree patterns (integer degrees
         // resolved through a scale string into voltage atoms for $cycle).
         $p,
-        // Phase-warp descriptors for $wavetable and $pWarp
+        // Phase-warp descriptors for $wavetable, $enosc and $pWarp
         $phase,
         // Collection helpers
         $c: builder.$c.bind(builder),
@@ -997,8 +961,7 @@ export function executePatchScript(
         $delay,
         $ott,
         $cross,
-        // WAV sample loading
-        $wavs,
+        $wavMeta,
         // Built-in modules
         $clock,
         $input: rootInput,
@@ -1022,7 +985,7 @@ export function executePatchScript(
     } = analyzeSourceSpans(source, schemas);
     setActiveSpanRegistry(spanRegistry);
     setActiveInterpolationResolutions(interpolationResolutions);
-    setActiveCycleFactory(cycleFactory);
+    setActiveCycleFactory($cycle);
 
     // The user source runs as a function body (an IIFE), not at the script's
     // top level, so top-level `return` is legal in a patch script.
@@ -1085,6 +1048,7 @@ export function executePatchScript(
             callSiteSpans,
             eqPanels: resultBuilder.getEqPanels(),
             interpolationResolutions,
+            outputResolutions: resultBuilder.outputResolver.records,
             patch,
             sliders: controls.sliders,
             sourceLocationMap,

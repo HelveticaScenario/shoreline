@@ -291,10 +291,10 @@ const LT909_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Tom fill",
         code: r#"
-            $tr909.kick($cycle($p('c*4')).trig).out()
-            $tr909.highTom($cycle($p('~ ~ ~ ~ ~ ~ c c')).trig).out()
-            $tr909.midTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [c ~]')).trig).out()
-            $tr909.lowTom($cycle($p('~ ~ ~ ~ ~ ~ ~ [~ c]')).trig).out()
+            $tr909.kick($p('c*4').c).out()
+            $tr909.highTom($p('~ ~ ~ ~ ~ ~ c c').c).out()
+            $tr909.midTom($p('~ ~ ~ ~ ~ ~ ~ [c ~]').c).out()
+            $tr909.lowTom($p('~ ~ ~ ~ ~ ~ ~ [~ c]').c).out()
         "#,
     }],
 };
@@ -317,8 +317,8 @@ const MT909_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Rolling tom groove",
         code: r#"
-            $tr909.kick($cycle($p('c*4')).trig).out()
-            $tr909.midTom($cycle($p('~ c ~ c c ~ ~ c')).trig).out()
+            $tr909.kick($p('c*4').c).out()
+            $tr909.midTom($p('~ c ~ c c ~ ~ c').c).out()
         "#,
     }],
 };
@@ -341,8 +341,8 @@ const HT909_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Tuned tom melody",
         code: r#"
-            const toms = $cycle($p('c3 ~ eb3 f3 ~ c3 bb2 ~'))
-            $tr909.highTom(toms.trig, { freq: toms }).out()
+            const toms = $p('c3 ~ eb3 f3 ~ c3 bb2 ~').c
+            $tr909.highTom(toms, { freq: toms }).out()
         "#,
     }],
 };

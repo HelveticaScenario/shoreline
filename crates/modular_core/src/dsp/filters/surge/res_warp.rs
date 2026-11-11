@@ -186,11 +186,11 @@ const RES_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Rubbery resonant bass",
         code: r#"
-            const seq = $cycle($p('f1 [~ f2] ab1 [c2 eb2]'))
+            const seq = $p('f1 [~ f2] ab1 [c2 eb2]').c
             $unstable.filter
               .resWarpLp(
                 $saw(seq),
-                $perc(seq.trig, { decay: 0.2 }).range('c3', 'c6'),
+                $perc(seq, { decay: 0.2 }).range('c3', 'c6'),
                 4,
                 { stages: 2 },
               )

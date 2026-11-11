@@ -460,9 +460,13 @@ const GLIDE_KIND = 'GlidePattern' as const;
  *
  * `.cycle(...rest)`: shorthand for `$cycle(pattern, ...rest)`, forwarding
  * every argument after the pattern to the `$cycle` factory.
+ *
+ * `.c`: shorthand for `.cycle()`. Every read on one pattern gives the same
+ * `$cycle`.
  */
 export interface TimeModifiable {
     cycle(...rest: unknown[]): unknown;
+    readonly c: unknown;
     fast(factor: number | string): FastPattern & TimeModifiable;
     slow(factor: number | string): SlowPattern & TimeModifiable;
     struct(boolPattern: string): StructPattern & TimeModifiable;
@@ -787,30 +791,46 @@ function factorArgumentSpans(
     return [...innerSpans, factorSpan];
 }
 
-export type CycleFactory = (pattern: unknown, ...rest: unknown[]) => unknown;
+type CycleFactory = (pattern: unknown, ...rest: unknown[]) => unknown;
 
 /**
- * The `$cycle` factory of the active DSL execution, which `.cycle(...)`
- * delegates to. Set by executor.ts before running user code, cleared after.
+ * The `$cycle` factory of the active DSL execution, which `.cycle(...)` and
+ * `.c` delegate to. Set by executor.ts before running user code, cleared
+ * after.
  */
 let activeCycleFactory: CycleFactory | null = null;
 
+/** The `$cycle` each pattern's `.c` made in the active DSL execution. */
+let sharedCycles = new WeakMap<object, unknown>();
+
 export function setActiveCycleFactory(factory: CycleFactory | null): void {
     activeCycleFactory = factory;
+    sharedCycles = new WeakMap();
 }
 
 function makeCycle(pattern: SectionPattern, rest: unknown[]): unknown {
     if (!activeCycleFactory) {
         throw new MiniParseError(
-            '.cycle() is only available while a patch runs',
+            'a pattern can only be played while a patch runs',
         );
     }
     return activeCycleFactory(pattern, ...rest);
 }
 
+function sharedCycle(pattern: SectionPattern): unknown {
+    let cycle = sharedCycles.get(pattern);
+    if (cycle === undefined) {
+        cycle = makeCycle(pattern, []);
+        sharedCycles.set(pattern, cycle);
+    }
+    return cycle;
+}
+
 /**
  * Attach the `.cycle(...)` / `.fast(...)` / `.slow(...)` / `.struct(...)` /
- * `.beat(...)` / `.glide(...)` methods to a pattern object. `Object.assign` types the result; the
+ * `.beat(...)` / `.glide(...)` methods and the `.c` getter to a pattern
+ * object. Reading `.c` is what makes its `$cycle`. `Object.assign` types the
+ * methods; the
  * `defineProperty` calls then flip the methods to non-enumerable so
  * `JSON.stringify` (the IPC clone) and `Object.keys`/`entries` skip them and
  * only the wire-shape fields cross the boundary — the same trick `$p.s` uses
@@ -835,7 +855,10 @@ function attachTimeModifiers<T extends SectionPattern>(
     Object.defineProperty(modifiable, 'struct', { enumerable: false });
     Object.defineProperty(modifiable, 'beat', { enumerable: false });
     Object.defineProperty(modifiable, 'glide', { enumerable: false });
-    return modifiable;
+    return Object.defineProperty(modifiable, 'c', {
+        enumerable: false,
+        get: () => sharedCycle(pattern),
+    }) as T & TimeModifiable;
 }
 
 // `Located` is re-exported for tests that hand-construct ASTs.

@@ -52,12 +52,9 @@ const LPF_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Plucky acid bass",
             code: r#"
-                const seq = $cycle($p('c2 c2 [eb2 c3] g1'))
+                const seq = $p('c2 c2 [eb2 c3] g1').c
                 $saw(seq)
-                  .$.lpf(
-                    $perc(seq.trig, { decay: 0.2 }).range('c3', 'c7'),
-                    4,
-                  )
+                  .$.lpf($perc(seq, { decay: 0.2 }).range('c3', 'c7'), 4)
                   .out()
             "#,
         },

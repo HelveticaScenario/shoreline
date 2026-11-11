@@ -63,7 +63,9 @@ export function resolveRef(
     | 'Poly<Signal>'
     | 'Mono<Signal>'
     | 'Buffer'
+    | 'Wav'
     | 'PhaseWarp'
+    | 'EnoscScale'
     | 'ParsedPattern'
     | 'SpPattern'
     | 'ArrangePattern'
@@ -81,6 +83,9 @@ export function resolveRef(
     }
     if (ref === 'PhaseWarp') {
         return 'PhaseWarp';
+    }
+    if (ref === 'EnoscScale') {
+        return 'EnoscScale';
     }
     if (ref === 'ParsedPatternPayload') {
         return 'ParsedPattern';
@@ -125,8 +130,14 @@ export function resolveRef(
     if (defName === 'Buffer') {
         return 'Buffer';
     }
+    if (defName === 'Wav') {
+        return 'Wav';
+    }
     if (defName === 'PhaseWarp') {
         return 'PhaseWarp';
+    }
+    if (defName === 'EnoscScale') {
+        return 'EnoscScale';
     }
     // A scale/chord spec string ("C(major)", "C3[maj7]"); the DSL exposes it
     // as the named `ScaleSpec` template-literal type.
@@ -194,6 +205,9 @@ export function resolveRef(
     }
     if (resolved?.title === 'PhaseWarp') {
         return 'PhaseWarp';
+    }
+    if (resolved?.title === 'EnoscScale') {
+        return 'EnoscScale';
     }
     if (resolved?.title === 'ParsedPatternPayload') {
         return 'ParsedPattern';
@@ -392,8 +406,14 @@ export function schemaToTypeExpr(
         if (resolved === 'Buffer') {
             return 'BufferOutputRef';
         }
+        if (resolved === 'Wav') {
+            return 'string';
+        }
         if (resolved === 'PhaseWarp') {
             return 'PhaseWarp';
+        }
+        if (resolved === 'EnoscScale') {
+            return 'EnoscScale';
         }
         if (resolved === 'ParsedPattern') {
             return 'ParsedPattern';

@@ -216,9 +216,9 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Plucks in a big plate",
         code: r#"
-            const notes = $cycle($p('c4 eb4 g4 bb4'))
+            const notes = $p('c4 eb4 g4 bb4').c
             $sine(notes)
-              .amp($perc(notes.trig, { decay: 0.2 }))
+              .amp($perc(notes, { decay: 0.2 }))
               .$m.dattorro(2, { decay: 3 })
               .out()
         "#,

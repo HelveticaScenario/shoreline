@@ -143,7 +143,7 @@ const MIDI_CV_DOCS: ModuleDocs = ModuleDocs {
                 const midi = $midiCV({ channels: 4 })
                 $saw(midi)
                   .$.lpf(midi.velocity.range('c4', 'c7'), 1)
-                  .amp($adsr(midi.gate, { release: 0.4 }))
+                  .amp($adsr(midi, { release: 0.4 }))
                   .out()
             "#,
         },
@@ -153,7 +153,7 @@ const MIDI_CV_DOCS: ModuleDocs = ModuleDocs {
                 const lead = $midiCV({ pitchBendRange: 12 })
                 $pulse(lead)
                   .$.lpf(lead.modWheel.range('c4', 'c7'), 2)
-                  .amp($adsr(lead.gate))
+                  .amp($adsr(lead))
                   .out()
             "#,
         },

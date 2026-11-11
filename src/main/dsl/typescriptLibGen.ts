@@ -1,4 +1,3 @@
-import { getReservedOutputNames } from '@modular/core';
 import type { ModuleSchema } from '@modular/core';
 import type {
     JSONSchema,
@@ -14,7 +13,7 @@ import {
     processModuleSchema,
     qualifiesForDollarChain,
 } from './paramsSchema';
-import type { WavsFolderNode } from './executor';
+import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 import {
     generateVideoChainInterfaces,
     generateVideoChainMembers,
@@ -32,8 +31,9 @@ import {
     paramMeta,
     withMeta,
 } from '../../shared/dsl/paramRange';
+import { chooseOutput } from '../../shared/dsl/outputResolutionRule';
+import { sanitizeOutputName } from './outputNames';
 import { renderDocContentJsDoc } from '../../shared/dsl/referenceDocs';
-export type { WavsFolderNode } from './executor';
 
 const BASE_LIB_SOURCE = `
 /** The **\`console\`** object provides access to the debugging console (e.g., the Web console in Firefox). */
@@ -267,23 +267,22 @@ type Signal = number | Note | HZ | ModuleOutput;
  *
  * Can be:
  * - A single {@link Signal}
- * - An array of {@link Signal}s (creates multiple voices)
  * - An iterable of {@link ModuleOutput}s
+ * - An array of {@link Signal}s and {@link Collection}s (creates multiple voices)
  * - A {@link SignalGroup} from \`$g1\`/\`$g2\`/\`$g3\` (cartesian voice expansion)
- * - A pattern from \`$p(...)\`, \`$p.s(...)\` or \`$p.arrange(...)\`, played through a \`$cycle\`
  *
  * @example $saw(["C3", "E3", "G3"]).out()                    // 3-voice chord
  * @example $saw([...$sine("1hz"), ...$sine("2hz")]).out()   // Spread outputs into voices
  * @see {@link Signal} - for single-channel signals
  * @see {@link Collection} - for grouping outputs
  */
-type Poly<T extends Signal = Signal> = OrArray<T> | Iterable<ModuleOutput> | SignalGroup | PatternSource;
+type Poly<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | Iterable<ModuleOutput> | SignalGroup;
 
 /**
- * An axis of an XY scope: signals, collections and patterns, or an array mixing
+ * An axis of an XY scope: signals and collections, or an array mixing
  * them. Every channel is its own trace.
  */
-type ScopeAxis = OrArray<Signal | Iterable<ModuleOutput> | PatternSource>;
+type ScopeAxis = OrArray<Signal | Iterable<ModuleOutput>>;
 
 /**
  * A param value tagged into a cartesian signal group by {@link $g1}, {@link $g2},
@@ -301,23 +300,23 @@ interface SignalGroup {
 
 
 /**
- * A signal input that sums all channels to a single mono value.
- * Structurally identical to {@link Poly}, but signals that the module
- * combines all voices into one control signal rather than preserving polyphony.
+ * A signal input that sums all channels to a single mono value. Takes what
+ * {@link Poly} takes except a signal group: the module combines all voices
+ * into one control signal rather than preserving polyphony.
  *
  * @example $stereoMix($saw("c3"), { width: 0.8 })          // Constant width
  * @example $stereoMix($saw("c3"), { width: $sine("1hz") }) // Oscillating stereo width
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
  * @see {@link Signal} - for single-channel signals
  */
-type Mono<T extends Signal = Signal> = OrArray<T> | Iterable<ModuleOutput> | PatternSource;
+type Mono<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | Iterable<ModuleOutput>;
 
 /**
  * A phase warp produced by the \`$phase.*\` helpers.
  *
  * Passed to modules that read a phase through a \`PhaseWarp\`-typed param
- * (the \`phase\` param of \`$wavetable\` and \`$pWarp\`) to reshape the
- * phase before it is used.
+ * (the \`phase\` param of \`$wavetable\`, \`$enosc\` and \`$pWarp\`) to
+ * reshape the phase before it is used.
  *
  * Create one with a \`$phase.*\` helper — do not construct directly.
  *
@@ -343,6 +342,14 @@ type PhaseWarp = PhaseWarpDescriptor & {
 };
 
 /**
+ * A scale for \`$enosc\`'s \`scale\` param. Create one with a
+ * \`$enosc.scale.*\` helper — do not construct directly.
+ */
+type EnoscScale =
+  | { readonly type: Exclude<keyof typeof $enosc.scale, "custom"> }
+  | { readonly type: "custom"; readonly notes: readonly number[]; readonly repeatsOctave: boolean };
+
+/**
  * A buffer output reference — returned by \`$buffer()\`, passed to readers
  * (like \`$bufRead\`, \`$delayRead\`) as their \`buffer\` param.
  */
@@ -353,13 +360,6 @@ type BufferOutputRef = {
   readonly channels: number;
   readonly frameCount: number;
 };
-
-/**
- * Any pattern value: \`$p(...)\`, \`$p.s(...)\`, \`$p.arrange(...)\`, or a
- * \`.fast\`/\`.slow\`/\`.struct\`/\`.beat\`/\`.glide\` chain. Signal params
- * accept one and play it through a \`$cycle\`.
- */
-type PatternSource = ParsedPattern | SpPattern | ArrangePattern | FastPattern | SlowPattern | StructPattern | BeatPattern | GlidePattern;
 
 type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : never;
 
@@ -399,7 +399,7 @@ type ParsedPattern = {
    * euclidean structure, and so on.
    *
    * \`\`\`js
-   * $cycle($p("c4 e4").struct("x ~ x x"))
+   * $p("c4 e4").struct("x ~ x x").c
    * \`\`\`
    */
   struct(boolPattern: string): StructPattern;
@@ -415,7 +415,7 @@ type ParsedPattern = {
    * the grid per cycle).
    *
    * \`\`\`js
-   * $cycle($p("c2").beat("0,7,10", 16))
+   * $p("c2").beat("0,7,10", 16).c
    * \`\`\`
    */
   beat(t: number | string, div: number | string): BeatPattern;
@@ -432,8 +432,8 @@ type ParsedPattern = {
    * Every curve stays between the two pitches.
    *
    * \`\`\`js
-   * $sine($p("c4 e4 g4").glide("0 0.1 0.25")).out()
-   * $sine($p("c3 g3").glide(0.25, 'expo', 'out')).out()
+   * $sine($p("c4 e4 g4").glide("0 0.1 0.25").c).out()
+   * $sine($p("c3 g3").glide(0.25, 'expo', 'out').c).out()
    * \`\`\`
    */
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
@@ -447,6 +447,8 @@ type ParsedPattern = {
    * \`\`\`
    */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -455,9 +457,9 @@ type ParsedPattern = {
  * \`$p()\` — \`$cycle\` accepts a \`ParsedPattern\`, not a raw string.
  *
  * \`\`\`js
- * $cycle($p("c4 e4 g4"))                    // basic sequence
+ * $p("c4 e4 g4").c                    // basic sequence
  * const bass = $p("c2 [c2 g2] c2 e2");      // reuse a parsed pattern
- * $cycle(bass)
+ * bass.c
  * \`\`\`
  *
  * The returned object is opaque (JSON-serializable; carries source +
@@ -519,10 +521,10 @@ declare namespace $p {
  * atoms are rejected.
  *
  * \`\`\`js
- * $cycle($p.s("0 2 4 7", "c(major)"))       // C-major arpeggio
- * $cycle($p.s("-1 0 2 4", "a3(min)"))       // negative degrees wrap below the root
- * $cycle($p.s("0 1 2 3 4", "c(0 2 4 7 9)")) // custom intervals (pentatonic)
- * $cycle($p.s("0 4 7", "c(just)"))          // just intonation
+ * $p.s("0 2 4 7", "c(major)").c       // C-major arpeggio
+ * $p.s("-1 0 2 4", "a3(min)").c       // negative degrees wrap below the root
+ * $p.s("0 1 2 3 4", "c(0 2 4 7 9)").c // custom intervals (pentatonic)
+ * $p.s("0 4 7", "c(just)").c          // just intonation
  * \`\`\`
  *
  * ### Atoms
@@ -592,9 +594,9 @@ declare namespace $p {
  * | \`.restart\` | Right pattern retriggers the left, aligned to cycle 0. |
  *
  * \`\`\`js
- * $cycle($p.s("0 1 2", "c(maj)").add("0 2"))               // .add defaults to .add.in
- * $cycle($p.s("0 1 2", "d#(min)").add.in("10 20"))
- * $cycle($p.s("0 1 2", "c(maj)").sub.squeeze("1 2 3"))
+ * $p.s("0 1 2", "c(maj)").add("0 2").c               // .add defaults to .add.in
+ * $p.s("0 1 2", "d#(min)").add.in("10 20").c
+ * $p.s("0 1 2", "c(maj)").sub.squeeze("1 2 3").c
  * \`\`\`
  *
  * @param source integer scale-degree mini-notation source
@@ -613,10 +615,10 @@ function s(source: string, scale: string): SpPattern;
  *
  * \`\`\`js
  * // 4 cycles of a C-major arp, then 2 of an A-minor arp, looping every 6
- * $cycle($p.arrange(
+ * $p.arrange(
  *   [4, $p.s("0 2 4 7", "c(major)")],
  *   [2, $p.s("0 2 4",   "a(min)")],
- * ))
+ * ).c
  * \`\`\`
  *
  * Cycle counts must be **positive integers**, except a single **trailing**
@@ -624,10 +626,10 @@ function s(source: string, scale: string): SpPattern;
  * an \`Infinity\` section could never play and is rejected):
  *
  * \`\`\`js
- * $cycle($p.arrange(
+ * $p.arrange(
  *   [2, $p("c4 e4 g4")],            // intro, played once
  *   [Infinity, $p.s("0 2 4", "f(lydian)")],  // then loops forever
- * ))
+ * ).c
  * \`\`\`
  *
  * The result is an \`ArrangePattern\`, itself usable as a section of another
@@ -681,6 +683,8 @@ type SpPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -702,6 +706,8 @@ type ArrangePattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -723,6 +729,8 @@ type FastPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -742,6 +750,8 @@ type SlowPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -752,7 +762,7 @@ type SlowPattern = {
  * user code — construct with \`.struct(...)\`; never build one by hand.
  *
  * \`\`\`js
- * $cycle($p("c4 e4").struct("x ~ <x ~>"))
+ * $p("c4 e4").struct("x ~ <x ~>").c
  * \`\`\`
  */
 type StructPattern = {
@@ -768,6 +778,8 @@ type StructPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
@@ -778,7 +790,7 @@ type StructPattern = {
  * user code — construct with \`.beat(...)\`; never build one by hand.
  *
  * \`\`\`js
- * $cycle($p("c2 g2").beat("0,7,10", 16))
+ * $p("c2 g2").beat("0,7,10", 16).c
  * \`\`\`
  */
 type BeatPattern = {
@@ -794,6 +806,8 @@ type BeatPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /** Shape of a glide ramp. See \`$p(...).glide\`. */
@@ -822,21 +836,21 @@ type GlidePattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
+  readonly c: ReturnType<typeof $cycle>;
 };
 
 /**
- * A loaded WAV sample handle — returned by \`$wavs()\`, passed to \`$sampler()\` as the \`wav\` param.
+ * What \`$wavMeta\` reads from a WAV file. Times are in seconds.
  */
-type WavHandle = {
-  readonly type: 'wav_ref';
+type WavMeta = {
   readonly path: string;
   readonly channels: number;
   readonly sampleRate: number;
   readonly frameCount: number;
   readonly duration: number;
   readonly bitDepth: number;
-  /** File modification time (epoch ms). Cache-key hint — changes when the WAV is edited on disk. */
-  readonly mtime: number;
+  /** Root note of the sample, in V/Oct. */
   readonly pitch?: number;
   readonly playback?: 'one-shot' | 'loop';
   readonly bpm?: number;
@@ -1709,19 +1723,17 @@ function $note(noteName: string): number;
  *
  * Collections support chainable DSP methods, iteration, indexing, and spreading.
  * Bare {@link Signal} literals (numbers, note/Hz strings) are lifted into
- * $signal modules, so they can be mixed in alongside module outputs. A
- * pattern (\`$p(...)\`, \`$p.s(...)\`, \`$p.arrange(...)\`) plays through a
- * \`$cycle\` and contributes its voices.
+ * $signal modules, so they can be mixed in alongside module outputs.
  * @param args One or more {@link ModuleOutput}s or {@link Signal} literals to group
  * @returns A {@link Collection} of the outputs
  * @example $c($sine('c3'), $sine('e3')).amplitude(0.5).out()
  * @example $c(440, 'c4', $sine('e3'))  // Bare number/string lifted into $signal
- * @example $c($p('c4 e4'), 'g4')        // Pattern plays through a $cycle
+ * @example $c($p('c4 e4').c, 'g4')      // A played pattern contributes its voices
  * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access
  * @example [...$c($sine('c3'), $sine('e3'))]             // Spread to array
  * @see {@link $r} - for ranged outputs
  */
-function $c(...args: (Signal | PatternSource | (Signal | PatternSource)[] | Iterable<Signal | PatternSource>)[]): Collection;
+function $c(...args: (Signal | Signal[] | Iterable<Signal>)[]): Collection;
 
 /**
  * Create a {@link CollectionWithRange} from {@link ModuleOutputWithRange} instances.
@@ -1734,6 +1746,17 @@ function $c(...args: (Signal | PatternSource | (Signal | PatternSource)[] | Iter
  * @see {@link $c} - for outputs without known ranges
  */
 function $r(...args: (ModuleOutputWithRange | Iterable<ModuleOutputWithRange>)[]): CollectionWithRange;
+
+/**
+ * Read the format, tempo, loops and cue points of a WAV file.
+ * @param path The file, from the workspace folder: \`'/wavs/loop.wav'\`
+ * @example
+ * // Play a loop at the tempo it was recorded at
+ * const loop = '/wavs/loop.wav'
+ * $setTempo($wavMeta(loop).bpm ?? 120)
+ * $sampler(loop, $clock.barTrigger).out()
+ */
+function $wavMeta(path: string): WavMeta;
 
 /**
  * Set the global tempo for the root clock.
@@ -1765,7 +1788,7 @@ function $setOutputGain(gain: Mono<Signal>): void;
 function $scopeXY(
   x: ScopeAxis,
   y: ScopeAxis,
-  config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | ModuleOutput | Collection | CollectionWithRange | PatternSource; persistence?: number | ModuleOutput | Collection | CollectionWithRange | PatternSource; lineWidth?: number | ModuleOutput | Collection | CollectionWithRange | PatternSource; upsample?: boolean },
+  config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | ModuleOutput | Collection | CollectionWithRange; persistence?: number | ModuleOutput | Collection | CollectionWithRange; lineWidth?: number | ModuleOutput | Collection | CollectionWithRange; upsample?: boolean },
 ): VideoSignal;
 
 /**
@@ -2144,7 +2167,7 @@ function $cross(
 
 /**
  * Phase warps for modules that accept a {@link PhaseWarp} (the \`phase\`
- * param of \`$wavetable\` and \`$pWarp\`).
+ * param of \`$wavetable\`, \`$enosc\` and \`$pWarp\`).
  *
  * Each helper returns a {@link PhaseWarp} whose inner signal-valued field
  * accepts a constant, a module output, or any other {@link Signal}.
@@ -2226,12 +2249,11 @@ interface VideoFile extends VideoSignal {
 /**
  * A constant, a {@link VideoSignal}, or an audio signal whose live value drives
  * the input: a \`$slider\` / \`$btn\` / \`$toggleBtn\`, or any module output
- * such as an LFO or envelope, with several channels summed to one. A pattern
- * from \`$p(...)\`, \`$p.s(...)\` or \`$p.arrange(...)\` also works: it plays
- * through a \`$cycle\` and its values are used as they are, so
- * \`$p('0 0.5 1')\` steps from 0 to 1.
+ * such as an LFO or envelope, with several channels summed to one. A played
+ * pattern's values are used as they are, so \`$p('0 0.5 1').c\` steps from 0
+ * to 1.
  */
-type VideoValue = number | VideoSignal | ModuleOutput | Collection | CollectionWithRange | PatternSource;
+type VideoValue = number | VideoSignal | ModuleOutput | Collection | CollectionWithRange;
 
 ${generateVideoChainInterfaces()}
 
@@ -2263,53 +2285,10 @@ interface VideoBuffer {
 ${generateVideoNamespace()}
 `;
 
-function generateWavsTypeDeclaration(tree: WavsFolderNode | null): string {
-    if (!tree || Object.keys(tree).length === 0) {
-        return '/** Load WAV samples from the wavs/ folder. */\nexport function $wavs(): Record<string, never>;\n';
-    }
-
-    function renderNode(node: WavsFolderNode, indent: string): string {
-        const sorted = Object.entries(node).sort(([a], [b]) =>
-            a.localeCompare(b),
-        );
-        const hasFiles = sorted.some(([, v]) => v === 'file');
-        const lines: string[] = ['{'];
-        // Numeric index signature (wraps modulo file count) when this folder
-        // has at least one direct file. Out-of-range integers are valid at
-        // runtime since access wraps; folders with zero files omit the
-        // signature so `$wavs().emptyDir[0]` is a static type error.
-        if (hasFiles) {
-            lines.push(`${indent}  readonly [index: number]: WavHandle;`);
-        }
-        for (const [key, value] of sorted) {
-            const safeName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key)
-                ? key
-                : `'${key.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-            if (value === 'file') {
-                lines.push(`${indent}  readonly ${safeName}: WavHandle;`);
-            } else {
-                lines.push(
-                    `${indent}  readonly ${safeName}: ${renderNode(value, indent + '  ')}`,
-                );
-            }
-        }
-        lines.push(`${indent}}`);
-        return lines.join('\n');
-    }
-
-    const treeType = renderNode(tree, '');
-    return `/** Load WAV samples from the wavs/ folder. */\nexport function $wavs(): ${treeType};\n`;
-}
-
-export function buildLibSource(
-    schemas: Schemas,
-    wavsFolderTree?: WavsFolderNode | null,
-): string {
+export function buildLibSource(schemas: Schemas): string {
     const schemaLib = generateDSL(schemas);
-    const wavsDecl = generateWavsTypeDeclaration(wavsFolderTree ?? null);
-    return `/* oxlint-disable */\ndeclare global {\n${BASE_LIB_SOURCE}\n\n${schemaLib}\n\n${wavsDecl}\n}\n\nexport {};\n`;
+    return `/* oxlint-disable */\ndeclare global {\n${BASE_LIB_SOURCE}\n\n${schemaLib}\n}\n\nexport {};\n`;
 }
-
 interface NamespaceNode {
     namespaces: Map<string, NamespaceNode>;
     classes: Map<string, Schema>;
@@ -2376,34 +2355,6 @@ function capitalizeName(name: string): string {
 }
 
 /**
- * Convert snake_case to camelCase
- */
-function toCamelCase(str: string): string {
-    return str.replace(/_([a-z])/g, (_, letter: string) =>
-        letter.toUpperCase(),
-    );
-}
-
-/**
- * Reserved property names that conflict with ModuleOutput, Collection, or CollectionWithRange
- * methods/properties. Output names matching these will be suffixed with an underscore.
- *
- * Single source of truth: `crates/reserved_output_names.rs`
- */
-const RESERVED_OUTPUT_NAMES: ReadonlySet<string> = new Set(
-    getReservedOutputNames(),
-);
-
-/**
- * Sanitize output name to avoid conflicts with reserved properties/methods.
- * Appends underscore if the camelCase name is reserved.
- */
-function sanitizeOutputName(name: string): string {
-    const camelName = toCamelCase(name);
-    return RESERVED_OUTPUT_NAMES.has(camelName) ? `${camelName}_` : camelName;
-}
-
-/**
  * Get the output type for a single output definition
  */
 function getOutputType(output: {
@@ -2420,9 +2371,24 @@ function getOutputType(output: {
 }
 
 /**
+ * The multi-output interface of `moduleSchema` as the type checker names it:
+ * qualified by the namespaces the module is declared in. `_clock` is declared
+ * at the top level.
+ */
+export function qualifiedMultiOutputInterfaceName(moduleSchema: {
+    name: string;
+}): string {
+    const namespaces = moduleSchema.name
+        .split('.')
+        .filter((p: string) => p.length > 0)
+        .slice(0, -1);
+    return [...namespaces, getMultiOutputInterfaceName(moduleSchema)].join('.');
+}
+
+/**
  * Generate interface name for multi-output modules
  */
-function getMultiOutputInterfaceName(moduleSchema: Schema): string {
+function getMultiOutputInterfaceName(moduleSchema: { name: string }): string {
     const parts = moduleSchema.name
         .split('.')
         .filter((p: string) => p.length > 0);
@@ -2435,7 +2401,8 @@ function getMultiOutputInterfaceName(moduleSchema: Schema): string {
 
 /**
  * Generate interface definition for multi-output modules.
- * The interface extends from the default output's type and includes properties for other outputs.
+ * The interface extends the type of the output a `cv` input takes and has a
+ * property for every output.
  */
 function generateMultiOutputInterface(
     moduleSchema: Schema,
@@ -2446,9 +2413,10 @@ function generateMultiOutputInterface(
         return [];
     }
 
-    // Find the default output
     const defaultOutput = outputs.find((o) => o.default) || outputs[0];
-    const baseType = getOutputType(defaultOutput);
+    // Read as a signal itself, the module is the output a `cv` input takes.
+    const cvOutput = chooseOutput(outputs, 'cv');
+    const baseType = getOutputType(outputs.find((o) => o.name === cvOutput)!);
 
     const interfaceName = getMultiOutputInterfaceName(moduleSchema);
 
@@ -2456,19 +2424,18 @@ function generateMultiOutputInterface(
     lines.push(`${indent}/**`);
     lines.push(`${indent} * Output type for ${moduleSchema.name} module.`);
     lines.push(
-        `${indent} * Extends ${baseType} (default output: ${defaultOutput.name})`,
+        `${indent} * Used directly, it stands for the output that fits the input it`,
     );
+    lines.push(
+        `${indent} * is plugged into (\`${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); a named output is`,
+    );
+    lines.push(`${indent} * always that output.`);
     lines.push(`${indent} */`);
     lines.push(
         `${indent}export interface ${interfaceName} extends ${baseType} {`,
     );
 
-    // Add properties for non-default outputs
     for (const output of outputs) {
-        if (output.name === defaultOutput.name) {
-            continue;
-        }
-
         const outputType = getOutputType(output);
         const safeName = sanitizeOutputName(output.name);
 
@@ -2832,6 +2799,51 @@ function renderTree(node: NamespaceNode, indentLevel: number = 0): string[] {
     return lines;
 }
 
+/**
+ * `$enosc.scale.*`, merged into the `$enosc` module function: one constant
+ * per preset in the engine's `EnoscScale` schema, plus `custom`. The executor
+ * builds the values.
+ */
+function renderEnoscNamespace(schemas: Schemas): string[] {
+    const presets = enoscScalePresets(schemas).flatMap(
+        ({ name, description }) => [
+            `    /** ${description} */`,
+            `    readonly ${name}: EnoscScale;`,
+        ],
+    );
+    return [
+        'export namespace $enosc {',
+        '  /**',
+        "   * The 4ms Ensemble Oscillator's scales for `$enosc`'s `scale` param:",
+        '   * its 12-TET and Octave banks as constants, and `custom`. A scale repeats',
+        '   * at its last note, which is the octave unless noted.',
+        '   *',
+        '   * @example',
+        "   * $enosc('c3', $enosc.scale.harm4to7).out()",
+        '   */',
+        '  export const scale: {',
+        ...presets,
+        '    /**',
+        "     * Your own scale, like the hardware's learn mode.",
+        '     *',
+        '     * @param notes Space-separated notes in semitones, in any order and',
+        '     * fractional if you like (`"0 3 7 10"`); the lowest is the scale\'s first',
+        '     * note. Up to 32 notes (31 when `repeatsOctave` is true), spanning at',
+        '     * most 150 semitones.',
+        '     * @param repeatsOctave `true` repeats the notes every octave (every',
+        '     * two octaves if they span more than one, and so on). `false` makes the',
+        '     * highest note the period the scale repeats at, so `"0 3 7"` repeats',
+        '     * every fifth.',
+        '     *',
+        '     * @example',
+        "     * $enosc('c3', $enosc.scale.custom('0 2 3 7 9', true)).out()",
+        '     */',
+        '    custom(notes: string, repeatsOctave: boolean): EnoscScale;',
+        '  };',
+        '}',
+    ];
+}
+
 export function generateDSL(schemas: Schemas): string {
     // Modules named with a leading `_` are internal, and $buffer has a custom
     // declaration below.
@@ -2856,6 +2868,11 @@ export function generateDSL(schemas: Schemas): string {
         lines.push('/** Global clock module running at 120 BPM by default. */');
         const clockReturnType = getFactoryReturnType(clockSchema);
         lines.push(`export const $clock: ${clockReturnType};`);
+    }
+
+    if (schemas.some((s) => s.name === '$enosc')) {
+        lines.push('');
+        lines.push(...renderEnoscNamespace(schemas));
     }
 
     const signalSchema = schemas.find((s) => s.name === '$signal');

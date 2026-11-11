@@ -64,9 +64,12 @@ fn z_osc_paths_agree() {
 fn allocation_free() {
     for module in [
         "$mi.additive",
+        "$mi.divideDown",
         "$mi.formant",
         "$mi.modal",
+        "$mi.particles",
         "$mi.phaseDistortion",
+        "$mi.sixOp",
         "$mi.string",
         "$mi.swarm",
         "$mi.twoOp",
@@ -83,6 +86,31 @@ fn allocation_free() {
             "{module}"
         );
     }
+}
+
+/// Played notes, with the patch and bank switching under them, allocate
+/// nothing.
+#[test]
+fn six_op_allocation_free() {
+    assert_eq!(
+        allocations_while_rendering(
+            "$mi.sixOp",
+            json!({ "freq": poly_cable("lfo", CHANNELS), "gate": poly_cable("src", CHANNELS),
+                    "bank": cable("lfo", 1), "patch": cable("lfo", 2), "envelope": cable("lfo", 3) })
+        ),
+        0
+    );
+}
+
+#[test]
+fn chorus_allocation_free() {
+    assert_eq!(
+        allocations_while_rendering(
+            "$mi.chorus",
+            json!({ "input": poly_cable("src", 2), "amount": cable("lfo", 0), "depth": cable("lfo", 1) })
+        ),
+        0
+    );
 }
 
 fn render_ports(patch: &modular_core::Patch, port: &str, calls: usize) -> Vec<f32> {

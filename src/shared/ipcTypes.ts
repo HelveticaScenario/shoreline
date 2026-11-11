@@ -5,6 +5,9 @@
  * Shared between main and renderer processes.
  */
 
+import type { AssetKind } from './assetFiles';
+import type { OutputResolutionRecord } from './dsl/outputResolutionRule';
+import type { SignalSiteTables } from './dsl/signalSites';
 import type { MonospaceFont } from './fonts';
 import type {
     ApplyPatchError,
@@ -227,6 +230,8 @@ export interface DSLExecuteResult {
     eqPanels?: EqPanelDef[];
     /** One entry per `$v.preview` call, in the order the shader draws them */
     videoPreviews?: VideoPreviewSite[];
+    /** Every contextual output choice made while the script ran */
+    outputResolutions?: OutputResolutionRecord[];
 }
 
 /**
@@ -236,7 +241,7 @@ export interface FileTreeEntry {
     name: string;
     path: string; // Relative to workspace root
     type: 'file' | 'directory';
-    fileType?: 'js' | 'wav';
+    fileType?: 'js' | AssetKind;
     children?: FileTreeEntry[];
 }
 
@@ -324,6 +329,7 @@ export const IPC_CHANNELS = {
     // DSL operations
     DSL_EXECUTE: 'modular:dsl:execute',
     GET_DSL_LIB_SOURCE: 'modular:dsl:get-lib-source',
+    GET_SIGNAL_SITE_TABLES: 'modular:dsl:get-signal-site-tables',
 
     // Synthesizer operations
     SYNTH_GET_SAMPLE_RATE: 'modular:synth:get-sample-rate',
@@ -380,6 +386,7 @@ export const IPC_CHANNELS = {
     FS_SELECT_WORKSPACE: 'modular:fs:select-workspace',
     FS_GET_WORKSPACE: 'modular:fs:get-workspace',
     FS_LIST_FILES: 'modular:fs:list-files',
+    FS_TREE_ON_CHANGE: 'modular:fs:tree-on-change',
     FS_READ_FILE: 'modular:fs:read-file',
     FS_WRITE_FILE: 'modular:fs:write-file',
     FS_RENAME_FILE: 'modular:fs:rename-file',
@@ -425,9 +432,6 @@ export const IPC_CHANNELS = {
     // Main process logging
     MAIN_LOG: 'modular:main:log',
 
-    // WAV operations
-    WAVS_ON_CHANGE: 'modular:wavs:on-change',
-
     // Update operations
     UPDATE_CHECK: 'modular:update:check',
     UPDATE_DOWNLOAD: 'modular:update:download',
@@ -470,6 +474,7 @@ export interface IPCHandlers {
         trigger?: QueuedTrigger,
     ) => DSLExecuteResult;
     [IPC_CHANNELS.GET_DSL_LIB_SOURCE]: () => string;
+    [IPC_CHANNELS.GET_SIGNAL_SITE_TABLES]: () => SignalSiteTables;
 
     // Synthesizer operations
     [IPC_CHANNELS.SYNTH_GET_SAMPLE_RATE]: typeof Synthesizer.prototype.sampleRate;
@@ -553,6 +558,7 @@ export interface IPCHandlers {
     [IPC_CHANNELS.FS_SELECT_WORKSPACE]: () => WorkspaceFolder | null;
     [IPC_CHANNELS.FS_GET_WORKSPACE]: () => WorkspaceFolder | null;
     [IPC_CHANNELS.FS_LIST_FILES]: () => FileTreeEntry[];
+    [IPC_CHANNELS.FS_TREE_ON_CHANGE]: () => void;
     [IPC_CHANNELS.FS_READ_FILE]: (filePath: string) => string;
     /**
      * With `expectedDiskContent`, the write is refused with a `conflict`
@@ -622,9 +628,6 @@ export interface IPCHandlers {
 
     // Main process logging
     [IPC_CHANNELS.MAIN_LOG]: (entry: MainLogEntry) => void;
-
-    // WAV operations
-    [IPC_CHANNELS.WAVS_ON_CHANGE]: () => void;
 
     /** A watched file changed on disk; `content` is as FS_READ_FILE returns. */
     [IPC_CHANNELS.FS_ON_FILE_CHANGED]: (change: FileChange) => void;

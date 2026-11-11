@@ -315,9 +315,12 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$ramp"
         | "$swell"
         | "$mi.additive"
+        | "$mi.divideDown"
         | "$mi.formant"
         | "$mi.modal"
+        | "$mi.particles"
         | "$mi.phaseDistortion"
+        | "$mi.sixOp"
         | "$mi.string"
         | "$mi.swarm"
         | "$mi.twoOp"
@@ -375,6 +378,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$lpg" | "$slew" | "$hold" | "$motionFollower" | "$quantizer" | "$unison" | "$rising"
         | "$falling" | "$stereoMix" | "$mixDown" => json!({ "input": 0.0 }),
         "$pWarp" => json!({ "input": 0.0, "phase": { "type": "identity" } }),
+        "$enosc" => json!({ "pitch": 0.0 }),
         "$track" => json!({ "keyframes": [] }),
         "$math" => json!({ "expression": "1+1" }),
         "$spread" => json!({ "min": -1.0, "max": 1.0, "count": 3 }),
@@ -430,6 +434,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$sah" => json!({ "input": 0.0, "trigger": 0.0 }),
         "$tah" => json!({ "input": 0.0, "gate": 0.0 }),
         "$dattorro" => json!({ "input": 0.0 }),
+        "$mi.chorus" => json!({ "input": 0.0 }),
         "$plate" => json!({ "input": 0.0 }),
         "$unstable.reverb" => json!({ "input": 0.0 }),
         "$unstable.reverb2" => json!({ "input": 0.0 }),
@@ -2573,6 +2578,36 @@ fn cycle_swap_does_not_fire_in_progress_note_until_its_onset() {
     assert!(
         onsets_cycle1 >= 1,
         "e4 must fire when the playhead crosses its onset in the next cycle"
+    );
+}
+
+#[test]
+fn cycle_swap_fires_new_onset_inside_old_pattern_span() {
+    // `c4` has no window edge inside cycle 0, so the playhead runs through it
+    // without entering any window. After a swap to `c4 e4`, e4's onset at 0.5
+    // lies inside that edge-free stretch and must still fire when crossed.
+    let a = cycle_patch(mini_payload("c4"), Some(1), None);
+    for _ in 0..60 {
+        process_frame(&a); // playhead ~0.25
+    }
+    let b = cycle_patch(mini_payload("c4 e4"), Some(1), None);
+    transfer_into(&b, &a);
+
+    let mut onsets = 0;
+    let mut prev_hi = false;
+    for _ in 0..100 {
+        process_frame(&b); // through ~0.67
+        let hi = seq_val(&b, "trig", 0) > 2.5;
+        if hi && !prev_hi {
+            onsets += 1;
+        }
+        prev_hi = hi;
+    }
+    assert_eq!(onsets, 1, "e4 must fire once when the playhead crosses 0.5");
+    let cv = seq_val(&b, "cv", 0);
+    assert!(
+        (cv - 0.3333).abs() < 0.02,
+        "cv should be e4 (~0.333 V), got {cv}"
     );
 }
 

@@ -174,7 +174,7 @@ const BUFFER_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Echo tap",
         code: r#"
-            const voice = $saw($cycle($p('c3 eb3 g3 ~'))).amp(
+            const voice = $saw($p('c3 eb3 g3 ~').c).amp(
               $perc($clock.beatTrigger, { decay: 0.15 }),
             )
             voice.out()
@@ -316,7 +316,7 @@ const BUF_READ_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Scrubbing a recorded phrase",
         code: r#"
-            const phrase = $buffer($saw($cycle($p('c3 e3 g3 b3'))), 2)
+            const phrase = $buffer($saw($p('c3 e3 g3 b3').c), 2)
             $bufRead(phrase, $sine('0.1hz').range(0, 5)).out()
         "#,
     }],
