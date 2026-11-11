@@ -52,3 +52,12 @@ fn allocation_free() {
         0
     );
 }
+
+#[test]
+fn swap_agrees_through_pan_and_width_glides() {
+    check_swap_agrees(
+        "$stereoMix",
+        json!({ "input": poly_cable("src", CHANNELS), "pan": -3.0, "width": 0.0 }),
+        json!({ "input": poly_cable("src", CHANNELS), "pan": [2.0, -1.0], "width": 4.0 }),
+    );
+}
