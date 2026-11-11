@@ -25,12 +25,12 @@ describe('detectKeybindingCompletion', () => {
     });
 
     test('ignores the leading - removal marker in the command word', () => {
-        expect(detectKeybindingCompletion('  "command": "-operator.s')).toEqual(
-            {
-                kind: 'command',
-                word: 'operator.s',
-            },
-        );
+        expect(
+            detectKeybindingCompletion('  "command": "-shoreline.s'),
+        ).toEqual({
+            kind: 'command',
+            word: 'shoreline.s',
+        });
     });
 
     test('detects an empty when value', () => {
@@ -56,7 +56,7 @@ describe('detectKeybindingCompletion', () => {
 
     test('returns null once the command value string is closed', () => {
         expect(
-            detectKeybindingCompletion('  "command": "operator.save",'),
+            detectKeybindingCompletion('  "command": "shoreline.save",'),
         ).toBeNull();
     });
 
@@ -71,16 +71,16 @@ describe('detectKeybindingCompletion', () => {
 
 describe('knownCommands', () => {
     test('offers an aliased registry command under its VS Code id', () => {
-        registerCommand('operator.save', () => {}, { label: 'Save' });
+        registerCommand('shoreline.save', () => {}, { label: 'Save' });
         try {
             const commands = knownCommands();
             expect(commands).toContainEqual({
                 id: 'workbench.action.files.save',
                 label: 'Save',
             });
-            expect(commands.some((c) => c.id === 'operator.save')).toBe(false);
+            expect(commands.some((c) => c.id === 'shoreline.save')).toBe(false);
         } finally {
-            unregisterCommand('operator.save');
+            unregisterCommand('shoreline.save');
         }
     });
 

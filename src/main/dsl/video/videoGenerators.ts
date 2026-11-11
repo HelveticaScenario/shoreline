@@ -64,11 +64,13 @@ export function generatorMethods(core: VideoCore) {
 
         /**
          * Periodic wave: `freq` cycles across the frame, or per unit of
-         * `config.input`, offset by `phase` cycles.
+         * `config.input`, offset by `phase` cycles, with red and blue
+         * `offset` cycles either side of green.
          */
         osc: (
             freq: VideoSource = 10,
             phase: VideoSource = 0,
+            offset: VideoSource = 0,
             config?: VideoOscConfig,
         ): VideoOutput =>
             core.addNode(
@@ -77,6 +79,7 @@ export function generatorMethods(core: VideoCore) {
                     input: config?.input ?? core.ramp('horizontal'),
                     freq,
                     phase,
+                    offset,
                 }),
                 options({ shape: config?.shape }),
             ),

@@ -10,10 +10,6 @@ export function setDSLWrapperLineOffset(offset: number): void {
     dslWrapperLineOffset = offset;
 }
 
-export function getDSLWrapperLineOffset(): number {
-    return dslWrapperLineOffset;
-}
-
 /**
  * Capture source location from the current stack trace.
  * Looks for the `<anonymous>` frame which corresponds to DSL code executed

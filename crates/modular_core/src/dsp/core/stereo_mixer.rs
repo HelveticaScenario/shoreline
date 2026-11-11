@@ -1,23 +1,32 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal, PolySignalExt},
-    types::Clickless,
+    types::SwapGlide,
 };
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct StereoMixerParams {
-    /// Input signal to place in the stereo field.
+    #[input("the signal to place in the stereo field", type = audio)]
     input: PolySignal,
-    /// Pan position per channel (-5 = left, 0 = center, +5 = right).
+    #[input(
+        "pan position of each channel: -5 left, 0 centre, +5 right",
+        type = control,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pan: Option<PolySignal>,
-    /// Stereo spread across channels (0 = no spread, 5 = widest spread).
-    /// Width offsets each channel around its base pan position. Defaults to 0
-    /// (no spread) when omitted.
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "how far the channels fan out around their pan positions: 0 none, 5 widest",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<MonoSignal>,
 }
@@ -25,18 +34,39 @@ struct StereoMixerParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct StereoMixerOutputs {
-    /// Stereo output (left on channel 0, right on channel 1).
-    #[output("output", "stereo mix output", default)]
+    #[output("output", "stereo mix: left on channel 0, right on channel 1", type = cv, default)]
     sample: PolyOutput,
 }
 
 #[derive(Default, Clone, Copy)]
 struct ChannelState {
-    pan: Clickless,
+    pan: SwapGlide,
 }
 
-/// Pan and spread a signal into stereo.
-#[module(name = "$stereoMix", channels = 2, args(input), has_init)]
+const STEREO_MIX_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stereo panner and spreader",
+    description: "Places a signal in the stereo field and puts out left and right. Give each \
+                  channel its own `pan`, or raise `width` to fan the voices of a chord out \
+                  from the centre.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Chord fanned across the stereo field",
+        code: r#"
+            $stereoMix($saw($chord('C3[m9]')).$.lpf('c5', 1), {
+              width: 4,
+            }).out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$stereoMix",
+    docs = STEREO_MIX_DOCS,
+    channels = 2,
+    args(input),
+    has_init
+)]
 pub struct StereoMixer {
     outputs: StereoMixerOutputs,
     params: StereoMixerParams,
@@ -53,24 +83,26 @@ pub struct StereoMixer {
 #[derive(Default)]
 struct StereoMixerState {
     /// Width buffer for stereo spread
-    width_buffer: Clickless,
+    width_buffer: SwapGlide,
 }
 
 impl StereoMixer {
     fn init(&mut self, _sample_rate: f32) {
-        // One pan smoother per input channel.
+        // One pan glide per input channel.
         let input_channels = self.params.input.channels().max(1);
         self.channel_state = vec![ChannelState::default(); input_channels].into_boxed_slice();
     }
 
-    pub fn update(&mut self, _sample_rate: f32) {
+    pub fn update(&mut self, sample_rate: f32) {
         let input_channels = self.params.input.channels();
 
         // Width: 0 = no spread, 5 = full ±5V spread across voices. Defaults to
         // 0 (no spread) when no width signal is connected.
-        self.state
-            .width_buffer
-            .update(self.params.width.value_or(0.0).clamp(0.0, 5.0));
+        self.state.width_buffer.update(
+            self.params.width.value_or(0.0).clamp(0.0, 5.0),
+            self.params.width.glide_mark(),
+            sample_rate,
+        );
         let width = *self.state.width_buffer;
 
         let mut left_sum = 0.0f32;
@@ -80,7 +112,13 @@ impl StereoMixer {
             let input = self.params.input.get_value(ch);
 
             // Base pan from cycling PolySignal (-5 to +5 range, 0 = center)
-            let base_pan = self.params.pan.value_or_zero(ch).clamp(-5.0, 5.0);
+            let pan_glide = &mut self.channel_state[ch].pan;
+            pan_glide.update(
+                self.params.pan.value_or_zero(ch).clamp(-5.0, 5.0),
+                self.params.pan.glide_mark(ch),
+                sample_rate,
+            );
+            let base_pan = **pan_glide;
 
             // Calculate width spread offset:
             // Voices spread from -width to +width relative to base pan
@@ -93,11 +131,7 @@ impl StereoMixer {
             };
 
             // Final pan position, clamped to valid range
-            let final_pan = (base_pan + spread_offset).clamp(-5.0, 5.0);
-
-            // Smooth pan changes to avoid clicks
-            self.channel_state[ch].pan.update(final_pan);
-            let pan = *self.channel_state[ch].pan;
+            let pan = (base_pan + spread_offset).clamp(-5.0, 5.0);
 
             // Convert -5..+5 to 0..1 (0 = full left, 1 = full right)
             let pan_norm = (pan + 5.0) / 10.0;
@@ -123,9 +157,9 @@ mod tests {
     use crate::types::{OutputStruct as _, Signal};
 
     /// Build a StereoMixer the way the module macro would: fixed 2-channel
-    /// stereo output, per-input-channel pan state sized by `init`. `Clickless`
-    /// snaps to its target on the first `update`, so a single call shows the
-    /// full pan/width.
+    /// stereo output, per-input-channel pan state sized by `init`. A fresh
+    /// `SwapGlide` starts on its input, so a single call shows the full
+    /// pan/width.
     fn make_stereo(input: PolySignal) -> StereoMixer {
         let mut outputs = StereoMixerOutputs::default();
         outputs.set_all_channels(2);

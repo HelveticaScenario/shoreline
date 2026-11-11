@@ -15,9 +15,10 @@ let anchorEditor: Monaco.editor.IStandaloneCodeEditor | undefined;
  * setHoverDelegateFactory) with a closure bound to that editor's own,
  * disposable, instantiation service, and the module-level Lazy behind
  * getDefaultHoverDelegate resolves exactly once. When a transient editor — the
- * migration DiffEditor — is the last to set the factory and is then disposed,
- * the Lazy resolves against the dead service and throws "InstantiationService
- * has been disposed" the next time a suggest item or hover renders.
+ * save-conflict DiffEditor — is the last to set the factory and is then
+ * disposed, the Lazy resolves against the dead service and throws
+ * "InstantiationService has been disposed" the next time a suggest item or
+ * hover renders.
  *
  * This creates one detached, never-rendered, never-disposed editor whose scoped
  * instantiation service therefore lives for the whole session, then resolves

@@ -5,7 +5,7 @@
  * undo step per gesture).
  */
 import { EQ_MODULE_TYPE } from '../../shared/dsl/eqPanelTypes';
-import type { CodeStyle } from '../dsl/objectPropertyInsert';
+import type { CodeStyle } from '../dsl/listEdits';
 import { isPerChannel, sectionLists } from './eqPanelModel';
 import {
     type EqPanelContext,
