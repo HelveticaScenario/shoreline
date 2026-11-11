@@ -229,7 +229,7 @@ struct PlaitsParams {
     lpg_decay: Option<PolySignal>,
 
     #[input(
-        "blend at `output` between the engine's `main` sound at 0 and its `aux` variant at 5",
+        "blend at `blend` between the engine's `main` sound at 0 and its `aux` variant at 5",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -241,7 +241,7 @@ struct PlaitsParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PlaitsOutputs {
-    #[output("output", "main and aux blended by `mix`", type = cv, default, range = (-5.0, 5.0))]
+    #[output("blend", "main and aux blended by `mix`", type = cv, default, range = (-5.0, 5.0))]
     mix: PolyOutput,
 
     #[output("main", "the engine's main output", type = cv, range = (-5.0, 5.0))]
@@ -324,7 +324,7 @@ const MACRO_DOCS: ModuleDocs = ModuleDocs {
             title: "Chord stabs",
             code: r#"
                 $macro('c3', 'chords', {
-                  trigger: $clock.beatTrigger,
+                  trigger: $clock.o.beatTrigger,
                   harmonics: 1,
                 }).out()
             "#,

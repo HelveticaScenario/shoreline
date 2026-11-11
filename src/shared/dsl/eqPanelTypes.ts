@@ -18,7 +18,7 @@ export interface EqPanelDef {
     moduleId: string;
     /**
      * Location of the call's callee in the DSL source (`$eq`, or the `eq` of a
-     * `.$.eq(...)` chain). Absent when several
+     * `.eq(...)` chain). Absent when several
      * EQs share the call site (a loop or helper): a source edit there would
      * rewrite every instance, so such panels act on the live graph only.
      */

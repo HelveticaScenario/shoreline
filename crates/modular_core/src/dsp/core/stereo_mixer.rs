@@ -60,7 +60,7 @@ const STEREO_MIX_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Chord fanned across the stereo field",
         code: r#"
-            $stereoMix($saw($chord('C3[m9]')).$.lpf('c5', 1), {
+            $stereoMix($saw($chord('C3[m9]')).lpf('c5', 1), {
               width: 4,
             }).out()
         "#,

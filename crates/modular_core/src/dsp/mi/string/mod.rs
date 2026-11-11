@@ -100,7 +100,7 @@ struct MiStringParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MiStringOutputs {
-    #[output("output", "the ringing strings", type = cv, default, range = (-5.0, 5.0))]
+    #[output("strings", "the ringing strings", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
     #[output(
         "exciter",

@@ -10,6 +10,7 @@ import {
     deriveChannelCountChecked,
 } from './factories';
 import type {
+    AnyCollection,
     BufferOutputRef,
     GrooveTemplate,
     Signal,
@@ -25,8 +26,8 @@ import {
     DeferredModuleOutput,
     DeferredCollection,
     Bus,
-    ModuleOutput,
     cycleToChannels,
+    withCarried,
     replaceSignals,
     PORT_MAX_CHANNELS,
 } from './GraphBuilder';
@@ -89,6 +90,11 @@ export interface DSLExecutionResult {
     /** Every contextual output choice made while the script ran */
     outputResolutions: OutputResolutionRecord[];
 }
+
+/** The bands of a `$xover`. */
+type XoverBands = Collection & {
+    o: { low: Collection; mid: Collection; high: Collection };
+};
 
 /** What the engine reports about a decoded WAV or media audio track. */
 interface LoadedWav {
@@ -258,7 +264,7 @@ export function executePatchScript(
         }
         builder.setTempo(tempo);
     };
-    const $setOutputGain = (gain: Signal) => {
+    const $setOutputGain = (gain: PolySignal) => {
         builder.setOutputGain(gain);
     };
 
@@ -346,15 +352,13 @@ export function executePatchScript(
         new Bus(builder, cb);
 
     const $setEndOfChainCb = (
-        cb: (
-            mixed: Collection,
-        ) => ModuleOutput | Collection | CollectionWithRange,
+        cb: (mixed: Collection) => Collection | CollectionWithRange,
     ) => {
         builder.setEndOfChainCb(cb);
     };
 
     const $buffer = (
-        input: ModuleOutput | Collection | number,
+        input: Signal | AnyCollection,
         lengthSeconds: number,
         config?: { id?: string },
     ): BufferOutputRef => {
@@ -455,7 +459,7 @@ export function executePatchScript(
          * written to the buffer — e.g. a filter or saturator that colours every
          * recirculation of the delay.
          */
-        feedbackCb?: (mixed: Collection) => Collection | ModuleOutput;
+        feedbackCb?: (mixed: Collection) => Collection;
         /**
          * Maximum delay time in seconds — sizes the underlying buffer and
          * caps how long `time` can be (default 5).
@@ -484,10 +488,10 @@ export function executePatchScript(
      *
      * Returns the wet `$delayRead` output with the captured `buffer` attached
      * as a property for additional taps. Mix the dry signal back yourself
-     * (`$mix([input, $delay(input, time)])`) or use `.$m.delay(mix, time)`.
+     * (`$mix([input, $delay(input, time)])`) or use `.delay(time).wet(mix)`.
      */
     const $delay = (
-        input: Collection | ModuleOutput,
+        input: Collection,
         time: PolySignal,
         opts?: DelayOptions,
     ): Collection & { buffer: BufferOutputRef } => {
@@ -537,20 +541,15 @@ export function executePatchScript(
                     : mixed;
                 const buf = $buffer(buffered, maxTime);
                 const delayed = $delayRead(buf, time) as Collection;
-                def.set(delayed.amp(feedback as unknown as Signal));
-                return Object.assign(delayed, { buffer: buf });
+                def.set(delayed.amp(feedback));
+                return withCarried(delayed, { buffer: buf });
             },
         );
     };
 
-    // Expose `$delay` on the `.$` / `.$m` chainable namespaces. It is DSL
-    // sugar rather than a module schema, so it is registered explicitly here
-    // instead of being discovered via `qualifiesForDollarChain`.
-    builder.registerDollarMethod('delay', (self, ...args) =>
-        $delay(
-            self as Collection | ModuleOutput,
-            ...(args as [PolySignal, DelayOptions?]),
-        ),
+    // `$delay` is a DSL helper, not a module, so it is made a chain method here.
+    builder.registerChainMethod('delay', (self, ...args) =>
+        $delay(self as Collection, ...(args as [PolySignal, DelayOptions?])),
     );
 
     interface OttConfig {
@@ -633,34 +632,26 @@ export function executePatchScript(
         const midHighFreq = config.midHighFreq ?? hz(2500);
         const xoverConf = { lowMidFreq, midHighFreq };
 
-        const bands = $xover(input, xoverConf) as Collection & {
-            low: Collection;
-            mid: Collection;
-            high: Collection;
-        };
+        const bands = $xover(input, xoverConf) as XoverBands;
 
         // Split the side-chain through an identical crossover so each band's
         // compressor keys off the matching frequency range of the sidechain.
         const scBands =
             config.sidechain !== undefined
-                ? ($xover(config.sidechain, xoverConf) as Collection & {
-                      low: Collection;
-                      mid: Collection;
-                      high: Collection;
-                  })
+                ? ($xover(config.sidechain, xoverConf) as XoverBands)
                 : null;
 
-        const lowComp = $comp(bands.low, {
+        const lowComp = $comp(bands.o.low, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.low }),
+            ...(scBands !== null && { sidechain: scBands.o.low }),
         });
-        const midComp = $comp(bands.mid, {
+        const midComp = $comp(bands.o.mid, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.mid }),
+            ...(scBands !== null && { sidechain: scBands.o.mid }),
         });
-        const highComp = $comp(bands.high, {
+        const highComp = $comp(bands.o.high, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.high }),
+            ...(scBands !== null && { sidechain: scBands.o.high }),
         });
 
         // Per-band trim — $scaleAndShift convention: scale=5 → unity gain.
@@ -677,7 +668,7 @@ export function executePatchScript(
         const dryWeight = $scaleAndShift(depth, -5, 5);
 
         return $mix([
-            $scaleAndShift(input, dryWeight as Signal, 0),
+            $scaleAndShift(input, dryWeight, 0),
             $scaleAndShift(wet, depth, 0),
         ]) as Collection;
     };
@@ -698,7 +689,7 @@ export function executePatchScript(
      */
     const $cross = (
         count: number,
-        playhead: Signal,
+        playhead: PolySignal,
         range: [number, number] = [0, 5],
         interpolationType?: string,
     ): Collection => {

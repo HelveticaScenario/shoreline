@@ -315,7 +315,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 code: r#"
                     const seq = $p('c2 ~ eb2 g2 ~ c3 bb2 g2').c
                     $saw(seq)
-                      .$.lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)
+                      .lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)
                       .out()
                 "#,
             }],
@@ -347,7 +347,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 title: "Bass that changes every bar",
                 code: r#"
                     const seq = $p('<c2 ab1 f1 g1> [~ c3] ~ c2').c
-                    $saw(seq).$.lpf('c5', 1).amp($adsr(seq)).out()
+                    $saw(seq).lpf('c5', 1).amp($adsr(seq)).out()
                 "#,
             }],
         },
@@ -360,7 +360,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 title: "Melody over a drone",
                 code: r#"
                     const seq = $p('c4 eb4 g4 bb4, c3').c
-                    $saw(seq).$.lpf('c5', 1).amp($adsr(seq)).out()
+                    $saw(seq).lpf('c5', 1).amp($adsr(seq)).out()
                 "#,
             }],
         },
@@ -422,7 +422,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 title: "Euclidean rhythm",
                 code: r#"
                     const seq = $p('c2(3,8) [g2 c3](5,8,2)').c
-                    $pulse(seq).$.lpf('c5', 2).amp($adsr(seq)).out()
+                    $pulse(seq).lpf('c5', 2).amp($adsr(seq)).out()
                 "#,
             }],
         },
@@ -435,9 +435,9 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             const bass = $cycle($p('c2*4'), { groove: 0 })
             $noise('white')
               .amp($perc(hats, { decay: 0.05 }))
-              .amp(hats.velocity)
+              .amp(hats.o.velocity)
               .out()
-            $saw(bass).$.lpf('c4', 1).amp($adsr(bass)).out()
+            $saw(bass).lpf('c4', 1).amp($adsr(bass)).out()
         "#,
     }],
 };

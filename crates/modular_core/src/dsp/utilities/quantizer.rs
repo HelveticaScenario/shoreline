@@ -115,7 +115,7 @@ pub fn quantizer_derive_channel_count(params: &QuantizerParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct QuantizerOutputs {
-    #[output("output", "the snapped pitch", type = cv, default)]
+    #[output("pitch", "the snapped pitch", type = cv, default)]
     output: PolyOutput,
     #[output("trig", "fires each time the snapped note changes", type = trig)]
     trig: PolyOutput,
@@ -203,7 +203,7 @@ fn snap_with_hysteresis(x: f64, prev: Option<f64>, snap: impl Fn(f64) -> f64) ->
 const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
     summary: "Snap pitch to a scale",
     description: "Snaps a pitch to the nearest note of a scale or chord, so an LFO, a \
-                  random source or a MIDI input plays in key. `.trig` fires on every \
+                  random source or a MIDI input plays in key. `.o.trig` fires on every \
                   note change, ready to retrigger an envelope.",
     categories: &[ModuleCategory::Pitch],
     sections: &[],

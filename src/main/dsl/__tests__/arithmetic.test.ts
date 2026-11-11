@@ -71,7 +71,7 @@ describe('rounding methods', () => {
         (mode) => {
             const out = builder.$c('c3')[mode]();
 
-            expect(out[0]).not.toBeInstanceOf(ModuleOutputWithRange);
+            expect(out.items[0]).not.toBeInstanceOf(ModuleOutputWithRange);
             const [node] = modules('_round');
             expect(node.params).toMatchObject({ mode });
         },
@@ -89,7 +89,10 @@ describe('rounding methods', () => {
         const out = ranged[mode]();
 
         expect(out).toBeInstanceOf(CollectionWithRange);
-        expect([out[0].minValue, out[0].maxValue]).toEqual([min, max]);
+        expect([out.items[0].minValue, out.items[0].maxValue]).toEqual([
+            min,
+            max,
+        ]);
         expect(modules('_round')).toHaveLength(1);
     });
 
@@ -98,7 +101,7 @@ describe('rounding methods', () => {
             .range(-2.5, 2.5)
             .round();
 
-        expect([out[0].minValue, out[0].maxValue]).toEqual([-3, 3]);
+        expect([out.items[0].minValue, out.items[0].maxValue]).toEqual([-3, 3]);
     });
 
     test('a ranged output rounds its range', () => {
@@ -107,7 +110,7 @@ describe('rounding methods', () => {
             .round();
 
         expect(out).toBeInstanceOf(CollectionWithRange);
-        expect([out[0].minValue, out[0].maxValue]).toEqual([0, 8]);
+        expect([out.items[0].minValue, out.items[0].maxValue]).toEqual([0, 8]);
     });
 
     test('signal bounds round through their own _round, not their methods', () => {
@@ -125,8 +128,8 @@ describe('rounding methods', () => {
             .range(lo, hi)
             .floor();
 
-        const min = out[0].minValue as ModuleOutput;
-        const max = out[0].maxValue as ModuleOutput;
+        const min = out.items[0].minValue as ModuleOutput;
+        const max = out.items[0].maxValue as ModuleOutput;
         expect(min).toBeInstanceOf(ModuleOutput);
         expect(min).not.toBeInstanceOf(ModuleOutputWithRange);
         expect(max).not.toBeInstanceOf(ModuleOutputWithRange);
@@ -143,8 +146,10 @@ describe('rounding methods', () => {
 
     test('per-output ranges of a ranged collection round separately', () => {
         const ranged = new CollectionWithRange(
-            ...(sine('1hz') as unknown as CollectionWithRange).range(0.2, 1.7),
-            ...(sine('2hz') as unknown as CollectionWithRange).range(2.5, 5.5),
+            ...(sine('1hz') as unknown as CollectionWithRange).range(0.2, 1.7)
+                .items,
+            ...(sine('2hz') as unknown as CollectionWithRange).range(2.5, 5.5)
+                .items,
         );
         const out = ranged.ceil();
 
@@ -173,7 +178,7 @@ describe('rounding methods', () => {
         expect(modules('_round')).toHaveLength(3);
     });
 
-    test('_arithmetic and _round are not globals or .$ methods', () => {
+    test('_arithmetic and _round are not globals or chain methods', () => {
         const run = (src: string) =>
             executePatchScript(src, schemas, {
                 sampleRate: 48_000,
@@ -181,6 +186,6 @@ describe('rounding methods', () => {
             });
         expect(() => run('$arithmetic(0, 1).out()')).toThrow();
         expect(() => run('$round(0).out()')).toThrow();
-        expect(() => run('$sine(0).$.round().out()')).toThrow();
+        expect(() => run('$sine(0).arithmetic(1).out()')).toThrow();
     });
 });

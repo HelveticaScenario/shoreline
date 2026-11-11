@@ -28,7 +28,7 @@ const DIGITAL_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Crunchy chord",
-        code: "$saw($chord('C3[m7]')).$.unstable.shape.digital(2).out()",
+        code: "$saw($chord('C3[m7]')).unstable.shape.digital(2).out()",
     }],
 };
 

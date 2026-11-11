@@ -70,9 +70,13 @@ fn allocation_free() {
         "$mi.particles",
         "$mi.phaseDistortion",
         "$mi.sixOp",
+        "$mi.speak",
         "$mi.string",
         "$mi.swarm",
         "$mi.twoOp",
+        "$mi.formantVowel",
+        "$mi.samVowel",
+        "$mi.lpcVowel",
         "$mi.waveTerrain",
         "$mi.waveshaper",
         "$mi.zOsc",
@@ -97,6 +101,38 @@ fn six_op_allocation_free() {
             "$mi.sixOp",
             json!({ "freq": poly_cable("lfo", CHANNELS), "gate": poly_cable("src", CHANNELS),
                     "bank": cable("lfo", 1), "patch": cable("lfo", 2), "envelope": cable("lfo", 3) })
+        ),
+        0
+    );
+}
+
+/// Syllables on every vowel synth, with the vowel and formant shift moving,
+/// allocate nothing.
+#[test]
+fn vowel_allocation_free() {
+    for module in ["$mi.formantVowel", "$mi.samVowel", "$mi.lpcVowel"] {
+        assert_eq!(
+            allocations_while_rendering(
+                module,
+                json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS),
+                        "vowel": cable("lfo", 2), "formantShift": cable("lfo", 3) })
+            ),
+            0,
+            "{module}"
+        );
+    }
+}
+
+/// Triggered words, with the bank switching and every knob moving under
+/// them, allocate nothing.
+#[test]
+fn speak_allocation_free() {
+    assert_eq!(
+        allocations_while_rendering(
+            "$mi.speak",
+            json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS),
+                    "bank": cable("lfo", 0), "word": cable("lfo", 1), "formantShift": cable("lfo", 2),
+                    "prosody": cable("lfo", 3), "speed": cable("lfo", 1), "accent": cable("lfo", 2) })
         ),
         0
     );
@@ -147,6 +183,36 @@ fn resonator_instances_draw_their_own_grains() {
     }
 }
 
+/// Two instances triggered alike draw their own consonant noise. The
+/// consonant a trigger plays follows the vowel, and only unvoiced ones carry
+/// noise, so the vowel sweeps down from the top of its range until one does.
+#[test]
+fn vowel_instances_draw_their_own_noise() {
+    let differ = (0..=10).rev().any(|step| {
+        let params = json!({
+            "freq": 0.0,
+            "vowel": step as f32 * 0.5,
+            "trigger": poly_cable("lfo", CHANNELS),
+        });
+        let a = build(
+            ProcessingMode::Block,
+            ProcessingMode::Block,
+            "$mi.lpcVowel",
+            params.clone(),
+        );
+        let b = build(
+            ProcessingMode::Block,
+            ProcessingMode::Block,
+            "$mi.lpcVowel",
+            params,
+        );
+        let a = render_ports(&a, "excitation", 64);
+        let b = render_ports(&b, "excitation", 64);
+        a.iter().zip(&b).any(|(x, y)| x != y)
+    });
+    assert!(differ, "every vowel drew identical noise");
+}
+
 /// Loud strikes and drones stay within the ±5 V the outputs declare.
 #[test]
 fn resonator_outputs_stay_in_range() {
@@ -158,7 +224,7 @@ fn resonator_outputs_stay_in_range() {
                     "input": poly_cable("src", CHANNELS) }),
         ] {
             let patch = build(ProcessingMode::Block, ProcessingMode::Block, module, params);
-            for port in ["output", "exciter"] {
+            for port in [default_port(module).as_str(), "exciter"] {
                 let peak = render_ports(&patch, port, 200)
                     .iter()
                     .fold(0.0f32, |m, v| m.max(v.abs()));

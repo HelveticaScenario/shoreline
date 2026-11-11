@@ -349,7 +349,7 @@ const SWELL_DOCS: ModuleDocs = ModuleDocs {
             title: "Slow, steep swell on a filter",
             code: r#"
                 $saw('a1')
-                  .$.lpf(
+                  .lpf(
                     $swell('0.1hz', { steepness: 4 }).range(
                       '200hz',
                       '2000hz',
@@ -363,7 +363,7 @@ const SWELL_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const sea = $swell('0.08hz')
                 $noise('pink')
-                  .$.lpf(sea.range('c5', 'c8'))
+                  .lpf(sea.range('c5', 'c8'))
                   .amp(sea.range(1, 5))
                   .out()
             "#,

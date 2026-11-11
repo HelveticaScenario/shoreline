@@ -66,7 +66,7 @@ struct TwoOpParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct TwoOpOutputs {
-    #[output("output", "the FM tone", type = cv, default, range = (-5.0, 5.0))]
+    #[output("fm", "the FM tone", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
     #[output(
         "subOctave",
@@ -94,7 +94,10 @@ const TWO_OP_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Sub-octave growl",
-            code: "$mi.twoOp('c1', { index: 3, feedback: -3 }).subOctave.out()",
+            code: r#"
+                const op = $mi.twoOp('c1', { index: 3, feedback: -3 })
+                op.o.subOctave.out()
+            "#,
         },
     ],
 };

@@ -279,7 +279,7 @@ const REVERB2_DOCS: ModuleDocs = ModuleDocs {
     description: "A dense stereo reverb whose bass and treble ring out for different times, like \
                   a real hall where the highs die first. Keeps a stereo source's left and right \
                   apart in the tail. Output is fully wet, so blend it with \
-                  `.$m.unstable.reverb2(mix)` or send to it from a bus.",
+                  `.wet(mix)` or send to it from a bus.",
     categories: &[ModuleCategory::Effect],
     sections: &[],
     examples: &[DocExample {
@@ -288,7 +288,8 @@ const REVERB2_DOCS: ModuleDocs = ModuleDocs {
             const notes = $p('c5 g4 eb5 ~').c
             $sine(notes)
               .amp($perc(notes, { decay: 0.15 }))
-              .$m.unstable.reverb2(3, { decay: 4, damping: 4 })
+              .unstable.reverb2({ decay: 4, damping: 4 })
+              .wet(3)
               .out()
         "#,
     }],

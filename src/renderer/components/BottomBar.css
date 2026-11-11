@@ -1,0 +1,44 @@
+/* One strip with the activity bar: same colour, and no border where they
+   meet. The line above it belongs to the editor column and the sidebar panel. */
+.app-bottom-bar {
+    display: flex;
+    flex-shrink: 0;
+    height: 34px;
+    background: var(--bg-tertiary);
+}
+
+/* The buttons keep away from the corner the activity bar turns. */
+.app:has(.app-sidebar.left) .app-bottom-bar {
+    justify-content: flex-end;
+}
+
+.app-bottom-bar-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-top: 2px solid transparent;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition:
+        color 0.1s,
+        border-color 0.1s;
+}
+
+.app-bottom-bar-item:hover {
+    color: var(--text-secondary);
+}
+
+.app-bottom-bar-item.active {
+    color: var(--text-primary);
+    border-top-color: var(--text-primary);
+}
+
+.app-bottom-bar-item:focus-visible {
+    outline: 1px solid var(--text-secondary);
+    outline-offset: -1px;
+}

@@ -19,8 +19,7 @@
 }
 
 .docs-pages button {
-    flex: 1;
-    padding: var(--sp-half) var(--sp-1);
+    padding: var(--sp-half) var(--sp-2);
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
@@ -46,10 +45,16 @@
 
 .docs-content {
     flex: 1;
+    box-sizing: border-box;
     font-size: max(11px, calc(var(--font-size) - 4px));
     min-height: 0;
     padding: var(--sp-1);
     overflow-y: auto;
+}
+
+/* Keeps lines readable across the width of the editor column. */
+.docs-content > * {
+    max-width: 80ch;
 }
 
 .docs-panel h2,
@@ -139,16 +144,6 @@
 .docs-panel .type-link:hover {
     text-decoration-style: solid;
     color: var(--accent-secondary);
-}
-
-/* Stretches over .docs-content's padding so scrolled cards stay hidden behind it. */
-.docs-panel .search-container {
-    position: sticky;
-    top: calc(-1 * var(--sp-1));
-    z-index: 10;
-    margin: 0 calc(-1 * var(--sp-1));
-    padding: var(--sp-1);
-    background: var(--bg-secondary);
 }
 
 .docs-panel .search-input {
@@ -332,6 +327,129 @@
 
 .docs-panel .enum-variants summary:hover {
     color: var(--text-primary);
+}
+
+.docs-content.docs-content-split {
+    display: flex;
+    padding: 0;
+    overflow: hidden;
+}
+
+.docs-content.docs-content-split > * {
+    max-width: none;
+}
+
+.docs-panel .module-reference {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+}
+
+.docs-panel .module-index {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    flex: 0 0 auto;
+    width: 200px;
+    min-width: 120px;
+    gap: var(--sp-1);
+    padding: var(--sp-1);
+    border-right: 1px solid var(--border-subtle);
+}
+
+.docs-panel .module-index-sash {
+    right: -1px;
+}
+
+.docs-panel .module-index-sash::after {
+    left: auto;
+    right: 0;
+}
+
+.docs-panel .module-index-list {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    list-style: none;
+    /* One column as wide as the longest name, never narrower than the list,
+       so every row's hover background spans the scrolled width. */
+    display: grid;
+    grid-template-columns: minmax(max-content, auto);
+    align-content: start;
+}
+
+.docs-panel .module-index-list button {
+    display: block;
+    width: 100%;
+    padding: 2px 6px;
+    background: none;
+    border: none;
+    border-radius: 3px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: inherit;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.docs-panel .module-index-list button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.docs-panel .module-index-list button.active {
+    color: var(--accent-primary);
+}
+
+.docs-panel .module-reference-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.docs-panel .module-categories {
+    display: flex;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    gap: 6px;
+    padding: var(--sp-1);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.docs-panel .module-categories button {
+    padding: 2px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.docs-panel .module-categories button:hover {
+    color: var(--text-primary);
+}
+
+.docs-panel .module-categories button.active {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.docs-panel .module-cards {
+    flex: 1;
+    min-height: 0;
+    padding: var(--sp-1);
+    overflow-y: auto;
+}
+
+.docs-panel .module-reference-empty {
+    margin: 0;
+    color: var(--text-muted);
 }
 
 .docs-panel .module-list {

@@ -12,7 +12,7 @@ use std::cell::Cell;
 use std::sync::Arc;
 
 use modular_core::Patch;
-use modular_core::dsp::get_params_deserializers;
+use modular_core::dsp::{get_params_deserializers, schema};
 use modular_core::params::DeserializedParams;
 use modular_core::types::{ProcessingMode, SameIds, SampleBuffer, WavData};
 use serde_json::{Value, json};
@@ -24,6 +24,17 @@ pub const BLOCKS: usize = 4;
 
 pub fn cable(module: &str, channel: usize) -> Value {
     json!({ "type": "cable", "module": module, "port": "output", "channel": channel })
+}
+
+/// The output `module_type` gives when read as a signal itself.
+pub fn default_port(module_type: &str) -> String {
+    let outputs = schema()
+        .into_iter()
+        .find(|s| s.name == module_type)
+        .unwrap()
+        .outputs;
+    let default = outputs.iter().position(|o| o.default).unwrap_or(0);
+    outputs[default].name.clone()
 }
 
 pub fn poly_cable(module: &str, channels: usize) -> Value {
@@ -108,15 +119,17 @@ fn render_block(patch: &Patch, steps: &[usize]) {
 /// Render `BLOCKS` blocks through `steps`. Returns `(dut, src, lfo)` samples,
 /// slot major then channel.
 pub fn render(patch: &Patch, steps: &[usize]) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    let dut_port = default_port(patch.sampleables["dut"].get_module_type());
     let mut out = (Vec::new(), Vec::new(), Vec::new());
     for _ in 0..BLOCKS {
         render_block(patch, steps);
         for index in 0..BLOCK_SIZE {
             for ch in 0..CHANNELS {
-                let read = |id: &str| patch.sampleables[id].get_value_at("output", ch, index);
-                out.0.push(read("dut"));
-                out.1.push(read("src"));
-                out.2.push(read("lfo"));
+                let read =
+                    |id: &str, port: &str| patch.sampleables[id].get_value_at(port, ch, index);
+                out.0.push(read("dut", &dut_port));
+                out.1.push(read("src", "output"));
+                out.2.push(read("lfo", "output"));
             }
         }
     }

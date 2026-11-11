@@ -57,7 +57,7 @@ const CLAMP_DOCS: ModuleDocs = ModuleDocs {
             title: "Sweep that lingers wide open",
             code: r#"
                 $saw('c2')
-                  .$.lpf(
+                  .lpf(
                     $clamp($sine('0.2hz').range('c3', 'c8'), { max: 'c6' }),
                     2,
                   )

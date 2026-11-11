@@ -130,10 +130,12 @@ export interface AppConfig {
     performanceTheme?: string;
     /** Which side of the window the sidebar sits on. Default 'right'. */
     sidebarSide?: 'left' | 'right';
-    /** VU meter panel visibility. Default false. */
-    vuPanelVisible?: boolean;
-    /** VU meter panel height in px (84–480). Default 150. */
-    vuPanelHeight?: number;
+    /** Where the docs open: a panel under the editor or a sidebar tab. Default 'bottom'. */
+    docsLocation?: 'bottom' | 'sidebar';
+    /** The panel open under the editor; absent leaves it collapsed. */
+    bottomPanel?: 'mixer' | 'docs';
+    /** Height in px of the panel under the editor, at least 84. Default 200. */
+    bottomPanelHeight?: number;
 }
 
 /** Result of toggling the macOS Syphon window-output helper. */
@@ -452,7 +454,7 @@ export const MENU_CHANNELS = {
     STOP: 'modular:menu:stop',
     CANCEL_QUEUED_UPDATE: 'modular:menu:cancel-queued-update',
     TOGGLE_RECORDING: 'modular:menu:toggle-recording',
-    TOGGLE_VU_METERS: 'modular:menu:toggle-vu-meters',
+    TOGGLE_MIXER: 'modular:menu:toggle-mixer',
     TOGGLE_PERFORMANCE_WINDOW: 'modular:menu:toggle-performance-window',
     UPDATE_PATCH: 'modular:menu:update-patch',
     UPDATE_PATCH_NEXT_BEAT: 'modular:menu:update-patch-next-beat',

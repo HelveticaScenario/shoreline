@@ -36,10 +36,10 @@ describe('.erratic()', () => {
             .erratic(2, { speed: 3 });
 
         expect(out).toBeInstanceOf(CollectionWithRange);
-        expect(out[0].minValue).toBe(0);
-        expect(out[0].maxValue).toBe(10);
+        expect(out.items[0].minValue).toBe(0);
+        expect(out.items[0].maxValue).toBe(10);
         const params = erraticParams();
-        expect(params).toMatchObject({ min: 0, max: 10, mode: 'clamp' });
+        expect(params).toMatchObject({ min: [0], max: [10], mode: 'clamp' });
     });
 
     test("mode: 'shift' on a ranged collection", () => {
@@ -58,8 +58,8 @@ describe('.erratic()', () => {
     test('per-output ranges of a ranged collection are kept', () => {
         const sine = builder.getFactory('$sine');
         const ranged = new CollectionWithRange(
-            ...(sine('1hz') as CollectionWithRange).range(0, 1),
-            ...(sine('2hz') as CollectionWithRange).range(2, 5),
+            ...(sine('1hz') as CollectionWithRange).range(0, 1).items,
+            ...(sine('2hz') as CollectionWithRange).range(2, 5).items,
         );
         const out = ranged.erratic(1);
 
@@ -73,7 +73,7 @@ describe('.erratic()', () => {
         const out = builder.$c('c3').erratic(1, { bias: 2 });
 
         expect(out).toBeInstanceOf(Collection);
-        expect(out[0]).not.toBeInstanceOf(ModuleOutputWithRange);
+        expect(out.items[0]).not.toBeInstanceOf(ModuleOutputWithRange);
         const params = erraticParams();
         expect(params.bias).toBe(2);
         expect(params.min).toBeUndefined();
@@ -97,13 +97,12 @@ describe('.erratic()', () => {
         expect(params.mode).toBeUndefined();
     });
 
-    test('_erratic is not a global or a .$ method', () => {
+    test('_erratic is not a global', () => {
         const run = (src: string) =>
             executePatchScript(src, schemas, {
                 sampleRate: 48_000,
                 workspaceRoot: '/workspace',
             });
         expect(() => run('$erratic(0, 1).out()')).toThrow();
-        expect(() => run('$sine(0).$.erratic(1).out()')).toThrow();
     });
 });

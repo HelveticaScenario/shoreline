@@ -9,13 +9,12 @@ import {
     getEnumVariants,
 } from '../../shared/dsl/schemaTypeResolver';
 import {
-    dollarMethodName,
+    chainMethodName,
     processModuleSchema,
-    qualifiesForDollarChain,
+    qualifiesForChain,
 } from './paramsSchema';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 import {
-    generateVideoChainInterfaces,
     generateVideoChainMembers,
     generateVideoNamespace,
 } from './videoLibGen';
@@ -243,7 +242,7 @@ type OrArray<T> = T | T[];
 type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E)[] ? E : never };
 
 /**
- * A single-channel audio signal value. The fundamental type for all audio connections.
+ * An audio signal value. The fundamental type for all audio connections.
  * 
  * Signals follow the 1V/octave convention where 0V = C4 (~261.63 Hz).
  * 
@@ -251,38 +250,37 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * - A **number** (constant voltage)
  * - A **{@link Note}** string like \`"C4"\` or \`"A#3"\`
  * - A **{@link HZ}** string like \`"440hz"\`
- * - A **{@link ModuleOutput}** from another module
+ * - A **{@link Collection}** from another module, one voice per channel
  * 
  * @example $sine("C4")           // Note string
  * @example $sine(2)              // Number
  * @example $sine("440hz")        // Hz string
- * @example $sine($signal('c').shift($sine("1hz").amp(0.1)))   // ModuleOutput (1Hz vibrato)
+ * @example $sine($signal('c').shift($sine("1hz").amp(0.1)))   // Collection (1Hz vibrato)
  * @see {@link Poly<Signal>} - for multi-channel signals
- * @see {@link ModuleOutput} - for module connections
+ * @see {@link Collection} - for module connections
  */
-type Signal = number | Note | HZ | ModuleOutput;
+type Signal = number | Note | HZ | Collection | CollectionWithRange;
 
 /**
  * A potentially multi-channel signal for polyphonic patches.
  *
  * Can be:
  * - A single {@link Signal}
- * - An iterable of {@link ModuleOutput}s
- * - An array of {@link Signal}s and {@link Collection}s (creates multiple voices)
+ * - An array of {@link Signal}s (creates multiple voices)
  * - A {@link SignalGroup} from \`$g1\`/\`$g2\`/\`$g3\` (cartesian voice expansion)
  *
  * @example $saw(["C3", "E3", "G3"]).out()                    // 3-voice chord
- * @example $saw([...$sine("1hz"), ...$sine("2hz")]).out()   // Spread outputs into voices
- * @see {@link Signal} - for single-channel signals
+ * @example $saw([...$sine("1hz"), ...$sine("2hz")]).out()   // Spread channels into voices
+ * @see {@link Signal} - for a single signal
  * @see {@link Collection} - for grouping outputs
  */
-type Poly<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | Iterable<ModuleOutput> | SignalGroup;
+type Poly<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | SignalGroup;
 
 /**
  * An axis of an XY scope: signals and collections, or an array mixing
  * them. Every channel is its own trace.
  */
-type ScopeAxis = OrArray<Signal | Iterable<ModuleOutput>>;
+type ScopeAxis = OrArray<Signal>;
 
 /**
  * A param value tagged into a cartesian signal group by {@link $g1}, {@link $g2},
@@ -309,7 +307,7 @@ interface SignalGroup {
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
  * @see {@link Signal} - for single-channel signals
  */
-type Mono<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | Iterable<ModuleOutput>;
+type Mono<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange>;
 
 /**
  * A phase warp produced by the \`$phase.*\` helpers.
@@ -874,7 +872,6 @@ type WavMeta = {
 
 /**
  * Options for stereo output routing via the out() method.
- * @see {@link ModuleOutput.out}
  * @see {@link Collection.out}
  */
 interface StereoOutOptions {
@@ -883,7 +880,6 @@ ${renderOutOptionsMembers(STEREO_OUT_OPTIONS)}
 
 /**
  * Options for mono output routing via the outMono() method.
- * @see {@link ModuleOutput.outMono}
  * @see {@link Collection.outMono}
  */
 interface MonoOutOptions {
@@ -909,43 +905,55 @@ interface RangedErraticOptions extends ErraticOptions {
 }
 
 /**
- * A single output from a module, representing a mono signal connection.
- * 
- * ModuleOutputs are chainable - methods like amplitude(), shift(), and out() 
- * return the same output for fluent API usage.
- * 
- * @example
- * const osc = $sine("C4")
- * osc.amplitude(0.5).out()      // Chain methods
- * osc.scope().out()             // Add visualization
- * $lpf(osc, "800hz").out()      // Use as input
- *
- * @see {@link ModuleOutputWithRange} - for outputs with known value ranges
- * @see {@link Collection} - for grouping multiple outputs
- * @see {@link Signal} - ModuleOutput is a valid Signal
+ * Every signal in a patch: an ordered set of channels, one voice each, with
+ * chainable DSP methods. Indexing and iteration give one-channel collections
+ * of the same type, so \`osc[0]\` is still a signal with every method.
  */
-interface ModuleOutput {
-  /** The unique identifier of the module this output belongs to */
-  readonly moduleId: string;
-  /** The name of the output port */
-  readonly portName: string;
-  /** The channel index for polyphonic outputs */
-  readonly channel: number;
-  
-    /**
-     * Scale the signal by a linear factor (5 = unity, 2.5 = half, 10 = 2x).
-     * Creates a $scaleAndShift module internally.
-     *
-     * For perceptual (audio-taper) volume control, use {@link gain} instead.
-     * @param factor Scale factor as {@link Poly<Signal>}
-     * @returns The scaled {@link Collection} for chaining
-     * @example $sine("c4").amplitude(2.5)  // Half amplitude
-     */
-   amplitude(factor: Poly<Signal>): Collection;
+interface BaseCollection extends ModuleChain {}
+class BaseCollection {
+  /** Number of channels in the collection */
+  readonly length: number;
+  /** Channel \`index\` as a one-channel collection */
+  readonly [index: number]: this;
+  [Symbol.iterator](): Iterator<this>;
 
-   /** Alias for {@link amplitude} */
-   amp(factor: Poly<Signal>): Collection;
-  
+  /**
+   * A collection of the same type holding the channels from \`start\` up to but
+   * not including \`end\`. Negative indices count from the end, as with
+   * \`Array.prototype.slice\`.
+   * @param start First index to include (default 0)
+   * @param end Index to stop before (default: the collection's length)
+   * @example $saw(['c3', 'e3', 'g3', 'b3']).slice(1, 3).out()
+   */
+  slice(start?: number, end?: number): this;
+
+  /**
+   * Split into an array of consecutive collections of the same type, each
+   * \`size\` channels long except the last, which holds the remainder.
+   *
+   * \`\`\`js
+   * const [low, high] = $saw(['c3', 'e3', 'g3', 'b3']).chunk(2)
+   * low.out({ pan: -5 })
+   * high.out({ pan: 5 })
+   * \`\`\`
+   * @param size Channels per chunk (a positive integer)
+   */
+  chunk(size: number): this[];
+
+  /**
+   * Scale the signal by a linear factor (5 = unity, 2.5 = half, 10 = 2x).
+   * Creates a $scaleAndShift module internally.
+   *
+   * For perceptual (audio-taper) volume control, use {@link gain} instead.
+   * @param factor Scale factor as {@link Poly<Signal>}
+   * @returns The scaled {@link Collection} for chaining
+   * @example $sine("c4").amplitude(2.5)  // Half amplitude
+   */
+  amplitude(factor: Poly<Signal>): Collection;
+
+  /** Alias for {@link amplitude} */
+  amp(factor: Poly<Signal>): Collection;
+
   /**
    * Add a DC offset to the signal. Creates a $scaleAndShift module internally.
    * @param offset Offset value as {@link Poly<Signal>}
@@ -984,7 +992,7 @@ interface ModuleOutput {
    * Divide this signal by another, sample by sample. Dividing by 0 gives 0.
    * @param operand Divisor as {@link Poly<Signal>}
    * @returns The quotient as a {@link Collection} for chaining
-   * @example $clockedDelay($saw('c3').amp($perc($clock.beatTrigger)), { bars: $sine('0.1hz').range(1, 4).round().div(8) }).out()  // 1/8 to 4/8 of a bar
+   * @example $clockedDelay($saw('c3').amp($perc($clock.o.beatTrigger)), { bars: $sine('0.1hz').range(1, 4).round().div(8) }).out()  // 1/8 to 4/8 of a bar
    */
   div(operand: Poly<Signal>): Collection;
 
@@ -1013,35 +1021,15 @@ interface ModuleOutput {
   ceil(): Collection;
 
   /**
-   * Offset this pitch by an absolute frequency amount, in Hz. The V/Oct signal
-   * is converted to Hz, the offset added, then converted back. Creates an
-   * $addHz module internally.
-   * @param offset Hz offset as {@link Poly<Signal>}
-   * @returns The retuned {@link Collection} for chaining
-   * @example $saw('C4').addHz(0.5)  // slight detune
+   * Scale the signal by a factor with a perceptual (audio taper) curve
+   * (5 = unity, 0 = silence).
+   *
+   * For linear amplitude scaling, use {@link amplitude} instead.
+   * @param level Amplitude level as {@link Poly<Signal>}
+   * @returns The scaled {@link Collection} for chaining
+   * @example $sine("c4").gain(2.5)
    */
-  addHz(offset: Poly<Signal>): Collection;
-
-  /**
-   * Multiply this pitch by a frequency factor (2 = octave up, 0.5 = down).
-   * The V/Oct signal is converted to Hz, multiplied, then converted back.
-   * Creates a $mulHz module internally.
-   * @param factor Frequency multiplier as {@link Poly<Signal>}
-   * @returns The retuned {@link Collection} for chaining
-   * @example $saw('C4').mulHz(1.5)  // up a just fifth
-   */
-  mulHz(factor: Poly<Signal>): Collection;
-
-    /**
-     * Scale the signal by a factor with a perceptual (audio taper) curve
-     * (5 = unity, 0 = silence).
-     *
-     * For linear amplitude scaling, use {@link amplitude} instead.
-     * @param level Amplitude level as {@link Poly<Signal>}
-     * @returns The scaled {@link Collection} for chaining
-     * @example $sine("c4").gain(2.5)
-     */
-   gain(level: Poly<Signal>): Collection;
+  gain(level: Poly<Signal>): Collection;
 
   /**
    * Raise this signal to the power \`exponent\`, sample by sample. Negative
@@ -1060,50 +1048,65 @@ interface ModuleOutput {
    * @param options Trigger, speed, bias, and sparse ({@link ErraticOptions})
    * @returns The shifted {@link Collection} for chaining
    * @example $sine($c('a3').erratic(1 / 12, { speed: 1.5 })).out()  // drift up to a semitone either way
+   * @example $sine($c('c3', 'g3').erratic(1 / 12)).out()  // each voice drifts on its own
    */
   erratic(amount: Poly<Signal>, options?: ErraticOptions): Collection;
-  
+
   /**
-   * Add scope visualization for this output.
+   * Add scope visualization for all channels, overlaid on one scope unless \`split\` is set.
    * The scope appears as an overlay in the editor.
    * @param config Scope configuration options
    * @param config.msPerFrame Time window in milliseconds (default 500)
    * @param config.triggerThreshold Trigger threshold in volts (optional)
    * @param config.triggerWaitToRender Whether the scope should wait to render until the buffer fills (default true). Only applicable if triggerThreshold is set.
    * @param config.range Voltage range for display as [min, max] tuple (default [-5, 5])
+   * @param config.split Draw each channel in its own scope instead of overlaying them: 'vertical' stacks them top to bottom, 'horizontal' fits them side by side
    */
-  scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number] }): this;
-  
+  scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number]; split?: 'vertical' | 'horizontal' }): this;
+
   /**
-   * Send this output to speakers as stereo.
+   * Send all channels to speakers as stereo, summed together.
    *
    * Options:
 ${renderOutOptionsJsDocList(STEREO_OUT_OPTIONS)}
    * @param options Stereo output options ({@link StereoOutOptions})
    * @example $sine("c4").out({ gain: 2.5, pan: -2 })
-   * @example $sine("c4").out({ label: 'lead' })
+   * @example $saw(['c3', 'e3', 'g3']).out({ label: 'chord' })
    */
   out(options?: StereoOutOptions): this;
 
   /**
-   * Send this output to speakers as mono.
+   * Send all channels to speakers as mono, summed together.
    *
    * Options:
 ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    * @param channelOrOptions Output channel (0-63, default 0), or mono output options ({@link MonoOutOptions})
    * @param gainOrOptions Output gain as {@link Poly<Signal>}, or the same options (an explicit channel there wins)
    * @example $sine("1hz").outMono(2, 0.3)
-   * @example $sine("c3").outMono({ channel: 2, gain: 2.5, label: 'sub' })
+   * @example $saw(['c2', 'c3']).outMono(0, { label: 'bass' })
    */
   outMono(channelOrOptions?: number | MonoOutOptions, gainOrOptions?: Poly<Signal> | MonoOutOptions): this;
 
   /**
-   * Pipe this output through a transform function.
+   * Remap this signal from an explicit input range to a new output range.
+   * Creates a $remap module internally.
+   * @param outMin New minimum as {@link Poly<Signal>}
+   * @param outMax New maximum as {@link Poly<Signal>}
+   * @param inMin Input minimum as {@link Poly<Signal>}
+   * @param inMax Input maximum as {@link Poly<Signal>}
+   * @returns A {@link CollectionWithRange} carrying the remapped signal
+   * @example $sine('c4').range(0, 1, -5, 5)
+   * @see {@link CollectionWithRange.range} - for automatic input range
+   */
+  range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin: Poly<Signal>, inMax: Poly<Signal>): CollectionWithRange;
+
+  /**
+   * Pipe this signal through a transform function.
    *
    * Passes \`this\` to \`pipeFn\` and returns the result, enabling inline
    * functional transforms and reusable signal-processing helpers.
    *
-   * @param pipeFn A function that receives this output and returns a transformed value
+   * @param pipeFn A function that receives this signal and returns a transformed value
    * @returns The return value of \`pipeFn\`
    *
    * @example
@@ -1117,30 +1120,30 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    */
   pipe<T>(pipeFn: (self: this) => T): T;
   /**
-   * Pipe this output through a transform for each element of an array.
-   * Returns a {@link Collection} containing one output per element.
+   * Pipe this signal through a transform for each element of an array.
+   * Returns a {@link Collection} of every result's channels.
    *
-   * @param pipeFn A function that receives this output and one element from the array
+   * @param pipeFn A function that receives this signal and one element from the array
    * @param array An array whose elements are passed to \`pipeFn\` one by one
-   * @returns A {@link Collection} with one item per element
+   * @returns A {@link Collection} with the channels of every result
    *
    * @example
-   * // 6 outputs
+   * // 6 channels
    * $sine(['C4', 'E4', 'G4']).pipe(
    *   (s, cut) => $lpf(s, cut),
    *   ['440hz', '880hz'],
    * ).out()
    */
-  pipe<T extends ModuleOutput | Iterable<ModuleOutput>, E>(
+  pipe<T extends Poly<Signal>, E>(
     pipeFn: (self: this, item: E) => T,
     array: E[]
   ): Collection;
 
   /**
-   * Pipe this output through a transform, then mix the original and transformed
+   * Pipe this signal through a transform, then mix the original and transformed
    * signals together using a \\$mix module.
    *
-   * @param pipeFn A function that receives this output and returns a signal to mix with the original
+   * @param pipeFn A function that receives this signal and returns a signal to mix with the original
    * @param mix Optional crossfade as {@link Poly<Signal>}. 0 for only original, 5 for only transformed. Default is 2.5 for equal mix.
    * @returns A Collection from the \\$mix output
    *
@@ -1152,417 +1155,35 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    * // Mix with custom balance
    * $saw('c4').pipeMix(s => $lpf(s, '1000hz'), 1.0).out()
    */
-  pipeMix(pipeFn: (self: this) => ModuleOutput | Collection, mix?: Poly<Signal> ): Collection;
+  pipeMix(pipeFn: (self: this) => Collection | CollectionWithRange, mix?: Poly<Signal> ): Collection;
 
   /**
-   * Fold this output's channels down to a target channel count by panning them
-   * evenly across the output field with an equal-power law. Creates a \\$mixDown
-   * module internally.
+   * Crossfade the signal this one was chained from against it. Follows a
+   * chained module: \`sig.lpf('800hz').wet(2.5)\` mixes \`sig\` with its
+   * filtered copy.
    *
-   * @param channels Target output channel count (1–16). Defaults to 1 (mono).
-   * @param mode How channels landing on the same output combine. Defaults to "sum".
-   * @returns A Collection from the \\$mixDown output
-   *
-   * @example
-   * // Fold a 3-voice spread down to stereo
-   * $saw($spread(0, 5, 3)).mix(2).out()
-   */
-  mix(channels?: number, mode?: "sum" | "average" | "max" | "min"): Collection;
-
-  /**
-   * Remap this output from an explicit input range to a new output range.
-   * Creates a $remap module internally.
-   * @param outMin New minimum as {@link Poly<Signal>}
-   * @param outMax New maximum as {@link Poly<Signal>}
-   * @param inMin Input minimum as {@link Poly<Signal>}
-   * @param inMax Input maximum as {@link Poly<Signal>}
-   * @returns A {@link CollectionWithRange} carrying the remapped signal
-   * @example $sine('c4').range(0, 1, -5, 5)
-   */
-  range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin: Poly<Signal>, inMax: Poly<Signal>): CollectionWithRange;
-
-  /**
-   * Register this output as a send to a bus, with optional gain.
-   * @param bus The {@link Bus} to send to
-   * @param gain Send level as {@link Poly<Signal>}
-   * @returns This output for chaining
-   */
-  send(bus: Bus, gain?: Poly<Signal>): this;
-
-  /**
-   * Chainable module namespace. Every module whose first argument is a
-   * {@link Poly<Signal>} becomes a method here, receiving this output as that
-   * argument.
-   * @example $sine(0).$.lpf('100hz')  // ≡ $lpf($sine(0), '100hz')
-   */
-  readonly $: DollarChain;
-
-  /**
-   * Like {@link $}, but each method takes a leading \`mix\` signal that
-   * crossfades the dry input against the wet result (0 = dry, 5 = wet,
-   * 2.5 = equal).
-   * @example $sine(0).$m.lpf(2.5, '100hz')
-   */
-  readonly $m: DollarMixChain;
-}
-
-/**
- * DeferredModuleOutput is a placeholder for a signal that will be assigned later.
- * Useful for feedback loops and forward references in the DSL.
- * Supports the same chainable methods as ModuleOutput (amplitude, shift, scope, out, outMono).
- */
-interface DeferredModuleOutput extends ModuleOutput {
-  /**
-   * Set the actual signal this deferred output should resolve to.
-   * Bare {@link Signal} literals (numbers, note/Hz strings) are lifted into
-   * $signal modules, matching $c.
-   * @param signal The signal to resolve to (number, string, or ModuleOutput)
-   */
-  set(signal: Signal): void;
-}
-
-/**
- * A {@link ModuleOutput} that knows its output value range (minValue, maxValue).
- * 
- * Typically returned by LFOs, envelopes, and other modulation sources.
- * The range() method uses the stored min/max for automatic scaling.
- * 
- * @example
- * const lfo = $sine('2hz')             // Outputs -5 to +5
- * lfo.range(200, 2000)                 // Remap to 200-2000
- * $adsr($clock.beatTrigger, { attack: 0.1 }).range(0, 1)
- *
- * @see {@link ModuleOutput} - base interface
- * @see {@link CollectionWithRange} - for collections of ranged outputs
- */
-interface ModuleOutputWithRange extends ModuleOutput {
-  /** The minimum value this output produces */
-  readonly minValue: Signal;
-  /** The maximum value this output produces */
-  readonly maxValue: Signal;
-  
-  /**
-   * Remap the output from its native range to a new range.
-   * Uses the stored minValue/maxValue automatically.
-   * @param outMin New minimum as {@link Poly<Signal>}
-   * @param outMax New maximum as {@link Poly<Signal>}
-   * @returns A {@link CollectionWithRange} carrying the remapped signal
-   * @example $sine("1hz").range("C3", "C5")
-   */
-  range(outMin: Poly<Signal>, outMax: Poly<Signal>): CollectionWithRange;
-
-  /**
-   * Randomly vary this output within its range. By default it's a wandering
-   * shift where \`amount\` 5 moves up to half the range either way (±5 on a
-   * 0–10 signal), clamped to the range; see \`mode\` for an unclamped shift or
-   * blend. The result keeps the range.
-   * @param amount Depth (0–5) as {@link Poly<Signal>}
-   * @param options Trigger, speed, bias, mode, and sparse ({@link RangedErraticOptions})
-   * @returns A {@link CollectionWithRange} with the same range
-   * @example $saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock.beatTrigger })).out()
-   * @example $saw('c3').amp($sine('4hz').range(0, 5).erratic(5, { mode: 'blend', sparse: true, speed: 5, trigger: $clock.beatTrigger })).out()  // usually a new level each beat, sometimes close to the sine
-   */
-  erratic(amount: Poly<Signal>, options?: RangedErraticOptions): CollectionWithRange;
-
-  /**
-   * Round to the nearest whole volt, halves away from zero; the range rounds
-   * with it.
-   * @returns A {@link CollectionWithRange} with the rounded range
-   * @example $sine($sine('1hz').range(0, 7.5).round().range('c3', 'c4')).out()  // eight steps across an octave
-   */
-  round(): CollectionWithRange;
-
-  /**
-   * Round down to a whole volt; the range rounds with it.
-   * @returns A {@link CollectionWithRange} with the rounded range
-   */
-  floor(): CollectionWithRange;
-
-  /**
-   * Round up to a whole volt; the range rounds with it.
-   * @returns A {@link CollectionWithRange} with the rounded range
-   */
-  ceil(): CollectionWithRange;
-}
-
-
-class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
-  /** Number of outputs in the collection */
-  readonly length: number;
-  /** Index access to individual elements */
-  readonly [index: number]: T;
-  [Symbol.iterator](): Iterator<T>;
-
-  /**
-   * A collection of the same type holding the outputs from \`start\` up to but
-   * not including \`end\`. Negative indices count from the end, as with
-   * \`Array.prototype.slice\`.
-   * @param start First index to include (default 0)
-   * @param end Index to stop before (default: the collection's length)
-   * @example $saw(['c3', 'e3', 'g3', 'b3']).slice(1, 3).out()
-   */
-  slice(start?: number, end?: number): this;
-
-  /**
-   * Split into an array of consecutive collections of the same type, each
-   * \`size\` outputs long except the last, which holds the remainder.
-   *
-   * \`\`\`js
-   * const [low, high] = $saw(['c3', 'e3', 'g3', 'b3']).chunk(2)
-   * low.out({ pan: -5 })
-   * high.out({ pan: 5 })
-   * \`\`\`
-   * @param size Outputs per chunk (a positive integer)
-   */
-  chunk(size: number): this[];
-
-    /**
-     * Scale all signals by a linear factor (5 = unity, 2.5 = half, 10 = 2x).
-     *
-     * For perceptual (audio-taper) volume control, use {@link gain} instead.
-     * @param factor Scale factor as {@link Poly<Signal>}
-     * @see {@link ModuleOutput.amplitude}
-     */
-   amplitude(factor: Poly<Signal>): Collection;
-
-   /** Alias for {@link amplitude} */
-   amp(factor: Poly<Signal>): Collection;
-
-  /**
-   * Add DC offset to all signals.
-   * @param offset Offset as {@link Poly<Signal>}
-   * @see {@link ModuleOutput.shift}
-   */
-  shift(offset: Poly<Signal>): Collection;
-
-  /**
-   * Add another signal to all signals, sample by sample.
-   * @see {@link ModuleOutput.add}
-   */
-  add(operand: Poly<Signal>): Collection;
-
-  /**
-   * Subtract another signal from all signals, sample by sample.
-   * @see {@link ModuleOutput.sub}
-   */
-  sub(operand: Poly<Signal>): Collection;
-
-  /**
-   * Multiply all signals by another, sample by sample.
-   * @see {@link ModuleOutput.mul}
-   */
-  mul(operand: Poly<Signal>): Collection;
-
-  /**
-   * Divide all signals by another, sample by sample. Dividing by 0 gives 0.
-   * @see {@link ModuleOutput.div}
-   */
-  div(operand: Poly<Signal>): Collection;
-
-  /**
-   * Round all signals to the nearest whole volt, halves away from zero.
-   * @see {@link ModuleOutput.round}
-   */
-  round(): Collection;
-
-  /**
-   * Round all signals down to a whole volt.
-   * @see {@link ModuleOutput.floor}
-   */
-  floor(): Collection;
-
-  /**
-   * Round all signals up to a whole volt.
-   * @see {@link ModuleOutput.ceil}
-   */
-  ceil(): Collection;
-
-  /**
-   * Offset all pitches by an absolute frequency amount, in Hz.
-   * @param offset Hz offset as {@link Poly<Signal>}
-   * @see {@link ModuleOutput.addHz}
-   */
-  addHz(offset: Poly<Signal>): Collection;
-
-  /**
-   * Multiply all pitches by a frequency factor (2 = octave up, 0.5 = down).
-   * @param factor Frequency multiplier as {@link Poly<Signal>}
-   * @see {@link ModuleOutput.mulHz}
-   */
-  mulHz(factor: Poly<Signal>): Collection;
-
-    /**
-     * Scale all signals by a factor with a perceptual (audio taper) curve
-     * (5 = unity, 0 = silence).
-     *
-     * For linear amplitude scaling, use {@link amplitude} instead.
-     * @param level Amplitude level as {@link Poly<Signal>}
-     * @see {@link ModuleOutput.gain}
-     */
-  gain(level: Poly<Signal>): Collection;
-
-  /**
-   * Raise all signals to the power \`exponent\`, sample by sample.
-   * @see {@link ModuleOutput.exp}
-   */
-  exp(exponent: Poly<Signal>): Collection;
-
-  /**
-   * Apply a wandering random shift of up to ±\`amount\` V to all signals.
-   * Each channel wanders independently.
-   * @param amount Depth (0–5) as {@link Poly<Signal>}
-   * @param options Trigger, speed, bias, and sparse ({@link ErraticOptions})
-   * @returns The shifted {@link Collection} for chaining
-   * @example $sine($c('c3', 'g3').erratic(1 / 12)).out()  // each voice drifts on its own
-   */
-  erratic(amount: Poly<Signal>, options?: ErraticOptions): Collection;
-
-  /**
-   * Add scope visualization for all outputs in the collection, overlaid on one scope unless \`split\` is set.
-   * @param config Scope configuration options
-   * @param config.msPerFrame Time window in milliseconds (default 500)
-   * @param config.triggerThreshold Trigger threshold in volts (optional)
-   * @param config.triggerWaitToRender Whether the scope should wait to render until the buffer fills (default true). Only applicable if triggerThreshold is set.
-   * @param config.range Voltage range for display as [min, max] tuple (default [-5, 5])
-   * @param config.split Draw each channel in its own scope instead of overlaying them: 'vertical' stacks them top to bottom, 'horizontal' fits them side by side
-   */
-  scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number]; split?: 'vertical' | 'horizontal' }): this;
-
-  /**
-   * Send all outputs to speakers as stereo, summed together.
-   *
-   * Options:
-${renderOutOptionsJsDocList(STEREO_OUT_OPTIONS)}
-   * @param options Stereo output options ({@link StereoOutOptions})
-   * @example $saw(['c3', 'e3', 'g3']).out({ label: 'chord' })
-   */
-  out(options?: StereoOutOptions): this;
-
-  /**
-   * Send all outputs to speakers as mono, summed together.
-   *
-   * Options:
-${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
-   * @param channelOrOptions Output channel (0-63, default 0), or mono output options ({@link MonoOutOptions})
-   * @param gainOrOptions Output gain as {@link Poly<Signal>}, or the same options (an explicit channel there wins)
-   * @example $saw(['c2', 'c3']).outMono(0, { label: 'bass' })
-   */
-  outMono(channelOrOptions?: number | MonoOutOptions, gainOrOptions?: Poly<Signal> | MonoOutOptions): this;
-
-
-  /**
-   * Remap all outputs from input range to output range.
-   * Requires explicit input min/max values.
-   * @param inMin Input minimum as {@link Poly<Signal>}
-   * @param inMax Input maximum as {@link Poly<Signal>}
-   * @param outMin Output minimum as {@link Poly<Signal>}
-   * @param outMax Output maximum as {@link Poly<Signal>}
-   * @see {@link CollectionWithRange.range} - for automatic input range
-   */
-  range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin: Poly<Signal>, inMax: Poly<Signal>): CollectionWithRange;
-
-  /**
-   * Pipe this collection through a transform function.
-   *
-   * Passes \`this\` to \`pipeFn\` and returns the result, enabling inline
-   * functional transforms and reusable signal-processing helpers.
-   *
-   * @param pipeFn A function that receives this collection and returns a transformed value
-   * @returns The return value of \`pipeFn\`
-   *
-   * @example
-   * // Inline transform on a collection
-   * $c($sine('c3'), $sine('e3')).pipe(all => all.amplitude(2.5)).out()
-   *
-   * @example
-   * // Reusable helper applied to a collection
-   * const tremolo = (c) => c.amplitude($sine('10hz').range(4, 5))
-   * $r($saw('220hz'), $saw('221hz')).pipe(tremolo).out()
-   */
-  pipe<T>(pipeFn: (self: this) => T): T;
-  /**
-   * Pipe this collection through a transform for each element of an array.
-   * Returns a {@link Collection} containing one output per element.
-   *
-   * @param pipeFn A function that receives this collection and one element from the array
-   * @param array An array whose elements are passed to \`pipeFn\` one by one
-   * @returns A {@link Collection} with one item per element
-   *
-   * @example
-   * // Apply each filter cutoff to the whole collection
-   * $c($sine('c3'), $sine('e3')).pipe(
-   *   (col, cutoff) => $lpf(col, cutoff),
-   *   ['200hz', '800hz', '3200hz'],
-   * ).out()
-   */
-  pipe<T extends ModuleOutput | Iterable<ModuleOutput>, E>(
-    pipeFn: (self: this, item: E) => T,
-    array: E[]
-  ): Collection;
-
-  /**
-   * Pipe this collection through a transform, then mix the original and transformed
-   * signals together using a \\$mix module.
-   *
-   * @param pipeFn A function that receives this collection and returns a signal to mix with the original
-   * @param mix Optional crossfade as {@link Poly<Signal>}. 0 for only original, 5 for only transformed. Default is 2.5 for equal mix.
+   * @param mix Dry/wet crossfade as {@link Poly<Signal>}. 0 = dry only, 5 = wet only. Default is 2.5 for an equal mix.
    * @returns A Collection from the \\$mix output
    *
-   * @example
-   * // Mix collection with a filtered version
-   * $c($sine('c3'), $sine('e3')).pipeMix(s => $lpf(s, '1000hz')).out()
-   *
-   * @example
-   * // Mix with different balance
-   * $c($sine('c3'), $sine('e3')).pipeMix(s => $lpf(s, '1000hz'), 1).out()
+   * @example $saw('c3').plate().wet(1.5).out()
    */
-  pipeMix(pipeFn: (self: this) => ModuleOutput | Collection, mix?: Poly<Signal> ): Collection;
+  wet(mix?: Poly<Signal>): Collection;
 
   /**
-   * Fold this collection's channels down to a target channel count by panning
-   * them evenly across the output field with an equal-power law. Creates a
-   * \\$mixDown module internally.
-   *
-   * @param channels Target output channel count (1–16). Defaults to 1 (mono).
-   * @param mode How channels landing on the same output combine. Defaults to "sum".
-   * @returns A Collection from the \\$mixDown output
-   *
-   * @example
-   * // Fold a 3-voice spread down to stereo
-   * $saw($spread(0, 5, 3)).mix(2).out()
-   */
-  mix(channels?: number, mode?: "sum" | "average" | "max" | "min"): Collection;
-
-  /**
-   * Register all outputs in this collection as a send to a bus, with optional gain.
+   * Register all channels as a send to a bus, with optional gain.
    * @param bus The {@link Bus} to send to
    * @param gain Send level as {@link Poly<Signal>}
    * @returns This collection for chaining
    */
   send(bus: Bus, gain?: Poly<Signal>): this;
-
-  /**
-   * Chainable module namespace. Every module whose first argument is a
-   * {@link Poly<Signal>} becomes a method here, receiving this collection as
-   * that argument.
-   * @example $c($sine('c3'), $sine('e3')).$.lpf('100hz')  // ≡ $lpf($c($sine('c3'), $sine('e3')), '100hz')
-   */
-  readonly $: DollarChain;
-
-  /**
-   * Like {@link $}, but each method takes a leading \`mix\` signal that
-   * crossfades the dry input against the wet result (0 = dry, 5 = wet,
-   * 2.5 = equal).
-   * @example $c($sine('c3'), $sine('e3')).$m.lpf(2.5, '100hz')
-   */
-  readonly $m: DollarMixChain;
 }
 
 /**
- * A collection of {@link ModuleOutput} instances with chainable DSP methods.
+ * A signal with chainable DSP methods: what every module returns, one
+ * channel per voice.
  * 
- * Created with the $c() helper function. Supports iteration, indexing, and spreading.
- * Methods operate on all outputs in the collection.
+ * Group signals with the $c() helper function. Supports iteration, indexing,
+ * and spreading, each giving one-channel collections.
  * 
  * @example
  * const voices = $c($sine('c3'), $sine('e3'), $sine('g3'))
@@ -1571,83 +1192,89 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
  * const arr = [...voices]              // Spread to array
  * voices[0]                            // Index access
  *
- * @see {@link CollectionWithRange} - for ranged outputs
- * @see {@link ModuleOutput} - individual outputs
- * @see {@link $} - helper to create Collection
+ * @see {@link CollectionWithRange} - for signals with a known range
+ * @see {@link $c} - helper to create Collection
  */
-class Collection extends BaseCollection<ModuleOutput> {
-  constructor(...outputs: ModuleOutput[]);
+class Collection extends BaseCollection {
+  protected constructor();
 }
 
 /**
- * A collection of {@link ModuleOutputWithRange} instances.
- * 
- * Created with the $r() helper function. Like {@link Collection}, but the 
- * range() method uses stored min/max values from each output.
+ * A {@link Collection} that knows its value range, as LFOs, envelopes and
+ * other modulation sources return. The range() method uses the stored range
+ * for automatic scaling.
  * 
  * @example
+ * const lfo = $sine('2hz')             // Outputs -5 to +5
+ * lfo.range(200, 2000)                 // Remap to 200-2000
+ * $adsr($clock.o.beatTrigger, { attack: 0.1 }).range(0, 1)
  * $r($sine('1hz'), $sine('2hz')).range(0, 5).out()  // Remap using stored ranges
- * $r(...[$sine('3hz'), $sine('4hz')]).range(0, 1)   // Spread and remap
  *
- * @see {@link Collection} - for outputs without known ranges
- * @see {@link ModuleOutputWithRange} - individual ranged outputs
+ * @see {@link Collection} - for signals without a known range
  * @see {@link $r} - helper to create CollectionWithRange
  */
-class CollectionWithRange extends BaseCollection<ModuleOutputWithRange> {
-  constructor(...outputs: ModuleOutputWithRange[]);
+class CollectionWithRange extends BaseCollection {
+  protected constructor();
 
   /**
-   * Remap all outputs from their native ranges to a new range.
-   * Uses each output's stored minValue/maxValue.
-   * @param outMin Output minimum as {@link Poly<Signal>}
-   * @param outMax Output maximum as {@link Poly<Signal>}
+   * Remap from the stored range to a new range.
+   * @param outMin New minimum as {@link Poly<Signal>}
+   * @param outMax New maximum as {@link Poly<Signal>}
+   * @returns A {@link CollectionWithRange} carrying the remapped signal
+   * @example $sine("1hz").range("C3", "C5")
    * @see {@link Collection.range} - for explicit input range
    */
   override range(outMin: Poly<Signal>, outMax: Poly<Signal>): CollectionWithRange;
 
   /**
-   * Randomly vary all outputs within each output's range: a clamped shift by
-   * default; see \`mode\` for an unclamped shift or blend. The result keeps
-   * the ranges.
+   * Randomly vary each channel within its range. By default it's a wandering
+   * shift where \`amount\` 5 moves up to half the range either way (±5 on a
+   * 0–10 signal), clamped to the range; see \`mode\` for an unclamped shift or
+   * blend. The result keeps the range.
    * @param amount Depth (0–5) as {@link Poly<Signal>}
    * @param options Trigger, speed, bias, mode, and sparse ({@link RangedErraticOptions})
    * @returns A {@link CollectionWithRange} with the same ranges
+   * @example $saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock.o.beatTrigger })).out()
+   * @example $saw('c3').amp($sine('4hz').range(0, 5).erratic(5, { mode: 'blend', sparse: true, speed: 5, trigger: $clock.o.beatTrigger })).out()  // usually a new level each beat, sometimes close to the sine
    * @example $saw($c('c3', 'e3')).amp($sine(['4hz', '5hz']).range(2, 5).erratic(2, { speed: 3 })).out()  // each voice's tremolo wanders on its own
    */
   override erratic(amount: Poly<Signal>, options?: RangedErraticOptions): CollectionWithRange;
 
   /**
-   * Round all outputs to the nearest whole volt; the ranges round with them.
-   * @see {@link ModuleOutputWithRange.round}
+   * Round to the nearest whole volt, halves away from zero; the range rounds
+   * with it.
+   * @returns A {@link CollectionWithRange} with the rounded range
+   * @example $sine($sine('1hz').range(0, 7.5).round().range('c3', 'c4')).out()  // eight steps across an octave
    */
   override round(): CollectionWithRange;
 
   /**
-   * Round all outputs down to a whole volt; the ranges round with them.
-   * @see {@link ModuleOutputWithRange.floor}
+   * Round down to a whole volt; the range rounds with it.
+   * @returns A {@link CollectionWithRange} with the rounded range
    */
   override floor(): CollectionWithRange;
 
   /**
-   * Round all outputs up to a whole volt; the ranges round with them.
-   * @see {@link ModuleOutputWithRange.ceil}
+   * Round up to a whole volt; the range rounds with it.
+   * @returns A {@link CollectionWithRange} with the rounded range
    */
   override ceil(): CollectionWithRange;
 }
 
 /**
- * DeferredCollection is a collection of DeferredModuleOutput instances.
- * Provides a .set() method to assign signals to all contained deferred outputs.
+ * Placeholder channels for signals assigned later, from {@link $deferred}:
+ * use it as a signal now and call .set() before the end of the script, for
+ * feedback loops and forward references.
  */
-class DeferredCollection extends BaseCollection<DeferredModuleOutput> {
-  constructor(...outputs: DeferredModuleOutput[]);
+class DeferredCollection extends BaseCollection {
+  protected constructor();
 
   /**
-   * Set the signals for all deferred outputs in this collection, cycling a
-   * narrower argument across the channels. Bare {@link Signal} literals
-   * (numbers, note/Hz strings) are lifted into $signal modules, matching $c —
-   * a string is one signal, not spread into characters.
-   * @param polySignal A {@link Poly<Signal>} (single signal, array, or iterable) to distribute across outputs
+   * Set the signals for all channels, cycling a narrower argument across
+   * them. Bare {@link Signal} literals (numbers, note/Hz strings) are lifted
+   * into $signal modules, matching $c — a string is one signal, not spread
+   * into characters.
+   * @param polySignal A {@link Poly<Signal>} (single signal or array) to distribute across the channels
    */
   set(polySignal: Poly<Signal>): void;
 }
@@ -1660,17 +1287,17 @@ class DeferredCollection extends BaseCollection<DeferredModuleOutput> {
 class OutLane extends Collection {
   private constructor();
   /** 5V while the lane is audible, 0V while it is muted or silenced by another out's solo. */
-  readonly active: ModuleOutputWithRange;
+  readonly active: CollectionWithRange;
   /**
    * The lane's gain in out-gain units (5 = unity), as the VU fader shows it.
    * Ranged 0 to 10, or the gain signal's own range when it declares one.
    */
-  readonly level: ModuleOutputWithRange;
+  readonly level: CollectionWithRange;
   /**
    * The lane's pan (-5 left to +5 right); 0 for mono outs. Ranged -5 to 5, or
    * the pan signal's own range when it declares one.
    */
-  readonly pan: ModuleOutputWithRange;
+  readonly pan: CollectionWithRange;
 }
 
 
@@ -1698,7 +1325,7 @@ function $hz(frequency: number[]): number[];
  * @returns The pitch as a {@link Collection}
  * @example const f = $slider('pitch', 220, 100, 500); $saw($hz(f)).out()
  */
-function $hz(frequency: Poly<number | ModuleOutput>): Collection;
+function $hz(frequency: Poly<number>): Collection;
 /**
  * Convert a frequency in Hertz, as a number or a signal, to a 1V/octave
  * pitch.
@@ -1706,7 +1333,7 @@ function $hz(frequency: Poly<number | ModuleOutput>): Collection;
  * @returns The pitch, as a voltage value for a number
  */
 function $hz(
-  frequency: number | Poly<number | ModuleOutput>,
+  frequency: number | Poly<number>,
 ): number | number[] | Collection;
 
 /**
@@ -1719,33 +1346,34 @@ function $hz(
 function $note(noteName: string): number;
 
 /**
- * Create a {@link Collection} from {@link ModuleOutput} instances.
+ * Create a {@link Collection} holding the channels of every argument, in order.
  *
  * Collections support chainable DSP methods, iteration, indexing, and spreading.
  * Bare {@link Signal} literals (numbers, note/Hz strings) are lifted into
  * $signal modules, so they can be mixed in alongside module outputs.
- * @param args One or more {@link ModuleOutput}s or {@link Signal} literals to group
- * @returns A {@link Collection} of the outputs
+ * @param args Signals, or arrays of them, to group
+ * @returns A {@link Collection} of their channels
  * @example $c($sine('c3'), $sine('e3')).amplitude(0.5).out()
  * @example $c(440, 'c4', $sine('e3'))  // Bare number/string lifted into $signal
  * @example $c($p('c4 e4').c, 'g4')      // A played pattern contributes its voices
- * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access
- * @example [...$c($sine('c3'), $sine('e3'))]             // Spread to array
- * @see {@link $r} - for ranged outputs
+ * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access: a one-channel Collection
+ * @example [...$c($sine('c3'), $sine('e3'))]             // Spread to an array of one-channel Collections
+ * @see {@link $r} - for ranged signals
  */
-function $c(...args: (Signal | Signal[] | Iterable<Signal>)[]): Collection;
+function $c(...args: (Signal | Signal[])[]): Collection;
 
 /**
- * Create a {@link CollectionWithRange} from {@link ModuleOutputWithRange} instances.
+ * Create a {@link CollectionWithRange} holding the channels of every ranged
+ * argument, each keeping its range.
  * 
- * Like $() but the range() method uses stored min/max values.
- * @param args One or more {@link ModuleOutputWithRange}s to group
- * @returns A {@link CollectionWithRange} of the outputs
+ * Like $c() but the range() method uses the stored ranges.
+ * @param args Ranged signals, or arrays of them, to group
+ * @returns A {@link CollectionWithRange} of their channels
  * @example $r($sine('1hz'), $sine('2hz')).range(0, 5)  // Uses stored ranges
  * @example $r(...[$sine('3hz'), $sine('4hz')]).range(0, 1)
- * @see {@link $c} - for outputs without known ranges
+ * @see {@link $c} - for signals without known ranges
  */
-function $r(...args: (ModuleOutputWithRange | Iterable<ModuleOutputWithRange>)[]): CollectionWithRange;
+function $r(...args: (CollectionWithRange | CollectionWithRange[])[]): CollectionWithRange;
 
 /**
  * Read the format, tempo, loops and cue points of a WAV file.
@@ -1754,7 +1382,7 @@ function $r(...args: (ModuleOutputWithRange | Iterable<ModuleOutputWithRange>)[]
  * // Play a loop at the tempo it was recorded at
  * const loop = '/wavs/loop.wav'
  * $setTempo($wavMeta(loop).bpm ?? 120)
- * $sampler(loop, $clock.barTrigger).out()
+ * $sampler(loop, $clock.o.barTrigger).out()
  */
 function $wavMeta(path: string): WavMeta;
 
@@ -1771,7 +1399,7 @@ function $setTempo(tempo: number): void;
  * @param gain Gain as a {@link Mono<Signal>} (2.5 is default, 5.0 is unity)
  * @example $setOutputGain(2.5) // 50% gain (default)
  * @example $setOutputGain(5.0) // unity
- * @example $setOutputGain($adsr($clock.beatTrigger, {})) // modulate gain from envelope
+ * @example $setOutputGain($adsr($clock.o.beatTrigger, {})) // modulate gain from envelope
  */
 function $setOutputGain(gain: Mono<Signal>): void;
 
@@ -1788,7 +1416,7 @@ function $setOutputGain(gain: Mono<Signal>): void;
 function $scopeXY(
   x: ScopeAxis,
   y: ScopeAxis,
-  config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | ModuleOutput | Collection | CollectionWithRange; persistence?: number | ModuleOutput | Collection | CollectionWithRange; lineWidth?: number | ModuleOutput | Collection | CollectionWithRange; upsample?: boolean },
+  config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | Collection | CollectionWithRange; persistence?: number | Collection | CollectionWithRange; lineWidth?: number | Collection | CollectionWithRange; upsample?: boolean },
 ): VideoSignal;
 
 /**
@@ -1828,8 +1456,8 @@ interface GrooveTemplate {
 
 /**
  * Set the global groove. Every $cycle and $drumMap starts its notes on it,
- * keeping their lengths, unless given its own groove or playhead; $clock.grooveOffset,
- * $clock.grooveVelocity and $clock.grooveTrigger expose it directly.
+ * keeping their lengths, unless given its own groove or playhead; $clock.o.grooveOffset,
+ * $clock.o.grooveVelocity and $clock.o.grooveTrigger expose it directly.
  * @param template Groove template, e.g. from $swing
  * @example $setGroove($swing(0.6))  // MPC-style 60% sixteenth swing
  * @example $setGroove({ timing: [0, 0.2, 0, 0.15], velocity: [1, 0.6, 0.8, 0.5] })
@@ -1894,7 +1522,7 @@ function $slider(label: string, value: Note, min: Note, max: Note, group?: Contr
 
 /**
  * Create a momentary gate button in the Control panel: 5V while held, 0V
- * otherwise. Chain through .$.hold for a fixed-length trigger per press.
+ * otherwise. Chain through .hold for a fixed-length trigger per press.
  *
  * @param label Display label for the button (must be a string literal, unique within its group)
  * @param group The {@link ControlGroup} to place the button in (a $cGroup call or a const bound to one)
@@ -1904,7 +1532,7 @@ function $slider(label: string, value: Note, min: Note, max: Note, group?: Contr
  * $sine('c4').amplitude($adsr($btn("play"))).out();
  * @example
  * // fixed 100 ms trigger per press, however long the button is held
- * $sine('c4').amplitude($adsr($btn("hit").$.hold(0.1))).out();
+ * $sine('c4').amplitude($adsr($btn("hit").hold(0.1))).out();
  */
 function $btn(label: string, group?: ControlGroup): CollectionWithRange;
 
@@ -1971,7 +1599,7 @@ function $cGroup(label: string, params?: ControlGroupParams): ControlGroup;
 
 /**
  * A send-return bus. Create one with {@link $bus}, then call \`.send(bus, gain)\` on
- * any {@link ModuleOutput} or {@link Collection} to route signals through it.
+ * any {@link Collection} to route signals through it.
  * The bus callback receives a mixed {@link Collection} of all sends.
  */
 class Bus {
@@ -2028,7 +1656,7 @@ function $outLane(label: string): OutLane;
  * @example
  * $setEndOfChainCb((mix) => $lpf(mix, '2000hz'));
  */
-function $setEndOfChainCb(cb: (mixed: Collection) => ModuleOutput | Collection | CollectionWithRange): void;
+function $setEndOfChainCb(cb: (mixed: Collection) => Collection | CollectionWithRange): void;
 
 /**
  * Compute the Cartesian product of the given arrays.
@@ -2110,13 +1738,13 @@ function $g3(signals: Poly<Signal>): SignalGroup;
  * $ott($mix([$saw('c2'), $noise('white')]), { depth: 4, lowGain: 6, highGain: 4, threshold: 1.5 }).out()
  * \`\`\`
  */
-function $ott(input: Collection | ModuleOutput, config?: {
+function $ott(input: Collection | CollectionWithRange, config?: {
     /**
      * Optional side-chain detector signal. The same crossover network splits
      * the sidechain into low/mid/high and each band's compressor keys off the
      * matching band — the gain is still applied to \`input\`.
      */
-    sidechain?: Collection | ModuleOutput;
+    sidechain?: Collection | CollectionWithRange;
     /** wet/dry blend, 0–5 (default 5 = fully wet) */
     depth?: Poly<Signal>;
     /** low/mid crossover (V/Oct, default ~120 Hz) */
@@ -2238,7 +1866,7 @@ ${generateVideoChainMembers()}
 /**
  * A video file's picture from \`$v.video\`: a {@link VideoSignal} that also
  * has the file's sound as \`audio\`, an audio signal. Chaining from it, such
- * as \`.$.hsv()\`, gives a plain {@link VideoSignal}; \`out\` and
+ * as \`.hsv()\`, gives a plain {@link VideoSignal}; \`out\` and
  * \`preview\` return the file itself.
  */
 interface VideoFile extends VideoSignal {
@@ -2253,9 +1881,7 @@ interface VideoFile extends VideoSignal {
  * pattern's values are used as they are, so \`$p('0 0.5 1').c\` steps from 0
  * to 1.
  */
-type VideoValue = number | VideoSignal | ModuleOutput | Collection | CollectionWithRange;
-
-${generateVideoChainInterfaces()}
+type VideoValue = number | VideoSignal | Collection | CollectionWithRange;
 
 /**
  * A frame store from \`$v.buffer\`: \`write\` a signal into it, and \`read\`
@@ -2358,16 +1984,13 @@ function capitalizeName(name: string): string {
  * Get the output type for a single output definition
  */
 function getOutputType(output: {
-    polyphonic?: boolean;
+    name: string;
     minValue?: number;
     maxValue?: number;
 }): string {
     const hasRange =
         output.minValue !== undefined && output.maxValue !== undefined;
-    if (output.polyphonic) {
-        return hasRange ? 'CollectionWithRange' : 'Collection';
-    }
-    return hasRange ? 'ModuleOutputWithRange' : 'ModuleOutput';
+    return hasRange ? 'CollectionWithRange' : 'Collection';
 }
 
 /**
@@ -2401,8 +2024,8 @@ function getMultiOutputInterfaceName(moduleSchema: { name: string }): string {
 
 /**
  * Generate interface definition for multi-output modules.
- * The interface extends the type of the output a `cv` input takes and has a
- * property for every output.
+ * The interface extends the type of the output a `cv` input takes, and its
+ * `o` has a property for every output.
  */
 function generateMultiOutputInterface(
     moduleSchema: Schema,
@@ -2427,13 +2050,15 @@ function generateMultiOutputInterface(
         `${indent} * Used directly, it stands for the output that fits the input it`,
     );
     lines.push(
-        `${indent} * is plugged into (\`${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); a named output is`,
+        `${indent} * is plugged into (\`o.${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); an output named`,
     );
-    lines.push(`${indent} * always that output.`);
+    lines.push(`${indent} * through \`o\` is always that output.`);
     lines.push(`${indent} */`);
     lines.push(
         `${indent}export interface ${interfaceName} extends ${baseType} {`,
     );
+    lines.push(`${indent}  /** The module's outputs by name. */`);
+    lines.push(`${indent}  readonly o: {`);
 
     for (const output of outputs) {
         const outputType = getOutputType(output);
@@ -2441,11 +2066,12 @@ function generateMultiOutputInterface(
 
         const doc = withMeta(output.description, formatOutputMeta(output));
         if (doc) {
-            lines.push(`${indent}  /** ${doc} */`);
+            lines.push(`${indent}    /** ${doc} */`);
         }
-        lines.push(`${indent}  readonly ${safeName}: ${outputType};`);
+        lines.push(`${indent}    readonly ${safeName}: ${outputType};`);
     }
 
+    lines.push(`${indent}  };`);
     lines.push(`${indent}}`);
     return lines;
 }
@@ -2503,7 +2129,7 @@ function optionsText(
 
 /**
  * Build the trailing `config?: { ... }` argument shared by the factory-function
- * and `.$.`-method renderers: every non-positional param, plus an optional
+ * and chain-method renderers: every non-positional param, plus an optional
  * `id`. `config` is required only when some non-positional param is required.
  * Returns the rendered argument and the nested `@param config` doc lines.
  */
@@ -2564,21 +2190,17 @@ function buildConfigArg(moduleSchema: Schema): {
 
 /**
  * Build the parameter list and JSDoc lines shared by the factory-function and
- * `.$.`-method renderers. `positionalStart` drops leading positionals (1 for
- * `.$.`, whose receiver is injected as the first argument); `leadParams` are
- * prepended to the parameter list (the `.$m.` `mix` crossfade); `leadDocLines`
- * are prepended before the module's own documentation. The module's docs
+ * chain-method renderers. `positionalStart` drops leading positionals (1 for
+ * a chain method, whose receiver is the first argument); `leadDocLines` are
+ * prepended before the module's own documentation. The module's docs
  * (`renderDocContentJsDoc`) and every `@param` are always included, so the
- * factory and `.$.` surfaces carry identical docs and cannot drift.
+ * factory and chain surfaces carry identical docs and cannot drift.
  */
 function buildSignature(
     moduleSchema: Schema,
     opts: {
         positionalStart: number;
-        leadParams?: { decl: string; doc: string }[];
         leadDocLines?: string[];
-        /** Document the main output as `@returns` (default true). */
-        returnsDoc?: boolean;
     },
 ): { args: string[]; docLines: string[] } {
     const { paramsSchema } = moduleSchema;
@@ -2598,11 +2220,6 @@ function buildSignature(
     docLines.push(
         ...renderDocContentJsDoc(moduleSchema.docs, moduleSchema.name),
     );
-
-    for (const lead of opts.leadParams ?? []) {
-        args.push(lead.decl);
-        docLines.push(lead.doc);
-    }
 
     for (let i = 0; i < positionals.length; i++) {
         const arg = positionals[i];
@@ -2649,76 +2266,47 @@ function buildSignature(
         docLines.push(`@param config Configuration object`);
     }
 
-    if (opts.returnsDoc ?? true) {
-        const outputs = moduleSchema.outputs ?? [];
-        // A module without a default output returns all its outputs.
-        const main = outputs.find((o) => o.default);
-        const doc = main && withMeta(main.description, formatOutputMeta(main));
-        if (doc) {
-            docLines.push(`@returns ${doc}`);
-        }
+    const outputs = moduleSchema.outputs ?? [];
+    // A module without a default output returns all its outputs.
+    const main = outputs.find((o) => o.default);
+    const doc = main && withMeta(main.description, formatOutputMeta(main));
+    if (doc) {
+        docLines.push(`@returns ${doc}`);
     }
 
     return { args, docLines };
 }
 
 /**
- * Render one method of the `.$.` (or `.$m.` when `withMix`) chainable namespace
- * for `moduleSchema`: the module's factory with its first positional dropped
- * (it becomes the chained signal receiver). For `.$m.`, a required leading
- * `mix` signal crossfades dry/wet and the return type collapses to
- * `Collection`. Carries the module's docs, like the factory.
+ * Render the chain method of `moduleSchema`: the module's factory without
+ * its first positional, which the receiver supplies. Carries the module's
+ * docs, like the factory.
  *
- * Only called on schemas passing `qualifiesForDollarChain`, which guarantees
- * `dollarMethodName` yields a valid TS identifier for the interface member.
+ * Only called on schemas passing `qualifiesForChain`, which guarantees
+ * `chainMethodName` yields a valid TS identifier for the interface member.
  */
-function renderDollarMethod(
-    moduleSchema: Schema,
-    withMix: boolean,
-    indent: string,
-): string[] {
-    const rawName = moduleSchema.name.split('.').pop()!;
-    const methodName = dollarMethodName(moduleSchema.name);
-
-    const leadDocLines = withMix
-        ? [
-              `Chain through \`${rawName}\`, crossfading the dry input against`,
-              'the wet result by a leading `mix` signal (0 = dry, 5 = wet,',
-              '2.5 = equal). Equivalent to `.pipeMix(s => ' +
-                  `${rawName}(s, ...), mix)\`.`,
-              '',
-          ]
-        : [
-              `Chain through \`${rawName}\` with this signal as its first`,
-              `argument. Equivalent to \`${rawName}(this, ...)\`.`,
-              '',
-          ];
-
-    const leadParams = withMix
-        ? [
-              {
-                  decl: 'mix: Poly<Signal>',
-                  doc: '@param mix Dry/wet crossfade as {@link Poly<Signal>}. 0 = dry input only, 5 = wet result only, 2.5 = equal.',
-              },
-          ]
-        : [];
-
+function renderChainMethod(moduleSchema: Schema, indent: string): string[] {
+    const methodName = chainMethodName(moduleSchema.name);
     const { args, docLines } = buildSignature(moduleSchema, {
         positionalStart: 1,
-        leadParams,
-        leadDocLines,
-        returnsDoc: !withMix,
+        leadDocLines: [
+            `Chain through \`${moduleSchema.name}\` with this signal as its first`,
+            `argument. Equivalent to \`${moduleSchema.name}(this, ...)\`.`,
+            '',
+        ],
     });
-
-    const returnType = withMix
-        ? 'Collection'
-        : getFactoryReturnType(moduleSchema);
 
     const lines: string[] = [`${indent}/**`];
     for (const line of docLines) {
         lines.push(`${indent} * ${line}`);
     }
     lines.push(`${indent} */`);
+    // The chain interfaces sit outside the module's namespace, so a
+    // multi-output interface is named in full.
+    const returnType =
+        (moduleSchema.outputs ?? []).length > 1
+            ? qualifiedMultiOutputInterfaceName(moduleSchema)
+            : getFactoryReturnType(moduleSchema);
     lines.push(`${indent}${methodName}(${args.join(', ')}): ${returnType};`);
     return lines;
 }
@@ -2890,16 +2478,15 @@ export function generateDSL(schemas: Schemas): string {
         '/** Create a buffer module that captures an input signal into a circular audio buffer. */',
     );
     lines.push(
-        'export function $buffer(input: ModuleOutput | Collection | number, lengthSeconds: number, config?: { id?: string }): BufferOutputRef;',
+        'export function $buffer(input: Signal, lengthSeconds: number, config?: { id?: string }): BufferOutputRef;',
     );
     lines.push('');
-    // Shared inline options type for `$delay`, `.$.delay`, and `.$m.delay`.
+    // Shared inline options type for `$delay` and `.delay`.
     const delayOpts =
-        'opts?: { feedback?: Poly<Signal>; feedbackCb?: (mixed: Collection) => Collection | ModuleOutput; maxTime?: number }';
-    // Shared documentation body for `$delay` / `.$.delay` / `.$m.delay`: all
-    // three render the same body, and the chain forms prepend a header for
-    // their call convention. These are synthetic chain methods, so the doc is
-    // hand-written rather than schema-derived.
+        'opts?: { feedback?: Poly<Signal>; feedbackCb?: (mixed: Collection) => Collection | CollectionWithRange; maxTime?: number }';
+    // Shared documentation body for `$delay` and `.delay`; the chain form
+    // prepends a header for its call convention. `$delay` is a DSL helper, so
+    // the doc is hand-written rather than schema-derived.
     const delayBody = [
         'Delay with feedback: sum the input with the attenuated feedback,',
         'optionally process that mix through `feedbackCb`, write it into a',
@@ -2918,7 +2505,7 @@ export function generateDSL(schemas: Schemas): string {
         '$mix([src, $delay(src, 0.25, { feedback: 3 })]).out()',
         '',
         '// lowpass in the loop — echoes darken on every repeat',
-        "src.$.delay(0.5, { feedbackCb: (m) => m.$.lpf('800hz') }).out()",
+        "src.delay(0.5, { feedbackCb: (m) => m.lpf('800hz') }).out()",
         '```',
     ];
     // Render the `$delay` doc at `indent`, prepending optional `header` lines
@@ -2931,43 +2518,33 @@ export function generateDSL(schemas: Schemas): string {
         out.push(...delayBody.map(line), `${indent} */`);
         return out;
     };
-    // Chain-form headers, mirroring `renderDollarMethod`'s lead docs.
-    const dollarDelayHeader = [
+    const chainDelayHeader = [
         'Chain through `$delay` with this signal as its first argument.',
         'Equivalent to `$delay(this, time, opts)`.',
     ];
-    const dollarMixDelayHeader = [
-        'Chain through `$delay`, crossfading the dry input against the wet',
-        'result by a leading `mix` signal (0 = dry, 5 = wet, 2.5 = equal).',
-        'Equivalent to `.pipeMix(s => $delay(s, time, opts), mix)`.',
-    ];
     lines.push(...renderDelayDoc('', []));
     lines.push(
-        `export function $delay(input: Collection | ModuleOutput, time: Poly<Signal>, ${delayOpts}): Collection & { buffer: BufferOutputRef };`,
+        `export function $delay(input: Collection | CollectionWithRange, time: Poly<Signal>, ${delayOpts}): Collection & { buffer: BufferOutputRef };`,
     );
 
-    // `.$.` / `.$m.` chainable module namespaces. The qualifying set matches the
-    // runtime `dollarLookup` exactly (shared `qualifiesForDollarChain` predicate
-    // over the same schemas), so the two cannot drift.
-    const dollarSchemas = userFacingSchemas.filter((s) =>
-        qualifiesForDollarChain(
-            processModuleSchema(s as unknown as ModuleSchema),
-        ),
+    // Chain methods. The qualifying set matches the runtime's exactly: both
+    // apply `qualifiesForChain` to the same schemas.
+    const chainSchemas = userFacingSchemas.filter((s) =>
+        qualifiesForChain(processModuleSchema(s as unknown as ModuleSchema)),
     );
 
     // Flat modules (`$lpf`) become direct members; dotted modules
     // (`$unstable.shape.fold`) nest under a namespace tree of any depth
-    // (`.$.unstable.shape.fold`), mirroring the global namespace and keeping leaf
+    // (`.unstable.shape.fold`), mirroring the global namespace and keeping leaf
     // names like `fold` from colliding with flat modules like `$fold`.
-    interface DollarTypeNode {
+    interface ChainTypeNode {
         leaves: Schema[];
-        children: Map<string, DollarTypeNode>;
+        children: Map<string, ChainTypeNode>;
     }
-    const dollarRoot: DollarTypeNode = { leaves: [], children: new Map() };
-    for (const s of dollarSchemas) {
-        const base = s.name.startsWith('$') ? s.name.slice(1) : s.name;
-        const segments = base.split('.');
-        let node = dollarRoot;
+    const chainRoot: ChainTypeNode = { leaves: [], children: new Map() };
+    for (const s of chainSchemas) {
+        const segments = s.name.slice(1).split('.');
+        let node = chainRoot;
         for (const seg of segments.slice(0, -1)) {
             let child = node.children.get(seg);
             if (child === undefined) {
@@ -2984,75 +2561,55 @@ export function generateDSL(schemas: Schemas): string {
             .filter(Boolean)
             .map((w) => w[0].toUpperCase() + w.slice(1))
             .join('');
-    const sortedChildren = (node: DollarTypeNode): string[] =>
+    const sortedChildren = (node: ChainTypeNode): string[] =>
         [...node.children.keys()].sort();
 
-    // Emit a sub-interface (dry and mix) for every namespace node, so
-    // `.$.unstable.shape.fold` yields `DollarChainUnstable { shape:
-    // DollarChainUnstableShape }` and `DollarChainUnstableShape { fold(...) }`.
+    // Emit a sub-interface for every namespace node, so `.unstable.shape.fold`
+    // yields `ModuleChainUnstable { shape: ModuleChainUnstableShape }` and
+    // `ModuleChainUnstableShape { fold(...) }`.
     const emitNamespaceInterfaces = (
-        node: DollarTypeNode,
+        node: ChainTypeNode,
         path: string[],
     ): void => {
         for (const seg of sortedChildren(node)) {
             emitNamespaceInterfaces(node.children.get(seg)!, [...path, seg]);
         }
         const dotted = path.join('.');
-        for (const [prefix, iface, withMix] of [
-            ['.$', 'DollarChain', false],
-            ['.$m', 'DollarMixChain', true],
-        ] as const) {
-            lines.push('');
-            lines.push(
-                `/** Methods of the \`${prefix}.${dotted}\` chainable namespace. */`,
-            );
-            lines.push(`interface ${iface}${pascal(dotted)} {`);
-            for (const s of node.leaves) {
-                lines.push(...renderDollarMethod(s, withMix, '  '));
-            }
-            for (const seg of sortedChildren(node)) {
-                lines.push(
-                    `  ${seg}: ${iface}${pascal([...path, seg].join('.'))};`,
-                );
-            }
-            lines.push('}');
+        lines.push('');
+        lines.push(`/** The \`$${dotted}\` modules as chain methods. */`);
+        lines.push(`interface ModuleChain${pascal(dotted)} {`);
+        for (const s of node.leaves) {
+            lines.push(...renderChainMethod(s, '  '));
         }
+        for (const seg of sortedChildren(node)) {
+            lines.push(
+                `  readonly ${seg}: ModuleChain${pascal([...path, seg].join('.'))};`,
+            );
+        }
+        lines.push('}');
     };
-    for (const seg of sortedChildren(dollarRoot)) {
-        emitNamespaceInterfaces(dollarRoot.children.get(seg)!, [seg]);
+    for (const seg of sortedChildren(chainRoot)) {
+        emitNamespaceInterfaces(chainRoot.children.get(seg)!, [seg]);
     }
 
     lines.push('');
     lines.push(
-        '/** Methods of the `.$` chainable module namespace (see {@link ModuleOutput.$}). */',
+        '/**',
+        ' * The chain methods of a collection: every module whose first',
+        ' * argument is a {@link Poly<Signal>}, with the receiver as that argument.',
+        " * @example $sine(0).lpf('100hz')  // ≡ $lpf($sine(0), '100hz')",
+        ' */',
     );
-    lines.push('interface DollarChain {');
-    for (const s of dollarRoot.leaves) {
-        lines.push(...renderDollarMethod(s, false, '  '));
+    lines.push('interface ModuleChain {');
+    for (const s of chainRoot.leaves) {
+        lines.push(...renderChainMethod(s, '  '));
     }
-    for (const seg of sortedChildren(dollarRoot)) {
-        lines.push(`  ${seg}: DollarChain${pascal(seg)};`);
+    for (const seg of sortedChildren(chainRoot)) {
+        lines.push(`  readonly ${seg}: ModuleChain${pascal(seg)};`);
     }
     lines.push(
-        ...renderDelayDoc('  ', dollarDelayHeader),
+        ...renderDelayDoc('  ', chainDelayHeader),
         `  delay(time: Poly<Signal>, ${delayOpts}): Collection & { buffer: BufferOutputRef };`,
-    );
-    lines.push('}');
-
-    lines.push('');
-    lines.push(
-        '/** Methods of the `.$m` chainable module namespace (see {@link ModuleOutput.$m}). */',
-    );
-    lines.push('interface DollarMixChain {');
-    for (const s of dollarRoot.leaves) {
-        lines.push(...renderDollarMethod(s, true, '  '));
-    }
-    for (const seg of sortedChildren(dollarRoot)) {
-        lines.push(`  ${seg}: DollarMixChain${pascal(seg)};`);
-    }
-    lines.push(
-        ...renderDelayDoc('  ', dollarMixDelayHeader),
-        `  delay(mix: Poly<Signal>, time: Poly<Signal>, ${delayOpts}): Collection;`,
     );
     lines.push('}');
 

@@ -1,6 +1,6 @@
 import type { ModuleSchema } from '@modular/core';
 import { deriveChannelCount } from '@modular/core';
-import type { ModuleOutput, ScopeConfig } from './GraphBuilder';
+import type { AnyCollection, ScopeConfig } from './GraphBuilder';
 import {
     BaseCollection,
     GraphBuilder,
@@ -240,12 +240,13 @@ export function deriveChannelCountChecked(
     return deriveResult.channelCount;
 }
 
-// Return type for module factories - varies by output configuration
-type SingleOutput = ModuleOutput;
+// Return type for module factories: one output is a collection; several are
+// the root collection with every output by name under `o`.
 type PolyOutput = Collection | CollectionWithRange;
-type MultiOutput = (SingleOutput | PolyOutput) &
-    Record<string, ModuleOutput | Collection | CollectionWithRange>;
-type ModuleReturn = SingleOutput | PolyOutput | MultiOutput;
+type MultiOutput = PolyOutput & {
+    readonly o: Readonly<Record<string, PolyOutput>>;
+};
+type ModuleReturn = PolyOutput | MultiOutput;
 
 type FactoryFunction = (...args: any[]) => ModuleReturn;
 
@@ -400,7 +401,7 @@ export class DSLContext {
             return value.flatMap((v, i) => {
                 const resolved = resolve(v, elementSlot(slot, i));
                 return resolved instanceof BaseCollection
-                    ? [...resolved]
+                    ? resolved.items
                     : [resolved];
             });
         }
@@ -570,29 +571,23 @@ export class DSLContext {
                 // No outputs - return empty object (shouldn't happen in practice)
                 return {} as MultiOutput;
             } else if (outputs.length === 1) {
-                // Single output - return ModuleOutput, Collection, or CollectionWithRange
-                const output = outputs[0];
-                return node._output(output.name, output.polyphonic ?? false);
+                return node._output(outputs[0].name);
             }
-            // Multiple outputs: the root carries every output as a named
-            // property, each a separate untagged object. Read as a signal
-            // itself, the root is the output a `cv` input takes.
-            const named: Record<
-                string,
-                ModuleOutput | Collection | CollectionWithRange
-            > = {};
-            let root: ModuleOutput | Collection | CollectionWithRange;
+            // Multiple outputs: the root's `o` holds every output by name,
+            // each a separate untagged object. Read as a signal itself, the
+            // root is the output a `cv` input takes.
+            const named: Record<string, Collection | CollectionWithRange> = {};
+            let root: Collection | CollectionWithRange;
             const cvOutput = chooseOutput(rootOutputs, 'cv');
             for (const output of outputs) {
                 const name = sanitizeOutputName(output.name);
-                const polyphonic = output.polyphonic ?? false;
-                named[name] = node._output(output.name, polyphonic);
+                named[name] = node._output(output.name);
                 if (name === cvOutput) {
-                    root = node._output(output.name, polyphonic);
+                    root = node._output(output.name);
                 }
             }
             markRoot(root!, { outputs: rootOutputs, values: named });
-            return Object.assign(root!, named);
+            return Object.assign(root!, { o: Object.freeze(named) });
         };
     }
 
@@ -603,19 +598,8 @@ export class DSLContext {
         return this.builder;
     }
 
-    scope<T extends ModuleOutput | Collection | CollectionWithRange>(
-        target: T,
-        config?: ScopeConfig,
-    ): T {
-        const loc = captureSourceLocation();
-        if (
-            target instanceof Collection ||
-            target instanceof CollectionWithRange
-        ) {
-            this.builder.addScope([...target], config, loc);
-        } else {
-            this.builder.addScope(target, config, loc);
-        }
+    scope<T extends AnyCollection>(target: T, config?: ScopeConfig): T {
+        this.builder.addScope(target.items, config, captureSourceLocation());
         return target;
     }
 }

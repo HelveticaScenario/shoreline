@@ -153,7 +153,7 @@ const COMB_DOCS: ModuleDocs = ModuleDocs {
         title: "Plucked strings from noise bursts",
         code: r#"
             const burst = $noise('white').amp(
-              $perc($clock.beatTrigger, { decay: 0.02 }),
+              $perc($clock.o.beatTrigger, { decay: 0.02 }),
             )
             const notes = $p('c3 eb3 g3 bb3').c
             $unstable.filter

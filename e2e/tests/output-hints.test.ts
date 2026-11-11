@@ -47,14 +47,14 @@ test.describe('output resolution hints', () => {
         );
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
-            .toContain('$saw(seq.cv).amp($perc(seq.trig)).out()');
+            .toContain('$saw(seq.o.cv).amp($perc(seq.o.trig)).out()');
     });
 
     test('a chain shows the hint after its receiver', async ({ window }) => {
-        await setSource(window, `$p('0*8').c.$.perc().out()`);
+        await setSource(window, `$p('0*8').c.perc().out()`);
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
-            .toContain(`$p('0*8').c.trig.$.perc().out()`);
+            .toContain(`$p('0*8').c.o.trig.perc().out()`);
     });
 
     test('an array built in a loop shows hints before the patch runs', async ({
@@ -66,7 +66,7 @@ test.describe('output resolution hints', () => {
         );
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
-            .toContain('$sine(seqs.cv).amp($perc(seqs.trig)).out()');
+            .toContain('$sine(seqs.o.cv).amp($perc(seqs.o.trig)).out()');
     });
 
     test('an untyped helper parameter is hinted once the patch has run', async ({
@@ -83,7 +83,7 @@ test.describe('output resolution hints', () => {
         await window.evaluate(() => window.__TEST_API__!.executePatch());
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
-            .toContain('return $saw(s.cv).amp($perc(s.trig))');
+            .toContain('return $saw(s.o.cv).amp($perc(s.o.trig))');
 
         // The hints follow the code when a line is added above it.
         await window.evaluate(() => {
@@ -101,7 +101,7 @@ test.describe('output resolution hints', () => {
         });
         await window.waitForTimeout(3000);
         expect(await renderedText(window)).toContain(
-            'return $saw(s.cv).amp($perc(s.trig))',
+            'return $saw(s.o.cv).amp($perc(s.o.trig))',
         );
     });
 });

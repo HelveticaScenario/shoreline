@@ -250,14 +250,14 @@ describe('filters', () => {
 describe('envelopes', () => {
     test('$adsr with gate input and config', () => {
         const patch = execPatch(
-            '$adsr($clock.beatTrigger, { attack: 0.1, decay: 0.2, sustain: 3, release: 0.5 }).out()',
+            '$adsr($clock.o.beatTrigger, { attack: 0.1, decay: 0.2, sustain: 3, release: 0.5 }).out()',
         );
         expect(findModules(patch, '$adsr').length).toBe(1);
     });
 
     test('$perc with trigger', () => {
         const patch = execPatch(
-            '$perc($clock.beatTrigger, { decay: 0.3 }).out()',
+            '$perc($clock.o.beatTrigger, { decay: 0.3 }).out()',
         );
         expect(findModules(patch, '$perc').length).toBe(1);
     });
@@ -280,7 +280,7 @@ describe('polyphony', () => {
     test('an output with fixed channels keeps them on a wider module', () => {
         const patch = execPatch(`
             const cloud = $granular(0, 0, { freq: ['c4', 'e4', 'g4'] })
-            $sine(cloud.voices).out()
+            $sine(cloud.o.voices).out()
             $saw(cloud).out()
         `);
         const perVoice = findModules(patch, '$sine')[0].params.freq;
@@ -288,8 +288,8 @@ describe('polyphony', () => {
         expect(perVoice).toHaveLength(3);
         expect(stereo).toHaveLength(2);
         expect(stereo.map((s: { port: string }) => s.port)).toEqual([
-            'output',
-            'output',
+            'stereo',
+            'stereo',
         ]);
     });
 });
@@ -487,7 +487,7 @@ describe('modulation routing', () => {
     test('subtractive synth voice (osc → env → filter)', () => {
         const source = `
             const osc = $saw("C3")
-            const env = $adsr($clock.beatTrigger, { attack: 0.01, decay: 0.3, sustain: 2, release: 0.5 })
+            const env = $adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.3, sustain: 2, release: 0.5 })
             $lpf(osc, env.range("C3", "C6")).out()
         `;
         const patch = execPatch(source);
@@ -541,10 +541,26 @@ describe('sequencing', () => {
         ).toEqual({ start: 3, end: 10 });
     });
 
+    test('a channel of a sequence feeds each input its fitting output', () => {
+        const patch = execPatch(`
+            const seq = $p('[c4,e4] [g4,b4]').c;
+            $sine(seq[1]).amp($perc(seq[1])).out();
+        `);
+        const [cycle] = findModules(patch, '$cycle');
+        const [sine] = findModules(patch, '$sine');
+        const [perc] = findModules(patch, '$perc');
+        expect(sine.params.freq).toMatchObject([
+            { channel: 1, module: cycle.id, port: 'cv' },
+        ]);
+        expect(perc.params.trigger).toMatchObject([
+            { channel: 1, module: cycle.id, port: 'trig' },
+        ]);
+    });
+
     test('.c is .cycle(), made once per pattern', () => {
         const patch = execPatch(`
             const seq = $p("c4 e4");
-            $sine(seq.c).amp($perc(seq.c.trig)).out();
+            $sine(seq.c).amp($perc(seq.c.o.trig)).out();
         `);
         const [cycle] = findModules(patch, '$cycle');
         const [sine] = findModules(patch, '$sine');
@@ -1180,14 +1196,14 @@ describe('utilities', () => {
 
     test('$sah (sample and hold)', () => {
         const patch = execPatch(
-            '$sah($noise("white"), $clock.beatTrigger).out()',
+            '$sah($noise("white"), $clock.o.beatTrigger).out()',
         );
         expect(findModules(patch, '$sah').length).toBe(1);
     });
 
     test('$slew', () => {
         const patch = execPatch(
-            '$slew($clock.beatTrigger, { rise: 0.01, fall: 0.01 }).out()',
+            '$slew($clock.o.beatTrigger, { rise: 0.01, fall: 0.01 }).out()',
         );
         expect(findModules(patch, '$slew').length).toBe(1);
     });
@@ -1208,14 +1224,14 @@ describe('utilities', () => {
         }>;
         expect(scale).toHaveLength(4);
         expect(
-            scale.every((c) => c.module === chord.id && c.port === 'output'),
+            scale.every((c) => c.module === chord.id && c.port === 'pitch'),
         ).toBe(true);
     });
 
     test('$quantizer takes a signal scale and a gate', () => {
         const patch = execPatch(
             'const midi = $midiCV({ channels: 4 })\n' +
-                '$quantizer($sine("1hz"), midi, { gate: midi.gate }).out()',
+                '$quantizer($sine("1hz"), midi, { gate: midi.o.gate }).out()',
         );
         expect(findModules(patch, '$chord').length).toBe(0);
         const [midi] = findModules(patch, '$midiCV');
@@ -1257,7 +1273,7 @@ describe('utilities', () => {
     });
 
     test('$clockDivider', () => {
-        const patch = execPatch('$clockDivider($clock.beatTrigger, 4).out()');
+        const patch = execPatch('$clockDivider($clock.o.beatTrigger, 4).out()');
         expect(findModules(patch, '$clockDivider').length).toBe(1);
     });
 
@@ -1729,9 +1745,9 @@ describe('buttons', () => {
         ).toThrow('already used by a button');
     });
 
-    test('$btn chains through .$.hold for fixed-length triggers', () => {
+    test('$btn chains through .hold for fixed-length triggers', () => {
         const result = exec(
-            '$sine("c4").amplitude($adsr($btn("hit").$.hold(0.2))).out()',
+            '$sine("c4").amplitude($adsr($btn("hit").hold(0.2))).out()',
         );
         const holds = findModules(result.patch, '$hold');
         expect(holds.length).toBe(1);
@@ -1813,14 +1829,14 @@ describe('built-in modules', () => {
     test('$clock is available and has outputs', () => {
         // Use $clock outputs as trigger input to an envelope
         const patch = execPatch(
-            '$adsr($clock.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
+            '$adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
         );
         expect(patch.modules.find((m) => m.id === 'ROOT_CLOCK')).toBeDefined();
     });
 
-    test('$clock.beatTrigger can modulate another module', () => {
+    test('$clock.o.beatTrigger can modulate another module', () => {
         const patch = execPatch(
-            '$adsr($clock.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
+            '$adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
         );
         expect(patch.modules.find((m) => m.id === 'ROOT_CLOCK')).toBeDefined();
         expect(findModules(patch, '$adsr').length).toBe(1);
@@ -1870,7 +1886,7 @@ describe('fx modules', () => {
 
     test('$enosc', () => {
         const patch = execPatch(
-            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" }).odd.out()',
+            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" }).o.odd.out()',
         );
         const [enosc] = findModules(patch, '$enosc');
         expect(enosc.params.scale).toEqual({ type: 'minor' });
@@ -2021,7 +2037,7 @@ describe('complex patches', () => {
         const source = `
             const seq = $cycle($p("c3 e3 g3 b3"))
             const osc = $saw(seq)
-            const env = $adsr($clock.beatTrigger, { attack: 0.01, decay: 0.2, sustain: 2, release: 0.3 })
+            const env = $adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.2, sustain: 2, release: 0.3 })
             $lpf(osc, env.range("C3", "C6")).out()
         `;
         const patch = execPatch(source);
@@ -2361,7 +2377,7 @@ describe('$delay', () => {
 
     test('feedbackCb processes the mix before it is written to the buffer', () => {
         const patch = execPatch(
-            '$delay($sine("C4"), 0.25, { feedbackCb: (m) => m.$.lpf("800hz") }).out()',
+            '$delay($sine("C4"), 0.25, { feedbackCb: (m) => m.lpf("800hz") }).out()',
         );
         const lpf = findModules(patch, '$lpf');
         expect(lpf.length).toBe(1);
@@ -2374,18 +2390,18 @@ describe('$delay', () => {
         expect(bufSrc).toBe(lpf[0].id);
     });
 
-    test('.$.delay is equivalent to $delay(self, ...)', () => {
+    test('.delay is equivalent to $delay(self, ...)', () => {
         const types = (p: PatchGraph) =>
             p.modules.map((m) => m.moduleType).sort();
         const direct = execPatch('$delay($sine("C4"), 0.25).out()');
-        const chained = execPatch('$sine("C4").$.delay(0.25).out()');
+        const chained = execPatch('$sine("C4").delay(0.25).out()');
         expect(types(chained)).toEqual(types(direct));
     });
 
-    test('.$m.delay crossfades the dry signal against the wet delay', () => {
-        const patch = execPatch('$sine("C4").$m.delay(2.5, 0.25).out()');
+    test('.delay(...).wet crossfades the dry signal against the wet delay', () => {
+        const patch = execPatch('$sine("C4").delay(0.25).wet(2.5).out()');
         expect(findModules(patch, '$delayRead').length).toBe(1);
-        // crossfadeMix remaps the dry leg — absent from the plain `.$.` form
+        // crossfadeMix remaps the dry leg — absent from the plain `.` form
         expect(findModules(patch, '$remap').length).toBeGreaterThanOrEqual(1);
     });
 
@@ -2396,6 +2412,18 @@ describe('$delay', () => {
         expect(findModules(patch, '$buffer').length).toBe(1);
         // one read in the feedback loop, one for the external tap
         expect(findModules(patch, '$delayRead').length).toBe(2);
+    });
+
+    test('slices and channels of a delay keep its buffer', () => {
+        const patch = execPatch(
+            'const d = $delay($sine(["C4", "E4"]), 0.25)\n$delayRead(d[1].buffer, 0.5).out()\n$delayRead(d.slice(0, 1).buffer, 0.75).out()',
+        );
+        const [buffer] = findModules(patch, '$buffer');
+        const reads = findModules(patch, '$delayRead');
+        expect(reads).toHaveLength(3);
+        for (const read of reads) {
+            expect(read.params.buffer).toMatchObject({ module: buffer.id });
+        }
     });
 
     test('sizes the feedback path to the widest polysignal param', () => {
@@ -2735,11 +2763,13 @@ describe('$phase helpers', () => {
     });
 });
 
-// ─── $mixDown / .mix() fold-down ───────────────────────────────────────────────
+// ─── $mixDown fold-down ────────────────────────────────────────────────────────
 
-describe('$mixDown and Collection.mix()', () => {
-    test('.mix(2) on a 3-voice spread builds one $mixDown folding 3→2', () => {
-        const patch = execPatch('$saw($spread(0, 5, 3)).mix(2).scope().out()');
+describe('$mixDown', () => {
+    test('.mixDown(2) on a 3-voice spread builds one $mixDown folding 3→2', () => {
+        const patch = execPatch(
+            '$saw($spread(0, 5, 3)).mixDown(2).scope().out()',
+        );
         const mixDowns = findModules(patch, '$mixDown');
         expect(mixDowns.length).toBe(1);
         expect(mixDowns[0].params.channels).toBe(2);
@@ -2750,7 +2780,7 @@ describe('$mixDown and Collection.mix()', () => {
         expect(patch.scopes[0].channels.length).toBe(2);
     });
 
-    test('$mixDown(src, 2) factory form matches the .mix() shorthand', () => {
+    test('$mixDown(src, 2) factory form matches the chain form', () => {
         const patch = execPatch(
             '$mixDown($saw($spread(0, 5, 3)), 2).scope().out()',
         );
@@ -2758,21 +2788,23 @@ describe('$mixDown and Collection.mix()', () => {
         expect(patch.scopes[0].channels.length).toBe(2);
     });
 
-    test('.mix() defaults to mono', () => {
-        const patch = execPatch('$saw($spread(0, 5, 3)).mix().scope().out()');
+    test('.mixDown() defaults to mono', () => {
+        const patch = execPatch(
+            '$saw($spread(0, 5, 3)).mixDown().scope().out()',
+        );
         expect(findModules(patch, '$mixDown').length).toBe(1);
         expect(patch.scopes[0].channels.length).toBe(1);
     });
 
-    test('.mix(2, "average") rides mode through the config object', () => {
+    test('.mixDown(2, { mode }) sets how channels combine', () => {
         const patch = execPatch(
-            '$saw($spread(0, 5, 3)).mix(2, "average").scope().out()',
+            '$saw($spread(0, 5, 3)).mixDown(2, { mode: "average" }).scope().out()',
         );
         expect(findModules(patch, '$mixDown')[0].params.mode).toBe('average');
     });
 
-    test('ModuleOutput.mix(2) pans a single channel to stereo center', () => {
-        const patch = execPatch('$saw("c4").mix(2).scope().out()');
+    test('.mixDown(2) pans a single channel to stereo center', () => {
+        const patch = execPatch('$saw("c4").mixDown(2).scope().out()');
         expect(findModules(patch, '$mixDown').length).toBe(1);
         expect(patch.scopes[0].channels.length).toBe(2);
     });

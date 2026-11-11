@@ -2,7 +2,7 @@
  * Whether a patch expression evaluates to an audio or a video value, read
  * from the source alone: the generated DSL lib's return types, followed
  * along calls, chains, and `const` bindings. Picks between same-named audio
- * and video members, such as `.range` or `.$.fold`.
+ * and video members, such as `.range` or `.fold`.
  */
 import ts from 'typescript';
 
@@ -55,56 +55,52 @@ export function createFamilyReader(
         }
         const callee = expr.expression;
         const fn = dottedName(callee);
-        const chain = ts.isPropertyAccessExpression(callee)
-            ? splitChain(callee)
-            : null;
         if (
             fn !== null &&
-            !chain?.dollar &&
             (api.functions.has(fn) || api.videoFunctions.has(fn))
         ) {
             return api.videoFunctions.has(fn) ? 'video' : 'audio';
         }
-        if (!chain) {
+        if (!ts.isPropertyAccessExpression(callee)) {
             // A bare `$` factory (`$saw(...)`) makes an audio module.
             const shadowed =
                 ts.isIdentifier(callee) && constInitializerOf(callee) !== null;
             return fn?.startsWith('$') && !shadowed ? 'audio' : null;
         }
+        const chain = splitChain(callee, api);
         const receiver = next(chain.receiver);
         if (!receiver) {
             return null;
         }
-        const key = chain.dollar
-            ? `${chain.dollar}.${chain.path.join('.')}`
-            : chain.path[0];
-        return api[receiver].returnsVideo.has(key) ? 'video' : 'audio';
+        if (receiver === 'audio' && chain.chain !== null) {
+            return 'audio';
+        }
+        return api[receiver].returnsVideo.has(callee.name.text)
+            ? 'video'
+            : 'audio';
     };
     return (expr) => familyOf(expr, 0);
 }
 
 /**
- * `recv.$.a.b` splits into receiver `recv`, dollar `$`, and path
- * `['a', 'b']`; a callee without a `$` / `$m` segment has receiver
- * `callee.expression` and no dollar.
+ * The receiver of method call `callee`, and the chain module it calls if
+ * read as an audio chain: `recv.mi.chorus` splits into receiver `recv` and
+ * path `mi.chorus`. The longest trailing path that names a chain module
+ * wins; without one the receiver is `callee.expression` and `chain` null.
  */
-export function splitChain(callee: ts.PropertyAccessExpression): {
-    receiver: ts.Expression;
-    dollar: '$' | '$m' | null;
-    path: string[];
-} {
-    const path: string[] = [];
+export function splitChain(
+    callee: ts.PropertyAccessExpression,
+    api: ApiIndex,
+): { receiver: ts.Expression; chain: string | null } {
+    let found: { receiver: ts.Expression; chain: string } | undefined;
+    const names: string[] = [];
     for (let e: ts.Expression = callee; ts.isPropertyAccessExpression(e); ) {
-        const name = e.name.text;
-        if (name === '$' || name === '$m') {
-            return { dollar: name, path, receiver: e.expression };
-        }
-        path.unshift(name);
+        names.unshift(e.name.text);
         e = e.expression;
+        const path = names.join('.');
+        if (api.audio.chains.has(path)) {
+            found = { chain: path, receiver: e };
+        }
     }
-    return {
-        dollar: null,
-        path: [callee.name.text],
-        receiver: callee.expression,
-    };
+    return found ?? { chain: null, receiver: callee.expression };
 }

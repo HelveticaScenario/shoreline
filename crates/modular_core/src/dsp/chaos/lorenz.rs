@@ -146,7 +146,7 @@ const LORENZ_DOCS: ModuleDocs = ModuleDocs {
             title: "Wandering filter sweep",
             code: r#"
                 $saw('c2')
-                  .$.lpf($lorenz({ rate: 0.2 }).range('c3', 'c6'), 3)
+                  .lpf($lorenz({ rate: 0.2 }).range('c3', 'c6'), 3)
                   .out()
             "#,
         },
@@ -155,7 +155,7 @@ const LORENZ_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const chaos = $lorenz({ rate: 0.1 })
                 $sine(chaos.range('a3', 'a4')).out()
-                $sine(chaos.y.range('e4', 'e5')).out()
+                $sine(chaos.o.y.range('e4', 'e5')).out()
             "#,
         },
     ],

@@ -48,7 +48,7 @@ const PERC_DOCS: ModuleDocs = ModuleDocs {
             title: "Noise hi-hat",
             code: r#"
                 $noise('white')
-                  .amp($perc($clock.beatTrigger, { decay: 0.05 }))
+                  .amp($perc($clock.o.beatTrigger, { decay: 0.05 }))
                   .out()
             "#,
         },

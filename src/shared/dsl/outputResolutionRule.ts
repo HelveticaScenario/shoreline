@@ -53,7 +53,7 @@ export function chooseOutput(
 /** The slot of a chain method's receiver. */
 export const RECEIVER_SLOT = 'receiver';
 
-/** The slot of the mix amount of `.$m.x(mix, …)` and `.pipeMix(fn, mix)`. */
+/** The slot of the mix amount of `.pipeMix(fn, mix)`. */
 export const MIX_SLOT = 'mix';
 
 /** The slot of element `index` of the array at `slot`. */
@@ -85,7 +85,7 @@ export function optionSlot(index: number, key: string): string {
  * `FIRST_LINE_COLUMN_OFFSET`). `slot` names the value within that call: for a
  * module call or `$delay`, the param name or the path into a param that
  * nests signals; for a chain method, `RECEIVER_SLOT`, an `argumentSlot` or an
- * `optionSlot`; `MIX_SLOT` for a mix amount; any of them through
+ * `optionSlot`; `MIX_SLOT` for the mix amount of `.pipeMix`; any of them through
  * `elementSlot` for an element of an array. `output` is the property name of
  * the chosen output.
  */

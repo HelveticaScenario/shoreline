@@ -62,8 +62,8 @@ $eq(sig, { sections: [{ freq: 0 }] }).out()`;
         expect(textAt(source, panel.sourceLocation!)).toMatch(/^\$eq\(/);
     });
 
-    test('the $ chain form anchors at its eq method name', () => {
-        const source = `$saw('c2').$.eq({ ui: true }).out()`;
+    test('the chain form anchors at its eq method name', () => {
+        const source = `$saw('c2').eq({ ui: true }).out()`;
         const [panel] = exec(source).eqPanels;
         expect(textAt(source, panel.sourceLocation!)).toMatch(/^eq\(\{/);
     });

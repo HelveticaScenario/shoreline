@@ -33,6 +33,11 @@ strip = "none"
 #              yet; ship the `.pdb` with the `.node` for file:line).
 debug = "line-tables-only"
 
+# The DSP tests render audio, which runs about five times faster at opt-level
+# 1, for a similar rebuild time. Debug app builds keep the dev profile.
+[profile.test]
+opt-level = 1
+
 # Profile for Tracy profiling - keeps debug symbols for stack traces
 [profile.profiling]
 inherits = "release"

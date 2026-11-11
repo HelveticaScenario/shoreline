@@ -59,7 +59,7 @@ const SLEW_DOCS: ModuleDocs = ModuleDocs {
             title: "Gliding bassline",
             code: r#"
                 $saw($slew($p('c2 c3 eb2 g2').c, { fall: 0.1 }))
-                  .$.lpf('c5', 2)
+                  .lpf('c5', 2)
                   .out()
             "#,
         },
@@ -70,7 +70,7 @@ const SLEW_DOCS: ModuleDocs = ModuleDocs {
                   $slew(
                     $sah(
                       $noise('white').range('c3', 'c5'),
-                      $clock.beatTrigger,
+                      $clock.o.beatTrigger,
                     ),
                     { fall: 0.05 },
                   ),

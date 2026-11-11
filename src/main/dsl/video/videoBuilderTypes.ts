@@ -5,15 +5,15 @@ import type {
     VideoValue,
 } from '../../../shared/video/videoGraph';
 import {
+    type AnyCollection,
     BaseCollection,
     type Collection,
     type CollectionWithRange,
-    ModuleOutput,
 } from '../GraphBuilder';
 import { VideoOutput } from './VideoOutput';
 
-/** An audio signal a video input reads: one output, or channels the engine sums to one. */
-export type AudioSignal = ModuleOutput | BaseCollection<ModuleOutput>;
+/** An audio signal a video input reads: its channels, which the engine sums to one. */
+export type AudioSignal = AnyCollection;
 
 /**
  * A constant, a video signal, or an audio signal (a slider, button or any
@@ -174,7 +174,7 @@ export type VideoNodeExtra = Pick<
 
 export function describe(value: unknown): string {
     if (value instanceof VideoOutput) return 'a video signal';
-    if (value instanceof ModuleOutput || value instanceof BaseCollection) {
+    if (value instanceof BaseCollection) {
         return 'an audio signal';
     }
     return String(value);

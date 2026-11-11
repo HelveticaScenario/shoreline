@@ -75,7 +75,7 @@ describe('resolution by input type', () => {
     test('a trig input falls back to a gate', () => {
         expect(
             ports(
-                `$perc($coinFlip($clock.beatTrigger, 2.5)).out()`,
+                `$perc($coinFlip($clock.o.beatTrigger, 2.5)).out()`,
                 '$perc',
                 'trigger',
             ),
@@ -91,7 +91,7 @@ describe('resolution by input type', () => {
     test('with nothing matching, the default is used', () => {
         expect(
             ports(
-                `$sine($coinFlip($clock.beatTrigger, 2.5)).out()`,
+                `$sine($coinFlip($clock.o.beatTrigger, 2.5)).out()`,
                 '$sine',
                 'freq',
             ),
@@ -112,16 +112,16 @@ describe('resolution by input type', () => {
 describe('explicit outputs', () => {
     test('a named output is never re-resolved', () => {
         expect(
-            ports(`$perc($p('c e g').c.cv).out()`, '$perc', 'trigger'),
+            ports(`$perc($p('c e g').c.o.cv).out()`, '$perc', 'trigger'),
         ).toEqual(['cv']);
-        expect(ports(`$saw($p('c e g').c.trig).out()`, '$saw', 'freq')).toEqual(
-            ['trig'],
-        );
+        expect(
+            ports(`$saw($p('c e g').c.o.trig).out()`, '$saw', 'freq'),
+        ).toEqual(['trig']);
     });
 
     test('the default output has a named property', () => {
         expect(
-            ports(`$perc($clock.playhead).out()`, '$perc', 'trigger'),
+            ports(`$perc($clock.o.playhead).out()`, '$perc', 'trigger'),
         ).toEqual(['playhead']);
     });
 });
@@ -150,14 +150,14 @@ $sine(seqs).amp($perc(seqs)).out()`;
 });
 
 describe('chaining', () => {
-    test('.$. resolves the receiver by the chained module', () => {
-        expect(ports(`$p('0*8').c.$.perc().out()`, '$perc', 'trigger')).toEqual(
-            ['trig'],
-        );
-        expect(ports(`$p('0*8').c.$.adsr().out()`, '$adsr', 'gate')).toEqual([
+    test('. resolves the receiver by the chained module', () => {
+        expect(ports(`$p('0*8').c.perc().out()`, '$perc', 'trigger')).toEqual([
+            'trig',
+        ]);
+        expect(ports(`$p('0*8').c.adsr().out()`, '$adsr', 'gate')).toEqual([
             'gate',
         ]);
-        expect(ports(`$p('c e g').c.$.saw().out()`, '$saw', 'freq')).toEqual([
+        expect(ports(`$p('c e g').c.saw().out()`, '$saw', 'freq')).toEqual([
             'cv',
         ]);
     });
@@ -223,10 +223,8 @@ describe('resolution records', () => {
         ).toEqual(['3 trigger.0 trig', '3 trigger.1 trig']);
     });
 
-    test('.$. records the chained module param', () => {
-        expect(records(`$p('0*8').c.$.perc().out()`)).toEqual([
-            '1 trigger trig',
-        ]);
+    test('. records the chained module param', () => {
+        expect(records(`$p('0*8').c.perc().out()`)).toEqual(['1 trigger trig']);
     });
 
     test('chain methods record the receiver and argument index', () => {
@@ -246,7 +244,7 @@ describe('resolution records', () => {
     test('named outputs and single-output modules record nothing', () => {
         expect(
             records(
-                `const seq = $p('c e g').c\n$saw(seq.cv).amp($perc(seq.trig)).out()`,
+                `const seq = $p('c e g').c\n$saw(seq.o.cv).amp($perc(seq.o.trig)).out()`,
             ),
         ).toEqual([]);
     });

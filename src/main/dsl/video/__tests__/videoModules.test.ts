@@ -22,9 +22,9 @@ describe('$v modules', () => {
             expect(
                 wgslOf(`$v.out($v.blend($v.ramp(), $v.solid(1, 0, 0), 1.5));`),
             ).toMatch(/let v\d: vec4f = mix\(v\d, v\d, 1\.5\);/);
-            expect(
-                wgslOf(`$v.ramp().$.blend($v.solid(1, 0, 0)).out();`),
-            ).toMatch(/let v\d: vec4f = mix\(v\d, v\d, 0\.5\);/);
+            expect(wgslOf(`$v.ramp().blend($v.solid(1, 0, 0)).out();`)).toMatch(
+                /let v\d: vec4f = mix\(v\d, v\d, 0\.5\);/,
+            );
         });
 
         it('gives a number to a signal operand as an opaque gray', () => {
@@ -157,7 +157,7 @@ describe('$v modules', () => {
 
         it('shapes each channel of a color and keeps its alpha', () => {
             const wgsl = wgslOf(
-                `$v.hsv($v.ramp()).$.posterize(3).$.comparator(0.4).out();`,
+                `$v.hsv($v.ramp()).posterize(3).comparator(0.4).out();`,
             );
             expect(wgsl).toMatch(/video_posterize\(v\d, 3\.0, 0\.6\)/);
             expect(wgsl).toMatch(/video_comparator\(v\d, 0\.4, 0\.0\)/);
@@ -165,7 +165,7 @@ describe('$v modules', () => {
         });
 
         it('posterizes to finite levels at bins or gamma 0', () => {
-            const wgsl = wgslOf(`$v.ramp().$.posterize().out();`);
+            const wgsl = wgslOf(`$v.ramp().posterize().out();`);
             for (const [bins, gamma] of [
                 [0, 0.6],
                 [3, 0],
@@ -185,7 +185,7 @@ describe('$v modules', () => {
         });
 
         it("posterizes along a gamma curve, as Hydra's posterize does", () => {
-            const wgsl = wgslOf(`$v.ramp().$.posterize().out();`);
+            const wgsl = wgslOf(`$v.ramp().posterize().out();`);
             const level = (x: number, bins: number, gamma: number) =>
                 (
                     callWgsl(
@@ -226,7 +226,7 @@ describe('$v modules', () => {
         });
 
         it('folds to match the input times the gain below 1 / gain', () => {
-            const wgsl = wgslOf(`$v.ramp().$.fold(4).out();`);
+            const wgsl = wgslOf(`$v.ramp().fold(4).out();`);
             const fold = (x: number) =>
                 (callWgsl(wgsl, 'video_fold', [x, x, x, 1], 4) as number[])[0];
             expect(fold(0.1)).toBeCloseTo(0.4);
@@ -235,9 +235,9 @@ describe('$v modules', () => {
         });
 
         it('swaps the sides of comparator with invert', () => {
-            const above = wgslOf(`$v.ramp().$.comparator(0.3).out();`);
+            const above = wgslOf(`$v.ramp().comparator(0.3).out();`);
             const below = wgslOf(
-                `$v.ramp().$.comparator(0.3, 0, { invert: true }).out();`,
+                `$v.ramp().comparator(0.3, 0, { invert: true }).out();`,
             );
             expect(above).toContain('clamp((x - vec3f(threshold))');
             expect(below).toContain('clamp((vec3f(threshold) - x)');
@@ -360,7 +360,7 @@ describe('$v modules', () => {
 
         it('turns hue with the shared hsv helper', () => {
             const wgsl = wgslOf(`
-                $v.hsv($v.ramp()).$.hue(0.25).$.contrast(2).out();
+                $v.hsv($v.ramp()).hue(0.25).contrast(2).out();
             `);
             expect(wgsl.match(/fn hsv_to_rgb\(/g)).toHaveLength(1);
             expect(wgsl).toContain('fn rgb_to_hsv(');
@@ -404,13 +404,13 @@ describe('$v modules', () => {
         });
 
         it('edges reads the eight neighbors one pixel away', () => {
-            const wgsl = wgslOf(`$v.edges($v.ramp()).$.hsv().out();`);
+            const wgsl = wgslOf(`$v.edges($v.ramp()).hsv().out();`);
             expect(wgsl.match(/\/ u\.resolution\)/g)).toHaveLength(8);
         });
 
         it('chains', () => {
             const wgsl = wgslOf(`
-                $v.noise(1).$.blur(0.01).$.edges(2).$.hsv().out();
+                $v.noise(1).blur(0.01).edges(2).hsv().out();
             `);
             expect(wgsl).toContain('sobel_magnitude(');
         });
@@ -454,7 +454,7 @@ describe('$v modules', () => {
 
         it('chains in any order and keeps the color', () => {
             const wgsl = wgslOf(`
-                $v.hsv($v.ramp()).$.scanlines(180, 0.35).$.vignette(0.7).$.grain(0.08).out();
+                $v.hsv($v.ramp()).scanlines(180, 0.35).vignette(0.7).grain(0.08).out();
             `);
             expect(wgsl).toContain('vignette_falloff(');
             expect(wgsl).toContain('grain_value(');
@@ -484,7 +484,7 @@ describe('$v modules', () => {
 
         it('adds the glow with the add helper', () => {
             const wgsl = wgslOf(`
-                $v.ramp().$.bloom(0.02).$.hsv().out();
+                $v.ramp().bloom(0.02).hsv().out();
             `);
             expect(wgsl).toMatch(/let v\d+: vec4f = video_add\(v\d+, v\d+\);/);
         });
@@ -506,7 +506,7 @@ describe('Hydra color adjustments', () => {
     };
 
     it('brightness adds to every color channel without clipping', () => {
-        const wgsl = wgslOf(`$v.osc(4).$.brightness().out()`);
+        const wgsl = wgslOf(`$v.osc(4).brightness().out()`);
         expect(wgsl).toMatch(/video_brightness\(v\d, 0\.4\)/);
         near(
             callWgsl(wgsl, 'video_brightness', [0.2, 0.5, 0.9, 0.7], 0.4),
@@ -515,7 +515,7 @@ describe('Hydra color adjustments', () => {
     });
 
     it("saturate mixes away from the gray with Hydra's weights", () => {
-        const wgsl = wgslOf(`$v.osc(4).$.saturate().out()`);
+        const wgsl = wgslOf(`$v.osc(4).saturate().out()`);
         expect(wgsl).toMatch(/video_saturate\(v\d, 2\.0\)/);
         const gray = 0.2125 * 0.8 + 0.7154 * 0.4 + 0.0721 * 0.2;
         near(callWgsl(wgsl, 'video_saturate', [0.8, 0.4, 0.2, 1], 0), [
@@ -533,7 +533,7 @@ describe('Hydra color adjustments', () => {
     });
 
     it('colorama shifts hue, saturation and value and wraps each channel', () => {
-        const wgsl = wgslOf(`$v.osc(4).$.hsv().$.colorama().out()`);
+        const wgsl = wgslOf(`$v.osc(4).hsv().colorama().out()`);
         expect(wgsl).toMatch(/video_colorama\(v\d, 0\.005\)/);
         // Pure red is hue 0, saturation 1, value 1; adding 0.5 gives hue 0.5
         // (cyan), saturation 1.5 and value 1.5: (-0.75, 1.5, 1.5) before
@@ -545,10 +545,10 @@ describe('Hydra color adjustments', () => {
         near(callWgsl(wgsl, 'video_colorama', [1, 0, 0, 1], 0), [0, 0, 0, 1]);
     });
 
-    it('chains under .$ and .$m', () => {
+    it('chains, and fades with wet', () => {
         expect(() =>
             exec(
-                `$v.osc(4).$.brightness(0.1).$.saturate(1.5).$m.colorama(0.5, 0.1).out()`,
+                `$v.osc(4).brightness(0.1).saturate(1.5).colorama(0.1).wet(0.5).out()`,
             ),
         ).not.toThrow();
     });
@@ -571,7 +571,7 @@ describe('Hydra color functions', () => {
     });
 
     it('contrast scales the distance from mid-gray past 0 and 1', () => {
-        const wgsl = wgslOf(`$v.osc(4).$.contrast(3).out()`);
+        const wgsl = wgslOf(`$v.osc(4).contrast(3).out()`);
         near(
             callWgsl(wgsl, 'video_contrast', [0.9, 0.1, 0.5, 0.7], 3),
             [1.7, -0.7, 0.5, 0.7],
@@ -579,7 +579,7 @@ describe('Hydra color functions', () => {
     });
 
     it('color multiplies each channel, and a negative amount inverts it', () => {
-        const wgsl = wgslOf(`$v.osc(4).$.color(1, 0.5, 0).out()`);
+        const wgsl = wgslOf(`$v.osc(4).color(1, 0.5, 0).out()`);
         expect(wgsl).toMatch(
             /video_color\(v\d, vec4f\(1\.0, 0\.5, 0\.0, 1\.0\)\)/,
         );
@@ -594,7 +594,7 @@ describe('Hydra color functions', () => {
     });
 
     it('shift adds the fractional part of each amount without wrapping', () => {
-        const wgsl = wgslOf(`$v.osc(4).$.shift().out()`);
+        const wgsl = wgslOf(`$v.osc(4).shift().out()`);
         expect(wgsl).toMatch(
             /video_shift\(v\d, vec4f\(0\.5, 0\.0, 0\.0, 0\.0\)\)/,
         );
@@ -610,7 +610,7 @@ describe('Hydra color functions', () => {
     });
 
     it('thresh steps the brightness into a gray and keeps the alpha', () => {
-        const wgsl = wgslOf(`$v.osc(4).$.thresh().out()`);
+        const wgsl = wgslOf(`$v.osc(4).thresh().out()`);
         expect(wgsl).toMatch(/video_thresh\(v\d, 0\.5, 0\.04\)/);
         near(
             callWgsl(wgsl, 'video_thresh', [0.6, 0.6, 0.6, 0.5], 0.5, 0.04),
@@ -627,7 +627,7 @@ describe('Hydra color functions', () => {
     });
 
     it('invert crossfades toward the complement by amount, unclipped', () => {
-        const wgsl = wgslOf(`$v.osc(4).$.invert(0.25).out()`);
+        const wgsl = wgslOf(`$v.osc(4).invert(0.25).out()`);
         expect(wgsl).toMatch(/video_invert\(v\d, 0\.25\)/);
         near(
             callWgsl(wgsl, 'video_invert', [0.8, 0.2, 1.5, 0.6], 1),
@@ -640,7 +640,7 @@ describe('Hydra color functions', () => {
     });
 
     it("takes Hydra's defaults for hue and solid", () => {
-        expect(wgslOf(`$v.osc(4).$.hsv().$.hue().out()`)).toMatch(
+        expect(wgslOf(`$v.osc(4).hsv().hue().out()`)).toMatch(
             /video_hue\(v\d, 0\.4\)/,
         );
         expect(wgslOf(`$v.solid().out()`)).toContain(

@@ -31,6 +31,7 @@ import {
 import { trackCodeBacking } from './monaco/codeBacking';
 import { createModelValueSync } from './monaco/modelValueSync';
 import { registerControlQuickFixProvider } from './monaco/controlQuickFixProvider';
+import { registerRefactorProvider } from './monaco/refactorProvider';
 import { apiIndexFor } from '../dsl/apiSignatures';
 import { registerKeybindingsCompletionProvider } from './monaco/keybindingsCompletion';
 import { registerKeybindingsDiagnostics } from './monaco/keybindingsDiagnostics';
@@ -484,6 +485,15 @@ export function MonacoPatchEditor({
         );
         return () => provider.dispose();
     }, [monaco, schemas, libSource, prettierConfig]);
+
+    useEffect(() => {
+        if (!monaco) {
+            return;
+        }
+        const formatOptions = resolvePrettierOptions(prettierConfig);
+        const provider = registerRefactorProvider(monaco, () => formatOptions);
+        return () => provider.dispose();
+    }, [monaco, prettierConfig]);
 
     // Autocomplete command ids and `when` context keys in the keybindings.json
     // buffer, and flag unsupported `when` operators as warnings. Both scope

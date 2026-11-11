@@ -119,9 +119,9 @@ const GROOVE_DOCS: ModuleDocs = ModuleDocs {
             })
             const seq = $cycle($p('c4 e4 g4 c5 g4 e4 c4 g3'), {
               groove: g,
-              velocity: g.velocity,
+              velocity: g.o.velocity,
             })
-            $sine(seq).amp($adsr(seq)).amp(seq.velocity).out()
+            $sine(seq).amp($adsr(seq)).amp(seq.o.velocity).out()
         "#,
     }],
 };

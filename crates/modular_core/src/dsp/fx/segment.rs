@@ -59,7 +59,7 @@ const SEGMENT_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Slowly morphing sine",
-        code: "$sine('c3').$.segment($sine('0.1hz').range(0, 5)).out()",
+        code: "$sine('c3').segment($sine('0.1hz').range(0, 5)).out()",
     }],
 };
 

@@ -53,7 +53,7 @@ export const DEFAULT_KEYMAP: readonly DefaultKeybinding[] = [
     { key: '$mod+,', command: 'workbench.action.openSettings' },
     { key: 'F1', command: 'workbench.action.showCommands' },
     { key: '$mod+Shift+p', command: 'workbench.action.showCommands' },
-    { key: '$mod+Shift+m', command: 'shoreline.toggleVuMeters' },
+    { key: '$mod+Shift+m', command: 'shoreline.toggleMixer' },
     // Physical Control on macOS, clear of the Cmd chords. Elsewhere
     // Control+Shift+V is paste as plain text, so the binding takes Y there.
     {
