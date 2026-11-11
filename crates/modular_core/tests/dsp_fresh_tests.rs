@@ -324,6 +324,9 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.string"
         | "$mi.swarm"
         | "$mi.twoOp"
+        | "$mi.formantVowel"
+        | "$mi.lpcVowel"
+        | "$mi.samVowel"
         | "$mi.waveTerrain"
         | "$mi.waveshaper"
         | "$mi.zOsc" => json!({ "freq": 0.0 }),

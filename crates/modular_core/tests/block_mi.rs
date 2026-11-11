@@ -73,6 +73,9 @@ fn allocation_free() {
         "$mi.string",
         "$mi.swarm",
         "$mi.twoOp",
+        "$mi.formantVowel",
+        "$mi.samVowel",
+        "$mi.lpcVowel",
         "$mi.waveTerrain",
         "$mi.waveshaper",
         "$mi.zOsc",
@@ -100,6 +103,23 @@ fn six_op_allocation_free() {
         ),
         0
     );
+}
+
+/// Syllables on every vowel synth, with the vowel and formant shift moving,
+/// allocate nothing.
+#[test]
+fn vowel_allocation_free() {
+    for module in ["$mi.formantVowel", "$mi.samVowel", "$mi.lpcVowel"] {
+        assert_eq!(
+            allocations_while_rendering(
+                module,
+                json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS),
+                        "vowel": cable("lfo", 2), "formantShift": cable("lfo", 3) })
+            ),
+            0,
+            "{module}"
+        );
+    }
 }
 
 #[test]
@@ -145,6 +165,36 @@ fn resonator_instances_draw_their_own_grains() {
             "{module}: identical grains"
         );
     }
+}
+
+/// Two instances triggered alike draw their own consonant noise. The
+/// consonant a trigger plays follows the vowel, and only unvoiced ones carry
+/// noise, so the vowel sweeps until one does.
+#[test]
+fn vowel_instances_draw_their_own_noise() {
+    let differ = (0..=10).any(|step| {
+        let params = json!({
+            "freq": 0.0,
+            "vowel": step as f32 * 0.5,
+            "trigger": poly_cable("lfo", CHANNELS),
+        });
+        let a = build(
+            ProcessingMode::Block,
+            ProcessingMode::Block,
+            "$mi.lpcVowel",
+            params.clone(),
+        );
+        let b = build(
+            ProcessingMode::Block,
+            ProcessingMode::Block,
+            "$mi.lpcVowel",
+            params,
+        );
+        let a = render_ports(&a, "excitation", 500);
+        let b = render_ports(&b, "excitation", 500);
+        a.iter().zip(&b).any(|(x, y)| x != y)
+    });
+    assert!(differ, "every vowel drew identical noise");
 }
 
 /// Loud strikes and drones stay within the ±5 V the outputs declare.

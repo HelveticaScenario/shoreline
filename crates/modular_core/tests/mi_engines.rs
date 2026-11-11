@@ -101,6 +101,20 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32) -> [Port; 2] {
                 port("$mi.additive", knobs("organ"), "output"),
             ]
         }
+        15 => {
+            // The vowel path, where harmonics sounds one synth alone: the
+            // formant filters at 0, SAM at 1/6 and LPC just below 1/3.
+            let module = match h {
+                h if h < 0.1 => "$mi.formantVowel",
+                h if h < 0.25 => "$mi.samVowel",
+                _ => "$mi.lpcVowel",
+            };
+            let knobs = json!({ "vowel": 5.0 * m, "formantShift": 5.0 * t });
+            [
+                port(module, knobs.clone(), "output"),
+                port(module, knobs, "excitation"),
+            ]
+        }
         16 => {
             let knobs = json!({ "density": 5.0 * t, "spread": 5.0 * h, "grainSize": 5.0 * m });
             [
