@@ -574,9 +574,9 @@ describe('$outLane', () => {
             $signal(bass.pan, { id: 'panProbe' })
         `);
         expect(probe(patch)[0]).toMatchObject({ module: '__vuGain_bass' });
-        expect(moduleById(patch, 'panProbe').params.value).toMatchObject({
-            module: '__vuPan_bass',
-        });
+        expect(moduleById(patch, 'panProbe').params.value).toMatchObject([
+            { module: '__vuPan_bass' },
+        ]);
     });
 
     test('signal-valued gain and pan are tapped directly', () => {
@@ -588,9 +588,9 @@ describe('$outLane', () => {
             $signal($outLane('bass').pan, { id: 'panProbe' })
         `);
         expect(probe(patch)[0]).toMatchObject({ module: 'g' });
-        expect(moduleById(patch, 'panProbe').params.value).toMatchObject({
-            module: 'p',
-        });
+        expect(moduleById(patch, 'panProbe').params.value).toMatchObject([
+            { module: 'p' },
+        ]);
     });
 
     test('a mono lane pans center', () => {
@@ -601,10 +601,10 @@ describe('$outLane', () => {
         expect(moduleById(patch, probe(patch)[0].module).params.value).toBe(0);
     });
 
-    /** The constant a `$signal`-fed cable carries. */
-    function constantOf(patch: PatchGraph, cable: unknown): unknown {
-        return moduleById(patch, (cable as { module: string }).module).params
-            .value;
+    /** The constant a `$signal`-fed one-channel signal carries. */
+    function constantOf(patch: PatchGraph, signal: unknown): unknown {
+        const [cable] = signal as { module: string }[];
+        return moduleById(patch, cable.module).params.value;
     }
 
     /** The `$remap` params behind a probe on `x.range(...)`. */
@@ -624,8 +624,8 @@ describe('$outLane', () => {
             $signal(bass.pan.range(-1, 1), { id: 'pan' })
         `);
         expect(remapParams(patch, 'active')).toMatchObject({
-            inMax: 5,
-            inMin: 0,
+            inMax: [5],
+            inMin: [0],
         });
         const level = remapParams(patch, 'level');
         expect(constantOf(patch, level.inMin)).toBe(0);

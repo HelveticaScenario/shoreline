@@ -133,6 +133,7 @@ Use it to verify the "no heap allocation on the audio thread" rule above. Notes:
 
 1. Update param structs + DSP in `crates/modular_core/src/dsp/**/*.rs`.
    - Put `#[params]` above the params struct's `#[derive(...)]` and document every field with `#[input("description", …)]` (never `///`). Signal fields need `type` (`audio`, `control`, `pitch`, `frequency`, `gate`, `trig`). `range` is the usable range shown in the docs: values past it are clamped, rejected or do nothing more, and either side may be open (`(0.0, ..)`). `control_range` is a control's slider span, required when `range` is open. A default that depends on other params adds `default_doc`, the default in words (`"0 if decay is set, otherwise 5"`), which the docs show in place of the number. Outputs are documented only in `#[output("name", "description", type = …)]`, where `type` is `cv`, `gate` or `trig`.
+   - Signal params are `PolySignal` or `MonoSignal` (`Option<…>` when optional), never a bare `Signal`; outputs are `PolyOutput`, with `channels = 1` for a mono output. The macros reject anything else, so every DSL value is a collection.
    - The docs list params and outputs in declaration order, so declare them in the order a musician reads them, positional params first in call order (`tests/input_metadata.rs` checks the positionals).
    - Descriptions are short and musical. They don't restate what the editor already shows beside them: the range, the default or the V/Oct unit.
 2. Wire schema/validators in category modules (e.g., `oscillators/mod.rs` via `install_constructors` / `install_param_validators`).
@@ -154,7 +155,7 @@ Monaco shows the description, sections and first example; the Reference pane sho
 
 ### Reserved Output Names
 
-When adding methods to `ModuleOutput`, `ModuleOutputWithRange`, `BaseCollection`, `Collection`, or `CollectionWithRange`, add the method name to `RESERVED_OUTPUT_NAMES` in `crates/reserved_output_names.rs`. This is the single source of truth shared by the Rust proc-macro and TypeScript DSL via NAPI.
+When adding methods to `BaseCollection`, `Collection`, `CollectionWithRange`, or `DeferredCollection`, add the method name to `RESERVED_OUTPUT_NAMES` in `crates/reserved_output_names.rs`. This is the single source of truth shared by the Rust proc-macro and TypeScript DSL via NAPI.
 
 ### Code Organization
 

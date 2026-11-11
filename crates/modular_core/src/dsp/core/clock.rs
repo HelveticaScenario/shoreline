@@ -121,30 +121,31 @@ struct ClockOutputs {
         default
     )]
     playhead: PolyOutput,
-    #[output("barTrigger", "fires at the start of each bar", type = trig)]
-    bar_trigger: f32,
-    #[output("beatTrigger", "fires at the start of each beat", type = trig)]
-    beat_trigger: f32,
-    #[output("ramp", "rises across each bar, then resets", type = cv, range = (0.0, 5.0))]
-    ramp: f32,
-    #[output("ppqTrigger", "fires 48 times per quarter note", type = trig)]
-    ppq_trigger: f32,
-    #[output("beatInBar", "the current beat within the bar, counting from 0", type = cv)]
-    beat_in_bar: f32,
-    #[output("tempo", "the current tempo in beats per minute", type = cv)]
-    tempo: f32,
-    #[output("barLength", "quarter notes per bar: 4 in 4/4, 3 in 6/8", type = cv)]
-    bar_length: f32,
+    #[output("barTrigger", "fires at the start of each bar", type = trig, channels = 1)]
+    bar_trigger: PolyOutput,
+    #[output("beatTrigger", "fires at the start of each beat", type = trig, channels = 1)]
+    beat_trigger: PolyOutput,
+    #[output("ramp", "rises across each bar, then resets", type = cv, range = (0.0, 5.0), channels = 1)]
+    ramp: PolyOutput,
+    #[output("ppqTrigger", "fires 48 times per quarter note", type = trig, channels = 1)]
+    ppq_trigger: PolyOutput,
+    #[output("beatInBar", "the current beat within the bar, counting from 0", type = cv, channels = 1)]
+    beat_in_bar: PolyOutput,
+    #[output("tempo", "the current tempo in beats per minute", type = cv, channels = 1)]
+    tempo: PolyOutput,
+    #[output("barLength", "quarter notes per bar: 4 in 4/4, 3 in 6/8", type = cv, channels = 1)]
+    bar_length: PolyOutput,
     #[output(
         "grooveOffset",
         "how far the global groove shifts the playhead, in bars",
-        type = cv
+        type = cv,
+        channels = 1
     )]
-    groove_offset: f32,
-    #[output("grooveVelocity", "velocity of the current global groove step", type = cv, range = (0.0, 5.0))]
-    groove_velocity: f32,
-    #[output("grooveTrigger", "fires at the start of each global groove step", type = trig)]
-    groove_trigger: f32,
+    groove_offset: PolyOutput,
+    #[output("grooveVelocity", "velocity of the current global groove step", type = cv, range = (0.0, 5.0), channels = 1)]
+    groove_velocity: PolyOutput,
+    #[output("grooveTrigger", "fires at the start of each global groove step", type = trig, channels = 1)]
+    groove_trigger: PolyOutput,
 }
 
 message_handlers!(impl Clock {
@@ -180,9 +181,11 @@ impl Clock {
 
     /// Groove outputs for a transport parked at zero.
     fn park_groove(&mut self) {
-        self.outputs.groove_offset = 0.0;
-        self.outputs.groove_velocity = self.params.groove.velocity_at_step(0);
-        self.outputs.groove_trigger = 0.0;
+        self.outputs.groove_offset.set(0, 0.0);
+        self.outputs
+            .groove_velocity
+            .set(0, self.params.groove.velocity_at_step(0));
+        self.outputs.groove_trigger.set(0, 0.0);
     }
 
     fn update_groove(&mut self, sample_rate: f32) {
@@ -191,9 +194,9 @@ impl Clock {
             .state
             .groove
             .advance(&self.params.groove, straight, sample_rate);
-        self.outputs.groove_offset = frame.offset;
-        self.outputs.groove_velocity = frame.velocity;
-        self.outputs.groove_trigger = frame.trigger;
+        self.outputs.groove_offset.set(0, frame.offset);
+        self.outputs.groove_velocity.set(0, frame.velocity);
+        self.outputs.groove_trigger.set(0, frame.trigger);
     }
 
     fn update(&mut self, sample_rate: f32) {
@@ -202,13 +205,15 @@ impl Clock {
         // published even while stopped.
         let numerator = self.params.numerator.max(1) as f64;
         let denominator = self.params.denominator.max(1) as f64;
-        self.outputs.bar_length = (numerator * 4.0 / denominator) as f32;
+        self.outputs
+            .bar_length
+            .set(0, (numerator * 4.0 / denominator) as f32);
 
         // External clock sync: override free-running clock with Link data.
         if let Some(sync) = self.state.external_sync.take() {
             self.state.running = true;
             self.params.tempo = sync.bpm;
-            self.outputs.tempo = sync.bpm as f32;
+            self.outputs.tempo.set(0, sync.bpm as f32);
 
             let old_phase = self.state.phase;
             self.state.phase = sync.bar_phase;
@@ -244,7 +249,9 @@ impl Clock {
                     .bar_gate
                     .set_state(TempGateState::High, TempGateState::Low, hold);
             }
-            self.outputs.bar_trigger = self.state.bar_gate.process();
+            self.outputs
+                .bar_trigger
+                .set(0, self.state.bar_gate.process());
 
             // Detect beat boundary crossing
             let old_beat = (old_phase / beat_period).floor();
@@ -255,7 +262,9 @@ impl Clock {
                     .beat_gate
                     .set_state(TempGateState::High, TempGateState::Low, hold);
             }
-            self.outputs.beat_trigger = self.state.beat_gate.process();
+            self.outputs
+                .beat_trigger
+                .set(0, self.state.beat_gate.process());
 
             // Detect PPQ boundary crossing
             let old_ppq = (old_phase / ppq_period).floor();
@@ -265,13 +274,17 @@ impl Clock {
                     .ppq_gate
                     .set_state(TempGateState::High, TempGateState::Low, hold);
             }
-            self.outputs.ppq_trigger = self.state.ppq_gate.process();
+            self.outputs
+                .ppq_trigger
+                .set(0, self.state.ppq_gate.process());
 
             // Update remaining outputs
-            self.outputs.beat_in_bar = (sync.bar_phase * numerator).floor() as f32;
+            self.outputs
+                .beat_in_bar
+                .set(0, (sync.bar_phase * numerator).floor() as f32);
             self.outputs.playhead.set(0, sync.bar_phase as f32);
             self.outputs.playhead.set(1, self.state.loop_index as f32);
-            self.outputs.ramp = sync.bar_phase as f32 * 5.0;
+            self.outputs.ramp.set(0, sync.bar_phase as f32 * 5.0);
 
             self.update_groove(sample_rate);
             return;
@@ -280,7 +293,7 @@ impl Clock {
         // Tempo is a plain BPM value. It describes the transport's configuration
         // rather than its motion, so it is published even while stopped.
         let tempo = self.params.tempo.max(1.0);
-        self.outputs.tempo = tempo as f32;
+        self.outputs.tempo.set(0, tempo as f32);
 
         if !self.state.running {
             return; // If not running, skip the rest of the update to keep outputs where they are until clock starts
@@ -320,13 +333,15 @@ impl Clock {
 
         // Derive beat_in_bar from the bar phase
         // phase goes from 0..1 over one bar, each beat occupies 1/numerator of the bar
-        self.outputs.beat_in_bar = (self.state.phase * numerator).floor() as f32;
+        self.outputs
+            .beat_in_bar
+            .set(0, (self.state.phase * numerator).floor() as f32);
 
         self.outputs.playhead.set(0, self.state.phase as f32);
         self.outputs.playhead.set(1, self.state.loop_index as f32);
 
         // Generate ramp output (0 to 5V over one bar)
-        self.outputs.ramp = self.state.phase as f32 * 5.0;
+        self.outputs.ramp.set(0, self.state.phase as f32 * 5.0);
 
         let hold = min_gate_samples(sample_rate);
 
@@ -349,7 +364,9 @@ impl Clock {
                 .bar_gate
                 .set_state(TempGateState::High, TempGateState::Low, hold);
         }
-        self.outputs.bar_trigger = self.state.bar_gate.process();
+        self.outputs
+            .bar_trigger
+            .set(0, self.state.bar_gate.process());
 
         // Beat trigger
         if self
@@ -361,7 +378,9 @@ impl Clock {
                 .beat_gate
                 .set_state(TempGateState::High, TempGateState::Low, hold);
         }
-        self.outputs.beat_trigger = self.state.beat_gate.process();
+        self.outputs
+            .beat_trigger
+            .set(0, self.state.beat_gate.process());
 
         // PPQ trigger
         if self
@@ -373,7 +392,9 @@ impl Clock {
                 .ppq_gate
                 .set_state(TempGateState::High, TempGateState::Low, hold);
         }
-        self.outputs.ppq_trigger = self.state.ppq_gate.process();
+        self.outputs
+            .ppq_trigger
+            .set(0, self.state.ppq_gate.process());
 
         self.update_groove(sample_rate);
     }
@@ -389,7 +410,7 @@ impl Clock {
                 self.outputs.playhead.set(0, 0.0);
                 self.outputs.playhead.set(1, 0.0);
                 self.state.loop_index = 0;
-                self.outputs.beat_in_bar = 0.0;
+                self.outputs.beat_in_bar.set(0, 0.0);
                 self.state.bar_schmitt.reset();
                 self.state.ppq_schmitt.reset();
                 self.state.beat_schmitt.reset();
@@ -408,13 +429,13 @@ impl Clock {
             ClockMessages::Stop => {
                 self.state.running = false;
                 // Ensure triggers are low while stopped.
-                self.outputs.bar_trigger = 0.0;
-                self.outputs.beat_trigger = 0.0;
-                self.outputs.ppq_trigger = 0.0;
+                self.outputs.bar_trigger.set(0, 0.0);
+                self.outputs.beat_trigger.set(0, 0.0);
+                self.outputs.ppq_trigger.set(0, 0.0);
                 self.outputs.playhead.set(0, 0.0);
                 self.outputs.playhead.set(1, 0.0);
                 self.state.loop_index = 0;
-                self.outputs.beat_in_bar = 0.0;
+                self.outputs.beat_in_bar.set(0, 0.0);
                 self.park_groove();
             }
         }
@@ -452,8 +473,10 @@ impl Default for ClockParams {
 #[cfg(test)]
 impl Default for Clock {
     fn default() -> Self {
+        let mut outputs = ClockOutputs::default();
+        crate::types::OutputStruct::set_all_channels(&mut outputs, 2);
         Self {
-            outputs: ClockOutputs::default(),
+            outputs,
             state: ClockState::default(),
             params: ClockParams::default(),
             _channel_count: 2,
@@ -492,7 +515,7 @@ mod tests {
         let mut was_high = false;
         for _ in 0..samples {
             c.update(sr);
-            let is_high = c.outputs.beat_trigger == 5.0;
+            let is_high = c.outputs.beat_trigger.get(0) == 5.0;
             if is_high && !was_high {
                 count += 1;
             }
@@ -507,7 +530,7 @@ mod tests {
         let mut was_high = false;
         for _ in 0..samples {
             c.update(sr);
-            let is_high = c.outputs.bar_trigger == 5.0;
+            let is_high = c.outputs.bar_trigger.get(0) == 5.0;
             if is_high && !was_high {
                 count += 1;
             }
@@ -662,7 +685,8 @@ mod tests {
         c.update(sr);
         let _ = c.on_clock_message(&ClockMessages::Stop);
         assert_eq!(
-            c.outputs.beat_trigger, 0.0,
+            c.outputs.beat_trigger.get(0),
+            0.0,
             "beat_trigger should be 0 after Stop"
         );
     }
@@ -678,14 +702,19 @@ mod tests {
 
         // First sample: beat_in_bar should be 0
         c.update(sr);
-        assert_eq!(c.outputs.beat_in_bar, 0.0, "First sample should be beat 0");
+        assert_eq!(
+            c.outputs.beat_in_bar.get(0),
+            0.0,
+            "First sample should be beat 0"
+        );
 
         // Advance to halfway through beat 1 (sample 24000+12000=36000)
         for _ in 1..36_000 {
             c.update(sr);
         }
         assert_eq!(
-            c.outputs.beat_in_bar, 1.0,
+            c.outputs.beat_in_bar.get(0),
+            1.0,
             "Should be on beat 1 at 36000 samples"
         );
 
@@ -694,7 +723,8 @@ mod tests {
             c.update(sr);
         }
         assert_eq!(
-            c.outputs.beat_in_bar, 2.0,
+            c.outputs.beat_in_bar.get(0),
+            2.0,
             "Should be on beat 2 at 60000 samples"
         );
 
@@ -703,7 +733,8 @@ mod tests {
             c.update(sr);
         }
         assert_eq!(
-            c.outputs.beat_in_bar, 3.0,
+            c.outputs.beat_in_bar.get(0),
+            3.0,
             "Should be on beat 3 at 84000 samples"
         );
     }
@@ -754,7 +785,7 @@ mod tests {
             });
             c.update(sr);
 
-            let is_high = c.outputs.beat_trigger == 5.0;
+            let is_high = c.outputs.beat_trigger.get(0) == 5.0;
             if is_high && !was_high {
                 beat_triggers += 1;
             }
@@ -799,7 +830,8 @@ mod tests {
             "small backward phase step from a patch-swap re-fill must not increment loop_index"
         );
         assert_eq!(
-            c.outputs.bar_trigger, 0.0,
+            c.outputs.bar_trigger.get(0),
+            0.0,
             "a re-fill rewind must not fire a spurious bar trigger"
         );
     }
@@ -945,7 +977,7 @@ mod tests {
         // pulse, which holds for a few samples; what must NOT happen is a *new*
         // rising edge (a spurious wrap re-firing the trigger), so count rising
         // edges across the window and require zero.
-        let mut was_high = c.outputs.bar_trigger == 5.0;
+        let mut was_high = c.outputs.bar_trigger.get(0) == 5.0;
         let mut spurious_bar_edges = 0;
         for i in 1..2_000 {
             c.sync_external_clock_impl(ExternalClockState {
@@ -962,7 +994,7 @@ mod tests {
                 0.0,
                 "playhead bar-count must read 0 right after reset (sample {i})"
             );
-            let is_high = c.outputs.bar_trigger == 5.0;
+            let is_high = c.outputs.bar_trigger.get(0) == 5.0;
             if is_high && !was_high {
                 spurious_bar_edges += 1;
             }
@@ -1007,11 +1039,11 @@ mod tests {
         // trigger over the next two bars must land on that grid, and beatInBar
         // must agree with the grid between triggers.
         let increment = 1.0 / 72_000.0; // per-sample phase step in 3/4
-        let mut was_high = c.outputs.beat_trigger == 5.0;
+        let mut was_high = c.outputs.beat_trigger.get(0) == 5.0;
         let mut edges = 0;
         for n in 1..=(2 * 72_000) {
             c.update(sr);
-            let is_high = c.outputs.beat_trigger == 5.0;
+            let is_high = c.outputs.beat_trigger.get(0) == 5.0;
             if is_high && !was_high {
                 edges += 1;
                 let phase = c.state.phase;
@@ -1027,7 +1059,8 @@ mod tests {
             if n % 4_800 == 2_400 {
                 let expected = (c.state.phase * 3.0).floor() as f32;
                 assert_eq!(
-                    c.outputs.beat_in_bar, expected,
+                    c.outputs.beat_in_bar.get(0),
+                    expected,
                     "beatInBar disagrees with the bar phase at sample {n}"
                 );
             }
@@ -1064,7 +1097,7 @@ mod tests {
         let mut c = Clock::default();
         c.params.tempo = 137.5;
         c.update(48_000.0);
-        assert_eq!(c.outputs.tempo, 137.5);
+        assert_eq!(c.outputs.tempo.get(0), 137.5);
     }
 
     #[test]
@@ -1074,7 +1107,7 @@ mod tests {
         c.params.denominator = 8;
         let _ = c.on_clock_message(&ClockMessages::Stop);
         c.update(48_000.0);
-        assert_eq!(c.outputs.bar_length, 3.0);
+        assert_eq!(c.outputs.bar_length.get(0), 3.0);
     }
 
     #[test]
@@ -1085,7 +1118,7 @@ mod tests {
         c.params.tempo = 90.0;
         let _ = c.on_clock_message(&ClockMessages::Stop);
         c.update(48_000.0);
-        assert_eq!(c.outputs.tempo, 90.0);
+        assert_eq!(c.outputs.tempo.get(0), 90.0);
     }
 
     #[test]
@@ -1095,7 +1128,7 @@ mod tests {
         let mut c = Clock::default();
         c.params.tempo = 0.0;
         c.update(48_000.0);
-        assert_eq!(c.outputs.tempo, 1.0);
+        assert_eq!(c.outputs.tempo.get(0), 1.0);
     }
 
     #[test]
@@ -1108,7 +1141,7 @@ mod tests {
             bpm: 128.0,
         });
         c.update(sr);
-        assert_eq!(c.outputs.tempo, 128.0);
+        assert_eq!(c.outputs.tempo.get(0), 128.0);
 
         // A peer tempo change is reflected on the very next synced sample.
         c.sync_external_clock_impl(ExternalClockState {
@@ -1116,7 +1149,7 @@ mod tests {
             bpm: 174.0,
         });
         c.update(sr);
-        assert_eq!(c.outputs.tempo, 174.0);
+        assert_eq!(c.outputs.tempo.get(0), 174.0);
     }
 
     #[test]
@@ -1134,6 +1167,6 @@ mod tests {
 
         c.clear_external_sync();
         c.update(sr);
-        assert_eq!(c.outputs.tempo, 100.0);
+        assert_eq!(c.outputs.tempo.get(0), 100.0);
     }
 }

@@ -135,7 +135,6 @@
         "name": "x",
         "description": "x coordinate of the attractor, swinging between its two lobes",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -144,7 +143,6 @@
         "name": "y",
         "description": "y coordinate, which x chases, so it leads x slightly",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -153,7 +151,6 @@
         "name": "z",
         "description": "z coordinate, the attractor's height, pulsing once per loop",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -346,7 +343,6 @@
         "name": "height",
         "description": "water height at a fixed point",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -355,7 +351,6 @@
         "name": "tilt",
         "description": "lean along the swell: positive while the water rises; a sine on gentle seas, a sawtooth that snaps down at each crest on steep ones",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -364,7 +359,6 @@
         "name": "roll",
         "description": "lean across the swell, from waves arriving off-axis; silent at `spread` 0",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -508,7 +502,6 @@
         "name": "output",
         "description": "the input, unchanged",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -664,7 +657,6 @@
         "name": "output",
         "description": "the mix, keeping each channel separate rather than folding to mono",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -817,7 +809,6 @@
         "name": "output",
         "description": "the input channels spread evenly across the output channels with equal-power panning",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -968,7 +959,6 @@
         "name": "output",
         "description": "stereo mix: left on channel 0, right on channel 1",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -1115,90 +1105,89 @@
         "name": "playhead",
         "description": "bar playhead: channel 0 is the position within the bar (0 to 1), channel 1 the count of completed bars",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       },
       {
         "name": "barTrigger",
         "description": "fires at the start of each bar",
         "outputType": "trig",
-        "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "channels": 1
       },
       {
         "name": "beatTrigger",
         "description": "fires at the start of each beat",
         "outputType": "trig",
-        "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "channels": 1
       },
       {
         "name": "ramp",
         "description": "rises across each bar, then resets",
         "outputType": "cv",
-        "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "channels": 1
       },
       {
         "name": "ppqTrigger",
         "description": "fires 48 times per quarter note",
         "outputType": "trig",
-        "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "channels": 1
       },
       {
         "name": "beatInBar",
         "description": "the current beat within the bar, counting from 0",
         "outputType": "cv",
-        "polyphonic": false,
-        "default": false
+        "default": false,
+        "channels": 1
       },
       {
         "name": "tempo",
         "description": "the current tempo in beats per minute",
         "outputType": "cv",
-        "polyphonic": false,
-        "default": false
+        "default": false,
+        "channels": 1
       },
       {
         "name": "barLength",
         "description": "quarter notes per bar: 4 in 4/4, 3 in 6/8",
         "outputType": "cv",
-        "polyphonic": false,
-        "default": false
+        "default": false,
+        "channels": 1
       },
       {
         "name": "grooveOffset",
         "description": "how far the global groove shifts the playhead, in bars",
         "outputType": "cv",
-        "polyphonic": false,
-        "default": false
+        "default": false,
+        "channels": 1
       },
       {
         "name": "grooveVelocity",
         "description": "velocity of the current global groove step",
         "outputType": "cv",
-        "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "channels": 1
       },
       {
         "name": "grooveTrigger",
         "description": "fires at the start of each global groove step",
         "outputType": "trig",
-        "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "channels": 1
       }
     ],
     "bufferOutputs": [],
@@ -1368,7 +1357,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -1572,7 +1560,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -1754,7 +1741,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -1927,7 +1913,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -2103,7 +2088,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -2249,7 +2233,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -2389,7 +2372,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -2556,7 +2538,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -2754,7 +2735,6 @@
         "name": "output",
         "description": "both hats; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -2763,7 +2743,6 @@
         "name": "closed",
         "description": "the closed hat alone",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -2772,7 +2751,6 @@
         "name": "open",
         "description": "the open hat alone",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -2964,7 +2942,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -3147,7 +3124,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -3330,7 +3306,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -3513,7 +3488,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -3696,7 +3670,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -3879,7 +3852,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -4084,7 +4056,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -4298,7 +4269,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -4464,7 +4434,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -4604,7 +4573,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -4771,7 +4739,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -4954,7 +4921,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -5137,7 +5103,6 @@
         "name": "output",
         "description": "drum output; an unaccented hit peaks near ±5 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -5402,7 +5367,6 @@
         "name": "sample",
         "description": "compressed signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -5635,28 +5599,24 @@
         "name": "output",
         "description": "input passed through unchanged",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       },
       {
         "name": "low",
         "description": "frequencies below lowMidFreq",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false
       },
       {
         "name": "mid",
         "description": "frequencies between lowMidFreq and midHighFreq",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false
       },
       {
         "name": "high",
         "description": "frequencies above midHighFreq",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false
       }
     ],
@@ -5802,7 +5762,6 @@
         "name": "output",
         "description": "folded signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -5957,7 +5916,6 @@
         "name": "output",
         "description": "waveshaped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -6169,7 +6127,6 @@
         "name": "output",
         "description": "stereo reverb, fully wet, as left and right channels",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -6392,7 +6349,6 @@
         "name": "output",
         "description": "overdriven signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -6527,7 +6483,6 @@
         "name": "output",
         "description": "the input, centred on 0 V",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -6696,7 +6651,6 @@
         "name": "output",
         "description": "stereo reverb, fully wet, as left and right channels",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -6874,7 +6828,6 @@
         "name": "output",
         "description": "the input with grit added",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -7096,7 +7049,6 @@
         "name": "output",
         "description": "stereo reverb, fully wet, as left and right channels",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -7348,7 +7300,6 @@
         "name": "output",
         "description": "stereo reverb, fully wet, as left and right channels",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -7537,7 +7488,6 @@
         "name": "output",
         "description": "shaped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -7751,7 +7701,6 @@
         "name": "output",
         "description": "the input plus reverb, as left and right channels",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -8063,7 +8012,6 @@
         "name": "output",
         "description": "stereo mix of every voice, as left and right channels",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -8073,7 +8021,6 @@
         "name": "voices",
         "description": "each voice on its own channel, mono",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -8435,7 +8382,6 @@
         "name": "output",
         "description": "stereo mix of every voice, as left and right channels",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -8445,7 +8391,6 @@
         "name": "voices",
         "description": "each voice on its own channel, mono",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -8661,7 +8606,6 @@
         "name": "output",
         "description": "the input with wow and flutter",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -8939,7 +8883,6 @@
         "name": "output",
         "description": "the input mixed with its repeats, one channel per delay",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -9199,7 +9142,6 @@
         "name": "output",
         "description": "the sine wave",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -9411,7 +9353,6 @@
         "name": "output",
         "description": "the saw/triangle/ramp wave",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -9639,7 +9580,6 @@
         "name": "output",
         "description": "the pulse wave",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -9794,7 +9734,6 @@
         "name": "output",
         "description": "the sine wave",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -9922,7 +9861,6 @@
         "name": "output",
         "description": "the saw/triangle/ramp wave",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -10071,7 +10009,6 @@
         "name": "output",
         "description": "the pulse wave",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -10321,7 +10258,6 @@
         "name": "output",
         "description": "the noise",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -10702,7 +10638,6 @@
         "name": "output",
         "description": "main and aux blended by `mix`",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -10711,7 +10646,6 @@
         "name": "main",
         "description": "the engine's main output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -10720,7 +10654,6 @@
         "name": "aux",
         "description": "the engine's auxiliary output, a variant that depends on the engine",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -11021,7 +10954,6 @@
         "name": "output",
         "description": "the stacked saws, one channel per voice",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -11790,7 +11722,6 @@
         "name": "output",
         "description": "mix of every voice",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -11799,7 +11730,6 @@
         "name": "odd",
         "description": "mix of voices 1, 3, 5, …",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -11808,7 +11738,6 @@
         "name": "even",
         "description": "mix of voices 2, 4, 6, …",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -11817,7 +11746,6 @@
         "name": "low",
         "description": "mix of the lower half of the voices",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -11826,7 +11754,6 @@
         "name": "high",
         "description": "mix of the upper half of the voices",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -11835,7 +11762,6 @@
         "name": "root",
         "description": "the lowest voice alone",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -11844,7 +11770,6 @@
         "name": "other",
         "description": "mix of every voice but the lowest",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -12326,7 +12251,6 @@
         "name": "output",
         "description": "the wavetable oscillator",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -12496,7 +12420,6 @@
         "name": "output",
         "description": "filtered signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -12685,7 +12608,6 @@
         "name": "output",
         "description": "phase-shifted signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -12856,7 +12778,6 @@
         "name": "output",
         "description": "filtered signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -13009,7 +12930,6 @@
         "name": "output",
         "description": "filtered signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -13162,7 +13082,6 @@
         "name": "output",
         "description": "4-pole (24 dB/oct) lowpass",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -13171,7 +13090,6 @@
         "name": "lp12",
         "description": "2-pole (12 dB/oct) lowpass",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -13180,7 +13098,6 @@
         "name": "bp",
         "description": "bandpass",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -13189,7 +13106,6 @@
         "name": "hp",
         "description": "highpass",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -13374,7 +13290,6 @@
         "name": "output",
         "description": "gated signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -13587,7 +13502,6 @@
         "name": "output",
         "description": "response selected by mode",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -13596,7 +13510,6 @@
         "name": "lp",
         "description": "lowpass, the output at mode 0",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -13605,7 +13518,6 @@
         "name": "bp",
         "description": "bandpass, the output near mode 2.5",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -13614,7 +13526,6 @@
         "name": "hp",
         "description": "highpass, the output at mode 5",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0
@@ -13920,7 +13831,6 @@
         "name": "output",
         "description": "equalized signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -14093,7 +14003,6 @@
         "name": "output",
         "description": "lowpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -14290,7 +14199,6 @@
         "name": "output",
         "description": "highpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -14497,7 +14405,6 @@
         "name": "output",
         "description": "bandpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -14689,7 +14596,6 @@
         "name": "output",
         "description": "notch output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -14841,7 +14747,6 @@
         "name": "output",
         "description": "allpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -15023,7 +14928,6 @@
         "name": "output",
         "description": "lowpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -15205,7 +15109,6 @@
         "name": "output",
         "description": "lowpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -15387,7 +15290,6 @@
         "name": "output",
         "description": "lowpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -15574,7 +15476,6 @@
         "name": "output",
         "description": "lowpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -15761,7 +15662,6 @@
         "name": "output",
         "description": "highpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -15933,7 +15833,6 @@
         "name": "output",
         "description": "lowpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -16105,7 +16004,6 @@
         "name": "output",
         "description": "bandpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -16277,7 +16175,6 @@
         "name": "output",
         "description": "highpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -16449,7 +16346,6 @@
         "name": "output",
         "description": "notch output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -16636,7 +16532,6 @@
         "name": "output",
         "description": "lowpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -16873,7 +16768,6 @@
         "name": "output",
         "description": "filter output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -17061,7 +16955,6 @@
         "name": "output",
         "description": "lowpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -17249,7 +17142,6 @@
         "name": "output",
         "description": "highpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -17437,7 +17329,6 @@
         "name": "output",
         "description": "bandpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -17625,7 +17516,6 @@
         "name": "output",
         "description": "notch output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -17813,7 +17703,6 @@
         "name": "output",
         "description": "allpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -17996,7 +17885,6 @@
         "name": "output",
         "description": "lowpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -18179,7 +18067,6 @@
         "name": "output",
         "description": "highpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -18362,7 +18249,6 @@
         "name": "output",
         "description": "bandpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -18545,7 +18431,6 @@
         "name": "output",
         "description": "notch output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -18728,7 +18613,6 @@
         "name": "output",
         "description": "allpass output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -18921,7 +18805,6 @@
         "name": "output",
         "description": "filter output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -19113,7 +18996,6 @@
         "name": "output",
         "description": "filter output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -19265,7 +19147,6 @@
         "name": "output",
         "description": "sampled output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -19457,7 +19338,6 @@
         "name": "output",
         "description": "comb output",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -19777,7 +19657,6 @@
         "name": "output",
         "description": "the reshaped phase",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 1.0
@@ -19902,7 +19781,6 @@
         "name": "output",
         "description": "phase rising once per cycle",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 1.0
@@ -20021,7 +19899,6 @@
         "name": "output",
         "description": "the detuned pitch",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -20218,7 +20095,6 @@
         "name": "output",
         "description": "the envelope",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -20414,7 +20290,6 @@
         "name": "output",
         "description": "the result",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -20561,7 +20436,6 @@
         "name": "output",
         "description": "the signal in whole volts",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -20704,7 +20578,6 @@
         "name": "output",
         "description": "one channel per buffer channel, read at the position",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -20825,7 +20698,6 @@
         "name": "output",
         "description": "the input, passed through",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -21040,14 +20912,12 @@
         "name": "output",
         "description": "one pitch per note, lowest first; with `inversion` patched, one more channel, the notes rotating across them",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       },
       {
         "name": "level",
         "description": "each channel's level, full (5) unless `inversion` is fading a note between octaves",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -21190,7 +21060,6 @@
         "name": "output",
         "description": "the clamped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -21335,7 +21204,6 @@
         "name": "output",
         "description": "fires every `division` ticks",
         "outputType": "trig",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -21469,7 +21337,6 @@
         "name": "heads",
         "description": "triggers and gates that land heads",
         "outputType": "gate",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -21478,7 +21345,6 @@
         "name": "tails",
         "description": "triggers and gates that land tails",
         "outputType": "gate",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -21631,7 +21497,6 @@
         "name": "output",
         "description": "the counter, from 0 to length",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -21775,7 +21640,6 @@
         "name": "output",
         "description": "the bent signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -21935,7 +21799,6 @@
         "name": "output",
         "description": "the delayed signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -22145,7 +22008,6 @@
         "name": "output",
         "description": "the varied signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -22320,7 +22182,6 @@
         "name": "output",
         "description": "high for `time` after each rising edge",
         "outputType": "gate",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -22472,7 +22333,6 @@
         "name": "output",
         "description": "the smoothed signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -22601,7 +22461,6 @@
         "name": "output",
         "description": "high while the input keeps rising, and for a trigger's length after",
         "outputType": "gate",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -22715,7 +22574,6 @@
         "name": "output",
         "description": "high while the input keeps falling, and for a trigger's length after",
         "outputType": "gate",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -22888,7 +22746,6 @@
         "name": "output",
         "description": "the expression's result",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -23065,7 +22922,6 @@
         "name": "output",
         "description": "movement level in either direction, 0 V at rest",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -23074,7 +22930,6 @@
         "name": "pos",
         "description": "movement level from rising input only",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -23083,7 +22938,6 @@
         "name": "neg",
         "description": "movement level from falling input only",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -23246,7 +23100,6 @@
         "name": "output",
         "description": "the scaled pitch",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -23370,7 +23223,6 @@
         "name": "output",
         "description": "the frequency as a V/Oct pitch",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -23505,7 +23357,6 @@
         "name": "output",
         "description": "the rescaled signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -23670,7 +23521,6 @@
         "name": "output",
         "description": "the voltage captured at the last trigger",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -23795,7 +23645,6 @@
         "name": "output",
         "description": "the tracked or held voltage",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -23930,7 +23779,6 @@
         "name": "output",
         "description": "the envelope",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -24103,14 +23951,12 @@
         "name": "output",
         "description": "the snapped pitch",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       },
       {
         "name": "trig",
         "description": "fires each time the snapped note changes",
         "outputType": "trig",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -24259,7 +24105,6 @@
         "name": "output",
         "description": "the scaled and shifted signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -24334,8 +24179,8 @@
         "name": "output",
         "description": "the value, ramping smoothly to each new setting",
         "outputType": "cv",
-        "polyphonic": false,
-        "default": true
+        "default": true,
+        "channels": 1
       }
     ],
     "bufferOutputs": [],
@@ -24468,7 +24313,6 @@
         "name": "output",
         "description": "one value per channel, from min to max",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -24627,7 +24471,6 @@
         "name": "output",
         "description": "the detuned copies, each a full set of the input channels",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -24762,8 +24605,8 @@
         "name": "output",
         "description": "the input, passed through",
         "outputType": "cv",
-        "polyphonic": false,
-        "default": true
+        "default": true,
+        "channels": 1
       }
     ],
     "bufferOutputs": [],
@@ -24892,7 +24735,6 @@
         "name": "output",
         "description": "the wrapped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -27321,14 +27163,12 @@
         "name": "cv",
         "description": "pitch of the current or last note",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       },
       {
         "name": "gate",
         "description": "high while a note plays",
         "outputType": "gate",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -27337,7 +27177,6 @@
         "name": "trig",
         "description": "fires at the start of each note",
         "outputType": "trig",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -27346,7 +27185,6 @@
         "name": "velocity",
         "description": "groove velocity of the current or last note",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -27552,7 +27390,6 @@
         "name": "output",
         "description": "the value at the current position, curved between keyframes",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -27704,7 +27541,6 @@
         "name": "output",
         "description": "the current step's value",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -27947,7 +27783,6 @@
         "name": "bd",
         "description": "bass drum",
         "outputType": "trig",
-        "polyphonic": true,
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -27956,7 +27791,6 @@
         "name": "sd",
         "description": "snare drum",
         "outputType": "trig",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -27965,7 +27799,6 @@
         "name": "hh",
         "description": "hi-hat",
         "outputType": "trig",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -27974,7 +27807,6 @@
         "name": "bdAccent",
         "description": "bass drum accent",
         "outputType": "trig",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -27983,7 +27815,6 @@
         "name": "sdAccent",
         "description": "snare drum accent",
         "outputType": "trig",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -27992,7 +27823,6 @@
         "name": "hhAccent",
         "description": "hi-hat accent",
         "outputType": "trig",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -28290,26 +28120,26 @@
         "name": "offset",
         "description": "how far the groove shifts the playhead, in cycles; pass to a sequencer's `groove`",
         "outputType": "cv",
-        "polyphonic": false,
-        "default": true
+        "default": true,
+        "channels": 1
       },
       {
         "name": "velocity",
         "description": "velocity of the current groove step; pass to a sequencer's `velocity`",
         "outputType": "cv",
-        "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "channels": 1
       },
       {
         "name": "trigger",
         "description": "fires at the start of each grooved step",
         "outputType": "trig",
-        "polyphonic": false,
         "default": false,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "channels": 1
       }
     ],
     "bufferOutputs": [],
@@ -28456,14 +28286,12 @@
         "name": "pitch",
         "description": "pitch of the voice's note, including pitch bend",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       },
       {
         "name": "gate",
         "description": "high while the voice's note is held",
         "outputType": "gate",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -28472,7 +28300,6 @@
         "name": "velocity",
         "description": "how hard the note was struck",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -28481,7 +28308,6 @@
         "name": "aftertouch",
         "description": "pressure on the held keys, from channel or polyphonic aftertouch",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -28490,7 +28316,6 @@
         "name": "retrigger",
         "description": "fires at the start of each new note, even when gate stays high",
         "outputType": "trig",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -28499,7 +28324,6 @@
         "name": "pitchWheel",
         "description": "pitch wheel position: 0 centred, ±5 at either end",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -28508,7 +28332,6 @@
         "name": "modWheel",
         "description": "mod wheel (CC 1) position",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0
@@ -28586,10 +28409,10 @@
         "name": "output",
         "description": "the controller's value: 0 at its minimum, 5 at its maximum",
         "outputType": "cv",
-        "polyphonic": false,
         "default": true,
         "minValue": 0.0,
-        "maxValue": 5.0
+        "maxValue": 5.0,
+        "channels": 1
       }
     ],
     "bufferOutputs": [],
@@ -28783,7 +28606,6 @@
         "name": "output",
         "description": "the summed harmonics",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -28971,7 +28793,6 @@
         "name": "output",
         "description": "the chorused signal, as left and right channels",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -29155,7 +28976,6 @@
         "name": "output",
         "description": "the divided-down tone",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -29353,7 +29173,6 @@
         "name": "output",
         "description": "the paired grains",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -29604,7 +29423,6 @@
         "name": "output",
         "description": "the ringing body",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -29613,7 +29431,6 @@
         "name": "exciter",
         "description": "the strike or grains that excite the body, to mix back in for more attack",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -29867,7 +29684,6 @@
         "name": "output",
         "description": "the particles ringing through their filters",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -29876,7 +29692,6 @@
         "name": "raw",
         "description": "the random impulses that drive the filters",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -30108,7 +29923,6 @@
         "name": "output",
         "description": "the phase-distorted sine",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -30363,7 +30177,6 @@
         "name": "output",
         "description": "the FM voice",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -30643,7 +30456,6 @@
         "name": "output",
         "description": "the ringing strings",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -30652,7 +30464,6 @@
         "name": "exciter",
         "description": "the plucks or grains that excite the strings, to mix back in for more attack",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -30905,7 +30716,6 @@
         "name": "output",
         "description": "the swarm of saws",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -30914,7 +30724,6 @@
         "name": "sine",
         "description": "the same voices and grains as sines",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -31141,7 +30950,6 @@
         "name": "output",
         "description": "the FM tone",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -31150,7 +30958,6 @@
         "name": "subOctave",
         "description": "a sine an octave down, phase-modulated by the FM tone",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -31372,7 +31179,6 @@
         "name": "output",
         "description": "the height of the surface under the circle",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -31381,7 +31187,6 @@
         "name": "pm",
         "description": "a sine phase-modulated by the circle and the height, rounder and more vocal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -31603,7 +31408,6 @@
         "name": "output",
         "description": "the shaped and folded wave",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -31612,7 +31416,6 @@
         "name": "overtones",
         "description": "a sine that `fold` crossfades into a second wavefolder's tone",
         "outputType": "cv",
-        "polyphonic": true,
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -31830,7 +31633,6 @@
         "name": "output",
         "description": "the filtered-sounding waveform",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -32115,7 +31917,6 @@
         "name": "output",
         "description": "the mix of all playing grains",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -32263,7 +32064,6 @@
         "name": "output",
         "description": "the media file's audio",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -32484,7 +32284,6 @@
         "name": "output",
         "description": "the played sample",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true
       }
     ],
@@ -32653,7 +32452,6 @@
         "name": "output",
         "description": "the shaped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -32859,7 +32657,6 @@
         "name": "output",
         "description": "the shaped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -33030,7 +32827,6 @@
         "name": "output",
         "description": "the shaped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -33211,7 +33007,6 @@
         "name": "output",
         "description": "the shaped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -33387,7 +33182,6 @@
         "name": "output",
         "description": "the shaped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -33593,7 +33387,6 @@
         "name": "output",
         "description": "the shaped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -33734,7 +33527,6 @@
         "name": "output",
         "description": "the shaped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0
@@ -33872,7 +33664,6 @@
         "name": "output",
         "description": "the shaped signal",
         "outputType": "cv",
-        "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0

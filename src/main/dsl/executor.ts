@@ -10,6 +10,7 @@ import {
     deriveChannelCountChecked,
 } from './factories';
 import type {
+    AnyCollection,
     BufferOutputRef,
     GrooveTemplate,
     Signal,
@@ -25,7 +26,6 @@ import {
     DeferredModuleOutput,
     DeferredCollection,
     Bus,
-    ModuleOutput,
     cycleToChannels,
     replaceSignals,
     PORT_MAX_CHANNELS,
@@ -258,7 +258,7 @@ export function executePatchScript(
         }
         builder.setTempo(tempo);
     };
-    const $setOutputGain = (gain: Signal) => {
+    const $setOutputGain = (gain: PolySignal) => {
         builder.setOutputGain(gain);
     };
 
@@ -346,15 +346,13 @@ export function executePatchScript(
         new Bus(builder, cb);
 
     const $setEndOfChainCb = (
-        cb: (
-            mixed: Collection,
-        ) => ModuleOutput | Collection | CollectionWithRange,
+        cb: (mixed: Collection) => Collection | CollectionWithRange,
     ) => {
         builder.setEndOfChainCb(cb);
     };
 
     const $buffer = (
-        input: ModuleOutput | Collection | number,
+        input: Signal | AnyCollection,
         lengthSeconds: number,
         config?: { id?: string },
     ): BufferOutputRef => {
@@ -455,7 +453,7 @@ export function executePatchScript(
          * written to the buffer — e.g. a filter or saturator that colours every
          * recirculation of the delay.
          */
-        feedbackCb?: (mixed: Collection) => Collection | ModuleOutput;
+        feedbackCb?: (mixed: Collection) => Collection;
         /**
          * Maximum delay time in seconds — sizes the underlying buffer and
          * caps how long `time` can be (default 5).
@@ -487,7 +485,7 @@ export function executePatchScript(
      * (`$mix([input, $delay(input, time)])`) or use `.$m.delay(mix, time)`.
      */
     const $delay = (
-        input: Collection | ModuleOutput,
+        input: Collection,
         time: PolySignal,
         opts?: DelayOptions,
     ): Collection & { buffer: BufferOutputRef } => {
@@ -537,7 +535,7 @@ export function executePatchScript(
                     : mixed;
                 const buf = $buffer(buffered, maxTime);
                 const delayed = $delayRead(buf, time) as Collection;
-                def.set(delayed.amp(feedback as unknown as Signal));
+                def.set(delayed.amp(feedback));
                 return Object.assign(delayed, { buffer: buf });
             },
         );
@@ -547,10 +545,7 @@ export function executePatchScript(
     // sugar rather than a module schema, so it is registered explicitly here
     // instead of being discovered via `qualifiesForDollarChain`.
     builder.registerDollarMethod('delay', (self, ...args) =>
-        $delay(
-            self as Collection | ModuleOutput,
-            ...(args as [PolySignal, DelayOptions?]),
-        ),
+        $delay(self as Collection, ...(args as [PolySignal, DelayOptions?])),
     );
 
     interface OttConfig {
@@ -677,7 +672,7 @@ export function executePatchScript(
         const dryWeight = $scaleAndShift(depth, -5, 5);
 
         return $mix([
-            $scaleAndShift(input, dryWeight as Signal, 0),
+            $scaleAndShift(input, dryWeight, 0),
             $scaleAndShift(wet, depth, 0),
         ]) as Collection;
     };
@@ -698,7 +693,7 @@ export function executePatchScript(
      */
     const $cross = (
         count: number,
-        playhead: Signal,
+        playhead: PolySignal,
         range: [number, number] = [0, 5],
         interpolationType?: string,
     ): Collection => {

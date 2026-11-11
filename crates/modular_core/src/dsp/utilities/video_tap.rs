@@ -7,7 +7,10 @@ use schemars::JsonSchema;
 use crate::block_input::InputScratch;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::{param_errors::ModuleParamErrors, poly::MonoSignal};
+use crate::{
+    param_errors::ModuleParamErrors,
+    poly::{MonoSignal, PolyOutput},
+};
 
 /// Number of tap slots the video renderer can read.
 pub const MAX_VIDEO_TAPS: usize = 64;
@@ -105,8 +108,8 @@ fn video_tap_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct VideoTapOutputs {
-    #[output("output", "the input, passed through", type = cv, default)]
-    sample: f32,
+    #[output("output", "the input, passed through", type = cv, default, channels = 1)]
+    sample: PolyOutput,
 }
 
 const VIDEO_TAP_DOCS: ModuleDocs = ModuleDocs {
@@ -133,7 +136,7 @@ pub struct VideoTap {
 impl VideoTap {
     fn update(&mut self, _sample_rate: f32) {
         let value = self.params.input.get_value();
-        self.outputs.sample = value;
+        self.outputs.sample.set(0, value);
         let slot = self.params.slot.min(MAX_VIDEO_TAPS - 1);
         let head = VIDEO_HEADS[slot].load(Ordering::Relaxed);
         VIDEO_HISTORY[slot][head as usize & (VIDEO_HISTORY_LEN - 1)]
@@ -204,7 +207,7 @@ mod tests {
     fn passes_its_input_through() {
         let mut tap = make(60, 2.5);
         tap.update(SR);
-        assert_eq!(tap.outputs.sample, 2.5);
+        assert_eq!(tap.outputs.sample.get(0), 2.5);
     }
 
     #[test]

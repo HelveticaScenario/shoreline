@@ -66,7 +66,6 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
             name: "output".to_string(),
             description: "the input, passed through".to_string(),
             output_type: crate::types::OutputType::Cv,
-            polyphonic: true,
             default: true,
             min_value: None,
             max_value: None,

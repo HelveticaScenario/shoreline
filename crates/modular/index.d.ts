@@ -274,7 +274,7 @@ export interface DeviceCacheSnapshot {
 
 /**
  * Returns the list of reserved output names that cannot be used as module output port names.
- * These are names that conflict with built-in properties/methods on ModuleOutput, Collection, etc.
+ * These are names that conflict with built-in properties/methods on Collection, CollectionWithRange, etc.
  */
 export declare function getReservedOutputNames(): Array<string>
 
@@ -578,8 +578,6 @@ export interface OutputSchema {
   description: string
   /** An `OutputType` value. */
   outputType: string
-  /** Whether this output is polyphonic (PolyOutput) or monophonic (f32/f64) */
-  polyphonic: boolean
   /** Whether this is the default output for the module */
   default: boolean
   /** The minimum value of the raw output range (before any remapping) */
