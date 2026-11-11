@@ -78,9 +78,9 @@ const FOLD_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Folded plucks",
             code: r#"
-                const notes = $cycle($p('c3 g3 eb3 bb2'))
+                const notes = $p('c3 g3 eb3 bb2').c
                 $sine(notes)
-                  .$.fold($perc(notes.trig, { decay: 0.4 }), {
+                  .$.fold($perc(notes, { decay: 0.4 }), {
                     freq: notes,
                   })
                   .out()

@@ -166,7 +166,7 @@ const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Chopped and rearranged loop",
             code: r#"
-                const order = $cycle($p('0 2 1 3 0 0 3 2'))
+                const order = $p('0 2 1 3 0 0 3 2').c
                 $sampler($wavs().pad, order.trig, {
                   slice: [[0, 0.25, 0.5, 0.75], order],
                   fade: 2,

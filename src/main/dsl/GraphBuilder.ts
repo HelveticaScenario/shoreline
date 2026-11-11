@@ -25,7 +25,10 @@ import {
     qualifiesForDollarChain,
 } from './paramsSchema';
 import { captureSourceLocation } from './captureSourceLocation';
+import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
+import { OutputResolver } from './outputResolution';
 import { isPatternValue, refusePattern } from './patternKinds';
+import { isPlainObject } from './plainObject';
 import {
     assertSignalGroupsTopLevelOnly,
     expandSignalGroups,
@@ -231,24 +234,12 @@ export interface MonoOutGroup extends OutGroupVuState {
 }
 
 /**
- * True for a plain `{ ... }` literal — distinguishes MonoOutOptions from a
- * gain PolySignal (number | string | array | ModuleOutput | iterable). A
- * pattern is a plain object too, and is left to be refused as a gain.
- * Patch scripts evaluate in a vm realm whose `Object.prototype` is a
- * different object from the host's, so plainness is judged by chain depth
- * (a prototype that is itself the chain root) rather than identity.
+ * Distinguishes MonoOutOptions from a gain PolySignal (number | string |
+ * array | ModuleOutput | iterable). A pattern is a plain object too, and is
+ * left to be refused as a gain.
  */
 function isMonoOutOptions(v: unknown): v is MonoOutOptions {
-    if (
-        typeof v !== 'object' ||
-        v === null ||
-        Array.isArray(v) ||
-        isPatternValue(v)
-    ) {
-        return false;
-    }
-    const proto = Object.getPrototypeOf(v);
-    return proto === null || Object.getPrototypeOf(proto) === null;
+    return isPlainObject(v) && !isPatternValue(v);
 }
 
 /**
@@ -1028,6 +1019,8 @@ export interface SourceLocation {
  * consistency across all module creation paths.
  */
 export class GraphBuilder {
+    /** Resolves multi-output module roots and records each choice. */
+    readonly outputResolver = new OutputResolver();
     private modules = new Map<string, ModuleSpec>();
     private counters = new Map<string, number>();
     private schemas: ProcessedModuleSchema[] = [];
@@ -2869,6 +2862,12 @@ function crossfadeMix(
     const clampFactory = builder.getFactory('$clamp');
     const remapFactory = builder.getFactory('$remap');
     const mixFactory = builder.getFactory('$mix');
+    const amount = builder.outputResolver.resolve(
+        mix,
+        'cv',
+        captureSourceLocation(),
+        MIX_SLOT,
+    ) as PolySignal;
     const arity = (a: Amplifiable): number =>
         a instanceof BaseCollection ? Math.max(1, a.length) : 1;
     const channels = Math.max(arity(original), arity(result));
@@ -2879,9 +2878,9 @@ function crossfadeMix(
     const wet = cycleToChannels(result as ModuleOutput | Collection, channels);
     return mixFactory([
         dry.amplitude(
-            clampFactory(remapFactory(mix, 5, 0, 0, 5), { max: 5, min: 0 }),
+            clampFactory(remapFactory(amount, 5, 0, 0, 5), { max: 5, min: 0 }),
         ),
-        wet.amplitude(clampFactory(mix, { max: 5, min: 0 }) as PolySignal),
+        wet.amplitude(clampFactory(amount, { max: 5, min: 0 }) as PolySignal),
     ]) as Collection;
 }
 

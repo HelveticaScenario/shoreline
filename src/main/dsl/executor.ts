@@ -42,7 +42,9 @@ import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { createControls } from './controls';
 import { assertControlsPlaced } from './controlPlacement';
+import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
 import { $p, setActiveCycleFactory } from './miniNotation';
+import { DELAY_SITE } from './signalSiteTables';
 import { refusePattern } from './patternKinds';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
@@ -83,6 +85,8 @@ export interface DSLExecutionResult {
     video: CompiledVideoShader | null;
     /** One entry per `$v.preview` call, in the order the shader draws them */
     videoPreviews: VideoPreviewSite[];
+    /** Every contextual output choice made while the script ran */
+    outputResolutions: OutputResolutionRecord[];
 }
 
 export interface WavsFolderNode {
@@ -482,35 +486,56 @@ export function executePatchScript(
         time: PolySignal,
         opts?: DelayOptions,
     ): Collection & { buffer: BufferOutputRef } => {
-        const feedback = $clamp(opts?.feedback ?? 2.5, {
-            min: 0,
-            max: 5,
-        }) as Collection;
-        const maxTime = opts?.maxTime ?? 5;
-        // Size the feedback path to the widest polysignal param so a poly
-        // `time` or `feedback` is not truncated when it exceeds `input`.
-        const channels = Math.max(
-            1,
-            polyChannels(input),
-            polyChannels(time),
-            polyChannels(opts?.feedback ?? 2.5),
+        const signals: Record<string, unknown> = {
+            feedback: opts?.feedback,
+            input,
+            time,
+        };
+        // The modules are built out of sight, so the module roots among the
+        // signals are recorded against the `$delay` call itself.
+        return builder.outputResolver.withCall(
+            Object.entries(DELAY_SITE.inputs).map(([name, inputClass]) => [
+                name,
+                signals[name],
+                inputClass,
+            ]),
+            () => {
+                const feedback = $clamp(opts?.feedback ?? 2.5, {
+                    min: 0,
+                    max: 5,
+                }) as Collection;
+                const maxTime = opts?.maxTime ?? 5;
+                // Size the feedback path to the widest polysignal param so a poly
+                // `time` or `feedback` is not truncated when it exceeds `input`.
+                const channels = Math.max(
+                    1,
+                    polyChannels(input),
+                    polyChannels(time),
+                    polyChannels(opts?.feedback ?? 2.5),
+                );
+                const def = $deferred(channels);
+                // Broadcast a narrower input across the feedback width so every channel
+                // is excited by the dry signal (otherwise the extra channels carry
+                // only feedback and decay to silence — `$mix` skips, not cycles, a
+                // narrower input group's missing channels).
+                const mixed = $mix([
+                    cycleToChannels(input, channels),
+                    def,
+                ]) as Collection;
+                // Colour every recirculation: process the dry-plus-feedback mix before
+                // it is written to the buffer.
+                const { feedbackCb } = opts ?? {};
+                const buffered = feedbackCb
+                    ? builder.outputResolver.withUserCode(() =>
+                          feedbackCb(mixed),
+                      )
+                    : mixed;
+                const buf = $buffer(buffered, maxTime);
+                const delayed = $delayRead(buf, time) as Collection;
+                def.set(delayed.amp(feedback as unknown as Signal));
+                return Object.assign(delayed, { buffer: buf });
+            },
         );
-        const def = $deferred(channels);
-        // Broadcast a narrower input across the feedback width so every channel
-        // is excited by the dry signal (otherwise the extra channels carry
-        // only feedback and decay to silence — `$mix` skips, not cycles, a
-        // narrower input group's missing channels).
-        const mixed = $mix([
-            cycleToChannels(input, channels),
-            def,
-        ]) as Collection;
-        // Colour every recirculation: process the dry-plus-feedback mix before
-        // it is written to the buffer.
-        const buffered = opts?.feedbackCb ? opts.feedbackCb(mixed) : mixed;
-        const buf = $buffer(buffered, maxTime);
-        const delayed = $delayRead(buf, time) as Collection;
-        def.set(delayed.amp(feedback as unknown as Signal));
-        return Object.assign(delayed, { buffer: buf });
     };
 
     // Expose `$delay` on the `.$` / `.$m` chainable namespaces. It is DSL
@@ -1118,6 +1143,7 @@ export function executePatchScript(
             callSiteSpans,
             eqPanels: resultBuilder.getEqPanels(),
             interpolationResolutions,
+            outputResolutions: resultBuilder.outputResolver.records,
             patch,
             sliders: controls.sliders,
             sourceLocationMap,

@@ -55,9 +55,9 @@ const PERC_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Plucked bass",
             code: r#"
-                const notes = $cycle($p('c2 c2 eb2 g1'))
+                const notes = $p('c2 c2 eb2 g1').c
                 $saw(notes)
-                  .amp($perc(notes.trig, { decay: 0.2 }))
+                  .amp($perc(notes, { decay: 0.2 }))
                   .out()
             "#,
         },

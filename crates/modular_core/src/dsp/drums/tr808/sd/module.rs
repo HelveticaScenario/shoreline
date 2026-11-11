@@ -83,12 +83,8 @@ const SD808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Electro backbeat",
         code: r#"
-            $tr808
-              .kick($cycle($p('c ~ ~ c ~ ~ c ~')).trig, { decay: 3 })
-              .out()
-            $tr808
-              .snare($cycle($p('~ c ~ c')).trig, { snappy: 4 })
-              .out()
+            $tr808.kick($p('c(3,8)').c, { decay: 3 }).out()
+            $tr808.snare($p('~ c ~ c').c, { snappy: 4 }).out()
         "#,
     }],
 };

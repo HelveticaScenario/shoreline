@@ -71,6 +71,8 @@ import {
     trackPerformanceWindow,
 } from './performanceWindow';
 import { executePatchScript } from './dsl/executor';
+import { buildSignalSiteTables } from './dsl/signalSiteTables';
+import type { SignalSiteTables } from '../shared/dsl/signalSites';
 import { buildLibSource } from './dsl/typescriptLibGen';
 import type { WavsFolderNode } from './dsl/typescriptLibGen';
 import * as fs from 'fs';
@@ -926,6 +928,13 @@ registerIPCHandler('GET_DSL_LIB_SOURCE', () => {
     return cachedLibSource;
 });
 
+// The schemas are fixed for the life of the process, so the tables are too.
+let cachedSignalSiteTables: SignalSiteTables | null = null;
+registerIPCHandler('GET_SIGNAL_SITE_TABLES', () => {
+    cachedSignalSiteTables ??= buildSignalSiteTables(schemas);
+    return cachedSignalSiteTables;
+});
+
 /** Rebuilds of a patch update whose baseline went stale while it was prepared. */
 const MAX_BASELINE_RETRIES = 2;
 
@@ -1072,6 +1081,7 @@ registerIPCHandler(
                 eqPanels,
                 video,
                 videoPreviews,
+                outputResolutions,
             } = executePatchScript(source, schemas, {
                 inputChannels: synth.inputChannels(),
                 mediaExists: (relative) =>
@@ -1143,6 +1153,7 @@ registerIPCHandler(
                 errors: [],
                 interpolationResolutions: interpolationResolutionsRecord,
                 moduleIdRemap,
+                outputResolutions,
                 sliders,
                 sourceLocationMap: sourceLocationRecord,
                 success: true,

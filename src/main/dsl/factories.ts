@@ -1,5 +1,5 @@
 import type { ModuleSchema } from '@modular/core';
-import { deriveChannelCount, getReservedOutputNames } from '@modular/core';
+import { deriveChannelCount } from '@modular/core';
 import type { ModuleOutput, ScopeConfig } from './GraphBuilder';
 import {
     BaseCollection,
@@ -9,10 +9,18 @@ import {
 } from './GraphBuilder';
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
+import {
+    chooseOutput,
+    elementSlot,
+    type OutputClass,
+} from '../../shared/dsl/outputResolutionRule';
+import './chainMethods';
+import { sanitizeOutputName } from './outputNames';
+import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
 import { refusePattern } from './patternKinds';
 import { isSignalGroupLike } from './signalGroups';
-import { buildSignalMapper } from './signalSchemaMapper';
+import { signalParamsOf } from './signalParams';
 import {
     captureSourceLocation,
     setDSLWrapperLineOffset,
@@ -247,32 +255,6 @@ function sanitizeIdentifier(name: string): string {
 }
 
 /**
- * Convert snake_case to camelCase
- */
-function toCamelCase(str: string): string {
-    return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
-/**
- * Reserved property names that conflict with ModuleOutput, Collection, or CollectionWithRange
- * methods/properties. Output names matching these will be suffixed with an underscore.
- *
- * Single source of truth: `crates/reserved_output_names.rs`
- */
-const RESERVED_OUTPUT_NAMES: ReadonlySet<string> = new Set(
-    getReservedOutputNames(),
-);
-
-/**
- * Sanitize output name to avoid conflicts with reserved properties/methods.
- * Appends underscore if the camelCase name is reserved.
- */
-function sanitizeOutputName(name: string): string {
-    const camelName = toCamelCase(name);
-    return RESERVED_OUTPUT_NAMES.has(camelName) ? `${camelName}_` : camelName;
-}
-
-/**
  * Build a nested namespace tree from module schemas
  * Mirrors the logic in typescriptLibGen.ts buildTreeFromSchemas()
  */
@@ -357,21 +339,49 @@ export class DSLContext {
     }
 
     /**
-     * A signal param's value with the collections inside an array spread into
-     * its elements. `what` names the param when a pattern in it is refused.
+     * Prepare a signal param's value for an input of class `inputClass`:
+     * resolve every module root in the value itself, array elements, and the
+     * contents of a `$gN` group, and spread the collections inside an array.
+     * `slot` names the value in resolution records and, after `module`, when
+     * a pattern in it is refused.
      */
-    private signalParam(value: unknown, what: string): unknown {
+    private signalParam(
+        value: unknown,
+        inputClass: OutputClass,
+        slot: string,
+        module: string,
+        sourceLocation: CallSite | undefined,
+    ): unknown {
         if (isSignalGroupLike(value)) {
-            return { ...value, signals: this.signalParam(value.signals, what) };
+            return {
+                ...value,
+                signals: this.signalParam(
+                    value.signals,
+                    inputClass,
+                    slot,
+                    module,
+                    sourceLocation,
+                ),
+            };
         }
+        const resolve = (v: unknown, s: string): unknown => {
+            refusePattern(v, `${module}: ${s}`);
+            return this.builder.outputResolver.resolve(
+                v,
+                inputClass,
+                sourceLocation,
+                s,
+            );
+        };
         if (Array.isArray(value)) {
-            return value.flatMap((v) => {
-                refusePattern(v, what);
-                return v instanceof BaseCollection ? [...v] : [v];
+            return value.flatMap((v, i) => {
+                const resolved = resolve(v, elementSlot(slot, i));
+                return resolved instanceof BaseCollection
+                    ? [...resolved]
+                    : [resolved];
             });
         }
-        refusePattern(value, what);
-        return value;
+        return resolve(value, slot);
     }
 
     /**
@@ -379,39 +389,12 @@ export class DSLContext {
      */
     private createFactory(schema: ModuleSchema): FactoryFunction {
         const outputs = schema.outputs || [];
+        const rootOutputs = resolvableOutputs(schema);
         const processed = processModuleSchema(schema);
         const scaleParamNames = processed.params
             .filter((p) => p.isScaleSignalInput)
             .map((p) => p.name);
-        const signalParamNames = processed.params
-            .filter(
-                (p) =>
-                    !p.isScaleSignalInput &&
-                    (p.kind === 'signal' ||
-                        p.kind === 'polySignal' ||
-                        p.isPolySignalInput ||
-                        p.isMonoSignalInput),
-            )
-            .map((p) => p.name);
-
-        // Params that nest signals inside arrays or tuples, which the flat
-        // signal list above does not cover.
-        const paramsSchema = schema.paramsSchema as {
-            properties?: Record<string, Record<string, unknown>>;
-            $defs?: Record<string, Record<string, unknown>>;
-        };
-        const nestedSignalParams = processed.params
-            .filter(
-                (p) =>
-                    !p.isScaleSignalInput && !signalParamNames.includes(p.name),
-            )
-            .flatMap((p) => {
-                const property = paramsSchema.properties?.[p.name];
-                const mapper = property
-                    ? buildSignalMapper(property, paramsSchema.$defs)
-                    : null;
-                return mapper ? [{ mapper, name: p.name }] : [];
-            });
+        const signalParams = signalParamsOf(schema, processed);
 
         return (...args: any[]): ModuleReturn => {
             const sourceLocation = captureSourceLocation();
@@ -442,16 +425,25 @@ export class DSLContext {
                 }
             }
 
-            for (const name of signalParamNames) {
+            for (const { inputClass, name } of signalParams.flat) {
                 params[name] = this.signalParam(
                     params[name],
-                    `${schema.name}: ${name}`,
+                    inputClass,
+                    name,
+                    schema.name,
+                    sourceLocation,
                 );
             }
-            for (const { mapper, name } of nestedSignalParams) {
+            for (const { mapper, name } of signalParams.nested) {
                 if (params[name] !== undefined) {
                     params[name] = mapper(params[name], name, (value, path) =>
-                        this.signalParam(value, `${schema.name}: ${path}`),
+                        this.signalParam(
+                            value,
+                            'cv',
+                            path,
+                            schema.name,
+                            sourceLocation,
+                        ),
                     );
                 }
             }
@@ -459,13 +451,11 @@ export class DSLContext {
             // The engine only accepts a signal scale; a spec string is
             // shorthand for the notes of `$chord(spec)`.
             for (const name of scaleParamNames) {
-                params[name] =
-                    typeof params[name] === 'string'
-                        ? this.builder.getFactory('$chord')(params[name])
-                        : this.signalParam(
-                              params[name],
-                              `${schema.name}: ${name}`,
-                          );
+                if (typeof params[name] === 'string') {
+                    params[name] = this.builder.getFactory('$chord')(
+                        params[name],
+                    );
+                }
             }
 
             // Merge argument_span fields carried by any ParsedPattern params
@@ -550,30 +540,25 @@ export class DSLContext {
                 const output = outputs[0];
                 return node._output(output.name, output.polyphonic ?? false);
             }
-            // Multiple outputs - create hybrid object extending the default output
-            // Find the default output (or use first if none marked)
-            const defaultOutput = outputs.find((o) => o.default) || outputs[0];
-            const defaultValue = node._output(
-                defaultOutput.name,
-                defaultOutput.polyphonic ?? false,
-            );
-
-            // Create the additional output properties
-            const additionalOutputs: Record<
+            // Multiple outputs: the root carries every output as a named
+            // property, each a separate untagged object. Read as a signal
+            // itself, the root is the output a `cv` input takes.
+            const named: Record<
                 string,
                 ModuleOutput | Collection | CollectionWithRange
             > = {};
+            let root: ModuleOutput | Collection | CollectionWithRange;
+            const cvOutput = chooseOutput(rootOutputs, 'cv');
             for (const output of outputs) {
-                if (output.name === defaultOutput.name) continue;
-                const safeName = sanitizeOutputName(output.name);
-                additionalOutputs[safeName] = node._output(
-                    output.name,
-                    output.polyphonic ?? false,
-                );
+                const name = sanitizeOutputName(output.name);
+                const polyphonic = output.polyphonic ?? false;
+                named[name] = node._output(output.name, polyphonic);
+                if (name === cvOutput) {
+                    root = node._output(output.name, polyphonic);
+                }
             }
-
-            // Return hybrid object: default output with additional properties
-            return Object.assign(defaultValue, additionalOutputs);
+            markRoot(root!, { outputs: rootOutputs, values: named });
+            return Object.assign(root!, named);
         };
     }
 

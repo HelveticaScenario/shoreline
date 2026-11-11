@@ -152,11 +152,11 @@ const OBXD2_LP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Brassy chord stab",
         code: r#"
-            const seq = $cycle($p('[c3, eb3, g3] ~ ~ [bb2, d3, f3]'))
+            const seq = $p('[c3, eb3, g3] ~ ~ [bb2, d3, f3]').c
             $unstable.filter
               .obxd2Lp(
                 $saw(seq),
-                $perc(seq.trig, { decay: 0.4 }).range('c4', 'c7'),
+                $perc(seq, { decay: 0.4 }).range('c4', 'c7'),
                 2,
               )
               .out()

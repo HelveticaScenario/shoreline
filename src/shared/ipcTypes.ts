@@ -5,6 +5,8 @@
  * Shared between main and renderer processes.
  */
 
+import type { OutputResolutionRecord } from './dsl/outputResolutionRule';
+import type { SignalSiteTables } from './dsl/signalSites';
 import type { MonospaceFont } from './fonts';
 import type {
     ApplyPatchError,
@@ -225,6 +227,8 @@ export interface DSLExecuteResult {
     eqPanels?: EqPanelDef[];
     /** One entry per `$v.preview` call, in the order the shader draws them */
     videoPreviews?: VideoPreviewSite[];
+    /** Every contextual output choice made while the script ran */
+    outputResolutions?: OutputResolutionRecord[];
 }
 
 /**
@@ -322,6 +326,7 @@ export const IPC_CHANNELS = {
     // DSL operations
     DSL_EXECUTE: 'modular:dsl:execute',
     GET_DSL_LIB_SOURCE: 'modular:dsl:get-lib-source',
+    GET_SIGNAL_SITE_TABLES: 'modular:dsl:get-signal-site-tables',
 
     // Synthesizer operations
     SYNTH_GET_SAMPLE_RATE: 'modular:synth:get-sample-rate',
@@ -468,6 +473,7 @@ export interface IPCHandlers {
         trigger?: QueuedTrigger,
     ) => DSLExecuteResult;
     [IPC_CHANNELS.GET_DSL_LIB_SOURCE]: () => string;
+    [IPC_CHANNELS.GET_SIGNAL_SITE_TABLES]: () => SignalSiteTables;
 
     // Synthesizer operations
     [IPC_CHANNELS.SYNTH_GET_SAMPLE_RATE]: typeof Synthesizer.prototype.sampleRate;
