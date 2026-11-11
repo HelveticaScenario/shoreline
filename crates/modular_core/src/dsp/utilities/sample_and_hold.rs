@@ -44,7 +44,7 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
                   $quantizer(
                     $sah(
                       $noise('white').range('c3', 'c5'),
-                      $clock.beatTrigger,
+                      $clock.o.beatTrigger,
                     ),
                     'C(major)',
                   ),
@@ -58,7 +58,7 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
                   .$.lpf(
                     $sah(
                       $noise('white').range('c4', 'c7'),
-                      $clock.beatTrigger,
+                      $clock.o.beatTrigger,
                     ),
                     3,
                   )

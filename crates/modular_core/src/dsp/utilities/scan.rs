@@ -55,7 +55,7 @@ const SCAN_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Circle of fifths folded into one octave",
-        code: "$sine($scan(1, 7 / 12, $clock.beatTrigger)).out()",
+        code: "$sine($scan(1, 7 / 12, $clock.o.beatTrigger)).out()",
     }],
 };
 

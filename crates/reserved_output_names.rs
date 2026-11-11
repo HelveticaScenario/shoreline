@@ -1,8 +1,7 @@
 /// Reserved output names that cannot be used as module output port names.
-/// A module's outputs are properties of the collection it returns, so these
-/// are the built-in properties and methods of `BaseCollection`, `Collection`,
-/// `CollectionWithRange` and `DeferredCollection`, as well as JavaScript
-/// built-in property names.
+/// These are the built-in properties and methods of `BaseCollection`,
+/// `Collection`, `CollectionWithRange` and `DeferredCollection`, as well as
+/// JavaScript built-in property names.
 ///
 /// This file is the single source of truth. It is `include!()`-ed by both
 /// `modular_derive` (compile-time validation) and `modular` (NAPI export to JS).

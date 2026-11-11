@@ -240,7 +240,7 @@ const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
             title: "Dotted-eighth echoes",
             code: r#"
                 const pluck = $saw('c3').amp(
-                  $perc($clock.beatTrigger, { decay: 0.1 }),
+                  $perc($clock.o.beatTrigger, { decay: 0.1 }),
                 )
                 $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()
             "#,
@@ -249,7 +249,7 @@ const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
             title: "Sliced sixteenth repeats",
             code: r#"
                 const pluck = $saw($p('c3 eb3 g3 bb3').c).amp(
-                  $perc($clock.beatTrigger, { decay: 0.3 }),
+                  $perc($clock.o.beatTrigger, { decay: 0.3 }),
                 )
                 $clockedDelay(pluck, {
                   bars: 1 / 16,

@@ -45,9 +45,11 @@ test.describe('sidebar activity bar', () => {
 
         await window.getByRole('button', { name: 'Explorer' }).click();
         await expect(panel).toBeHidden();
-        await window.getByRole('button', { name: 'Docs' }).click();
+        await window.getByRole('button', { name: 'Control' }).click();
         await expect(panel).toBeVisible();
-        await expect(window.locator('#app-sidebar-title')).toHaveText('Docs');
+        await expect(window.locator('#app-sidebar-title')).toHaveText(
+            'Control',
+        );
     });
 
     test('opening settings reopens a closed sidebar', async ({ window }) => {

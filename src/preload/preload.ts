@@ -217,7 +217,7 @@ export interface ElectronAPI {
     onMenuOpenWorkspace: (callback: () => void) => () => void;
     onMenuCloseBuffer: (callback: () => void) => () => void;
     onMenuToggleRecording: (callback: () => void) => () => void;
-    onMenuToggleVuMeters: (callback: () => void) => () => void;
+    onMenuToggleMixer: (callback: () => void) => () => void;
     onMenuOpenSettings: (callback: () => void) => () => void;
     onMenuOpenEngineHealth: (callback: () => void) => () => void;
     onMenuOpenModuleProfile: (callback: () => void) => () => void;
@@ -476,7 +476,7 @@ const electronAPI: ElectronAPI = {
     onMenuOpenWorkspace: menuEventHandler(MENU_CHANNELS.OPEN_WORKSPACE),
     onMenuCloseBuffer: menuEventHandler(MENU_CHANNELS.CLOSE_BUFFER),
     onMenuToggleRecording: menuEventHandler(MENU_CHANNELS.TOGGLE_RECORDING),
-    onMenuToggleVuMeters: menuEventHandler(MENU_CHANNELS.TOGGLE_VU_METERS),
+    onMenuToggleMixer: menuEventHandler(MENU_CHANNELS.TOGGLE_MIXER),
     onMenuTogglePerformanceWindow: menuEventHandler(
         MENU_CHANNELS.TOGGLE_PERFORMANCE_WINDOW,
     ),

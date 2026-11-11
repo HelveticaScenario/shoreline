@@ -71,7 +71,7 @@ fn assert_hz(got: f32, expected: f32) {
 #[test]
 fn single_voice_plays_its_root() {
     let patch = build_enosc(json!({ "pitch": 0.0, "count": 1 }));
-    assert_hz(frequency(&render_port(&patch, "output", 0)), C4_HZ);
+    assert_hz(frequency(&render_port(&patch, "all", 0)), C4_HZ);
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn root_quantizes_to_the_scale() {
         let patch = build_enosc(json!({
             "pitch": 0.0, "root": root, "scale": c_major, "count": 1, "crossfade": 0.0,
         }));
-        let hz = frequency(&render_port(&patch, "output", 0));
+        let hz = frequency(&render_port(&patch, "all", 0));
         assert_hz(hz, C4_HZ * 2f32.powf(expected / 12.0));
     }
 }
@@ -95,7 +95,7 @@ fn pitch_transposes_after_quantization() {
         "pitch": semis(1.0), "scale": { "type": "octaveFifth" }, "count": 1,
     }));
     assert_hz(
-        frequency(&render_port(&patch, "output", 0)),
+        frequency(&render_port(&patch, "all", 0)),
         C4_HZ * 2f32.powf(1.0 / 12.0),
     );
 }
@@ -108,7 +108,7 @@ fn custom_scales_measure_from_their_lowest_note() {
         "pitch": a3, "root": semis(3.0), "count": 1, "crossfade": 0.0,
         "scale": { "type": "custom", "notes": [9, 11, 12, 14, 16, 17, 19], "repeatsOctave": true },
     }));
-    assert_hz(frequency(&render_port(&patch, "output", 0)), C4_HZ);
+    assert_hz(frequency(&render_port(&patch, "all", 0)), C4_HZ);
 }
 
 #[test]
@@ -120,7 +120,7 @@ fn scales_repeat_at_their_last_note() {
         "count": 1, "crossfade": 0.0,
     }));
     assert_hz(
-        frequency(&render_port(&patch, "output", 0)),
+        frequency(&render_port(&patch, "all", 0)),
         C4_HZ * 2f32.powf(7.019_55 / 12.0),
     );
 }
@@ -142,7 +142,7 @@ fn split_outputs_sum_to_the_mix() {
     }));
     let [output, odd, even, low, high, root, other] = render_ports(
         &patch,
-        ["output", "odd", "even", "low", "high", "root", "other"],
+        ["all", "odd", "even", "low", "high", "root", "other"],
         0,
     );
     // The mix gain for 5 voices at balance 2, where each voice is 2^(4 · 0.4³)
@@ -173,7 +173,7 @@ fn widest_input_sets_the_channel_count() {
         "pitch": [0.0, 1.0], "spread": [1.0, 2.0, 3.0],
     }));
     let module = &patch.sampleables["dut"];
-    assert_eq!(module.port_channels("output"), 3);
+    assert_eq!(module.port_channels("all"), 3);
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn outputs_stay_bounded_across_options() {
                 "fold": 5.0, "cheby": 5.0, "segment": 5.0, "effectOrder": order,
                 "balance": -5.0,
             }));
-            for sample in render_port(&patch, "output", 1) {
+            for sample in render_port(&patch, "all", 1) {
                 assert!(
                     sample.is_finite() && sample.abs() < 12.0,
                     "{mode}: {sample}"

@@ -241,9 +241,11 @@ export function deriveChannelCountChecked(
 }
 
 // Return type for module factories: one output is a collection; several are
-// the root collection carrying every output as a named property.
+// the root collection with every output by name under `o`.
 type PolyOutput = Collection | CollectionWithRange;
-type MultiOutput = PolyOutput & Record<string, PolyOutput>;
+type MultiOutput = PolyOutput & {
+    readonly o: Readonly<Record<string, PolyOutput>>;
+};
 type ModuleReturn = PolyOutput | MultiOutput;
 
 type FactoryFunction = (...args: any[]) => ModuleReturn;
@@ -571,9 +573,9 @@ export class DSLContext {
             } else if (outputs.length === 1) {
                 return node._output(outputs[0].name);
             }
-            // Multiple outputs: the root carries every output as a named
-            // property, each a separate untagged object. Read as a signal
-            // itself, the root is the output a `cv` input takes.
+            // Multiple outputs: the root's `o` holds every output by name,
+            // each a separate untagged object. Read as a signal itself, the
+            // root is the output a `cv` input takes.
             const named: Record<string, Collection | CollectionWithRange> = {};
             let root: Collection | CollectionWithRange;
             const cvOutput = chooseOutput(rootOutputs, 'cv');
@@ -585,7 +587,7 @@ export class DSLContext {
                 }
             }
             markRoot(root!, { outputs: rootOutputs, values: named });
-            return Object.assign(root!, named);
+            return Object.assign(root!, { o: Object.freeze(named) });
         };
     }
 

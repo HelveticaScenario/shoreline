@@ -992,7 +992,7 @@ class BaseCollection<Self> implements Iterable<Self> {
    * Divide this signal by another, sample by sample. Dividing by 0 gives 0.
    * @param operand Divisor as {@link Poly<Signal>}
    * @returns The quotient as a {@link Collection} for chaining
-   * @example $clockedDelay($saw('c3').amp($perc($clock.beatTrigger)), { bars: $sine('0.1hz').range(1, 4).round().div(8) }).out()  // 1/8 to 4/8 of a bar
+   * @example $clockedDelay($saw('c3').amp($perc($clock.o.beatTrigger)), { bars: $sine('0.1hz').range(1, 4).round().div(8) }).out()  // 1/8 to 4/8 of a bar
    */
   div(operand: Poly<Signal>): Collection;
 
@@ -1179,6 +1179,372 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
 
   /**
    * Fold this signal's channels down to a target channel count by panning
+||||||| df138225
+   * Fold this output's channels down to a target channel count by panning them
+   * evenly across the output field with an equal-power law. Creates a \\$mixDown
+   * module internally.
+   *
+   * @param channels Target output channel count (1–16). Defaults to 1 (mono).
+   * @param mode How channels landing on the same output combine. Defaults to "sum".
+   * @returns A Collection from the \\$mixDown output
+   *
+   * @example
+   * // Fold a 3-voice spread down to stereo
+   * $saw($spread(0, 5, 3)).mix(2).out()
+   */
+  mix(channels?: number, mode?: "sum" | "average" | "max" | "min"): Collection;
+
+  /**
+   * Remap this output from an explicit input range to a new output range.
+   * Creates a $remap module internally.
+   * @param outMin New minimum as {@link Poly<Signal>}
+   * @param outMax New maximum as {@link Poly<Signal>}
+   * @param inMin Input minimum as {@link Poly<Signal>}
+   * @param inMax Input maximum as {@link Poly<Signal>}
+   * @returns A {@link CollectionWithRange} carrying the remapped signal
+   * @example $sine('c4').range(0, 1, -5, 5)
+   */
+  range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin: Poly<Signal>, inMax: Poly<Signal>): CollectionWithRange;
+
+  /**
+   * Register this output as a send to a bus, with optional gain.
+   * @param bus The {@link Bus} to send to
+   * @param gain Send level as {@link Poly<Signal>}
+   * @returns This output for chaining
+   */
+  send(bus: Bus, gain?: Poly<Signal>): this;
+
+  /**
+   * Chainable module namespace. Every module whose first argument is a
+   * {@link Poly<Signal>} becomes a method here, receiving this output as that
+   * argument.
+   * @example $sine(0).$.lpf('100hz')  // ≡ $lpf($sine(0), '100hz')
+   */
+  readonly $: DollarChain;
+
+  /**
+   * Like {@link $}, but each method takes a leading \`mix\` signal that
+   * crossfades the dry input against the wet result (0 = dry, 5 = wet,
+   * 2.5 = equal).
+   * @example $sine(0).$m.lpf(2.5, '100hz')
+   */
+  readonly $m: DollarMixChain;
+}
+
+/**
+ * DeferredModuleOutput is a placeholder for a signal that will be assigned later.
+ * Useful for feedback loops and forward references in the DSL.
+ * Supports the same chainable methods as ModuleOutput (amplitude, shift, scope, out, outMono).
+ */
+interface DeferredModuleOutput extends ModuleOutput {
+  /**
+   * Set the actual signal this deferred output should resolve to.
+   * Bare {@link Signal} literals (numbers, note/Hz strings) are lifted into
+   * $signal modules, matching $c.
+   * @param signal The signal to resolve to (number, string, or ModuleOutput)
+   */
+  set(signal: Signal): void;
+}
+
+/**
+ * A {@link ModuleOutput} that knows its output value range (minValue, maxValue).
+ * 
+ * Typically returned by LFOs, envelopes, and other modulation sources.
+ * The range() method uses the stored min/max for automatic scaling.
+ * 
+ * @example
+ * const lfo = $sine('2hz')             // Outputs -5 to +5
+ * lfo.range(200, 2000)                 // Remap to 200-2000
+ * $adsr($clock.o.beatTrigger, { attack: 0.1 }).range(0, 1)
+ *
+ * @see {@link ModuleOutput} - base interface
+ * @see {@link CollectionWithRange} - for collections of ranged outputs
+ */
+interface ModuleOutputWithRange extends ModuleOutput {
+  /** The minimum value this output produces */
+  readonly minValue: Signal;
+  /** The maximum value this output produces */
+  readonly maxValue: Signal;
+  
+  /**
+   * Remap the output from its native range to a new range.
+   * Uses the stored minValue/maxValue automatically.
+   * @param outMin New minimum as {@link Poly<Signal>}
+   * @param outMax New maximum as {@link Poly<Signal>}
+   * @returns A {@link CollectionWithRange} carrying the remapped signal
+   * @example $sine("1hz").range("C3", "C5")
+   */
+  range(outMin: Poly<Signal>, outMax: Poly<Signal>): CollectionWithRange;
+
+  /**
+   * Randomly vary this output within its range. By default it's a wandering
+   * shift where \`amount\` 5 moves up to half the range either way (±5 on a
+   * 0–10 signal), clamped to the range; see \`mode\` for an unclamped shift or
+   * blend. The result keeps the range.
+   * @param amount Depth (0–5) as {@link Poly<Signal>}
+   * @param options Trigger, speed, bias, mode, and sparse ({@link RangedErraticOptions})
+   * @returns A {@link CollectionWithRange} with the same range
+   * @example $saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock.o.beatTrigger })).out()
+   * @example $saw('c3').amp($sine('4hz').range(0, 5).erratic(5, { mode: 'blend', sparse: true, speed: 5, trigger: $clock.o.beatTrigger })).out()  // usually a new level each beat, sometimes close to the sine
+   */
+  erratic(amount: Poly<Signal>, options?: RangedErraticOptions): CollectionWithRange;
+
+  /**
+   * Round to the nearest whole volt, halves away from zero; the range rounds
+   * with it.
+   * @returns A {@link CollectionWithRange} with the rounded range
+   * @example $sine($sine('1hz').range(0, 7.5).round().range('c3', 'c4')).out()  // eight steps across an octave
+   */
+  round(): CollectionWithRange;
+
+  /**
+   * Round down to a whole volt; the range rounds with it.
+   * @returns A {@link CollectionWithRange} with the rounded range
+   */
+  floor(): CollectionWithRange;
+
+  /**
+   * Round up to a whole volt; the range rounds with it.
+   * @returns A {@link CollectionWithRange} with the rounded range
+   */
+  ceil(): CollectionWithRange;
+}
+
+
+class BaseCollection<T extends ModuleOutput> implements Iterable<T> {
+  /** Number of outputs in the collection */
+  readonly length: number;
+  /** Index access to individual elements */
+  readonly [index: number]: T;
+  [Symbol.iterator](): Iterator<T>;
+
+  /**
+   * A collection of the same type holding the outputs from \`start\` up to but
+   * not including \`end\`. Negative indices count from the end, as with
+   * \`Array.prototype.slice\`.
+   * @param start First index to include (default 0)
+   * @param end Index to stop before (default: the collection's length)
+   * @example $saw(['c3', 'e3', 'g3', 'b3']).slice(1, 3).out()
+   */
+  slice(start?: number, end?: number): this;
+
+  /**
+   * Split into an array of consecutive collections of the same type, each
+   * \`size\` outputs long except the last, which holds the remainder.
+   *
+   * \`\`\`js
+   * const [low, high] = $saw(['c3', 'e3', 'g3', 'b3']).chunk(2)
+   * low.out({ pan: -5 })
+   * high.out({ pan: 5 })
+   * \`\`\`
+   * @param size Outputs per chunk (a positive integer)
+   */
+  chunk(size: number): this[];
+
+    /**
+     * Scale all signals by a linear factor (5 = unity, 2.5 = half, 10 = 2x).
+     *
+     * For perceptual (audio-taper) volume control, use {@link gain} instead.
+     * @param factor Scale factor as {@link Poly<Signal>}
+     * @see {@link ModuleOutput.amplitude}
+     */
+   amplitude(factor: Poly<Signal>): Collection;
+
+   /** Alias for {@link amplitude} */
+   amp(factor: Poly<Signal>): Collection;
+
+  /**
+   * Add DC offset to all signals.
+   * @param offset Offset as {@link Poly<Signal>}
+   * @see {@link ModuleOutput.shift}
+   */
+  shift(offset: Poly<Signal>): Collection;
+
+  /**
+   * Add another signal to all signals, sample by sample.
+   * @see {@link ModuleOutput.add}
+   */
+  add(operand: Poly<Signal>): Collection;
+
+  /**
+   * Subtract another signal from all signals, sample by sample.
+   * @see {@link ModuleOutput.sub}
+   */
+  sub(operand: Poly<Signal>): Collection;
+
+  /**
+   * Multiply all signals by another, sample by sample.
+   * @see {@link ModuleOutput.mul}
+   */
+  mul(operand: Poly<Signal>): Collection;
+
+  /**
+   * Divide all signals by another, sample by sample. Dividing by 0 gives 0.
+   * @see {@link ModuleOutput.div}
+   */
+  div(operand: Poly<Signal>): Collection;
+
+  /**
+   * Round all signals to the nearest whole volt, halves away from zero.
+   * @see {@link ModuleOutput.round}
+   */
+  round(): Collection;
+
+  /**
+   * Round all signals down to a whole volt.
+   * @see {@link ModuleOutput.floor}
+   */
+  floor(): Collection;
+
+  /**
+   * Round all signals up to a whole volt.
+   * @see {@link ModuleOutput.ceil}
+   */
+  ceil(): Collection;
+
+  /**
+   * Offset all pitches by an absolute frequency amount, in Hz.
+   * @param offset Hz offset as {@link Poly<Signal>}
+   * @see {@link ModuleOutput.addHz}
+   */
+  addHz(offset: Poly<Signal>): Collection;
+
+  /**
+   * Multiply all pitches by a frequency factor (2 = octave up, 0.5 = down).
+   * @param factor Frequency multiplier as {@link Poly<Signal>}
+   * @see {@link ModuleOutput.mulHz}
+   */
+  mulHz(factor: Poly<Signal>): Collection;
+
+    /**
+     * Scale all signals by a factor with a perceptual (audio taper) curve
+     * (5 = unity, 0 = silence).
+     *
+     * For linear amplitude scaling, use {@link amplitude} instead.
+     * @param level Amplitude level as {@link Poly<Signal>}
+     * @see {@link ModuleOutput.gain}
+     */
+  gain(level: Poly<Signal>): Collection;
+
+  /**
+   * Raise all signals to the power \`exponent\`, sample by sample.
+   * @see {@link ModuleOutput.exp}
+   */
+  exp(exponent: Poly<Signal>): Collection;
+
+  /**
+   * Apply a wandering random shift of up to ±\`amount\` V to all signals.
+   * Each channel wanders independently.
+   * @param amount Depth (0–5) as {@link Poly<Signal>}
+   * @param options Trigger, speed, bias, and sparse ({@link ErraticOptions})
+   * @returns The shifted {@link Collection} for chaining
+   * @example $sine($c('c3', 'g3').erratic(1 / 12)).out()  // each voice drifts on its own
+   */
+  erratic(amount: Poly<Signal>, options?: ErraticOptions): Collection;
+
+  /**
+   * Add scope visualization for all outputs in the collection, overlaid on one scope unless \`split\` is set.
+   * @param config Scope configuration options
+   * @param config.msPerFrame Time window in milliseconds (default 500)
+   * @param config.triggerThreshold Trigger threshold in volts (optional)
+   * @param config.triggerWaitToRender Whether the scope should wait to render until the buffer fills (default true). Only applicable if triggerThreshold is set.
+   * @param config.range Voltage range for display as [min, max] tuple (default [-5, 5])
+   * @param config.split Draw each channel in its own scope instead of overlaying them: 'vertical' stacks them top to bottom, 'horizontal' fits them side by side
+   */
+  scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number]; split?: 'vertical' | 'horizontal' }): this;
+
+  /**
+   * Send all outputs to speakers as stereo, summed together.
+   *
+   * Options:
+${renderOutOptionsJsDocList(STEREO_OUT_OPTIONS)}
+   * @param options Stereo output options ({@link StereoOutOptions})
+   * @example $saw(['c3', 'e3', 'g3']).out({ label: 'chord' })
+   */
+  out(options?: StereoOutOptions): this;
+
+  /**
+   * Send all outputs to speakers as mono, summed together.
+   *
+   * Options:
+${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
+   * @param channelOrOptions Output channel (0-63, default 0), or mono output options ({@link MonoOutOptions})
+   * @param gainOrOptions Output gain as {@link Poly<Signal>}, or the same options (an explicit channel there wins)
+   * @example $saw(['c2', 'c3']).outMono(0, { label: 'bass' })
+   */
+  outMono(channelOrOptions?: number | MonoOutOptions, gainOrOptions?: Poly<Signal> | MonoOutOptions): this;
+
+
+  /**
+   * Remap all outputs from input range to output range.
+   * Requires explicit input min/max values.
+   * @param inMin Input minimum as {@link Poly<Signal>}
+   * @param inMax Input maximum as {@link Poly<Signal>}
+   * @param outMin Output minimum as {@link Poly<Signal>}
+   * @param outMax Output maximum as {@link Poly<Signal>}
+   * @see {@link CollectionWithRange.range} - for automatic input range
+   */
+  range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin: Poly<Signal>, inMax: Poly<Signal>): CollectionWithRange;
+
+  /**
+   * Pipe this collection through a transform function.
+   *
+   * Passes \`this\` to \`pipeFn\` and returns the result, enabling inline
+   * functional transforms and reusable signal-processing helpers.
+   *
+   * @param pipeFn A function that receives this collection and returns a transformed value
+   * @returns The return value of \`pipeFn\`
+   *
+   * @example
+   * // Inline transform on a collection
+   * $c($sine('c3'), $sine('e3')).pipe(all => all.amplitude(2.5)).out()
+   *
+   * @example
+   * // Reusable helper applied to a collection
+   * const tremolo = (c) => c.amplitude($sine('10hz').range(4, 5))
+   * $r($saw('220hz'), $saw('221hz')).pipe(tremolo).out()
+   */
+  pipe<T>(pipeFn: (self: this) => T): T;
+  /**
+   * Pipe this collection through a transform for each element of an array.
+   * Returns a {@link Collection} containing one output per element.
+   *
+   * @param pipeFn A function that receives this collection and one element from the array
+   * @param array An array whose elements are passed to \`pipeFn\` one by one
+   * @returns A {@link Collection} with one item per element
+   *
+   * @example
+   * // Apply each filter cutoff to the whole collection
+   * $c($sine('c3'), $sine('e3')).pipe(
+   *   (col, cutoff) => $lpf(col, cutoff),
+   *   ['200hz', '800hz', '3200hz'],
+   * ).out()
+   */
+  pipe<T extends ModuleOutput | Iterable<ModuleOutput>, E>(
+    pipeFn: (self: this, item: E) => T,
+    array: E[]
+  ): Collection;
+
+  /**
+   * Pipe this collection through a transform, then mix the original and transformed
+   * signals together using a \\$mix module.
+   *
+   * @param pipeFn A function that receives this collection and returns a signal to mix with the original
+   * @param mix Optional crossfade as {@link Poly<Signal>}. 0 for only original, 5 for only transformed. Default is 2.5 for equal mix.
+   * @returns A Collection from the \\$mix output
+   *
+   * @example
+   * // Mix collection with a filtered version
+   * $c($sine('c3'), $sine('e3')).pipeMix(s => $lpf(s, '1000hz')).out()
+   *
+   * @example
+   * // Mix with different balance
+   * $c($sine('c3'), $sine('e3')).pipeMix(s => $lpf(s, '1000hz'), 1).out()
+   */
+  pipeMix(pipeFn: (self: this) => ModuleOutput | Collection, mix?: Poly<Signal> ): Collection;
+
+  /**
+   * Fold this collection's channels down to a target channel count by panning
    * them evenly across the output field with an equal-power law. Creates a
    * \\$mixDown module internally.
    *
@@ -1246,7 +1612,7 @@ class Collection extends BaseCollection<Collection> {
  * @example
  * const lfo = $sine('2hz')             // Outputs -5 to +5
  * lfo.range(200, 2000)                 // Remap to 200-2000
- * $adsr($clock.beatTrigger, { attack: 0.1 }).range(0, 1)
+ * $adsr($clock.o.beatTrigger, { attack: 0.1 }).range(0, 1)
  * $r($sine('1hz'), $sine('2hz')).range(0, 5).out()  // Remap using stored ranges
  *
  * @see {@link Collection} - for signals without a known range
@@ -1273,8 +1639,8 @@ class CollectionWithRange extends BaseCollection<CollectionWithRange> {
    * @param amount Depth (0–5) as {@link Poly<Signal>}
    * @param options Trigger, speed, bias, mode, and sparse ({@link RangedErraticOptions})
    * @returns A {@link CollectionWithRange} with the same ranges
-   * @example $saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock.beatTrigger })).out()
-   * @example $saw('c3').amp($sine('4hz').range(0, 5).erratic(5, { mode: 'blend', sparse: true, speed: 5, trigger: $clock.beatTrigger })).out()  // usually a new level each beat, sometimes close to the sine
+   * @example $saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock.o.beatTrigger })).out()
+   * @example $saw('c3').amp($sine('4hz').range(0, 5).erratic(5, { mode: 'blend', sparse: true, speed: 5, trigger: $clock.o.beatTrigger })).out()  // usually a new level each beat, sometimes close to the sine
    * @example $saw($c('c3', 'e3')).amp($sine(['4hz', '5hz']).range(2, 5).erratic(2, { speed: 3 })).out()  // each voice's tremolo wanders on its own
    */
   override erratic(amount: Poly<Signal>, options?: RangedErraticOptions): CollectionWithRange;
@@ -1421,7 +1787,7 @@ function $r(...args: (CollectionWithRange | CollectionWithRange[])[]): Collectio
  * // Play a loop at the tempo it was recorded at
  * const loop = '/wavs/loop.wav'
  * $setTempo($wavMeta(loop).bpm ?? 120)
- * $sampler(loop, $clock.barTrigger).out()
+ * $sampler(loop, $clock.o.barTrigger).out()
  */
 function $wavMeta(path: string): WavMeta;
 
@@ -1438,7 +1804,7 @@ function $setTempo(tempo: number): void;
  * @param gain Gain as a {@link Mono<Signal>} (2.5 is default, 5.0 is unity)
  * @example $setOutputGain(2.5) // 50% gain (default)
  * @example $setOutputGain(5.0) // unity
- * @example $setOutputGain($adsr($clock.beatTrigger, {})) // modulate gain from envelope
+ * @example $setOutputGain($adsr($clock.o.beatTrigger, {})) // modulate gain from envelope
  */
 function $setOutputGain(gain: Mono<Signal>): void;
 
@@ -1495,8 +1861,8 @@ interface GrooveTemplate {
 
 /**
  * Set the global groove. Every $cycle and $drumMap starts its notes on it,
- * keeping their lengths, unless given its own groove or playhead; $clock.grooveOffset,
- * $clock.grooveVelocity and $clock.grooveTrigger expose it directly.
+ * keeping their lengths, unless given its own groove or playhead; $clock.o.grooveOffset,
+ * $clock.o.grooveVelocity and $clock.o.grooveTrigger expose it directly.
  * @param template Groove template, e.g. from $swing
  * @example $setGroove($swing(0.6))  // MPC-style 60% sixteenth swing
  * @example $setGroove({ timing: [0, 0.2, 0, 0.15], velocity: [1, 0.6, 0.8, 0.5] })
@@ -2065,8 +2431,8 @@ function getMultiOutputInterfaceName(moduleSchema: { name: string }): string {
 
 /**
  * Generate interface definition for multi-output modules.
- * The interface extends the type of the output a `cv` input takes and has a
- * property for every output.
+ * The interface extends the type of the output a `cv` input takes, and its
+ * `o` has a property for every output.
  */
 function generateMultiOutputInterface(
     moduleSchema: Schema,
@@ -2091,13 +2457,15 @@ function generateMultiOutputInterface(
         `${indent} * Used directly, it stands for the output that fits the input it`,
     );
     lines.push(
-        `${indent} * is plugged into (\`${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); a named output is`,
+        `${indent} * is plugged into (\`o.${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); an output named`,
     );
-    lines.push(`${indent} * always that output.`);
+    lines.push(`${indent} * through \`o\` is always that output.`);
     lines.push(`${indent} */`);
     lines.push(
         `${indent}export interface ${interfaceName} extends ${baseType} {`,
     );
+    lines.push(`${indent}  /** The module's outputs by name. */`);
+    lines.push(`${indent}  readonly o: {`);
 
     for (const output of outputs) {
         const outputType = getOutputType(output);
@@ -2105,11 +2473,12 @@ function generateMultiOutputInterface(
 
         const doc = withMeta(output.description, formatOutputMeta(output));
         if (doc) {
-            lines.push(`${indent}  /** ${doc} */`);
+            lines.push(`${indent}    /** ${doc} */`);
         }
-        lines.push(`${indent}  readonly ${safeName}: ${outputType};`);
+        lines.push(`${indent}    readonly ${safeName}: ${outputType};`);
     }
 
+    lines.push(`${indent}  };`);
     lines.push(`${indent}}`);
     return lines;
 }

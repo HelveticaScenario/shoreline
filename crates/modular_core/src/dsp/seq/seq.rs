@@ -435,7 +435,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             const bass = $cycle($p('c2*4'), { groove: 0 })
             $noise('white')
               .amp($perc(hats, { decay: 0.05 }))
-              .amp(hats.velocity)
+              .amp(hats.o.velocity)
               .out()
             $saw(bass).$.lpf('c4', 1).amp($adsr(bass)).out()
         "#,

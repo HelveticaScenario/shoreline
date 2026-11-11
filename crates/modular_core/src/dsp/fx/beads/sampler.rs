@@ -131,7 +131,7 @@ impl crate::types::Connect for Loaded {
 #[serde(rename_all = "camelCase")]
 struct GranularSamplerOutputs {
     #[output(
-        "output",
+        "stereo",
         "stereo mix of every voice, as left and right channels",
         type = cv,
         default,

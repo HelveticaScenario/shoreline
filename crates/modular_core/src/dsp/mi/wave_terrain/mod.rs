@@ -66,7 +66,7 @@ struct WaveTerrainParams {
 #[serde(rename_all = "camelCase")]
 struct WaveTerrainOutputs {
     #[output(
-        "output",
+        "height",
         "the height of the surface under the circle",
         type = cv,
         default,
@@ -100,7 +100,7 @@ const WAVE_TERRAIN_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Phase-modulated voice",
-            code: "$mi.waveTerrain('g2', { radius: 4, offset: 1 }).pm.out()",
+            code: "$mi.waveTerrain('g2', { radius: 4, offset: 1 }).o.pm.out()",
         },
     ],
 };

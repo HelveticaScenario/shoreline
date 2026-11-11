@@ -19,8 +19,7 @@
 }
 
 .docs-pages button {
-    flex: 1;
-    padding: var(--sp-half) var(--sp-1);
+    padding: var(--sp-half) var(--sp-2);
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
@@ -46,10 +45,16 @@
 
 .docs-content {
     flex: 1;
+    box-sizing: border-box;
     font-size: max(11px, calc(var(--font-size) - 4px));
     min-height: 0;
     padding: var(--sp-1);
     overflow-y: auto;
+}
+
+/* Keeps lines readable across the width of the editor column. */
+.docs-content > * {
+    max-width: 80ch;
 }
 
 .docs-panel h2,
