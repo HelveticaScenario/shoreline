@@ -4,6 +4,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::{rng::hash_bipolar, voct_to_hz, wrap_phase};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::param_errors::ModuleParamErrors;
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
@@ -39,7 +41,8 @@ fn default_waves() -> usize {
     6
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(
     rename_all = camelCase,
@@ -47,31 +50,45 @@ fn default_waves() -> usize {
     validate = validate_swell_params -> ModuleParamErrors
 )]
 struct SwellParams {
-    /// dominant swell frequency in V/Oct (use `$hz()` or a value like `'0.1hz'`)
-    #[signal(type = pitch)]
+    #[input(
+        "rate of the main swell, e.g. `'0.1hz'`",
+        type = frequency,
+    )]
     freq: PolySignal,
-    /// crest sharpness: 0 rolls as a sine, 5 peaks into sharp crests over wide, flat troughs
-    #[signal(type = control, default = 3.0, range = (0, 5))]
+    #[input(
+        "crest sharpness: 0 rolls as a sine, 5 peaks into sharp crests over wide, flat troughs",
+        type = control,
+        default = 3.0,
+        range = (0, 5),
+    )]
     #[deserr(default)]
     steepness: Option<PolySignal>,
-    /// spectral width: the other waves sit up to `chop / 2` octaves above `freq`.
-    /// 0 is one clean, periodic swell; higher values roll in sets and add chop
-    #[signal(type = control, default = 1.0, range = (0, 5))]
+    #[input(
+        "how rough the sea is: 0 is one clean, repeating swell; higher mixes in faster waves, up to `chop / 2` octaves above `freq`, so the swell rolls in sets with choppy ripples",
+        type = control,
+        default = 1.0,
+        range = (0, 5),
+    )]
     #[deserr(default)]
     chop: Option<PolySignal>,
-    /// directional spread: 0 sends every wave the same way, 5 brings them from
-    /// every direction (a confused sea)
-    #[signal(type = control, default = 1.5, range = (0, 5))]
+    #[input(
+        "directional spread: 0 sends every wave the same way, 5 brings them from every direction, a confused sea",
+        type = control,
+        default = 1.5,
+        range = (0, 5),
+    )]
     #[deserr(default)]
     spread: Option<PolySignal>,
-    /// number of wave components (1–16); waves added or removed by a patch
-    /// update fade over one swell period
+    #[input(
+        "number of waves in the sea; waves added or removed by a patch update fade over one swell period",
+        range = (1, 16),
+    )]
     #[serde(default = "default_waves")]
     #[deserr(default = default_waves())]
-    #[schemars(range(min = 1, max = 16))]
     waves: usize,
-    /// picks the sea: each seed, and each channel, places the waves at
-    /// different frequencies and directions
+    #[input(
+        "picks the sea: each seed, and each channel, places the waves at different frequencies and directions"
+    )]
     #[serde(default)]
     #[deserr(default)]
     seed: u32,
@@ -95,17 +112,19 @@ fn validate_swell_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SwellOutputs {
-    #[output("height", "surface height at a fixed point, ±5V", default, range = (-5.0, 5.0))]
+    #[output("height", "water height at a fixed point", type = cv, default, range = (-5.0, 5.0))]
     height: PolyOutput,
     #[output(
         "tilt",
-        "lean along the swell: positive while the water rises, ±5V",
+        "lean along the swell: positive while the water rises; a sine on gentle seas, a sawtooth that snaps down at each crest on steep ones",
+        type = cv,
         range = (-5.0, 5.0)
     )]
     tilt: PolyOutput,
     #[output(
         "roll",
-        "lean across the swell from waves arriving off-axis, ±5V",
+        "lean across the swell, from waves arriving off-axis; silent at `spread` 0",
+        type = cv,
         range = (-5.0, 5.0)
     )]
     roll: PolyOutput,
@@ -315,37 +334,44 @@ impl ChannelState {
     }
 }
 
-/// Ocean swell as CV: the surface of a simulated sea, read at a fixed point.
-///
-/// The sea sums `waves` Gerstner waves. Each moves the water in circles rather
-/// than just up and down, which bunches the surface into sharp crests between
-/// wide, flat troughs — the shape of real swell, set by `steepness`. The first
-/// wave rolls at `freq`; `chop` spreads the others above it, so their crests
-/// drift in and out of line and the sea arrives in sets, with the occasional
-/// wave far bigger than the rest. `spread` scatters their directions.
-///
-/// - **height** (default) — surface height, ±5V. It reaches ±5V only when
-///   every wave lines up, so a sea with `chop` above 0 usually stays inside it.
-/// - **tilt** — how the surface leans along the swell, the way a moored boat
-///   pitches: positive while the water rises, negative while it falls. A sine
-///   at `steepness` 0; when steep, a sawtooth that snaps down at each crest.
-/// - **roll** — the sideways lean from waves arriving off-axis. Silent at
-///   `spread` 0, and busier as `spread` and `chop` rise.
-///
-/// Every input can be modulated live: the waves bend to the new values without
-/// restarting. Each channel is its own sea.
-///
-/// ## Example
-///
-/// ```js
-/// // A slow, steep swell sweeping a filter
-/// $lpf($saw('a1'), $swell('0.1hz', { steepness: 4 }).range('200hz', '2000hz')).out()
-///
-/// // A choppy, confused sea: the swell's lean swaying a sine's level
-/// const sea = $swell('0.2hz', { chop: 4, spread: 5, waves: 12 })
-/// $sine('c3').amp(sea.tilt.range(0, 5)).out()
-/// ```
-#[module(name = "$swell", patch_update, args(freq))]
+const SWELL_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Ocean swell modulation",
+    description: "The surface of a simulated sea as CV: slow rolls that bunch \
+                  into sharp crests and arrive in sets, with the occasional \
+                  wave far bigger than the rest. Use it for tidal filter sweeps \
+                  and levels that breathe irregularly; `tilt` and `roll` are \
+                  the matching lean of a boat on the water. Changing a param \
+                  bends the waves rather than restarting them.",
+    categories: &[ModuleCategory::Modulation],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Slow, steep swell on a filter",
+            code: r#"
+                $saw('a1')
+                  .lpf(
+                    $swell('0.1hz', { steepness: 4 }).range(
+                      '200hz',
+                      '2000hz',
+                    ),
+                  )
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Surf on the shore",
+            code: r#"
+                const sea = $swell('0.08hz')
+                $noise('pink')
+                  .lpf(sea.range('c5', 'c8'))
+                  .amp(sea.range(1, 5))
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$swell", docs = SWELL_DOCS, patch_update, args(freq))]
 pub struct Swell {
     outputs: SwellOutputs,
     params: SwellParams,

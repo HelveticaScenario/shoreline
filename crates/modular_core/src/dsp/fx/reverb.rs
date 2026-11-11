@@ -12,8 +12,10 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
-use crate::types::Clickless;
+use crate::types::SwapGlide;
 
 // ─── Topology ────────────────────────────────────────────────────────────────
 
@@ -113,41 +115,62 @@ fn one_pole(prev: f32, x: f32, coeff: f32) -> f32 {
 
 // ─── Params ──────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ReverbParams {
-    /// audio input — even channels feed the left half of the reverb, odd
-    /// channels the right; an odd channel count feeds the last channel to both
+    #[input(
+        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        type = audio,
+    )]
     input: PolySignal,
-    /// reverb decay time, mapped logarithmically from ~0.15 s (-5) to ~18 s
-    /// (+5). default 0 → ~1.6 s
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "how long the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<MonoSignal>,
-    /// high-frequency damping — higher values darken the tail by absorbing more
-    /// treble on each recirculation. default 0
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "how fast the tail darkens: -5 bright, +5 muffled",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     damping: Option<MonoSignal>,
-    /// room size — scales every delay length from 0.5× (-5) to 2× (+5),
-    /// trading echo spacing and modal density. default 0 → 1.25×
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "room size, from 0.5× (-5) to 2× (+5); bigger rooms space the echoes further apart",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<MonoSignal>,
-    /// stereo width — how strongly the left and right halves of the network
-    /// stay separate. -5 is narrowest (a panned source pulls toward centre),
-    /// +5 is widest; default 0 → natural
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "stereo width: -5 narrow, pulling panned sources toward the centre; +5 widest",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     width: Option<MonoSignal>,
-    /// predelay before the network, in seconds (0 to 0.5). default 0
-    #[signal(default = 0.0, range = (0.0, 0.5))]
+    #[input(
+        "gap before the reverb starts, in seconds",
+        type = control,
+        default = 0.0,
+        range = (0.0, 0.5),
+    )]
     #[deserr(default)]
     predelay: Option<MonoSignal>,
-    /// internal chorusing depth — subtly detunes the delay lines to reduce
-    /// metallic ringing. -5 is off, +5 is deepest; default 0 → gentle
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "gentle chorusing inside the tail that softens metallic ringing: -5 off, +5 deepest",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     modulation: Option<MonoSignal>,
 }
@@ -157,7 +180,12 @@ struct ReverbParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ReverbOutputs {
-    #[output("output", "stereo reverb output (ch0=left, ch1=right)", default)]
+    #[output(
+        "output",
+        "stereo reverb, fully wet, as left and right channels",
+        type = cv,
+        default
+    )]
     sample: PolyOutput,
 }
 
@@ -187,14 +215,23 @@ struct ReverbState {
     dc_blocker_r: DcBlocker,
     dc_block_coeff: f32,
 
-    // Parameter smoothing. These all feed the recirculating loop, where a step
-    // change recirculates as an audible transient, so they are slewed.
-    smoothed_size: Clickless,
-    smoothed_predelay: Clickless,
-    smoothed_decay_k: Clickless,
-    smoothed_damp: Clickless,
-    /// Smoothed cross-coupling angle (radians).
-    smoothed_width: Clickless,
+    // Patch-update glides. These all feed the recirculating loop, where a step
+    // change recirculates as an audible transient.
+    smoothed_size: SwapGlide,
+    smoothed_predelay: SwapGlide,
+    smoothed_decay_k: SwapGlide,
+    smoothed_damp: SwapGlide,
+    /// Glided cross-coupling angle (radians).
+    smoothed_width: SwapGlide,
+
+    // Values derived from the inputs above, each cached with the input it was
+    // derived from and recomputed only when that input changes.
+    /// `(decay voltage, target gain exponent)`.
+    decay_k_target: Option<(f32, f32)>,
+    /// `(glided angle, sin, cos)`.
+    cross: Option<(f32, f32, f32)>,
+    /// `((glided decay_k, glided size), per-line decay gain)`.
+    line_gains: Option<((f32, f32), [f32; NUM_LINES])>,
 
     sample_rate: f32,
 
@@ -213,24 +250,32 @@ struct ReverbState {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-/// Stereo Feedback Delay Network reverb.
-///
-/// The eight modulated delay lines are split into a left and a right
-/// sub-network. Even input channels feed the left half, odd channels the right,
-/// so the wet field tracks the dry stereo image; a `width` control sets how
-/// strongly the two halves cross-couple, from held-apart to collapsed to mono.
-/// Each line has a decay gain tuned so the network reaches −60 dB at the
-/// requested `decay`, plus a one-pole damping filter for a natural
-/// high-frequency rolloff. Per-channel predelay and diffusion sit ahead of the
-/// network. Output is always 100% wet — use `.send()` or `$mix` for a dry/wet
-/// blend.
-///
-/// ```js
-/// $unstable.reverb($saw('c3')).out()
-/// $unstable.reverb($saw('c3'), { decay: 3, damping: 1.5, size: 2 }).out()
-/// $unstable.reverb($saw('c3'), { decay: 4, width: 4, modulation: 3 }).out()
-/// ```
-#[module(name = "$unstable.reverb", channels = 2, has_init, args(input))]
+const REVERB_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stereo room and hall reverb",
+    description: "A dense, natural-sounding reverb for anything from small rooms to long halls, \
+                  keeping a stereo source's left and right apart in the tail. Output is fully \
+                  wet, so blend it with `.wet(mix)` or send to it from a bus.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Pad in a wide hall",
+        code: r#"
+            $saw($chord('D3[m7]'))
+              .lpf('d5', 1)
+              .unstable.reverb({ decay: 3, size: 2 })
+              .wet(2.5)
+              .out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$unstable.reverb",
+    docs = REVERB_DOCS,
+    channels = 2,
+    has_init,
+    args(input)
+)]
 pub struct Reverb {
     outputs: ReverbOutputs,
     state: ReverbState,
@@ -280,10 +325,10 @@ impl Reverb {
         self.state.dc_block_coeff = DcBlocker::coeff(DEFAULT_DC_BLOCK_FC_HZ, sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let num_input_channels = self.params.input.channels();
 
-        // ── Read and smooth parameters ───────────────────────────────────
+        // ── Read and glide parameters ────────────────────────────────────
 
         let size_raw = map_range(
             self.params.size.value_or(0.0),
@@ -293,7 +338,9 @@ impl Reverb {
             MAX_SIZE,
         )
         .clamp(MIN_SIZE, MAX_SIZE);
-        self.state.smoothed_size.update(size_raw);
+        self.state
+            .smoothed_size
+            .update(size_raw, self.params.size.glide_mark(), sample_rate);
         let size = *self.state.smoothed_size;
 
         let predelay_secs = self
@@ -301,30 +348,43 @@ impl Reverb {
             .predelay
             .value_or(0.0)
             .clamp(0.0, MAX_PREDELAY_SECS);
-        self.state
-            .smoothed_predelay
-            .update(predelay_secs * self.state.sample_rate);
+        self.state.smoothed_predelay.update(
+            predelay_secs * self.state.sample_rate,
+            self.params.predelay.glide_mark(),
+            sample_rate,
+        );
         let predelay_samples = *self.state.smoothed_predelay;
 
         // Decay maps to a target T60, then to the per-sample-length gain
         // exponent `k` where each line's gain is `exp(k · length)`.
         let decay_v = self.params.decay.value_or(0.0);
-        let t60 = map_range(decay_v, -5.0, 5.0, MIN_T60.ln(), MAX_T60.ln())
-            .exp()
-            .clamp(MIN_T60, MAX_T60);
-        let decay_k = -LN_1000 / (self.state.sample_rate * t60);
-        self.state.smoothed_decay_k.update(decay_k);
+        let decay_k = match self.state.decay_k_target {
+            Some((cached, decay_k)) if cached == decay_v => decay_k,
+            _ => {
+                let t60 = map_range(decay_v, -5.0, 5.0, MIN_T60.ln(), MAX_T60.ln())
+                    .exp()
+                    .clamp(MIN_T60, MAX_T60);
+                let decay_k = -LN_1000 / (self.state.sample_rate * t60);
+                self.state.decay_k_target = Some((decay_v, decay_k));
+                decay_k
+            }
+        };
+        self.state
+            .smoothed_decay_k
+            .update(decay_k, self.params.decay.glide_mark(), sample_rate);
         let decay_k = *self.state.smoothed_decay_k;
 
         // Damping: more voltage → lower coefficient → darker tail.
         let damp_coeff =
             map_range(self.params.damping.value_or(0.0), -5.0, 5.0, 1.0, 0.08).clamp(0.08, 1.0);
-        self.state.smoothed_damp.update(damp_coeff);
+        self.state
+            .smoothed_damp
+            .update(damp_coeff, self.params.damping.glide_mark(), sample_rate);
         let damp_coeff = *self.state.smoothed_damp;
 
         // Width sets the cross-coupling rotation between the two sub-networks:
         // +5 → a shallow angle that holds the channels apart, -5 → 45° that
-        // fully merges them. Smoothing the angle keeps `sin²+cos²=1` exact.
+        // fully merges them. Gliding the angle keeps `sin²+cos²=1` exact.
         let angle_raw = map_range(
             self.params.width.value_or(0.0),
             -5.0,
@@ -333,8 +393,18 @@ impl Reverb {
             WIDE_ANGLE,
         )
         .clamp(WIDE_ANGLE, NARROW_ANGLE);
-        self.state.smoothed_width.update(angle_raw);
-        let (cross_sin, cross_cos) = (*self.state.smoothed_width).sin_cos();
+        self.state
+            .smoothed_width
+            .update(angle_raw, self.params.width.glide_mark(), sample_rate);
+        let angle = *self.state.smoothed_width;
+        let (cross_sin, cross_cos) = match self.state.cross {
+            Some((cached, sin, cos)) if cached == angle => (sin, cos),
+            _ => {
+                let (sin, cos) = angle.sin_cos();
+                self.state.cross = Some((angle, sin, cos));
+                (sin, cos)
+            }
+        };
 
         let mod_depth = map_range(
             self.params.modulation.value_or(0.0).clamp(-5.0, 5.0),
@@ -378,6 +448,19 @@ impl Reverb {
 
         // ── Read the network, damp, attenuate ────────────────────────────
 
+        let line_gains = match &self.state.line_gains {
+            Some((cached, gains)) if *cached == (decay_k, size) => *gains,
+            _ => {
+                let mut gains = [0.0; NUM_LINES];
+                for (i, gain) in gains.iter_mut().enumerate() {
+                    let length = self.state.base_len[i] * size;
+                    *gain = (decay_k * length).exp().min(MAX_FEEDBACK);
+                }
+                self.state.line_gains = Some(((decay_k, size), gains));
+                gains
+            }
+        };
+
         let mut returns = [0.0f32; NUM_LINES];
         let mut left_out = 0.0f32;
         let mut right_out = 0.0f32;
@@ -407,8 +490,7 @@ impl Reverb {
             // the loop recursion.
             let damped = sanitize(one_pole(self.state.damp_state[i], delayed, damp_coeff));
             self.state.damp_state[i] = damped;
-            let gain = (decay_k * length).exp().min(MAX_FEEDBACK);
-            returns[i] = damped * gain;
+            returns[i] = damped * line_gains[i];
         }
 
         // ── Mix each block, cross-couple, write back with stereo input ───

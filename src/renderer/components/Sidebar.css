@@ -1,48 +1,62 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Sidebar - tabbed container for Explorer and Control panels
+   Sidebar - resizable panel plus a vertical activity bar on the outer edge
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .app-sidebar {
+    position: relative;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     height: 100%;
     background: var(--bg-secondary);
     border-left: 1px solid var(--border-subtle);
-    width: 32ch;
     font-size: var(--font-size);
 }
 
-.app-sidebar-tabs {
-    display: flex;
-    border-bottom: 1px solid var(--border-subtle);
-    background: var(--bg-tertiary);
-    flex-shrink: 0;
+/* The activity bar stays on the window's outer edge. */
+.app-sidebar.left {
+    order: -1;
+    flex-direction: row-reverse;
+    border-left: none;
+    border-right: 1px solid var(--border-subtle);
 }
 
-.app-sidebar-tab {
-    flex: 1;
+.app-sidebar-panel {
+    display: flex;
+    flex-direction: column;
+    width: 32ch;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-sidebar-panel[hidden] {
+    display: none;
+}
+
+.app-sidebar-sash {
+    left: -1px;
+}
+
+.app-sidebar.left .app-sidebar-sash {
+    left: auto;
+    right: -1px;
+}
+
+.app-sidebar.left .app-sidebar-sash::after {
+    left: auto;
+    right: 0;
+}
+
+.app-sidebar-title {
+    margin: 0;
+    font-weight: normal;
     padding: var(--sp-half) var(--sp-1);
     font-family: var(--font-mono);
     font-size: calc(var(--font-size) - 1px);
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
     color: var(--text-muted);
-    cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    transition:
-        color 0.1s,
-        border-color 0.1s;
-}
-
-.app-sidebar-tab:hover {
-    color: var(--text-secondary);
-}
-
-.app-sidebar-tab.active {
-    color: var(--text-primary);
-    border-bottom-color: var(--text-primary);
+    text-align: center;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
 }
 
 .app-sidebar-content {
@@ -51,4 +65,67 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
+}
+
+.app-activity-bar {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 40px;
+    background: var(--bg-tertiary);
+    border-left: 1px solid var(--border-subtle);
+}
+
+.app-sidebar.left .app-activity-bar {
+    border-left: none;
+    border-right: 1px solid var(--border-subtle);
+}
+
+/* Settings sits apart from the panels, at the foot of the bar. */
+.app-activity-bar-item.settings {
+    margin-top: auto;
+}
+
+.app-activity-bar-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-right: 2px solid transparent;
+    border-left: 2px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition:
+        color 0.1s,
+        border-color 0.1s;
+}
+
+.app-activity-bar-item:hover {
+    color: var(--text-secondary);
+}
+
+.app-activity-bar-item.active {
+    color: var(--text-primary);
+}
+
+.app-sidebar.right .app-activity-bar-item.active {
+    border-right-color: var(--text-primary);
+}
+
+.app-sidebar.left .app-activity-bar-item.active {
+    border-left-color: var(--text-primary);
+}
+
+.app-activity-bar-item:focus-visible {
+    outline: 1px solid var(--text-secondary);
+    outline-offset: -1px;
+}
+
+/* With the panel closed, the sidebar's own border is the bar's only edge. */
+.app-sidebar.collapsed .app-activity-bar {
+    border-left: none;
+    border-right: none;
 }

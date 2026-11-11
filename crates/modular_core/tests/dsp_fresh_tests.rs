@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use modular_core::dsp::{get_constructors, get_params_deserializers};
 use modular_core::params::DeserializedParams;
 use modular_core::patch::Patch;
-use modular_core::types::{ModuleSpec, PatchGraph, Sampleable};
+use modular_core::types::{ModuleSpec, PatchGraph, SameIds, Sampleable};
 use serde_json::{Value, json};
 
 mod common;
@@ -308,7 +308,29 @@ fn scale_and_shift_applies() {
 /// succeeds. Modules with all-optional params can use `{}`.
 fn minimal_params(module_type: &str) -> serde_json::Value {
     match module_type {
-        "$sine" | "$saw" | "$pulse" | "$supersaw" | "$ramp" | "$swell" => json!({ "freq": 0.0 }),
+        "$sine"
+        | "$saw"
+        | "$pulse"
+        | "$supersaw"
+        | "$ramp"
+        | "$swell"
+        | "$mi.additive"
+        | "$mi.divideDown"
+        | "$mi.formant"
+        | "$mi.modal"
+        | "$mi.particles"
+        | "$mi.phaseDistortion"
+        | "$mi.sixOp"
+        | "$mi.speak"
+        | "$mi.string"
+        | "$mi.swarm"
+        | "$mi.twoOp"
+        | "$mi.formantVowel"
+        | "$mi.lpcVowel"
+        | "$mi.samVowel"
+        | "$mi.waveTerrain"
+        | "$mi.waveshaper"
+        | "$mi.zOsc" => json!({ "freq": 0.0 }),
         "$pSine" | "$pSaw" | "$pPulse" => json!({ "phase": 0.0 }),
         "$macro" => json!({ "freq": 0.0, "engine": "virtualAnalog" }),
         "$lpf" | "$hpf" | "$jup6f" | "$multimode" | "$apf" => {
@@ -350,15 +372,17 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$xover" => json!({ "input": 0.0, "lowMidFreq": 0.0, "midHighFreq": 0.0 }),
         "$comp" => json!({ "input": 0.0, "threshold": 0.0 }),
         "_erratic" => json!({ "input": 0.0, "amount": 1.0 }),
+        "_arithmetic" => json!({ "input": 0.0, "operand": 0.0 }),
+        "_round" | "_hz" => json!({ "input": 0.0 }),
         "$wrap" | "$clamp" => json!({ "input": 0.0, "min": -5.0, "max": 5.0 }),
         "$addHz" => json!({ "input": 0.0, "offset": 0.0 }),
         "$mulHz" => json!({ "input": 0.0, "factor": 1.0 }),
         "$curve" => json!({ "input": 0.0, "exp": 1.0 }),
         "$cycle" => json!({ "pattern": mini_payload("0") }),
-        "$lpg" | "$slew" | "$hold" | "$motionFollower" | "$quantizer" | "$unison" | "$crush"
-        | "$feedback" | "$pulsar" | "$rising" | "$falling" | "$stereoMix" | "$mixDown" => {
-            json!({ "input": 0.0 })
-        }
+        "$lpg" | "$slew" | "$hold" | "$motionFollower" | "$quantizer" | "$unison" | "$rising"
+        | "$falling" | "$stereoMix" | "$mixDown" => json!({ "input": 0.0 }),
+        "$pWarp" => json!({ "input": 0.0, "phase": { "type": "identity" } }),
+        "$enosc" => json!({ "pitch": 0.0 }),
         "$track" => json!({ "keyframes": [] }),
         "$math" => json!({ "expression": "1+1" }),
         "$spread" => json!({ "min": -1.0, "max": 1.0, "count": 3 }),
@@ -404,13 +428,27 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$mix" => json!({ "inputs": [] }),
         "$adsr" => json!({ "gate": 0.0 }),
         "$perc" => json!({ "trigger": 0.0 }),
+        "$tr808.hiHat" => json!({ "closed": 0.0 }),
+        drum if drum.starts_with("$tr808.") || drum.starts_with("$tr909.") => {
+            json!({ "trigger": 0.0 })
+        }
         "$clockDivider" => json!({ "division": 2, "input": 0.0 }),
+        "$coinFlip" => json!({ "input": 0.0 }),
+        "$scan" => json!({ "length": 1.0, "distance": 1.0, "trigger": 0.0 }),
         "$sah" => json!({ "input": 0.0, "trigger": 0.0 }),
         "$tah" => json!({ "input": 0.0, "gate": 0.0 }),
         "$dattorro" => json!({ "input": 0.0 }),
+        "$mi.chorus" => json!({ "input": 0.0 }),
         "$plate" => json!({ "input": 0.0 }),
         "$unstable.reverb" => json!({ "input": 0.0 }),
         "$unstable.reverb2" => json!({ "input": 0.0 }),
+        "$reverb" => json!({ "input": 0.0 }),
+        "$granular" => json!({ "input": 0.0 }),
+        "$granularSampler" => {
+            json!({ "wav": { "type": "wav_ref", "path": "test", "channels": 1 } })
+        }
+        "$wowFlutter" => json!({ "input": 0.0 }),
+        "$clockedDelay" => json!({ "input": 0.0 }),
         "$eq" => json!({ "input": 0.0 }),
         "$filterDC" => json!({ "input": 0.0 }),
         "$quantNoise" => json!({ "input": 0.0, "amount": 1.0 }),
@@ -498,18 +536,6 @@ fn schema_names_match_constructors() {
         assert!(
             constructors.contains_key(&s.name),
             "schema '{}' has no matching constructor",
-            s.name
-        );
-    }
-}
-
-#[test]
-fn schemas_have_non_empty_documentation() {
-    use modular_core::dsp::schema;
-    for s in schema() {
-        assert!(
-            !s.documentation.is_empty(),
-            "schema '{}' has empty documentation",
             s.name
         );
     }
@@ -806,8 +832,9 @@ fn from_graph_process_frame_advances_all_modules() {
 #[test]
 fn chord_outputs_spec_voltages() {
     let module = make_module("$chord", "chord", json!({ "chord": "C3[maj7]" }));
+    let slot = Stepper::new().tick(module.as_ref());
     for (ch, semis) in [-12.0_f32, -8.0, -5.0, -1.0].iter().enumerate() {
-        let v = *collect_channel(module.as_ref(), ch, 1).last().unwrap();
+        let v = module.get_value_at("pitch", ch, slot);
         assert!(approx_eq(v, semis / 12.0, 1e-5), "channel {ch}: {v}");
     }
 }
@@ -843,8 +870,13 @@ fn quantizer_hold_survives_state_transfer() {
         "q",
         json!({ "input": 4.0 / 12.0, "scale": c_major_triad, "gate": 5.0 }),
     );
+    let mut stepper = Stepper::new();
+    let mut slot = 0;
+    for _ in 0..64 {
+        slot = stepper.tick(old.as_ref());
+    }
     assert!(approx_eq(
-        settle_and_read(old.as_ref(), 64),
+        old.get_value_at("pitch", 0, slot),
         4.0 / 12.0,
         1e-5
     ));
@@ -856,11 +888,11 @@ fn quantizer_hold_survives_state_transfer() {
         "q",
         json!({ "input": 7.0 / 12.0, "scale": c_major_triad, "gate": 0.0 }),
     );
-    new.transfer_state_from(old.as_ref());
+    new.transfer_state_from(old.as_ref(), &SameIds);
     let mut stepper = Stepper::new();
     for _ in 0..64 {
         let slot = stepper.tick(new.as_ref());
-        let out = new.get_value_at(DEFAULT_PORT, 0, slot);
+        let out = new.get_value_at("pitch", 0, slot);
         assert!(
             approx_eq(out, 4.0 / 12.0, 1e-5),
             "expected held E4, got {out}"
@@ -1318,7 +1350,7 @@ fn transfer_state_from_preserves_wrapper_outputs_for_feedback_cycles() {
     // Transfer state from old modules to new modules
     for (id, new_module) in &new_patch.sampleables {
         if let Some(old_module) = old_patch.sampleables.get(id) {
-            new_module.transfer_state_from(old_module.as_ref());
+            new_module.transfer_state_from(old_module.as_ref(), &SameIds);
         }
     }
 
@@ -1389,7 +1421,7 @@ fn clock_meter_change_keeps_beat_triggers_on_bar_grid() {
         from_graph(&make(3), SAMPLE_RATE, TEST_BLOCK_SIZE, &HashMap::new()).expect("3/4 patch");
     for (id, new_module) in &new_patch.sampleables {
         if let Some(old_module) = old_patch.sampleables.get(id) {
-            new_module.transfer_state_from(old_module.as_ref());
+            new_module.transfer_state_from(old_module.as_ref(), &SameIds);
         }
     }
     new_patch.connect_all();
@@ -1468,7 +1500,7 @@ fn supersaw_voice_state_transfers_intact_across_a_voice_count_change() {
     // re-runs on_patch_update so param-derived caches reflect the new params).
     for (id, new_module) in &new_patch.sampleables {
         if let Some(old_module) = old_patch.sampleables.get(id) {
-            new_module.transfer_state_from(old_module.as_ref());
+            new_module.transfer_state_from(old_module.as_ref(), &SameIds);
         }
     }
     new_patch.connect_all();
@@ -1569,7 +1601,7 @@ fn cycle_ps_cv_holds_during_rest_after_state_transfer() {
 
     for (id, new_module) in &new_patch.sampleables {
         if let Some(old_module) = old_patch.sampleables.get(id) {
-            new_module.transfer_state_from(old_module.as_ref());
+            new_module.transfer_state_from(old_module.as_ref(), &SameIds);
         }
     }
     for module in new_patch.sampleables.values() {
@@ -1613,7 +1645,7 @@ fn tah_holds_voltage_across_state_transfer() {
             .expect("from_graph failed");
         for (id, new_module) in &new_patch.sampleables {
             if let Some(old_module) = old.sampleables.get(id) {
-                new_module.transfer_state_from(old_module.as_ref());
+                new_module.transfer_state_from(old_module.as_ref(), &SameIds);
             }
         }
         for module in new_patch.sampleables.values() {
@@ -1807,7 +1839,7 @@ fn seq_highlight_survives_state_transfer_from_single_to_multi_source() {
     // on_patch_update. NO ClearPatch / transport reset.
     for (id, new_module) in &new_patch.sampleables {
         if let Some(old_module) = old_patch.sampleables.get(id) {
-            new_module.transfer_state_from(old_module.as_ref());
+            new_module.transfer_state_from(old_module.as_ref(), &SameIds);
         }
     }
     for module in new_patch.sampleables.values() {
@@ -1891,7 +1923,7 @@ fn seq_highlight_survives_state_transfer_from_single_to_multi_source() {
         .expect("C from_graph failed");
     for (id, new_module) in &ctrl_patch.sampleables {
         if let Some(old_module) = old_patch.sampleables.get(id) {
-            new_module.transfer_state_from(old_module.as_ref());
+            new_module.transfer_state_from(old_module.as_ref(), &SameIds);
         }
     }
     for module in ctrl_patch.sampleables.values() {
@@ -2489,7 +2521,7 @@ fn cycle_patch(pattern: Value, channels: Option<u64>, playhead: Option<f64>) -> 
 fn transfer_into(new_patch: &Patch, old_patch: &Patch) {
     for (id, m) in &new_patch.sampleables {
         if let Some(old) = old_patch.sampleables.get(id) {
-            m.transfer_state_from(old.as_ref());
+            m.transfer_state_from(old.as_ref(), &SameIds);
         }
     }
     for m in new_patch.sampleables.values() {
@@ -2556,6 +2588,36 @@ fn cycle_swap_does_not_fire_in_progress_note_until_its_onset() {
     assert!(
         onsets_cycle1 >= 1,
         "e4 must fire when the playhead crosses its onset in the next cycle"
+    );
+}
+
+#[test]
+fn cycle_swap_fires_new_onset_inside_old_pattern_span() {
+    // `c4` has no window edge inside cycle 0, so the playhead runs through it
+    // without entering any window. After a swap to `c4 e4`, e4's onset at 0.5
+    // lies inside that edge-free stretch and must still fire when crossed.
+    let a = cycle_patch(mini_payload("c4"), Some(1), None);
+    for _ in 0..60 {
+        process_frame(&a); // playhead ~0.25
+    }
+    let b = cycle_patch(mini_payload("c4 e4"), Some(1), None);
+    transfer_into(&b, &a);
+
+    let mut onsets = 0;
+    let mut prev_hi = false;
+    for _ in 0..100 {
+        process_frame(&b); // through ~0.67
+        let hi = seq_val(&b, "trig", 0) > 2.5;
+        if hi && !prev_hi {
+            onsets += 1;
+        }
+        prev_hi = hi;
+    }
+    assert_eq!(onsets, 1, "e4 must fire once when the playhead crosses 0.5");
+    let cv = seq_val(&b, "cv", 0);
+    assert!(
+        (cv - 0.3333).abs() < 0.02,
+        "cv should be e4 (~0.333 V), got {cv}"
     );
 }
 
@@ -3164,7 +3226,7 @@ fn live_edit(old: &Patch, graph: &PatchGraph) -> Patch {
         .expect("from_graph failed");
     for (id, module) in &new.sampleables {
         if let Some(old_module) = old.sampleables.get(id) {
-            module.transfer_state_from(old_module.as_ref());
+            module.transfer_state_from(old_module.as_ref(), &SameIds);
         }
     }
     for module in new.sampleables.values() {
@@ -3683,13 +3745,13 @@ fn lpg_crossfades_into_and_out_of_bypass() {
     ));
 
     let gated = make_module("$lpg", "lpg", json!({ "input": 1.0, "level": 0.0 }));
-    gated.transfer_state_from(bypassed.as_ref());
+    gated.transfer_state_from(bypassed.as_ref(), &SameIds);
     let step = max_step(gated.as_ref(), 0, 480, 1.0);
     assert!(step < 0.01, "entering the gate jumped by {step}");
     assert!(settle_and_read(gated.as_ref(), 480).abs() < 1e-3);
 
     let reopened = make_module("$lpg", "lpg", json!({ "input": 1.0 }));
-    reopened.transfer_state_from(gated.as_ref());
+    reopened.transfer_state_from(gated.as_ref(), &SameIds);
     let step = max_step(reopened.as_ref(), 0, 480, 0.0);
     assert!(step < 0.01, "leaving the gate jumped by {step}");
     assert!(approx_eq(
@@ -3713,7 +3775,7 @@ fn lpg_added_channels_do_not_ping_on_a_held_trigger() {
         "lpg",
         json!({ "input": [1.0, 1.0, 1.0], "trigger": 5.0, "decay": 0.0 }),
     );
-    new.transfer_state_from(old.as_ref());
+    new.transfer_state_from(old.as_ref(), &SameIds);
     let (_, peak) = min_max(&collect_channel(new.as_ref(), 2, 4800));
     assert!(
         peak < 1e-3,

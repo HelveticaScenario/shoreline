@@ -1,5 +1,6 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+import type { SignalSiteTables } from '../shared/dsl/signalSites';
 import { contextBridge, ipcRenderer } from 'electron/renderer';
 import {
     AppConfig,
@@ -56,6 +57,7 @@ export interface ElectronAPI {
         trigger?: QueuedTrigger,
     ) => Promise<DSLExecuteResult>;
     getDslLibSource: () => Promise<string>;
+    getSignalSiteTables: () => Promise<SignalSiteTables>;
 
     // Synthesizer operations
     synthesizer: {
@@ -181,6 +183,8 @@ export interface ElectronAPI {
             IPCHandlers[typeof IPC_CHANNELS.FS_GET_WORKSPACE]
         >;
         listFiles: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_LIST_FILES]>;
+        /** Calls `callback` when files in the workspace folder change. */
+        onTreeChange: (callback: () => void) => () => void;
         readFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_READ_FILE]>;
         writeFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_WRITE_FILE]>;
         renameFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_RENAME_FILE]>;
@@ -213,32 +217,16 @@ export interface ElectronAPI {
     onMenuOpenWorkspace: (callback: () => void) => () => void;
     onMenuCloseBuffer: (callback: () => void) => () => void;
     onMenuToggleRecording: (callback: () => void) => () => void;
-    onMenuToggleVuMeters: (callback: () => void) => () => void;
+    onMenuToggleMixer: (callback: () => void) => () => void;
     onMenuOpenSettings: (callback: () => void) => () => void;
     onMenuOpenEngineHealth: (callback: () => void) => () => void;
     onMenuOpenModuleProfile: (callback: () => void) => () => void;
-    onMenuMigrateBuffer: (callback: () => void) => () => void;
-    onMenuMigrateWavetable: (callback: () => void) => () => void;
-    onMenuMigrateChebyBlockDC: (callback: () => void) => () => void;
     // UI operations
     showContextMenu: (options: ContextMenuOptions) => Promise<void>;
     onContextMenuCommand: (
         callback: (action: ContextMenuAction) => void,
     ) => () => void;
     showUnsavedChangesDialog: (fileName: string) => Promise<number>;
-
-    // Window operations
-    openHelpWindow: () => Promise<void>;
-    openHelpForSymbol: (
-        symbolType: 'type' | 'module' | 'namespace',
-        symbolName: string,
-    ) => Promise<void>;
-    onNavigateToSymbol: (
-        callback: (data: {
-            symbolType: 'type' | 'module' | 'namespace';
-            symbolName: string;
-        }) => void,
-    ) => () => void;
 
     // Performance window
     performanceWindow: {
@@ -292,9 +280,6 @@ export interface ElectronAPI {
         setAccelerators: (accelerators: Record<string, string>) => void;
     };
 
-    // Wavs folder change notification
-    onWavsChange: (callback: () => void) => () => void;
-
     // Main process log forwarding
     onMainLog: (callback: (entry: MainLogEntry) => void) => () => void;
 
@@ -329,29 +314,7 @@ const electronAPI: ElectronAPI = {
     executeDSL: (source, sourceId, trigger) =>
         invokeIPC('DSL_EXECUTE', source, sourceId, trigger),
     getDslLibSource: () => invokeIPC('GET_DSL_LIB_SOURCE'),
-
-    // Window operations
-    openHelpWindow: () => invokeIPC('OPEN_HELP_WINDOW'),
-    openHelpForSymbol: (
-        symbolType: 'type' | 'module' | 'namespace',
-        symbolName: string,
-    ) => invokeIPC('OPEN_HELP_FOR_SYMBOL', symbolType, symbolName),
-    onNavigateToSymbol: (
-        callback: (data: {
-            symbolType: 'type' | 'module' | 'namespace';
-            symbolName: string;
-        }) => void,
-    ) => {
-        const listener = (
-            _event: Electron.IpcRendererEvent,
-            data: {
-                symbolType: 'type' | 'module' | 'namespace';
-                symbolName: string;
-            },
-        ) => callback(data);
-        ipcRenderer.on('navigate-to-symbol', listener);
-        return () => ipcRenderer.removeListener('navigate-to-symbol', listener);
-    },
+    getSignalSiteTables: () => invokeIPC('GET_SIGNAL_SITE_TABLES'),
 
     // Synthesizer operations
     synthesizer: {
@@ -477,6 +440,8 @@ const electronAPI: ElectronAPI = {
 
         listFiles: (...args) => invokeIPC('FS_LIST_FILES', ...args),
 
+        onTreeChange: menuEventHandler(IPC_CHANNELS.FS_TREE_ON_CHANGE),
+
         moveFile: (...args) => invokeIPC('FS_MOVE_FILE', ...args),
 
         readFile: (...args) => invokeIPC('FS_READ_FILE', ...args),
@@ -511,7 +476,7 @@ const electronAPI: ElectronAPI = {
     onMenuOpenWorkspace: menuEventHandler(MENU_CHANNELS.OPEN_WORKSPACE),
     onMenuCloseBuffer: menuEventHandler(MENU_CHANNELS.CLOSE_BUFFER),
     onMenuToggleRecording: menuEventHandler(MENU_CHANNELS.TOGGLE_RECORDING),
-    onMenuToggleVuMeters: menuEventHandler(MENU_CHANNELS.TOGGLE_VU_METERS),
+    onMenuToggleMixer: menuEventHandler(MENU_CHANNELS.TOGGLE_MIXER),
     onMenuTogglePerformanceWindow: menuEventHandler(
         MENU_CHANNELS.TOGGLE_PERFORMANCE_WINDOW,
     ),
@@ -519,11 +484,6 @@ const electronAPI: ElectronAPI = {
     onMenuOpenEngineHealth: menuEventHandler(MENU_CHANNELS.OPEN_ENGINE_HEALTH),
     onMenuOpenModuleProfile: menuEventHandler(
         MENU_CHANNELS.OPEN_MODULE_PROFILE,
-    ),
-    onMenuMigrateBuffer: menuEventHandler(MENU_CHANNELS.MIGRATE_BUFFER),
-    onMenuMigrateWavetable: menuEventHandler(MENU_CHANNELS.MIGRATE_WAVETABLE),
-    onMenuMigrateChebyBlockDC: menuEventHandler(
-        MENU_CHANNELS.MIGRATE_CHEBY_BLOCK_DC,
     ),
 
     // UI operations
@@ -582,9 +542,6 @@ const electronAPI: ElectronAPI = {
 
     // Main process log forwarding
     onMainLog: menuEventHandler(IPC_CHANNELS.MAIN_LOG),
-
-    // Wavs folder change notification
-    onWavsChange: menuEventHandler(IPC_CHANNELS.WAVS_ON_CHANGE),
 
     // OS shell operations
     shell: {

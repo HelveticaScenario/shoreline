@@ -1,6 +1,7 @@
 import React from 'react';
 import type { AppConfig, MonospaceFont } from '../../shared/ipcTypes';
 import type { AppTheme } from '../themes/types';
+import type { SidebarSide } from './sidebarLayout';
 import { BUNDLED_FONTS } from '../../shared/fonts';
 import { useInstalledSystemFonts } from './fonts';
 
@@ -160,6 +161,40 @@ export function EditorSettingsTab({
                         {(config.codeBackdropOpacity ?? 0.6).toFixed(2)}
                     </span>
                 </div>
+            </div>
+
+            <div className="settings-section">
+                <h3>Sidebar Side</h3>
+                <select
+                    className="device-select"
+                    value={config.sidebarSide ?? 'right'}
+                    onChange={(e) =>
+                        onConfigChange({
+                            sidebarSide: e.target.value as SidebarSide,
+                        })
+                    }
+                >
+                    <option value="left">left</option>
+                    <option value="right">right</option>
+                </select>
+            </div>
+
+            <div className="settings-section">
+                <h3>Docs Location</h3>
+                <select
+                    className="device-select"
+                    value={config.docsLocation ?? 'bottom'}
+                    onChange={(e) =>
+                        onConfigChange({
+                            docsLocation: e.target.value as
+                                | 'bottom'
+                                | 'sidebar',
+                        })
+                    }
+                >
+                    <option value="bottom">bottom</option>
+                    <option value="sidebar">sidebar</option>
+                </select>
             </div>
         </div>
     );

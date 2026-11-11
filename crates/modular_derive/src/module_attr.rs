@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields, LitStr, Token, Type, punctuated::Punctuated};
 
-use crate::utils::{extract_doc_comments, unwrap_attr};
+use crate::utils::unwrap_attr;
 
 /// Parsed module attribute data
 struct ModuleAttr {
@@ -15,6 +15,8 @@ struct ModuleAttr {
     /// Custom function to derive channel count from params struct.
     /// The function must have signature: fn(&ParamsStruct) -> Option<usize>
     channels_derive: Option<syn::Path>,
+    /// Path to the module's `crate::module_docs::ModuleDocs` const.
+    docs: syn::Path,
 }
 
 struct ArgAttr {
@@ -38,6 +40,7 @@ impl syn::parse::Parse for ArgAttr {
 /// ```text
 /// #[module(
 ///     name = "$sine",
+///     docs = SINE_DOCS,
 ///     channels = 2,
 ///     args(freq, engine),
 ///     stateful,
@@ -64,6 +67,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
         let mut channels_param_default: Option<u8> = None;
         let mut channels_derive: Option<syn::Path> = None;
         let mut args: Vec<ArgAttr> = Vec::new();
+        let mut docs: Option<syn::Path> = None;
         let mut stateful = false;
         let mut patch_update = false;
         let mut has_init = false;
@@ -112,6 +116,10 @@ impl syn::parse::Parse for ModuleAttrArgs {
                         Punctuated::parse_terminated(&content)?;
                     args = parsed.into_iter().collect();
                 }
+                "docs" => {
+                    input.parse::<Token![=]>()?;
+                    docs = Some(input.parse()?);
+                }
                 "stateful" => {
                     stateful = true;
                 }
@@ -135,7 +143,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
                         ident.span(),
                         format!(
                             "Unknown module attribute '{other}'. Expected one of: \
-                             name, channels, channels_param, \
+                             name, docs, channels, channels_param, \
                              channels_param_default, channels_derive, args, \
                              stateful, patch_update, has_init, has_prepare_resources, clock_sync, block"
                         ),
@@ -153,6 +161,15 @@ impl syn::parse::Parse for ModuleAttrArgs {
                 "missing `name` in #[module(...)]",
             )
         })?;
+        if let Some(message) = crate::outputs::module_name_error(&name.value()) {
+            return Err(syn::Error::new(name.span(), message));
+        }
+        let docs = docs.ok_or_else(|| {
+            syn::Error::new(
+                proc_macro2::Span::call_site(),
+                "missing `docs = …` in #[module(...)]: name the module's `ModuleDocs` const",
+            )
+        })?;
 
         Ok(ModuleAttrArgs {
             module: ModuleAttr {
@@ -161,6 +178,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
                 channels_param,
                 channels_param_default,
                 channels_derive,
+                docs,
             },
             args,
             stateful,
@@ -180,7 +198,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
 /// ```rust,ignore
 /// #[module(
 ///     name = "$sine",
-///     description = "A sine wave oscillator",
+///     docs = SINE_DOCS,                        // the module's ModuleDocs const
 ///     // Channel count configuration (at most one):
 ///     // channels = 2,                         // hardcoded
 ///     // channels_param = "channels",           // read from param field
@@ -265,17 +283,18 @@ fn impl_module_macro_attr(
     let name = &ast.ident;
     let module_name = &attr_args.module.name;
 
-    // Extract /// doc comments from the module struct for documentation (required)
-    let module_documentation = extract_doc_comments(&ast.attrs).ok_or_else(|| {
-        syn::Error::new(
-            name.span(),
-            format!(
-                "Module struct `{}` must have `///` doc comments for documentation",
-                name
-            ),
-        )
-    })?;
-    let module_documentation_token = quote! { #module_documentation.to_string() };
+    // The `docs` const is the module's only user-facing documentation.
+    if let Some(doc) = ast
+        .attrs
+        .iter()
+        .find(|a| a.path().is_ident("doc") && matches!(a.meta, syn::Meta::NameValue(_)))
+    {
+        return Err(syn::Error::new_spanned(
+            doc,
+            "module docs live in the `ModuleDocs` const named by `docs = …`, not `///`",
+        ));
+    }
+    let docs_path = &attr_args.module.docs;
 
     // Store channels info for channel_count generation
     let hardcoded_channels = attr_args.module.channels;
@@ -811,6 +830,10 @@ fn impl_module_macro_attr(
             /// Allocated once at construction; never resized on the audio
             /// thread.
             block_outputs: std::cell::UnsafeCell<#block_outputs_ty>,
+            /// Counts the patch swaps this module's lineage has gone through;
+            /// stamped into the params so a `SwapGlide` can tell a new swap
+            /// from the one it already handled.
+            glide_generation: std::cell::Cell<u64>,
             /// Block size pinned at construction. Mirrors the BlockPort length.
             block_size: usize,
             /// Block vs. Sample mode, assigned by graph_analysis cycle
@@ -970,7 +993,11 @@ fn impl_module_macro_attr(
                 crate::types::OutputStruct::get_buffer_output(&module.outputs, port)
             }
 
-            fn transfer_state_from(&self, old: &dyn crate::types::Sampleable) {
+            fn transfer_state_from(
+                &self,
+                old: &dyn crate::types::Sampleable,
+                ids: &dyn crate::types::PreviousIds,
+            ) {
                 if let Some(old_typed) = old.as_any().downcast_ref::<Self>() {
                     // Guard against self-aliasing: if old and new are the same box,
                     // creating two &mut refs to the same UnsafeCell contents is UB.
@@ -984,6 +1011,14 @@ fn impl_module_macro_attr(
                     // between modules of the same count.
                     let same_channels = new_inner._channel_count == old_inner._channel_count;
                     #transfer_state_body
+                    let generation = old_typed.glide_generation.get().wrapping_add(1);
+                    self.glide_generation.set(generation);
+                    crate::types::Connect::mark_glides(
+                        &mut new_inner.params,
+                        Some(&old_inner.params),
+                        generation,
+                        ids,
+                    );
                     // Transfer buffer data (no-op for modules without buffer outputs)
                     crate::types::OutputStruct::transfer_buffers_from(
                         &mut new_inner.outputs,
@@ -1039,6 +1074,7 @@ fn impl_module_macro_attr(
                 module: std::cell::UnsafeCell::new(inner),
                 index: std::cell::Cell::new(0),
                 block_outputs: std::cell::UnsafeCell::new(<#block_outputs_ty>::new(_block_size, deserialized.channel_count)),
+                glide_generation: std::cell::Cell::new(0),
                 block_size: _block_size,
                 mode: _mode,
                 computing: std::cell::Cell::new(false),
@@ -1073,7 +1109,7 @@ fn impl_module_macro_attr(
 
                 crate::types::ModuleSchema {
                     name: Self::MODULE_TYPE.to_string(),
-                    documentation: #module_documentation_token,
+                    docs: crate::module_docs::ModuleDocsSchema::from(&#docs_path),
                     params_schema: crate::types::SchemaContainer {
                         schema: params_schema,
                     },

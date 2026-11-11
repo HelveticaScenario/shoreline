@@ -45,6 +45,15 @@
     min-height: 0;
 }
 
+/* The editor with the bottom panel beneath it; the sidebar stands beside both. */
+.app-workspace {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Editor Panel
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -55,6 +64,7 @@
     flex-direction: column;
     background-color: var(--bg-primary);
     min-width: 0;
+    min-height: 0;
     position: relative;
 }
 

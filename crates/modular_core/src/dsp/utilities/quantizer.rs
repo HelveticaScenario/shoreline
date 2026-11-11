@@ -4,6 +4,8 @@ use arrayvec::ArrayVec;
 use deserr::{DeserializeError, Deserr, IntoValue, ValuePointerRef};
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     Patch,
     dsp::utils::{SchmittTrigger, TempGate, TempGateState, min_gate_samples},
@@ -40,6 +42,14 @@ impl Connect for ScaleSignal {
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
     }
+    fn mark_glides(
+        &mut self,
+        old: Option<&Self>,
+        generation: u64,
+        ids: &dyn crate::types::PreviousIds,
+    ) {
+        self.0.mark_glides(old.map(|o| &o.0), generation, ids);
+    }
 }
 
 impl JsonSchema for ScaleSignal {
@@ -68,24 +78,25 @@ impl<E: DeserializeError> deserr::Deserr<E> for ScaleSignal {
     }
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct QuantizerParams {
-    /// Input V/Oct signal to quantize
-    #[signal(type = pitch)]
+    #[input("pitch to quantize", type = pitch)]
     input: PolySignal,
-    /// Offset added to input before quantization (in V/Oct)
-    #[signal(type = pitch)]
-    #[deserr(default)]
-    offset: Option<PolySignal>,
-    /// Notes to snap to, one V/Oct pitch per channel (octave is ignored), or a
-    /// spec string like "C(major)" / "C[maj7]". Snaps to semitones if omitted.
+    #[input(
+        "notes to snap to, one pitch per channel in any octave, or a spec like \"C(major)\" or \"C[maj7]\"; snaps to semitones when left out"
+    )]
     #[deserr(default)]
     scale: Option<ScaleSignal>,
-    /// Per-note gate for **scale**: scale channel N is used only while gate
-    /// channel N is high. While every gate channel is low the output holds.
-    #[signal(type = gate)]
+    #[input("transposition added to the pitch before it snaps", type = pitch)]
+    #[deserr(default)]
+    offset: Option<PolySignal>,
+    #[input(
+        "turns notes of the scale on and off: scale channel N is used only while gate channel N is high; with every gate low the output holds",
+        type = gate,
+    )]
     #[deserr(default)]
     gate: Option<PolySignal>,
 }
@@ -104,9 +115,9 @@ pub fn quantizer_derive_channel_count(params: &QuantizerParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct QuantizerOutputs {
-    #[output("output", "quantized V/Oct output", default)]
+    #[output("pitch", "the snapped pitch", type = cv, default)]
     output: PolyOutput,
-    #[output("trig", "trigger pulse on note change", range = (0.0, 5.0))]
+    #[output("trig", "fires each time the snapped note changes", type = trig)]
     trig: PolyOutput,
 }
 
@@ -189,33 +200,41 @@ fn snap_with_hysteresis(x: f64, prev: Option<f64>, snap: impl Fn(f64) -> f64) ->
     }
 }
 
-/// Snaps a V/Oct signal to the nearest note of a scale.
-///
-/// **scale** is a polyphonic signal: each channel is one V/Oct note, and the
-/// output snaps to the nearest of those notes in any octave. Feed it from
-/// `$chord`, a `$cycle`, or `$midiCV` — or pass a spec string such as
-/// `"C(major)"` or `"C[maj7]"`, which is shorthand for `$chord(spec)` (see
-/// `$chord` for the full grammar). Without a scale, the output snaps to
-/// semitones.
-///
-/// **gate** selects which scale notes are active: scale channel N is used only
-/// while gate channel N is high. While every gate channel is low, the output
-/// holds its last note.
-///
-/// A **trig** pulse fires whenever the quantized note changes, useful for
-/// re-triggering envelopes.
-///
-/// ```js
-/// // quantize a slow sine to C major
-/// $sine($quantizer($sine("0.1hz").range(0, 3), "C(major)")).out()
-/// ```
-///
-/// ```js
-/// // quantize to whichever MIDI keys are held; holds when all are released
-/// const midi = $midiCV({ channels: 4 })
-/// $sine($quantizer($sine("0.1hz").range(-1, 1), midi, { gate: midi.gate })).out()
-/// ```
-#[module(name = "$quantizer", channels_derive = quantizer_derive_channel_count, args(input, scale))]
+const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Snap pitch to a scale",
+    description: "Snaps a pitch to the nearest note of a scale or chord, so an LFO, a \
+                  random source or a MIDI input plays in key. `.o.trig` fires on every \
+                  note change, ready to retrigger an envelope.",
+    categories: &[ModuleCategory::Pitch],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "LFO melody in C major",
+            code: r#"
+                const melody = $quantizer(
+                  $sine('0.13hz').range('c3', 'c5'),
+                  'C(major)',
+                )
+                $sine(melody)
+                  .amp($perc(melody, { decay: 0.3 }))
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Playing only the keys you hold",
+            code: r#"
+                const midi = $midiCV({ channels: 4 })
+                $sine(
+                  $quantizer($sine('0.1hz').range('c3', 'c5'), midi, {
+                    gate: midi,
+                  }),
+                ).out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$quantizer", docs = QUANTIZER_DOCS, channels_derive = quantizer_derive_channel_count, args(input, scale))]
 pub struct Quantizer {
     outputs: QuantizerOutputs,
     params: QuantizerParams,

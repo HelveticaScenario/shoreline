@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CodeStyle } from '../dsl/objectPropertyInsert';
+import type { CodeStyle } from '../dsl/listEdits';
 import { computeEqChannelEdit, type EqChannelOp } from './eqChannelEdit';
 
 const layout: CodeStyle = {
@@ -12,9 +12,9 @@ const layout: CodeStyle = {
     useTabs: false,
 };
 
-/** The panel's anchor: the `$eq` callee, or the `eq` of a `.$.eq(` chain. */
+/** The panel's anchor: the `$eq` callee, or the `eq` of a `.eq(` chain. */
 const anchorOf = (source: string) =>
-    source.includes('.$.eq(')
+    source.includes('.eq(')
         ? source.lastIndexOf('eq(')
         : source.lastIndexOf('$eq(');
 

@@ -12,6 +12,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::fastexp;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 const RES_GAIN: f32 = 1.5;
 const IN_GAIN: f32 = 4.0;
@@ -152,14 +154,14 @@ fn res_deriv(x: f32) -> f32 {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum TriPoleShape {
-    /// Lowpass → lowpass → lowpass.
+    /// lowpass → lowpass → lowpass
     #[default]
     Lll,
-    /// Lowpass → highpass → lowpass.
+    /// lowpass → highpass → lowpass
     Lhl,
-    /// Highpass → lowpass → highpass.
+    /// highpass → lowpass → highpass
     Hlh,
-    /// Highpass → highpass → highpass.
+    /// highpass → highpass → highpass
     Hhh,
 }
 
@@ -307,25 +309,35 @@ impl Filter for TriPole {
     }
 }
 
+const TRIPOLE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Tri-pole Threeler filter",
+    description: "Ian Fritz's Threeler: three saturating stages under global feedback, a wild, \
+                  organic filter that self-oscillates readily. Mixing lowpass and highpass \
+                  stages gives unusual band shapes.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Wild resonant bass",
+        code: r#"
+            const seq = $p('d2*2 [f2 d3] a1 [c2 ~ d2]').c
+            $unstable.filter
+              .tripole($saw(seq), $sine('0.3hz').range('c3', 'c6'), 3, {
+                mode: 'lhl',
+              })
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge XT's Tri-pole — Ian Fritz's Threeler filter: three saturating one-pole
-    /// stages, a resonance waveshaper, and global feedback. Wild and organic;
-    /// self-oscillates readily. Runs 2× oversampled.
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; the feedback coefficient grows exponentially.
-    /// - **mode** — stage topology: `'lll'`, `'lhl'`, `'hlh'`, or `'hhh'`.
-    /// - **outputStage** — 1, 2, or 3 (3 = the full feedback output).
-    ///
-    /// ```js
-    /// $unstable.filter.tripole($saw('c2'), 'c4', 2, { mode: 'lhl', outputStage: 3 })
-    /// ```
+    docs = TRIPOLE_DOCS,
     name = "$unstable.filter.tripole", ident = TriPoleFilter, kernel = TriPole,
     output_doc = "filter output",
+    cutoff_doc = "cutoff frequency",
     params = {
-        /// stage topology: lll, lhl, hlh, or hhh (default lll)
+        #[input("which stages are lowpass and which highpass", default = "lll")]
         mode: TriPoleShape,
-        /// which stage to tap: 1, 2, or 3 (default 3, the full output)
+        #[input("which stage to tap; 3 is the full output", default = 3, range = (1, 3))]
         output_stage: Option<usize>,
     },
     mode = |p| TriPoleMode {

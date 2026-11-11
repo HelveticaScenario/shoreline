@@ -1,6 +1,6 @@
 /**
  * Shared type documentation for DSL types.
- * Used by both TypeScript lib generator (JSDoc) and HelpWindow (rendered docs).
+ * Used by both TypeScript lib generator (JSDoc) and the Docs panel (rendered docs).
  */
 
 import {
@@ -32,8 +32,7 @@ export const DSL_TYPE_NAMES = [
     'Signal',
     'Poly<Signal>',
     'Mono<Signal>',
-    'ModuleOutput',
-    'ModuleOutputWithRange',
+    'Multi-output modules',
     'Collection',
     'CollectionWithRange',
     'Note',
@@ -50,17 +49,20 @@ export type DslTypeName = (typeof DSL_TYPE_NAMES)[number];
 export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     Collection: {
         definition:
-            'interface extends Iterable<ModuleOutput> { length: number; [index]: ModuleOutput; ... }',
+            'class extends Iterable<Collection> { length: number; [index]: Collection; ... }',
         description:
-            'A collection of ModuleOutput instances with chainable DSP methods. ' +
-            'Created with the $() helper function. Supports iteration, indexing, and spreading. ' +
-            'Methods operate on all outputs in the collection.',
+            'A signal with chainable DSP methods: what every module returns, one channel per voice. ' +
+            'Group signals with the $c() helper function. Supports iteration, indexing, and spreading, each giving one-channel collections. ' +
+            'Methods operate on every channel.',
         examples: [
+            "const osc = $sine('c4')",
+            'osc.amplitude(0.5).out()             // Chain methods',
+            "$lpf(osc, 'c3', { q: 4 })            // Use as input to another module",
             '$c(osc1, osc2, osc3).amplitude(0.5).out()  // Apply amplitude to all, send to output',
             'const voices = $c(osc1, osc2, osc3)',
-            'for (const v of voices) { ... }      // Iterate over outputs',
+            'for (const v of voices) { ... }      // Iterate over one-channel collections',
             '[...voices]                          // Spread to array',
-            'voices[0]                            // Index access',
+            'voices[0]                            // Index access: a one-channel collection',
         ],
         methods: [
             {
@@ -82,7 +84,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                 signature: 'shift(offset: Poly<Signal>): Collection',
                 description:
                     'Add a DC offset to all signals in the collection.',
-                example: '$c(lfo1, lfo2).shift(2.5)',
+                example: 'lfo.shift(2.5)  // Shift LFO to 0-5V range',
             },
             {
                 name: 'gain',
@@ -93,10 +95,10 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             },
             {
                 name: 'exp',
-                signature: 'exp(factor?: Poly<Signal>): Collection',
+                signature: 'exp(exponent: Poly<Signal>): Collection',
                 description:
-                    'Apply a power curve to all signals in the collection. Default exponent is 3.',
-                example: '$c(lfo1, lfo2).exp(2)',
+                    'Raise all signals in the collection to the power `exponent`; negative values mirror positive ones. For a curve that keeps ±5 V at ±5 V, use $curve.',
+                example: 'lfo.exp(2)  // square, keeping the sign',
             },
             {
                 name: 'scope',
@@ -124,7 +126,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             {
                 name: 'range',
                 signature:
-                    'range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin: Poly<Signal>, inMax: Poly<Signal>): Collection',
+                    'range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin: Poly<Signal>, inMax: Poly<Signal>): CollectionWithRange',
                 description:
                     'Remap all outputs from input range to output range. Requires explicit input min/max.',
                 example: '$c(lfo1, lfo2).range(0, 1, -5, 5)',
@@ -150,34 +152,33 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             {
                 name: 'pipeMix',
                 signature:
-                    'pipeMix(pipeFn: (self: this) => ModuleOutput | Collection, options?: { mode?: "sum" | "average" | "max" | "min"; gain?: Poly<Signal> }): Collection',
+                    'pipeMix(pipeFn: (self: this) => Collection | CollectionWithRange, mix?: Poly<Signal>): Collection',
                 description:
-                    'Pipe this collection through a transform, then mix the original and transformed signals together using a $mix module. ' +
-                    'The callback receives this collection and returns a second signal; both are passed as inputs to $mix.',
+                    'Pipe this collection through a transform, then crossfade the original against the transformed signal (0 = original, 5 = transformed, default 2.5).',
                 example: "$c(osc1, osc2).pipeMix(s => $lpf(s, '1000hz')).out()",
             },
             {
-                name: 'mix',
-                signature:
-                    'mix(channels?: number, mode?: "sum" | "average" | "max" | "min"): Collection',
+                name: 'wet',
+                signature: 'wet(mix?: Poly<Signal>): Collection',
                 description:
-                    "Fold this collection's channels down to a target channel count by panning them evenly across the output field (equal-power). " +
-                    'Builds a $mixDown module. channels defaults to 1 (mono); mode controls how channels landing on the same output combine.',
-                example: '$saw($spread(0, 5, 3)).mix(2).out()',
+                    'Every module whose first argument is a signal is also a method of this collection: `sig.lpf(...)` is `$lpf(sig, ...)`. ' +
+                    '`.wet` after one crossfades the signal it was called on against the result: 0 is dry, 5 is wet, and the default 2.5 an equal mix.',
+                example: "$saw('c3').lpf('800hz').plate().wet(1.5).out()",
             },
         ],
         name: 'Collection',
-        seeAlso: ['CollectionWithRange', 'ModuleOutput', 'Poly<Signal>'],
+        seeAlso: ['CollectionWithRange', 'Poly<Signal>'],
     },
 
     CollectionWithRange: {
-        definition: 'interface extends Iterable<ModuleOutputWithRange> { ... }',
+        definition:
+            'class extends Iterable<CollectionWithRange> { length: number; [index]: CollectionWithRange; ... }',
         description:
-            'A collection of ModuleOutputWithRange instances. ' +
-            'Created with the $r() helper function. Like Collection, but the range() method uses stored min/max values.',
+            'A Collection that knows its value range, as LFOs, envelopes, and other modulation sources return. ' +
+            'The range() method uses the stored range for automatic scaling. Group ranged signals with the $r() helper function.',
         examples: [
+            "const lfo = $sine('1hz').range(0, 5)  // LFO outputs 0 to +5",
             '$r(lfo1, lfo2).range(0, 5).out()     // Remap using stored ranges',
-            '$r(...seq.gates).range(0, 1)        // Spread and remap gates',
         ],
         methods: [
             {
@@ -185,13 +186,12 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                 signature:
                     'range(outMin: Poly<Signal>, outMax: Poly<Signal>): CollectionWithRange',
                 description:
-                    'Remap all outputs from their native ranges to a new range. ' +
-                    "Uses each output's stored minValue/maxValue.",
-                example: '$r(lfo1, lfo2).range(200, 2000)',
+                    'Remap all outputs from their stored ranges to a new range.',
+                example: "lfo.range('c3', 'c5')  // Remap LFO to pitch range",
             },
         ],
         name: 'CollectionWithRange',
-        seeAlso: ['Collection', 'ModuleOutputWithRange'],
+        seeAlso: ['Collection'],
     },
 
     HZ: {
@@ -208,169 +208,34 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         seeAlso: ['Signal', 'Note'],
     },
 
-    ModuleOutput: {
-        definition:
-            'interface { moduleId: string; portName: string; channel: number; ... }',
+    'Multi-output modules': {
         description:
-            'A single output from a module, representing a mono signal connection. ' +
-            'ModuleOutputs are chainable - methods like amplitude(), shift(), and out() return the same output for fluent API usage. ' +
-            'Every module factory returns either a ModuleOutput or a Collection of outputs.',
+            'A module with several outputs, such as a sequencer with a pitch, a gate and a trigger, can be used without naming one. ' +
+            'Each input takes the output that suits it: a trigger input takes the trigger, a gate input the gate, and everything else the main output. ' +
+            'The editor shows the output it picked beside the value; double-click that hint to write it into the code. ' +
+            'Its outputs are also listed by name under `.o`, as in `seq.o.gate`; naming one yourself always uses that output, whatever the input.',
         examples: [
-            'const osc = $sine("c4")',
-            'osc.amplitude(0.5).out()           // Chain methods',
-            'osc.scope().out()             // Add visualization',
-            "$lpf(osc, 'c3', { q: 4 })     // Use as input to another module",
+            "const seq = $p('c e g a').c\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope",
+            "const seq = $p('c3 ~ g3 ~').c\n$sine(seq).amp(seq.adsr()).out()   // the gate opens the envelope",
+            "const seq = $p('c e g a').c\n$sine(seq).amp($adsr(seq.o.gate)).amp(seq.o.velocity).out()   // named outputs are used as they are",
         ],
-        methods: [
-            {
-                name: 'amplitude',
-                signature: 'amplitude(factor: Poly<Signal>): ModuleOutput',
-                description:
-                    'Scale the signal by a linear factor (5 = unity, 2.5 = half, 10 = 2x). Creates a $scaleAndShift module internally. For perceptual (audio-taper) volume control, use gain() instead.',
-                example: 'osc.amplitude(2.5)  // Half amplitude',
-            },
-            {
-                name: 'amp',
-                signature: 'amp(factor: Poly<Signal>): ModuleOutput',
-                description:
-                    'Alias for amplitude(). Scale the signal by a factor.',
-                example: 'osc.amp(2.5)  // Half amplitude',
-            },
-            {
-                name: 'shift',
-                signature: 'shift(offset: Poly<Signal>): ModuleOutput',
-                description:
-                    'Add a DC offset to the signal. Creates a $scaleAndShift module internally.',
-                example: 'lfo.shift(2.5)  // Shift LFO to 0-5V range',
-            },
-            {
-                name: 'gain',
-                signature: 'gain(level: Poly<Signal>): ModuleOutput',
-                description:
-                    'Scale the signal with a perceptual (audio taper) curve (5 = unity, 0 = silence). Chains $curve and $scaleAndShift internally with exponent 3. For linear amplitude scaling, use amplitude() instead.',
-                example: 'osc.gain(2.5)',
-            },
-            {
-                name: 'exp',
-                signature: 'exp(factor?: Poly<Signal>): ModuleOutput',
-                description:
-                    'Apply a power curve to the signal. Creates a $curve module internally. Default exponent is 3.',
-                example: 'lfo.exp(2)  // Quadratic curve',
-            },
-            {
-                name: 'scope',
-                signature:
-                    'scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number] }): this',
-                description:
-                    'Add an oscilloscope visualization for this output. The scope appears as an overlay in the editor.',
-                example:
-                    'osc.scope({ msPerFrame: 100, range: [-10, 10] }).out()',
-            },
-            {
-                name: 'out',
-                signature: 'out(options?: StereoOutOptions): this',
-                description:
-                    'Send this output to the speakers as stereo audio. Left plays on baseChannel, right on baseChannel+1.',
-                example: 'osc.out({ baseChannel:0, gain: 2.5, pan: -2 })',
-            },
-            {
-                name: 'outMono',
-                signature:
-                    'outMono(channelOrOptions?: number | MonoOutOptions, gainOrOptions?: Poly<Signal> | MonoOutOptions): this',
-                description:
-                    'Send this output to a single speaker channel as mono audio.',
-                example: 'lfo.outMono(2, 0.3)',
-            },
-            {
-                name: 'pipe',
-                signature: 'pipe<T>(pipeFn: (self: this) => T): T',
-                description:
-                    'Pass this output through a transform function and return the result. ' +
-                    'Enables inline transforms and reusable signal-processing helpers.',
-                example: "$saw('c4').pipe(s => s.amplitude(0.5)).out()",
-            },
-            {
-                name: 'pipe',
-                signature:
-                    'pipe<T>(pipeFn: (self: this, item: E) => T, array: E[]): Collection',
-                description:
-                    'Call pipeFn once for every element in the provided array, ' +
-                    'collecting all results into a Collection. ' +
-                    'Useful for generating a family of voices that each vary by one parameter.',
-                example:
-                    '// Create 2 groups of 3 voices with different cutoff values\n' +
-                    "$sine(['C4', 'E4', 'G4']).pipe((s, cut) => $lfp(s, cut), ['440hz', '880hz']).out()",
-            },
-            {
-                name: 'pipeMix',
-                signature:
-                    'pipeMix(pipeFn: (self: this) => ModuleOutput | Collection, options?: { mode?: "sum" | "average" | "max" | "min"; gain?: Poly<Signal> }): Collection',
-                description:
-                    'Pipe this output through a transform, then mix the original and transformed signals together using a $mix module. ' +
-                    'The callback receives this output and returns a second signal; both are passed as inputs to $mix.',
-                example: "$saw('c4').pipeMix(s => $lpf(s, '1000hz')).out()",
-            },
-            {
-                name: 'mix',
-                signature:
-                    'mix(channels?: number, mode?: "sum" | "average" | "max" | "min"): Collection',
-                description:
-                    "Fold this output's channels down to a target channel count by panning them evenly across the output field (equal-power). " +
-                    'Builds a $mixDown module. channels defaults to 1 (mono); mode controls how channels landing on the same output combine.',
-                example: '$saw($spread(0, 5, 3)).mix(2).out()',
-            },
-            {
-                name: 'range',
-                signature:
-                    'range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin: Poly<Signal>, inMax: Poly<Signal>): CollectionWithRange',
-                description:
-                    'Remap this output from an explicit input range to a new output range. Creates a $remap module internally.',
-                example: "$sine('c4').range(0, 1, -5, 5)",
-            },
-        ],
-        name: 'ModuleOutput',
-        seeAlso: ['ModuleOutputWithRange', 'Collection', 'Signal'],
-    },
-
-    ModuleOutputWithRange: {
-        definition:
-            'interface extends ModuleOutput { minValue: Signal; maxValue: Signal; range(...): CollectionWithRange }',
-        description:
-            'An extension of ModuleOutput that knows its output value range (minValue, maxValue). ' +
-            'Typically returned by LFOs, envelopes, and other modulation sources. ' +
-            'The range() method uses the stored min/max for automatic scaling.',
-        examples: [
-            "const lfo = $sine('1hz').range(0, 5)              // LFO outputs 0 to +5",
-        ],
-        methods: [
-            {
-                name: 'range',
-                signature:
-                    'range(outMin: Poly<Signal>, outMax: Poly<Signal>): CollectionWithRange',
-                description:
-                    'Remap the output from its native range (minValue, maxValue) to a new range (outMin, outMax). ' +
-                    'Unlike Collection.range(), this uses the stored min/max values automatically.',
-                example:
-                    'lfo.range(note("c3"), note("c5"))  // Remap LFO to pitch range',
-            },
-        ],
-        name: 'ModuleOutputWithRange',
-        seeAlso: ['ModuleOutput', 'CollectionWithRange'],
+        name: 'Multi-output modules',
+        seeAlso: ['Collection', 'Signal'],
     },
 
     'Mono<Signal>': {
-        definition: 'Signal | Signal[] | Iterable<ModuleOutput>',
+        definition: 'Signal | Signal[]',
         description:
             'A signal input that accepts polyphonic connections but sums all channels down to a single mono value. ' +
-            'Structurally identical to Poly<Signal>, but signals that the module will not produce per-voice output from this parameter. ' +
+            'Takes what Poly<Signal> takes except a signal group: the module will not produce per-voice output from this parameter. ' +
             'Used for control parameters like tempo, stereo width, or math variables where a single combined value is needed.',
         examples: [
-            '$clockDivider(clock.trigger, 4)                  // Clock signal summed to mono',
+            '$clockDivider(clock.o.trigger, 4)                // Clock signal summed to mono',
             '$stereoMix(osc, { width: lfo })                  // Width control summed to mono',
             '$math("x + y", { x: osc1, y: osc2 })            // Variables summed to single values',
         ],
         name: 'Mono<Signal>',
-        seeAlso: ['Signal', 'Poly<Signal>', 'ModuleOutput'],
+        seeAlso: ['Signal', 'Poly<Signal>', 'Collection'],
     },
 
     Note: {
@@ -391,32 +256,32 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     'Poly<Signal>': {
-        definition: 'Signal | Signal[] | Iterable<ModuleOutput>',
+        definition: 'Signal | Signal[] | SignalGroup',
         description:
-            'A potentially multi-channel signal. Can be an array of Signals for polyphonic patches, ' +
-            'or an iterable of ModuleOutputs. When used as input to a module, arrays are expanded to create multiple voices.',
+            'A potentially multi-channel signal. Can be an array of Signals for polyphonic patches; ' +
+            'every channel of every Collection in it becomes a voice. When used as input to a module, arrays are expanded to create multiple voices.',
         examples: [
-            'filter.lpf(["C3", "E3", "G3"], { cutoff: 1000 })  // 3-voice chord',
-            'osc.saw([...seq.pitch])                           // Spread sequencer outputs',
-            'mix.add(osc1.out, osc2.out, osc3.out)             // Multiple ModuleOutputs',
+            '$saw(["C3", "E3", "G3"])                // 3-voice chord',
+            '$saw([...$sine("1hz"), ...$sine("2hz")]) // Spread channels into voices',
+            '$mix([osc1, osc2, osc3])                // Several signals',
         ],
         name: 'Poly<Signal>',
-        seeAlso: ['Signal', 'Mono<Signal>', 'ModuleOutput', 'Collection'],
+        seeAlso: ['Signal', 'Mono<Signal>', 'Collection'],
     },
 
     Signal: {
-        definition: 'number | Note | HZ | ModuleOutput',
+        definition: 'number | Note | HZ | Collection | CollectionWithRange',
         description:
-            'A single-channel audio signal value. This is the fundamental type for all audio connections in the modular system. ' +
+            'An audio signal value. This is the fundamental type for all audio connections in the modular system. ' +
             'Signals follow the 1V/octave convention where 0V corresponds to C4 (~261.63 Hz).',
         examples: [
-            'sine("C4")           // Note string - converted to 1V/oct',
-            'sine(440)            // Number - constant voltage',
-            'sine("440hz")        // Hz string - converted to voltage',
-            'sine(lfo.out)        // ModuleOutput from another module',
+            '$sine("C4")           // Note string - converted to 1V/oct',
+            '$sine(440)            // Number - constant voltage',
+            '$sine("440hz")        // Hz string - converted to voltage',
+            '$sine(lfo)            // Collection from another module',
         ],
         name: 'Signal',
-        seeAlso: ['Poly<Signal>', 'Mono<Signal>', 'ModuleOutput', 'Note', 'HZ'],
+        seeAlso: ['Poly<Signal>', 'Mono<Signal>', 'Collection', 'Note', 'HZ'],
     },
 
     StereoOutOptions: {
@@ -432,7 +297,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             "$sine('c').out({ gain: $perc($pulse('8hz')), pan: $sine('1hz') })  // Modulated",
         ],
         name: 'StereoOutOptions',
-        seeAlso: ['MonoOutOptions', 'ModuleOutput', 'Collection', 'Poly<Signal>'],
+        seeAlso: ['MonoOutOptions', 'Collection', 'Poly<Signal>'],
     },
 
     MonoOutOptions: {
@@ -446,7 +311,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             "$sine('c').outMono(0, { label: 'sub' })         // Labelled VU meter",
         ],
         name: 'MonoOutOptions',
-        seeAlso: ['StereoOutOptions', 'ModuleOutput', 'Collection', 'Poly<Signal>'],
+        seeAlso: ['StereoOutOptions', 'Collection', 'Poly<Signal>'],
     },
 };
 
@@ -467,19 +332,26 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     // ---- Helpers ----
     {
         description:
-            'Convert a frequency in Hertz to a 1V/octave voltage value.',
-        examples: ['$hz(440)    // A4', '$hz(261.63) // ~C4'],
+            'Convert a frequency in Hertz to a 1V/octave voltage value. Numbers and number arrays convert to voltage values; a frequency that includes a signal converts sample by sample, with frequencies at or below 0 Hz read as 0.0001 Hz. Note and Hz strings are already pitches and are rejected.',
+        examples: [
+            '$hz(440)    // A4',
+            '$hz(261.63) // ~C4',
+            '$hz([220, 330]) // two voices',
+            "$hz($slider('pitch', 220, 100, 500)) // a slider in Hz",
+        ],
         group: 'Helpers',
         name: '$hz',
         params: [
             {
                 name: 'frequency',
-                type: 'number',
+                type: 'number | Poly<number>',
                 description: 'Frequency in Hz',
             },
         ],
-        returns: 'Voltage value usable as a Signal',
-        signature: '$hz(frequency: number): number',
+        returns:
+            'A voltage value for a number, one per element for a number array, otherwise a Collection',
+        signature:
+            '$hz(frequency: number | Poly<number>): number | number[] | Collection',
     },
     {
         description: 'Convert a note name string to a 1V/octave voltage value.',
@@ -498,27 +370,23 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Create a Collection from one or more ModuleOutputs. Collections support chainable DSP methods, indexing, and spreading.',
+            'Create a Collection holding the channels of every argument, in order. Collections support chainable DSP methods, indexing, and spreading.',
         examples: [
             '$c(osc1, osc2).amplitude(0.5).out()',
-            '$c(osc1, osc2)[0]  // index access',
+            '$c(osc1, osc2)[0]  // index access: a one-channel collection',
         ],
         group: 'Helpers',
         name: '$c',
-        signature:
-            '$c(...args: (ModuleOutput | Iterable<ModuleOutput>)[]): Collection',
+        signature: '$c(...args: (Signal | Signal[])[]): Collection',
     },
     {
         description:
-            'Create a CollectionWithRange from ranged outputs. The range() method uses stored min/max values.',
-        examples: [
-            '$r(lfo1, lfo2).range(0, 5).out()',
-            '$r(...seq.gates).range(0, 1)',
-        ],
+            'Create a CollectionWithRange holding the channels of every ranged argument. The range() method uses the stored ranges.',
+        examples: ['$r(lfo1, lfo2).range(0, 5).out()'],
         group: 'Helpers',
         name: '$r',
         signature:
-            '$r(...args: (ModuleOutputWithRange | Iterable<ModuleOutputWithRange>)[]): CollectionWithRange',
+            '$r(...args: (CollectionWithRange | CollectionWithRange[])[]): CollectionWithRange',
     },
     {
         description:
@@ -711,10 +579,10 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Create a momentary gate button in the Control panel: 5V while held, 0V otherwise. Chain through .$.hold for a fixed-length trigger per press.',
+            'Create a momentary gate button in the Control panel: 5V while held, 0V otherwise. Chain through .hold for a fixed-length trigger per press.',
         examples: [
             '$sine("c4").amplitude($adsr($btn("play"))).out();',
-            '// fixed 100 ms trigger per press, however long the button is held\n$sine("c4").amplitude($adsr($btn("hit").$.hold(0.1))).out();',
+            '// fixed 100 ms trigger per press, however long the button is held\n$sine("c4").amplitude($adsr($btn("hit").hold(0.1))).out();',
         ],
         group: 'Controls',
         name: '$btn',
@@ -817,7 +685,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
 
     {
         description:
-            'Create a send-return bus. Signals are routed to the bus via `.send(bus, gain)` on any ModuleOutput or Collection. ' +
+            'Create a send-return bus. Signals are routed to the bus via `.send(bus, gain)` on any Collection. ' +
             'The callback receives a Collection that is the mix of all sends, allowing effects or further routing to be applied.',
         examples: [
             'const fx = $bus((mixed) => $reverb(mixed).out());\n$saw(440).send(fx, 0.6);\n$sine(220).send(fx, 0.4);',
@@ -869,12 +737,12 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         params: [
             {
                 name: 'cb',
-                type: '(mixed: Collection) => ModuleOutput | Collection | CollectionWithRange',
+                type: '(mixed: Collection) => Collection | CollectionWithRange',
                 description: 'Transform applied to the final mix',
             },
         ],
         signature:
-            '$setEndOfChainCb(cb: (mixed: Collection) => ModuleOutput | Collection | CollectionWithRange): void',
+            '$setEndOfChainCb(cb: (mixed: Collection) => Collection | CollectionWithRange): void',
     },
 ];
 

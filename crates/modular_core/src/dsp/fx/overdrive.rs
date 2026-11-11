@@ -12,38 +12,51 @@ use std::f32::consts::PI;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::halfband::{Halfband2xDown, Halfband2xUp};
 use crate::dsp::utils::one_pole::OnePole;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
-use crate::types::Clickless;
+use crate::types::SwapGlide;
 
 /// Saturation algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
 #[serde(rename_all = "snake_case")]
 #[deserr(rename_all = lowercase)]
 pub enum OverdriveMode {
-    /// Smooth tanh-style saturation.
+    /// smooth, rounded saturation
     #[default]
     Soft,
-    /// Hard clipping at ±1.
+    /// hard clipping, buzzy and aggressive
     Hard,
-    /// Asymmetric tube-style saturation with even harmonics.
+    /// asymmetric tube-style grit, warmer and thicker
     Asym,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct OverdriveParams {
-    /// input signal to overdrive (bipolar, typically -5 to 5)
+    #[input(
+        "signal to overdrive",
+        type = audio,
+    )]
     pub input: PolySignal,
-    /// drive amount (0 = unity gain, 5 = ~30 dB pre-shaper gain)
-    #[signal(default = 0.0, range = (0.0, 5.0))]
+    #[input(
+        "how hard the signal hits the saturator: 0 unity gain, 5 about +30 dB",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     pub drive: PolySignal,
-    /// tone (-5 = dark, 0 = neutral, +5 = bright). Pre-emphasises highs into
-    /// the shaper at positive values and de-emphasises them after, and vice versa.
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "which frequencies distort most: -5 dark, 0 neutral, +5 bright; the overall balance stays flat",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     pub tone: Option<PolySignal>,
-    /// saturation mode (defaults to soft)
+    #[input("saturation character", default = "soft")]
     #[serde(default)]
     #[deserr(default)]
     pub mode: Option<OverdriveMode>,
@@ -52,20 +65,43 @@ pub struct OverdriveParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct OverdriveOutputs {
-    #[output("output", "overdriven signal output", default)]
+    #[output("output", "overdriven signal", type = cv, default)]
     sample: PolyOutput,
 }
 
 #[derive(Default, Clone, Copy)]
 struct ChannelState {
-    drive: Clickless,
-    tone: Clickless,
+    drive: SwapGlide,
+    tone: SwapGlide,
     up: Halfband2xUp,
     down: Halfband2xDown,
     tilt_pre: OnePole,
     tilt_post: OnePole,
     /// DC blocker (one-pole high-pass) on the input before upsampling.
     dc_blocker: DcBlocker,
+    /// The tone the cached high-band gains were computed for, and
+    /// the `(pre, post)` gains.
+    tone_gains: Option<(f32, f32, f32)>,
+}
+
+impl ChannelState {
+    /// High-band gains `(pre, post)` for `tone` in [-5, 5], cached while the
+    /// tone holds. 3^(tone/5) maps tone=-5 → pre=1/3, post=3;
+    /// tone=0 → 1, 1; tone=+5 → pre=3, post=1/3. Linear-signal cascade
+    /// (pre · post) = 1 at all settings — true pre-emphasis / de-emphasis
+    /// pair, no dead zone.
+    #[inline(always)]
+    fn high_gains(&mut self, tone: f32) -> (f32, f32) {
+        match self.tone_gains {
+            Some((cached, pre, post)) if cached == tone => (pre, post),
+            _ => {
+                let amount = tone * 0.2;
+                let (pre, post) = (TONE_RANGE.powf(amount), TONE_RANGE.powf(-amount));
+                self.tone_gains = Some((tone, pre, post));
+                (pre, post)
+            }
+        }
+    }
 }
 
 #[derive(Default)]
@@ -84,11 +120,40 @@ const MAX_DRIVE_GAIN: f32 = 32.0;
 /// 3:1 boost/cut ratio. Larger values = more aggressive tone shift.
 const TONE_RANGE: f32 = 3.0;
 
-/// Multi-mode overdrive saturator. Drive boosts the input into a soft, hard,
-/// or asymmetric shaper, with a tone control applying pre-emphasis before
-/// distortion and matching de-emphasis after. Internally oversampled 2× to
-/// reduce aliasing.
-#[module(name = "$overdrive", args(input, drive), has_init)]
+const OVERDRIVE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Overdrive and clipping",
+    description: "Pushes a signal into saturation, from warm rounding to hard clipping or \
+                  tube-style grit. `tone` chooses whether the lows or the highs break up first \
+                  without changing the overall brightness.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Driven acid bass",
+            code: r#"
+                $saw('a1')
+                  .lpf($sine('0.25hz').range('a2', 'a5'), 4)
+                  .overdrive(3)
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Gritty tube chords",
+            code: r#"
+                $saw($chord('C3[m7]'))
+                  .overdrive(2, { mode: 'asym', tone: -2 })
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(
+    name = "$overdrive",
+    docs = OVERDRIVE_DOCS,
+    args(input, drive),
+    has_init
+)]
 pub struct Overdrive {
     outputs: OverdriveOutputs,
     state: OverdriveState,
@@ -119,7 +184,7 @@ impl Overdrive {
         }
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let dc_coeff = self.state.dc_block_coeff;
         let mode = self.params.mode.unwrap_or_default();
         let num_channels = self.channel_count();
@@ -131,19 +196,17 @@ impl Overdrive {
             let drive_raw = self.params.drive.get_value(ch);
             let tone_raw = self.params.tone.value_or(ch, 0.0);
 
-            state.drive.update(drive_raw);
-            state.tone.update(tone_raw);
+            state
+                .drive
+                .update(drive_raw, self.params.drive.glide_mark(ch), sample_rate);
+            state
+                .tone
+                .update(tone_raw, self.params.tone.glide_mark(ch), sample_rate);
             let drive = (*state.drive).clamp(0.0, 5.0);
             let tone = (*state.tone).clamp(-5.0, 5.0);
 
             let g = 1.0 + drive * ((MAX_DRIVE_GAIN - 1.0) / 5.0);
-            // tone in [-5, 5] maps to symmetric high-band gain pair via 3^(tone/5):
-            // tone=-5 → pre=1/3, post=3; tone=0 → 1, 1; tone=+5 → pre=3, post=1/3.
-            // Linear-signal cascade (pre · post) = 1 at all settings — true
-            // pre-emphasis / de-emphasis pair, no dead zone.
-            let amount = tone * 0.2;
-            let pre_high_gain = TONE_RANGE.powf(amount);
-            let post_high_gain = TONE_RANGE.powf(-amount);
+            let (pre_high_gain, post_high_gain) = state.high_gains(tone);
 
             // DC-block the input at base rate before upsampling.
             let x_norm = input / 5.0;

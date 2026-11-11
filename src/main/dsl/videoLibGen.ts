@@ -3,6 +3,7 @@ import {
     VIDEO_CHAIN_EXAMPLES,
     VIDEO_DOCS,
     VIDEO_INTRO,
+    type VideoChainDoc,
     type VideoDocParam,
 } from '../../shared/dsl/videoDocs';
 
@@ -77,61 +78,27 @@ export function generateVideoNamespace(): string {
     ].join('\n');
 }
 
-/** Declarations of the chain functions, the direct methods or the members of `.$`. */
-function chainDeclarations(
-    direct: boolean,
-): { doc: string; declarations: string[] }[] {
-    return VIDEO_CHAIN.filter((doc) => (doc.direct ?? false) === direct).map(
-        (doc) => ({ declarations: doc.declarations, doc: doc.description }),
-    );
-}
-
-/** A chain declaration with a leading `mix` parameter, as `.$m` takes. */
-function withMix(declaration: string): string {
-    return declaration
-        .replace(/^(\w+)\(\s*\)/, '$1(mix: VideoValue)')
-        .replace(/^(\w+)\((?!mix: VideoValue\))/, '$1(mix: VideoValue, ');
-}
-
-function renderMembers(
-    entries: { doc: string; declarations: string[] }[],
-    transform: (declaration: string) => string = (d) => d,
-): string {
+function renderMembers(entries: VideoChainDoc[]): string {
     return entries
-        .flatMap(({ doc, declarations }) => [
-            jsdoc('    ', doc, [], []),
-            ...declarations.map(
-                (declaration) => `    ${transform(declaration)}`,
-            ),
+        .flatMap(({ description, declarations, params }) => [
+            jsdoc('    ', description, params ?? [], []),
+            ...declarations.map((declaration) => `    ${declaration}`),
         ])
         .join('\n');
 }
 
 /**
- * The members a video signal has besides its type tag and channels: the
- * direct methods that end or tap a chain, `$` and `$m`, `pipe` and `pipeMix`.
+ * The members a video signal has besides its type tag and channels: `pipe`,
+ * `pipeMix` and the methods of {@link VIDEO_CHAIN}.
  */
 export function generateVideoChainMembers(): string {
     return [
-        '    /** The `$v` functions that take a signal first, applied to this signal: `x.$.rotate(0.1)`. */',
-        '    readonly $: VideoChain;',
-        '    /** Like `$`, with a leading `mix` that crossfades this signal against the result: 0 is this signal, 1 the result. */',
-        '    readonly $m: VideoMixChain;',
         '    /** Calls `fn` with this signal and returns what it returns. */',
         '    pipe<U>(fn: (self: VideoSignal) => U): U;',
         '    /** Calls `fn(this, element)` for each element of `array` and returns the results. */',
         '    pipe<U, E>(fn: (self: VideoSignal, element: E) => U, array: E[]): U[];',
         '    /** Crossfades this signal against `fn(this)`: 0 is this signal, 1 the result (default 0.5). */',
         '    pipeMix(fn: (self: VideoSignal) => VideoValue, mix?: VideoValue): VideoSignal;',
-        renderMembers(chainDeclarations(true)),
+        renderMembers(VIDEO_CHAIN),
     ].join('\n');
-}
-
-/** The `$` and `$m` namespace interfaces, generated from {@link VIDEO_CHAIN}. */
-export function generateVideoChainInterfaces(): string {
-    const entries = chainDeclarations(false);
-    return [
-        `/** The functions of \`.$\` on a video signal. */\ninterface VideoChain {\n${renderMembers(entries)}\n}`,
-        `/** The functions of \`.$m\` on a video signal: each takes a leading \`mix\`. */\ninterface VideoMixChain {\n${renderMembers(entries, withMix)}\n}`,
-    ].join('\n\n');
 }

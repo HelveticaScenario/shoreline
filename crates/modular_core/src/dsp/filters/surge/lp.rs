@@ -11,6 +11,8 @@ use super::coeffs::{
     map_4pole_resonance, note_to_omega, resoscale, to_coupled_form, to_normalized_lattice,
 };
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Lowpass biquad kernel.
 #[derive(Clone, Copy, Default)]
@@ -106,23 +108,35 @@ fn coeff_lp24(freq_semi: f32, reso: f32, subtype: i32, rate: f32) -> [f32; N_COE
     }
 }
 
+const LP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Surge lowpass filter",
+    description: "Surge's resonant lowpass in 12 or 24 dB slopes: smooth at the default \
+                  `'standard'` drive, precise at `'clean'`, gritty and singing at `'driven'`.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Driven acid line",
+        code: r#"
+            const seq = $p('c2 [c2 c3] eb2 [g1 bb1]').c
+            const env = $perc(seq, { decay: 0.2 })
+            $unstable.filter
+              .lp($saw(seq), env.range('c3', 'c6'), 4, {
+                drive: 'driven',
+              })
+              .out()
+        "#,
+    }],
+};
+
 filter_module! {
-    /// Surge multimode lowpass (the "12 dB" / "24 dB" vember filter).
-    ///
-    /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-    /// - **resonance** — 0–5; near the top the filter rings and self-oscillates.
-    /// - **slope** — `'db12'` or `'db24'`.
-    /// - **drive** — `'standard'`, `'driven'`, or `'clean'`.
-    ///
-    /// ```js
-    /// $unstable.filter.lp($saw('c2'), 'c4', 2, { slope: 'db24', drive: 'driven' })
-    /// ```
+    docs = LP_DOCS,
     name = "$unstable.filter.lp", ident = LpFilter, kernel = LpBiquad,
     output_doc = "lowpass output",
+    cutoff_doc = "cutoff frequency",
     params = {
-        /// slope: 12 or 24 dB/oct (default 24)
+        #[input("how steeply it cuts", default = "db24")]
         slope: FilterSlope,
-        /// drive character: standard, driven, or clean (default standard)
+        #[input("how hard the resonance pushes and clips", default = "standard")]
         drive: BiquadDrive,
     },
     mode = |p| BiquadMode {

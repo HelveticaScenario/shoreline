@@ -1,23 +1,33 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
+    dsp::filters::resonant_svf::{CutoffResonance, hand_over, params_mono},
     dsp::utils::{changed, sanitize, voct_to_hz},
-    poly::{PolyOutput, PolySignal, PolySignalExt},
-    types::Clickless,
+    poly::{PolyOutput, PolySignal},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Jup6fParams {
-    /// signal input
+    #[input("the sound to filter", type = audio)]
     input: PolySignal,
-    /// cutoff frequency in V/Oct (0V = C4)
-    #[signal(type = frequency)]
+    #[input(
+        "cutoff frequency; tops out just under half the sample rate",
+        type = frequency,
+        range = (-3.71, ..),
+    )]
     cutoff: PolySignal,
-    /// filter resonance (0-5). High values produce self-oscillation.
-    #[signal(range = (0.0, 5.0))]
+    #[input(
+        "filter resonance; self-oscillates at 5",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
 }
@@ -25,13 +35,13 @@ struct Jup6fParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Jup6fOutputs {
-    #[output("output", "4-pole (24dB/oct) lowpass", default, range = (-5.0, 5.0))]
+    #[output("lp24", "4-pole (24 dB/oct) lowpass", type = cv, default, range = (-5.0, 5.0))]
     lp24: PolyOutput,
-    #[output("lp12", "2-pole (12dB/oct) lowpass", range = (-5.0, 5.0))]
+    #[output("lp12", "2-pole (12 dB/oct) lowpass", type = cv, range = (-5.0, 5.0))]
     lp12: PolyOutput,
-    #[output("bp", "bandpass", range = (-5.0, 5.0))]
+    #[output("bp", "bandpass", type = cv, range = (-5.0, 5.0))]
     bp: PolyOutput,
-    #[output("hp", "highpass", range = (-5.0, 5.0))]
+    #[output("hp", "highpass", type = cv, range = (-5.0, 5.0))]
     hp: PolyOutput,
 }
 
@@ -44,37 +54,49 @@ struct LadderState {
     last_cutoff: f32,
     /// Cached resonance for change detection
     last_resonance: f32,
-    /// Smoothed cutoff
-    smooth_cutoff: Clickless,
-    /// Smoothed resonance
-    smooth_resonance: Clickless,
+    glides: CutoffResonance,
     /// Cached tuning coefficient (g)
     g: f32,
     /// Cached resonance coefficient (k)
     k: f32,
 }
 
-/// Jupiter-6–style multimode ladder filter.
-///
-/// Models the IR3109 4-pole OTA cascade found in the Roland Jupiter-6.
-/// Each stage applies `tanh` saturation for the warm, harmonically rich
-/// character of the original analog circuit. Resonance drives the feedback
-/// path and self-oscillates at high values.
-///
-/// The default output is a 24 dB/oct lowpass. Additional taps provide
-/// 12 dB/oct lowpass, bandpass, and highpass responses derived from the
-/// same ladder core.
-///
-/// - **cutoff** — set in V/Oct (0 V = C4). Accepts modulation for filter sweeps.
-/// - **resonance** — feedback amount (0–5). Above ~4 the filter self-oscillates,
-///   producing a clean sine at the cutoff frequency.
-///
-/// ```js
-/// // classic Jupiter pad: saw through the ladder with slow envelope
-/// let env = $adsr($pPulse($clock[0]), { attack: 0.4, decay: 0.6, sustain: 0.3, release: 1.0 })
-/// $jup6f($saw('c2'), env.range('200hz', '4000hz'), 2.5)
-/// ```
-#[module(name = "$jup6f", args(input, cutoff, resonance))]
+const JUP6F_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Jupiter-6 style ladder filter",
+    description: "A warm, saturating 4-pole lowpass modelled on the Roland Jupiter-6, with \
+                  extra outputs for a 12 dB lowpass, a bandpass and a highpass from the same core. Turned up, \
+                  the resonance self-oscillates into a clean sine at the cutoff.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Breathing analog pad",
+            code: r#"
+                $saw($chord('C3[maj9]'))
+                  .jup6f($sine('0.1hz').range('c4', 'c7'), 2.5)
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Squelchy bandpass bass",
+            code: r#"
+                const seq = $p('c2 [c2 c3] eb2 [g1 bb1]').c
+                $jup6f(
+                  $saw(seq),
+                  $perc(seq, { decay: 0.15 }).range('c3', 'c6'),
+                  4,
+                ).o.bp.out()
+            "#,
+        },
+    ],
+};
+
+#[module(
+    name = "$jup6f",
+    docs = JUP6F_DOCS,
+    patch_update,
+    args(input, cutoff, resonance)
+)]
 pub struct Jup6f {
     outputs: Jup6fOutputs,
     state: Jup6fState,
@@ -89,8 +111,9 @@ struct Jup6fState {
     mono_k: f32,
     last_cutoff_mono: f32,
     last_resonance_mono: f32,
-    smooth_cutoff_mono: Clickless,
-    smooth_resonance_mono: Clickless,
+    glides_mono: CutoffResonance,
+    /// Whether the current params use the mono coefficients.
+    mono_path: bool,
 }
 
 impl Default for Jup6fState {
@@ -100,8 +123,8 @@ impl Default for Jup6fState {
             mono_k: 0.0,
             last_cutoff_mono: f32::NAN, // Indicate that coefficients have never been calculated
             last_resonance_mono: f32::NAN, // Indicate that coefficients have never been calculated
-            smooth_cutoff_mono: Clickless::default(),
-            smooth_resonance_mono: Clickless::default(),
+            glides_mono: CutoffResonance::default(),
+            mono_path: false,
         }
     }
 }
@@ -194,25 +217,15 @@ impl Jup6f {
     fn update(&mut self, sample_rate: f32) {
         let num_channels = self.channel_count();
         let state = &mut self.state;
+        let is_mono = state.mono_path;
         let channel_state = &mut self.channel_state;
-        let cutoff_mono = self.params.cutoff.is_monophonic();
-        let resonance_mono = self
-            .params
-            .resonance
-            .as_ref()
-            .is_some_and(|s| s.is_monophonic());
-        let is_mono = cutoff_mono && resonance_mono;
+        let (cutoff, resonance) = (&self.params.cutoff, &self.params.resonance);
 
         // Update coefficients
         if is_mono {
-            state
-                .smooth_cutoff_mono
-                .update(self.params.cutoff.get_value(0));
-            state
-                .smooth_resonance_mono
-                .update(self.params.resonance.value_or(0, 0.0));
-            let c = *state.smooth_cutoff_mono;
-            let r = *state.smooth_resonance_mono;
+            let (c, r) = state
+                .glides_mono
+                .update(cutoff, resonance, 0.0, 0, sample_rate);
 
             if changed(c, state.last_cutoff_mono) || changed(r, state.last_resonance_mono) {
                 let (g, k) = compute_coeffs(c, r, sample_rate);
@@ -223,14 +236,9 @@ impl Jup6f {
             }
         } else {
             for i in 0..num_channels {
-                channel_state[i]
-                    .smooth_cutoff
-                    .update(self.params.cutoff.get_value(i));
-                channel_state[i]
-                    .smooth_resonance
-                    .update(self.params.resonance.value_or(i, 0.0));
-                let c = *channel_state[i].smooth_cutoff;
-                let r = *channel_state[i].smooth_resonance;
+                let (c, r) = channel_state[i]
+                    .glides
+                    .update(cutoff, resonance, 0.0, i, sample_rate);
 
                 if changed(c, channel_state[i].last_cutoff)
                     || changed(r, channel_state[i].last_resonance)
@@ -260,6 +268,19 @@ impl Jup6f {
             self.outputs.bp.set(i, bp * 5.0);
             self.outputs.hp.set(i, hp * 5.0);
         }
+    }
+}
+
+impl crate::types::PatchUpdateHandler for Jup6f {
+    fn on_patch_update(&mut self) {
+        let mono = params_mono(&self.params.cutoff, &self.params.resonance);
+        hand_over(
+            mono,
+            self.state.mono_path,
+            &mut self.state.glides_mono,
+            self.channel_state.iter_mut().map(|cs| &mut cs.glides),
+        );
+        self.state.mono_path = mono;
     }
 }
 

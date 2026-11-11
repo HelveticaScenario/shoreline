@@ -98,7 +98,7 @@ describe('$v memory and previews', () => {
         });
 
         it('chains the way the function is called', () => {
-            const chained = exec(`$v.hsv($v.ramp()).$.frameDelay(2).out();`)
+            const chained = exec(`$v.hsv($v.ramp()).frameDelay(2).out();`)
                 .video!.wgsl;
             const called = exec(`$v.out($v.frameDelay($v.hsv($v.ramp()), 2));`)
                 .video!.wgsl;

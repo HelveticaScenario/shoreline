@@ -1,6 +1,6 @@
 /**
  * Catalog of the context keys that `when` clauses can reference, with a type
- * and human description. Operator's equivalent of VS Code's `ContextKeyInfo`
+ * and human description. Shoreline's equivalent of VS Code's `ContextKeyInfo`
  * registry (`RawContextKey.all()`), used to power `when`-clause autocomplete
  * in the keybindings editor.
  *
@@ -44,7 +44,7 @@ export const CONTEXT_KEY_INFO: readonly ContextKeyInfo[] = [
     {
         key: 'editorReadonly',
         type: 'boolean',
-        description: 'The editor is read-only (always false in Operator).',
+        description: 'The editor is read-only (always false in Shoreline).',
     },
     {
         key: 'editorLangId',
@@ -110,9 +110,9 @@ export const CONTEXT_KEY_INFO: readonly ContextKeyInfo[] = [
         description: 'The editor find widget is visible.',
     },
     {
-        key: 'inSettingsModal',
+        key: 'settingsVisible',
         type: 'boolean',
-        description: 'The settings modal is open.',
+        description: 'The settings panel is showing in the sidebar.',
     },
     {
         key: 'fileExplorerFocused',
