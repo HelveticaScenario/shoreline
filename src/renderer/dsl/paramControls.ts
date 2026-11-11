@@ -203,6 +203,25 @@ export function addChoices(
     }
 }
 
+/** The one control adding every unset param gives param `name`: a toggle
+ *  for a gate, otherwise its only add choice. Null for a param no control
+ *  drives. */
+export function addAllChoice(
+    name: string,
+    spec: ParamSpec,
+    label: (base: string) => string,
+    quote: string,
+): ControlChoice | null {
+    if (spec.paramType === 'gate') {
+        return {
+            preferred: false,
+            text: toggleBtn(`${quote}${label(name)}${quote}`, false),
+            title: `Add toggle for '${name}'`,
+        };
+    }
+    return addChoices(name, spec, label, quote)[0] ?? null;
+}
+
 /** A volts slider over the control range, widened to include the value; a
  *  param without one (pitch, frequency) spans octaves around the value.
  *  `label` and the value arrive as source text. */
