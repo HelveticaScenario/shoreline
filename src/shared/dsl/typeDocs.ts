@@ -359,11 +359,10 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     'Mono<Signal>': {
-        definition:
-            'Signal | Iterable<ModuleOutput> | (Signal | Iterable<ModuleOutput>)[]',
+        definition: 'Signal | (Signal | Collection)[] | Iterable<ModuleOutput>',
         description:
             'A signal input that accepts polyphonic connections but sums all channels down to a single mono value. ' +
-            'Structurally identical to Poly<Signal>, but signals that the module will not produce per-voice output from this parameter. ' +
+            'Takes what Poly<Signal> takes except a signal group: the module will not produce per-voice output from this parameter. ' +
             'Used for control parameters like tempo, stereo width, or math variables where a single combined value is needed.',
         examples: [
             '$clockDivider(clock.trigger, 4)                  // Clock signal summed to mono',
@@ -393,7 +392,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
 
     'Poly<Signal>': {
         definition:
-            'Signal | Iterable<ModuleOutput> | (Signal | Iterable<ModuleOutput>)[] | SignalGroup',
+            'Signal | (Signal | Collection)[] | Iterable<ModuleOutput> | SignalGroup',
         description:
             'A potentially multi-channel signal. Can be an array of Signals for polyphonic patches, ' +
             'or an iterable of ModuleOutputs. When used as input to a module, arrays are expanded to create multiple voices.',

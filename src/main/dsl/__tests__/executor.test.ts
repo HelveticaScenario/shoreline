@@ -603,6 +603,7 @@ describe('sequencing', () => {
         '$signal(1).range($p("0 1"), 5, -5, 5).out()',
         '$c($sine("c3")).range(0, $p("2 3")).out()',
         '$c($p("c4 e4")).out()',
+        '$quantizer($sine("c4"), $p("c4 e4 g4")).out()',
         '$pWarp($sine("c3"), $phase.mirror($p("0 1"))).out()',
     ])('a pattern is not a signal: %s', (source) => {
         expect(() => execPatch(source)).toThrow(/is a pattern, not a signal/);

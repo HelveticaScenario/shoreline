@@ -459,11 +459,13 @@ export class DSLContext {
             // The engine only accepts a signal scale; a spec string is
             // shorthand for the notes of `$chord(spec)`.
             for (const name of scaleParamNames) {
-                if (typeof params[name] === 'string') {
-                    params[name] = this.builder.getFactory('$chord')(
-                        params[name],
-                    );
-                }
+                params[name] =
+                    typeof params[name] === 'string'
+                        ? this.builder.getFactory('$chord')(params[name])
+                        : this.signalParam(
+                              params[name],
+                              `${schema.name}: ${name}`,
+                          );
             }
 
             // Merge argument_span fields carried by any ParsedPattern params

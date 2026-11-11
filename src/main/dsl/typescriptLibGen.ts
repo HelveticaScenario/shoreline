@@ -268,7 +268,7 @@ type Signal = number | Note | HZ | ModuleOutput;
  * Can be:
  * - A single {@link Signal}
  * - An iterable of {@link ModuleOutput}s
- * - An array of any of these (creates multiple voices)
+ * - An array of {@link Signal}s and {@link Collection}s (creates multiple voices)
  * - A {@link SignalGroup} from \`$g1\`/\`$g2\`/\`$g3\` (cartesian voice expansion)
  *
  * @example $saw(["C3", "E3", "G3"]).out()                    // 3-voice chord
@@ -276,7 +276,7 @@ type Signal = number | Note | HZ | ModuleOutput;
  * @see {@link Signal} - for single-channel signals
  * @see {@link Collection} - for grouping outputs
  */
-type Poly<T extends Signal = Signal> = OrArray<T | Iterable<ModuleOutput>> | SignalGroup;
+type Poly<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | Iterable<ModuleOutput> | SignalGroup;
 
 /**
  * An axis of an XY scope: signals and collections, or an array mixing
@@ -300,16 +300,16 @@ interface SignalGroup {
 
 
 /**
- * A signal input that sums all channels to a single mono value.
- * Structurally identical to {@link Poly}, but signals that the module
- * combines all voices into one control signal rather than preserving polyphony.
+ * A signal input that sums all channels to a single mono value. Takes what
+ * {@link Poly} takes except a signal group: the module combines all voices
+ * into one control signal rather than preserving polyphony.
  *
  * @example $stereoMix($saw("c3"), { width: 0.8 })          // Constant width
  * @example $stereoMix($saw("c3"), { width: $sine("1hz") }) // Oscillating stereo width
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
  * @see {@link Signal} - for single-channel signals
  */
-type Mono<T extends Signal = Signal> = OrArray<T | Iterable<ModuleOutput>>;
+type Mono<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | Iterable<ModuleOutput>;
 
 /**
  * A phase warp produced by the \`$phase.*\` helpers.

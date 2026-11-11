@@ -232,7 +232,8 @@ export interface MonoOutGroup extends OutGroupVuState {
 
 /**
  * True for a plain `{ ... }` literal — distinguishes MonoOutOptions from a
- * gain PolySignal (number | string | array | ModuleOutput | iterable).
+ * gain PolySignal (number | string | array | ModuleOutput | iterable). A
+ * pattern is a plain object too, and is left to be refused as a gain.
  * Patch scripts evaluate in a vm realm whose `Object.prototype` is a
  * different object from the host's, so plainness is judged by chain depth
  * (a prototype that is itself the chain root) rather than identity.

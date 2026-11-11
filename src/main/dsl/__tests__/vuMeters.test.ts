@@ -645,7 +645,7 @@ describe('$outLane', () => {
         expect(constantOf(patch, level.inMax)).toBe(4);
     });
 
-    test('a played pattern gain reads its $cycle', () => {
+    test('a sequenced gain reads its $cycle', () => {
         const patch = execPatch(`
             $saw('c2').out({ label: 'bass', gain: $p('1 4').c })
             $signal($outLane('bass').level, { id: 'probe' })
