@@ -842,6 +842,7 @@ impl ScopeBuffer {
         let mut idx = self.buffer_idx;
         let mut last_start = idx;
         let mut counter = self.sample_counter;
+        let range_end = range.end;
         let buf = &mut self.buffer[if self.buffer_select { 1 } else { 0 }];
         for i in range {
             last_start = idx;
@@ -858,6 +859,7 @@ impl ScopeBuffer {
         self.buffer_idx = idx;
         self.read_idx = last_start % SCOPE_CAPACITY as usize;
         self.sample_counter = counter;
+        self.prev_value = sample(range_end - 1);
     }
 
     fn read_buffer_idx(&self) -> usize {
@@ -1103,6 +1105,12 @@ mod scope_buffer_tests {
         assert_eq!(a.sample_counter, b.sample_counter);
         assert_eq!(a.recording, b.recording);
         assert_eq!(a.buffer_select, b.buffer_select);
+        assert_eq!(a.awaiting_seed, b.awaiting_seed);
+        assert_eq!(a.prev_value.to_bits(), b.prev_value.to_bits());
+        assert_eq!(
+            a.trigger_offset.map(f32::to_bits),
+            b.trigger_offset.map(f32::to_bits)
+        );
     }
 
     #[test]
@@ -2451,22 +2459,34 @@ impl AudioProcessor {
     /// `process_all_modules_to` has advanced the whole patch through
     /// `range.end`, so every tap read is of a computed slot; while stopped the
     /// patch is frozen and the taps are not fed.
-    fn drain_taps(&self, range: std::ops::Range<usize>) {
+    fn drain_taps(&mut self, range: std::ops::Range<usize>) {
         if range.is_empty() {
             return;
         }
         let sampleables = &self.patch.sampleables;
-        if let Some(mut scopes) = self.scope_collection.try_lock() {
-            for (key, buffer) in scopes.iter_mut() {
-                if let Some(tap) = Tap::resolve(
+        match self.scope_collection.try_lock() {
+            Some(mut scopes) => {
+                self.scope_stash.settle(&mut scopes);
+                for (key, buffer) in scopes.iter_mut() {
+                    if let Some(tap) = Tap::resolve(
+                        sampleables,
+                        &key.module_id,
+                        &key.port_name,
+                        key.channel as usize,
+                    ) {
+                        buffer.push_block(range.clone(), |i| tap.get(i));
+                    }
+                }
+            }
+            None => self.scope_stash.stash(range.clone(), |key, i| {
+                Tap::resolve(
                     sampleables,
                     &key.module_id,
                     &key.port_name,
                     key.channel as usize,
-                ) {
-                    buffer.push_block(range.clone(), |i| tap.get(i));
-                }
-            }
+                )
+                .map(|tap| tap.get(i))
+            }),
         }
         if let Some(mut meters) = self.vu_collection.try_lock() {
             for meter in meters.iter_mut() {
@@ -2773,18 +2793,13 @@ where
                             // so the patch freezes on stop — the drain still ramps connected
                             // modules out via the root pull during the fade, and feeds the
                             // scope and meter taps only on blocks where this ran.
-                            let processed_all =
-                                end > audio_processor.block_pos && !audio_processor.is_stopped();
-                            if processed_all {
-                            // the output or any scope still process. The root/scope reads in
-                            // the drain below then become pure cache hits. Skipped while
-                            // stopped so the patch freezes on stop — the drain still ramps
-                            // connected modules out via the root pull during the fade.
                             if end > audio_processor.block_pos {
                                 let slots = audio_processor.block_pos..end;
                                 audio_processor.pull_input_frames(&mut input_reader, slots);
                             }
-                            if end > audio_processor.block_pos && !audio_processor.is_stopped() {
+                            let processed_all =
+                                end > audio_processor.block_pos && !audio_processor.is_stopped();
+                            if processed_all {
                                 audio_processor.process_all_modules_to(end);
                             }
 
@@ -2792,25 +2807,6 @@ where
                             // volume-change state machine + soft clip that
                             // `FinalStateProcessor` used to provide per-frame.
                             if end > audio_processor.block_pos {
-                                let mut scope_guard = audio_processor.scope_collection.try_lock();
-                                match scope_guard.as_mut() {
-                                    Some(scopes) => audio_processor.scope_stash.settle(scopes),
-                                    None => {
-                                        let sampleables = &audio_processor.patch.sampleables;
-                                        audio_processor.scope_stash.stash(
-                                            audio_processor.block_pos..end,
-                                            |key, i| {
-                                                sampleables.get(&key.module_id).map(|module| {
-                                                    module.get_value_at(
-                                                        &key.port_name,
-                                                        key.channel as usize,
-                                                        i,
-                                                    )
-                                                })
-                                            },
-                                        );
-                                    }
-                                }
                                 let mut recording_guard = recording_feed.try_lock();
                                 for i in audio_processor.block_pos..end {
                                     let is_stopped = audio_processor.is_stopped();
@@ -3794,6 +3790,12 @@ mod tests {
     }
 
     fn create_test_processor() -> (CommandProducer, AudioProcessor) {
+        create_test_processor_with_block_size(1)
+    }
+
+    fn create_test_processor_with_block_size(
+        block_size: usize,
+    ) -> (CommandProducer, AudioProcessor) {
         let (
             cmd_producer,
             cmd_consumer,
@@ -3822,7 +3824,7 @@ mod tests {
             garbage_producer,
             shared,
             44100.0,
-            1,
+            block_size,
         );
 
         (cmd_producer, processor)
@@ -5060,6 +5062,141 @@ mod tests {
             "a kept scope's buffer state survives the swap"
         );
         assert!(collection.contains_key(&added));
+    }
+
+    #[test]
+    fn drain_taps_matches_per_sample_reads() {
+        // Scopes and a meter fed per drained range, through a Block-mode port
+        // view and a Sample-mode module read, equal the same taps fed one
+        // `get_value_at` at a time, including a range drained while the
+        // renderer holds the scope lock.
+        const BLOCK: usize = 64;
+        const SR: f32 = 44_100.0;
+        let (_cmd_producer, mut processor) = create_test_processor_with_block_size(BLOCK);
+        let deserializers = modular_core::dsp::get_params_deserializers();
+        let module = |id: &str, ty: &str, params: serde_json::Value, mode| {
+            let cached = deserializers[ty](params).unwrap();
+            (
+                id.to_string(),
+                ty.to_string(),
+                modular_core::params::DeserializedParams {
+                    params: cached.params,
+                    channel_count: cached.channel_count,
+                },
+                mode,
+            )
+        };
+        let mut update = PatchUpdate::new(SR);
+        update
+            .new_patch
+            .insert_modules(
+                [
+                    module(
+                        "blk",
+                        "$sine",
+                        serde_json::json!({ "freq": [0.0, 1.0] }),
+                        modular_core::types::ProcessingMode::Block,
+                    ),
+                    module(
+                        "smp",
+                        "$saw",
+                        serde_json::json!({ "freq": -2.0 }),
+                        modular_core::types::ProcessingMode::Sample,
+                    ),
+                ],
+                SR,
+                BLOCK,
+            )
+            .unwrap();
+        update.process_order_ids = vec!["blk".into(), "smp".into()];
+        processor.apply_patch_update(update, 0);
+
+        let key = |id: &str, channel: u32, trigger| ScopeBufferKey {
+            module_id: id.into(),
+            port_name: "output".into(),
+            channel,
+            ms_per_frame: 10,
+            trigger_threshold: trigger,
+        };
+        let keys = [
+            key("blk", 1, None),
+            key("smp", 0, None),
+            key("blk", 0, Some((0, ScopeMode::Wait))),
+        ];
+        let new_scopes = || -> HashMap<ScopeBufferKey, ScopeBuffer> {
+            keys.iter()
+                .map(|k| {
+                    (
+                        k.clone(),
+                        ScopeBuffer::new(k.ms_per_frame, k.trigger_threshold, SR),
+                    )
+                })
+                .collect()
+        };
+        *processor.scope_collection.lock() = new_scopes();
+        processor.scope_stash = ScopeStash::new(keys.to_vec(), BLOCK);
+        let spec = modular_core::types::VuMeterSpec {
+            key: "meter".into(),
+            module_id: "blk".into(),
+            port_name: "output".into(),
+            channels: 2,
+            mute_module_id: None,
+            pan_source: Some(modular_core::types::ScopeChannel {
+                module_id: "smp".into(),
+                port_name: "output".into(),
+                channel: 0,
+            }),
+            gain_source: None,
+        };
+        *processor.vu_collection.lock() = vec![VuMeterState::new(&spec, SR)];
+
+        let mut ref_scopes = new_scopes();
+        let mut ref_meter = VuMeterState::new(&spec, SR);
+        for block in 0..40 {
+            for module in processor.patch.sampleables.values() {
+                module.start_block();
+            }
+            processor.process_all_modules_to(BLOCK);
+            for range in [0..10, 10..BLOCK] {
+                let sampleables = &processor.patch.sampleables;
+                let read =
+                    |id: &str, ch: usize, i: usize| sampleables[id].get_value_at("output", ch, i);
+                for i in range.clone() {
+                    for (k, buffer) in ref_scopes.iter_mut() {
+                        buffer.push(read(&k.module_id, k.channel as usize, i));
+                    }
+                    for ch in 0..2 {
+                        ref_meter
+                            .levels
+                            .accumulate_block(ch, i..i + 1, |i| read("blk", ch, i));
+                    }
+                }
+                ref_meter.set_pan_value(read("smp", 0, range.end - 1));
+                if block == 7 && range.start == 10 {
+                    let held = Arc::clone(&processor.scope_collection);
+                    let _guard = held.lock();
+                    processor.drain_taps(range);
+                } else {
+                    processor.drain_taps(range);
+                }
+            }
+        }
+
+        let scopes = processor.scope_collection.lock();
+        for (k, expected) in &ref_scopes {
+            let got = &scopes[k];
+            assert_eq!(
+                got.get_buffer().to_vec(),
+                expected.get_buffer().to_vec(),
+                "{k:?} buffer"
+            );
+            assert_eq!(got.read_idx, expected.read_idx, "{k:?} cursor");
+        }
+        let got = processor.vu_collection.lock()[0].take_frame();
+        let expected = ref_meter.take_frame();
+        assert_eq!(got.rms, expected.rms);
+        assert_eq!(got.peak, expected.peak);
+        assert_eq!(got.pan, expected.pan);
     }
 
     // ============================================================================
