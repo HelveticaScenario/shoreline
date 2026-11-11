@@ -15,6 +15,7 @@ pub mod modal;
 pub mod particles;
 pub mod phase_distortion;
 pub mod six_op;
+pub mod speak;
 pub mod string;
 pub mod swarm;
 pub mod two_op;
@@ -32,6 +33,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     particles::MiParticles::install_constructor(map);
     phase_distortion::PhaseDistortion::install_constructor(map);
     six_op::SixOp::install_constructor(map);
+    speak::Speak::install_constructor(map);
     string::MiString::install_constructor(map);
     swarm::Swarm::install_constructor(map);
     two_op::TwoOp::install_constructor(map);
@@ -52,6 +54,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     particles::MiParticles::install_params_deserializer(map);
     phase_distortion::PhaseDistortion::install_params_deserializer(map);
     six_op::SixOp::install_params_deserializer(map);
+    speak::Speak::install_params_deserializer(map);
     string::MiString::install_params_deserializer(map);
     swarm::Swarm::install_params_deserializer(map);
     two_op::TwoOp::install_params_deserializer(map);
@@ -73,6 +76,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         particles::MiParticles::get_schema(),
         phase_distortion::PhaseDistortion::get_schema(),
         six_op::SixOp::get_schema(),
+        speak::Speak::get_schema(),
         string::MiString::get_schema(),
         swarm::Swarm::get_schema(),
         two_op::TwoOp::get_schema(),

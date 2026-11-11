@@ -2,7 +2,7 @@
 //! five vowel frames, a trigger playing one of ten consonant frames.
 
 use crate::dsp::mi::core::{
-    lpc::{Frame, LpcClock, LpcSynth},
+    lpc::{CORRECTED_SAMPLE_RATE, DEFAULT_F0, Frame, LpcClock, LpcSynth},
     random::Random,
     tables::LPC_PHONEMES,
     units::semitones_to_ratio,
@@ -26,12 +26,6 @@ use super::{Channel, Rates, Voice, update_channels};
 const VOWELS: usize = 5;
 const CONSONANTS: usize = 10;
 const FIELDS: usize = 12;
-
-/// Plaits' corrected codec rate, which its LPC pitch is reckoned at.
-pub const CORRECTED_SAMPLE_RATE: f32 = 47872.34;
-
-/// The pitch every utterance's frames are normalised to.
-const DEFAULT_F0: f32 = 100.0;
 
 fn phoneme(index: usize) -> Frame {
     let at = index.min(VOWELS + CONSONANTS - 1) * FIELDS;
