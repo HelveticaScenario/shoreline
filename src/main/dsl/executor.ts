@@ -27,6 +27,7 @@ import {
     DeferredCollection,
     Bus,
     cycleToChannels,
+    withCarried,
     replaceSignals,
     PORT_MAX_CHANNELS,
 } from './GraphBuilder';
@@ -541,7 +542,7 @@ export function executePatchScript(
                 const buf = $buffer(buffered, maxTime);
                 const delayed = $delayRead(buf, time) as Collection;
                 def.set(delayed.amp(feedback));
-                return Object.assign(delayed, { buffer: buf });
+                return withCarried(delayed, { buffer: buf });
             },
         );
     };

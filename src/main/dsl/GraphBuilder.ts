@@ -420,6 +420,10 @@ export class BaseCollection<T extends ModuleOutput> {
         if (set) {
             sliceRoot(sliced, set, this.items.length, start, end);
         }
+        const carried = carriedOf(this);
+        if (carried) {
+            withCarried(sliced, carried);
+        }
         return sliced;
     }
 
@@ -773,6 +777,24 @@ export class BaseCollection<T extends ModuleOutput> {
         }
         return `[${this.items.map((item) => item.toString()).join(',')}]`;
     }
+}
+
+const CARRIED = Symbol('carried');
+
+/**
+ * `collection` with `props` assigned, which its slices, channels and chunks
+ * keep too.
+ */
+export function withCarried<C extends AnyCollection, P extends object>(
+    collection: C,
+    props: P,
+): C & P {
+    Object.defineProperty(collection, CARRIED, { value: props });
+    return Object.assign(collection, props);
+}
+
+function carriedOf(collection: AnyCollection): object | undefined {
+    return (collection as { [CARRIED]?: object })[CARRIED];
 }
 
 /**
