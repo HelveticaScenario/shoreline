@@ -12,7 +12,7 @@ import {
     GraphBuilder,
     ModuleOutput,
 } from '../GraphBuilder';
-import { markRoot } from '../outputResolution';
+import { markRoot, outputSetOf } from '../outputResolution';
 
 let builder: GraphBuilder;
 
@@ -94,15 +94,27 @@ describe('BaseCollection indexing and iteration', () => {
         expect([...col[0]]).toEqual([col[0]]);
     });
 
-    test("a one-channel root's channel is a plain slice", () => {
-        const [out] = makeOutputs(1);
-        const root = Object.assign(new Collection(out), {
-            o: { gate: new Collection() },
+    test("a root's channels and slices keep every output's same channels", () => {
+        const cv = new Collection(...makeOutputs(3));
+        const gate = new Collection(
+            ...Array.from(
+                { length: 3 },
+                (_, i) => new ModuleOutput(builder, 'test-1', 'gate', i),
+            ),
+        );
+        const root = Object.assign(new Collection(...cv.items), {
+            o: { cv, gate },
         });
         markRoot(root, { outputs: [], values: root.o });
-        expect(root[0]).not.toBe(root);
-        expect(root[0].items).toEqual([out]);
-        expect('o' in root[0]).toBe(false);
+
+        const [, second] = root;
+        expect(second.items).toEqual([cv.items[1]]);
+        const { o } = second as unknown as { o: typeof root.o };
+        expect(o.gate.items).toEqual([gate.items[1]]);
+        expect(outputSetOf(second)?.values).toBe(o);
+
+        const tail = root.slice(1) as unknown as { o: typeof root.o };
+        expect(tail.o.gate.items).toEqual(gate.items.slice(1));
     });
 
     test('iteration and spreading give the index views', () => {

@@ -117,10 +117,10 @@ describe('static resolution', () => {
         );
     });
 
-    test('indexing a root reads cv', () => {
-        expect(hints(`const seq = $p('c e').c\n$perc(seq[0])`)).toEqual([
-            '$perc(seq‹cv›',
-        ]);
+    test('a channel of a root resolves per input', () => {
+        expect(
+            hints(`const seq = $p('c e').c\n$saw(seq[0]).amp($perc(seq[0]))`),
+        ).toEqual(['$saw(seq[0]‹cv›', '$perc(seq[0]‹trig›']);
     });
 
     test('named outputs, plain signals and pattern params get no site', () => {

@@ -418,26 +418,9 @@ export function collectSignalSites(
         }
     };
 
-    /** An element read off a root is a channel of its `cv` output. */
-    const visitIndex = (node: TS.ElementAccessExpression): void => {
-        const type = checker.getTypeAtLocation(node.expression);
-        const outputs = outputsOf(type);
-        if (outputs) {
-            emit(
-                position(node.argumentExpression),
-                RECEIVER_SLOT,
-                node.expression,
-                chooseOutput(outputs, 'cv'),
-                takesMember(node.expression),
-            );
-        }
-    };
-
     const visit = (node: TS.Node): void => {
         if (ts.isCallExpression(node)) {
             visitCall(node);
-        } else if (ts.isElementAccessExpression(node)) {
-            visitIndex(node);
         }
         ts.forEachChild(node, visit);
     };

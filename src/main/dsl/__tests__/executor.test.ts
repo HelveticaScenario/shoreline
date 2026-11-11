@@ -541,6 +541,22 @@ describe('sequencing', () => {
         ).toEqual({ start: 3, end: 10 });
     });
 
+    test('a channel of a sequence feeds each input its fitting output', () => {
+        const patch = execPatch(`
+            const seq = $p('[c4,e4] [g4,b4]').c;
+            $sine(seq[1]).amp($perc(seq[1])).out();
+        `);
+        const [cycle] = findModules(patch, '$cycle');
+        const [sine] = findModules(patch, '$sine');
+        const [perc] = findModules(patch, '$perc');
+        expect(sine.params.freq).toMatchObject([
+            { channel: 1, module: cycle.id, port: 'cv' },
+        ]);
+        expect(perc.params.trigger).toMatchObject([
+            { channel: 1, module: cycle.id, port: 'trig' },
+        ]);
+    });
+
     test('.c is .cycle(), made once per pattern', () => {
         const patch = execPatch(`
             const seq = $p("c4 e4");

@@ -74,6 +74,10 @@ describe('generated DSL lib', () => {
                 const lane = $outLane('bass');
                 lane[0].level.range(0, 1);
                 for (const c of lane) c.pan.range(-1, 1);
+                const seq = $p('[c4,e4] [g4,b4]').c;
+                $perc(seq[1]).out();
+                $perc(seq[1].o.trig).out();
+                for (const voice of seq) voice.o.gate.scope();
             `).filter((d) => d.startsWith(PATCH_FILE));
         expect(patchErrors).toEqual([]);
     });

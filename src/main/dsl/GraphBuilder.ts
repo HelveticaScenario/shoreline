@@ -26,7 +26,12 @@ import {
 } from './paramsSchema';
 import { captureSourceLocation } from './captureSourceLocation';
 import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
-import { isRoot, OutputResolver } from './outputResolution';
+import {
+    markRoot,
+    OutputResolver,
+    type OutputSet,
+    outputSetOf,
+} from './outputResolution';
 import { isPatternValue, refusePattern } from './patternKinds';
 import { isPlainObject } from './plainObject';
 import {
@@ -381,13 +386,9 @@ export class BaseCollection<T extends ModuleOutput> {
         }
     }
 
-    /**
-     * Channel `i` as a one-channel collection of this collection's class. A
-     * multi-output root's channel is a plain slice whatever its width, so it
-     * reads as the root's cv output, never as the module's other outputs.
-     */
+    /** Channel `i` as a one-channel collection of this collection's class. */
     private channel(i: number): this {
-        if (this.items.length === 1 && !isRoot(this)) {
+        if (this.items.length === 1) {
             return this;
         }
         let view = this.channelViews[i];
@@ -414,7 +415,12 @@ export class BaseCollection<T extends ModuleOutput> {
      */
     slice(start?: number, end?: number): this {
         const ctor = this.constructor as new (...args: T[]) => this;
-        return new ctor(...this.items.slice(start, end));
+        const sliced = new ctor(...this.items.slice(start, end));
+        const set = outputSetOf(this);
+        if (set) {
+            sliceRoot(sliced, set, this.items.length, start, end);
+        }
+        return sliced;
     }
 
     /**
@@ -767,6 +773,38 @@ export class BaseCollection<T extends ModuleOutput> {
         }
         return `[${this.items.map((item) => item.toString()).join(',')}]`;
     }
+}
+
+/**
+ * Make `sliced` a root standing for the same channels of every output of the
+ * root `set` came from, so each input still takes the output that fits it:
+ * `$perc(seq[1])` takes channel 1 of the trigger. An output narrower than the
+ * root cycles its channels.
+ */
+function sliceRoot(
+    sliced: object,
+    set: OutputSet,
+    rootChannels: number,
+    start?: number,
+    end?: number,
+): void {
+    const indices = Array.from({ length: rootChannels }, (_, i) => i).slice(
+        start,
+        end,
+    );
+    const values: Record<string, unknown> = {};
+    for (const [name, value] of Object.entries(set.values)) {
+        values[name] =
+            value instanceof BaseCollection && value.length > 0
+                ? new (value.constructor as new (
+                      ...args: ModuleOutput[]
+                  ) => AnyCollection)(
+                      ...indices.map((i) => value.items[i % value.length]),
+                  )
+                : value;
+    }
+    markRoot(sliced, { outputs: set.outputs, values });
+    Object.assign(sliced, { o: Object.freeze(values) });
 }
 
 type ArithmeticOp = 'add' | 'sub' | 'mul' | 'div' | 'pow';

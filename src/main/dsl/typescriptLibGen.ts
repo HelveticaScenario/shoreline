@@ -2101,6 +2101,11 @@ function generateMultiOutputInterface(
     lines.push(
         `${indent}export interface ${interfaceName} extends ${baseType} {`,
     );
+    lines.push(
+        `${indent}  /** Channel \`index\` of every output, choosing an output the same way */`,
+    );
+    lines.push(`${indent}  readonly [index: number]: ${interfaceName};`);
+    lines.push(`${indent}  [Symbol.iterator](): Iterator<${interfaceName}>;`);
     lines.push(`${indent}  /** The module's outputs by name. */`);
     lines.push(`${indent}  readonly o: {`);
 
