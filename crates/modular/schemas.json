@@ -20852,7 +20852,7 @@
     "name": "$chord",
     "docs": {
       "summary": "Notes of a chord or scale",
-      "description": "Outputs every note of a chord or scale as pitch voltages, one channel per note, lowest first. Patch it into an oscillator to hear the whole chord, or into `$quantizer` to keep a melody inside it.",
+      "description": "Outputs every note of a chord or scale as pitch voltages, one channel per note, lowest first. Patch it into an oscillator to hear the whole chord, or into `$quantizer` to keep a melody inside it. Patching `inversion` adds a channel, and the moving note crossfades between two of them: scale each voice by `level`.",
       "categories": [
         "pitch"
       ],
@@ -20939,6 +20939,10 @@
           "code": "$saw($chord('C3[maj7]')).$.lpf('c5', 1).out()"
         },
         {
+          "title": "Gliding through the inversions",
+          "code": "const inv = $sine('0.05hz').range(0, 4)\nconst c = $chord('C3[maj7]', { inversion: inv })\n$saw(c).amplitude(c.level).out()"
+        },
+        {
           "title": "A drifting melody that stays in key",
           "code": "$sine(\n  $quantizer(\n    $sine('0.1hz').range('a3', 'a5'),\n    $chord('A(minor)'),\n  ),\n).out()"
         }
@@ -20952,6 +20956,17 @@
         "chord": {
           "description": "scale or chord spec, e.g. \"C(major)\", \"Eb3[m7]\", \"C[just maj7 inv1]\"",
           "$ref": "#/$defs/ScaleSpec"
+        },
+        "inversion": {
+          "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MonoSignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -20960,6 +20975,63 @@
       "$defs": {
         "ScaleSpec": {
           "type": "string"
+        },
+        "MonoSignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
         }
       }
     },
@@ -20970,10 +21042,28 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true
+      },
+      {
+        "name": "level",
+        "description": "each channel's level, full (5) unless `inversion` is fading a note between octaves",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": 0.0,
+        "maxValue": 5.0
       }
     ],
     "bufferOutputs": [],
-    "signalParams": [],
+    "signalParams": [
+      {
+        "name": "inversion",
+        "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "controlMin": -5.0,
+        "controlMax": 5.0
+      }
+    ],
     "positionalArgs": [
       {
         "name": "chord"
