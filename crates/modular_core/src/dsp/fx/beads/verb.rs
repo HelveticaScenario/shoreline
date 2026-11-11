@@ -175,7 +175,7 @@ const BEADS_REVERB_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Plucks in a dirty-tape space",
         code: r#"
-            const notes = $cycle($p('c4 eb4 g4 bb4'))
+            const notes = $p('c4 eb4 g4 bb4').c
             $saw(notes)
               .amp($perc(notes, { decay: 0.2 }))
               .$.reverb(3, { size: 5, tone: 2 })

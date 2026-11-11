@@ -32,6 +32,7 @@ import {
     paramMeta,
     withMeta,
 } from '../../shared/dsl/paramRange';
+import { chooseOutput } from '../../shared/dsl/outputResolutionRule';
 import { renderDocContentJsDoc } from '../../shared/dsl/referenceDocs';
 export type { WavsFolderNode } from './executor';
 
@@ -391,7 +392,7 @@ type ParsedPattern = {
    * euclidean structure, and so on.
    *
    * \`\`\`js
-   * $cycle($p("c4 e4").struct("x ~ x x"))
+   * $p("c4 e4").struct("x ~ x x").c
    * \`\`\`
    */
   struct(boolPattern: string): StructPattern;
@@ -407,7 +408,7 @@ type ParsedPattern = {
    * the grid per cycle).
    *
    * \`\`\`js
-   * $cycle($p("c2").beat("0,7,10", 16))
+   * $p("c2").beat("0,7,10", 16).c
    * \`\`\`
    */
   beat(t: number | string, div: number | string): BeatPattern;
@@ -449,9 +450,9 @@ type ParsedPattern = {
  * \`$p()\` — \`$cycle\` accepts a \`ParsedPattern\`, not a raw string.
  *
  * \`\`\`js
- * $cycle($p("c4 e4 g4"))                    // basic sequence
+ * $p("c4 e4 g4").c                    // basic sequence
  * const bass = $p("c2 [c2 g2] c2 e2");      // reuse a parsed pattern
- * $cycle(bass)
+ * bass.c
  * \`\`\`
  *
  * The returned object is opaque (JSON-serializable; carries source +
@@ -513,10 +514,10 @@ declare namespace $p {
  * atoms are rejected.
  *
  * \`\`\`js
- * $cycle($p.s("0 2 4 7", "c(major)"))       // C-major arpeggio
- * $cycle($p.s("-1 0 2 4", "a3(min)"))       // negative degrees wrap below the root
- * $cycle($p.s("0 1 2 3 4", "c(0 2 4 7 9)")) // custom intervals (pentatonic)
- * $cycle($p.s("0 4 7", "c(just)"))          // just intonation
+ * $p.s("0 2 4 7", "c(major)").c       // C-major arpeggio
+ * $p.s("-1 0 2 4", "a3(min)").c       // negative degrees wrap below the root
+ * $p.s("0 1 2 3 4", "c(0 2 4 7 9)").c // custom intervals (pentatonic)
+ * $p.s("0 4 7", "c(just)").c          // just intonation
  * \`\`\`
  *
  * ### Atoms
@@ -586,9 +587,9 @@ declare namespace $p {
  * | \`.restart\` | Right pattern retriggers the left, aligned to cycle 0. |
  *
  * \`\`\`js
- * $cycle($p.s("0 1 2", "c(maj)").add("0 2"))               // .add defaults to .add.in
- * $cycle($p.s("0 1 2", "d#(min)").add.in("10 20"))
- * $cycle($p.s("0 1 2", "c(maj)").sub.squeeze("1 2 3"))
+ * $p.s("0 1 2", "c(maj)").add("0 2").c               // .add defaults to .add.in
+ * $p.s("0 1 2", "d#(min)").add.in("10 20").c
+ * $p.s("0 1 2", "c(maj)").sub.squeeze("1 2 3").c
  * \`\`\`
  *
  * @param source integer scale-degree mini-notation source
@@ -607,10 +608,10 @@ function s(source: string, scale: string): SpPattern;
  *
  * \`\`\`js
  * // 4 cycles of a C-major arp, then 2 of an A-minor arp, looping every 6
- * $cycle($p.arrange(
+ * $p.arrange(
  *   [4, $p.s("0 2 4 7", "c(major)")],
  *   [2, $p.s("0 2 4",   "a(min)")],
- * ))
+ * ).c
  * \`\`\`
  *
  * Cycle counts must be **positive integers**, except a single **trailing**
@@ -618,10 +619,10 @@ function s(source: string, scale: string): SpPattern;
  * an \`Infinity\` section could never play and is rejected):
  *
  * \`\`\`js
- * $cycle($p.arrange(
+ * $p.arrange(
  *   [2, $p("c4 e4 g4")],            // intro, played once
  *   [Infinity, $p.s("0 2 4", "f(lydian)")],  // then loops forever
- * ))
+ * ).c
  * \`\`\`
  *
  * The result is an \`ArrangePattern\`, itself usable as a section of another
@@ -754,7 +755,7 @@ type SlowPattern = {
  * user code — construct with \`.struct(...)\`; never build one by hand.
  *
  * \`\`\`js
- * $cycle($p("c4 e4").struct("x ~ <x ~>"))
+ * $p("c4 e4").struct("x ~ <x ~>").c
  * \`\`\`
  */
 type StructPattern = {
@@ -782,7 +783,7 @@ type StructPattern = {
  * user code — construct with \`.beat(...)\`; never build one by hand.
  *
  * \`\`\`js
- * $cycle($p("c2 g2").beat("0,7,10", 16))
+ * $p("c2 g2").beat("0,7,10", 16).c
  * \`\`\`
  */
 type BeatPattern = {
@@ -2455,7 +2456,8 @@ function getMultiOutputInterfaceName(moduleSchema: { name: string }): string {
 
 /**
  * Generate interface definition for multi-output modules.
- * The interface extends the default output's type and has a property for every output.
+ * The interface extends the type of the output a `cv` input takes and has a
+ * property for every output.
  */
 function generateMultiOutputInterface(
     moduleSchema: Schema,
@@ -2466,9 +2468,10 @@ function generateMultiOutputInterface(
         return [];
     }
 
-    // Find the default output
     const defaultOutput = outputs.find((o) => o.default) || outputs[0];
-    const baseType = getOutputType(defaultOutput);
+    // Read as a signal itself, the module is the output a `cv` input takes.
+    const cvOutput = chooseOutput(outputs, 'cv');
+    const baseType = getOutputType(outputs.find((o) => o.name === cvOutput)!);
 
     const interfaceName = getMultiOutputInterfaceName(moduleSchema);
 

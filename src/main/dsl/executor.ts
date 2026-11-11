@@ -479,7 +479,7 @@ export function executePatchScript(
      * as a property for additional taps. Mix the dry signal back yourself
      * (`$mix([input, $delay(input, time)])`) or use `.$m.delay(mix, time)`.
      */
-    const $delay = (
+    const buildDelay = (
         input: Collection | ModuleOutput,
         time: PolySignal,
         opts?: DelayOptions,
@@ -508,12 +508,30 @@ export function executePatchScript(
         ]) as Collection;
         // Colour every recirculation: process the dry-plus-feedback mix before
         // it is written to the buffer.
-        const buffered = opts?.feedbackCb ? opts.feedbackCb(mixed) : mixed;
+        const { feedbackCb } = opts ?? {};
+        const buffered = feedbackCb
+            ? builder.outputResolver.withUserCode(() => feedbackCb(mixed))
+            : mixed;
         const buf = $buffer(buffered, maxTime);
         const delayed = $delayRead(buf, time) as Collection;
         def.set(delayed.amp(feedback as unknown as Signal));
         return Object.assign(delayed, { buffer: buf });
     };
+    // `$delay` builds its modules out of sight, so the module roots among
+    // its signals are recorded against the `$delay` call itself.
+    const $delay = (
+        input: Collection | ModuleOutput,
+        time: PolySignal,
+        opts?: DelayOptions,
+    ): Collection & { buffer: BufferOutputRef } =>
+        builder.outputResolver.withCall(
+            [
+                ['input', input, 'cv'],
+                ['time', time, 'cv'],
+                ['feedback', opts?.feedback, 'cv'],
+            ],
+            () => buildDelay(input, time, opts),
+        );
 
     // Expose `$delay` on the `.$` / `.$m` chainable namespaces. It is DSL
     // sugar rather than a module schema, so it is registered explicitly here

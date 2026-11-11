@@ -313,7 +313,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             examples: &[DocExample {
                 title: "Plucked bass line",
                 code: r#"
-                    const seq = $cycle($p('c2 ~ eb2 g2 ~ c3 bb2 g2'))
+                    const seq = $p('c2 ~ eb2 g2 ~ c3 bb2 g2').c
                     $saw(seq)
                       .$.lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)
                       .out()
@@ -346,7 +346,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             examples: &[DocExample {
                 title: "Bass that changes every bar",
                 code: r#"
-                    const seq = $cycle($p('<c2 ab1 f1 g1> [~ c3] ~ c2'))
+                    const seq = $p('<c2 ab1 f1 g1> [~ c3] ~ c2').c
                     $saw(seq).$.lpf('c5', 1).amp($adsr(seq)).out()
                 "#,
             }],
@@ -359,7 +359,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             examples: &[DocExample {
                 title: "Melody over a drone",
                 code: r#"
-                    const seq = $cycle($p('c4 eb4 g4 bb4, c3'))
+                    const seq = $p('c4 eb4 g4 bb4, c3').c
                     $saw(seq).$.lpf('c5', 1).amp($adsr(seq)).out()
                 "#,
             }],
@@ -372,7 +372,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             examples: &[DocExample {
                 title: "A melody that never quite repeats",
                 code: r#"
-                    const seq = $cycle($p('c4 [eb4|g4|bb4] f4? [g4|c5]'))
+                    const seq = $p('c4 [eb4|g4|bb4] f4? [g4|c5]').c
                     $sine(seq).amp($adsr(seq)).out()
                 "#,
             }],
@@ -421,7 +421,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             examples: &[DocExample {
                 title: "Euclidean rhythm",
                 code: r#"
-                    const seq = $cycle($p('c2(3,8) [g2 c3](5,8,2)'))
+                    const seq = $p('c2(3,8) [g2 c3](5,8,2)').c
                     $pulse(seq).$.lpf('c5', 2).amp($adsr(seq)).out()
                 "#,
             }],
@@ -431,7 +431,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
         title: "Swung hats over a straight bass",
         code: r#"
             $setGroove($swing(0.6))
-            const hats = $cycle($p('c5*8'))
+            const hats = $p('c5*8').c
             const bass = $cycle($p('c2*4'), { groove: 0 })
             $noise('white')
               .amp($perc(hats, { decay: 0.05 }))

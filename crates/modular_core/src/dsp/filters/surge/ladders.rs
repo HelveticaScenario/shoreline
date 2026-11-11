@@ -105,7 +105,7 @@ const LEGACY_LADDER_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Fat ladder bass",
         code: r#"
-            const seq = $cycle($p('a1 ~ a1 [a2 a1] ~ e2 g1 ~'))
+            const seq = $p('a1 ~ a1 [a2 a1] ~ e2 g1 ~').c
             $unstable.filter
               .legacyLadder(
                 $saw(seq),
@@ -320,7 +320,7 @@ const DIODE_LADDER_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Screaming acid line",
         code: r#"
-            const seq = $cycle($p('c2 c3 [~ c2] eb3 c2 [g2 c3] bb1 c2'))
+            const seq = $p('c2 c3 [~ c2] eb3 c2 [g2 c3] bb1 c2').c
             $unstable.filter
               .diodeLadder(
                 $saw(seq),

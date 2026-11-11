@@ -161,6 +161,26 @@ describe('chaining', () => {
     });
 });
 
+describe('chain method options', () => {
+    test('an option resolves by its own input', () => {
+        expect(
+            ports(
+                `$sine('c').erratic(1, { trigger: $p('c e').c }).out()`,
+                '_erratic',
+                'trigger',
+            ),
+        ).toEqual(['trig']);
+    });
+});
+
+describe('a root read as a signal itself', () => {
+    test('is the output a cv input takes', () => {
+        expect(ports(`$sine($p('c e').c[0]).out()`, '$sine', 'freq')).toEqual([
+            'cv',
+        ]);
+    });
+});
+
 describe('resolution records', () => {
     function records(source: string) {
         return run(source).outputResolutions.map(

@@ -64,7 +64,7 @@ const CB808_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Tuned cowbell melody",
             code: r#"
-                const bell = $cycle($p('c5 ~ eb5 c5 ~ g4 ~ bb4'))
+                const bell = $p('c5 ~ eb5 c5 ~ g4 ~ bb4').c
                 $tr808.cowbell(bell, { freq: bell }).out()
             "#,
         },

@@ -279,7 +279,7 @@ const HT808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Tuned tom melody",
         code: r#"
-            const toms = $cycle($p('g3 ~ bb3 c4 ~ g3 f3 ~'))
+            const toms = $p('g3 ~ bb3 c4 ~ g3 f3 ~').c
             $tr808.highTom(toms, { freq: toms }).out()
         "#,
     }],

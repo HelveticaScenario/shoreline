@@ -226,7 +226,7 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
                 const midi = $midiCV({ channels: 4 })
                 $sine(
                   $quantizer($sine('0.1hz').range('c3', 'c5'), midi, {
-                    gate: midi.gate,
+                    gate: midi,
                   }),
                 ).out()
             "#,

@@ -9,7 +9,10 @@ import {
 } from './GraphBuilder';
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
-import type { OutputClass } from '../../shared/dsl/outputResolutionRule';
+import {
+    chooseOutput,
+    type OutputClass,
+} from '../../shared/dsl/outputResolutionRule';
 import './chainMethods';
 import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
@@ -410,7 +413,6 @@ export class DSLContext {
      */
     private createFactory(schema: ModuleSchema): FactoryFunction {
         const outputs = schema.outputs || [];
-        const defaultOutput = outputs.find((o) => o.default) ?? outputs[0];
         const rootOutputs = resolvableOutputs(schema, sanitizeOutputName);
         const processed = processModuleSchema(schema);
         const scaleParamNames = processed.params
@@ -562,25 +564,25 @@ export class DSLContext {
                 const output = outputs[0];
                 return node._output(output.name, output.polyphonic ?? false);
             }
-            // Multiple outputs: the root is a default output that also
-            // carries every output, the default included, as a named
-            // property. The named ones are separate untagged objects.
-            const root = node._output(
-                defaultOutput.name,
-                defaultOutput.polyphonic ?? false,
-            );
+            // Multiple outputs: the root carries every output as a named
+            // property, each a separate untagged object. Read as a signal
+            // itself, the root is the output a `cv` input takes.
             const named: Record<
                 string,
                 ModuleOutput | Collection | CollectionWithRange
             > = {};
+            let root: ModuleOutput | Collection | CollectionWithRange;
+            const cvOutput = chooseOutput(rootOutputs, 'cv');
             for (const output of outputs) {
-                named[sanitizeOutputName(output.name)] = node._output(
-                    output.name,
-                    output.polyphonic ?? false,
-                );
+                const name = sanitizeOutputName(output.name);
+                const polyphonic = output.polyphonic ?? false;
+                named[name] = node._output(output.name, polyphonic);
+                if (name === cvOutput) {
+                    root = node._output(output.name, polyphonic);
+                }
             }
-            markRoot(root, { outputs: rootOutputs, values: named });
-            return Object.assign(root, named);
+            markRoot(root!, { outputs: rootOutputs, values: named });
+            return Object.assign(root!, named);
         };
     }
 

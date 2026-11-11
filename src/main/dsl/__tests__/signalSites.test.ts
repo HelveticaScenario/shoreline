@@ -145,6 +145,31 @@ describe('static resolution', () => {
         ).toEqual([').$m.lpf(seq‹cv›', 'x) => x, seq‹cv›']);
     });
 
+    test('a chain method option resolves by its own class', () => {
+        expect(
+            hints(
+                `const seq = $p('c e').c\n$sine('c').erratic(1, { trigger: seq, speed: seq }).out({ gain: seq })`,
+            ),
+        ).toEqual([
+            'trigger: seq‹trig›',
+            ', speed: seq‹cv›',
+            '({ gain: seq‹cv›',
+        ]);
+    });
+
+    test('$delay resolves its signals as a call and as a chain', () => {
+        expect(
+            hints(
+                `const seq = $p('1 2').c\n$delay(seq, seq, { feedback: seq })\n$sine('c').$.delay(seq)`,
+            ),
+        ).toEqual([
+            '$delay(seq‹cv›',
+            'lay(seq, seq‹cv›',
+            'eedback: seq‹cv›',
+            '.$.delay(seq‹cv›',
+        ]);
+    });
+
     test('only a chain method reads its receiver', () => {
         expect(
             hints(`const seq = $p('c e').c\nseq.length\nseq.toString()`),
@@ -182,6 +207,9 @@ describe('agreement with the runtime', () => {
         `function f(s, m) {\n    return s.$m.lpf(m, 'c')\n}\nf($clock, $p('1 2').c)`,
         `function f(m) {\n    return $sine('c').pipeMix((x) => x.$.lpf('c'), m)\n}\nf($p('1 2').c).out()`,
         `function f(s) {\n    return $sine('c').range(s, s)\n}\nf($p('0 1').c).out()`,
+        `function f(s) {\n    return $sine('c').erratic(1, { trigger: s, speed: s })\n}\nf($p('0 1').c).out({ gain: $p('1 2').c })`,
+        `function f(s) {\n    return $delay(s, s, { feedback: s, feedbackCb: (m) => m.$.lpf(s) })\n}\nf($p('0 1').c)`,
+        `function f(s) {\n    return $sine('c').$m.delay(s, s)\n}\nf($p('0 1').c)`,
     ];
 
     test.each(sources)('%s', (source) => {

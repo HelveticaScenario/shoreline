@@ -248,7 +248,7 @@ const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Sliced sixteenth repeats",
             code: r#"
-                const pluck = $saw($cycle($p('c3 eb3 g3 bb3'))).amp(
+                const pluck = $saw($p('c3 eb3 g3 bb3').c).amp(
                   $perc($clock.beatTrigger, { decay: 0.3 }),
                 )
                 $clockedDelay(pluck, {

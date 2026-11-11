@@ -50,12 +50,18 @@ function outputSetOf(value: unknown): OutputSet | undefined {
 }
 
 /**
+ * A signal value of a user-facing call: the slot the hint collector knows it
+ * by, the value, and the class of the input it feeds.
+ */
+export type CallSlot = [slot: string, value: unknown, inputClass: OutputClass];
+
+/**
  * Resolves roots to outputs and records each choice against the call site
  * and slot the editor's hint collector knows it by.
  */
 export class OutputResolver {
     readonly records: OutputResolutionRecord[] = [];
-    private inChainCall = false;
+    private inCall = false;
 
     /**
      * The output `value` contributes to an input of class `inputClass`;
@@ -72,51 +78,59 @@ export class OutputResolver {
             return value;
         }
         const name = chooseOutput(set.outputs, inputClass);
-        if (!this.inChainCall) {
+        if (!this.inCall) {
             this.record(site, slot, name);
         }
         return set.values[name];
     }
 
     /**
-     * Run a chain method's body as one user-facing call. A chain method reads
-     * its receiver and its signal arguments as `cv`, so the roots among them
-     * are recorded here against that call, and the modules the body builds
-     * record nothing.
+     * Run `body` as one user-facing call that builds its modules out of
+     * sight: a chain method or a helper such as `$delay`. The roots among
+     * `slots`, and inside the arrays among them, are recorded here against
+     * that call, and the modules the body builds record nothing.
      */
-    withChainCall<T>(
-        receiver: unknown,
-        args: readonly unknown[],
-        body: () => T,
-    ): T {
-        if (this.inChainCall) {
+    withCall<T>(slots: readonly CallSlot[], body: () => T): T {
+        if (this.inCall) {
             return body();
         }
-        const roots: [slot: string, set: OutputSet][] = [];
-        const collect = (slot: string, value: unknown): void => {
-            const set = outputSetOf(value);
-            if (set) {
-                roots.push([slot, set]);
-            }
-        };
-        collect('receiver', receiver);
-        args.forEach((arg, i) => {
-            collect(String(i), arg);
-            if (Array.isArray(arg)) {
-                arg.forEach((element, j) => collect(`${i}.${j}`, element));
-            }
-        });
-        if (roots.length > 0) {
-            const site = captureSourceLocation();
-            for (const [slot, set] of roots) {
-                this.record(site, slot, chooseOutput(set.outputs, 'cv'));
+        const roots: [string, OutputSet, OutputClass][] = [];
+        for (const [slot, value, inputClass] of slots) {
+            const values: [string, unknown][] = Array.isArray(value)
+                ? value.map((element, i) => [`${slot}.${i}`, element])
+                : [[slot, value]];
+            for (const [s, v] of values) {
+                const set = outputSetOf(v);
+                if (set) {
+                    roots.push([s, set, inputClass]);
+                }
             }
         }
-        this.inChainCall = true;
+        if (roots.length > 0) {
+            const site = captureSourceLocation();
+            for (const [slot, set, inputClass] of roots) {
+                this.record(site, slot, chooseOutput(set.outputs, inputClass));
+            }
+        }
+        this.inCall = true;
         try {
             return body();
         } finally {
-            this.inChainCall = false;
+            this.inCall = false;
+        }
+    }
+
+    /**
+     * Run user code called back from inside a call: the calls it makes are
+     * its own call sites and record as usual.
+     */
+    withUserCode<T>(body: () => T): T {
+        const { inCall } = this;
+        this.inCall = false;
+        try {
+            return body();
+        } finally {
+            this.inCall = inCall;
         }
     }
 

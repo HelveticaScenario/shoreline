@@ -239,7 +239,7 @@ const GRAINS_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Grain chords from a melody",
             code: r#"
-                const seq = $cycle($p('<[c3, g3] [eb3, bb3]>'))
+                const seq = $p('<[c3, g3] [eb3, bb3]>').c
                 $grains(seq, $wavs().strings, seq, {
                   length: 2,
                   density: 3,

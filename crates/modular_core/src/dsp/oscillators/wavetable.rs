@@ -176,7 +176,7 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Plucked table sweep",
             code: r#"
-                const seq = $cycle($p('c3 eb3 g3 bb3'))
+                const seq = $p('c3 eb3 g3 bb3').c
                 const env = $perc(seq, { decay: 0.5 })
                 $wavetable(seq, $wavs().tables.pad, env.range(0, 4))
                   .amp(env)

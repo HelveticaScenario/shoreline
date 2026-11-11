@@ -32,8 +32,12 @@ export interface SignalSiteTables {
     roots: Record<string, ResolvableOutput[]>;
     /** Module calls, keyed by dotted call name (`$tr808.kick`). */
     modules: Record<string, ModuleSiteInfo>;
-    /** Methods on an output or collection that read it as `cv`. */
-    chainMethods: string[];
+    /**
+     * Methods on an output or collection that read it, and the signals among
+     * their arguments, as `cv`. Each lists the fields of its options object
+     * that read another class.
+     */
+    chainMethods: Record<string, Record<string, OutputClass>>;
 }
 
 /** One value position in a patch. */
@@ -96,7 +100,13 @@ export function collectSignalSites(
     tables: SignalSiteTables,
 ): SignalSite[] {
     const sites: SignalSite[] = [];
-    const chainMethods = new Set(tables.chainMethods);
+
+    /** `table[key]`, when the table itself holds that key. */
+    const own = <V>(table: Record<string, V>, key: string): V | undefined =>
+        Object.hasOwn(table, key) ? table[key] : undefined;
+
+    /** The option classes of chain method `name`, if it is one. */
+    const chainMethod = (name: string) => own(tables.chainMethods, name);
 
     const qualifiedName = (symbol: TS.Symbol): string => {
         let name = symbol.name;
@@ -213,6 +223,23 @@ export function collectSignalSites(
         );
     };
 
+    /** Each `key: value` and shorthand `key` of an object literal. */
+    const forEachField = (
+        literal: TS.ObjectLiteralExpression,
+        visitField: (key: string, value: TS.Expression) => void,
+    ): void => {
+        for (const property of literal.properties) {
+            if (
+                ts.isPropertyAssignment(property) &&
+                ts.isIdentifier(property.name)
+            ) {
+                visitField(property.name.text, property.initializer);
+            } else if (ts.isShorthandPropertyAssignment(property)) {
+                visitField(property.name.text, property.name);
+            }
+        }
+    };
+
     /** Arguments of a module call, `first` being the first positional they fill. */
     const emitModuleArgs = (
         call: { line: number; column: number },
@@ -236,21 +263,12 @@ export function collectSignalSites(
             ) {
                 return;
             }
-            for (const property of arg.properties) {
-                const key =
-                    property.name && ts.isIdentifier(property.name)
-                        ? property.name.text
-                        : undefined;
-                const inputClass = key ? info.inputs[key] : undefined;
-                if (!key || !inputClass) {
-                    continue;
+            forEachField(arg, (key, value) => {
+                const inputClass = info.inputs[key];
+                if (inputClass) {
+                    emitValue(call, key, value, inputClass);
                 }
-                if (ts.isPropertyAssignment(property)) {
-                    emitValue(call, key, property.initializer, inputClass);
-                } else if (ts.isShorthandPropertyAssignment(property)) {
-                    emitValue(call, key, property.name, inputClass);
-                }
-            }
+            });
         });
     };
 
@@ -301,7 +319,7 @@ export function collectSignalSites(
     const visitCall = (node: TS.CallExpression): void => {
         const callee = node.expression;
         const name = dottedName(callee);
-        const module = name ? tables.modules[name] : undefined;
+        const module = name ? own(tables.modules, name) : undefined;
         if (module) {
             const site = position(
                 ts.isPropertyAccessExpression(callee) ? callee.name : callee,
@@ -314,7 +332,9 @@ export function collectSignalSites(
         }
         const site = position(callee.name);
         const dollar = dollarCall(callee);
-        const chained = dollar ? tables.modules[`$${dollar.path}`] : undefined;
+        const chained = dollar
+            ? own(tables.modules, `$${dollar.path}`)
+            : undefined;
         if (dollar && chained?.chainable) {
             const receiverName = chained.positional[0];
             emitValue(
@@ -338,13 +358,25 @@ export function collectSignalSites(
             emitValue(site, 'mix', node.arguments[1], 'cv');
             return;
         }
+        const optionClasses = chainMethod(callee.name.text);
         if (
-            chainMethods.has(callee.name.text) &&
+            optionClasses &&
             receivesSignals(checker.getTypeAtLocation(callee.expression))
         ) {
-            node.arguments.forEach((arg, i) =>
-                emitValue(site, String(i), arg, 'cv'),
-            );
+            node.arguments.forEach((arg, i) => {
+                if (ts.isObjectLiteralExpression(arg)) {
+                    forEachField(arg, (key, value) =>
+                        emitValue(
+                            site,
+                            `${i}.${key}`,
+                            value,
+                            optionClasses[key] ?? 'cv',
+                        ),
+                    );
+                } else {
+                    emitValue(site, String(i), arg, 'cv');
+                }
+            });
         }
     };
 
@@ -352,7 +384,7 @@ export function collectSignalSites(
     const visitMember = (node: TS.PropertyAccessExpression): void => {
         const called =
             ts.isCallExpression(node.parent) && node.parent.expression === node;
-        if (!called || !chainMethods.has(node.name.text)) {
+        if (!called || !chainMethod(node.name.text)) {
             return;
         }
         const type = checker.getTypeAtLocation(node.expression);

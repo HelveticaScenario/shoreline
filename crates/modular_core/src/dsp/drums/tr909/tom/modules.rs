@@ -341,7 +341,7 @@ const HT909_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Tuned tom melody",
         code: r#"
-            const toms = $cycle($p('c3 ~ eb3 f3 ~ c3 bb2 ~'))
+            const toms = $p('c3 ~ eb3 f3 ~ c3 bb2 ~').c
             $tr909.highTom(toms, { freq: toms }).out()
         "#,
     }],

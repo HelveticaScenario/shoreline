@@ -17,8 +17,15 @@ export function buildSignalSiteTables(
     schemas: ModuleSchema[],
 ): SignalSiteTables {
     const tables: SignalSiteTables = {
-        chainMethods: [...CHAIN_METHODS],
-        modules: {},
+        chainMethods: CHAIN_METHODS,
+        // `$delay(input, time, { feedback })` is a helper, not a module.
+        modules: {
+            $delay: {
+                chainable: true,
+                inputs: { feedback: 'cv', input: 'cv', time: 'cv' },
+                positional: ['input', 'time'],
+            },
+        },
         roots: {},
     };
 

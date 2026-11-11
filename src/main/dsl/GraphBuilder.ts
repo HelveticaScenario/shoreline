@@ -232,23 +232,25 @@ export interface MonoOutGroup extends OutGroupVuState {
 }
 
 /**
- * True for a plain `{ ... }` literal — distinguishes MonoOutOptions from a
- * gain PolySignal (number | string | array | ModuleOutput | iterable).
- * Patch scripts evaluate in a vm realm whose `Object.prototype` is a
- * different object from the host's, so plainness is judged by chain depth
- * (a prototype that is itself the chain root) rather than identity.
+ * True for a plain `{ ... }` literal. Patch scripts evaluate in a vm realm
+ * whose `Object.prototype` is a different object from the host's, so
+ * plainness is judged by chain depth (a prototype that is itself the chain
+ * root) rather than identity.
  */
-function isMonoOutOptions(v: unknown): v is MonoOutOptions {
-    if (
-        typeof v !== 'object' ||
-        v === null ||
-        Array.isArray(v) ||
-        isPatternValue(v)
-    ) {
+export function isPlainObject(v: unknown): v is Record<string, unknown> {
+    if (typeof v !== 'object' || v === null || Array.isArray(v)) {
         return false;
     }
     const proto = Object.getPrototypeOf(v);
     return proto === null || Object.getPrototypeOf(proto) === null;
+}
+
+/**
+ * Distinguishes MonoOutOptions from a gain PolySignal (number | string |
+ * array | ModuleOutput | iterable). A pattern is a plain object too.
+ */
+function isMonoOutOptions(v: unknown): v is MonoOutOptions {
+    return isPlainObject(v) && !isPatternValue(v);
 }
 
 /**
