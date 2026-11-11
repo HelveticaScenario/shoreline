@@ -1,15 +1,9 @@
-import React, {
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
 import moduleCategories from '@modular/core/moduleCategories.json';
 import { ReferenceCard } from './ReferenceCard';
 import { Sash } from './Sash';
+import { useStoredSize } from '../hooks/useStoredSize';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type { Schema } from '../../shared/dsl/schemaTypeResolver';
 import type { ReferenceEntry } from '../../shared/dsl/referenceDocs';
@@ -30,34 +24,7 @@ function indexMaxWidth(): number {
     return Math.max(INDEX_MIN_WIDTH, width - CARDS_MIN_WIDTH);
 }
 
-/** The index width in pixels, remembered across launches. `null` means the
- *  stylesheet's default width. */
-function useIndexWidth(): [number | null, (width: number | null) => void] {
-    const [width, setWidth] = useState<number | null>(() => {
-        try {
-            const stored = Number(
-                window.localStorage.getItem(INDEX_WIDTH_STORAGE_KEY),
-            );
-            if (stored > 0) return Math.max(stored, INDEX_MIN_WIDTH);
-        } catch {}
-        return null;
-    });
-
-    useEffect(() => {
-        try {
-            if (width === null) {
-                window.localStorage.removeItem(INDEX_WIDTH_STORAGE_KEY);
-            } else {
-                window.localStorage.setItem(
-                    INDEX_WIDTH_STORAGE_KEY,
-                    String(width),
-                );
-            }
-        } catch {}
-    }, [width]);
-
-    return [width, setWidth];
-}
+const clampIndexWidth = (width: number) => Math.max(width, INDEX_MIN_WIDTH);
 
 interface ModuleReferenceProps {
     /** Already sorted in display order. */
@@ -106,7 +73,10 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
 }) => {
     const cardsRef = useRef<HTMLDivElement>(null);
     const indexRef = useRef<HTMLUListElement>(null);
-    const [indexWidth, setIndexWidth] = useIndexWidth();
+    const [indexWidth, setIndexWidth] = useStoredSize(
+        INDEX_WIDTH_STORAGE_KEY,
+        clampIndexWidth,
+    );
 
     const entries = useMemo(
         () => modules.map(moduleToReferenceEntry),
