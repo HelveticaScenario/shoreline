@@ -9,6 +9,10 @@
 //    turned into the controller's 0-1 address.
 //  - With the trigger patched, the voice is silent (an all-zero frame) until
 //    the first trigger and after a bank change, where Plaits scans.
+// Rendering one sample at a time also scans every sample, where Plaits scans
+// once per 12-sample block. A scan parked between a voiced and an unvoiced
+// frame moves the pitch towards the voiced one on each scan, so with prosody
+// up it gets there sooner than in Plaits; where it settles is the same.
 // A trigger reaches the controller on its sample; an unpatched trigger runs
 // it free, at unity gain, and a patched one applies the accent as gain. The
 // controller takes its pitch in cycles per sample of Plaits' corrected rate,

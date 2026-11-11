@@ -83,7 +83,7 @@ struct SpeakParams {
     #[deserr(default)]
     word: Option<PolySignal>,
     #[input(
-        "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5); towards either end the words also slow down",
+        "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5); towards the ends a deep voice speaks slower, a high one faster",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -241,6 +241,11 @@ impl Channel {
             self.bank = bank;
         }
         let [word, formant_shift, prosody, speed, accent] = self.held;
+        // A patched trigger picks a word, so `word` takes effect unglided.
+        let word = match (trigger, knobs.smooth[0].0) {
+            (Some(_), volts) if volts.is_finite() => volts,
+            _ => word,
+        };
         let [formant_shift, prosody, speed, accent] =
             [formant_shift, prosody, speed, accent].map(knob);
         let controls = Controls {

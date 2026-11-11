@@ -32,8 +32,9 @@ struct Bank {
 
 impl Bank {
     /// Where `word` scans to, as Plaits' controller takes it: 0–1 across the
-    /// bank. Each word spans half an index either side of its own, so a
-    /// whole number sits in the middle of its word.
+    /// bank, which it scales back to frames. Each word spans half an index
+    /// either side of its own, so a whole number sits in the middle of its
+    /// word.
     #[inline(always)]
     fn scan_address(&self, word: f32) -> f32 {
         let last = (self.words - 1) as f32;
@@ -114,9 +115,6 @@ pub struct Speaker {
     pitch_unit: f32,
     /// The formant shift's part of the time stretch, in semitones.
     stretch: f32,
-    /// The gain of the last sample, which Plaits' gain interpolator steps
-    /// from.
-    gain: f32,
 }
 
 impl Default for Speaker {
@@ -136,7 +134,6 @@ impl Default for Speaker {
             rate: 0.0,
             pitch_unit: 1.0,
             stretch: 0.0,
-            gain: 0.0,
         }
     }
 }
@@ -245,7 +242,6 @@ impl Speaker {
         let [excitation, out] = self
             .clock
             .step(self.rate, f, &mut self.synth, &mut self.random);
-        self.gain += controls.gain - self.gain;
-        [excitation * self.gain, out * self.gain]
+        [excitation * controls.gain, out * controls.gain]
     }
 }

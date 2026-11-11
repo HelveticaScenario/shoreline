@@ -30506,7 +30506,7 @@
           ]
         },
         "formantShift": {
-          "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5); towards either end the words also slow down",
+          "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5); towards the ends a deep voice speaks slower, a high one faster",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -30703,7 +30703,7 @@
       },
       {
         "name": "formantShift",
-        "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5); towards either end the words also slow down",
+        "description": "the size of the throat: the formants rise from a large, deep voice (0) to a small, high one (5); towards the ends a deep voice speaks slower, a high one faster",
         "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
