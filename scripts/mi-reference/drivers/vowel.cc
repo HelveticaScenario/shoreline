@@ -81,20 +81,35 @@ int main(int argc, char** argv) {
       const float vowel = knob(in[2]);
       const float shift = knob(in[3]);
 
-      float temp[2], aux, out;
-      float blend = group;
-      if (group <= 1.0f) {
-        naive.Render(trigger, f0, vowel, shift, &temp[0], &aux, &out, 1);
-      } else {
-        lpc.Render(false, trigger, -1, f0 * lpc_pitch_scale, 0.0f, 0.0f,
-                   vowel, shift, 1.0f, &aux, &out, 1);
-        blend = 2.0f - blend;
+      // As the port does, a voice the blend gives no weight holds still.
+      const bool lpc_side = group > 1.0f;
+      const float blend = lpc_side ? 2.0f - group : group;
+      float temp, side_aux = 0.0f, side_out = 0.0f, sam_aux = 0.0f, sam_out = 0.0f;
+      if (blend < 1.0f) {
+        if (lpc_side) {
+          lpc.Render(false, trigger, -1, f0 * lpc_pitch_scale, 0.0f, 0.0f,
+                     vowel, shift, 1.0f, &side_aux, &side_out, 1);
+        } else {
+          naive.Render(trigger, f0, vowel, shift, &temp, &side_aux, &side_out, 1);
+        }
       }
-      sam.Render(trigger, f0, vowel, shift, &temp[0], &temp[1], 1);
-      blend *= blend * (3.0f - 2.0f * blend);
-      blend *= blend * (3.0f - 2.0f * blend);
-      aux += (temp[0] - aux) * blend;
-      out += (temp[1] - out) * blend;
+      if (blend > 0.0f) {
+        sam.Render(trigger, f0, vowel, shift, &sam_aux, &sam_out, 1);
+      }
+      float aux, out;
+      if (blend > 0.0f && blend < 1.0f) {
+        float b = blend;
+        b *= b * (3.0f - 2.0f * b);
+        b *= b * (3.0f - 2.0f * b);
+        aux = side_aux + (sam_aux - side_aux) * b;
+        out = side_out + (sam_out - side_out) * b;
+      } else if (blend < 1.0f) {
+        aux = side_aux;
+        out = side_out;
+      } else {
+        aux = sam_aux;
+        out = sam_out;
+      }
       limiter.Process(0.7f, &out, 1);
       float result[2] = {out, aux};
 

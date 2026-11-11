@@ -76,7 +76,7 @@ impl ImpulseTrain {
 
         let slope = self.hp - this_sample;
         let slope = if frequency < 0.0 { -slope } else { slope };
-        self.lp += rates.impulse_smoothing * (slope * rates.impulse_scale - self.lp);
+        self.lp += rates.impulse_smoothing * (slope * rates.to_48k - self.lp);
         self.hp = this_sample;
         4.0 * self.lp
     }

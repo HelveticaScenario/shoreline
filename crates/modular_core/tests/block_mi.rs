@@ -162,6 +162,37 @@ fn resonator_instances_draw_their_own_grains() {
     }
 }
 
+/// Two instances triggered alike draw their own consonant noise. The
+/// consonant a trigger plays follows the vowel, and only unvoiced ones carry
+/// noise, so the vowel sweeps until one does.
+#[test]
+fn vowel_instances_draw_their_own_noise() {
+    let differ = (0..=10).any(|step| {
+        let params = json!({
+            "freq": 0.0,
+            "model": 5.0,
+            "vowel": step as f32 * 0.5,
+            "trigger": poly_cable("lfo", CHANNELS),
+        });
+        let a = build(
+            ProcessingMode::Block,
+            ProcessingMode::Block,
+            "$mi.vowel",
+            params.clone(),
+        );
+        let b = build(
+            ProcessingMode::Block,
+            ProcessingMode::Block,
+            "$mi.vowel",
+            params,
+        );
+        let a = render_ports(&a, "excitation", 500);
+        let b = render_ports(&b, "excitation", 500);
+        a.iter().zip(&b).any(|(x, y)| x != y)
+    });
+    assert!(differ, "every vowel drew identical noise");
+}
+
 /// Loud strikes and drones stay within the ±5 V the outputs declare.
 #[test]
 fn resonator_outputs_stay_in_range() {

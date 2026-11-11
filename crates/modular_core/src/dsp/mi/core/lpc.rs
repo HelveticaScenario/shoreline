@@ -41,7 +41,7 @@ impl Frame {
 
 #[inline(always)]
 fn pulse(index: i32) -> f32 {
-    f32::from(LUT_LPC_EXCITATION_PULSE[index.max(0) as usize]) / 128.0
+    f32::from(LUT_LPC_EXCITATION_PULSE[index as usize]) / 128.0
 }
 
 /// `LPCSpeechSynth` with Plaits' prosody off: the pitch comes from the

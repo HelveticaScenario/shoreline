@@ -151,7 +151,6 @@ struct Rates {
     /// The impulse train's smoothing per sample, and its pulse height, which
     /// keeps the harmonics' level at any rate.
     impulse_smoothing: f32,
-    impulse_scale: f32,
     /// `tan(π f)` of the 800 Hz band-pass that colours the impulses.
     coloration: f32,
     /// Engine samples per LPC synthesis tick at a formant ratio of 1.
@@ -177,7 +176,6 @@ impl Rates {
             sam_max_frequency: 3000.0 / sample_rate,
             click_samples: (sample_rate * 0.05) as usize,
             impulse_smoothing: (1.0 - 0.75f64.powf(from_48k)) as f32,
-            impulse_scale: sample_rate / 48000.0,
             coloration: tan_dirty(800.0 / sample_rate),
             lpc_divider: sample_rate / SYNTHESIS_RATE,
             lpc_pitch_scale: (f64::from(sample_rate) / f64::from(CORRECTED_SAMPLE_RATE)) as f32,
@@ -287,26 +285,40 @@ impl Channel {
         let f0 = limit_frequency(f0, 0.5);
 
         // Plaits renders the formant-filter voice or the LPC voice beside
-        // SAM, whichever side of it `model` is on; the other holds still.
+        // SAM, whichever side of it `model` is on; the other holds still, as
+        // does a voice the blend gives no weight, such as SAM at 0 and 5 and
+        // the formant filters at 2.5.
         let group = 2.0 * model;
-        let (mut excitation, mut out, blend) = if group <= 1.0 {
-            let (excitation, out) = self.naive.step(trigger, f0, vowel, formant_shift, rates);
-            (excitation, out, group)
-        } else {
-            let [excitation, out] = self.lpc.step(
-                trigger,
-                f0 * rates.lpc_pitch_scale,
-                vowel,
-                formant_shift,
-                &mut self.random,
-                rates,
-            );
-            (excitation, out, 2.0 - group)
+        let lpc_side = group > 1.0;
+        let blend = if lpc_side { 2.0 - group } else { group };
+        let side = (blend < 1.0).then(|| {
+            if lpc_side {
+                let [excitation, out] = self.lpc.step(
+                    trigger,
+                    f0 * rates.lpc_pitch_scale,
+                    vowel,
+                    formant_shift,
+                    &mut self.random,
+                    rates,
+                );
+                (excitation, out)
+            } else {
+                self.naive.step(trigger, f0, vowel, formant_shift, rates)
+            }
+        });
+        let sam = (blend > 0.0).then(|| self.sam.step(trigger, f0, vowel, formant_shift, rates));
+        let (excitation, out) = match (side, sam) {
+            (Some((excitation, out)), Some((sam_excitation, sam_out))) => {
+                let blend = crossfade(blend);
+                (
+                    excitation + (sam_excitation - excitation) * blend,
+                    out + (sam_out - out) * blend,
+                )
+            }
+            (Some(side), None) => side,
+            (None, Some(sam)) => sam,
+            (None, None) => unreachable!("a blend between 0 and 1 weights a voice"),
         };
-        let (sam_excitation, sam_out) = self.sam.step(trigger, f0, vowel, formant_shift, rates);
-        let blend = crossfade(blend);
-        excitation += (sam_excitation - excitation) * blend;
-        out += (sam_out - out) * blend;
         (
             self.limiter.process(out * PRE_GAIN, &rates.limiter),
             excitation,
