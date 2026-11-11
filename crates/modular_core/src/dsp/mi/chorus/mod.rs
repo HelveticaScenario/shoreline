@@ -112,22 +112,7 @@ impl Chorus {
 
     fn update(&mut self, _sample_rate: f32) {
         let p = &self.params;
-        let channels = p.input.channels();
-        let (mut left, mut right) = (0.0, 0.0);
-        for ch in 0..channels {
-            // A non-finite sample would ring around the delay lines.
-            let sample = p.input.get_value(ch);
-            let sample = if sample.is_finite() { sample } else { 0.0 };
-            if ch % 2 == 0 {
-                left += sample;
-            } else {
-                right += sample;
-            }
-        }
-        if channels % 2 == 1 {
-            let sample = p.input.get_value(channels - 1);
-            right += if sample.is_finite() { sample } else { 0.0 };
-        }
+        let (left, right) = fold_to_stereo(p.input.channels(), |ch| p.input.get_value(ch));
         let sample_rate = self.state.sample_rate;
         let knobs = [
             self.state.amount.follow(
@@ -141,12 +126,7 @@ impl Chorus {
                 sample_rate,
             ),
         ];
-        for (held, value) in self.state.held.iter_mut().zip(knobs) {
-            if value.is_finite() {
-                *held = value;
-            }
-        }
-        let [amount, depth] = self.state.held.map(knob);
+        let [amount, depth] = hold_knobs(&mut self.state.held, knobs);
         let (left, right) =
             self.state
                 .ensemble
@@ -154,6 +134,39 @@ impl Chorus {
         self.outputs.sample.set(0, left);
         self.outputs.sample.set(1, right);
     }
+}
+
+/// `channels` of input folded to stereo, as `$dattorro` folds them: even
+/// channels left, odd right, an odd last channel to both. A non-finite sample
+/// reads 0, which would otherwise linger in the delay lines.
+fn fold_to_stereo(channels: usize, sample: impl Fn(usize) -> f32) -> (f32, f32) {
+    let finite = |ch| {
+        let s = sample(ch);
+        if s.is_finite() { s } else { 0.0 }
+    };
+    let (mut left, mut right) = (0.0, 0.0);
+    for ch in 0..channels {
+        if ch % 2 == 0 {
+            left += finite(ch);
+        } else {
+            right += finite(ch);
+        }
+    }
+    if channels % 2 == 1 {
+        right += finite(channels - 1);
+    }
+    (left, right)
+}
+
+/// The amount and depth knobs as 0–1, a NaN or infinite knob holding its
+/// last finite value in `held`.
+fn hold_knobs(held: &mut [f32; 2], knobs: [f32; 2]) -> [f32; 2] {
+    for (held, value) in held.iter_mut().zip(knobs) {
+        if value.is_finite() {
+            *held = value;
+        }
+    }
+    held.map(knob)
 }
 
 message_handlers!(impl Chorus {});
