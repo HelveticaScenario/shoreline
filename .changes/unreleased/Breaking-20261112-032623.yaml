@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    Transpose a scale pattern with `.trans`: `$p.s(...).add(...)` becomes `.trans(...)`, and `.sub` is gone (use negative degrees). `.add` on a scale pattern now adds to its signal instead.
+
+    ```js
+    // before
+    $sine($p.s('0 2 4', 'c(maj)').add('0 1')).out()
+    // after
+    $sine($p.s('0 2 4', 'c(maj)').trans('0 1')).out()
+    ```
+time: 2026-11-12T03:26:23.561436-05:00

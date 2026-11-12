@@ -1,0 +1,3 @@
+kind: Fixed
+body: '`$outLane(...).level` follows an out whose gain is a `$deferred()`.'
+time: 2026-11-12T03:26:44.238542-05:00
