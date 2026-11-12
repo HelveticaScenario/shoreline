@@ -75,27 +75,7 @@ export const API_CONTROLS: Record<
 > = {
     audio: {
         $setOutputGain: { gain: { spec: { ...LEVEL, defaultValue: 2.5 } } },
-        amp: {
-            factor: { label: 'amp', module: '$scaleAndShift', param: 'scale' },
-        },
-        amplitude: {
-            factor: {
-                label: 'amplitude',
-                module: '$scaleAndShift',
-                param: 'scale',
-            },
-        },
         exp: { exponent: { label: 'exp', module: '$curve', param: 'exp' } },
-        // gain's level is perceptual: 5 = unity, 0 = silence — narrower than
-        // scale's control range.
-        gain: {
-            level: {
-                label: 'gain',
-                module: '$scaleAndShift',
-                param: 'scale',
-                range: { max: 5, min: 0 },
-            },
-        },
         out: {
             gain: { spec: LEVEL },
             pan: { spec: closedControl(-5, 5, 0) },
@@ -107,13 +87,6 @@ export const API_CONTROLS: Record<
         },
         pipeMix: { mix: { spec: MIX_SPEC } },
         send: { gain: { spec: LEVEL } },
-        shift: {
-            offset: {
-                label: 'shift',
-                module: '$scaleAndShift',
-                param: 'shift',
-            },
-        },
         wet: { mix: { spec: MIX_SPEC } },
     },
     video: {

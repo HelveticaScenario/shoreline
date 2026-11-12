@@ -15,7 +15,6 @@ import {
 } from '../../shared/dsl/eqPanelTypes';
 import {
     DEFAULT_OUTPUT_GAIN,
-    GAIN_CURVE_EXP,
     UNITY_OUT_GAIN,
 } from '../../shared/dsl/vuMeterTypes';
 import type { ProcessedModuleSchema } from './paramsSchema';
@@ -149,7 +148,7 @@ export function $cartesian<A extends unknown[][]>(
 export interface StereoOutOptions {
     /** Base output channel (0-62, default 0). Left plays on baseChannel, right on baseChannel+1 */
     baseChannel?: number;
-    /** Output gain. If set, a scaleAndShift module is added after the stereo mix */
+    /** Output gain on the perceptual `.gain()` scale (5 = unity), applied after the stereo mix */
     gain?: PolySignal;
     /** Pan position (-5 = left, 0 = center, +5 = right). Default 0 */
     pan?: PolySignal;
@@ -167,7 +166,7 @@ export interface StereoOutOptions {
 export interface MonoOutOptions {
     /** Output channel (0-63, default 0) */
     channel?: number;
-    /** Output gain. If set, a scaleAndShift module is added after the mix */
+    /** Output gain on the perceptual `.gain()` scale (5 = unity), applied after the mix */
     gain?: PolySignal;
     /** Label shown on this output's VU meter. Must be unique across outs */
     label?: string;
@@ -325,7 +324,7 @@ export class Bus {
             this.sendGroups.map((e) => {
                 const coll = this.builder.$c(e.outputs);
                 if (e.gain !== undefined) {
-                    return coll.gain(e.gain);
+                    return this.builder.getFactory('$gain')(coll, e.gain);
                 }
                 return coll;
             }),
@@ -428,62 +427,6 @@ export class BaseCollection<T extends ModuleOutput> {
     }
 
     /**
-     * Scale all outputs by a linear factor (5 = unity, 2.5 = half, 10 = 2x).
-     *
-     * For perceptual (audio-taper) volume control, use {@link gain} instead.
-     */
-    amplitude(factor: PolySignal): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        const factory = this.items[0].builder.getFactory('$scaleAndShift');
-        if (!factory) {
-            throw new Error('Factory for util.scaleAndShift not registered');
-        }
-        return factory(this.items, factor) as Collection;
-    }
-
-    /** Alias for {@link amplitude} */
-    amp(factor: PolySignal): Collection {
-        return this.amplitude(factor);
-    }
-
-    /**
-     * Shift all outputs by an offset
-     */
-    shift(offset: PolySignal): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        const factory = this.items[0].builder.getFactory('$scaleAndShift');
-        if (!factory) {
-            throw new Error('Factory for util.scaleAndShift not registered');
-        }
-        return factory(this.items, undefined, offset) as Collection;
-    }
-
-    /**
-     * Scale all outputs by a factor with a perceptual (audio taper) curve
-     * (5 = unity, 0 = silence). Chains $curve → $scaleAndShift with exponent 3.
-     *
-     * For linear amplitude scaling, use {@link amplitude} instead.
-     */
-    gain(level: PolySignal): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        const curveFactory = this.items[0].builder.getFactory('$curve');
-        const scaleFactory = this.items[0].builder.getFactory('$scaleAndShift');
-        if (!curveFactory || !scaleFactory) {
-            throw new Error(
-                'Factory for $curve or $scaleAndShift not registered',
-            );
-        }
-        const curvedLevel = curveFactory(level, GAIN_CURVE_EXP);
-        return scaleFactory(this.items, curvedLevel) as Collection;
-    }
-
-    /**
      * Raise all outputs to the power `exponent`, sample by sample; negative
      * values mirror positive ones.
      */
@@ -513,7 +456,7 @@ export class BaseCollection<T extends ModuleOutput> {
     /**
      * Multiply all outputs by `operand`, sample by sample (2 = double).
      * To change amplitude with a 0–5 V signal such as `$adsr`, see
-     * {@link amp} and {@link gain}.
+     * `.amp()` and `.gain()`.
      */
     mul(operand: PolySignal): Collection {
         if (this.items.length === 0) {
@@ -1282,8 +1225,8 @@ export class GraphBuilder implements ChainHost {
         const signalFactory = this.getFactory('$signal');
         const mixFactory = this.getFactory('$mix');
         const stereoMixerFactory = this.getFactory('$stereoMix');
-        const scaleAndShiftFactory = this.getFactory('$scaleAndShift');
-        const curveFactory = this.getFactory('$curve');
+        const ampFactory = this.getFactory('$amp');
+        const gainFactory = this.getFactory('$gain');
         const slewFactory = this.getFactory('$slew');
         const smoothControlFactory = this.getFactory('_smoothControl');
 
@@ -1433,16 +1376,14 @@ export class GraphBuilder implements ChainHost {
                                   }).items[0],
                               ];
 
-                    const curvedAmp = curveFactory(gainSource, GAIN_CURVE_EXP);
-                    let outputSignals: ModuleOutput[] = scaleAndShiftFactory(
+                    let outputSignals: ModuleOutput[] = gainFactory(
                         mixSignals,
-                        curvedAmp,
-                        undefined,
+                        gainSource,
                         { id: tapId },
                     ).items;
 
-                    // Mute/solo gate stage. The gate $signal holds 5 (unity in
-                    // $scaleAndShift scale terms) or 0 (silence); the VU panel
+                    // Mute/solo gate stage. The gate $signal holds 5 (unity
+                    // for `$amp`) or 0 (silence); the VU panel
                     // flips it live via the single-module update path, and the
                     // $slew declicks the 5 V swing over ~10 ms.
                     const gate = (anySolo ? group.solo : !group.mute) ? 5 : 0;
@@ -1464,7 +1405,7 @@ export class GraphBuilder implements ChainHost {
                     if (slewSpec) {
                         slewSpec.skipStateTransfer = true;
                     }
-                    const gated = scaleAndShiftFactory(
+                    const gated = ampFactory(
                         outputSignals,
                         smoothed,
                     ) as Collection;
@@ -1585,8 +1526,10 @@ export class GraphBuilder implements ChainHost {
                       id: '__vuGain_main',
                   })
                 : this.outputGain;
-            const gainedMix =
-                this.endOfChainCb(finalMix).gain(masterGainSignal);
+            const gainedMix = gainFactory(
+                this.endOfChainCb(finalMix),
+                masterGainSignal,
+            );
 
             // Create root signal module with the final mix
             signalFactory(gainedMix, { id: 'ROOT_OUTPUT' });
@@ -2345,14 +2288,8 @@ export class DeferredCollection extends BaseCollection<DeferredModuleOutput> {
 
 /**
  * Crossfade `original` (dry) against `result` (wet) by `mix` (0 = dry, 5 = wet,
- * 2.5 = equal). The dry leg is amplitude-scaled by `mix` remapped 5→0, the wet
- * leg by `mix` clamped to 0–5, then both sum through `$mix`. Backs `.pipeMix`
- * and `.wet`.
- *
- * Both legs are first broadcast to the wider of the two channel counts via
- * {@link cycleToChannels} so a mismatched dry/wet width is not truncated — `$mix`
- * skips, not cycles, a narrower group's missing channels, so the extra channels
- * would otherwise drop one leg and decay to that of the other alone.
+ * 2.5 = equal) through `_crossfade`, which cycles the narrower leg across the
+ * wider. Backs `.pipeMix` and `.wet`.
  */
 function crossfadeMix(
     builder: GraphBuilder,
@@ -2360,24 +2297,17 @@ function crossfadeMix(
     result: AnyCollection,
     mix: PolySignal = 2.5,
 ): Collection {
-    const clampFactory = builder.getFactory('$clamp');
-    const remapFactory = builder.getFactory('$remap');
-    const mixFactory = builder.getFactory('$mix');
     const amount = builder.outputResolver.resolve(
         mix,
         'cv',
         captureSourceLocation(),
         MIX_SLOT,
     ) as PolySignal;
-    const channels = Math.max(original.length, result.length, 1);
-    const dry = cycleToChannels(original, channels);
-    const wet = cycleToChannels(result, channels);
-    return mixFactory([
-        dry.amplitude(
-            clampFactory(remapFactory(amount, 5, 0, 0, 5), { max: 5, min: 0 }),
-        ),
-        wet.amplitude(clampFactory(amount, { max: 5, min: 0 }) as PolySignal),
-    ]) as Collection;
+    return builder.getFactory('_crossfade')(
+        original,
+        result,
+        amount,
+    ) as Collection;
 }
 
 /** `receiver.wet(mix)`: fade the signal `receiver` was chained from against it. */

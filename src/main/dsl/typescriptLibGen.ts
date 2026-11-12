@@ -782,28 +782,6 @@ class BaseCollection {
   chunk(size: number): this[];
 
   /**
-   * Scale the signal by a linear factor (5 = unity, 2.5 = half, 10 = 2x).
-   * Creates a $scaleAndShift module internally.
-   *
-   * For perceptual (audio-taper) volume control, use {@link gain} instead.
-   * @param factor Scale factor as {@link Poly<Signal>}
-   * @returns The scaled {@link Collection} for chaining
-   * @example $sine("c4").amplitude(2.5)  // Half amplitude
-   */
-  amplitude(factor: Poly<Signal>): Collection;
-
-  /** Alias for {@link amplitude} */
-  amp(factor: Poly<Signal>): Collection;
-
-  /**
-   * Add a DC offset to the signal. Creates a $scaleAndShift module internally.
-   * @param offset Offset value as {@link Poly<Signal>}
-   * @returns The shifted {@link Collection} for chaining
-   * @example $sine("1hz").shift(2.5)  // Add a +2.5V DC offset
-   */
-  shift(offset: Poly<Signal>): Collection;
-
-  /**
    * Add another signal to this one, sample by sample.
    * @param operand Signal to add as {@link Poly<Signal>}
    * @returns The sum as a {@link Collection} for chaining
@@ -822,7 +800,7 @@ class BaseCollection {
   /**
    * Multiply this signal by another, sample by sample (2 = double).
    * To change amplitude with a 0–5 V signal such as \`$adsr\`, see
-   * {@link amp} and {@link gain}.
+   * \`.amp()\` and \`.gain()\`.
    * @param operand Factor as {@link Poly<Signal>}
    * @returns The product as a {@link Collection} for chaining
    * @example $sine('c3').mul($sine('2hz')).out()  // ring modulation
@@ -860,17 +838,6 @@ class BaseCollection {
    * @example $sine($saw('0.5hz').range(-4, 0).ceil().add('c4')).out()  // octaves down from C4
    */
   ceil(): Collection;
-
-  /**
-   * Scale the signal by a factor with a perceptual (audio taper) curve
-   * (5 = unity, 0 = silence).
-   *
-   * For linear amplitude scaling, use {@link amplitude} instead.
-   * @param level Amplitude level as {@link Poly<Signal>}
-   * @returns The scaled {@link Collection} for chaining
-   * @example $sine("c4").gain(2.5)
-   */
-  gain(level: Poly<Signal>): Collection;
 
   /**
    * Raise this signal to the power \`exponent\`, sample by sample. Negative
@@ -952,11 +919,11 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    *
    * @example
    * // Inline transform
-   * $sine('a').pipe(s => s.amplitude(0.5).shift(1))
+   * $sine('a').pipe(s => s.amp(0.5).shift(1))
    *
    * @example
    * // Reusable helper
-   * const tremolo = (c) => c.amplitude($sine('10hz').range(4, 5))
+   * const tremolo = (c) => c.amp($sine('10hz').range(4, 5))
    * $saw('c').pipe(tremolo).out()
    */
   pipe<T>(pipeFn: (self: this) => T): T;
@@ -1028,7 +995,7 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
  * 
  * @example
  * const voices = $c($sine('c3'), $sine('e3'), $sine('g3'))
- * voices.amplitude(0.5).out()          // Apply amplitude to all
+ * voices.amp(0.5).out()          // Apply amplitude to all
  * for (const v of voices) v.scope()    // Iterate
  * const arr = [...voices]              // Spread to array
  * voices[0]                            // Index access
@@ -1194,7 +1161,7 @@ function $note(noteName: string): number;
  * $signal modules, so they can be mixed in alongside module outputs.
  * @param args Signals, or arrays of them, to group
  * @returns A {@link Collection} of their channels
- * @example $c($sine('c3'), $sine('e3')).amplitude(0.5).out()
+ * @example $c($sine('c3'), $sine('e3')).amp(0.5).out()
  * @example $c(440, 'c4', $sine('e3'))  // Bare number/string lifted into $signal
  * @example $c($p('c4 e4'), 'g4')      // A pattern contributes its voices
  * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access: a one-channel Collection
@@ -1351,7 +1318,7 @@ function $deferred(channels?: number): DeferredCollection;
  *
  * @example
  * const vol = $slider("Volume", 0.5, 0, 1);
- * $sine(440).amplitude(vol).out();
+ * $sine(440).amp(vol).out();
  * @example
  * $sine($slider("Pitch", "440hz", "55hz", "1760hz")).out();
  * @example
@@ -1370,10 +1337,10 @@ function $slider(label: string, value: Note, min: Note, max: Note, group?: Contr
  * @returns A CollectionWithRange carrying the button output (range [0, 5])
  *
  * @example
- * $sine('c4').amplitude($adsr($btn("play"))).out();
+ * $sine('c4').amp($adsr($btn("play"))).out();
  * @example
  * // fixed 100 ms trigger per press, however long the button is held
- * $sine('c4').amplitude($adsr($btn("hit").hold(0.1))).out();
+ * $sine('c4').amp($adsr($btn("hit").hold(0.1))).out();
  */
 function $btn(label: string, group?: ControlGroup): CollectionWithRange;
 
@@ -1388,7 +1355,7 @@ function $btn(label: string, group?: ControlGroup): CollectionWithRange;
  * @returns A CollectionWithRange carrying the button output (range [0, 5])
  *
  * @example
- * $saw('c2').amplitude($toggleBtn("drone", false)).out();
+ * $saw('c2').amp($toggleBtn("drone", false)).out();
  */
 function $toggleBtn(label: string, initial: boolean, group?: ControlGroup): CollectionWithRange;
 
@@ -1426,14 +1393,14 @@ interface ControlGroupParams {
  * @example
  * const voice = $cGroup("Voice");
  * $sine($slider("Pitch", "c4", "c2", "c6", voice))
- *     .amplitude($adsr($btn("Play", voice)))
+ *     .amp($adsr($btn("Play", voice)))
  *     .out();
  * @example
  * // nested, with the inner group collapsed
  * const synth = $cGroup("Synth");
  * const amp = $cGroup("Amp", { collapsed: true, group: synth });
  * $saw($slider("Root", "c3", "c2", "c5", synth))
- *     .amplitude($slider("Level", 0.5, 0, 1, amp))
+ *     .amp($slider("Level", 0.5, 0, 1, amp))
  *     .out();
  */
 function $cGroup(label: string, params?: ControlGroupParams): ControlGroup;
@@ -1571,8 +1538,8 @@ function $g3(signals: Poly<Signal>): SignalGroup;
  * attack/release ballistics. Bands are summed and crossfaded against the
  * original input via \`depth\`.
  *
- * Per-band trim (\`lowGain\` / \`midGain\` / \`highGain\`) follows the
- * \`$scaleAndShift\` convention: 5 V = unity, 0 V = silence, 10 V = +6 dB.
+ * Per-band trim (\`lowGain\` / \`midGain\` / \`highGain\`) is linear, as in
+ * \`.amp()\`: 5 V = unity, 0 V = silence, 10 V = +6 dB.
  *
  * \`\`\`js
  * $ott($saw('c2')).out()

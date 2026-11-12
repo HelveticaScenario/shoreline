@@ -181,7 +181,7 @@ const CHORD_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const inv = $sine('0.05hz').range(0, 4)
                 const c = $chord('C3[maj7]', { inversion: inv })
-                $saw(c).amplitude(c._level).out()
+                $saw(c).amp(c._level).out()
             "#,
         },
         DocExample {

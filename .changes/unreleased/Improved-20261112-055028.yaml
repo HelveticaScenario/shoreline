@@ -1,0 +1,3 @@
+kind: Improved
+body: Changing a `.wet()` or `.pipeMix()` amount, or `$ott`'s `depth`, while a patch plays glides to the new blend instead of jumping to it.
+time: 2026-11-12T05:50:28.623356-05:00
