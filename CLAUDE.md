@@ -196,12 +196,13 @@ Models to emulate: `crates/modular_core/src/types.rs` (safety invariants), `src/
 
 Every PR that changes something a user can notice adds a release-note entry: `yarn changelog:new -k <Kind> -b "<text>"`, which writes `.changes/unreleased/*.yaml`. CI fails a PR that changes `src/` or `crates/` without one unless it is labelled `no-changelog` (refactors, internal tooling, test-only work). Users read these in the app before deciding to update, so write for musicians, not developers:
 
-- **Kinds:** `Breaking` (an existing patch can sound or behave differently, or stop running — includes any change to an experimental module's API or sound), `New`, `Improved`, `Fixed`. `Breaking` bumps the minor version (pre-1.0); the rest bump the patch.
+- **Kinds:** `Breaking` (a patch that ran on the last release can sound or behave differently, or stop running — includes any change to an experimental module's API or sound), `New`, `Improved`, `Fixed`. `Breaking` bumps the minor version (pre-1.0); the rest bump the patch.
+- **Write against the last release, not the last PR.** A release's notes describe what changed since the previous published version, read as one list. Before adding an entry, search `.changes/unreleased/` for the names your change touches (`grep -rn mixDown .changes/unreleased`): if an entry already covers that feature, edit it so it describes the result instead of adding one. Changing something users never had is not `Breaking`; renaming it rewrites the existing entry's names and examples, and removing it deletes the entry. CI accepts an edited or deleted entry the same as a new one.
 - **Say what the user can now do or what changes in their patch.** Name modules and params as they appear in the DSL (`$comp`, `attack`). No internals: no crate, file, struct, thread, or refactor names.
 - **One entry per change, one or two sentences.** Several entries in one PR are fine when it ships several user-visible changes.
 - **Every `Breaking` entry shows the migration**: a short before/after code block of a patch.
 
-Entries are reviewed in the PR diff; the release PR collects them.
+Entries are reviewed in the PR diff; the release PR collects them. Before merging the release PR, read its notes as a whole and merge or reword entries that overlap.
 
 ### Releasing
 
