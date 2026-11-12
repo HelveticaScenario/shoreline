@@ -142,7 +142,7 @@ const XOVER_DOCS: ModuleDocs = ModuleDocs {
     summary: "Three-band crossover",
     description: "Splits a sound into low, mid and high bands at two crossover points, so each \
                   band can be processed on its own and mixed back together. Its `thru` output \
-                  passes the sound through unchanged; tap `.o.low`, `.o.mid` and `.o.high` for the bands.",
+                  passes the sound through unchanged; tap `._low`, `._mid` and `._high` for the bands.",
     categories: &[ModuleCategory::Filter],
     sections: &[],
     examples: &[DocExample {
@@ -150,9 +150,9 @@ const XOVER_DOCS: ModuleDocs = ModuleDocs {
         code: r#"
             const bands = $xover($saw('c2'))
             $mix([
-              bands.o.low,
-              bands.o.mid.amp($sine('4hz').range(0, 5)),
-              bands.o.high,
+              bands._low,
+              bands._mid.amp($sine('4hz').range(0, 5)),
+              bands._high,
             ]).out()
         "#,
     }],

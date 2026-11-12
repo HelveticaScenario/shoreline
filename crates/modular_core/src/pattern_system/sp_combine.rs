@@ -416,18 +416,17 @@ mod tests {
         }
     }
 
-    // Repro for "$p.s('0 1 2 3', 'c(maj)').sub('0 5')" — the renderer-side
-    // pattern that triggered the user's bug report. Mirrors the pipeline in
+    // `$p.s('0 1 2 3', 'c(maj)').trans('0 5')`. Mirrors the pipeline in
     // `SeqPatternParam::from_sp_payload`: parse each source into a
     // `Pattern<IntervalValue>`, `strip_modifier_spans` each one, then
-    // `combine_sp` with `In` + `sub_interval_values`. The right operand
+    // `combine_sp` with `In` + `add_interval_values`. The right operand
     // ("0 5") has the '5' leaf at source offsets [2, 3). After the fold,
     // that span should land at pattern_idx == 1 (modifier_spans[0]) in
     // every hap where the right pattern's value contributes — and across
     // the cycle, at least one such hap must exist.
     #[test]
-    fn test_sp_sub_right_leaf_lands_at_pattern_idx_1() {
-        use crate::dsp::seq::interval_value::{IntervalValue, sub_interval_values};
+    fn test_sp_trans_right_leaf_lands_at_pattern_idx_1() {
+        use crate::dsp::seq::interval_value::{IntervalValue, add_interval_values};
         use crate::pattern_system::mini;
 
         // 1+2. Lower mini-notation to Pattern<IntervalValue>.
@@ -438,15 +437,15 @@ mod tests {
         let left = left.strip_modifier_spans();
         let right = right.strip_modifier_spans();
 
-        // 4. Combine with In mode + sub.
+        // 4. Combine with In mode.
         let combined: Pattern<IntervalValue> =
-            combine_sp(&left, &right, SpAlignmentMode::In, sub_interval_values);
+            combine_sp(&left, &right, SpAlignmentMode::In, add_interval_values);
 
         // 5. Query 1 cycle.
         let haps = combined.query_arc(Fraction::from_integer(0), Fraction::from_integer(1));
         assert!(
             !haps.is_empty(),
-            "expected haps from sub combine over 1 cycle"
+            "expected haps from the combine over 1 cycle"
         );
 
         // 6. For each hap, walk the context tree and collect

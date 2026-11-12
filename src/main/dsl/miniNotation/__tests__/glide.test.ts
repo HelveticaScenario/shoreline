@@ -9,10 +9,11 @@ import {
     isParsedPattern,
 } from '../index';
 import { replaceSignals } from '../../GraphBuilder';
+import { patternPayload } from '../../patternKinds';
 
 describe('.glide builder', () => {
     test('$p(...).glide(g) builds a GlidePattern wrapping the inner pattern', () => {
-        const r = $p('c4 e4 g4').glide(0.25);
+        const r = patternPayload($p('c4 e4 g4').glide(0.25));
 
         expect(isGlidePattern(r)).toBe(true);
         expect(r.__kind).toBe('GlidePattern');
@@ -22,7 +23,7 @@ describe('.glide builder', () => {
     });
 
     test('a string glide parses as a mini-notation number pattern', () => {
-        const r = $p('c4 e4 g4').glide('0 0.1 0.5');
+        const r = patternPayload($p('c4 e4 g4').glide('0 0.1 0.5'));
         if (typeof r.length === 'number') {
             throw new Error('expected a pattern glide, got a number');
         }
@@ -33,18 +34,20 @@ describe('.glide builder', () => {
     test('only a string glide appends an argument span', () => {
         expect($p('c4 e4').glide(0.1).argument_spans).toHaveLength(1);
         expect($p('c4 e4').glide('0 0.1').argument_spans).toHaveLength(2);
-        const chained = $p.s('0 2 4', 'c(maj)').add('0 5').glide('0.1');
+        const chained = patternPayload(
+            $p.s('0 2 4', 'c(maj)').trans('0 5').glide('0.1'),
+        );
         expect(chained.argument_spans).toHaveLength(3);
     });
 
     test('curve and mode default to linear, in', () => {
-        const r = $p('c4 e4').glide(0.25);
+        const r = patternPayload($p('c4 e4').glide(0.25));
         expect(r.curve).toBe('linear');
         expect(r.mode).toBe('in');
     });
 
     test('carries an explicit curve and mode', () => {
-        const r = $p('c4 e4').glide('0 0.25', 'expo', 'inOut');
+        const r = patternPayload($p('c4 e4').glide('0 0.25', 'expo', 'inOut'));
         expect(r.curve).toBe('expo');
         expect(r.mode).toBe('inOut');
         // Curve and mode are plain strings, never highlightable sources.
@@ -66,9 +69,9 @@ describe('.glide builder', () => {
         expect(() => $p('c4').glide(Infinity)).toThrow(MiniParseError);
     });
 
-    test('methods are non-enumerable — only the wire shape serializes', () => {
-        const r = $p('c4').glide('0 0.1');
-        expect(Object.keys(r).sort()).toEqual([
+    test('only the wire shape serializes', () => {
+        const r = patternPayload($p('c4').glide('0 0.1'));
+        expect(Object.keys(patternPayload(r)).sort()).toEqual([
             '__kind',
             'argument_spans',
             'curve',
@@ -88,7 +91,7 @@ describe('.glide builder', () => {
     });
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {
-        const out = replaceSignals($p('c4 e4').glide('0 0.25'));
+        const out = replaceSignals(patternPayload($p('c4 e4').glide('0 0.25')));
         expect(isGlidePattern(out)).toBe(true);
         if (!isGlidePattern(out)) return;
         expect(isParsedPattern(out.pattern)).toBe(true);
@@ -101,14 +104,14 @@ describe('.glide builder', () => {
 
 describe('.glide composition', () => {
     test('chains with .fast/.beat in any order', () => {
-        const r = $p('c4 e4').fast(2).glide(0.1).beat('0,2', 4);
+        const r = patternPayload($p('c4 e4').fast(2).glide(0.1).beat('0,2', 4));
         expect(isBeatPattern(r)).toBe(true);
         expect(isGlidePattern(r.pattern)).toBe(true);
         if (isGlidePattern(r.pattern)) {
             expect(isFastPattern(r.pattern.pattern)).toBe(true);
         }
 
-        const r2 = $p('c4').glide('0 0.1').fast(2);
+        const r2 = patternPayload($p('c4').glide('0 0.1').fast(2));
         expect(r2.__kind).toBe('FastPattern');
         expect(isGlidePattern(r2.pattern)).toBe(true);
         // Inner pattern span + glide span carry through the outer wrapper.

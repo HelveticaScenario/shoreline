@@ -1,8 +1,8 @@
 //! Scale-degree value type shared by the `$p.s` pattern path.
 //!
 //! `$p.s(source, scale)` parses integer scale degrees into [`IntervalValue`]s,
-//! folds chained sources through `sp_combine` with [`add_interval_values`] /
-//! [`sub_interval_values`], then resolves each degree to a V/Oct voltage. The
+//! folds chained sources through `sp_combine` with [`add_interval_values`],
+//! then resolves each degree to a V/Oct voltage. The
 //! `$cycle` seq runtime (`seq_value::from_sp_payload`) consumes the result.
 
 /// Value type for scale-degree patterns: either a degree or a rest.
@@ -91,14 +91,6 @@ pub(crate) const EMPTY_PATTERN_SOURCE_ERR: &str =
 pub(crate) fn add_interval_values(a: &IntervalValue, b: &IntervalValue) -> IntervalValue {
     match (a.degree(), b.degree()) {
         (Some(da), Some(db)) => IntervalValue::Degree(da + db),
-        _ => IntervalValue::Rest,
-    }
-}
-
-/// Subtract two `IntervalValue`s. Rest - anything (or anything - Rest) = Rest.
-pub(crate) fn sub_interval_values(a: &IntervalValue, b: &IntervalValue) -> IntervalValue {
-    match (a.degree(), b.degree()) {
-        (Some(da), Some(db)) => IntervalValue::Degree(da - db),
         _ => IntervalValue::Rest,
     }
 }

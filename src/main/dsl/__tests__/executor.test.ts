@@ -250,14 +250,14 @@ describe('filters', () => {
 describe('envelopes', () => {
     test('$adsr with gate input and config', () => {
         const patch = execPatch(
-            '$adsr($clock.o.beatTrigger, { attack: 0.1, decay: 0.2, sustain: 3, release: 0.5 }).out()',
+            '$adsr($clock._beatTrigger, { attack: 0.1, decay: 0.2, sustain: 3, release: 0.5 }).out()',
         );
         expect(findModules(patch, '$adsr').length).toBe(1);
     });
 
     test('$perc with trigger', () => {
         const patch = execPatch(
-            '$perc($clock.o.beatTrigger, { decay: 0.3 }).out()',
+            '$perc($clock._beatTrigger, { decay: 0.3 }).out()',
         );
         expect(findModules(patch, '$perc').length).toBe(1);
     });
@@ -280,7 +280,7 @@ describe('polyphony', () => {
     test('an output with fixed channels keeps them on a wider module', () => {
         const patch = execPatch(`
             const cloud = $granular(0, 0, { freq: ['c4', 'e4', 'g4'] })
-            $sine(cloud.o.voices).out()
+            $sine(cloud._voices).out()
             $saw(cloud).out()
         `);
         const perVoice = findModules(patch, '$sine')[0].params.freq;
@@ -487,7 +487,7 @@ describe('modulation routing', () => {
     test('subtractive synth voice (osc → env → filter)', () => {
         const source = `
             const osc = $saw("C3")
-            const env = $adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.3, sustain: 2, release: 0.5 })
+            const env = $adsr($clock._beatTrigger, { attack: 0.01, decay: 0.3, sustain: 2, release: 0.5 })
             $lpf(osc, env.range("C3", "C6")).out()
         `;
         const patch = execPatch(source);
@@ -543,7 +543,7 @@ describe('sequencing', () => {
 
     test('a channel of a sequence feeds each input its fitting output', () => {
         const patch = execPatch(`
-            const seq = $p('[c4,e4] [g4,b4]').c;
+            const seq = $p('[c4,e4] [g4,b4]');
             $sine(seq[1]).amp($perc(seq[1])).out();
         `);
         const [cycle] = findModules(patch, '$cycle');
@@ -557,10 +557,11 @@ describe('sequencing', () => {
         ]);
     });
 
-    test('.c is .cycle(), made once per pattern', () => {
+    test('a pattern plays through one $cycle, however it is used', () => {
         const patch = execPatch(`
             const seq = $p("c4 e4");
-            $sine(seq.c).amp($perc(seq.c.o.trig)).out();
+            $sine(seq).amp($perc(seq._trig)).out();
+            seq.scope();
         `);
         const [cycle] = findModules(patch, '$cycle');
         const [sine] = findModules(patch, '$sine');
@@ -579,30 +580,73 @@ describe('sequencing', () => {
         '$p("c4").struct("x ~")',
         '$p("c4").beat("0,7", 16)',
         '$p("c4 e4").glide(0.25)',
-    ])('%s has .c', (pattern) => {
-        const patch = execPatch(`const p = ${pattern}; $sine(p.c).out(); p.c`);
+    ])('%s is its $cycle', (pattern) => {
+        const patch = execPatch(
+            `const p = ${pattern}; $sine(p).out(); p.mul(2).out(); p[0]; [...p]; p._gate`,
+        );
         expect(findModules(patch, '$cycle').length).toBe(1);
+    });
+
+    test('a pattern that is never played makes no $cycle', () => {
+        const patch = execPatch(
+            'const p = $p("c4 e4"); p.fast(2); $sine(0).out()',
+        );
+        expect(findModules(patch, '$cycle').length).toBe(0);
+    });
+
+    test('a pattern passed to $cycle stays a pattern', () => {
+        const patch = execPatch(
+            'const p = $p("c4 e4"); $sine($cycle(p)).out(); $p.arrange([2, p]).out()',
+        );
+        const cycles = findModules(patch, '$cycle');
+        expect(cycles.length).toBe(2);
+        expect(cycles[0].params.pattern).toMatchObject({
+            __kind: 'ParsedPattern',
+        });
+        expect(cycles[1].params.pattern).toMatchObject({
+            __kind: 'ArrangePattern',
+            sections: [{ pattern: { __kind: 'ParsedPattern' } }],
+        });
+    });
+
+    test('a pattern reads as a signal in helpers and collection arguments', () => {
+        const patch = execPatch(`
+            const p = $p("c4 e4");
+            $sine('c4').add(p).out();
+            $c(p, 'g4').out();
+            $sine('c3').out({ gain: p });
+        `);
+        expect(findModules(patch, '$cycle').length).toBe(1);
+    });
+
+    test('.add on a scale pattern is the collection method', () => {
+        const patch = execPatch('$sine($p.s("0 2", "c(maj)").add(1)).out()');
+        expect(findModules(patch, '$cycle').length).toBe(1);
+        expect(findModules(patch, '$cycle')[0].params.pattern).toMatchObject({
+            __kind: 'SpPattern',
+            ops: [],
+        });
     });
 
     test('.cycle() and separately built patterns make their own $cycle', () => {
         const patch = execPatch(`
             const p = $p("c4 e4");
-            $sine(p.c).out();
+            $sine(p).out();
             $sine(p.cycle()).out();
-            $sine(p.fast(2).c).out();
-            $sine(p.fast(2).c).out();
+            $sine(p.fast(2)).out();
+            $sine(p.fast(2)).out();
         `);
         expect(findModules(patch, '$cycle').length).toBe(4);
     });
 
-    test('.c is made again for each run of a pattern kept between runs', () => {
-        const source = '$p.kept ??= $p("c4 e4"); $sine($p.kept.c).out()';
+    test('a pattern kept between runs plays through a new $cycle each run', () => {
+        const source = '$p.kept ??= $p("c4 e4"); $sine($p.kept).out()';
         execPatch(source);
         expect(findModules(execPatch(source), '$cycle').length).toBe(1);
     });
 
     test('an array in a signal param spreads the collections inside it', () => {
-        const patch = execPatch('$sine([$p("c4, g4").c, "e4"]).out()');
+        const patch = execPatch('$sine([$p("c4, g4"), "e4"]).out()');
         const [sine] = findModules(patch, '$sine');
         expect(sine.params.freq).toHaveLength(3);
     });
@@ -618,12 +662,12 @@ describe('sequencing', () => {
         '$sine("c3").out({ gain: $p("3 4") })',
         '$sine("c3").outMono(1, $p("0.5 1"))',
         '$signal(1).range($p("0 1"), 5, -5, 5).out()',
-        '$c($sine("c3")).range(0, $p("2 3")).out()',
+        '$c($sine("c3")).range(0, $p("2 3"), -5, 5).out()',
         '$c($p("c4 e4")).out()',
         '$quantizer($sine("c4"), $p("c4 e4 g4")).out()',
         '$pWarp($sine("c3"), $phase.mirror($p("0 1"))).out()',
-    ])('a pattern is not a signal: %s', (source) => {
-        expect(() => execPatch(source)).toThrow(/is a pattern, not a signal/);
+    ])('a pattern is its $cycle where a signal belongs: %s', (source) => {
+        expect(findModules(execPatch(source), '$cycle').length).toBe(1);
     });
 
     test('MIDI-number and scale-interval signal strings are rejected', () => {
@@ -631,8 +675,8 @@ describe('sequencing', () => {
         expect(() => execPatch('$sine("4s(C:major)").out()')).toThrow();
     });
 
-    test('$c lifts single values to $signal and takes a played pattern', () => {
-        const patch = execPatch('$c($p("c4 e4").c, "c4", 440).out()');
+    test('$c lifts single values to $signal and takes a pattern', () => {
+        const patch = execPatch('$c($p("c4 e4"), "c4", 440).out()');
         expect(findModules(patch, '$cycle').length).toBe(1);
         const lifted = findModules(patch, '$signal').filter(
             (m) => m.params.value === 'c4' || m.params.value === 440,
@@ -663,7 +707,7 @@ describe('sequencing', () => {
         expect(findModules(single, '$cycle').length).toBe(1);
         // Chained .add folds a second source additively.
         const chained = execPatch(
-            '$cycle($p.s("0 2 4", "C(major)").add("0 3")).out()',
+            '$cycle($p.s("0 2 4", "C(major)").trans("0 3")).out()',
         );
         expect(findModules(chained, '$cycle').length).toBe(1);
     });
@@ -974,13 +1018,13 @@ describe('sequencing', () => {
         expect(findModules(patch, '$cycle').length).toBe(1);
     });
 
-    test('$p.s(...).sub(...) wire payload preserves chain RHS argument_spans[1]', () => {
+    test('$p.s(...).trans(...) wire payload preserves chain RHS argument_spans[1]', () => {
         // Regression: the chain RHS span must be captured by the analyzer
         // and carried through to the SpPattern wire payload as
         // argument_spans[1], pointing at the literal '0 5' in the user
         // source so editor highlighting can follow it.
         const source =
-            "const pat = $p.s('0 1 2 3', 'c(maj)').sub('0 5')\n" +
+            "const pat = $p.s('0 1 2 3', 'c(maj)').trans('0 5')\n" +
             'const seq = $cycle(pat)\n' +
             'seq.out()';
         const patch = execPatch(source);
@@ -991,13 +1035,13 @@ describe('sequencing', () => {
         const pattern = cycles[0].params.pattern as {
             __kind: string;
             sources: Array<{ source: string }>;
-            ops: Array<{ op: string; mode: string }>;
+            ops: Array<{ mode: string }>;
             argument_spans: Array<{ start: number; end: number }>;
         };
         expect(pattern.__kind).toBe('SpPattern');
         expect(pattern.sources.length).toBe(2);
         expect(pattern.sources[1].source).toBe('0 5');
-        expect(pattern.ops).toEqual([{ op: 'sub', mode: 'in' }]);
+        expect(pattern.ops).toEqual([{ mode: 'in' }]);
 
         // argument_spans must be parallel to sources: one per source.
         expect(pattern.argument_spans.length).toBe(2);
@@ -1026,12 +1070,12 @@ describe('sequencing', () => {
         // Regression: chain ops (.add/.sub/...) applied to a pattern stored
         // in a const variable must still resolve their chain root back to
         // `$p.s(...)` so the analyzer registers the RHS literal span. Before
-        // the fix only inline `$p.s(...).add(...)` chains were tracked; a
-        // `const p = $p.s(...)` followed by `p.add('0 5')` fell back to the
+        // the fix only inline `$p.s(...).trans(...)` chains were tracked; a
+        // `const p = $p.s(...)` followed by `p.trans('0 5')` fell back to the
         // {0,0} sentinel and produced no editor highlight.
         const source =
             "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
-            "const p2 = p1.add('0,2')\n" +
+            "const p2 = p1.trans('0,2')\n" +
             'const seq = $cycle(p2)\n' +
             'seq.out()';
         const patch = execPatch(source);
@@ -1056,12 +1100,12 @@ describe('sequencing', () => {
     });
 
     test('$p.s nested chain on a const-bound pattern captures every RHS span', () => {
-        // Multi-link chain (`.sub(...).add.squeeze(...)`) rooted at a const
+        // Multi-link chain (`.trans(...).trans.squeeze(...)`) rooted at a const
         // pattern, applied inline inside `$cycle`. Every chained RHS literal
         // must get a real span, not the {0,0} fallback.
         const source =
             "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
-            "const seq = $cycle(p1.sub('7').add.squeeze('{0 1 2 3}%2'))\n" +
+            "const seq = $cycle(p1.trans('7').trans.squeeze('{0 1 2 3}%2'))\n" +
             'seq.out()';
         const patch = execPatch(source);
         const cycles = findModules(patch, '$cycle');
@@ -1097,8 +1141,8 @@ describe('sequencing', () => {
         // p2 derives from p1, p3 chains off p2.
         const source =
             "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
-            "const p2 = p1.add('0,2')\n" +
-            "const p3 = p2.sub('1')\n" +
+            "const p2 = p1.trans('0,2')\n" +
+            "const p3 = p2.trans('1')\n" +
             'const seq = $cycle(p3)\n' +
             'seq.out()';
         const patch = execPatch(source);
@@ -1125,7 +1169,7 @@ describe('sequencing', () => {
         // brackets the right literal.
         const source =
             "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
-            "const seq = $cycle(p1.sub('7').add.squeeze('{0 1 2 3}%2'))\n" +
+            "const seq = $cycle(p1.trans('7').trans.squeeze('{0 1 2 3}%2'))\n" +
             'seq.out()';
         const patch = execPatch(source);
         const cycle = findModules(patch, '$cycle')[0];
@@ -1196,14 +1240,14 @@ describe('utilities', () => {
 
     test('$sah (sample and hold)', () => {
         const patch = execPatch(
-            '$sah($noise("white"), $clock.o.beatTrigger).out()',
+            '$sah($noise("white"), $clock._beatTrigger).out()',
         );
         expect(findModules(patch, '$sah').length).toBe(1);
     });
 
     test('$slew', () => {
         const patch = execPatch(
-            '$slew($clock.o.beatTrigger, { rise: 0.01, fall: 0.01 }).out()',
+            '$slew($clock._beatTrigger, { rise: 0.01, fall: 0.01 }).out()',
         );
         expect(findModules(patch, '$slew').length).toBe(1);
     });
@@ -1231,7 +1275,7 @@ describe('utilities', () => {
     test('$quantizer takes a signal scale and a gate', () => {
         const patch = execPatch(
             'const midi = $midiCV({ channels: 4 })\n' +
-                '$quantizer($sine("1hz"), midi, { gate: midi.o.gate }).out()',
+                '$quantizer($sine("1hz"), midi, { gate: midi._gate }).out()',
         );
         expect(findModules(patch, '$chord').length).toBe(0);
         const [midi] = findModules(patch, '$midiCV');
@@ -1273,7 +1317,7 @@ describe('utilities', () => {
     });
 
     test('$clockDivider', () => {
-        const patch = execPatch('$clockDivider($clock.o.beatTrigger, 4).out()');
+        const patch = execPatch('$clockDivider($clock._beatTrigger, 4).out()');
         expect(findModules(patch, '$clockDivider').length).toBe(1);
     });
 
@@ -1829,14 +1873,14 @@ describe('built-in modules', () => {
     test('$clock is available and has outputs', () => {
         // Use $clock outputs as trigger input to an envelope
         const patch = execPatch(
-            '$adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
+            '$adsr($clock._beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
         );
         expect(patch.modules.find((m) => m.id === 'ROOT_CLOCK')).toBeDefined();
     });
 
-    test('$clock.o.beatTrigger can modulate another module', () => {
+    test('$clock._beatTrigger can modulate another module', () => {
         const patch = execPatch(
-            '$adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
+            '$adsr($clock._beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
         );
         expect(patch.modules.find((m) => m.id === 'ROOT_CLOCK')).toBeDefined();
         expect(findModules(patch, '$adsr').length).toBe(1);
@@ -1886,7 +1930,7 @@ describe('fx modules', () => {
 
     test('$enosc', () => {
         const patch = execPatch(
-            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" }).o.odd.out()',
+            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" })._odd.out()',
         );
         const [enosc] = findModules(patch, '$enosc');
         expect(enosc.params.scale).toEqual({ type: 'minor' });
@@ -2037,7 +2081,7 @@ describe('complex patches', () => {
         const source = `
             const seq = $cycle($p("c3 e3 g3 b3"))
             const osc = $saw(seq)
-            const env = $adsr($clock.o.beatTrigger, { attack: 0.01, decay: 0.2, sustain: 2, release: 0.3 })
+            const env = $adsr($clock._beatTrigger, { attack: 0.01, decay: 0.2, sustain: 2, release: 0.3 })
             $lpf(osc, env.range("C3", "C6")).out()
         `;
         const patch = execPatch(source);

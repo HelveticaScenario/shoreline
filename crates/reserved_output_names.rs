@@ -1,11 +1,13 @@
 /// Names taken by the built-in properties and methods of `BaseCollection`,
-/// `Collection`, `CollectionWithRange` and `DeferredCollection`, and by
-/// JavaScript built-in properties.
+/// `Collection`, `CollectionWithRange` and `DeferredCollection`, by the
+/// methods of patterns, and by JavaScript built-in properties.
 ///
 /// A module output cannot take one of these names. Nor can the first segment
 /// of a module's name after its `$`: every chainable module is also a method
 /// of collections (`$lpf` as `.lpf(...)`, `$mi.chorus` as `.mi.chorus(...)`),
-/// so `$gain` or `$gain.soft` would shadow `.gain(...)`.
+/// so `$gain` or `$gain.soft` would shadow `.gain(...)`. A pattern has every
+/// collection member beside its own methods, so those are taken too; `$cycle`
+/// alone keeps its name, being what a pattern's `.cycle(...)` calls.
 ///
 /// This file is the single source of truth. It is `include!()`-ed by both
 /// `modular_derive` (compile-time validation) and `modular` (NAPI export to JS).
@@ -17,7 +19,6 @@ const RESERVED_OUTPUT_NAMES: &[&str] = &[
     "items",
     "length",
     "channelViews",
-    "o",
     // BaseCollection methods
     "channel",
     "slice",
@@ -49,6 +50,14 @@ const RESERVED_OUTPUT_NAMES: &[&str] = &[
     "range",
     // DeferredCollection methods
     "set",
+    // Pattern methods
+    "cycle",
+    "fast",
+    "slow",
+    "struct",
+    "beat",
+    "glide",
+    "trans",
     // JavaScript built-in property names
     "constructor",
     "prototype",

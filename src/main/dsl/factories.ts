@@ -18,7 +18,7 @@ import './chainMethods';
 import { sanitizeOutputName } from './outputNames';
 import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
-import { refusePattern } from './patternKinds';
+import { patternPayload } from './patternKinds';
 import { isSignalGroupLike } from './signalGroups';
 import { signalParamsOf } from './signalParams';
 import {
@@ -81,8 +81,8 @@ function isParsedPatternLike(
 }
 
 /**
- * Structural check for a chained `SpPattern` (returned by `$p.s().add(...)` /
- * `.sub(...)`). Each chained source has a parallel `argument_spans[i]`
+ * Structural check for a chained `SpPattern` (returned by
+ * `$p.s().trans(...)`). Each chained source has a parallel `argument_spans[i]`
  * entry used to map runtime per-source highlights back to editor literals.
  */
 function isSpPatternLike(
@@ -241,10 +241,10 @@ export function deriveChannelCountChecked(
 }
 
 // Return type for module factories: one output is a collection; several are
-// the root collection with every output by name under `o`.
+// the root collection with every output by name as `_<name>`.
 type PolyOutput = Collection | CollectionWithRange;
 type MultiOutput = PolyOutput & {
-    readonly o: Readonly<Record<string, PolyOutput>>;
+    readonly [output: `_${string}`]: PolyOutput;
 };
 type ModuleReturn = PolyOutput | MultiOutput;
 
@@ -366,8 +366,7 @@ export class DSLContext {
      * Prepare a signal param's value for an input of class `inputClass`:
      * resolve every module root in the value itself, array elements, and the
      * contents of a `$gN` group, and spread the collections inside an array.
-     * `slot` names the value in resolution records and, after `module`, when
-     * a pattern in it is refused.
+     * `slot` names the value in resolution records.
      */
     private signalParam(
         value: unknown,
@@ -389,7 +388,6 @@ export class DSLContext {
             };
         }
         const resolve = (v: unknown, s: string): unknown => {
-            refusePattern(v, `${module}: ${s}`);
             return this.builder.outputResolver.resolve(
                 v,
                 inputClass,
@@ -422,6 +420,9 @@ export class DSLContext {
             .filter((p) => p.isWavInput)
             .map((p) => p.name);
         const signalParams = signalParamsOf(schema, processed);
+        const signalParamNames = new Set(
+            [...signalParams.flat, ...signalParams.nested].map((p) => p.name),
+        );
 
         return (...args: any[]): ModuleReturn => {
             const sourceLocation = captureSourceLocation();
@@ -475,6 +476,16 @@ export class DSLContext {
                 }
             }
 
+            // In a param that takes no signal a pattern is the pattern
+            // itself, where anywhere else it reads as its `$cycle`.
+            for (const [name, value] of Object.entries(params)) {
+                if (!signalParamNames.has(name)) {
+                    params[name] = Array.isArray(value)
+                        ? value.map(patternPayload)
+                        : patternPayload(value);
+                }
+            }
+
             // The engine only accepts a signal scale; a spec string is
             // shorthand for the notes of `$chord(spec)`.
             for (const name of scaleParamNames) {
@@ -498,7 +509,7 @@ export class DSLContext {
             // attached through const indirections — `const p = $p(...); $cycle(p)`
             // works without the static analyzer having to reason about $p).
             //
-            // $p.s(...).add(...) chains arrive as SpPattern objects whose
+            // $p.s(...).trans(...) chains arrive as SpPattern objects whose
             // `argument_spans[i]` lines up with `sources[i]`. Emit those
             // as `<paramName>.0`, `<paramName>.1`, ... matching the multi-
             // source `pattern.<i>` keys the Rust side puts on `param_spans`.
@@ -573,9 +584,9 @@ export class DSLContext {
             } else if (outputs.length === 1) {
                 return node._output(outputs[0].name);
             }
-            // Multiple outputs: the root's `o` holds every output by name,
-            // each a separate untagged object. Read as a signal itself, the
-            // root is the output a `cv` input takes.
+            // Multiple outputs: the root holds every output by name as
+            // `_<name>`, each a separate untagged object. Read as a signal
+            // itself, the root is the output a `cv` input takes.
             const named: Record<string, Collection | CollectionWithRange> = {};
             let root: Collection | CollectionWithRange;
             const cvOutput = chooseOutput(rootOutputs, 'cv');
@@ -587,7 +598,7 @@ export class DSLContext {
                 }
             }
             markRoot(root!, { outputs: rootOutputs, values: named });
-            return Object.assign(root!, { o: Object.freeze(named) });
+            return root! as MultiOutput;
         };
     }
 

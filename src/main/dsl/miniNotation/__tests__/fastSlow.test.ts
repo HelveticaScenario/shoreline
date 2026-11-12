@@ -8,10 +8,12 @@ import {
     isSlowPattern,
 } from '../index';
 import { replaceSignals } from '../../GraphBuilder';
+import { patternPayload } from '../../patternKinds';
 
 describe('playing a pattern outside a patch run', () => {
-    test('.c and .cycle() say a pattern is played only while a patch runs', () => {
-        expect(() => $p('c4 e4').c).toThrow(
+    test('a collection member and .cycle() say a pattern is played only while a patch runs', () => {
+        const pattern = $p('c4 e4') as unknown as { out(): unknown };
+        expect(() => pattern.out()).toThrow(
             /only be played while a patch runs/,
         );
         expect(() => $p('c4 e4').cycle()).toThrow(
@@ -72,11 +74,11 @@ describe('.fast / .slow builders', () => {
         // Number factor: only the wrapped pattern's span(s). The bare number is
         // a constant and is not highlightable.
         expect($p('c4 e4').fast(2).argument_spans).toHaveLength(1);
-        const chainedNum = $p.s('0 2 4', 'c(maj)').add('0 5').fast(2);
+        const chainedNum = $p.s('0 2 4', 'c(maj)').trans('0 5').fast(2);
         expect(chainedNum.argument_spans).toHaveLength(2);
         // String factor: wrapped pattern's span(s) + the factor span.
         expect($p('c4 e4').fast('2 4').argument_spans).toHaveLength(2);
-        const chainedStr = $p.s('0 2 4', 'c(maj)').add('0 5').fast('2 4');
+        const chainedStr = $p.s('0 2 4', 'c(maj)').trans('0 5').fast('2 4');
         expect(chainedStr.argument_spans).toHaveLength(3);
     });
 
@@ -92,9 +94,9 @@ describe('.fast / .slow builders', () => {
         expect(r2.argument_spans).toHaveLength(3);
     });
 
-    test('methods are non-enumerable — only the wire shape serializes', () => {
+    test('only the wire shape serializes', () => {
         const r = $p('c4').fast(2);
-        expect(Object.keys(r).sort()).toEqual([
+        expect(Object.keys(patternPayload(r)).sort()).toEqual([
             '__kind',
             'argument_spans',
             'factor',
@@ -110,7 +112,7 @@ describe('.fast / .slow builders', () => {
     });
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {
-        const out = replaceSignals($p('c4 e4').fast('2 4'));
+        const out = replaceSignals(patternPayload($p('c4 e4').fast('2 4')));
         expect(isFastPattern(out)).toBe(true);
         if (!isFastPattern(out)) return;
         expect(isParsedPattern(out.pattern)).toBe(true);

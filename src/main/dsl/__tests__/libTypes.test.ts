@@ -70,14 +70,14 @@ describe('generated DSL lib', () => {
                 $saw([a, b[0]]).out();
                 $r($sine('1hz'), $sine('2hz')[0]).range(0, 1);
                 $deferred(2)[1].set($sine('c3'));
-                $sine($clock.o.tempo.div(60)).out();
+                $sine($clock._tempo.div(60)).out();
                 const lane = $outLane('bass');
                 lane[0].level.range(0, 1);
                 for (const c of lane) c.pan.range(-1, 1);
-                const seq = $p('[c4,e4] [g4,b4]').c;
+                const seq = $p('[c4,e4] [g4,b4]');
                 $perc(seq[1]).out();
-                $perc(seq[1].o.trig).out();
-                for (const voice of seq) voice.o.gate.scope();
+                $perc(seq[1]._trig).out();
+                for (const voice of seq) voice._gate.scope();
             `).filter((d) => d.startsWith(PATCH_FILE));
         expect(patchErrors).toEqual([]);
     });

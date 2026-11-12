@@ -150,7 +150,7 @@ export function resolveRef(
     if (defName === 'ParsedPatternPayload') {
         return 'ParsedPattern';
     }
-    // SpPatternPayload is the chained `$p.s(...).add(...)` shape; the DSL
+    // SpPatternPayload is the chained `$p.s(...).trans(...)` shape; the DSL
     // exposes it as the named `SpPattern` type rather than an inlined
     // structural literal.
     if (defName === 'SpPatternPayload') {

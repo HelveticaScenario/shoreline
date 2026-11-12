@@ -116,7 +116,7 @@ const SWARM_DOCS: ModuleDocs = ModuleDocs {
             title: "Bursts",
             code: r#"
                 const seq = $cycle($p('c3 [~ c3] eb3 <g3 bb2>'))
-                $mi.swarm(seq, { trigger: seq.o.trig }).o.sine.out()
+                $mi.swarm(seq, { trigger: seq._trig })._sine.out()
             "#,
         },
     ],

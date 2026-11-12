@@ -9,6 +9,7 @@ import {
     isStructPattern,
 } from '../index';
 import { replaceSignals } from '../../GraphBuilder';
+import { patternPayload } from '../../patternKinds';
 
 describe('.struct builder', () => {
     test('$p(...).struct(s) builds a StructPattern wrapping the inner pattern', () => {
@@ -41,13 +42,13 @@ describe('.struct builder', () => {
 
     test('the bool pattern always appends an argument span', () => {
         expect($p('c4 e4').struct('x ~').argument_spans).toHaveLength(2);
-        const chained = $p.s('0 2 4', 'c(maj)').add('0 5').struct('x ~');
+        const chained = $p.s('0 2 4', 'c(maj)').trans('0 5').struct('x ~');
         expect(chained.argument_spans).toHaveLength(3);
     });
 
-    test('methods are non-enumerable — only the wire shape serializes', () => {
+    test('only the wire shape serializes', () => {
         const r = $p('c4').struct('x ~');
-        expect(Object.keys(r).sort()).toEqual([
+        expect(Object.keys(patternPayload(r)).sort()).toEqual([
             '__kind',
             'argument_spans',
             'bool_pattern',
@@ -62,7 +63,9 @@ describe('.struct builder', () => {
     });
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {
-        const out = replaceSignals($p('c4 e4').struct('x ~ x x'));
+        const out = replaceSignals(
+            patternPayload($p('c4 e4').struct('x ~ x x')),
+        );
         expect(isStructPattern(out)).toBe(true);
         if (!isStructPattern(out)) return;
         expect(isParsedPattern(out.pattern)).toBe(true);
@@ -72,7 +75,7 @@ describe('.struct builder', () => {
 
 describe('.beat builder', () => {
     test('$p(...).beat(t, div) builds a BeatPattern wrapping the inner pattern', () => {
-        const r = $p('c2').beat('0,7,10', 16);
+        const r = patternPayload($p('c2').beat('0,7,10', 16));
 
         expect(isBeatPattern(r)).toBe(true);
         expect(r.__kind).toBe('BeatPattern');
@@ -88,11 +91,11 @@ describe('.beat builder', () => {
     });
 
     test('t and div each accept a number or a mini-notation string', () => {
-        const both = $p('c2').beat(0, 4);
+        const both = patternPayload($p('c2').beat(0, 4));
         expect(both.t).toBe(0);
         expect(both.div).toBe(4);
 
-        const divPattern = $p('c2').beat('0,7', '<16 8>');
+        const divPattern = patternPayload($p('c2').beat('0,7', '<16 8>'));
         if (typeof divPattern.div === 'number') {
             throw new Error('expected a pattern div, got a number');
         }
@@ -113,9 +116,9 @@ describe('.beat builder', () => {
         expect(() => $p('c2').beat(0, Infinity)).toThrow(MiniParseError);
     });
 
-    test('methods are non-enumerable — only the wire shape serializes', () => {
-        const r = $p('c2').beat('0,7', 16);
-        expect(Object.keys(r).sort()).toEqual([
+    test('only the wire shape serializes', () => {
+        const r = patternPayload($p('c2').beat('0,7', 16));
+        expect(Object.keys(patternPayload(r)).sort()).toEqual([
             '__kind',
             'argument_spans',
             'div',
@@ -128,7 +131,9 @@ describe('.beat builder', () => {
     });
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {
-        const out = replaceSignals($p('c2 g2').beat('0,7,10', 16));
+        const out = replaceSignals(
+            patternPayload($p('c2 g2').beat('0,7,10', 16)),
+        );
         expect(isBeatPattern(out)).toBe(true);
         if (!isBeatPattern(out)) return;
         expect(isParsedPattern(out.pattern)).toBe(true);
@@ -141,7 +146,9 @@ describe('.beat builder', () => {
 
 describe('.struct / .beat composition', () => {
     test('chain and nest with .fast/.slow in any order', () => {
-        const r = $p('c4 e4').fast(2).struct('x ~ x x').beat('0,2', 4);
+        const r = patternPayload(
+            $p('c4 e4').fast(2).struct('x ~ x x').beat('0,2', 4),
+        );
         expect(r.__kind).toBe('BeatPattern');
         expect(isStructPattern(r.pattern)).toBe(true);
         if (isStructPattern(r.pattern)) {
@@ -158,7 +165,9 @@ describe('.struct / .beat composition', () => {
         expect(onSp.__kind).toBe('StructPattern');
         expect(onSp.pattern.__kind).toBe('SpPattern');
 
-        const onArrange = $p.arrange([2, $p('c4')], [2, $p('e4')]).beat(0, 4);
+        const onArrange = patternPayload(
+            $p.arrange([2, $p('c4')], [2, $p('e4')]).beat(0, 4),
+        );
         expect(onArrange.__kind).toBe('BeatPattern');
         expect(onArrange.pattern.__kind).toBe('ArrangePattern');
     });

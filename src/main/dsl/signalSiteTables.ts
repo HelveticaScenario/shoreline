@@ -6,6 +6,7 @@ import type {
 import { CHAIN_METHODS } from './chainMethods';
 import { resolvableOutputs } from './outputResolution';
 import { processModuleSchema, qualifiesForChain } from './paramsSchema';
+import { PATTERN_KINDS } from './patternKinds';
 import { signalParamsOf } from './signalParams';
 import { qualifiedMultiOutputInterfaceName } from './typescriptLibGen';
 
@@ -43,6 +44,13 @@ export function buildSignalSiteTables(
         if ((schema.outputs ?? []).length > 1) {
             tables.roots[qualifiedMultiOutputInterfaceName(schema)] =
                 resolvableOutputs(schema);
+        }
+        // A pattern is the root of its `$cycle`; its lib type is named for
+        // its kind.
+        if (schema.name === '$cycle') {
+            for (const kind of PATTERN_KINDS) {
+                tables.roots[kind] = resolvableOutputs(schema);
+            }
         }
     }
     return tables;

@@ -362,12 +362,21 @@ type BufferOutputRef = {
 type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : never;
 
 /**
- * A parsed mini-notation pattern — returned by \`$p(source)\`, passed to
- * \`$cycle\` as its pattern argument. Opaque to user code; construct with
- * \`$p(...)\` and chain \`.fast\`/\`.slow\`/\`.struct\`/\`.beat\`/\`.glide\`.
- * Never build one by hand.
+ * The \`$cycle\` sequencer a pattern plays through, as the pattern has it.
+ * What a member gives back (a channel, a slice, the receiver of \`.out()\`)
+ * is that sequencer's signal, no longer a pattern.
  */
-type ParsedPattern = {
+type PatternModule = { [K in keyof CycleOutputs]: CycleOutputs[K] };
+
+/**
+ * A parsed mini-notation pattern, returned by \`$p(source)\`. It is also the
+ * \`$cycle\` sequencer that plays it: use it wherever a module goes, read
+ * its outputs (\`_gate\`, \`_trig\`) and chain any collection method.
+ * Every such use of one pattern shares one sequencer. Chain \`.fast\`/
+ * \`.slow\`/\`.struct\`/\`.beat\`/\`.glide\` for a new pattern, or pass it to
+ * \`$cycle\` or \`.cycle(...)\` to play it with other settings.
+ */
+interface ParsedPattern extends PatternModule {
   /**
    * Speed this pattern up by \`factor\`, mirroring Strudel's \`fast\`. The factor
    * is a constant (\`2\`) or a mini-notation number pattern (\`"2 4"\` → ×2 for
@@ -397,7 +406,7 @@ type ParsedPattern = {
    * euclidean structure, and so on.
    *
    * \`\`\`js
-   * $p("c4 e4").struct("x ~ x x").c
+   * $p("c4 e4").struct("x ~ x x").saw().out()
    * \`\`\`
    */
   struct(boolPattern: string): StructPattern;
@@ -413,7 +422,7 @@ type ParsedPattern = {
    * the grid per cycle).
    *
    * \`\`\`js
-   * $p("c2").beat("0,7,10", 16).c
+   * $p("c2").beat("0,7,10", 16).saw().out()
    * \`\`\`
    */
   beat(t: number | string, div: number | string): BeatPattern;
@@ -430,8 +439,8 @@ type ParsedPattern = {
    * Every curve stays between the two pitches.
    *
    * \`\`\`js
-   * $sine($p("c4 e4 g4").glide("0 0.1 0.25").c).out()
-   * $sine($p("c3 g3").glide(0.25, 'expo', 'out').c).out()
+   * $sine($p("c4 e4 g4").glide("0 0.1 0.25")).out()
+   * $sine($p("c3 g3").glide(0.25, 'expo', 'out')).out()
    * \`\`\`
    */
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
@@ -445,9 +454,7 @@ type ParsedPattern = {
    * \`\`\`
    */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
-  readonly c: ReturnType<typeof $cycle>;
-};
+}
 
 /**
  * Parse a mini-notation source string into a \`ParsedPattern\` suitable
@@ -455,15 +462,13 @@ type ParsedPattern = {
  * \`$p()\` — \`$cycle\` accepts a \`ParsedPattern\`, not a raw string.
  *
  * \`\`\`js
- * $p("c4 e4 g4").c                    // basic sequence
+ * $p("c4 e4 g4").saw().out()               // basic sequence
  * const bass = $p("c2 [c2 g2] c2 e2");      // reuse a parsed pattern
- * bass.c
+ * $saw(bass).amp($perc(bass)).out()
  * \`\`\`
  *
- * The returned object is opaque (JSON-serializable; carries source +
- * span info for editor highlighting). Binding to a \`const\` preserves
- * highlighting through the indirection. Throws if \`source\` is not a
- * string or fails to parse.
+ * Binding the pattern to a \`const\` keeps its editor highlighting.
+ * Throws if \`source\` is not a string or fails to parse.
  *
  * ### Atoms
  *
@@ -519,10 +524,10 @@ declare namespace $p {
  * atoms are rejected.
  *
  * \`\`\`js
- * $p.s("0 2 4 7", "c(major)").c       // C-major arpeggio
- * $p.s("-1 0 2 4", "a3(min)").c       // negative degrees wrap below the root
- * $p.s("0 1 2 3 4", "c(0 2 4 7 9)").c // custom intervals (pentatonic)
- * $p.s("0 4 7", "c(just)").c          // just intonation
+ * $p.s("0 2 4 7", "c(major)").saw().out()       // C-major arpeggio
+ * $p.s("-1 0 2 4", "a3(min)").saw().out()       // negative degrees wrap below the root
+ * $p.s("0 1 2 3 4", "c(0 2 4 7 9)").saw().out() // custom intervals (pentatonic)
+ * $p.s("0 4 7", "c(just)").saw().out()          // just intonation
  * \`\`\`
  *
  * ### Atoms
@@ -576,9 +581,10 @@ declare namespace $p {
  *
  * ### Chaining
  *
- * The returned \`SpPattern\` is chainable with \`.add(...)\` and \`.sub(...)\`.
- * Each accepts another scale-degree mini-notation string and combines
- * the two patterns. Bare \`.add(x)\` defaults to \`.add.in(x)\`; explicit
+ * The returned \`SpPattern\` is chainable with \`.trans(...)\`, which
+ * transposes it by another scale-degree mini-notation string: the two
+ * patterns' degrees are added, so negative degrees transpose down.
+ * Bare \`.trans(x)\` defaults to \`.trans.in(x)\`; explicit
  * mode methods cover all seven Strudel alignments:
  *
  * | Mode | Behaviour |
@@ -592,9 +598,9 @@ declare namespace $p {
  * | \`.restart\` | Right pattern retriggers the left, aligned to cycle 0. |
  *
  * \`\`\`js
- * $p.s("0 1 2", "c(maj)").add("0 2").c               // .add defaults to .add.in
- * $p.s("0 1 2", "d#(min)").add.in("10 20").c
- * $p.s("0 1 2", "c(maj)").sub.squeeze("1 2 3").c
+ * $p.s("0 1 2", "c(maj)").trans("0 2").saw().out()   // .trans defaults to .trans.in
+ * $p.s("0 1 2", "d#(min)").trans.in("10 20").saw().out()
+ * $p.s("0 1 2", "c(maj)").trans.squeeze("-1 -2 -3").saw().out()
  * \`\`\`
  *
  * @param source integer scale-degree mini-notation source
@@ -616,7 +622,7 @@ function s(source: string, scale: string): SpPattern;
  * $p.arrange(
  *   [4, $p.s("0 2 4 7", "c(major)")],
  *   [2, $p.s("0 2 4",   "a(min)")],
- * ).c
+ * ).saw().out()
  * \`\`\`
  *
  * Cycle counts must be **positive integers**, except a single **trailing**
@@ -627,7 +633,7 @@ function s(source: string, scale: string): SpPattern;
  * $p.arrange(
  *   [2, $p("c4 e4 g4")],            // intro, played once
  *   [Infinity, $p.s("0 2 4", "f(lydian)")],  // then loops forever
- * ).c
+ * ).saw().out()
  * \`\`\`
  *
  * The result is an \`ArrangePattern\`, itself usable as a section of another
@@ -653,7 +659,7 @@ type SpAlignmentMode =
   | 'restart';
 
 /**
- * Callable + method-bag returned by \`.add\` / \`.sub\` on an \`SpPattern\`.
+ * Callable + method-bag behind \`.trans\` on an \`SpPattern\`.
  * Bare invocation aliases the \`.in\` method.
  */
 type SpCombineBuilder = ((rhs: string) => SpPattern) & {
@@ -662,13 +668,12 @@ type SpCombineBuilder = ((rhs: string) => SpPattern) & {
 
 /**
  * Chainable scale-degree pattern returned by \`$p.s()\`. Pass directly to
- * \`$cycle\`'s \`pattern\` param, or chain \`.add\`/\`.sub\`/\`.fast\`/\`.slow\`/
- * \`.struct\`/\`.beat\`/\`.glide\`. Opaque to user code — chain methods return
- * fresh patterns.
+ * \`$cycle\`'s \`pattern\` param, or chain \`.trans\`/\`.fast\`/\`.slow\`/
+ * \`.struct\`/\`.beat\`/\`.glide\`; each returns a fresh pattern.
  */
-type SpPattern = {
-  add: SpCombineBuilder;
-  sub: SpCombineBuilder;
+interface SpPattern extends PatternModule {
+  /** Transpose by a scale-degree pattern. See \`$p.s\`. */
+  trans: SpCombineBuilder;
   /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
   fast(factor: number | string): FastPattern;
   /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
@@ -681,17 +686,14 @@ type SpPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
-  readonly c: ReturnType<typeof $cycle>;
-};
+}
 
 /**
  * An arrangement returned by \`$p.arrange(...)\`. Pass directly to \`$cycle\`'s
  * \`pattern\` param, or nest it as a section of another \`$p.arrange(...)\`.
- * Opaque to user code — construct with \`$p.arrange(...)\`; never build one by
- * hand. A \`cycles\` of \`'Infinity'\` (only the last section) loops forever.
+ * A \`cycles\` of \`'Infinity'\` (only the last section) loops forever.
  */
-type ArrangePattern = {
+interface ArrangePattern extends PatternModule {
   /** Speed this arrangement up by \`factor\`. See \`$p(...).fast\`. */
   fast(factor: number | string): FastPattern;
   /** Slow this arrangement down by \`factor\`. See \`$p(...).slow\`. */
@@ -704,17 +706,14 @@ type ArrangePattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
-  readonly c: ReturnType<typeof $cycle>;
-};
+}
 
 /**
  * A sped-up pattern returned by \`pattern.fast(factor)\` (Strudel's \`fast\`).
  * Pass directly to \`$cycle\`'s \`pattern\` param, nest it as an \`$p.arrange(...)\`
- * section, or chain further pattern methods. Opaque to user code — construct
- * with \`.fast(...)\`; never build one by hand.
+ * section, or chain further pattern methods.
  */
-type FastPattern = {
+interface FastPattern extends PatternModule {
   /** Speed this pattern up further by \`factor\`. See \`$p(...).fast\`. */
   fast(factor: number | string): FastPattern;
   /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
@@ -727,15 +726,13 @@ type FastPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
-  readonly c: ReturnType<typeof $cycle>;
-};
+}
 
 /**
  * A slowed-down pattern returned by \`pattern.slow(factor)\` (Strudel's \`slow\`).
  * The time-inverse of \`FastPattern\`; same composition rules.
  */
-type SlowPattern = {
+interface SlowPattern extends PatternModule {
   /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
   fast(factor: number | string): FastPattern;
   /** Slow this pattern down further by \`factor\`. See \`$p(...).slow\`. */
@@ -748,22 +745,19 @@ type SlowPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
-  readonly c: ReturnType<typeof $cycle>;
-};
+}
 
 /**
  * A structured pattern returned by \`pattern.struct(boolPattern)\` (Strudel's
  * \`struct\`): timing from the boolean pattern, values sampled from the source.
  * Pass directly to \`$cycle\`'s \`pattern\` param, nest it as an
- * \`$p.arrange(...)\` section, or chain further pattern methods. Opaque to
- * user code — construct with \`.struct(...)\`; never build one by hand.
+ * \`$p.arrange(...)\` section, or chain further pattern methods.
  *
  * \`\`\`js
- * $p("c4 e4").struct("x ~ <x ~>").c
+ * $p("c4 e4").struct("x ~ <x ~>").saw().out()
  * \`\`\`
  */
-type StructPattern = {
+interface StructPattern extends PatternModule {
   /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
   fast(factor: number | string): FastPattern;
   /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
@@ -776,22 +770,19 @@ type StructPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
-  readonly c: ReturnType<typeof $cycle>;
-};
+}
 
 /**
  * A beat-grid pattern returned by \`pattern.beat(t, div)\` (Strudel's \`beat\`):
  * the source value plays at beat \`t\` of a \`div\`-beat cycle, silence
  * elsewhere. Pass directly to \`$cycle\`'s \`pattern\` param, nest it as an
- * \`$p.arrange(...)\` section, or chain further pattern methods. Opaque to
- * user code — construct with \`.beat(...)\`; never build one by hand.
+ * \`$p.arrange(...)\` section, or chain further pattern methods.
  *
  * \`\`\`js
- * $p("c2 g2").beat("0,7,10", 16).c
+ * $p("c2 g2").beat("0,7,10", 16).saw().out()
  * \`\`\`
  */
-type BeatPattern = {
+interface BeatPattern extends PatternModule {
   /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
   fast(factor: number | string): FastPattern;
   /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
@@ -804,9 +795,7 @@ type BeatPattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
-  readonly c: ReturnType<typeof $cycle>;
-};
+}
 
 /** Shape of a glide ramp. See \`$p(...).glide\`. */
 type GlideCurve = ${literalUnion(GLIDE_CURVES)};
@@ -818,10 +807,9 @@ type GlideMode = ${literalUnion(GLIDE_MODES)};
  * A gliding pattern returned by \`pattern.glide(g, curve, mode)\`: \`$cycle\` ramps into
  * each note over \`g\` cycles. Pass directly to \`$cycle\`'s \`pattern\`
  * param, nest it as an \`$p.arrange(...)\` section, or chain further pattern
- * methods. Opaque to user code — construct with \`.glide(...)\`; never build
- * one by hand.
+ * methods.
  */
-type GlidePattern = {
+interface GlidePattern extends PatternModule {
   /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
   fast(factor: number | string): FastPattern;
   /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
@@ -834,9 +822,7 @@ type GlidePattern = {
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
   /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-  /** Shorthand for \`.cycle()\`. Every read gives the same sequencer. */
-  readonly c: ReturnType<typeof $cycle>;
-};
+}
 
 /**
  * What \`$wavMeta\` reads from a WAV file. Times are in seconds.
@@ -992,7 +978,7 @@ class BaseCollection {
    * Divide this signal by another, sample by sample. Dividing by 0 gives 0.
    * @param operand Divisor as {@link Poly<Signal>}
    * @returns The quotient as a {@link Collection} for chaining
-   * @example $clockedDelay($saw('c3').amp($perc($clock.o.beatTrigger)), { bars: $sine('0.1hz').range(1, 4).round().div(8) }).out()  // 1/8 to 4/8 of a bar
+   * @example $clockedDelay($saw('c3').amp($perc($clock._beatTrigger)), { bars: $sine('0.1hz').range(1, 4).round().div(8) }).out()  // 1/8 to 4/8 of a bar
    */
   div(operand: Poly<Signal>): Collection;
 
@@ -1207,7 +1193,7 @@ class Collection extends BaseCollection {
  * @example
  * const lfo = $sine('2hz')             // Outputs -5 to +5
  * lfo.range(200, 2000)                 // Remap to 200-2000
- * $adsr($clock.o.beatTrigger, { attack: 0.1 }).range(0, 1)
+ * $adsr($clock._beatTrigger, { attack: 0.1 }).range(0, 1)
  * $r($sine('1hz'), $sine('2hz')).range(0, 5).out()  // Remap using stored ranges
  *
  * @see {@link Collection} - for signals without a known range
@@ -1234,8 +1220,8 @@ class CollectionWithRange extends BaseCollection {
    * @param amount Depth (0–5) as {@link Poly<Signal>}
    * @param options Trigger, speed, bias, mode, and sparse ({@link RangedErraticOptions})
    * @returns A {@link CollectionWithRange} with the same ranges
-   * @example $saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock.o.beatTrigger })).out()
-   * @example $saw('c3').amp($sine('4hz').range(0, 5).erratic(5, { mode: 'blend', sparse: true, speed: 5, trigger: $clock.o.beatTrigger })).out()  // usually a new level each beat, sometimes close to the sine
+   * @example $saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock._beatTrigger })).out()
+   * @example $saw('c3').amp($sine('4hz').range(0, 5).erratic(5, { mode: 'blend', sparse: true, speed: 5, trigger: $clock._beatTrigger })).out()  // usually a new level each beat, sometimes close to the sine
    * @example $saw($c('c3', 'e3')).amp($sine(['4hz', '5hz']).range(2, 5).erratic(2, { speed: 3 })).out()  // each voice's tremolo wanders on its own
    */
   override erratic(amount: Poly<Signal>, options?: RangedErraticOptions): CollectionWithRange;
@@ -1355,7 +1341,7 @@ function $note(noteName: string): number;
  * @returns A {@link Collection} of their channels
  * @example $c($sine('c3'), $sine('e3')).amplitude(0.5).out()
  * @example $c(440, 'c4', $sine('e3'))  // Bare number/string lifted into $signal
- * @example $c($p('c4 e4').c, 'g4')      // A played pattern contributes its voices
+ * @example $c($p('c4 e4'), 'g4')      // A pattern contributes its voices
  * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access: a one-channel Collection
  * @example [...$c($sine('c3'), $sine('e3'))]             // Spread to an array of one-channel Collections
  * @see {@link $r} - for ranged signals
@@ -1382,7 +1368,7 @@ function $r(...args: (CollectionWithRange | CollectionWithRange[])[]): Collectio
  * // Play a loop at the tempo it was recorded at
  * const loop = '/wavs/loop.wav'
  * $setTempo($wavMeta(loop).bpm ?? 120)
- * $sampler(loop, $clock.o.barTrigger).out()
+ * $sampler(loop, $clock._barTrigger).out()
  */
 function $wavMeta(path: string): WavMeta;
 
@@ -1399,7 +1385,7 @@ function $setTempo(tempo: number): void;
  * @param gain Gain as a {@link Mono<Signal>} (2.5 is default, 5.0 is unity)
  * @example $setOutputGain(2.5) // 50% gain (default)
  * @example $setOutputGain(5.0) // unity
- * @example $setOutputGain($adsr($clock.o.beatTrigger, {})) // modulate gain from envelope
+ * @example $setOutputGain($adsr($clock._beatTrigger, {})) // modulate gain from envelope
  */
 function $setOutputGain(gain: Mono<Signal>): void;
 
@@ -1456,8 +1442,8 @@ interface GrooveTemplate {
 
 /**
  * Set the global groove. Every $cycle and $drumMap starts its notes on it,
- * keeping their lengths, unless given its own groove or playhead; $clock.o.grooveOffset,
- * $clock.o.grooveVelocity and $clock.o.grooveTrigger expose it directly.
+ * keeping their lengths, unless given its own groove or playhead; $clock._grooveOffset,
+ * $clock._grooveVelocity and $clock._grooveTrigger expose it directly.
  * @param template Groove template, e.g. from $swing
  * @example $setGroove($swing(0.6))  // MPC-style 60% sixteenth swing
  * @example $setGroove({ timing: [0, 0.2, 0, 0.15], velocity: [1, 0.6, 0.8, 0.5] })
@@ -1877,8 +1863,8 @@ interface VideoFile extends VideoSignal {
 /**
  * A constant, a {@link VideoSignal}, or an audio signal whose live value drives
  * the input: a \`$slider\` / \`$btn\` / \`$toggleBtn\`, or any module output
- * such as an LFO or envelope, with several channels summed to one. A played
- * pattern's values are used as they are, so \`$p('0 0.5 1').c\` steps from 0
+ * such as an LFO or envelope, with several channels summed to one. A
+ * pattern's values are used as they are, so \`$p('0 0.5 1')\` steps from 0
  * to 1.
  */
 type VideoValue = number | VideoSignal | Collection | CollectionWithRange;
@@ -2024,8 +2010,8 @@ function getMultiOutputInterfaceName(moduleSchema: { name: string }): string {
 
 /**
  * Generate interface definition for multi-output modules.
- * The interface extends the type of the output a `cv` input takes, and its
- * `o` has a property for every output.
+ * The interface extends the type of the output a `cv` input takes, and has
+ * every output by name behind an underscore.
  */
 function generateMultiOutputInterface(
     moduleSchema: Schema,
@@ -2050,15 +2036,13 @@ function generateMultiOutputInterface(
         `${indent} * Used directly, it stands for the output that fits the input it`,
     );
     lines.push(
-        `${indent} * is plugged into (\`o.${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); an output named`,
+        `${indent} * is plugged into (\`_${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); an output named`,
     );
-    lines.push(`${indent} * through \`o\` is always that output.`);
+    lines.push(`${indent} * itself is always that output.`);
     lines.push(`${indent} */`);
     lines.push(
         `${indent}export interface ${interfaceName} extends ${baseType} {`,
     );
-    lines.push(`${indent}  /** The module's outputs by name. */`);
-    lines.push(`${indent}  readonly o: {`);
 
     for (const output of outputs) {
         const outputType = getOutputType(output);
@@ -2066,12 +2050,11 @@ function generateMultiOutputInterface(
 
         const doc = withMeta(output.description, formatOutputMeta(output));
         if (doc) {
-            lines.push(`${indent}    /** ${doc} */`);
+            lines.push(`${indent}  /** ${doc} */`);
         }
-        lines.push(`${indent}    readonly ${safeName}: ${outputType};`);
+        lines.push(`${indent}  readonly _${safeName}: ${outputType};`);
     }
 
-    lines.push(`${indent}  };`);
     lines.push(`${indent}}`);
     return lines;
 }

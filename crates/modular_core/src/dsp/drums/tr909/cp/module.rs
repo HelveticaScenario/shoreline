@@ -46,8 +46,8 @@ const CP909_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "House clap",
         code: r#"
-            $tr909.kick($p('c*4').c).out()
-            $tr909.clap($p('~ c ~ c').c).out()
+            $tr909.kick($p('c*4')).out()
+            $tr909.clap($p('~ c ~ c')).out()
         "#,
     }],
 };

@@ -1,7 +1,7 @@
 /**
  * Contextual outputs. The value a multi-output module's factory returns is a
  * root: it stands for whichever of the module's outputs fits the input it is
- * plugged into. A named output (`seq.o.trig`) is never a root, so naming one is
+ * plugged into. A named output (`seq._trig`) is never a root, so naming one is
  * always explicit.
  */
 
@@ -15,17 +15,18 @@ import {
 } from '../../shared/dsl/outputResolutionRule';
 import { captureSourceLocation } from './captureSourceLocation';
 import { sanitizeOutputName } from './outputNames';
+import { patternSignal } from './patternKinds';
 import { isSignalGroupLike } from './signalGroups';
 
 const OUTPUT_SET = Symbol('outputSet');
 
-/** A module's outputs, keyed by their names on the root's `o`. */
+/** A module's outputs by name; the root has each as `_<name>`. */
 export interface OutputSet {
     outputs: readonly ResolvableOutput[];
     values: Readonly<Record<string, unknown>>;
 }
 
-/** The outputs of `schema` under their names on a root's `o`. */
+/** The outputs of `schema` under their names on a root. */
 export function resolvableOutputs(schema: ModuleSchema): ResolvableOutput[] {
     return (schema.outputs ?? []).map((o) => ({
         default: o.default,
@@ -37,9 +38,15 @@ export function resolvableOutputs(schema: ModuleSchema): ResolvableOutput[] {
 /** A call's position in the patch source, as `captureSourceLocation` reads it. */
 export type CallSite = { line: number; column: number };
 
-/** Tag `root` as standing for every output in `set`. */
+/**
+ * Tag `root` as standing for every output in `set`, and give it each output
+ * by name behind an underscore (`seq._trig`).
+ */
 export function markRoot(root: object, set: OutputSet): void {
     Object.defineProperty(root, OUTPUT_SET, { value: set });
+    for (const [name, value] of Object.entries(set.values)) {
+        Object.defineProperty(root, `_${name}`, { value });
+    }
 }
 
 /** The outputs a multi-output module's root stands for, if `value` is one. */
@@ -65,15 +72,17 @@ export class OutputResolver {
     private inCall = false;
 
     /**
-     * The output `value` contributes to an input of class `inputClass`;
-     * anything but a root passes through.
+     * The output `value` contributes to an input of class `inputClass`. A
+     * pattern is the root of its `$cycle`; anything but a root passes
+     * through.
      */
     resolve(
-        value: unknown,
+        signal: unknown,
         inputClass: OutputClass,
         site: CallSite | undefined,
         slot: string,
     ): unknown {
+        const value = patternSignal(signal);
         const set = outputSetOf(value);
         if (!set) {
             return value;
@@ -105,7 +114,7 @@ export class OutputResolver {
                 ? value.map((element, i) => [elementSlot(slot, i), element])
                 : [[slot, value]];
             for (const [s, v] of values) {
-                const set = outputSetOf(v);
+                const set = outputSetOf(patternSignal(v));
                 if (set) {
                     roots.push([s, set, inputClass]);
                 }

@@ -152,7 +152,7 @@ const SPEAK_DOCS: ModuleDocs = ModuleDocs {
             title: "Hello",
             code: r#"
                 const word = $cycle($p('7 4 11 11 14'))
-                const trigger = word.o.trig
+                const trigger = word._trig
                 $mi.speak('c3', { trigger, bank: 2, word }).out()
             "#,
         },

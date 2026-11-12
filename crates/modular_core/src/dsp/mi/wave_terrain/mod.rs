@@ -100,7 +100,7 @@ const WAVE_TERRAIN_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Phase-modulated voice",
-            code: "$mi.waveTerrain('g2', { radius: 4, offset: 1 }).o.pm.out()",
+            code: "$mi.waveTerrain('g2', { radius: 4, offset: 1 })._pm.out()",
         },
     ],
 };

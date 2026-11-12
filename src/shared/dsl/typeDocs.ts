@@ -213,11 +213,11 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'A module with several outputs, such as a sequencer with a pitch, a gate and a trigger, can be used without naming one. ' +
             'Each input takes the output that suits it: a trigger input takes the trigger, a gate input the gate, and everything else the main output. ' +
             'The editor shows the output it picked beside the value; double-click that hint to write it into the code. ' +
-            'Its outputs are also listed by name under `.o`, as in `seq.o.gate`; naming one yourself always uses that output, whatever the input.',
+            'Each output is also there by name behind an underscore, as in `seq._gate`; naming one yourself always uses that output, whatever the input.',
         examples: [
-            "const seq = $p('c e g a').c\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope",
-            "const seq = $p('c3 ~ g3 ~').c\n$sine(seq).amp(seq.adsr()).out()   // the gate opens the envelope",
-            "const seq = $p('c e g a').c\n$sine(seq).amp($adsr(seq.o.gate)).amp(seq.o.velocity).out()   // named outputs are used as they are",
+            "const seq = $p('c e g a')\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope",
+            "const seq = $p('c3 ~ g3 ~')\n$sine(seq).amp(seq.adsr()).out()   // the gate opens the envelope",
+            "const seq = $p('c e g a')\n$sine(seq).amp($adsr(seq._gate)).amp(seq._velocity).out()   // named outputs are used as they are",
         ],
         name: 'Multi-output modules',
         seeAlso: ['Collection', 'Signal'],
@@ -230,7 +230,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Takes what Poly<Signal> takes except a signal group: the module will not produce per-voice output from this parameter. ' +
             'Used for control parameters like tempo, stereo width, or math variables where a single combined value is needed.',
         examples: [
-            '$clockDivider(clock.o.trigger, 4)                // Clock signal summed to mono',
+            '$clockDivider(clock._trigger, 4)                // Clock signal summed to mono',
             '$stereoMix(osc, { width: lfo })                  // Width control summed to mono',
             '$math("x + y", { x: osc1, y: osc2 })            // Variables summed to single values',
         ],

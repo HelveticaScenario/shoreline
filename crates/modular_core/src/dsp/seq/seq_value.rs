@@ -371,15 +371,6 @@ impl Default for MiniAST {
     }
 }
 
-/// Arithmetic operation kind for chained `$p.s` ops. Wire form uses
-/// lowercase strings (`"add"`, `"sub"`) to match the TS builder.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum SpOpKind {
-    Add,
-    Sub,
-}
-
 /// Strudel-style alignment mode for chained `$p.s` ops. Wire form uses
 /// lowercase strings (`"in"`, `"out"`, `"mix"`, `"squeeze"`,
 /// `"squeezeout"`, `"reset"`, `"restart"`) to match the TS builder.
@@ -411,11 +402,11 @@ impl SpAlignmentMode {
     }
 }
 
-/// One chained op in an `$p.s` payload: arithmetic op + alignment mode.
-/// Paired positionally with `sources[i+1]` for `i = 0..ops.len()`.
+/// One `.trans` link in an `$p.s` payload: the alignment mode its degrees
+/// are added with. Paired positionally with `sources[i+1]` for
+/// `i = 0..ops.len()`.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SpOp {
-    pub op: SpOpKind,
     pub mode: SpAlignmentMode,
 }
 
@@ -426,7 +417,7 @@ pub struct ArgumentSpan {
     pub end: usize,
 }
 
-/// JSON payload shape delivered for chained `$p.s(...).add(...)` patterns.
+/// JSON payload shape delivered for chained `$p.s(...).trans(...)` patterns.
 /// First entry of `sources` is the left pattern; subsequent entries are
 /// chained RHS patterns combined via the parallel `ops` slot.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
@@ -701,7 +692,7 @@ pub struct SeqSourceMeta {
 /// Wire shape is [`SeqPatternSource`] — either a single
 /// [`ParsedPatternPayload`] (the existing single-source path for
 /// `$cycle($p(...))`) or an [`SpPatternPayload`] carrying multiple
-/// degree patterns + scale + chain ops for `$cycle($p.s(...).add(...))`.
+/// degree patterns + scale + chain ops for `$cycle($p.s(...).trans(...))`.
 /// Either way the resolved runtime is a [`Pattern<SeqValue>`] plus
 /// per-cycle hap storage.
 #[derive(Clone, Default, Debug)]
@@ -1068,9 +1059,7 @@ impl SeqPatternParam {
     fn lower_sp(
         payload: SpPatternPayload,
     ) -> Result<(Pattern<SeqValue>, Vec<SeqSourceMeta>), String> {
-        use crate::dsp::seq::interval_value::{
-            IntervalValue, add_interval_values, sub_interval_values,
-        };
+        use crate::dsp::seq::interval_value::{IntervalValue, add_interval_values};
         use crate::dsp::utilities::scale::ScaleSpec;
         use crate::pattern_system::sp_combine::combine_sp;
 
@@ -1115,11 +1104,7 @@ impl SeqPatternParam {
         let mut combined = patterns[0].clone();
         for (i, op) in payload.ops.iter().enumerate() {
             let rhs = &patterns[i + 1];
-            let f: fn(&IntervalValue, &IntervalValue) -> IntervalValue = match op.op {
-                SpOpKind::Add => add_interval_values,
-                SpOpKind::Sub => sub_interval_values,
-            };
-            combined = combine_sp(&combined, rhs, op.mode.to_rt(), f);
+            combined = combine_sp(&combined, rhs, op.mode.to_rt(), add_interval_values);
         }
 
         // Resolve degrees -> SeqValue voltages, then cache cycles.
@@ -1373,7 +1358,6 @@ mod tests {
             sources: vec![l, r],
             scale: "c(maj)".to_string(),
             ops: vec![SpOp {
-                op: SpOpKind::Add,
                 mode: SpAlignmentMode::In,
             }],
             argument_spans: vec![],
@@ -1425,7 +1409,7 @@ mod tests {
         SeqPatternSource::Single(ParsedPatternPayload::parse_for_test(src))
     }
 
-    /// A two-source chained `$p.s(a, scale).add(b)` — both sources are active
+    /// A two-source chained `$p.s(a, scale).trans(b)` — both sources are active
     /// within every cycle (combined), so its `per_source` has two entries
     /// highlighting at pattern_idx 0 and 1.
     fn sp_source_2(a: &str, b: &str, scale: &str) -> SeqPatternSource {
@@ -1437,7 +1421,6 @@ mod tests {
             ],
             scale: scale.to_string(),
             ops: vec![SpOp {
-                op: SpOpKind::Add,
                 mode: SpAlignmentMode::In,
             }],
             argument_spans: vec![],
@@ -1945,7 +1928,7 @@ mod tests {
 
     #[test]
     fn test_fast_factor_slot_equals_multi_source_inner_count() {
-        // `$p.s("0 2 4", ...).add("0 5").fast("2 4")`: the wrapped pattern is a
+        // `$p.s("0 2 4", ...).trans("0 5").fast("2 4")`: the wrapped pattern is a
         // *two-source* `$p.s`, both active within every cycle. The factor's
         // highlightable slot must therefore be the inner source COUNT (2), not a
         // fixed 1 — `lower_fast` passes `inner.per_source.len()` as the offset.
@@ -2345,7 +2328,6 @@ mod tests {
             ],
             scale: "c(maj)".to_string(),
             ops: vec![SpOp {
-                op: SpOpKind::Add,
                 mode: SpAlignmentMode::In,
             }],
             argument_spans: vec![],

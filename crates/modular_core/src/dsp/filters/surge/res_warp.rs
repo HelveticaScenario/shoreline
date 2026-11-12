@@ -186,7 +186,7 @@ const RES_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Rubbery resonant bass",
         code: r#"
-            const seq = $p('f1 [~ f2] ab1 [c2 eb2]').c
+            const seq = $p('f1 [~ f2] ab1 [c2 eb2]')
             $unstable.filter
               .resWarpLp(
                 $saw(seq),

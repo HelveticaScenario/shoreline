@@ -102,19 +102,18 @@ describe('BaseCollection indexing and iteration', () => {
                 (_, i) => new ModuleOutput(builder, 'test-1', 'gate', i),
             ),
         );
-        const root = Object.assign(new Collection(...cv.items), {
-            o: { cv, gate },
-        });
-        markRoot(root, { outputs: [], values: root.o });
+        const root = new Collection(...cv.items);
+        markRoot(root, { outputs: [], values: { cv, gate } });
+        type Named = { _cv: Collection; _gate: Collection };
 
         const [, second] = root;
         expect(second.items).toEqual([cv.items[1]]);
-        const { o } = second as unknown as { o: typeof root.o };
-        expect(o.gate.items).toEqual([gate.items[1]]);
-        expect(outputSetOf(second)?.values).toBe(o);
+        const named = second as unknown as Named;
+        expect(named._gate.items).toEqual([gate.items[1]]);
+        expect(outputSetOf(second)?.values.gate).toBe(named._gate);
 
-        const tail = root.slice(1) as unknown as { o: typeof root.o };
-        expect(tail.o.gate.items).toEqual(gate.items.slice(1));
+        const tail = root.slice(1) as unknown as Named;
+        expect(tail._gate.items).toEqual(gate.items.slice(1));
     });
 
     test('a root output of another width stays whole in its slices', () => {
@@ -125,14 +124,15 @@ describe('BaseCollection indexing and iteration', () => {
                 (_, i) => new ModuleOutput(builder, 'test-1', 'voices', i),
             ),
         );
-        const root = Object.assign(new Collection(...stereo.items), {
-            o: { stereo, voices },
-        });
-        markRoot(root, { outputs: [], values: root.o });
+        const root = new Collection(...stereo.items);
+        markRoot(root, { outputs: [], values: { stereo, voices } });
 
-        const { o } = root[1] as unknown as { o: typeof root.o };
-        expect(o.stereo.items).toEqual([stereo.items[1]]);
-        expect(o.voices).toBe(voices);
+        const second = root[1] as unknown as {
+            _stereo: Collection;
+            _voices: Collection;
+        };
+        expect(second._stereo.items).toEqual([stereo.items[1]]);
+        expect(second._voices).toBe(voices);
     });
 
     test('a collection serializes to JSON', () => {

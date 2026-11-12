@@ -155,9 +155,9 @@ Monaco shows the description, sections and first example; the Reference pane sho
 
 ### Reserved Output Names
 
-When adding methods to `BaseCollection`, `Collection`, `CollectionWithRange`, or `DeferredCollection`, add the method name to `RESERVED_OUTPUT_NAMES` in `crates/reserved_output_names.rs`. This is the single source of truth shared by the Rust proc-macro and TypeScript DSL via NAPI.
+When adding methods to `BaseCollection`, `Collection`, `CollectionWithRange`, `DeferredCollection`, or patterns (`PATTERN_METHODS` in `src/main/dsl/miniNotation/index.ts`), add the method name to `RESERVED_OUTPUT_NAMES` in `crates/reserved_output_names.rs`. This is the single source of truth shared by the Rust proc-macro and TypeScript DSL via NAPI.
 
-The list also limits module names. Every module whose first argument is a signal is a chain method of collections (`$lpf` as `sig.lpf(...)`, `$mi.chorus` as `sig.mi.chorus(...)`), so the first segment of a module's name after its `$` cannot be reserved: `#[module]` rejects `$gain` and `$gain.soft`. A module the DSL exposes starts with `$`, an internal one with `_`.
+The list also limits module names. Every module whose first argument is a signal is a chain method of collections (`$lpf` as `sig.lpf(...)`, `$mi.chorus` as `sig.mi.chorus(...)`), so the first segment of a module's name after its `$` cannot be reserved: `#[module]` rejects `$gain` and `$gain.soft`. A pattern is the `$cycle` that plays it and has every collection member beside its own methods, so those names are reserved too; `$cycle` itself is exempt, as the module a pattern's `.cycle(...)` calls. A module the DSL exposes starts with `$`, an internal one with `_`.
 
 ### Code Organization
 

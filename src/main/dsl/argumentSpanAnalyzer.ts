@@ -148,7 +148,7 @@ export function analyzeArgumentSpans(
             return;
         }
 
-        // `.add(rhs)` / `.sub(rhs)` links of a `$p.s` chain, read back by the
+        // `.trans(rhs)` links of a `$p.s` chain, read back by the
         // chain method under `rhs`.
         if (isSpChainCall(call)) {
             const argsMap = new Map<string, SourceSpan>();

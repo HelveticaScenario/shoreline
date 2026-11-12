@@ -44,9 +44,9 @@ import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { createControls } from './controls';
 import { assertControlsPlaced } from './controlPlacement';
 import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
-import { $p, setActiveCycleFactory } from './miniNotation';
+import { $p } from './miniNotation';
 import { DELAY_SITE } from './signalSiteTables';
-import { refusePattern } from './patternKinds';
+import { setActiveCycleFactory } from './patternKinds';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
 import type {
@@ -93,7 +93,9 @@ export interface DSLExecutionResult {
 
 /** The bands of a `$xover`. */
 type XoverBands = Collection & {
-    o: { low: Collection; mid: Collection; high: Collection };
+    _low: Collection;
+    _mid: Collection;
+    _high: Collection;
 };
 
 /** What the engine reports about a decoded WAV or media audio track. */
@@ -641,17 +643,17 @@ export function executePatchScript(
                 ? ($xover(config.sidechain, xoverConf) as XoverBands)
                 : null;
 
-        const lowComp = $comp(bands.o.low, {
+        const lowComp = $comp(bands._low, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.o.low }),
+            ...(scBands !== null && { sidechain: scBands._low }),
         });
-        const midComp = $comp(bands.o.mid, {
+        const midComp = $comp(bands._mid, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.o.mid }),
+            ...(scBands !== null && { sidechain: scBands._mid }),
         });
-        const highComp = $comp(bands.o.high, {
+        const highComp = $comp(bands._high, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.o.high }),
+            ...(scBands !== null && { sidechain: scBands._high }),
         });
 
         // Per-band trim — $scaleAndShift convention: scale=5 → unity gain.
@@ -841,7 +843,6 @@ export function executePatchScript(
 
     const warpHelper =
         (type: string, field: string) => (value: unknown, next?: unknown) => {
-            refusePattern(value, `$phase.${type}: ${field}`);
             const t = wrapWarp({ type, [field]: replaceSignals(value) });
             return next !== undefined
                 ? wrapWarp({ type: 'pipe', first: t, second: next })

@@ -124,7 +124,7 @@ const MOTION_FOLLOWER_DOCS: ModuleDocs = ModuleDocs {
     summary: "Movement to level",
     description: "Turns controller movement into a level, like bowing a string: moving \
                   the input either way swells the output, and holding it still lets it \
-                  fade. `.o.pos` and `.o.neg` follow only rising or only falling movement, \
+                  fade. `._pos` and `._neg` follow only rising or only falling movement, \
                   so pushing and pulling a control can steer different things.",
     categories: &[ModuleCategory::Envelope],
     sections: &[],

@@ -7,6 +7,7 @@ import {
     type ArrangePattern,
 } from '../index';
 import { replaceSignals } from '../../GraphBuilder';
+import { patternPayload } from '../../patternKinds';
 
 describe('$p.arrange builder', () => {
     test('builds an ArrangePattern wire object from [cycles, pattern] tuples', () => {
@@ -46,7 +47,7 @@ describe('$p.arrange builder', () => {
 
     test('flattens chained $p.s argument spans across sections', () => {
         // A chained $p.s contributes one span per source in the chain.
-        const chained = $p.s('0 2 4', 'c(maj)').add('0 5');
+        const chained = $p.s('0 2 4', 'c(maj)').trans('0 5');
         expect(chained.argument_spans).toHaveLength(2);
 
         const r = $p.arrange([1, $p('c4')], [1, chained]);
@@ -86,7 +87,7 @@ describe('$p.arrange builder', () => {
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {
         const r = $p.arrange([2, $p('c4')], [2, $p.s('0 2 4', 'c(maj)')]);
-        const out = replaceSignals(r) as ArrangePattern;
+        const out = replaceSignals(patternPayload(r)) as ArrangePattern;
 
         expect(out.__kind).toBe('ArrangePattern');
         expect(out.sections).toHaveLength(2);

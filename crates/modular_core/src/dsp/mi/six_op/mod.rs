@@ -115,7 +115,7 @@ const SIX_OP_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Electric piano",
             code: r#"
-                const seq = $p('c3 [eb3 g3] <bb3 f3> ~').c
+                const seq = $p('c3 [eb3 g3] <bb3 f3> ~')
                 $mi.sixOp(seq, { gate: seq, bank: 1 }).out()
             "#,
         },

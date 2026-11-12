@@ -23,7 +23,7 @@ export const PATTERN_METHOD_ARGS: Record<
     struct: ['boolPattern'],
 };
 
-const SP_OPS = new Set(['add', 'sub']);
+const SP_OP = 'trans';
 const SP_MODES = new Set([
     'in',
     'out',
@@ -90,8 +90,8 @@ export function isPsCall(call: ts.CallExpression): boolean {
 }
 
 /**
- * An `.add(rhs)` / `.sub(rhs)` link, or one with a mode (`.add.in(rhs)`,
- * `.sub.squeeze(rhs)`, …), on a chain rooted at `$p.s(...)`.
+ * A `.trans(rhs)` link, or one with a mode (`.trans.in(rhs)`,
+ * `.trans.squeeze(rhs)`, …), on a chain rooted at `$p.s(...)`.
  */
 export function isSpChainCall(call: ts.CallExpression): boolean {
     const callee = call.expression;
@@ -102,12 +102,12 @@ export function isSpChainCall(call: ts.CallExpression): boolean {
     if (SP_MODES.has(callee.name.text)) {
         if (
             !ts.isPropertyAccessExpression(receiver) ||
-            !SP_OPS.has(receiver.name.text)
+            receiver.name.text !== SP_OP
         ) {
             return false;
         }
         receiver = receiver.expression;
-    } else if (!SP_OPS.has(callee.name.text)) {
+    } else if (callee.name.text !== SP_OP) {
         return false;
     }
     return chainRoot(receiver) === '$p.s';

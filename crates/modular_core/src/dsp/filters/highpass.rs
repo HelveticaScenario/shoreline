@@ -57,9 +57,7 @@ const HPF_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Riser across each bar",
             code: r#"
-                $noise('white')
-                  .hpf($clock.o.ramp.range('c2', 'c9'), 2)
-                  .out()
+                $noise('white').hpf($clock._ramp.range('c2', 'c9'), 2).out()
             "#,
         },
     ],

@@ -34,7 +34,7 @@ import {
     type OutputSet,
     outputSetOf,
 } from './outputResolution';
-import { isPatternValue, refusePattern } from './patternKinds';
+import { isPatternValue } from './patternKinds';
 import { isPlainObject } from './plainObject';
 import {
     assertSignalGroupsTopLevelOnly,
@@ -224,11 +224,10 @@ export interface MonoOutGroup extends OutGroupVuState {
 
 /**
  * Distinguishes MonoOutOptions from a gain PolySignal (number | string |
- * array | ModuleOutput | iterable). A pattern is a plain object too, and is
- * left to be refused as a gain.
+ * array | ModuleOutput | iterable).
  */
 function isMonoOutOptions(v: unknown): v is MonoOutOptions {
-    return isPlainObject(v) && !isPatternValue(v);
+    return isPlainObject(v);
 }
 
 /**
@@ -738,7 +737,6 @@ function sliceRoot(
                 : value;
     }
     markRoot(sliced, { outputs: set.outputs, values });
-    Object.assign(sliced, { o: Object.freeze(values) });
 }
 
 type ArithmeticOp = 'add' | 'sub' | 'mul' | 'div' | 'pow';
@@ -1238,7 +1236,6 @@ export class GraphBuilder implements ChainHost {
         // needs no factory.
         let signal: FactoryFunction | undefined;
         const lift = (value: unknown): ModuleOutput[] => {
-            refusePattern(value, '$c: an argument');
             // Scalar literal checked before the iterable branch so a string is
             // one signal rather than spread into characters.
             if (typeof value === 'number' || typeof value === 'string') {

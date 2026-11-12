@@ -10,6 +10,7 @@ import {
 import type { ParsedPattern } from '../ast';
 import { parseMini } from '../parser';
 import { replaceSignals } from '../../GraphBuilder';
+import { patternPayload } from '../../patternKinds';
 
 const MODES: SpAlignmentMode[] = [
     'in',
@@ -55,16 +56,14 @@ describe('$p.s empty/whitespace source rejection', () => {
         expect(() => $p.s('   ', 'c(maj)')).toThrow(MiniParseError);
     });
 
-    test('empty chained .add(rhs) throws MiniParseError', () => {
-        expect(() => $p.s('0 2', 'c(maj)').add('')).toThrow(MiniParseError);
+    test('empty chained .trans(rhs) throws MiniParseError', () => {
+        expect(() => $p.s('0 2', 'c(maj)').trans('')).toThrow(MiniParseError);
     });
 
-    test('whitespace-only chained .add(rhs) throws MiniParseError', () => {
-        expect(() => $p.s('0 2', 'c(maj)').add('   ')).toThrow(MiniParseError);
-    });
-
-    test('empty chained .sub(rhs) throws MiniParseError', () => {
-        expect(() => $p.s('0 2', 'c(maj)').sub('')).toThrow(MiniParseError);
+    test('whitespace-only chained .trans(rhs) throws MiniParseError', () => {
+        expect(() => $p.s('0 2', 'c(maj)').trans('   ')).toThrow(
+            MiniParseError,
+        );
     });
 
     test('a rest "~" source does NOT throw — it is a real atom', () => {
@@ -73,58 +72,46 @@ describe('$p.s empty/whitespace source rejection', () => {
 });
 
 describe('$p.s chain methods', () => {
-    test('.add(rhs) appends source + op with default mode "in"', () => {
-        const r = $p.s('0 2 4', 'c(maj)').add('0 2');
+    test('.trans(rhs) appends source + op with default mode "in"', () => {
+        const r = $p.s('0 2 4', 'c(maj)').trans('0 2');
         expect(r.sources.length).toBe(2);
         expect(r.ops.length).toBe(1);
-        expect(r.ops[0]).toEqual({ op: 'add', mode: 'in' });
+        expect(r.ops[0]).toEqual({ mode: 'in' });
         expect(r.sources[1].source).toBe('0 2');
         expect(r.argument_spans.length).toBe(2);
     });
 
-    test('.sub(rhs) appends a sub op with default mode "in"', () => {
-        const r = $p.s('0 2 4', 'c(maj)').sub('1');
-        expect(r.ops[0]).toEqual({ op: 'sub', mode: 'in' });
-    });
-
-    test('bare .add(x) is deep-equal to .add.in(x)', () => {
-        const a = $p.s('0 2 4', 'c(maj)').add('0 2');
-        const b = $p.s('0 2 4', 'c(maj)').add.in('0 2');
+    test('bare .trans(x) is deep-equal to .trans.in(x)', () => {
+        const a = $p.s('0 2 4', 'c(maj)').trans('0 2');
+        const b = $p.s('0 2 4', 'c(maj)').trans.in('0 2');
         expect(a.ops).toEqual(b.ops);
         expect(a.sources[1].source).toBe(b.sources[1].source);
     });
 
-    test('all 7 modes are callable on .add and .sub', () => {
+    test('all 7 modes are callable on .trans', () => {
         const base = $p.s('0 1 2', 'c(maj)');
         for (const mode of MODES) {
-            const addR = (
-                base.add as unknown as Record<
+            const r = (
+                base.trans as unknown as Record<
                     string,
                     (rhs: string) => SpPattern
                 >
             )[mode]('0');
-            expect(addR.ops[0]).toEqual({ op: 'add', mode });
-            const subR = (
-                base.sub as unknown as Record<
-                    string,
-                    (rhs: string) => SpPattern
-                >
-            )[mode]('0');
-            expect(subR.ops[0]).toEqual({ op: 'sub', mode });
+            expect(r.ops[0]).toEqual({ mode });
         }
     });
 
-    test('chain accumulates: .add(...).sub.squeeze(...)', () => {
-        const r = $p.s('0 2 4', 'c(maj)').add('0 2').sub.squeeze('1');
+    test('chain accumulates: .trans(...).trans.squeeze(...)', () => {
+        const r = $p.s('0 2 4', 'c(maj)').trans('0 2').trans.squeeze('1');
         expect(r.sources.length).toBe(3);
         expect(r.ops.length).toBe(2);
-        expect(r.ops[0]).toEqual({ op: 'add', mode: 'in' });
-        expect(r.ops[1]).toEqual({ op: 'sub', mode: 'squeeze' });
+        expect(r.ops[0]).toEqual({ mode: 'in' });
+        expect(r.ops[1]).toEqual({ mode: 'squeeze' });
     });
 
     test('chain is immutable — original SpPattern unchanged', () => {
         const base = $p.s('0', 'c(maj)');
-        const chained = base.add('1');
+        const chained = base.trans('1');
         expect(base.sources.length).toBe(1);
         expect(base.ops.length).toBe(0);
         expect(chained.sources.length).toBe(2);
@@ -132,28 +119,26 @@ describe('$p.s chain methods', () => {
 
     test('non-string RHS throws MiniParseError', () => {
         const base = $p.s('0', 'c(maj)');
-        expect(() => base.add(123 as never)).toThrow(MiniParseError);
-        expect(() => base.sub.squeeze(null as never)).toThrow(MiniParseError);
+        expect(() => base.trans(123 as never)).toThrow(MiniParseError);
+        expect(() => base.trans.squeeze(null as never)).toThrow(MiniParseError);
     });
 });
 
 describe('$p.s JSON serialization', () => {
     test('JSON.stringify produces the wire-shape (no helper methods)', () => {
-        const r = $p.s('0 2', 'c(maj)').add('1');
+        const r = $p.s('0 2', 'c(maj)').trans('1');
         const json = JSON.parse(JSON.stringify(r));
         expect(json.__kind).toBe('SpPattern');
         expect(json.scale).toBe('c(maj)');
-        expect(json.ops).toEqual([{ op: 'add', mode: 'in' }]);
+        expect(json.ops).toEqual([{ mode: 'in' }]);
         expect(json.sources.length).toBe(2);
         expect(json.argument_spans.length).toBe(2);
-        // add / sub are non-enumerable property descriptors — must NOT
-        // appear in the JSON.
-        expect('add' in json).toBe(false);
-        expect('sub' in json).toBe(false);
+        // The pattern methods are not part of the wire shape.
+        expect('trans' in json).toBe(false);
     });
 
     test('each source carries the standard ParsedPatternPayload fields', () => {
-        const r = $p.s('0 2 4', 'c(maj)').add('0 2');
+        const r = $p.s('0 2 4', 'c(maj)').trans('0 2');
         const json = JSON.parse(JSON.stringify(r));
         for (const s of json.sources) {
             expect(typeof s.source).toBe('string');
@@ -176,7 +161,7 @@ describe('$p.s source AST integrity', () => {
     });
 
     test('chain RHS is parsed into its own AST', () => {
-        const r = $p.s('0 2 4', 'c(maj)').add('1 3');
+        const r = $p.s('0 2 4', 'c(maj)').trans('1 3');
         expect(r.sources[1].source).toBe('1 3');
         const ast = r.sources[1].ast;
         expect('Sequence' in ast).toBe(true);
@@ -209,7 +194,7 @@ describe('$p.s opaque payload preservation through replaceSignals', () => {
         // silent audio. Sources with a single atom (no Sequence wrapping)
         // were unaffected, masking the bug as "works for '0', fails for '0 1'".
         const pat = $p.s('0 1', 'c(maj)');
-        const walked = replaceSignals(pat) as SpPattern;
+        const walked = replaceSignals(patternPayload(pat)) as SpPattern;
         const seq = (
             walked.sources[0].ast as { Sequence?: Array<[unknown, unknown]> }
         ).Sequence;
@@ -220,9 +205,9 @@ describe('$p.s opaque payload preservation through replaceSignals', () => {
     });
 
     test('chain ops survive replaceSignals', () => {
-        const pat = $p.s('0 1', 'c(maj)').add('1');
-        const walked = replaceSignals(pat) as SpPattern;
-        expect(walked.ops).toEqual([{ op: 'add', mode: 'in' }]);
+        const pat = $p.s('0 1', 'c(maj)').trans('1');
+        const walked = replaceSignals(patternPayload(pat)) as SpPattern;
+        expect(walked.ops).toEqual([{ mode: 'in' }]);
         expect(walked.sources).toHaveLength(2);
     });
 });
@@ -271,7 +256,7 @@ describe('peggy grammar survives replaceSignals (regression)', () => {
         test(`$p.s("${source}"): ${label}`, () => {
             const raw = parseMini(source);
             const pat = $p.s(source, 'c(maj)');
-            const walked = replaceSignals(pat) as SpPattern;
+            const walked = replaceSignals(patternPayload(pat)) as SpPattern;
             expect(walked.__kind).toBe('SpPattern');
             expect(walked.sources).toHaveLength(1);
             // Deep equality vs raw peggy output proves every null slot,
@@ -282,7 +267,7 @@ describe('peggy grammar survives replaceSignals (regression)', () => {
         test(`$p("${source}"): ${label}`, () => {
             const raw = parseMini(source);
             const pat = $p(source);
-            const walked = replaceSignals(pat) as ParsedPattern;
+            const walked = replaceSignals(patternPayload(pat)) as ParsedPattern;
             expect(walked.__kind).toBe('ParsedPattern');
             expect(walked.ast).toEqual(raw);
         });
@@ -294,8 +279,8 @@ describe('peggy grammar survives replaceSignals (regression)', () => {
         // that has null slots in both LHS and RHS.
         const lhs = '0 1';
         const rhs = '[0 1, 2 3]';
-        const pat = $p.s(lhs, 'c(maj)').add(rhs);
-        const walked = replaceSignals(pat) as SpPattern;
+        const pat = $p.s(lhs, 'c(maj)').trans(rhs);
+        const walked = replaceSignals(patternPayload(pat)) as SpPattern;
         expect(walked.sources[0].ast).toEqual(parseMini(lhs));
         expect(walked.sources[1].ast).toEqual(parseMini(rhs));
     });

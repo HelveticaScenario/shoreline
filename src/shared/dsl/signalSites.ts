@@ -63,7 +63,7 @@ export interface SignalSite {
     /** The output the value stands for, or null when only a run can tell. */
     output: string | null;
     /**
-     * Whether writing `.o.<name>` straight after the value names that output:
+     * Whether writing `._<name>` straight after the value names that output:
      * true of a name, a member or a call that is one root, not an array.
      */
     insertable: boolean;
