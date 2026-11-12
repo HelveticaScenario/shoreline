@@ -644,7 +644,7 @@ mod tests {
         let mut p = params(1.0, 5.0, 5.0, 5.0);
         p.mode = ErraticMode::Blend;
         let (lo, hi) = bounds(&run(&mut make(p.clone()), 10_000));
-        assert!(lo >= 1.0 && lo < 1.1 && hi > 4.9, "{lo}..{hi}");
+        assert!((1.0..1.1).contains(&lo) && hi > 4.9, "{lo}..{hi}");
 
         p.bias = Some(volts(-5.0));
         let (lo, hi) = bounds(&run(&mut make(p), 10_000));

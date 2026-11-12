@@ -16,6 +16,9 @@ default-members = [
 profiling = "1.0"
 tracy-client = { version = "0.17", default-features = false }
 
+[workspace.lints.clippy]
+all = "deny"
+
 [profile.release]
 lto = true
 # Keep the symbol table in the shipped binary so panic backtraces in

@@ -160,6 +160,7 @@ fn get_fo(beta: f32, delta: f32, feedback: f32, z: f32) -> f32 {
 
 /// Surge `doLpf` (minus its unused `beta`/`delta` args): one ZDF one-pole stage.
 #[inline]
+#[expect(clippy::too_many_arguments, reason = "mirrors Surge's doLpf")]
 fn do_lpf(
     input: f32,
     alpha: f32,

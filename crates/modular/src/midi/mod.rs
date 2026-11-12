@@ -243,10 +243,10 @@ impl MidiInputManager {
 
         // Locks released — `connect_internal` re-locks `connections`.
         for name in to_open {
-            if !self.connections.lock().contains_key(&name) {
-                if let Err(e) = self.connect_internal(&name) {
-                    eprintln!("[MIDI] Failed to connect to '{}': {}", name, e);
-                }
+            if !self.connections.lock().contains_key(&name)
+                && let Err(e) = self.connect_internal(&name)
+            {
+                eprintln!("[MIDI] Failed to connect to '{}': {}", name, e);
             }
         }
     }

@@ -8,10 +8,6 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::ClockMessages;
 
-fn default_division() -> u32 {
-    1
-}
-
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]

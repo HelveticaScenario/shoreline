@@ -24,6 +24,10 @@ pub fn tan_fast(f: f32) -> f32 {
 /// cycles per sample, accurate across the audio range; finite and positive up
 /// to f = 1/2.
 #[inline(always)]
+#[expect(
+    clippy::excessive_precision,
+    reason = "stmlib's coefficients, verbatim"
+)]
 pub fn tan_accurate(f: f32) -> f32 {
     const A: f32 = (3.333314036e-01f32 as f64 * PI * PI * PI) as f32;
     const B: f32 = (1.333923995e-01f32 as f64 * PI * PI * PI * PI * PI) as f32;

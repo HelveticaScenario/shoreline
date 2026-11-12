@@ -23,14 +23,8 @@ fn make(module: &str, params: serde_json::Value, channels: usize) -> Box<dyn Sam
         channel_count: channels,
         f64_inputs: false,
     };
-    get_constructors()[module](
-        &"bench".to_string(),
-        SR,
-        deserialized,
-        BLOCK,
-        ProcessingMode::Block,
-    )
-    .expect("construct")
+    get_constructors()[module]("bench", SR, deserialized, BLOCK, ProcessingMode::Block)
+        .expect("construct")
 }
 
 fn process_block(module: &dyn Sampleable) {

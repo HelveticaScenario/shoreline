@@ -49,7 +49,6 @@ use std::result::Result as StdResult;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::dsp::utils::{hz_to_voct, midi_to_voct};
-use crate::module_category::ModuleCategory;
 use crate::patch::Patch;
 
 // ============================================================================
@@ -1004,10 +1003,6 @@ fn parse_signal_string(s: &str) -> StdResult<f32, String> {
     Err("Invalid signal format".to_string())
 }
 
-/// Audio buffer with interior mutability for single-thread access.
-///
-/// # Safety
-///
 // ============================================================================
 // SampleBuffer — plain sample storage
 // ============================================================================
@@ -1068,10 +1063,10 @@ impl SampleBuffer {
     }
 
     pub fn write(&mut self, channel: usize, frame: usize, value: f32) {
-        if let Some(ch) = self.samples.get_mut(channel) {
-            if let Some(sample) = ch.get_mut(frame) {
-                *sample = value;
-            }
+        if let Some(ch) = self.samples.get_mut(channel)
+            && let Some(sample) = ch.get_mut(frame)
+        {
+            *sample = value;
         }
     }
 
@@ -1924,12 +1919,12 @@ impl Connect for Buffer {
         // Resolve source module and get its buffer output. Runs on the audio
         // thread, so an unresolvable reference is cached as None without any
         // I/O — patch validation rejects such references before they get here.
-        if let Some(module) = patch.sampleables.get(&self.source_module) {
-            if let Some(buffer_data) = module.get_buffer_output(&self.source_port) {
-                self.cached_source_ptr = Some(NonNull::from(module.as_ref()));
-                self.cached_buffer = Some(NonNull::from(buffer_data));
-                return;
-            }
+        if let Some(module) = patch.sampleables.get(&self.source_module)
+            && let Some(buffer_data) = module.get_buffer_output(&self.source_port)
+        {
+            self.cached_source_ptr = Some(NonNull::from(module.as_ref()));
+            self.cached_buffer = Some(NonNull::from(buffer_data));
+            return;
         }
         self.cached_source_ptr = None;
         self.cached_buffer = None;
@@ -3005,7 +3000,7 @@ pub struct ModuleIdRemap {
 
 pub type SampleableConstructor = Box<
     dyn Fn(
-        &String,
+        &str,
         f32,
         crate::params::DeserializedParams,
         usize,
@@ -3612,7 +3607,7 @@ mod tests {
             .get("buf")
             .unwrap()
             .get_buffer_output("buffer")
-            .map(|b| NonNull::from(b));
+            .map(NonNull::from);
         assert_eq!(buffer.cached_buffer, source_buffer_ptr);
         assert_eq!(update_count.load(Ordering::SeqCst), 0);
     }

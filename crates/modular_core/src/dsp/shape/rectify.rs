@@ -93,7 +93,7 @@ shape_module! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dsp::shape::shape_core::{ShapeChannel, ShapeModuleState, run};
+    use crate::dsp::shape::shape_core::{ShapeChannel, ShapeInputs, ShapeModuleState, run};
     use crate::poly::{PolyOutput, PolySignal};
     use crate::types::Signal;
 
@@ -113,9 +113,11 @@ mod tests {
             let input = PolySignal::mono(Signal::Volts(sig(i)));
             run::<RectifyShaper>(
                 1,
-                &input,
-                &drive,
-                RectifyMode::Full,
+                ShapeInputs {
+                    input: &input,
+                    drive: &drive,
+                    mode: RectifyMode::Full,
+                },
                 &state,
                 &mut ch,
                 &mut out,
@@ -126,9 +128,11 @@ mod tests {
             let input = PolySignal::mono(Signal::Volts(sig(4000 + i)));
             run::<RectifyShaper>(
                 1,
-                &input,
-                &drive,
-                RectifyMode::Soft,
+                ShapeInputs {
+                    input: &input,
+                    drive: &drive,
+                    mode: RectifyMode::Soft,
+                },
                 &state,
                 &mut ch,
                 &mut out,

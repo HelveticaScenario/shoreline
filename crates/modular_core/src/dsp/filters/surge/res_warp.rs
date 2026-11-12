@@ -43,17 +43,8 @@ pub struct ResWarpMode {
 /// Surge `ResonanceWarp::doNLFilter`: one biquad step with the saturator applied to
 /// both state variables after the update.
 #[inline]
-fn do_nl_filter(
-    input: f32,
-    a1: f32,
-    a2: f32,
-    b0: f32,
-    b1: f32,
-    b2: f32,
-    sat: i32,
-    z1: &mut f32,
-    z2: &mut f32,
-) -> f32 {
+fn do_nl_filter(input: f32, c: &[f32; N_COEFFS], sat: i32, z1: &mut f32, z2: &mut f32) -> f32 {
+    let [a1, a2, b0, b1, b2] = [c[NLS_A1], c[NLS_A2], c[NLS_B0], c[NLS_B1], c[NLS_B2]];
     let out = *z1 + b0 * input;
     *z1 = *z2 + b1 * input - a1 * out;
     *z2 = b2 * input - a2 * out;
@@ -136,9 +127,7 @@ impl Filter for ResWarp {
         for stage in 0..=stages {
             let mut z1 = r[stage * 2];
             let mut z2 = r[stage * 2 + 1];
-            out = do_nl_filter(
-                out, c[NLS_A1], c[NLS_A2], c[NLS_B0], c[NLS_B1], c[NLS_B2], sat, &mut z1, &mut z2,
-            );
+            out = do_nl_filter(out, c, sat, &mut z1, &mut z2);
             r[stage * 2] = z1;
             r[stage * 2 + 1] = z2;
         }

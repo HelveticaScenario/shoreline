@@ -99,7 +99,7 @@ shape_module! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dsp::shape::shape_core::{ShapeChannel, ShapeModuleState, run};
+    use crate::dsp::shape::shape_core::{ShapeChannel, ShapeInputs, ShapeModuleState, run};
     use crate::poly::{PolyOutput, PolySignal};
     use crate::types::Signal;
 
@@ -120,9 +120,11 @@ mod tests {
             let input = PolySignal::mono(Signal::Volts(sig(i)));
             run::<FoldShaper>(
                 1,
-                &input,
-                &drive,
-                FoldMode::Dual,
+                ShapeInputs {
+                    input: &input,
+                    drive: &drive,
+                    mode: FoldMode::Dual,
+                },
                 &state,
                 &mut ch,
                 &mut out,
@@ -133,9 +135,11 @@ mod tests {
             let input = PolySignal::mono(Signal::Volts(sig(4000 + i)));
             run::<FoldShaper>(
                 1,
-                &input,
-                &drive,
-                FoldMode::Westcoast,
+                ShapeInputs {
+                    input: &input,
+                    drive: &drive,
+                    mode: FoldMode::Westcoast,
+                },
                 &state,
                 &mut ch,
                 &mut out,

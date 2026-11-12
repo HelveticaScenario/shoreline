@@ -298,8 +298,8 @@ impl Reverb {
         self.state.predelay_r = DelayLine::new(max_predelay);
 
         // Input diffusers: one chain per channel, sized for the largest room.
-        for i in 0..NUM_DIFFUSERS {
-            let base = DIFFUSER_DELAYS[i] * sr_scale;
+        for (i, &delay) in DIFFUSER_DELAYS.iter().enumerate() {
+            let base = delay * sr_scale;
             self.state.diffuser_len[i] = base;
             let cap = (base * MAX_SIZE).ceil() as usize + 4;
             self.state.diffusers_l[i] = DelayLine::new(cap.max(1));
@@ -553,7 +553,7 @@ mod tests {
             f64_inputs: false,
         };
         constructors.get("$unstable.reverb").unwrap()(
-            &"test-reverb".to_string(),
+            "test-reverb",
             sample_rate,
             deserialized,
             TEST_BLOCK_SIZE,

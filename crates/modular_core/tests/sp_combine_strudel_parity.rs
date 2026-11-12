@@ -88,7 +88,9 @@ fn frac_pair(f: &Fraction) -> [i64; 2] {
     [f.numer(), f.denom()]
 }
 
-fn sort_key(h: &CmpHap) -> ([[i64; 2]; 2], i32, Option<[[i64; 2]; 2]>) {
+type SortKey = ([[i64; 2]; 2], i32, Option<[[i64; 2]; 2]>);
+
+fn sort_key(h: &CmpHap) -> SortKey {
     (h.1, h.2, h.0)
 }
 
@@ -121,7 +123,7 @@ fn extract_actual(pat: &Pattern<IntervalValue>) -> Extracted {
             }
         })
         .collect();
-    out.sort_by(|a, b| sort_key(a).cmp(&sort_key(b)));
+    out.sort_by_key(sort_key);
     Extracted {
         haps: out,
         rest_count,
@@ -134,7 +136,7 @@ fn extract_expected(haps: &[FixtureHap]) -> Vec<CmpHap> {
         .iter()
         .map(|h| (h.whole, h.part, h.value as i32))
         .collect();
-    out.sort_by(|a, b| sort_key(a).cmp(&sort_key(b)));
+    out.sort_by_key(sort_key);
     out
 }
 

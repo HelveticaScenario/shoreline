@@ -74,32 +74,30 @@ fn normalize(node: &Value) -> Value {
             // the two seed-bearing variants by name; everything else
             // recurses generically.
             if obj.len() == 1 {
-                if let Some(payload) = obj.get("RandomChoice") {
-                    if let Value::Array(arr) = payload {
-                        if arr.len() == 2 {
-                            let children = normalize(&arr[0]);
-                            let mut out = serde_json::Map::new();
-                            out.insert(
-                                "RandomChoice".to_string(),
-                                Value::Array(vec![children, Value::from(0u64)]),
-                            );
-                            return Value::Object(out);
-                        }
-                    }
+                if let Some(payload) = obj.get("RandomChoice")
+                    && let Value::Array(arr) = payload
+                    && arr.len() == 2
+                {
+                    let children = normalize(&arr[0]);
+                    let mut out = serde_json::Map::new();
+                    out.insert(
+                        "RandomChoice".to_string(),
+                        Value::Array(vec![children, Value::from(0u64)]),
+                    );
+                    return Value::Object(out);
                 }
-                if let Some(payload) = obj.get("Degrade") {
-                    if let Value::Array(arr) = payload {
-                        if arr.len() == 3 {
-                            let child = normalize(&arr[0]);
-                            let prob = normalize(&arr[1]);
-                            let mut out = serde_json::Map::new();
-                            out.insert(
-                                "Degrade".to_string(),
-                                Value::Array(vec![child, prob, Value::from(0u64)]),
-                            );
-                            return Value::Object(out);
-                        }
-                    }
+                if let Some(payload) = obj.get("Degrade")
+                    && let Value::Array(arr) = payload
+                    && arr.len() == 3
+                {
+                    let child = normalize(&arr[0]);
+                    let prob = normalize(&arr[1]);
+                    let mut out = serde_json::Map::new();
+                    out.insert(
+                        "Degrade".to_string(),
+                        Value::Array(vec![child, prob, Value::from(0u64)]),
+                    );
+                    return Value::Object(out);
                 }
             }
             let mut out = serde_json::Map::new();
@@ -112,10 +110,12 @@ fn normalize(node: &Value) -> Value {
             // Collapse 0.0 → 0, 2.0 → 2. `serde_json::Number` retains
             // the original parse form, but `as_f64` + integer check
             // gives us a unified representation.
-            if let Some(f) = n.as_f64() {
-                if f.is_finite() && f.fract() == 0.0 && f.abs() < (i64::MAX as f64) {
-                    return Value::from(f as i64);
-                }
+            if let Some(f) = n.as_f64()
+                && f.is_finite()
+                && f.fract() == 0.0
+                && f.abs() < (i64::MAX as f64)
+            {
+                return Value::from(f as i64);
             }
             node.clone()
         }

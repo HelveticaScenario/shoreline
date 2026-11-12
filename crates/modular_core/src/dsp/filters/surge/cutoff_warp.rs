@@ -63,19 +63,8 @@ pub struct CutoffWarpMode {
 /// Surge `CutoffWarp::doNLFilter`: one biquad step with the saturator applied to the
 /// feedback signal only.
 #[inline]
-#[allow(clippy::too_many_arguments)]
-fn do_nl_filter(
-    input: f32,
-    a1: f32,
-    a2: f32,
-    b0: f32,
-    b1: f32,
-    b2: f32,
-    makeup: f32,
-    sat: i32,
-    z1: &mut f32,
-    z2: &mut f32,
-) -> f32 {
+fn do_nl_filter(input: f32, c: &[f32; N_COEFFS], sat: i32, z1: &mut f32, z2: &mut f32) -> f32 {
+    let [a1, a2, b0, b1, b2] = [c[NLF_A1], c[NLF_A2], c[NLF_B0], c[NLF_B1], c[NLF_B2]];
     let out = *z1 + b0 * input;
     let nf = match sat {
         1 => softclip(out),
@@ -84,7 +73,7 @@ fn do_nl_filter(
     };
     *z1 = *z2 + b1 * input - a1 * nf;
     *z2 = b2 * input - a2 * nf;
-    out * makeup
+    out * c[NLF_MAKEUP]
 }
 
 /// Cutoff-warp kernel. Every subtype saturates per sample → 2× oversampled.
@@ -181,18 +170,7 @@ impl Filter for CutoffWarp {
         for stage in 0..=stages {
             let mut z1 = r[stage * 2];
             let mut z2 = r[stage * 2 + 1];
-            out = do_nl_filter(
-                out,
-                c[NLF_A1],
-                c[NLF_A2],
-                c[NLF_B0],
-                c[NLF_B1],
-                c[NLF_B2],
-                c[NLF_MAKEUP],
-                sat,
-                &mut z1,
-                &mut z2,
-            );
+            out = do_nl_filter(out, c, sat, &mut z1, &mut z2);
             r[stage * 2] = z1;
             r[stage * 2 + 1] = z2;
         }

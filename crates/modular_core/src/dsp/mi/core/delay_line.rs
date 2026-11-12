@@ -21,7 +21,7 @@ impl DelayLine {
         }
     }
 
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.line.len()
     }
 

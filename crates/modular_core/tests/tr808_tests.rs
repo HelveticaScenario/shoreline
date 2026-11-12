@@ -3,11 +3,6 @@
 //!
 //! A constant 5 V trigger strikes each drum on its first sample.
 
-use modular_core::Patch;
-use modular_core::dsp::get_params_deserializers;
-use modular_core::dsp::utils::rng::TEST_SEED_BASE;
-use modular_core::params::DeserializedParams;
-use modular_core::types::ProcessingMode;
 use serde_json::{Value, json};
 
 mod drum_common;

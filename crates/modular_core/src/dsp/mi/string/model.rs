@@ -169,6 +169,7 @@ impl StringModel {
     /// sample (finite, above 0); `non_linearity` runs from −1 (curved bridge)
     /// through 0 to 1 (dispersion).
     #[inline(always)]
+    #[expect(clippy::too_many_arguments, reason = "mirrors Plaits' String::Process")]
     pub fn process(
         &mut self,
         f0: f32,
@@ -219,13 +220,7 @@ impl StringModel {
             }
 
             s += input;
-            s = if s < -20.0 {
-                -20.0
-            } else if s > 20.0 {
-                20.0
-            } else {
-                s
-            };
+            s = s.clamp(-20.0, 20.0);
             let old_x = self.dc_x;
             self.dc_x = s;
             self.dc_y = self.dc_y * rates.dc_pole + s - old_x;

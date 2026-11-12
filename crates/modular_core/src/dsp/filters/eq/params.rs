@@ -213,7 +213,7 @@ fn validate_eq_params(
 /// Channels follow the input, widened to the number of per-channel lists.
 /// Section params are mono and never add channels.
 pub fn eq_derive_channel_count(params: &ParametricEqParams) -> usize {
-    let input = PolySignal::max_channels(&[&params.input]) as usize;
+    let input = PolySignal::max_channels(&[&params.input]);
     let lists = match &params.sections {
         EqSections::Shared(_) => 1,
         EqSections::PerChannel(lists) => lists.len(),

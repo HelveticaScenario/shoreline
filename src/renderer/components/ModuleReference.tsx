@@ -71,8 +71,6 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
     onCategoryChange,
     onTypeClick,
 }) => {
-    const cardsRef = useRef<HTMLDivElement>(null);
-    const indexRef = useRef<HTMLUListElement>(null);
     const [indexWidth, setIndexWidth] = useStoredSize(
         INDEX_WIDTH_STORAGE_KEY,
         clampIndexWidth,
@@ -99,11 +97,62 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
             .map(({ entry }) => entry);
     }, [entries, searchQuery, category]);
 
+    return (
+        <ModuleBrowser
+            hasModules={modules.length > 0}
+            filteredModules={filteredModules}
+            categories={categories}
+            searchQuery={searchQuery}
+            onSearchQueryChange={onSearchQueryChange}
+            category={category}
+            onCategoryChange={onCategoryChange}
+            indexWidth={indexWidth}
+            onIndexWidthChange={setIndexWidth}
+            onTypeClick={onTypeClick}
+        />
+    );
+};
+
+interface ModuleBrowserProps {
+    hasModules: boolean;
+    filteredModules: ReferenceEntry[];
+    categories: typeof moduleCategories;
+    searchQuery: string;
+    onSearchQueryChange: (query: string) => void;
+    category: string | null;
+    onCategoryChange: (category: string | null) => void;
+    indexWidth: number | null;
+    onIndexWidthChange: (width: number | null) => void;
+    onTypeClick: (typeName: DslTypeName) => void;
+}
+
+/**
+ * The name index and the virtualized cards. `useVirtualizer` returns a mutable
+ * instance whose methods read fresh state on every render, so React Compiler
+ * must not memoize anything derived from it.
+ */
+const ModuleBrowser: React.FC<ModuleBrowserProps> = ({
+    hasModules,
+    filteredModules,
+    categories,
+    searchQuery,
+    onSearchQueryChange,
+    category,
+    onCategoryChange,
+    indexWidth,
+    onIndexWidthChange,
+    onTypeClick,
+}) => {
+    'use no memo';
+    const cardsRef = useRef<HTMLDivElement>(null);
+    const indexRef = useRef<HTMLUListElement>(null);
+
     const getItemKey = useCallback(
         (index: number) => filteredModules[index].name,
         [filteredModules],
     );
 
+    // oxlint-disable-next-line react-hooks-js/incompatible-library
     const virtualizer = useVirtualizer({
         count: filteredModules.length,
         estimateSize: () => ESTIMATED_CARD_HEIGHT_PX,
@@ -180,7 +229,7 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
                     max={indexMaxWidth}
                     label="Resize module index"
                     className="module-index-sash"
-                    onSizeChange={setIndexWidth}
+                    onSizeChange={onIndexWidthChange}
                 />
                 <input
                     type="text"
@@ -240,7 +289,7 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
                     </div>
                 )}
                 <div ref={cardsRef} className="module-cards">
-                    {filteredModules.length === 0 && modules.length > 0 && (
+                    {filteredModules.length === 0 && hasModules && (
                         <p className="module-reference-empty">
                             No modules match
                             {category ? ` in ${category}` : ''}.

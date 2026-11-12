@@ -139,7 +139,7 @@ impl Step {
 
         let idx = self.state.current_step_idx.min(self.params.steps.len() - 1);
         let step = &self.params.steps[idx];
-        for i in 0..channels as usize {
+        for i in 0..channels {
             self.outputs.sample.set(i, step.get_value(i));
         }
     }

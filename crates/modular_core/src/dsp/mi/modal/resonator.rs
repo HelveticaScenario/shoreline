@@ -123,6 +123,10 @@ impl Resonator {
     ) -> f32 {
         self.tune(f0, structure, brightness, decay, to_48k);
         let mut weighted = [0.0f32; MODES];
+        #[expect(
+            clippy::needless_range_loop,
+            reason = "seven per-mode arrays step together, as in Plaits"
+        )]
         for i in 0..MODES {
             let g = self.g[i];
             let hp = (input - self.r_plus_g[i] * self.state_1[i] - self.state_2[i]) * self.h[i];

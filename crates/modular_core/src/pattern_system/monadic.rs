@@ -40,8 +40,8 @@ impl<T: Clone + Send + Sync + 'static> Pattern<T> {
                             // Merge contexts: inner is primary (its source_span is kept),
                             // outer's source_span becomes a modifier_span.
                             let context = ArenaHapContext::combine_in(
-                                &inner_hap.context,
-                                &outer_hap.context,
+                                inner_hap.context,
+                                outer_hap.context,
                                 bump,
                             );
 
@@ -97,8 +97,8 @@ impl<T: Clone + Send + Sync + 'static> Pattern<T> {
                         if let Some(part) = outer_hap.part.intersection(&inner_hap.part) {
                             // inner_join: inner's whole wins.
                             let context = ArenaHapContext::combine_in(
-                                &inner_hap.context,
-                                &outer_hap.context,
+                                inner_hap.context,
+                                outer_hap.context,
                                 bump,
                             );
                             out.push(ArenaHap {

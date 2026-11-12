@@ -461,7 +461,10 @@ mod tests {
             );
             assert!(x.abs() <= 5.0, "x={x} exceeded ±5V under substepping");
             assert!(y.abs() <= 5.0, "y={y} exceeded ±5V under substepping");
-            assert!(z >= 0.0 && z <= 5.0, "z={z} out of 0–5V under substepping");
+            assert!(
+                (0.0..=5.0).contains(&z),
+                "z={z} out of 0–5V under substepping"
+            );
         }
     }
 }
