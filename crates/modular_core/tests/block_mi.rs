@@ -271,7 +271,8 @@ fn vowel_instances_draw_their_own_noise() {
     assert!(differ, "every vowel drew identical noise");
 }
 
-/// Loud strikes and drones stay within the ±5 V the outputs declare.
+/// Loud, fully accented strikes and drones stay within the ranges the
+/// outputs declare.
 #[test]
 fn resonator_outputs_stay_in_range() {
     for module in ["$mi.modal", "$mi.string"] {
@@ -282,11 +283,11 @@ fn resonator_outputs_stay_in_range() {
                     "input": poly_cable("src", CHANNELS) }),
         ] {
             let patch = build(ProcessingMode::Block, ProcessingMode::Block, module, params);
-            for port in [default_port(module).as_str(), "exciter"] {
+            for (port, range) in [(default_port(module).as_str(), 10.0), ("exciter", 5.0)] {
                 let peak = render_ports(&patch, port, 200)
                     .iter()
                     .fold(0.0f32, |m, v| m.max(v.abs()));
-                assert!(peak <= 5.0, "{module} {port} peak {peak}");
+                assert!(peak <= range, "{module} {port} peak {peak}");
             }
         }
     }

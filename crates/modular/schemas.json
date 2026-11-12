@@ -29895,7 +29895,7 @@
           ]
         },
         "accent": {
-          "description": "how hard each hit is: louder; unpatched trigger, scales the hiss's level",
+          "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V; unpatched trigger, raises the hiss's level",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -30008,12 +30008,12 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the hat",
+        "description": "the hat; an unaccented hit peaks within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "minValue": -10.0,
+        "maxValue": 10.0,
         "precision": "f32"
       }
     ],
@@ -30061,9 +30061,9 @@
       },
       {
         "name": "accent",
-        "description": "how hard each hit is: louder; unpatched trigger, scales the hiss's level",
+        "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V; unpatched trigger, raises the hiss's level",
         "paramType": "control",
-        "defaultValue": 4.0,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -30156,7 +30156,7 @@
           ]
         },
         "accent": {
-          "description": "how hard each hit is: louder, and longer before its tail is choked; unpatched trigger, scales the hiss's level",
+          "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V, and longer before its tail is choked; unpatched trigger, raises the hiss's level",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -30269,12 +30269,12 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the hat",
+        "description": "the hat; an unaccented hit peaks within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "minValue": -10.0,
+        "maxValue": 10.0,
         "precision": "f32"
       }
     ],
@@ -30322,9 +30322,9 @@
       },
       {
         "name": "accent",
-        "description": "how hard each hit is: louder, and longer before its tail is choked; unpatched trigger, scales the hiss's level",
+        "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V, and longer before its tail is choked; unpatched trigger, raises the hiss's level",
         "paramType": "control",
-        "defaultValue": 4.0,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -30439,7 +30439,7 @@
           ]
         },
         "accent": {
-          "description": "how hard each hit is: louder, with a harder attack; unpatched trigger, scales the drone's level",
+          "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V, with a harder attack; unpatched trigger, raises the drone's level",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -30552,12 +30552,12 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the drum",
+        "description": "the drum; an unaccented hit peaks within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "minValue": -10.0,
+        "maxValue": 10.0,
         "precision": "f32"
       }
     ],
@@ -30625,9 +30625,9 @@
       },
       {
         "name": "accent",
-        "description": "how hard each hit is: louder, with a harder attack; unpatched trigger, scales the drone's level",
+        "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V, with a harder attack; unpatched trigger, raises the drone's level",
         "paramType": "control",
-        "defaultValue": 4.0,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -30742,7 +30742,7 @@
           ]
         },
         "accent": {
-          "description": "how hard each hit is: louder, with a harder attack; unpatched trigger, scales the drone's level",
+          "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V, with a harder attack; unpatched trigger, raises the drone's level",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -30855,12 +30855,12 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the drum",
+        "description": "the drum; an unaccented hit peaks within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "minValue": -10.0,
+        "maxValue": 10.0,
         "precision": "f32"
       }
     ],
@@ -30929,9 +30929,9 @@
       },
       {
         "name": "accent",
-        "description": "how hard each hit is: louder, with a harder attack; unpatched trigger, scales the drone's level",
+        "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V, with a harder attack; unpatched trigger, raises the drone's level",
         "paramType": "control",
-        "defaultValue": 4.0,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -31024,7 +31024,7 @@
           ]
         },
         "accent": {
-          "description": "how hard each strike is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
+          "description": "how hard each strike lands, read at each strike: up to twice as loud at 5 V, brighter and longer; unpatched trigger, raises the grains' level",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -31148,12 +31148,12 @@
     "outputs": [
       {
         "name": "body",
-        "description": "the ringing body",
+        "description": "the ringing body; unaccented, within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "minValue": -10.0,
+        "maxValue": 10.0,
         "precision": "f32"
       },
       {
@@ -31211,9 +31211,9 @@
       },
       {
         "name": "accent",
-        "description": "how hard each strike is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
+        "description": "how hard each strike lands, read at each strike: up to twice as loud at 5 V, brighter and longer; unpatched trigger, raises the grains' level",
         "paramType": "control",
-        "defaultValue": 4.0,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -31802,7 +31802,7 @@
           ]
         },
         "accent": {
-          "description": "how hard each note is played: louder and brighter as the patch's velocity sensitivity sets",
+          "description": "how hard each note is played, read as the gate rises: up to twice as loud at 5 V, and brighter as the patch's velocity sensitivity sets; unpatched gate, raises the drone's level",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -31915,12 +31915,12 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the FM voice",
+        "description": "the FM voice; unaccented, within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "minValue": -10.0,
+        "maxValue": 10.0,
         "precision": "f32"
       }
     ],
@@ -31978,9 +31978,9 @@
       },
       {
         "name": "accent",
-        "description": "how hard each note is played: louder and brighter as the patch's velocity sensitivity sets",
+        "description": "how hard each note is played, read as the gate rises: up to twice as loud at 5 V, and brighter as the patch's velocity sensitivity sets; unpatched gate, raises the drone's level",
         "paramType": "control",
-        "defaultValue": 4.0,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -32073,7 +32073,7 @@
           ]
         },
         "accent": {
-          "description": "how hard the shell is struck: louder and harder, the snares unchanged; unpatched trigger, scales the drone's level",
+          "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V, the shell struck harder; unpatched trigger, raises the drone's level",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -32186,12 +32186,12 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the drum",
+        "description": "the drum; an unaccented hit peaks within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "minValue": -10.0,
+        "maxValue": 10.0,
         "precision": "f32"
       }
     ],
@@ -32239,9 +32239,9 @@
       },
       {
         "name": "accent",
-        "description": "how hard the shell is struck: louder and harder, the snares unchanged; unpatched trigger, scales the drone's level",
+        "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V, the shell struck harder; unpatched trigger, raises the drone's level",
         "paramType": "control",
-        "defaultValue": 4.0,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -32334,7 +32334,7 @@
           ]
         },
         "accent": {
-          "description": "how hard each hit is: louder; unpatched trigger, scales the drone's level",
+          "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V; unpatched trigger, raises the drone's level",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -32447,12 +32447,12 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the drum",
+        "description": "the drum; an unaccented hit peaks within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "minValue": -10.0,
+        "maxValue": 10.0,
         "precision": "f32"
       }
     ],
@@ -32500,9 +32500,9 @@
       },
       {
         "name": "accent",
-        "description": "how hard each hit is: louder; unpatched trigger, scales the drone's level",
+        "description": "how hard each hit lands, read at each strike: up to twice as loud at 5 V; unpatched trigger, raises the drone's level",
         "paramType": "control",
-        "defaultValue": 4.0,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -32617,7 +32617,7 @@
           ]
         },
         "accent": {
-          "description": "how loud each triggered word is; unpatched trigger, full level",
+          "description": "how loud each word is, read as it is triggered: up to twice as loud at 5 V; unpatched trigger, raises the voice's level",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -32730,12 +32730,12 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the voice",
+        "description": "the voice; unaccented, within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "minValue": -10.0,
+        "maxValue": 10.0,
         "precision": "f32"
       },
       {
@@ -32813,9 +32813,9 @@
       },
       {
         "name": "accent",
-        "description": "how loud each triggered word is; unpatched trigger, full level",
+        "description": "how loud each word is, read as it is triggered: up to twice as loud at 5 V; unpatched trigger, raises the voice's level",
         "paramType": "control",
-        "defaultValue": 4.0,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,
@@ -32908,7 +32908,7 @@
           ]
         },
         "accent": {
-          "description": "how hard each pluck is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
+          "description": "how hard each pluck lands, read at each pluck: up to twice as loud at 5 V, brighter and longer; unpatched trigger, raises the grains' level",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -33032,12 +33032,12 @@
     "outputs": [
       {
         "name": "strings",
-        "description": "the ringing strings",
+        "description": "the ringing strings; unaccented, within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "minValue": -10.0,
+        "maxValue": 10.0,
         "precision": "f32"
       },
       {
@@ -33095,9 +33095,9 @@
       },
       {
         "name": "accent",
-        "description": "how hard each pluck is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
+        "description": "how hard each pluck lands, read at each pluck: up to twice as loud at 5 V, brighter and longer; unpatched trigger, raises the grains' level",
         "paramType": "control",
-        "defaultValue": 4.0,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,

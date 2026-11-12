@@ -8,6 +8,7 @@ mod voice;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use super::accent::{Accent, plaits_volts};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
@@ -29,6 +30,9 @@ use voice::{FmVoice, Rates};
 /// Plaits' output gain for this engine, at ±5 V full scale, after its
 /// `SoftClip(x / 4)` output stage.
 const OUTPUT_GAIN: f32 = -5.0;
+/// The output level at full accent, which with Plaits' own response to
+/// accent makes a fully accented note peak twice as high as an unaccented one.
+const ACCENT_TRIM: f32 = 2.0;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
@@ -76,9 +80,9 @@ struct SixOpParams {
     #[deserr(default)]
     envelope: Option<PolySignal>,
     #[input(
-        "how hard each note is played: louder and brighter as the patch's velocity sensitivity sets",
+        "how hard each note is played, read as the gate rises: up to twice as loud at 5 V, and brighter as the patch's velocity sensitivity sets; unpatched gate, raises the drone's level",
         type = control,
-        default = 4.0,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -98,7 +102,7 @@ struct SixOpParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SixOpOutputs {
-    #[output("output", "the FM voice", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the FM voice; unaccented, within ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
@@ -176,6 +180,7 @@ struct Channel {
     brightness: SwapGlide,
     envelope: SwapGlide,
     accent: SwapGlide,
+    accent_state: Accent,
     /// The last finite brightness, envelope and accent, which a NaN or
     /// infinite knob holds.
     held: [f32; 3],
@@ -197,10 +202,11 @@ impl Default for Channel {
             brightness: SwapGlide::default(),
             envelope: SwapGlide::default(),
             accent: SwapGlide::default(),
+            accent_state: Accent::default(),
             held: [
                 SixOpParams::BRIGHTNESS_DEFAULT,
                 SixOpParams::ENVELOPE_DEFAULT,
-                SixOpParams::ACCENT_DEFAULT,
+                plaits_volts(SixOpParams::ACCENT_DEFAULT),
             ],
             bank: 0,
             patch: 0,
@@ -300,10 +306,16 @@ impl SixOp {
                 p.fm.value_or(ch, SixOpParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
-            let gate = p
-                .gate
-                .as_ref()
-                .map(|g| channel.trigger.process_with_edge(g.get_value(ch)).0);
+            let gate_volts = p.gate.as_ref().map(|g| g.get_value(ch));
+            let gate = gate_volts.map(|volts| channel.trigger.process_with_edge(volts).0);
+            let accent = (
+                p.accent.value_or(ch, SixOpParams::ACCENT_DEFAULT),
+                p.accent.glide_mark(ch),
+            );
+            let mark = accent.1;
+            let accent = channel
+                .accent_state
+                .read(accent, gate_volts, self.state.sample_rate);
             let knobs = Knobs {
                 bank: p.bank.value_or(ch, SixOpParams::BANK_DEFAULT),
                 patch: p.patch.value_or(ch, SixOpParams::PATCH_DEFAULT),
@@ -315,13 +327,14 @@ impl SixOp {
                     p.envelope.value_or(ch, SixOpParams::ENVELOPE_DEFAULT),
                     p.envelope.glide_mark(ch),
                 ),
-                accent: (
-                    p.accent.value_or(ch, SixOpParams::ACCENT_DEFAULT),
-                    p.accent.glide_mark(ch),
-                ),
+                accent: (plaits_volts(accent), mark),
             };
             let out = channel.step(f0, knobs, gate, &self.state);
-            self.outputs.sample.set(ch, OUTPUT_GAIN * out);
+            let out =
+                channel
+                    .accent_state
+                    .apply(OUTPUT_GAIN * out, ACCENT_TRIM, self.state.sample_rate);
+            self.outputs.sample.set(ch, out);
         }
     }
 }
