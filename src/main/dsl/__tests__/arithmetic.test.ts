@@ -1,8 +1,8 @@
 /**
  * `.add()`, `.sub()`, `.mul()`, `.div()` and `.exp()` are the chain methods of
  * `$add`, `$sub`, `$mul`, `$div` and `$exp`, and `.round()`, `.floor()` and
- * `.ceil()` of `$round`, `$floor` and `$ceil`. On a ranged signal each keeps the range
- * where the engine bounds its result.
+ * `.ceil()` those of `$round`, `$floor` and `$ceil`. On a ranged signal each
+ * keeps the range where the engine bounds its result.
  */
 
 import { beforeEach, describe, expect, test } from 'vitest';

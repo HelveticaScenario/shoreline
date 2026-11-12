@@ -26,13 +26,10 @@ import { isSignalGroupLike } from './signalGroups';
  * separate call sites.
  */
 export const CHAIN_METHODS: ChainMethods = {
-    ceil: {},
     erratic: { trigger: 'trig' },
-    floor: {},
     out: {},
     outMono: {},
     range: {},
-    round: {},
     scope: {},
     send: {},
     wet: {},

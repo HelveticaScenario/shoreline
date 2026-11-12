@@ -281,7 +281,8 @@ fn a_swinging_divisor_leaves_the_quotient_unbounded() {
 }
 
 #[test]
-fn rounded_bounds_round() {
-    let bounds = check_bounds_agree("$floor", json!({ "input": poly_cable("src", CHANNELS) }));
-    assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
+fn rounding_bounds_agree() {
+    for (module, _) in ROUNDINGS {
+        check_bounds_agree(module, json!({ "input": poly_cable("src", CHANNELS) }));
+    }
 }

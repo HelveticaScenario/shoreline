@@ -7,6 +7,7 @@
 use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
+use crate::block_port::BlockPort;
 use crate::dsp::utils::Sample;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
@@ -20,13 +21,17 @@ trait Rounding {
 /// One sample of every channel, at full precision when `out` is f64.
 #[inline(always)]
 fn update<R: Rounding>(input: &PolySignal, out: &mut PolyOutput, channels: usize) {
-    for i in 0..channels {
-        if out.is_f64() {
+    if out.is_f64() {
+        for i in 0..channels {
             out.set_f64(i, R::apply(input.get_value_f64(i)));
-        } else {
+        }
+    } else {
+        for i in 0..channels {
             out.set(i, R::apply(input.get_value(i)));
         }
-        if out.stores_bounds() {
+    }
+    if out.stores_bounds() {
+        for i in 0..channels {
             out.set_bounds(i, input.get_bounds(i).map(R::apply));
         }
     }
@@ -35,7 +40,7 @@ fn update<R: Rounding>(input: &PolySignal, out: &mut PolyOutput, channels: usize
 #[inline(always)]
 fn process_block<R: Rounding>(
     input: &PolySignal,
-    out: &mut crate::block_port::BlockPort,
+    out: &mut BlockPort,
     range: Range<usize>,
     channels: usize,
 ) -> Option<()> {
@@ -122,18 +127,29 @@ macro_rules! rounding_module {
 
 const ROUND_DOCS: ModuleDocs = ModuleDocs {
     summary: "Round to whole volts",
-    description: "Rounds a signal to the nearest whole volt, halves away from zero. \
-                  On a pitch that is the nearest octave; divide first for finer steps.",
+    description: "Rounds a signal to the nearest whole volt, halves away from zero: \
+                  on a pitch, the nearest octave. A ranged signal keeps its range, \
+                  rounded too.",
     categories: &[ModuleCategory::Math],
     sections: &[],
-    examples: &[DocExample {
-        title: "Semitone steps",
-        code: r#"
-            $sine(
-              $sine('1hz').range(0, 3).round().div(12).add('c3'),
-            ).out()
-        "#,
-    }],
+    examples: &[
+        DocExample {
+            title: "Semitone steps",
+            code: r#"
+                $sine(
+                  $sine('1hz').range(0, 3).round().div(12).add('c3'),
+                ).out()
+            "#,
+        },
+        DocExample {
+            title: "Eight steps across an octave",
+            code: r#"
+                $sine(
+                  $sine('1hz').range(0, 7.5).round().range('c3', 'c4'),
+                ).out()
+            "#,
+        },
+    ],
 };
 
 rounding_module!(Round, name = "$round", docs = ROUND_DOCS, |x| x.round());

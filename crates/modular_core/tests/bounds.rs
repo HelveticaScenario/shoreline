@@ -645,3 +645,55 @@ fn a_control_without_a_range_holds_its_value_as_a_point() {
         assert_eq!(read(&patch, "control", slot).1, Bounds::point(2.0));
     }
 }
+
+#[test]
+fn rounding_rounds_the_range_in_its_order() {
+    let source = |id: &'static str, out_min: f32, out_max: f32| {
+        (
+            id,
+            "$remap",
+            json!({
+                "input": cable("saw"),
+                "outMin": out_min,
+                "outMax": out_max,
+                "inMin": -5.0,
+                "inMax": 5.0,
+            }),
+            ProcessingMode::Block,
+        )
+    };
+    let rounding = |id: &'static str, module: &'static str, input: &str| {
+        (
+            id,
+            module,
+            json!({ "input": cable(input) }),
+            ProcessingMode::Block,
+        )
+    };
+    let modules = [
+        ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
+        source("up", -1.5, 3.5),
+        source("down", 3.5, -1.5),
+        rounding("round", "$round", "up"),
+        rounding("floor", "$floor", "up"),
+        rounding("ceil", "$ceil", "up"),
+        rounding("round_down", "$round", "down"),
+        rounding("floor_down", "$floor", "down"),
+        rounding("ceil_down", "$ceil", "down"),
+    ];
+    let patch = build(&modules);
+    let order: Vec<&str> = modules.iter().map(|(id, ..)| *id).collect();
+    render_block(&patch, &order, &[BLOCK_SIZE]);
+    for (id, expected) in [
+        ("round", Bounds::new(-2.0, 4.0)),
+        ("floor", Bounds::new(-2.0, 3.0)),
+        ("ceil", Bounds::new(-1.0, 4.0)),
+        ("round_down", Bounds::new(4.0, -2.0)),
+        ("floor_down", Bounds::new(3.0, -2.0)),
+        ("ceil_down", Bounds::new(4.0, -1.0)),
+    ] {
+        for slot in 0..BLOCK_SIZE {
+            assert_eq!(read(&patch, id, slot).1, expected, "{id} slot {slot}");
+        }
+    }
+}

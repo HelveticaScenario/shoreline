@@ -22319,7 +22319,7 @@
     "name": "$round",
     "docs": {
       "summary": "Round to whole volts",
-      "description": "Rounds a signal to the nearest whole volt, halves away from zero. On a pitch that is the nearest octave; divide first for finer steps.",
+      "description": "Rounds a signal to the nearest whole volt, halves away from zero: on a pitch, the nearest octave. A ranged signal keeps its range, rounded too.",
       "categories": [
         "math"
       ],
@@ -22328,6 +22328,10 @@
         {
           "title": "Semitone steps",
           "code": "$sine(\n  $sine('1hz').range(0, 3).round().div(12).add('c3'),\n).out()"
+        },
+        {
+          "title": "Eight steps across an octave",
+          "code": "$sine(\n  $sine('1hz').range(0, 7.5).round().range('c3', 'c4'),\n).out()"
         }
       ]
     },
