@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use crate::params::ParamsDeserializer;
 use crate::types::{Module, ModuleSchema, SampleableConstructor};
 
+mod accent;
 pub mod additive;
 pub mod chorus;
 pub mod core;

@@ -10,8 +10,9 @@ use crate::{
     poly::{PolyOutput, PolySignal, PolySignalExt},
 };
 
-use super::channel::{ACCENT_DEFAULT, Channel, HatState, KNOB_DEFAULT, Knobs, seed};
+use super::channel::{ACCENT_DEFAULT, ACCENT_TRIM, Channel, HatState, KNOB_DEFAULT, Knobs, seed};
 use super::hat_drum::RingHat;
+use crate::dsp::mi::accent::plaits_volts;
 use crate::dsp::mi::drum::{OUTPUT_GAIN, pitch};
 
 #[params]
@@ -55,9 +56,9 @@ struct MiRingHatParams {
     #[deserr(default)]
     noisiness: Option<PolySignal>,
     #[input(
-        "how hard each hit is: louder, and longer before its tail is choked; unpatched trigger, scales the hiss's level",
+        "how hard each hit lands, read at each strike: up to twice as loud at 5 V, and longer before its tail is choked; unpatched trigger, raises the hiss's level",
         type = control,
-        default = 4.0,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -84,7 +85,7 @@ const _: () = assert!(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MiRingHatOutputs {
-    #[output("output", "the hat", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the hat; an unaccented hit peaks within ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
@@ -150,16 +151,24 @@ impl MiRingHat {
             let knob = |signal: &Option<PolySignal>, default| {
                 (signal.value_or(ch, default), signal.glide_mark(ch))
             };
+            let accent = knob(&p.accent, MiRingHatParams::ACCENT_DEFAULT);
+            let mark = accent.1;
+            let accent = channel
+                .accent_state
+                .read(accent, trigger, state.sample_rate);
             let knobs = Knobs {
                 tone: knob(&p.tone, MiRingHatParams::TONE_DEFAULT),
                 decay: knob(&p.decay, MiRingHatParams::DECAY_DEFAULT),
                 noisiness: knob(&p.noisiness, MiRingHatParams::NOISINESS_DEFAULT),
-                accent: knob(&p.accent, MiRingHatParams::ACCENT_DEFAULT),
+                accent: (plaits_volts(accent), mark),
             };
             let out = channel.step(f0, knobs, trigger, state);
-            self.outputs
-                .sample
-                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0));
+            let out = channel.accent_state.apply(
+                (OUTPUT_GAIN * out).clamp(-5.0, 5.0),
+                ACCENT_TRIM,
+                state.sample_rate,
+            );
+            self.outputs.sample.set(ch, out);
         }
     }
 }

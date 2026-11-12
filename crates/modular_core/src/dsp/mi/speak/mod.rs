@@ -6,6 +6,7 @@ mod speaker;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use super::accent::{Accent, plaits_volts};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
@@ -24,6 +25,10 @@ use crate::{
 
 use super::vowel::{EXCITATION_GAIN, OUTPUT_GAIN, PRE_GAIN};
 use speaker::{BANKS, Controls, Speaker};
+
+/// The output level at full accent, which with Plaits' own response to
+/// accent makes a fully accented word peak twice as high as an unaccented one.
+const ACCENT_TRIM: f32 = 1.61;
 
 /// Rate conversions for the engine's rate, stated against Plaits' 48 kHz.
 #[derive(Default)]
@@ -107,9 +112,9 @@ struct SpeakParams {
     #[deserr(default)]
     speed: Option<PolySignal>,
     #[input(
-        "how loud each triggered word is; unpatched trigger, full level",
+        "how loud each word is, read as it is triggered: up to twice as loud at 5 V; unpatched trigger, raises the voice's level",
         type = control,
-        default = 4.0,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -129,7 +134,7 @@ struct SpeakParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SpeakOutputs {
-    #[output("output", "the voice", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the voice; unaccented, within ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output(
         "excitation",
@@ -188,6 +193,7 @@ pub struct Channel {
     limiter: Limiter,
     trigger: SchmittTrigger,
     glides: [SwapGlide; 5],
+    accent_state: Accent,
     /// The last finite value of each smoothed knob, which a NaN or infinite
     /// one holds.
     held: [f32; 5],
@@ -202,12 +208,13 @@ impl Default for Channel {
             limiter: Limiter::default(),
             trigger: SchmittTrigger::default(),
             glides: Default::default(),
+            accent_state: Accent::default(),
             held: [
                 SpeakParams::WORD_DEFAULT,
                 SpeakParams::FORMANT_SHIFT_DEFAULT,
                 SpeakParams::PROSODY_DEFAULT,
                 SpeakParams::SPEED_DEFAULT,
-                SpeakParams::ACCENT_DEFAULT,
+                plaits_volts(SpeakParams::ACCENT_DEFAULT),
             ],
             bank: 0,
         }
@@ -305,6 +312,11 @@ impl Speak {
             let knob = |signal: &Option<PolySignal>, default| {
                 (signal.value_or(ch, default), signal.glide_mark(ch))
             };
+            let accent = knob(&p.accent, SpeakParams::ACCENT_DEFAULT);
+            let mark = accent.1;
+            let accent = channel
+                .accent_state
+                .read(accent, trigger, rates.sample_rate);
             let knobs = Knobs {
                 bank: p.bank.value_or(ch, SpeakParams::BANK_DEFAULT),
                 smooth: [
@@ -312,10 +324,13 @@ impl Speak {
                     knob(&p.formant_shift, SpeakParams::FORMANT_SHIFT_DEFAULT),
                     knob(&p.prosody, SpeakParams::PROSODY_DEFAULT),
                     knob(&p.speed, SpeakParams::SPEED_DEFAULT),
-                    knob(&p.accent, SpeakParams::ACCENT_DEFAULT),
+                    (plaits_volts(accent), mark),
                 ],
             };
             let (out, excitation) = channel.output(f0, knobs, trigger, rates);
+            let out = channel
+                .accent_state
+                .apply(out, ACCENT_TRIM, rates.sample_rate);
             self.outputs.sample.set(ch, out);
             self.outputs.excitation.set(ch, excitation);
         }

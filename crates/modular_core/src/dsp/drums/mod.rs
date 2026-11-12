@@ -16,7 +16,7 @@ mod pitch_level;
 mod tests;
 pub mod tr808;
 pub mod tr909;
-mod voice;
+pub(crate) mod voice;
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     tr808::install_constructors(map);

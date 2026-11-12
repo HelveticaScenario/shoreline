@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    `accent` on `$mi.kick`, `$mi.synthKick`, `$mi.snare`, `$mi.synthSnare`, `$mi.hiHat`, `$mi.ringHat`, `$mi.modal`, `$mi.string`, `$mi.sixOp` and `$mi.speak` works like it does on the `$tr808` and `$tr909` drums: 0, now the default, sounds like an ordinary hit, and 5 hits up to twice as loud (up to ±10 V), read as each hit is struck. Accents below the old default of 4 no longer play softer, so a patch that sets `accent` gets louder; to get back the old default level, remove the accent:
+
+    ```js
+    // before
+    $mi.kick('c1', { trigger, accent: 4 })
+    // after
+    $mi.kick('c1', { trigger })
+    ```
+time: 2026-11-12T03:21:40.373933-05:00
