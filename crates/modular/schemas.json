@@ -31252,6 +31252,526 @@
     ]
   },
   {
+    "name": "$mi.snare",
+    "docs": {
+      "summary": "Analog snare drum",
+      "description": "Mutable Instruments Plaits' 808-style snare: a pulse rings the drum's shell modes, mixed with band-passed noise for the snares. Leave `trigger` unpatched and it drones.",
+      "categories": [
+        "drum"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Backbeat",
+          "code": "$mi.snare('d3', { trigger: $p('~ c').c }).out()"
+        },
+        {
+          "title": "Ringing, snappy roll",
+          "code": "const trigger = $p('~ c ~ [c c c c]').c\nconst snare = $mi.snare('a2', {\n  trigger,\n  tone: 4,\n  decay: 4,\n  snappy: 4,\n})\nsnare.out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiSnareParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the drum's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "strikes the drum. Unpatched, the drum drones: its shell as steady sines and its snares as a steady hiss, as loud as `accent` and `decay` together allow",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tone": {
+          "description": "the shell's colour: an 808's two tones, the higher one coming up (to 3.3), then three higher overtones joining in (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decay": {
+          "description": "how long the shell and snares ring, from a tight crack (0) to a long ring (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "snappy": {
+          "description": "the snares' rattle against the shell: all shell (0) to all snares (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accent": {
+          "description": "how hard the shell is struck: louder and harder, the snares unchanged; unpatched trigger, scales the drone's level",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the drum",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "precision": "f32"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the drum's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "strikes the drum. Unpatched, the drum drones: its shell as steady sines and its snares as a steady hiss, as loud as `accent` and `decay` together allow",
+        "paramType": "trig"
+      },
+      {
+        "name": "tone",
+        "description": "the shell's colour: an 808's two tones, the higher one coming up (to 3.3), then three higher overtones joining in (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "decay",
+        "description": "how long the shell and snares ring, from a tight crack (0) to a long ring (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "snappy",
+        "description": "the snares' rattle against the shell: all shell (0) to all snares (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "accent",
+        "description": "how hard the shell is struck: louder and harder, the snares unchanged; unpatched trigger, scales the drone's level",
+        "paramType": "control",
+        "defaultValue": 4.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
+    "name": "$mi.synthSnare",
+    "docs": {
+      "summary": "Synthetic snare drum",
+      "description": "Mutable Instruments Plaits' synthetic snare, a little like a 909: two coupled oscillators swept down in pitch for the body, and filtered noise for the snares. Leave `trigger` unpatched and it drones.",
+      "categories": [
+        "drum"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Backbeat",
+          "code": "$mi.synthSnare('d3', { trigger: $p('~ c').c }).out()"
+        },
+        {
+          "title": "Tight, punchy hits",
+          "code": "const trigger = $p('~ c ~ c ~ c c ~').c\nconst snare = $mi.synthSnare('e3', {\n  trigger,\n  attackFm: 4,\n  decay: 1,\n  snappy: 3.5,\n})\nsnare.out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiSynthSnareParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the drum's pitch",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "strikes the drum. Unpatched, the drum drones: its body and snares held steady, as loud as `accent` and `decay` together allow",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attackFm": {
+          "description": "how far the pitch sweeps down onto the note at the start of each hit, from 5 times the pitch (5); more also lengthens the body, and high settings roughen it on low and mid notes",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decay": {
+          "description": "how long the body and snares ring, from a short tick (0) to a long tail (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "snappy": {
+          "description": "the snares' hiss against the body: all body (0) to all snares (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accent": {
+          "description": "how hard each hit is: louder; unpatched trigger, scales the drone's level",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the drum",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "precision": "f32"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the drum's pitch",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "strikes the drum. Unpatched, the drum drones: its body and snares held steady, as loud as `accent` and `decay` together allow",
+        "paramType": "trig"
+      },
+      {
+        "name": "attackFm",
+        "description": "how far the pitch sweeps down onto the note at the start of each hit, from 5 times the pitch (5); more also lengthens the body, and high settings roughen it on low and mid notes",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "decay",
+        "description": "how long the body and snares ring, from a short tick (0) to a long tail (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "snappy",
+        "description": "the snares' hiss against the body: all body (0) to all snares (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "accent",
+        "description": "how hard each hit is: louder; unpatched trigger, scales the drone's level",
+        "paramType": "control",
+        "defaultValue": 4.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.speak",
     "docs": {
       "summary": "Speak-and-spell words",

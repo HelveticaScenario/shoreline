@@ -184,6 +184,13 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
                 port("$mi.synthKick", synth, "output"),
             ]
         }
+        22 => {
+            let knobs = |tone: &str| json!({ tone: 5.0 * t, "decay": 5.0 * m, "snappy": 5.0 * h });
+            [
+                port("$mi.snare", knobs("tone"), "output"),
+                port("$mi.synthSnare", knobs("attackFm"), "output"),
+            ]
+        }
         _ => panic!("no module for engine {engine}"),
     }
 }
@@ -427,19 +434,32 @@ fn matches_plaits_engines() {
             } else {
                 0.6
             };
-            assert_sounds_alike(&name, &actual, &expected, 0.1, near_db, 3.0);
+            // The engine's two snare drums take turns on one noise generator a
+            // block at a time, so with snares the modules match it only to the
+            // noise's spread, and polarity only where the shell leads.
+            let snares = engine == 22 && h > 0.0;
+            let (level_db, near_db) = if snares { (0.25, 1.5) } else { (0.1, near_db) };
+            assert_sounds_alike(&name, &actual, &expected, level_db, near_db, 3.0);
             // Particles draw Plaits' values in Plaits' order on its block
-            // timing, so they match its engine sample for sample, to the
-            // rounding of a pitch given in volts.
-            if engine == 18 {
-                let error = actual
+            // timing, and the snare drums with no snares mute their noise, so
+            // they match the engine sample for sample, to the rounding of a pitch
+            // given in volts. The pulse wave striking the snare drums rises
+            // a sample ahead of the engine's second strike, so they compare
+            // up to it.
+            if engine == 18 || (engine == 22 && !snares) {
+                let exact = match trigger_period {
+                    Some(period) if engine == 22 => period as usize - 1,
+                    _ => samples,
+                };
+                let error = actual[..exact]
                     .iter()
                     .zip(&expected)
                     .fold(0.0f32, |m, (a, e)| m.max((a - e).abs()));
                 assert!(error < 1e-4, "{name}: max error {error}");
             }
             assert!(
-                aligned_error(&actual, &expected) < aligned_error(&inverted, &expected),
+                h >= 0.5 && snares
+                    || aligned_error(&actual, &expected) < aligned_error(&inverted, &expected),
                 "{name}: inverted"
             );
         }

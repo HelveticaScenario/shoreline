@@ -45,14 +45,24 @@ pub fn phase_increment(cycles: f32) -> u32 {
     (4294967296.0 * cycles) as i64 as u32
 }
 
-/// Plaits' `SineOscillator`, as its quadrature `Next`: a table sine whose
-/// phase advances by the frequency each sample.
+/// Plaits' `SineOscillator`: a table sine whose phase advances by the
+/// frequency each sample.
 #[derive(Clone, Copy, Default)]
 pub struct SineOscillator {
     phase: f32,
 }
 
 impl SineOscillator {
+    /// One sample of the sine at `frequency` cycles per sample (at most 0.5).
+    #[inline(always)]
+    pub fn next_sine(&mut self, frequency: f32) -> f32 {
+        self.phase += frequency.min(0.5);
+        if self.phase >= 1.0 {
+            self.phase -= 1.0;
+        }
+        linear(&LUT_SINE, self.phase, SINE_LUT_SIZE)
+    }
+
     /// One sample at `frequency` cycles per sample (at most 0.5): the sine and
     /// cosine, scaled by `amplitude`.
     #[inline(always)]
