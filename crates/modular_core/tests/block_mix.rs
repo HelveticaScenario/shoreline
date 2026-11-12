@@ -57,7 +57,7 @@ fn mix_every_mode_across_input_widths() {
                             }
                         };
                         let amp = lfo[k - ch + 3];
-                        let g = amp / 5.0;
+                        let g = amp * (1.0 / 5.0);
                         let v = pre * (g * g * g);
                         if v.is_finite() { v } else { 0.0 }
                     })

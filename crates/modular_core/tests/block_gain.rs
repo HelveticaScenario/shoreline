@@ -14,7 +14,7 @@ fn expected(input: &[f32], level: &[f32]) -> Vec<f32> {
         .iter()
         .zip(level)
         .map(|(x, level)| {
-            let g = level / 5.0;
+            let g = level * (1.0 / 5.0);
             x * (g * g * g)
         })
         .collect()

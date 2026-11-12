@@ -156,7 +156,7 @@ impl CatmullRom {
 /// meter's dB scale assume this exponent.
 #[inline(always)]
 pub fn audio_taper<T: Sample>(level: T) -> T {
-    let g = level / T::from_f32(5.0);
+    let g = level * (T::from_f32(1.0) / T::from_f32(5.0));
     g * g * g
 }
 

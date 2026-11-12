@@ -56,7 +56,8 @@ pub struct Crossfade {
 
 /// How far along the fade a `mix` sits: 0 all dry, 1 all wet; `mix` past
 /// either end holds there. Edits glide this position, so a jump from past one
-/// end starts moving at once instead of waiting out the overshoot.
+/// end starts moving at once instead of waiting out the overshoot. A glide
+/// onto a moving `mix` rides on it, so the glided position is clamped again.
 #[inline(always)]
 fn position(mix: f32) -> f32 {
     (mix / 5.0).clamp(0.0, 1.0)
@@ -79,7 +80,7 @@ impl Crossfade {
             let value = blend(
                 self.params.dry.get_value(i),
                 self.params.wet.get_value(i),
-                t,
+                t.clamp(0.0, 1.0),
             );
             self.outputs.sample.set(i, value);
         }

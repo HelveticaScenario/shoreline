@@ -127,6 +127,35 @@ fn an_edit_from_past_an_end_moves_at_once() {
 }
 
 #[test]
+fn a_glide_onto_a_moving_mix_stays_between_dry_and_wet() {
+    // Swapping a held mix for an audio-rate saw starts a glide whose offset
+    // rides on the moving position; the blend still never passes either leg.
+    let params =
+        |mix: serde_json::Value| json!({ "dry": 0.0, "wet": vec![1.0; CHANNELS], "mix": mix });
+    let old = build(
+        ProcessingMode::Block,
+        ProcessingMode::Sample,
+        "_crossfade",
+        params(json!(5.0)),
+    );
+    render(&old, &[BLOCK_SIZE]);
+    let new = build(
+        ProcessingMode::Block,
+        ProcessingMode::Sample,
+        "_crossfade",
+        params(poly_cable("src", CHANNELS)),
+    );
+    for (id, module) in &new.sampleables {
+        module.transfer_state_from(old.sampleables[id].as_ref(), &SameIds);
+    }
+    new.connect_all();
+    let (after, _, _) = render(&new, &[BLOCK_SIZE]);
+    for (k, &v) in after.iter().enumerate() {
+        assert!((0.0..=1.0).contains(&v), "sample {k}: {v}");
+    }
+}
+
+#[test]
 fn allocation_free() {
     for params in [
         json!({ "dry": poly_cable("src", CHANNELS), "wet": 0.0, "mix": 2.5 }),
