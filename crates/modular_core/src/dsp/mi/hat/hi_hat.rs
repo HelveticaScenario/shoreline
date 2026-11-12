@@ -92,7 +92,7 @@ const HI_HAT_DOCS: ModuleDocs = ModuleDocs {
     summary: "808-style hi-hat",
     description: "Mutable Instruments Plaits' 808-style hi-hat: six square \
                   oscillators make a metallic noise, band-passed, then shaped \
-                  by a swinging VCA and a high-pass. Leave `trigger` \
+                  by a lopsided, saturating envelope and a high-pass. Leave `trigger` \
                   unpatched and it hisses steadily.",
     categories: &[ModuleCategory::Drum],
     sections: &[],

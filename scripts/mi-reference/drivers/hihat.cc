@@ -87,9 +87,11 @@ int main(int argc, char** argv) {
     };
     switch (s) {
       case 0:
-        // Accents across the range, the softest strikes starting below the
-        // ring hat's choke.
-        in[4] = 2.5f + 2.6f * sinf(t * 0.0011f);
+        // Accents across the range at the longest decay; the strike at 4800
+        // lands on the accent's trough, so it starts below the ring hat's
+        // choke.
+        in[2] = 5.0f;
+        in[4] = 2.5f + 2.6f * sinf(t * 0.0011f - 0.568f);
         break;
       case 1:
         // Tone and decay swept.
