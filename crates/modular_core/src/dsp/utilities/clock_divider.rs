@@ -52,13 +52,13 @@ const CLOCK_DIVIDER_DOCS: ModuleDocs = ModuleDocs {
         code: r#"
             $saw('c2')
               .amp(
-                $perc($clockDivider($clock.o.beatTrigger, 2), {
+                $perc($clockDivider($clock._beatTrigger, 2), {
                   decay: 0.3,
                 }),
               )
               .out()
             $noise('white')
-              .amp($perc($clock.o.beatTrigger, { decay: 0.03 }))
+              .amp($perc($clock._beatTrigger, { decay: 0.03 }))
               .out()
         "#,
     }],

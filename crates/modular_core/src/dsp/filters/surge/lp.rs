@@ -117,7 +117,7 @@ const LP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Driven acid line",
         code: r#"
-            const seq = $p('c2 [c2 c3] eb2 [g1 bb1]').c
+            const seq = $p('c2 [c2 c3] eb2 [g1 bb1]')
             const env = $perc(seq, { decay: 0.2 })
             $unstable.filter
               .lp($saw(seq), env.range('c3', 'c6'), 4, {

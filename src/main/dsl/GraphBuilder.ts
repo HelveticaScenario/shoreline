@@ -34,7 +34,7 @@ import {
     type OutputSet,
     outputSetOf,
 } from './outputResolution';
-import { isPatternValue, refusePattern } from './patternKinds';
+import { isPatternPayload } from './patterns';
 import { isPlainObject } from './plainObject';
 import {
     assertSignalGroupsTopLevelOnly,
@@ -224,11 +224,10 @@ export interface MonoOutGroup extends OutGroupVuState {
 
 /**
  * Distinguishes MonoOutOptions from a gain PolySignal (number | string |
- * array | ModuleOutput | iterable). A pattern is a plain object too, and is
- * left to be refused as a gain.
+ * array | ModuleOutput | iterable).
  */
 function isMonoOutOptions(v: unknown): v is MonoOutOptions {
-    return isPlainObject(v) && !isPatternValue(v);
+    return isPlainObject(v);
 }
 
 /**
@@ -738,7 +737,6 @@ function sliceRoot(
                 : value;
     }
     markRoot(sliced, { outputs: set.outputs, values });
-    Object.assign(sliced, { o: Object.freeze(values) });
 }
 
 type ArithmeticOp = 'add' | 'sub' | 'mul' | 'div' | 'pow';
@@ -1238,7 +1236,6 @@ export class GraphBuilder implements ChainHost {
         // needs no factory.
         let signal: FactoryFunction | undefined;
         const lift = (value: unknown): ModuleOutput[] => {
-            refusePattern(value, '$c: an argument');
             // Scalar literal checked before the iterable branch so a string is
             // one signal rather than spread into characters.
             if (typeof value === 'number' || typeof value === 'string') {
@@ -2424,19 +2421,13 @@ export function replaceValues(input: unknown, replacer: Replacer): unknown {
             return replaced;
         }
 
-        // Opaque payloads (ParsedPattern from $p(), SpPattern from $p.s(),
-        // ArrangePattern from $p.arrange(), and the .fast()/.slow()/.struct()/
-        // .beat()/.glide() wrappers) must be preserved verbatim — walking them would
-        // collapse the nulls in `accidental`/`octave`/weight slots to 0 via
-        // valueToSignal, producing zero-duration haps and silence. Returning the
-        // wrapper verbatim also preserves the nested pattern payloads it carries.
-        // SignalGroup wrappers are deliberately NOT listed: their signals
-        // payload must be walked so outputs become cables; expandSignalGroups
-        // later erases the wrapper itself.
-        if (!Array.isArray(replaced)) {
-            if (isPatternValue(replaced)) {
-                return replaced;
-            }
+        // A pattern payload is returned verbatim, with the payloads nested in
+        // it: walking it would collapse the nulls in its `accidental`,
+        // `octave` and weight slots to 0 via valueToSignal, producing
+        // zero-duration haps and silence. A SignalGroup wrapper is walked, so
+        // its outputs become cables; expandSignalGroups later erases it.
+        if (isPatternPayload(replaced)) {
+            return replaced;
         }
 
         if (Array.isArray(replaced)) {
@@ -2517,13 +2508,10 @@ export function replaceDeferredStrings(
     }
 
     if (typeof input === 'object' && input !== null) {
-        // Opaque pattern payloads (ParsedPattern from $p(), SpPattern from
-        // $p.s(), ArrangePattern from $p.arrange(), and the .fast()/.slow()/
-        // .struct()/.beat()/.glide() wrappers) are JSON-only data with no
-        // deferred-output strings, so they return verbatim, as in replaceValues.
-        // SignalGroup wrappers are deliberately NOT listed here either — their
-        // signals payload may carry deferred-output strings to resolve.
-        if (isPatternValue(input)) {
+        // A pattern payload holds no deferred-output strings and is returned
+        // verbatim, as in replaceValues. A SignalGroup wrapper is walked: its
+        // signals may carry deferred-output strings to resolve.
+        if (isPatternPayload(input)) {
             return input;
         }
 

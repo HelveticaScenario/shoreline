@@ -8,12 +8,12 @@ function analyze(source: string) {
     return analyzeSourceSpans(source, schemas as ModuleSchema[]);
 }
 
-/** Registry entries as `key moduleType arg=text …`, spans read back from
+/** Registry entries as `key kind arg=text …`, spans read back from
  *  the source. */
 function entries(source: string): string[] {
     return [...analyze(source).registry].map(
-        ([key, { moduleType, args }]) =>
-            `${key} ${moduleType} ${[...args]
+        ([key, { kind, args }]) =>
+            `${key} ${kind} ${[...args]
                 .map(([name, s]) => `${name}=${source.slice(s.start, s.end)}`)
                 .join(' ')}`,
     );
@@ -22,13 +22,13 @@ function entries(source: string): string[] {
 describe('argument span registry', () => {
     test('is keyed by the patch line and column a factory captures', () => {
         expect(entries("const a = 1\n  $sine('c4').out()")).toEqual([
-            "2:3 $sine freq='c4'",
+            "2:3 module freq='c4'",
         ]);
     });
 
     test('config keys are read by name, quoted or not', () => {
         expect(entries("$sine('c4', { 'phase': 0.25, [k]: 1 }).out()")).toEqual(
-            ["1:5 $sine freq='c4' phase=0.25"],
+            ["1:5 module freq='c4' phase=0.25"],
         );
     });
 
@@ -37,32 +37,45 @@ describe('argument span registry', () => {
             entries(
                 '$sine(-1).out()\n$sine(+2).out()\n$sine(-x).out()\n$sine(!1).out()',
             ),
-        ).toEqual(['1:5 $sine freq=-1', '2:1 $sine freq=+2']);
+        ).toEqual(['1:5 module freq=-1', '2:1 module freq=+2']);
+    });
+
+    test('a chain call is its module, with the receiver as first argument', () => {
+        expect(
+            entries(
+                "$saw('c3').lpf('800hz', 2).out()\n$p('c*4').tr808.kick({ decay: 2 }).out()\nfoo.notAModule(1)",
+            ),
+        ).toEqual([
+            "1:16 module cutoff='800hz' resonance=2",
+            "1:5 module freq='c3'",
+            '2:17 module decay=2',
+            "2:1 pattern source='c*4'",
+        ]);
     });
 
     test('a dotted callee resolves to the module it names', () => {
         const [kick808, kick909] = entries(
             "$tr808.kick('c1').out()\n$tr909.kick('c1').out()",
         );
-        expect(kick808).toMatch(/^1:\d+ \$tr808\.kick /);
-        expect(kick909).toMatch(/^2:\d+ \$tr909\.kick /);
+        expect(kick808).toMatch(/^1:\d+ module trigger=/);
+        expect(kick909).toMatch(/^2:\d+ module trigger=/);
     });
 
     test('array elements are recorded up to the first spread', () => {
         expect(entries("$sine(['c4', , 'e4', ...more, 'g4']).out()")).toEqual([
-            "1:5 $sine freq.0='c4' freq.2='e4'",
+            "1:5 module freq.0='c4' freq.2='e4'",
         ]);
     });
 
     test('only a bare $p call is the pattern builder', () => {
         expect(entries("$p('a b')\nobj.$p('c d')")).toEqual([
-            "1:5 $p source='a b'",
+            "1:5 pattern source='a b'",
         ]);
     });
 
     test('pattern methods are the ones the analyzer knows, not inherited names', () => {
         expect(entries("$p('a b').fast(2).constructor(5).toString(3)")).toEqual(
-            ['1:15 .fast factor=2', "1:5 $p source='a b'"],
+            ['1:15 pattern factor=2', "1:5 pattern source='a b'"],
         );
     });
 });
@@ -119,7 +132,7 @@ describe('template interpolation', () => {
             entries(
                 "const notes = 'c4 e4'\nfunction f() { const notes = 'g4'; return notes }\n$p(notes)",
             ),
-        ).toEqual(["3:1 $p source='c4 e4'"]);
+        ).toEqual(["3:1 pattern source='c4 e4'"]);
         // A `let` is no const, whatever a function elsewhere declares.
         expect(
             entries(
@@ -148,7 +161,7 @@ describe('template interpolation', () => {
             entries(
                 "const x = 'c4'\nclass K { static { var x = 'd4' } }\n$sine(x).out()",
             ),
-        ).toEqual(["3:1 $sine freq='c4'"]);
+        ).toEqual(["3:1 module freq='c4'"]);
         // A named class expression binds its own name inside itself.
         expect(
             entries(

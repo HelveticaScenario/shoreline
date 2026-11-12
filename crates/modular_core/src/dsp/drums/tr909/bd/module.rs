@@ -83,7 +83,7 @@ const BD909_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Four on the floor",
-        code: "$tr909.kick($p('c*4').c, { decay: 4 }).out()",
+        code: "$tr909.kick($p('c*4'), { decay: 4 }).out()",
     }],
 };
 

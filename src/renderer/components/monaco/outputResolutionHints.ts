@@ -1,6 +1,6 @@
 /**
  * Inlay hints naming the output a module root stands for at each place it is
- * used: `$saw(seq‹.o.cv›).amp($perc(seq‹.o.trig›))`.
+ * used: `$saw(seq‹._cv›).amp($perc(seq‹._trig›))`.
  *
  * Sites the type checker resolves show as the code is typed. Sites it cannot
  * (an untyped helper parameter, say) are filled from the resolutions the
@@ -130,7 +130,7 @@ function hint(
     outputs: readonly string[],
     insertable: boolean,
 ): languages.InlayHint {
-    const label = outputs.map((output) => `.o.${output}`).join(' | ');
+    const label = outputs.map((output) => `._${output}`).join(' | ');
     return {
         label,
         position,

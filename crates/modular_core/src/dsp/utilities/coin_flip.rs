@@ -70,15 +70,15 @@ const COIN_FLIP_DOCS: ModuleDocs = ModuleDocs {
     description: "Sends each trigger to heads or tails at random, weighted by the \
                   probability: thin a steady clock into a loose rhythm, or split one \
                   stream between two sounds. The module itself is the heads output; \
-                  `.o.tails` carries the rest.",
+                  `._tails` carries the rest.",
     categories: &[ModuleCategory::Gate, ModuleCategory::Random],
     sections: &[],
     examples: &[DocExample {
         title: "Kick or snare, 75/25",
         code: r#"
-            const flip = $coinFlip($clock.o.beatTrigger, 3.75)
+            const flip = $coinFlip($clock._beatTrigger, 3.75)
             $tr808.kick(flip).out()
-            $tr808.snare(flip.o.tails).out()
+            $tr808.snare(flip._tails).out()
         "#,
     }],
 };

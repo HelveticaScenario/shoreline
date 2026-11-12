@@ -302,8 +302,8 @@ const ENOSC_DOCS: ModuleDocs = ModuleDocs {
                   phase: $phase.pulsar(2),
                   fold: 1,
                 })
-                e.o.odd.out({ pan: -5 })
-                e.o.even.out({ pan: 5 })
+                e._odd.out({ pan: -5 })
+                e._even.out({ pan: 5 })
             "#,
         },
     ],

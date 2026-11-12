@@ -273,10 +273,10 @@ export interface DeviceCacheSnapshot {
 }
 
 /**
- * Returns the list of reserved output names that cannot be used as module output port names.
- * These are names that conflict with built-in properties/methods on Collection, CollectionWithRange, etc.
+ * The member names of collections and patterns, which the first segment of a
+ * module's name cannot take.
  */
-export declare function getReservedOutputNames(): Array<string>
+export declare function getReservedMemberNames(): Array<string>
 
 /** Per-host device info for the cache snapshot */
 export interface HostDeviceInfo {

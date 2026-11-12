@@ -9,16 +9,17 @@ import {
 } from './GraphBuilder';
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
+import type { CallSiteSpans } from './sourceAnalysisTypes';
 import {
     chooseOutput,
     elementSlot,
     type OutputClass,
 } from '../../shared/dsl/outputResolutionRule';
 import './chainMethods';
-import { sanitizeOutputName } from './outputNames';
+import { outputName } from './outputNames';
 import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
-import { refusePattern } from './patternKinds';
+import { isPatternPayload, patternPayload } from './patterns';
 import { isSignalGroupLike } from './signalGroups';
 import { signalParamsOf } from './signalParams';
 import {
@@ -65,118 +66,57 @@ function isWavRef(value: unknown): boolean {
 }
 
 /**
- * Structural check for a `ParsedPattern` — kept here (rather than imported
- * from `miniNotation/`) to avoid a circular dependency between factories and
- * the mini-notation helper module that imports `lookupArgumentSpan` below.
+ * The editor spans of the sources of a pattern in param `paramName`, under
+ * the keys the engine reports its highlights by: the param's name for a
+ * `$p(...)`, and `<param>.<i>` for source `i` of any other pattern, whose
+ * flat `argument_spans` follow the engine's per-source order.
  */
-function isParsedPatternLike(
+function patternArgumentSpans(
+    paramName: string,
     value: unknown,
-): value is { argument_span?: SourceSpan } {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        '__kind' in value &&
-        value.__kind === 'ParsedPattern'
-    );
-}
-
-/**
- * Structural check for a chained `SpPattern` (returned by `$p.s().add(...)` /
- * `.sub(...)`). Each chained source has a parallel `argument_spans[i]`
- * entry used to map runtime per-source highlights back to editor literals.
- */
-function isSpPatternLike(
-    value: unknown,
-): value is { argument_spans?: ReadonlyArray<SourceSpan> } {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        '__kind' in value &&
-        value.__kind === 'SpPattern'
-    );
-}
-
-/**
- * Structural check for an `ArrangePattern` (returned by `$p.arrange(...)`).
- * Like `SpPattern`, it carries a flat `argument_spans[i]` list — one per source
- * across all sections, in order — used to map runtime per-source highlights
- * back to editor literals.
- */
-function isArrangePatternLike(
-    value: unknown,
-): value is { argument_spans?: ReadonlyArray<SourceSpan> } {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        '__kind' in value &&
-        value.__kind === 'ArrangePattern'
-    );
-}
-
-/**
- * Structural check for a `.fast(...)` / `.slow(...)` / `.struct(...)` /
- * `.beat(...)` / `.glide(...)` wrapper. Like `SpPattern` and `ArrangePattern`, it carries a
- * flat `argument_spans[i]` list — the wrapped pattern's per-source spans —
- * used to map runtime per-source highlights back to editor literals.
- */
-function isPatternWrapperLike(
-    value: unknown,
-): value is { argument_spans?: ReadonlyArray<SourceSpan> } {
-    if (typeof value !== 'object' || value === null || !('__kind' in value)) {
-        return false;
+): ArgumentSpans {
+    if (!isPatternPayload(value)) {
+        return {};
     }
-    return (
-        value.__kind === 'FastPattern' ||
-        value.__kind === 'SlowPattern' ||
-        value.__kind === 'StructPattern' ||
-        value.__kind === 'BeatPattern' ||
-        value.__kind === 'GlidePattern'
+    const { argument_span: single, argument_spans: perSource } = value as {
+        argument_span?: SourceSpan;
+        argument_spans?: readonly SourceSpan[];
+    };
+    if (!perSource) {
+        return single ? { [paramName]: single } : {};
+    }
+    return Object.fromEntries(
+        perSource.flatMap((span, i) =>
+            span.start !== 0 || span.end !== 0
+                ? [[`${paramName}.${i}`, span]]
+                : [],
+        ),
     );
 }
 
 /**
- * Look up argument spans from the active span registry using the source location.
- * Returns undefined if no registry is set or no spans found for this call site.
- *
- * @param sourceLocation - The line/column from captureSourceLocation()
- * @returns Map of argument names to their source spans, or undefined
+ * The spans the analyzer recorded for the `kind` of call at `sourceLocation`.
+ * A pattern's `$cycle` runs at the call that built the pattern, so one call
+ * site can be asked for either kind.
  */
-function captureArgumentSpans(
+function callSiteSpans(
     sourceLocation: { line: number; column: number } | undefined,
-): ArgumentSpans | undefined {
+    kind: CallSiteSpans['kind'],
+): CallSiteSpans['args'] | undefined {
     if (!activeSpanRegistry || !sourceLocation) {
         return undefined;
     }
-
     const key: CallSiteKey = `${sourceLocation.line}:${sourceLocation.column}`;
-
     const entry = activeSpanRegistry.get(key);
-    if (!entry) {
-        return undefined;
-    }
-
-    // Convert Map to plain object for serialization to Rust
-    const spans: ArgumentSpans = {};
-    for (const [argName, span] of entry.args) {
-        spans[argName] = span;
-    }
-
-    return spans;
+    return entry?.kind === kind ? entry.args : undefined;
 }
 
-/**
- * Look up a single argument span by source location and arg name.
- *
- * Exported for `$p()` so it can embed its own source literal span into the
- * returned `ParsedPattern` — highlighting is then the $p function's own
- * responsibility rather than something each module factory must unwrap.
- */
+/** The span of argument `argName` of the pattern-building call at `sourceLocation`. */
 export function lookupArgumentSpan(
     sourceLocation: { line: number; column: number } | undefined,
     argName: string,
 ): SourceSpan | undefined {
-    const spans = captureArgumentSpans(sourceLocation);
-    return spans ? spans[argName] : undefined;
+    return callSiteSpans(sourceLocation, 'pattern')?.get(argName);
 }
 
 /**
@@ -241,10 +181,10 @@ export function deriveChannelCountChecked(
 }
 
 // Return type for module factories: one output is a collection; several are
-// the root collection with every output by name under `o`.
+// the root collection with every output by name as `_<name>`.
 type PolyOutput = Collection | CollectionWithRange;
 type MultiOutput = PolyOutput & {
-    readonly o: Readonly<Record<string, PolyOutput>>;
+    readonly [output: `_${string}`]: PolyOutput;
 };
 type ModuleReturn = PolyOutput | MultiOutput;
 
@@ -366,14 +306,12 @@ export class DSLContext {
      * Prepare a signal param's value for an input of class `inputClass`:
      * resolve every module root in the value itself, array elements, and the
      * contents of a `$gN` group, and spread the collections inside an array.
-     * `slot` names the value in resolution records and, after `module`, when
-     * a pattern in it is refused.
+     * `slot` names the value in resolution records.
      */
     private signalParam(
         value: unknown,
         inputClass: OutputClass,
         slot: string,
-        module: string,
         sourceLocation: CallSite | undefined,
     ): unknown {
         if (isSignalGroupLike(value)) {
@@ -383,13 +321,11 @@ export class DSLContext {
                     value.signals,
                     inputClass,
                     slot,
-                    module,
                     sourceLocation,
                 ),
             };
         }
         const resolve = (v: unknown, s: string): unknown => {
-            refusePattern(v, `${module}: ${s}`);
             return this.builder.outputResolver.resolve(
                 v,
                 inputClass,
@@ -422,10 +358,13 @@ export class DSLContext {
             .filter((p) => p.isWavInput)
             .map((p) => p.name);
         const signalParams = signalParamsOf(schema, processed);
+        const signalParamNames = new Set(
+            [...signalParams.flat, ...signalParams.nested].map((p) => p.name),
+        );
 
         return (...args: any[]): ModuleReturn => {
             const sourceLocation = captureSourceLocation();
-            const argumentSpans = captureArgumentSpans(sourceLocation);
+            const argumentSpans = callSiteSpans(sourceLocation, 'module');
             const positionalArgs = schema.positionalArgs || [];
             const params: Record<string, any> = {};
             let config: any = {};
@@ -443,6 +382,13 @@ export class DSLContext {
                 config = args[positionalArgs.length];
             }
 
+            if (config instanceof BaseCollection) {
+                throw new Error(
+                    `${schema.name} takes ${positionalArgs.length} positional ` +
+                        `argument${positionalArgs.length === 1 ? '' : 's'}; ` +
+                        'the one after is its options, not a signal',
+                );
+            }
             if (config) {
                 const { id: configId, ...restConfig } = config;
                 id = configId;
@@ -457,21 +403,22 @@ export class DSLContext {
                     params[name],
                     inputClass,
                     name,
-                    schema.name,
                     sourceLocation,
                 );
             }
             for (const { mapper, name } of signalParams.nested) {
                 if (params[name] !== undefined) {
                     params[name] = mapper(params[name], name, (value, path) =>
-                        this.signalParam(
-                            value,
-                            'cv',
-                            path,
-                            schema.name,
-                            sourceLocation,
-                        ),
+                        this.signalParam(value, 'cv', path, sourceLocation),
                     );
+                }
+            }
+
+            // In a param that takes no signal a pattern is the pattern
+            // itself, where anywhere else it reads as its `$cycle`.
+            for (const [name, value] of Object.entries(params)) {
+                if (!signalParamNames.has(name)) {
+                    params[name] = patternPayload(value);
                 }
             }
 
@@ -493,45 +440,16 @@ export class DSLContext {
                 }
             }
 
-            // Merge argument_span fields carried by any ParsedPattern params
-            // ($p() embeds its own source-literal span so highlighting stays
-            // attached through const indirections — `const p = $p(...); $cycle(p)`
-            // works without the static analyzer having to reason about $p).
-            //
-            // $p.s(...).add(...) chains arrive as SpPattern objects whose
-            // `argument_spans[i]` lines up with `sources[i]`. Emit those
-            // as `<paramName>.0`, `<paramName>.1`, ... matching the multi-
-            // source `pattern.<i>` keys the Rust side puts on `param_spans`.
-            const mergedArgumentSpans: ArgumentSpans = {
-                ...(argumentSpans ?? {}),
-            };
+            // A pattern carries the spans of its own source literals, so
+            // highlighting follows it through a `const`.
+            const mergedArgumentSpans: ArgumentSpans = Object.fromEntries(
+                argumentSpans ?? [],
+            );
             for (const [paramName, value] of Object.entries(params)) {
-                if (
-                    isSpPatternLike(value) ||
-                    isArrangePatternLike(value) ||
-                    isPatternWrapperLike(value)
-                ) {
-                    // Both carry a flat `argument_spans[i]` list lining up with
-                    // the Rust per-source order; emit `<paramName>.<i>` keys.
-                    const argSpans = value.argument_spans;
-                    if (argSpans && argSpans.length > 0) {
-                        argSpans.forEach((span, j) => {
-                            if (span && (span.start !== 0 || span.end !== 0)) {
-                                mergedArgumentSpans[`${paramName}.${j}`] = span;
-                            }
-                        });
-                    }
-                } else if (isParsedPatternLike(value) && value.argument_span) {
-                    mergedArgumentSpans[paramName] = value.argument_span;
-                } else if (Array.isArray(value)) {
-                    for (let j = 0; j < value.length; j++) {
-                        const elem = value[j];
-                        if (isParsedPatternLike(elem) && elem.argument_span) {
-                            mergedArgumentSpans[`${paramName}.${j}`] =
-                                elem.argument_span;
-                        }
-                    }
-                }
+                Object.assign(
+                    mergedArgumentSpans,
+                    patternArgumentSpans(paramName, value),
+                );
             }
 
             // Attach argument spans to params if available
@@ -573,21 +491,21 @@ export class DSLContext {
             } else if (outputs.length === 1) {
                 return node._output(outputs[0].name);
             }
-            // Multiple outputs: the root's `o` holds every output by name,
-            // each a separate untagged object. Read as a signal itself, the
-            // root is the output a `cv` input takes.
+            // Multiple outputs: the root holds every output by name as
+            // `_<name>`, each a separate untagged object. Read as a signal
+            // itself, the root is the output a `cv` input takes.
             const named: Record<string, Collection | CollectionWithRange> = {};
             let root: Collection | CollectionWithRange;
             const cvOutput = chooseOutput(rootOutputs, 'cv');
             for (const output of outputs) {
-                const name = sanitizeOutputName(output.name);
+                const name = outputName(output.name);
                 named[name] = node._output(output.name);
                 if (name === cvOutput) {
                     root = node._output(output.name);
                 }
             }
             markRoot(root!, { outputs: rootOutputs, values: named });
-            return Object.assign(root!, { o: Object.freeze(named) });
+            return root! as MultiOutput;
         };
     }
 

@@ -96,7 +96,7 @@ const TWO_OP_DOCS: ModuleDocs = ModuleDocs {
             title: "Sub-octave growl",
             code: r#"
                 const op = $mi.twoOp('c1', { index: 3, feedback: -3 })
-                op.o.subOctave.out()
+                op._subOctave.out()
             "#,
         },
     ],
