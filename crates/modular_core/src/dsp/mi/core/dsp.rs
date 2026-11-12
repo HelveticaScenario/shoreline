@@ -38,6 +38,17 @@ pub fn per_sample(coefficient: f32, to_48k: f32) -> f32 {
     }
 }
 
+/// A one-pole coefficient per sample at 48 kHz as the coefficient with the
+/// same lag in seconds at the rate `to_48k` describes, so the input minus the
+/// one-pole's output keeps its area even for a time constant near a sample.
+pub fn per_sample_lag(coefficient: f32, to_48k: f32) -> f32 {
+    if coefficient >= 1.0 || to_48k == 1.0 {
+        coefficient
+    } else {
+        coefficient / (coefficient + to_48k * (1.0 - coefficient))
+    }
+}
+
 /// A per-sample decay factor at 48 kHz as the same time constant at the rate
 /// `to_48k` describes.
 pub fn decay_per_sample(decay: f32, to_48k: f32) -> f32 {

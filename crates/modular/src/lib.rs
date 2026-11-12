@@ -5,6 +5,7 @@ mod alloc_detector;
 
 mod audio;
 mod commands;
+mod denormals;
 mod graph_analysis;
 mod link;
 mod media_audio;

@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::analog_drum::{AnalogBassDrum, AnalogKnobs, AnalogRates, Overdrive};
-use super::{Knob, OUTPUT_GAIN, pitch, rises};
+use crate::dsp::mi::drum::{Knob, OUTPUT_GAIN, pitch, rises};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]

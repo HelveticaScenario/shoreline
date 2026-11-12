@@ -1,14 +1,11 @@
 use super::analog::{Channel as KickChannel, KickState, Knobs as KickKnobs};
-use super::pitch;
 use super::synthetic::{Channel as SynthChannel, Knobs as SynthKnobs, SynthKickState};
 use crate::dsp::mi::core::fixture::{max_error, records};
+use crate::dsp::mi::drum::measure::{
+    assert_rate_independent, brightness, crossings, level, mark, peak, pitch_cents, rms, window,
+};
+use crate::dsp::mi::drum::pitch;
 use crate::dsp::oscillators::FmMode;
-use crate::poly::PolySignal;
-use crate::types::{GlideMark, Signal};
-
-fn mark() -> GlideMark {
-    PolySignal::mono(Signal::Volts(0.0)).glide_mark(0)
-}
 
 /// `$mi.kick`'s knobs in volts: tone, decay, attack FM, self FM, drive and
 /// accent.
@@ -119,74 +116,6 @@ fn synth_hit(
         .collect()
 }
 
-fn rms(x: &[f32]) -> f32 {
-    (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt()
-}
-
-/// The part of `x` from `from` to `to` seconds.
-fn window(x: &[f32], sample_rate: f32, from: f32, to: f32) -> &[f32] {
-    &x[(from * sample_rate) as usize..(to * sample_rate) as usize]
-}
-
-/// The level in dB of `x` from `from` to `to` seconds.
-fn level(x: &[f32], sample_rate: f32, from: f32, to: f32) -> f32 {
-    20.0 * rms(window(x, sample_rate, from, to)).log10()
-}
-
-/// The strongest frequency within an octave either side of `hz`, in cents
-/// from it, from `x` between `from` and `to` seconds.
-fn pitch_cents(x: &[f32], sample_rate: f32, hz: f32, from: f32, to: f32) -> f32 {
-    let x = window(x, sample_rate, from, to);
-    (-1200..=1200)
-        .step_by(2)
-        .map(|cents| {
-            let f = f64::from(hz) * 2f64.powf(f64::from(cents) / 1200.0);
-            let w = std::f64::consts::TAU * f / f64::from(sample_rate);
-            let (re, im) = x
-                .iter()
-                .enumerate()
-                .fold((0.0f64, 0.0f64), |(re, im), (n, &v)| {
-                    let phase = w * n as f64;
-                    (
-                        re + f64::from(v) * phase.cos(),
-                        im + f64::from(v) * phase.sin(),
-                    )
-                });
-            (cents, re * re + im * im)
-        })
-        .fold((0, 0.0), |best, c| if c.1 > best.1 { c } else { best })
-        .0 as f32
-}
-
-/// Asserts the hits `render` gives at 44.1 and 96 kHz have the 48 kHz hit's
-/// pitch, level and decay.
-fn assert_rate_independent(name: &str, hz: f32, render: impl Fn(f32) -> Vec<f32>) {
-    let measure = |sample_rate: f32| {
-        let x = render(sample_rate);
-        [
-            pitch_cents(&x, sample_rate, hz, 0.02, 0.2),
-            level(&x, sample_rate, 0.0, 0.05),
-            level(&x, sample_rate, 0.05, 0.15) - level(&x, sample_rate, 0.15, 0.25),
-        ]
-    };
-    let [cents, db, decay] = measure(48000.0);
-    for sample_rate in [44100.0, 96000.0] {
-        let [c, d, k] = measure(sample_rate);
-        assert!(
-            (c - cents).abs() <= 4.0,
-            "{name} at {sample_rate} Hz: {c} cents vs {cents}"
-        );
-        assert!(
-            (d - db).abs() < 0.3,
-            "{name} at {sample_rate} Hz: {d} dB vs {db}"
-        );
-        assert!(
-            (k - decay).abs() < 0.3,
-            "{name} at {sample_rate} Hz: decays {k} dB vs {decay}"
-        );
-    }
-}
-
 /// A strike has the same pitch, level and decay at any rate.
 #[test]
 fn kick_sounds_the_same_at_any_rate() {
@@ -195,7 +124,7 @@ fn kick_sounds_the_same_at_any_rate() {
         (120.0, [4.0, 1.0, 5.0, 5.0, 3.0, 5.0]),
         (70.0, [1.0, 4.0, 2.0, 1.0, 0.0, 2.0]),
     ] {
-        assert_rate_independent("kick", hz, |sample_rate| {
+        assert_rate_independent("kick", hz, &[44100.0, 96000.0], |sample_rate| {
             kick_hit(sample_rate, hz, knobs, 0.3)
         });
     }
@@ -209,7 +138,7 @@ fn synth_kick_body_sounds_the_same_at_any_rate() {
         (50.0, [0.0, 2.5, 5.0, 0.0, 4.0]),
         (90.0, [0.0, 4.0, 3.0, 5.0, 5.0]),
     ] {
-        assert_rate_independent("synthKick", hz, |sample_rate| {
+        assert_rate_independent("synthKick", hz, &[44100.0, 96000.0], |sample_rate| {
             synth_hit(sample_rate, hz, knobs, Some(0.0), 1, 0.3)
         });
     }
@@ -239,24 +168,6 @@ fn synth_kick_attack_as_loud_at_any_rate() {
         let db = 20.0 * (attack(sample_rate) / reference).log10();
         assert!(db.abs() < 0.5, "{sample_rate} Hz: {db} dB from 48 kHz");
     }
-}
-
-/// How much of `x`'s energy is in its sample-to-sample change: higher for a
-/// brighter or more distorted sound.
-fn brightness(x: &[f32]) -> f32 {
-    let change: f32 = x.windows(2).map(|w| (w[1] - w[0]).powi(2)).sum();
-    change / x.iter().map(|v| v * v).sum::<f32>()
-}
-
-/// How many times `x` crosses zero.
-fn crossings(x: &[f32]) -> usize {
-    x.windows(2)
-        .filter(|w| (w[0] < 0.0) != (w[1] < 0.0))
-        .count()
-}
-
-fn peak(x: &[f32]) -> f32 {
-    x.iter().fold(0.0f32, |m, v| m.max(v.abs()))
 }
 
 /// `$mi.kick` struck at 48 kHz with knob `index` at `volts`, the rest at
