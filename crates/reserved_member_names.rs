@@ -32,7 +32,6 @@ const RESERVED_MEMBER_NAMES: &[&str] = &[
     "pipe",
     "pipeMix",
     "wet",
-    "withRange",
     "rounded",
     "toString",
     // Collection / CollectionWithRange methods

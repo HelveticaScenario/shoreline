@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    `.erratic()` on a ranged signal blends toward random values within its range by default, instead of shifting and clamping. Pass `mode: 'clamp'` to keep the old movement:
+
+    ```js
+    // before
+    $sine('0.2hz').range(0, 5).erratic(2)
+    // after
+    $sine('0.2hz').range(0, 5).erratic(2, { mode: 'clamp' })
+    ```
+time: 2026-11-12T10:20:11.93309-05:00

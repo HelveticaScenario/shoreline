@@ -442,9 +442,9 @@ describe('chaining methods', () => {
         expect(findModules(patch, '$remap').length).toBeGreaterThan(0);
     });
 
-    test('.range() carries its output range into a chained .range()', () => {
-        // The first .range(0, 1) returns a CollectionWithRange carrying [0, 1];
-        // the chained 2-arg .range(0, 5) uses that as its implicit input range.
+    test('a chained 2-arg .range() maps from the range the engine knows', () => {
+        // The first .range(0, 1) is ranged, so the chained .range(0, 5) leaves
+        // its input range to the engine, which reads the first remap's bounds.
         const patch = execPatch('$sine("1hz").range(0, 1).range(0, 5).out()');
         const remaps = findModules(patch, '$remap');
         expect(remaps.length).toBe(2);
@@ -452,9 +452,8 @@ describe('chaining methods', () => {
             (m) => m.params.outMin === 0 && m.params.outMax === 5,
         );
         expect(chained).toBeDefined();
-        // inMin/inMax come from items.map(o => o.minValue) → arrays
-        expect(chained!.params.inMin).toEqual([0]);
-        expect(chained!.params.inMax).toEqual([1]);
+        expect(chained!.params).not.toHaveProperty('inMin');
+        expect(chained!.params).not.toHaveProperty('inMax');
     });
 });
 
@@ -1302,16 +1301,17 @@ describe('sliders', () => {
     });
 
     test('$slider result is re-rangeable via 2-arg .range()', () => {
-        // $slider returns a CollectionWithRange carrying [min, max], so the
-        // 2-arg .range() remaps from [100, 8000] into the new [0, 5] range.
+        // The slider's control declares [100, 8000], so the 2-arg .range()
+        // leaves the input range to the engine, which maps from it.
         const result = exec(
             '$slider("Cutoff", 1000, 100, 8000).range(0, 5).out()',
         );
         expect(result.sliders.length).toBe(1);
+        const [control] = findModules(result.patch, '_smoothControl');
+        expect(control.params).toMatchObject({ max: 8000, min: 100 });
         const remaps = findModules(result.patch, '$remap');
         expect(remaps.length).toBe(1);
-        expect(remaps[0].params.inMin).toEqual([100]);
-        expect(remaps[0].params.inMax).toEqual([8000]);
+        expect(remaps[0].params).not.toHaveProperty('inMin');
         expect(remaps[0].params.outMin).toBe(0);
         expect(remaps[0].params.outMax).toBe(5);
     });
@@ -1676,8 +1676,11 @@ describe('buttons', () => {
         expect(result.buttons.length).toBe(1);
         const remaps = findModules(result.patch, '$remap');
         expect(remaps.length).toBe(1);
-        expect(remaps[0].params.inMin).toEqual([0]);
-        expect(remaps[0].params.inMax).toEqual([5]);
+        expect(remaps[0].params).not.toHaveProperty('inMin');
+        const signals = findModules(result.patch, '$signal');
+        expect(signals.map((m) => m.params)).toContainEqual(
+            expect.objectContaining({ max: 5, min: 0 }),
+        );
     });
 });
 

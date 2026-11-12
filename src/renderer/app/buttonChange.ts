@@ -1,5 +1,6 @@
 import type { ButtonMode } from '../../shared/dsl/buttonTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
+import { GATE_RANGE } from '../../shared/dsl/controlRanges';
 import {
     extractControls,
     groupCollapseEdit,
@@ -27,6 +28,7 @@ export function applyButtonChange(
 ): void {
     if (moduleId !== null) {
         setModuleParam(moduleId, '$signal', {
+            ...GATE_RANGE,
             value: pressed ? GATE_HIGH_VOLTAGE : 0,
         });
     }

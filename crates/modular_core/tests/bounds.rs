@@ -556,3 +556,57 @@ fn only_outputs_whose_bounds_are_read_store_them() {
         "{mapped} from {saw}"
     );
 }
+
+#[test]
+fn a_declared_range_bounds_a_signal_whose_value_has_none() {
+    let modules = [
+        ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
+        (
+            "filter",
+            "$lpf",
+            json!({ "input": cable("saw"), "cutoff": 0.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "unranged",
+            "$signal",
+            json!({ "value": cable("filter"), "min": 0.0, "max": 10.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "constant",
+            "$signal",
+            json!({ "value": 3.0, "min": 0.0, "max": 10.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "swinging",
+            "$signal",
+            json!({ "value": cable("saw"), "min": 0.0, "max": 10.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "control",
+            "_smoothControl",
+            json!({ "value": 3.0, "min": 0.0, "max": 10.0 }),
+            ProcessingMode::Block,
+        ),
+    ];
+    let patch = build(&modules);
+    let order = [
+        "unranged", "constant", "swinging", "control", "filter", "saw",
+    ];
+    render_block(&patch, &order, &[BLOCK_SIZE]);
+    assert!(!read(&patch, "filter", 0).1.is_bounded());
+    let declared = Bounds::new(0.0, 10.0);
+    for slot in 0..BLOCK_SIZE {
+        assert_eq!(read(&patch, "unranged", slot).1, declared, "slot {slot}");
+        assert_eq!(read(&patch, "constant", slot).1, declared, "slot {slot}");
+        assert_eq!(read(&patch, "control", slot).1, declared, "slot {slot}");
+        assert_eq!(
+            read(&patch, "swinging", slot).1,
+            read(&patch, "saw", slot).1,
+            "a value that swings keeps its own range, slot {slot}"
+        );
+    }
+}

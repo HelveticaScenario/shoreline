@@ -1,0 +1,9 @@
+kind: New
+body: |-
+    `.range(outMin, outMax)` works after any chain that keeps a signal's range, such as `.add()`, `.mul()`, `.round()`, `.lag()` or `.erratic()`, mapping from the range that results. `$signal` takes `min` and `max` to give a value a range of its own:
+
+    ```js
+    $sine('1hz').range(0, 2).add(1).range(-5, 5)
+    $signal(3, { min: 0, max: 10 }).range(0, 1)
+    ```
+time: 2026-11-12T10:20:12.439884-05:00

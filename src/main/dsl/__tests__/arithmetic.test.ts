@@ -13,7 +13,6 @@ import {
     Collection,
     CollectionWithRange,
     type GraphBuilder,
-    ModuleOutput,
     ModuleOutputWithRange,
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
@@ -90,105 +89,36 @@ describe('rounding methods', () => {
         },
     );
 
-    test.each([
-        ['round', -2, 4],
-        ['floor', -2, 3],
-        ['ceil', -1, 4],
-    ] as const)('.%s() rounds number bounds', (mode, min, max) => {
-        const ranged = (sine('1hz') as unknown as CollectionWithRange).range(
-            -1.5,
-            3.5,
-        );
-        const out = ranged[mode]();
+    test.each(['round', 'floor', 'ceil'] as const)(
+        '.%s() keeps a ranged signal ranged through one _round',
+        (mode) => {
+            const out = sine('1hz').range(-1.5, 3.5, -5, 5)[mode]();
 
-        expect(out).toBeInstanceOf(CollectionWithRange);
-        expect([out.items[0].minValue, out.items[0].maxValue]).toEqual([
-            min,
-            max,
-        ]);
-        expect(modules('_round')).toHaveLength(1);
-    });
+            expect(out).toBeInstanceOf(CollectionWithRange);
+            const rounds = modules('_round');
+            expect(rounds).toHaveLength(1);
+            expect(rounds[0].params).toMatchObject({ mode });
+        },
+    );
 
-    test('halves round away from zero, as in the engine', () => {
-        const out = (sine('1hz') as unknown as CollectionWithRange)
-            .range(-2.5, 2.5)
-            .round();
-
-        expect([out.items[0].minValue, out.items[0].maxValue]).toEqual([-3, 3]);
-    });
-
-    test('a ranged output rounds its range', () => {
+    test('a ranged channel rounds ranged', () => {
         const out = (sine('1hz') as unknown as CollectionWithRange)
             .range(0.4, 7.6)[0]
             .round();
 
         expect(out).toBeInstanceOf(CollectionWithRange);
-        expect([out.items[0].minValue, out.items[0].maxValue]).toEqual([0, 8]);
     });
 
-    test('signal bounds round through their own _round, not their methods', () => {
-        // Each bound is itself ranged; rounding it must not round its range
-        // in turn.
-        const lo = (sine('2hz') as unknown as CollectionWithRange).range(
-            0,
-            1,
-        )[0];
-        const hi = (sine('3hz') as unknown as CollectionWithRange).range(
-            4,
-            5,
-        )[0];
-        const out = (sine('1hz') as unknown as CollectionWithRange)
-            .range(lo, hi)
-            .floor();
-
-        const min = out.items[0].minValue as ModuleOutput;
-        const max = out.items[0].maxValue as ModuleOutput;
-        expect(min).toBeInstanceOf(ModuleOutput);
-        expect(min).not.toBeInstanceOf(ModuleOutputWithRange);
-        expect(max).not.toBeInstanceOf(ModuleOutputWithRange);
-        const rounds = modules('_round');
-        // The signal and each of its two bounds.
-        expect(rounds).toHaveLength(3);
-        expect(rounds.map((m) => m.params)).toContainEqual(
-            expect.objectContaining({ mode: 'floor' }),
-        );
-        const ids = rounds.map((m) => m.id);
-        expect(ids).toContain(min.moduleId);
-        expect(ids).toContain(max.moduleId);
-    });
-
-    test('per-output ranges of a ranged collection round separately', () => {
-        const ranged = new CollectionWithRange(
-            ...(sine('1hz') as unknown as CollectionWithRange).range(0.2, 1.7)
-                .items,
-            ...(sine('2hz') as unknown as CollectionWithRange).range(2.5, 5.5)
-                .items,
-        );
-        const out = ranged.ceil();
-
-        expect(out.items.map((o) => [o.minValue, o.maxValue])).toEqual([
-            [1, 2],
-            [3, 6],
-        ]);
-    });
-
-    test('outputs sharing a bound signal share its rounding', () => {
-        const lo = builder.$c('c2')[0];
-        const hi = builder.$c('c5')[0];
+    test('rounding a ranged collection rounds every channel at once', () => {
         const out = (
             builder.getFactory('$sine')([
                 '1hz',
                 '2hz',
-                '3hz',
-                '4hz',
             ]) as unknown as CollectionWithRange
-        )
-            .range(lo, hi)
-            .round();
+        ).ceil();
 
-        expect(out.length).toBe(4);
-        // The signal and one rounding per bound.
-        expect(modules('_round')).toHaveLength(3);
+        expect(out.length).toBe(2);
+        expect(modules('_round')).toHaveLength(1);
     });
 
     test('_round is not a global', () => {

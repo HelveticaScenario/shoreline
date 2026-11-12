@@ -449,12 +449,15 @@ pub fn params_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 }
 
-/// `#[params(…)]` options: `bounded_when = path` replaces the test that the
-/// tagged inputs are bounded, `reads_bounds = path` names the inputs whose
-/// bounds the module reads for itself, and `settles = path` fixes choices made
-/// from which inputs are bounded; each path is a function of the params.
+/// `#[params(…)]` options: `declares_range = (min, max)` names two optional
+/// params that bound the `bounds = input` outputs when both are set, whatever
+/// the inputs; `bounded_when = path` replaces the test that the tagged inputs
+/// are bounded; `reads_bounds = path` names the inputs whose bounds the
+/// module reads for itself; and `settles = path` fixes choices made from
+/// which inputs are bounded. Each path is a function of the params.
 #[derive(Default)]
 struct ParamsOptions {
+    declares_range: Option<(Ident, Ident)>,
     bounded_when: Option<syn::Path>,
     reads_bounds: Option<syn::Path>,
     settles: Option<syn::Path>,
@@ -469,6 +472,21 @@ fn parse_params_options(attr: TokenStream2) -> syn::Result<ParamsOptions> {
         loop {
             let key = Ident::parse_any(input)?;
             input.parse::<Token![=]>()?;
+            if key == "declares_range" {
+                let pair;
+                syn::parenthesized!(pair in input);
+                let min: Ident = pair.parse()?;
+                pair.parse::<Token![,]>()?;
+                let max: Ident = pair.parse()?;
+                if options.declares_range.replace((min, max)).is_some() {
+                    return Err(syn::Error::new(key.span(), "duplicate `declares_range`"));
+                }
+                if input.is_empty() {
+                    return Ok(());
+                }
+                input.parse::<Token![,]>()?;
+                continue;
+            }
             let path: syn::Path = input.parse()?;
             let slot = match key.to_string().as_str() {
                 "bounded_when" => &mut options.bounded_when,
@@ -478,7 +496,7 @@ fn parse_params_options(attr: TokenStream2) -> syn::Result<ParamsOptions> {
                     return Err(syn::Error::new(
                         key.span(),
                         format!(
-                            "unknown `#[params]` option `{other}`; expected bounded_when, reads_bounds or settles"
+                            "unknown `#[params]` option `{other}`; expected declares_range, bounded_when, reads_bounds or settles"
                         ),
                     ));
                 }
@@ -493,6 +511,12 @@ fn parse_params_options(attr: TokenStream2) -> syn::Result<ParamsOptions> {
         }
     };
     syn::parse::Parser::parse2(parser, attr)?;
+    if let (Some((min, _)), Some(_)) = (&options.declares_range, &options.bounded_when) {
+        return Err(syn::Error::new(
+            min.span(),
+            "`declares_range` and `bounded_when` both set the bounded test; use one",
+        ));
+    }
     Ok(options)
 }
 
@@ -608,6 +632,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
 
         let field_name = ident.to_string().to_case(Case::Camel);
         let type_variant = param_type.variant();
+        let carries_bounds = parsed.carries_bounds;
         let declared_default = match &parsed.default {
             Some((DocumentedDefault::Number(n), _)) => Some(n.value),
             _ => None,
@@ -644,6 +669,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                 max_value: #max_value,
                 control_min: #control_min,
                 control_max: #control_max,
+                carries_bounds: #carries_bounds,
             }
         });
         if is_option_poly_signal_type(&field.ty) {
@@ -658,13 +684,34 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         }
     }
 
-    let inputs_bounded = options.bounded_when.map(|test| {
-        quote! {
+    let inputs_bounded = if let Some(test) = options.bounded_when {
+        Some(quote! {
+            const CUSTOM_TEST: bool = true;
+
             fn inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
                 #test(self, is_bounded)
             }
-        }
-    });
+        })
+    } else if let Some((min, max)) = &options.declares_range {
+        let names = [min, max].map(|ident| {
+            let name = ident.to_string().to_case(Case::Camel);
+            quote! { #name }
+        });
+        Some(quote! {
+            const DECLARED_RANGE: Option<(&'static str, &'static str)> =
+                Some((#(#names),*));
+
+            fn inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
+                (self.#min.is_some() && self.#max.is_some())
+                    || self
+                        .bounds_inputs()
+                        .iter()
+                        .all(|input| input.statically_bounded(is_bounded))
+            }
+        })
+    } else {
+        None
+    };
     let bounds_read = options.reads_bounds.map(|read| {
         quote! {
             fn bounds_read(&self) -> Vec<&crate::poly::PolySignal> {

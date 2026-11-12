@@ -38,6 +38,11 @@ import type { SliderDefinition } from '../shared/dsl/sliderTypes';
 import type { ButtonDefinition } from '../shared/dsl/buttonTypes';
 import type { VuMeterDef, VuMeterGhost } from '../shared/dsl/vuMeterTypes';
 import {
+    GATE_RANGE,
+    OUT_GAIN_RANGE,
+    OUT_PAN_RANGE,
+} from '../shared/dsl/controlRanges';
+import {
     DEFAULT_OUTPUT_GAIN,
     UNITY_OUT_GAIN,
     dbToOutGain,
@@ -812,7 +817,7 @@ function App() {
                     void electronAPI.synthesizer.setModuleParam(
                         muteModuleId,
                         '$signal',
-                        { value: gateAfter },
+                        { ...GATE_RANGE, value: gateAfter },
                     );
                 }
             }
@@ -931,7 +936,7 @@ function App() {
             void electronAPI.synthesizer.setModuleParam(
                 outputs[idx].panModuleId,
                 '_smoothControl',
-                { value: pan },
+                { ...OUT_PAN_RANGE, value: pan },
             );
 
             const next = outputs.map((o, i) => (i === idx ? { ...o, pan } : o));
@@ -1368,7 +1373,7 @@ function App() {
             void electronAPI.synthesizer.setModuleParam(
                 outputs[idx].gainModuleId,
                 '_smoothControl',
-                { value: gain },
+                { ...OUT_GAIN_RANGE, value: gain },
             );
 
             const next = outputs.map((o, i) =>
@@ -1484,7 +1489,7 @@ function App() {
             void electronAPI.synthesizer.setModuleParam(
                 outputs[idx].gainModuleId,
                 '_smoothControl',
-                { value: resetGain },
+                { ...OUT_GAIN_RANGE, value: resetGain },
             );
 
             const next = outputs.map((o, i) =>

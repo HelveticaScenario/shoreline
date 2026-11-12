@@ -2797,6 +2797,10 @@ pub struct SignalParamSchema {
     pub control_min: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub control_max: Option<f64>,
+    /// Whether the module's `bounds = input` outputs take their bounds from
+    /// this input (`#[input(…, bounds)]`).
+    #[serde(default)]
+    pub carries_bounds: bool,
 }
 
 /// The kind of voltage a signal input reads, named in `#[input(type = …)]`.
@@ -2897,6 +2901,15 @@ pub enum BoundsKind {
 /// from, and `#[params(bounded_when = …, reads_bounds = …)]` supply the other
 /// two methods.
 pub trait BoundsInputs {
+    /// Whether [`inputs_bounded`](Self::inputs_bounded) is the module's own
+    /// test rather than the tagged inputs'.
+    const CUSTOM_TEST: bool = false;
+
+    /// The two optional params, as the DSL names them, that bound the
+    /// `bounds = input` outputs when both are set, whatever the inputs
+    /// (`#[params(declares_range = (min, max))]`).
+    const DECLARED_RANGE: Option<(&'static str, &'static str)> = None;
+
     /// The connected inputs the `bounds = input` outputs' bounds come from.
     fn bounds_inputs(&self) -> Vec<&crate::poly::PolySignal>;
 
@@ -3034,6 +3047,16 @@ pub struct ModuleSchema {
     /// still change between releases. Always serialized, like `buffer_outputs`.
     #[serde(default)]
     pub experimental: bool,
+    /// Whether the module decides for itself when its `bounds = input`
+    /// outputs are bounded (`#[params(bounded_when = …)]`), rather than when
+    /// every input that carries bounds is.
+    #[serde(default)]
+    pub custom_bounds: bool,
+    /// The two optional params, `[min, max]`, that bound the module's `bounds = input`
+    /// outputs when both are set, whatever its inputs
+    /// (`#[params(declares_range = …)]`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_range: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

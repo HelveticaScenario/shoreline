@@ -1,29 +1,39 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::bounds::Bounds;
 use crate::dsp::utils::sanitize;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::poly::PolyOutput;
 
 /// Seconds the output takes to reach each new value. Longer than the interval
 /// between UI drag events, so consecutive ramps join into one continuous
 /// line.
 const RAMP_SECONDS: f32 = 0.03;
 
-#[params]
+#[params(declares_range = (min, max))]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SmoothControlParams {
     #[input("value the output ramps to")]
     value: f64,
+    #[input("bottom of the control's range; set with max")]
+    #[serde(default)]
+    #[deserr(default)]
+    min: Option<f32>,
+    #[input("top of the control's range; set with min")]
+    #[serde(default)]
+    #[deserr(default)]
+    max: Option<f32>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SmoothControlOutputs {
-    #[output("output", "the value, ramping smoothly to each new setting", type = cv, default)]
-    sample: f32,
+    #[output("output", "the value, ramping smoothly to each new setting", type = cv, bounds = input, default)]
+    sample: PolyOutput,
 }
 
 #[derive(Default)]
@@ -81,7 +91,15 @@ impl SmoothControl {
                 state.current + state.step
             };
         }
-        self.outputs.sample = state.current;
+        let out = &mut self.outputs.sample;
+        out.set(0, state.current);
+        if out.stores_bounds() {
+            let bounds = match (self.params.min, self.params.max) {
+                (Some(min), Some(max)) => Bounds::new(min, max),
+                _ => Bounds::point(state.current),
+            };
+            out.set_bounds(0, bounds);
+        }
     }
 }
 
@@ -114,7 +132,11 @@ mod tests {
         let mut outputs = SmoothControlOutputs::default();
         outputs.set_all_channels(1);
         let mut s = SmoothControl {
-            params: SmoothControlParams { value },
+            params: SmoothControlParams {
+                value,
+                min: None,
+                max: None,
+            },
             outputs,
             state: SmoothControlState::default(),
             _channel_count: 1,
@@ -138,7 +160,7 @@ mod tests {
     fn starts_at_its_value_without_ramping() {
         let mut s = make(3.0);
         s.update(SR);
-        assert_eq!(s.outputs.sample, 3.0);
+        assert_eq!(s.outputs.sample.get(0), 3.0);
     }
 
     #[test]
@@ -150,15 +172,15 @@ mod tests {
         let mut prev = 0.0;
         for _ in 0..samples - 1 {
             s.update(SR);
-            let out = s.outputs.sample;
+            let out = s.outputs.sample.get(0);
             assert!(out > prev && out < 1.0);
             assert!((out - prev - 1.0 / samples as f32).abs() < 1e-5);
             prev = out;
         }
         s.update(SR);
-        assert_eq!(s.outputs.sample, 1.0);
+        assert_eq!(s.outputs.sample.get(0), 1.0);
         s.update(SR);
-        assert_eq!(s.outputs.sample, 1.0);
+        assert_eq!(s.outputs.sample.get(0), 1.0);
     }
 
     #[test]
@@ -182,12 +204,12 @@ mod tests {
         for _ in 0..100 {
             s.update(SR);
         }
-        let before = s.outputs.sample;
+        let before = s.outputs.sample.get(0);
         let mut s = replace(&mut s, -1.0);
         s.update(SR);
         let max_step = 2.0 / (RAMP_SECONDS * SR);
-        assert!(s.outputs.sample < before);
-        assert!(before - s.outputs.sample <= max_step);
+        assert!(s.outputs.sample.get(0) < before);
+        assert!(before - s.outputs.sample.get(0) <= max_step);
     }
 
     #[test]
@@ -195,14 +217,14 @@ mod tests {
         let mut s = make(0.0);
         s.update(SR);
         let event_interval = (0.016 * SR) as usize;
-        let mut prev = s.outputs.sample;
+        let mut prev = s.outputs.sample.get(0);
         let mut largest = 0.0f32;
         for stair in 1..=20 {
             s = replace(&mut s, stair as f64 * 0.5);
             for _ in 0..event_interval {
                 s.update(SR);
-                largest = largest.max((s.outputs.sample - prev).abs());
-                prev = s.outputs.sample;
+                largest = largest.max((s.outputs.sample.get(0) - prev).abs());
+                prev = s.outputs.sample.get(0);
             }
         }
         assert!(largest < 0.5 / (RAMP_SECONDS * SR) * 2.0);
