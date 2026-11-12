@@ -57,9 +57,9 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Methods operate on every channel.',
         examples: [
             "const osc = $sine('c4')",
-            'osc.amplitude(0.5).out()             // Chain methods',
+            'osc.amp(0.5).out()             // Chain methods',
             "$lpf(osc, 'c3', { q: 4 })            // Use as input to another module",
-            '$c(osc1, osc2, osc3).amplitude(0.5).out()  // Apply amplitude to all, send to output',
+            '$c(osc1, osc2, osc3).amp(0.5).out()  // Apply amplitude to all, send to output',
             'const voices = $c(osc1, osc2, osc3)',
             'for (const v of voices) { ... }      // Iterate over one-channel collections',
             '[...voices]                          // Spread to array',
@@ -67,17 +67,10 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         ],
         methods: [
             {
-                name: 'amplitude',
-                signature: 'amplitude(factor: Poly<Signal>): Collection',
-                description:
-                    'Scale all signals in the collection by a linear factor (5 = unity, 2.5 = half, 10 = 2x). For perceptual (audio-taper) volume control, use gain() instead.',
-                example: '$c(osc1, osc2).amplitude(2.5)',
-            },
-            {
                 name: 'amp',
                 signature: 'amp(factor: Poly<Signal>): Collection',
                 description:
-                    'Alias for amplitude(). Scale all signals in the collection by a factor.',
+                    'Scale all signals in the collection by a linear factor (5 = unity, 2.5 = half, 10 = 2x). For perceptual (audio-taper) volume control, use gain() instead.',
                 example: '$c(osc1, osc2).amp(0.5)',
             },
             {
@@ -91,7 +84,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                 name: 'gain',
                 signature: 'gain(level: Poly<Signal>): Collection',
                 description:
-                    'Scale all signals with a perceptual (audio taper) curve (5 = unity, 0 = silence). For linear amplitude scaling, use amplitude() instead.',
+                    'Scale all signals with a perceptual (audio taper) curve (5 = unity, 0 = silence). For linear amplitude scaling, use amp() instead.',
                 example: '$c(osc1, osc2).gain(2.5)',
             },
             {
@@ -138,7 +131,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                 description:
                     'Pass this collection through a transform function and return the result. ' +
                     'Enables inline transforms and reusable signal-processing helpers.',
-                example: '$c(osc1, osc2).pipe(all => all.amplitude(0.5)).out()',
+                example: '$c(osc1, osc2).pipe(all => all.amp(0.5)).out()',
             },
             {
                 name: 'pipe',
@@ -438,7 +431,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         description:
             'Create a Collection holding the channels of every argument, in order. Collections support chainable DSP methods, indexing, and spreading.',
         examples: [
-            '$c(osc1, osc2).amplitude(0.5).out()',
+            '$c(osc1, osc2).amp(0.5).out()',
             '$c(osc1, osc2)[0]  // index access: a one-channel collection',
         ],
         group: 'Helpers',
@@ -601,7 +594,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         description:
             'Create a UI slider bound to a signal module. The slider appears in the Control panel as soon as it is written. Dragging it rewrites the source value, and drives the audio engine in real time once the patch is evaluated.',
         examples: [
-            'const vol = $slider("Volume", 0.5, 0, 1);\n$sine(440).amplitude(vol).out();',
+            'const vol = $slider("Volume", 0.5, 0, 1);\n$sine(440).amp(vol).out();',
             'const cutoff = $slider("Cutoff", 1000, 100, 8000);\n$saw(440).pipe(s => $lpf(s, cutoff)).out();',
         ],
         group: 'Controls',
@@ -647,8 +640,8 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         description:
             'Create a momentary gate button in the Control panel: 5V while held, 0V otherwise. Chain through .hold for a fixed-length trigger per press.',
         examples: [
-            '$sine("c4").amplitude($adsr($btn("play"))).out();',
-            '// fixed 100 ms trigger per press, however long the button is held\n$sine("c4").amplitude($adsr($btn("hit").hold(0.1))).out();',
+            '$sine("c4").amp($adsr($btn("play"))).out();',
+            '// fixed 100 ms trigger per press, however long the button is held\n$sine("c4").amp($adsr($btn("hit").hold(0.1))).out();',
         ],
         group: 'Controls',
         name: '$btn',
@@ -674,7 +667,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     {
         description:
             'Create a latched toggle button in the Control panel: clicking flips between 0V and 5V and rewrites the initial-state literal in the source, so the state survives re-execution.',
-        examples: ['$saw("c2").amplitude($toggleBtn("drone", false)).out();'],
+        examples: ['$saw("c2").amp($toggleBtn("drone", false)).out();'],
         group: 'Controls',
         name: '$toggleBtn',
         params: [
@@ -705,8 +698,8 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         description:
             'Create a group of controls. Controls given the returned group as their last argument appear together in the Control panel under a collapsible header; groups nest through params.group. Clicking the header rewrites the collapsed literal in the source. Control labels need only be unique within their group.',
         examples: [
-            'const voice = $cGroup("Voice");\n$sine($slider("Pitch", "c4", "c2", "c6", voice)).amplitude($adsr($btn("Play", voice))).out();',
-            'const synth = $cGroup("Synth");\nconst amp = $cGroup("Amp", { collapsed: true, group: synth });\n$saw($slider("Root", "c3", "c2", "c5", synth)).amplitude($slider("Level", 0.5, 0, 1, amp)).out();',
+            'const voice = $cGroup("Voice");\n$sine($slider("Pitch", "c4", "c2", "c6", voice)).amp($adsr($btn("Play", voice))).out();',
+            'const synth = $cGroup("Synth");\nconst amp = $cGroup("Amp", { collapsed: true, group: synth });\n$saw($slider("Root", "c3", "c2", "c5", synth)).amp($slider("Level", 0.5, 0, 1, amp)).out();',
         ],
         group: 'Controls',
         name: '$cGroup',

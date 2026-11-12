@@ -1,0 +1,13 @@
+kind: Breaking
+body: |-
+    `$scaleAndShift` and `.amplitude()` are gone. Use `.amp()` to scale and `.shift()` to offset; `$amp`, `$shift` and `$gain` also work as functions, like any other module.
+
+    ```js
+    // before
+    $scaleAndShift(lfo, 2.5, 1)
+    $saw('c3').amplitude(2.5).out()
+    // after
+    lfo.amp(2.5).shift(1)
+    $saw('c3').amp(2.5).out()
+    ```
+time: 2026-11-12T05:30:54.000000-05:00

@@ -149,8 +149,7 @@ fn apf_swept_sample(channels: usize) -> BenchPatch {
     BenchPatch::with_mode(apf_swept_modules(channels), ProcessingMode::Sample)
 }
 
-/// `$saw` into a chain of 32 `$scaleAndShift`s with constant scale and
-/// shift: almost no DSP, so this measures per-module engine overhead.
+/// `$saw` into a chain of 32 `$amp`s with a constant factor: almost no DSP, so this measures per-module engine overhead.
 fn scale_chain(channels: usize) -> BenchPatch {
     let mut modules = vec![(
         "src".to_string(),
@@ -165,14 +164,14 @@ fn scale_chain(channels: usize) -> BenchPatch {
         };
         modules.push((
             format!("s{i}"),
-            "$scaleAndShift",
-            json!({ "input": poly_cable(&prev, "output", channels), "scale": 4.0, "shift": 0.1 }),
+            "$amp",
+            json!({ "input": poly_cable(&prev, "output", channels), "factor": 4.0 }),
         ));
     }
     BenchPatch::new(modules)
 }
 
-/// [`scale_chain`] with one cable among the constant scale channels: inputs
+/// [`scale_chain`] with one cable among the constant factor channels: inputs
 /// that cannot be read in place, so block modules copy them out slot by slot.
 fn scale_fallback(channels: usize) -> BenchPatch {
     let mut modules = vec![(
@@ -186,12 +185,12 @@ fn scale_fallback(channels: usize) -> BenchPatch {
         } else {
             format!("s{}", i - 1)
         };
-        let mut scale: Vec<Value> = (0..channels).map(|_| json!(4.0)).collect();
-        scale[0] = json!({ "type": "cable", "module": "src", "port": "output", "channel": 0 });
+        let mut factor: Vec<Value> = (0..channels).map(|_| json!(4.0)).collect();
+        factor[0] = json!({ "type": "cable", "module": "src", "port": "output", "channel": 0 });
         modules.push((
             format!("s{i}"),
-            "$scaleAndShift",
-            json!({ "input": poly_cable(&prev, "output", channels), "scale": scale, "shift": 0.1 }),
+            "$amp",
+            json!({ "input": poly_cable(&prev, "output", channels), "factor": factor }),
         ));
     }
     BenchPatch::new(modules)
@@ -216,7 +215,7 @@ fn remap_chain(channels: usize) -> BenchPatch {
     BenchPatch::new(modules)
 }
 
-/// 160 cheap modules (`$remap`, `$clamp`, `$signal`, `$scaleAndShift`) all
+/// 160 cheap modules (`$remap`, `$clamp`, `$signal`, `$amp`) all
 /// reading one `$saw`: the shape of a large live patch, where per-module
 /// overhead and cache footprint add up.
 fn wide_mix_modules(channels: usize) -> Vec<(String, &'static str, Value)> {
@@ -226,7 +225,7 @@ fn wide_mix_modules(channels: usize) -> Vec<(String, &'static str, Value)> {
         json!({ "freq": poly(0.0, channels) }),
     )];
     for i in 0..160 {
-        let ty = ["$remap", "$clamp", "$signal", "$scaleAndShift"][i % 4];
+        let ty = ["$remap", "$clamp", "$signal", "$amp"][i % 4];
         let params = match ty {
             "$remap" => {
                 json!({ "input": poly_cable("src", "output", channels), "inMin": -5.0, "inMax": 5.0, "outMin": -4.0, "outMax": 4.0 })
@@ -235,7 +234,7 @@ fn wide_mix_modules(channels: usize) -> Vec<(String, &'static str, Value)> {
                 json!({ "input": poly_cable("src", "output", channels), "min": -1.0, "max": 1.0 })
             }
             "$signal" => json!({ "value": poly_cable("src", "output", channels) }),
-            _ => json!({ "input": poly_cable("src", "output", channels), "scale": 4.0 }),
+            _ => json!({ "input": poly_cable("src", "output", channels), "factor": 4.0 }),
         };
         modules.push((format!("m{i}"), ty, params));
     }
@@ -317,10 +316,10 @@ fn voices(channels: usize) -> BenchPatch {
         ));
         modules.push((
             id("vca"),
-            "$scaleAndShift",
+            "$amp",
             json!({
                 "input": poly_cable(&id("lpf"), "output", channels),
-                "scale": poly_cable(&id("env"), "output", channels),
+                "factor": poly_cable(&id("env"), "output", channels),
             }),
         ));
         modules.push((

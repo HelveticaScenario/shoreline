@@ -5,6 +5,7 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 
 pub mod add_hz;
 pub mod adsr;
+pub mod amp;
 pub mod arithmetic;
 pub mod buffer;
 pub mod chord;
@@ -12,9 +13,12 @@ pub mod chord_names;
 pub mod clamp;
 pub mod clock_divider;
 pub mod coin_flip;
+pub mod crossfade;
 pub mod curve;
 pub mod delay;
 pub mod erratic;
+pub mod gain;
+mod glided_operand;
 pub mod hold;
 pub mod hz;
 pub mod lag;
@@ -27,9 +31,9 @@ pub mod quantizer;
 pub mod remap;
 pub mod sample_and_hold;
 pub mod scale;
-pub mod scale_and_shift;
 pub mod scale_names;
 pub mod scan;
+pub mod shift;
 pub mod smooth_control;
 pub mod spread;
 pub mod unison;
@@ -68,7 +72,10 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     sample_and_hold::TrackAndHold::install_constructor(map);
     percussion_envelope::PercussionEnvelope::install_constructor(map);
     quantizer::Quantizer::install_constructor(map);
-    scale_and_shift::ScaleAndShift::install_constructor(map);
+    amp::Amp::install_constructor(map);
+    crossfade::Crossfade::install_constructor(map);
+    gain::Gain::install_constructor(map);
+    shift::Shift::install_constructor(map);
     smooth_control::SmoothControl::install_constructor(map);
     spread::Spread::install_constructor(map);
     unison::Unison::install_constructor(map);
@@ -104,7 +111,10 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     sample_and_hold::TrackAndHold::install_params_deserializer(map);
     percussion_envelope::PercussionEnvelope::install_params_deserializer(map);
     quantizer::Quantizer::install_params_deserializer(map);
-    scale_and_shift::ScaleAndShift::install_params_deserializer(map);
+    amp::Amp::install_params_deserializer(map);
+    crossfade::Crossfade::install_params_deserializer(map);
+    gain::Gain::install_params_deserializer(map);
+    shift::Shift::install_params_deserializer(map);
     smooth_control::SmoothControl::install_params_deserializer(map);
     spread::Spread::install_params_deserializer(map);
     unison::Unison::install_params_deserializer(map);
@@ -141,7 +151,10 @@ pub fn schemas() -> Vec<ModuleSchema> {
         sample_and_hold::TrackAndHold::get_schema(),
         percussion_envelope::PercussionEnvelope::get_schema(),
         quantizer::Quantizer::get_schema(),
-        scale_and_shift::ScaleAndShift::get_schema(),
+        amp::Amp::get_schema(),
+        crossfade::Crossfade::get_schema(),
+        gain::Gain::get_schema(),
+        shift::Shift::get_schema(),
         smooth_control::SmoothControl::get_schema(),
         spread::Spread::get_schema(),
         unison::Unison::get_schema(),

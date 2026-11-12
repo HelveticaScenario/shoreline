@@ -53,34 +53,25 @@ describe('computeControlQuickFixes — wrap in params object', () => {
 });
 
 describe('computeControlQuickFixes — wrap chained sugar arguments', () => {
-    test('.amplitude uses the $scaleAndShift scale range', () => {
-        const { source, fixes } = fixesAt(`$sine('c4').amplitude(0.|3).out();`);
-        const fix = wrapFix(fixes);
-        expect(fix.title).toBe(`Wrap 'amplitude' in $slider`);
-        expect(apply(source, fix)).toBe(
-            `$sine('c4').amplitude($slider('amplitude', 0.3, 0, 10)).out();`,
-        );
-    });
-
-    test('.amp labels with the method name as written', () => {
+    test('.amp uses the $amp factor range', () => {
         const { source, fixes } = fixesAt(`$sine('c4').amp(0.|3).out();`);
         const fix = wrapFix(fixes);
-        expect(apply(source, fix)).toContain(`$slider('amp', 0.3, 0, 10)`);
+        expect(apply(source, fix)).toContain(`$slider('factor', 0.3, 0, 10)`);
     });
 
-    test('.gain narrows to the perceptual 0..5 range', () => {
+    test('.gain uses the $gain level range', () => {
         const { source, fixes } = fixesAt(`$sine('c4').gain(2.|5).out();`);
         const fix = wrapFix(fixes);
-        expect(apply(source, fix)).toContain(`$slider('gain', 2.5, 0, 5)`);
+        expect(apply(source, fix)).toContain(`$slider('level', 2.5, 0, 10)`);
     });
 
     test('sugar on a deep chain still resolves', () => {
         const { source, fixes } = fixesAt(
-            `$sine(0).lpf('100hz').amplitude(0.|3).out();`,
+            `$sine(0).lpf('100hz').amp(0.|3).out();`,
         );
         const fix = wrapFix(fixes);
         expect(apply(source, fix)).toContain(
-            `.amplitude($slider('amplitude', 0.3, 0, 10))`,
+            `.amp($slider('factor', 0.3, 0, 10))`,
         );
     });
 });
@@ -331,7 +322,7 @@ describe('computeControlQuickFixes — non-eligible sites', () => {
     });
 
     test('sugar on a non-DSL root produces nothing', () => {
-        expect(fixesAt(`'str'.amplitude(0.|3);`).fixes).toEqual([]);
+        expect(fixesAt(`'str'.amp(0.|3);`).fixes).toEqual([]);
     });
 
     test('a non-signal config key offers no wrap', () => {
@@ -525,10 +516,7 @@ describe('computeControlQuickFixes — caret at a literal edge', () => {
                 `$slider('resonance', 2.5, 0, 5)`,
             ],
             [`$pulse('a3'|).out();`, `$slider('freq', 'a3', 'a1', 'a5')`],
-            [
-                `$sine('c4').amplitude(0.3|).out();`,
-                `$slider('amplitude', 0.3, 0, 10)`,
-            ],
+            [`$sine('c4').amp(0.3|).out();`, `$slider('factor', 0.3, 0, 10)`],
         ]) {
             const { source, fixes } = fixesAt(text);
             const fix = wrapFix(fixes);
@@ -579,10 +567,10 @@ describe('computeControlQuickFixes — literal and layout edge cases', () => {
 
     test('sugar on a const the patch declares still resolves', () => {
         const { source, fixes } = fixesAt(
-            `const osc = $pulse('a3');\nosc.amplitude(0.|3).out();`,
+            `const osc = $pulse('a3');\nosc.amp(0.|3).out();`,
         );
         expect(apply(source, wrapFix(fixes))).toContain(
-            `osc.amplitude($slider('amplitude', 0.3, 0, 10))`,
+            `osc.amp($slider('factor', 0.3, 0, 10))`,
         );
     });
 });

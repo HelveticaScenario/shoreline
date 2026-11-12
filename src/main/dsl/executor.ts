@@ -543,7 +543,7 @@ export function executePatchScript(
                     : mixed;
                 const buf = $buffer(buffered, maxTime);
                 const delayed = $delayRead(buf, time) as Collection;
-                def.set(delayed.amp(feedback));
+                def.set(builder.getFactory('$amp')(delayed, feedback));
                 return withCarried(delayed, { buffer: buf });
             },
         );
@@ -592,14 +592,14 @@ export function executePatchScript(
 
     const $xover = userNamespaceTree['$xover'];
     const $comp = userNamespaceTree['$comp'];
-    const $scaleAndShift = userNamespaceTree['$scaleAndShift'];
+    const _crossfade = context.namespaceTree['_crossfade'];
     if (
         typeof $xover !== 'function' ||
         typeof $comp !== 'function' ||
-        typeof $scaleAndShift !== 'function'
+        typeof _crossfade !== 'function'
     ) {
         throw new Error(
-            'DSL execution error: "$ott" requires "$xover", "$comp", and "$scaleAndShift" modules',
+            'DSL execution error: "$ott" requires "$xover", "$comp", and "_crossfade" modules',
         );
     }
 
@@ -609,8 +609,8 @@ export function executePatchScript(
      * upward + downward compression to each band with `$comp`, sums the bands,
      * and crossfades against the original input via `depth`.
      *
-     * Per-band trim (`lowGain` / `midGain` / `highGain`) uses `$scaleAndShift`
-     * convention: 5 V = unity, 0 V = silence, 10 V = +6 dB.
+     * Per-band trim (`lowGain` / `midGain` / `highGain`) is linear, as in
+     * `.amp()`: 5 V = unity, 0 V = silence, 10 V = +6 dB.
      *
      * @example
      * $ott(drums).out()
@@ -656,23 +656,15 @@ export function executePatchScript(
             ...(scBands !== null && { sidechain: scBands._high }),
         });
 
-        // Per-band trim — $scaleAndShift convention: scale=5 → unity gain.
-        const low = $scaleAndShift(lowComp, config.lowGain ?? 5, 0);
-        const mid = $scaleAndShift(midComp, config.midGain ?? 5, 0);
-        const high = $scaleAndShift(highComp, config.highGain ?? 5, 0);
+        const $amp = builder.getFactory('$amp');
+        const low = $amp(lowComp, config.lowGain ?? 5);
+        const mid = $amp(midComp, config.midGain ?? 5);
+        const high = $amp(highComp, config.highGain ?? 5);
 
         const wet = $mix([low, mid, high]) as Collection;
 
-        // Crossfade dry vs wet using `depth` (0–5 V):
-        //   dryWeight = 5 − depth → unity when depth=0, silence when depth=5
-        //   wetWeight = depth      → silence when depth=0, unity when depth=5
-        const depth = config.depth ?? 5;
-        const dryWeight = $scaleAndShift(depth, -5, 5);
-
-        return $mix([
-            $scaleAndShift(input, dryWeight, 0),
-            $scaleAndShift(wet, depth, 0),
-        ]) as Collection;
+        // `depth` 0 is the dry input alone, 5 the compressed bands alone.
+        return _crossfade(input, wet, config.depth ?? 5) as Collection;
     };
 
     const $track = userNamespaceTree['$track'];

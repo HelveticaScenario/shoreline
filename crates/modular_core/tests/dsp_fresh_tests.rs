@@ -286,21 +286,50 @@ fn noise_produces_output() {
     );
 }
 
-// ─── ScaleAndShift ───────────────────────────────────────────────────────────
+// ─── Gain stages ─────────────────────────────────────────────────────────────
 
 #[test]
-fn scale_and_shift_applies() {
-    let sas = make_module(
-        "$scaleAndShift",
-        "sas-1",
-        json!({ "input": 1.0, "scale": 5.0, "shift": 2.0 }),
-    );
-    // Formula: output = input * (scale / 5.0) + shift
-    // input=1.0, scale=5.0 (= 1x gain), shift=2.0 → output = 1.0 * 1.0 + 2.0 = 3.0
+fn amp_scales_with_five_as_unity() {
+    let amp = make_module("$amp", "amp-1", json!({ "input": 2.0, "factor": 2.5 }));
+    let sample = settle_and_read(amp.as_ref(), 500);
+    assert!(approx_eq(sample, 1.0, 1e-6), "expected 1.0, got {sample}");
+}
 
-    // Step enough times for param smoothing to converge
-    let sample = settle_and_read(sas.as_ref(), 500);
-    assert!(approx_eq(sample, 3.0, 0.1), "expected ~3.0, got {sample}");
+#[test]
+fn shift_adds_its_offset() {
+    let shift = make_module("$shift", "shift-1", json!({ "input": 1.0, "offset": 2.0 }));
+    let sample = settle_and_read(shift.as_ref(), 500);
+    assert!(approx_eq(sample, 3.0, 1e-6), "expected 3.0, got {sample}");
+}
+
+#[test]
+fn gain_follows_the_audio_taper() {
+    // Level 2.5 is (2.5 / 5)³ = 1/8 amplitude.
+    let gain = make_module("$gain", "gain-1", json!({ "input": 4.0, "level": 2.5 }));
+    let sample = settle_and_read(gain.as_ref(), 500);
+    assert!(approx_eq(sample, 0.5, 1e-6), "expected 0.5, got {sample}");
+}
+
+#[test]
+fn crossfade_blends_and_holds_past_its_ends() {
+    for (mix, expected) in [
+        (0.0, 1.0),
+        (1.25, 1.75),
+        (5.0, 4.0),
+        (-3.0, 1.0),
+        (9.0, 4.0),
+    ] {
+        let fade = make_module(
+            "_crossfade",
+            "fade-1",
+            json!({ "dry": 1.0, "wet": 4.0, "mix": mix }),
+        );
+        let sample = settle_and_read(fade.as_ref(), 500);
+        assert!(
+            approx_eq(sample, expected, 1e-6),
+            "mix {mix}: expected {expected}, got {sample}"
+        );
+    }
 }
 
 // ─── Constructors ────────────────────────────────────────────────────────────
@@ -394,7 +423,10 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$math" => json!({ "expression": "1+1" }),
         "$spread" => json!({ "min": -1.0, "max": 1.0, "count": 3 }),
         "$signal" => json!({ "value": 0.0 }),
-        "$scaleAndShift" => json!({ "input": 0.0 }),
+        "$amp" => json!({ "input": 0.0, "factor": 5.0 }),
+        "$shift" => json!({ "input": 0.0, "offset": 0.0 }),
+        "$gain" => json!({ "input": 0.0, "level": 5.0 }),
+        "_crossfade" => json!({ "dry": 0.0, "wet": 0.0, "mix": 2.5 }),
         "$chord" => json!({ "chord": "C[maj]" }),
         "$cheby" | "$fold" | "$segment" => json!({ "input": 0.0, "amount": 0.0 }),
         "$overdrive" => json!({ "input": 0.0, "drive": 0.0 }),
@@ -650,13 +682,11 @@ fn from_graph_rejects_unknown_module_type() {
 
 #[test]
 fn from_graph_params_are_applied() {
-    // Use $scaleAndShift with a constant input — its output should reflect the params.
-    // Formula: output = input * (scale / 5.0) + shift
-    // input=2.0, scale=5.0 (1× gain), shift=1.0 → output ≈ 3.0
+    // `$shift` with a constant input: 2.0 + 1.0 → output ≈ 3.0
     let graph = make_graph(vec![(
         "sas1",
-        "$scaleAndShift",
-        json!({ "input": 2.0, "scale": 5.0, "shift": 1.0 }),
+        "$shift",
+        json!({ "input": 2.0, "offset": 1.0 }),
     )]);
     let patch = from_graph(&graph, SAMPLE_RATE, TEST_BLOCK_SIZE, &HashMap::new())
         .expect("from_graph failed");
@@ -1013,14 +1043,10 @@ fn buffer_and_delay_read_pipeline() {
     // After the buffer fills past the delay time, every position holds the same
     // constant value, so the delayed read should converge to that value.
     //
-    // Signal chain: $scaleAndShift(input=2, scale=5, shift=0) → $buffer → $delayRead
-    // scale=5.0 means 1× gain, so output = 2.0 * 1.0 + 0.0 = 2.0
+    // Signal chain: $amp(input=2, factor=5) → $buffer → $delayRead
+    // factor=5.0 means 1× gain, so output = 2.0
     let graph = make_graph(vec![
-        (
-            "sig",
-            "$scaleAndShift",
-            json!({ "input": 2.0, "scale": 5.0, "shift": 0.0 }),
-        ),
+        ("sig", "$amp", json!({ "input": 2.0, "factor": 5.0 })),
         (
             "buf",
             "$buffer",
@@ -1067,9 +1093,14 @@ fn delay_reads_do_not_depend_on_block_size() {
         ("src", "$saw", json!({ "freq": 0.0 })),
         ("lfo", "$sine", json!({ "freq": -4.0 })),
         (
+            "depth",
+            "$amp",
+            json!({ "input": cable("lfo"), "factor": 0.002 }),
+        ),
+        (
             "time",
-            "$scaleAndShift",
-            json!({ "input": cable("lfo"), "scale": 0.002, "shift": 0.0123456 }),
+            "$shift",
+            json!({ "input": cable("depth"), "offset": 0.0123456 }),
         ),
         (
             "buf",
@@ -1144,18 +1175,13 @@ fn buffer_feedback_cycle_propagates_through_delay_read() {
     //           ▲                                       │
     //           └───────────────────────────────────────┘
     let graph = make_graph(vec![
-        (
-            "src",
-            "$scaleAndShift",
-            json!({ "input": 1.0, "scale": 5.0, "shift": 0.0 }),
-        ),
+        ("src", "$amp", json!({ "input": 1.0, "factor": 5.0 })),
         (
             "feedback",
-            "$scaleAndShift",
+            "$amp",
             json!({
                 "input": { "type": "cable", "module": "delayRead", "port": "output", "channel": 0 },
-                "scale": 4.0,
-                "shift": 0.0,
+                "factor": 4.0,
             }),
         ),
         (
@@ -1272,49 +1298,28 @@ fn transfer_state_from_preserves_wrapper_outputs_for_feedback_cycles() {
     // get_poly_sample(). If those are zeros instead of the previous frame's
     // values, a one-sample discontinuity is injected into the feedback loop.
     //
-    // Setup: Two $scaleAndShift modules wired in a feedback cycle:
-    //   A reads from B, B reads from A.
+    // Setup: a `$shift` and an `$amp` wired in a feedback cycle:
+    //   A = B + 1.0, B = A * 0.5, which settles at A = 2.0, B = 1.0.
     // After running for several frames, we transfer state to new modules
-    // and check that running one frame doesn't inject a zero discontinuity.
-    //
-    // Without the fix, whichever module is second in the cycle reads zeros
-    // from the first module's wrapper on the transfer frame, producing an
-    // output of `shift` instead of the correct feedback value.
-
-    // Use $scaleAndShift: output = input * (scale / 5.0) + shift
-    // A: input=B.output, scale=5.0 (gain=1.0), shift=1.0
-    // B: input=A.output, scale=5.0 (gain=1.0), shift=0.0
-    //
-    // Steady state:
-    //   A_out = B_out * 1.0 + 1.0
-    //   B_out = A_out * 1.0 + 0.0 = A_out
-    // So A_out = A_out + 1.0 diverges, but with the one-frame delay from the
-    // cycle break it converges to a fixed-point quickly (the $scaleAndShift
-    // just passes through with gain=1, so the cycle adds 1.0 per frame from
-    // A's shift, growing until it clips).
-    //
-    // After ~100 frames, both outputs are large and non-zero. If the wrapper
-    // outputs are not transferred, the cycle partner reads 0.0 on the first
-    // frame, producing shift (1.0 or 0.0) instead of the previous large value.
-    // We detect this by checking the output doesn't drop to near shift.
+    // and check that running one frame doesn't inject a zero discontinuity:
+    // a cycle partner reading 0.0 would output its own offset (1.0 for A,
+    // 0.0 for B) instead of the steady-state value.
 
     let graph = make_graph(vec![
         (
             "a",
-            "$scaleAndShift",
+            "$shift",
             json!({
                 "input": { "type": "cable", "module": "b", "port": "output", "channel": 0 },
-                "scale": 2.5,  // gain = 2.5/5.0 = 0.5 so it converges
-                "shift": 1.0
+                "offset": 1.0
             }),
         ),
         (
             "b",
-            "$scaleAndShift",
+            "$amp",
             json!({
                 "input": { "type": "cable", "module": "a", "port": "output", "channel": 0 },
-                "scale": 2.5,  // gain = 0.5
-                "shift": 0.0
+                "factor": 2.5,  // gain = 2.5/5.0 = 0.5 so it converges
             }),
         ),
     ]);
@@ -1323,7 +1328,7 @@ fn transfer_state_from_preserves_wrapper_outputs_for_feedback_cycles() {
         .expect("from_graph failed");
 
     // Run 200 frames to reach steady state
-    // With gain=0.5 and shift=1.0:
+    // With A adding 1.0 and B halving:
     //   A_out = 0.5 * B_out + 1.0
     //   B_out = 0.5 * A_out(prev_frame)
     // Steady state: A=2.0, B=1.0
@@ -1384,14 +1389,14 @@ fn transfer_state_from_preserves_wrapper_outputs_for_feedback_cycles() {
 
     // The outputs should be close to the old steady-state values.
     // Without the fix, one module reads zeros from the other's wrapper,
-    // producing a value near its shift (1.0 for A, 0.0 for B) instead of
+    // producing a value near its offset (1.0 for A, 0.0 for B) instead of
     // the correct feedback value.
     let a_delta = (new_a_output - old_a_output).abs();
     let b_delta = (new_b_output - old_b_output).abs();
 
     // Allow some tolerance for the one-frame evolution, but not a drop to
-    // shift values. At steady state A≈2.0, B≈1.0. Without fix, one of them
-    // drops to near its shift value (a jump of ~1.0).
+    // offset values. At steady state A≈2.0, B≈1.0. Without fix, one of them
+    // drops to near its offset (a jump of ~1.0).
     assert!(
         a_delta < 0.1,
         "module A output should be continuous across transfer.\n\
@@ -3364,11 +3369,10 @@ fn zero_delay_cycle_error(entry: &str, lag: usize) -> f32 {
         ("src", "$saw", json!({ "freq": 0.0 })),
         (
             "feedback",
-            "$scaleAndShift",
+            "$amp",
             json!({
                 "input": { "type": "cable", "module": "reader", "port": "output", "channel": 0 },
-                "scale": 0.0,
-                "shift": 0.0,
+                "factor": 0.0,
             }),
         ),
         (
@@ -3548,11 +3552,10 @@ fn feedback_loop_length_equals_delay_time() {
         ("src", "$ramp", json!({ "freq": 0.0 })),
         (
             "feedback",
-            "$scaleAndShift",
+            "$amp",
             json!({
                 "input": { "type": "cable", "module": "reader", "port": "output", "channel": 0 },
-                "scale": 2.5,
-                "shift": 0.0,
+                "factor": 2.5,
             }),
         ),
         (

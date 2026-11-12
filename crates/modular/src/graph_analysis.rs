@@ -336,7 +336,7 @@ mod tests {
             ("sub", "_arithmetic"),
             ("frac", "$wrap"),
             ("bar", "_round"),
-            ("half", "$scaleAndShift"),
+            ("half", "$amp"),
             ("lfo", "$sine"),
             ("mix", "_arithmetic"),
         ]

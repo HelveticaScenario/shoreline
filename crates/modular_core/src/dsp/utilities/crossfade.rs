@@ -1,0 +1,116 @@
+use deserr::Deserr;
+use schemars::JsonSchema;
+
+use std::ops::Range;
+
+use crate::block_input::{self, InputScratch};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
+use crate::poly::{PolyOutput, PolySignal};
+use crate::types::SwapGlide;
+
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[serde(rename_all = "camelCase")]
+#[deserr(rename_all = camelCase, deny_unknown_fields)]
+struct CrossfadeParams {
+    #[input("signal heard at a mix of 0", type = audio)]
+    dry: PolySignal,
+    #[input("signal heard at a mix of 5", type = audio)]
+    wet: PolySignal,
+    #[input(
+        "balance from dry to wet",
+        type = control,
+        default = 2.5,
+        range = (0.0, 5.0),
+    )]
+    mix: PolySignal,
+}
+
+#[derive(Outputs, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct CrossfadeOutputs {
+    #[output("output", "the blend of dry and wet", type = cv, default)]
+    sample: PolyOutput,
+}
+
+const CROSSFADE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Dry/wet crossfade",
+    description: "Fades linearly from one signal to another, channel by channel; \
+                  the narrower of the two cycles across the wider. Backs the \
+                  `.wet()` and `.pipeMix()` signal methods.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Half-wet filter",
+        code: "$saw('c2').lpf('400hz').wet(2.5).out()",
+    }],
+};
+
+#[module(name = "_crossfade", docs = CROSSFADE_DOCS, args(dry, wet, mix), block)]
+pub struct Crossfade {
+    outputs: CrossfadeOutputs,
+    params: CrossfadeParams,
+    channel_state: Box<[SwapGlide]>,
+}
+
+/// `dry` at a mix of 0 through `wet` at 5; `mix` past either end holds there.
+#[inline(always)]
+fn crossfade(dry: f32, wet: f32, mix: f32) -> f32 {
+    let t = (mix / 5.0).clamp(0.0, 1.0);
+    dry * (1.0 - t) + wet * t
+}
+
+impl Crossfade {
+    fn update(&mut self, sample_rate: f32) {
+        let mix = &self.params.mix;
+        for i in 0..self.channel_count() {
+            let amount =
+                self.channel_state[i].follow(mix.get_value(i), mix.glide_mark(i), sample_rate);
+            let value = crossfade(
+                self.params.dry.get_value(i),
+                self.params.wet.get_value(i),
+                amount,
+            );
+            self.outputs.sample.set(i, value);
+        }
+    }
+
+    fn process_block(
+        &mut self,
+        outputs: &mut CrossfadeBlockOutputs,
+        range: Range<usize>,
+        _sample_rate: f32,
+    ) -> Option<()> {
+        let channels = self.channel_count();
+        let glides = &mut self.channel_state[..channels];
+        let mix = &self.params.mix;
+        if mix.glides_pending(glides) {
+            return None;
+        }
+        let (mut s0, mut s1, mut s2) = (
+            InputScratch::new(),
+            InputScratch::new(),
+            InputScratch::new(),
+        );
+        let dry = self
+            .params
+            .dry
+            .block_input(range.clone(), channels, &mut s0)?;
+        let wet = self
+            .params
+            .wet
+            .block_input(range.clone(), channels, &mut s1)?;
+        let amount = mix.block_input(range.clone(), channels, &mut s2)?;
+        mix.settle_glides(glides, amount.row(range.end - 1));
+        block_input::map(
+            &mut outputs.sample,
+            range,
+            [dry, wet, amount],
+            |[dry, wet, mix]| crossfade(dry, wet, mix),
+        );
+        Some(())
+    }
+}
+
+message_handlers!(impl Crossfade {});
