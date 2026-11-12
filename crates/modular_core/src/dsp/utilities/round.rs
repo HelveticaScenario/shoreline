@@ -157,7 +157,7 @@ rounding_module!(Round, name = "$round", docs = ROUND_DOCS, |x| x.round());
 const FLOOR_DOCS: ModuleDocs = ModuleDocs {
     summary: "Round down to whole volts",
     description: "Rounds a signal down to a whole volt: on a pitch, the octave at \
-                  or below it.",
+                  or below it. A ranged signal keeps its range, rounded down too.",
     categories: &[ModuleCategory::Math],
     sections: &[],
     examples: &[DocExample {
@@ -171,7 +171,7 @@ rounding_module!(Floor, name = "$floor", docs = FLOOR_DOCS, |x| x.floor());
 const CEIL_DOCS: ModuleDocs = ModuleDocs {
     summary: "Round up to whole volts",
     description: "Rounds a signal up to a whole volt: on a pitch, the octave at or \
-                  above it.",
+                  above it. A ranged signal keeps its range, rounded up too.",
     categories: &[ModuleCategory::Math],
     sections: &[],
     examples: &[DocExample {

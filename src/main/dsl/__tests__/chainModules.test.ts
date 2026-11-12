@@ -296,7 +296,10 @@ describe('.wet', () => {
             (m) => m.moduleType === '_crossfade',
         )!;
         const round = patch.modules.find((m) => m.moduleType === '$round')!;
-        expect(JSON.stringify(crossfade.params)).toContain(round.id);
+        const lpf = patch.modules.find((m) => m.moduleType === '$lpf')!;
+        const params = JSON.stringify(crossfade.params);
+        expect(params).toContain(round.id);
+        expect(params).toContain(lpf.id);
     });
 
     test('throws on a signal that was not chained', () => {

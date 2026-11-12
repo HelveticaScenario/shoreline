@@ -22441,7 +22441,7 @@
     "name": "$floor",
     "docs": {
       "summary": "Round down to whole volts",
-      "description": "Rounds a signal down to a whole volt: on a pitch, the octave at or below it.",
+      "description": "Rounds a signal down to a whole volt: on a pitch, the octave at or below it. A ranged signal keeps its range, rounded down too.",
       "categories": [
         "math"
       ],
@@ -22559,7 +22559,7 @@
     "name": "$ceil",
     "docs": {
       "summary": "Round up to whole volts",
-      "description": "Rounds a signal up to a whole volt: on a pitch, the octave at or above it.",
+      "description": "Rounds a signal up to a whole volt: on a pitch, the octave at or above it. A ranged signal keeps its range, rounded up too.",
       "categories": [
         "math"
       ],
