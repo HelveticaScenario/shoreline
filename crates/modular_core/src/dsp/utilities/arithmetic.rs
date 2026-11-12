@@ -95,11 +95,14 @@ operator_module!(
     output = "the quotient",
     // An edit glides the reciprocal, so a divisor stepping across 0 passes
     // through silence instead of through huge gains.
-    glide = |divisor| {
-        let zero = T::from_f32(0.0);
-        if divisor == zero { zero } else { T::from_f32(1.0) / divisor }
-    },
-    |input, reciprocal| input * reciprocal,
+    glide = (
+        |divisor| {
+            let zero = T::from_f32(0.0);
+            if divisor == zero { zero } else { T::from_f32(1.0) / divisor }
+        },
+        |input, reciprocal| input * reciprocal
+    ),
+    |input, divisor| input / divisor,
 );
 
 const EXP_DOCS: ModuleDocs = ModuleDocs {

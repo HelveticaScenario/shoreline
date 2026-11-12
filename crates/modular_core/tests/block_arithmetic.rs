@@ -18,9 +18,7 @@ const OPS: [(&str, &str, BinaryOp); 5] = [
     ("$add", "offset", |x, y| x + y),
     ("$sub", "offset", |x, y| x - y),
     ("$mul", "factor", |x, y| x * y),
-    ("$div", "divisor", |x, y| {
-        x * if y == 0.0 { 0.0 } else { 1.0 / y }
-    }),
+    ("$div", "divisor", |x, y| x / y),
     ("$exp", "exponent", |x, y| {
         if x == 0.0 {
             0.0
@@ -97,6 +95,23 @@ fn division_by_zero_outputs_zero() {
         "$div",
         params("divisor", poly_cable("src", CHANNELS), json!(0.0)),
         |src, _| vec![0.0; src.len()],
+    );
+}
+
+#[test]
+fn whole_quotients_are_exact() {
+    check_module(
+        "$div",
+        params(
+            "divisor",
+            json!([-441.0, 420.0, 180.0, 1000.0]),
+            json!([7.0, 60.0, 60.0, 1000.0]),
+        ),
+        |src, _| {
+            (0..src.len())
+                .map(|k| [-63.0, 7.0, 3.0, 1.0][k % CHANNELS])
+                .collect()
+        },
     );
 }
 

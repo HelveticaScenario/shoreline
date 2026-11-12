@@ -13,19 +13,26 @@ use crate::types::SwapGlide;
 
 /// How a module combines its input with its operand.
 pub(super) trait Combine {
-    /// The operand as it glides and reaches [`apply`](Self::apply): a module
-    /// whose result moves too far for small steps of its operand glides a
-    /// steadier form of it.
+    fn apply<T: Sample>(input: T, operand: T) -> T;
+
+    /// The form of the operand that glides. A module whose result moves too
+    /// far for small steps of its operand glides a steadier form, and
+    /// combines with it through [`apply_glided`](Self::apply_glided) only
+    /// while a glide runs; settled, it applies the operand exactly.
     #[inline(always)]
-    fn operand<T: Sample>(operand: T) -> T {
+    fn glide_form<T: Sample>(operand: T) -> T {
         operand
     }
 
-    fn apply<T: Sample>(input: T, operand: T) -> T;
+    /// [`apply`](Self::apply) with the operand in its [`glide_form`](Self::glide_form).
+    #[inline(always)]
+    fn apply_glided<T: Sample>(input: T, form: T) -> T {
+        Self::apply(input, form)
+    }
 }
 
-/// One sample of every channel. Outside a glide the operand is read raw,
-/// exactly as [`process_block`] reads it, and at full precision when `out`
+/// One sample of every channel. Outside a glide the operand is applied raw,
+/// exactly as [`process_block`] applies it, and at full precision when `out`
 /// is f64, since the operand may be an f64 cable itself.
 #[inline(always)]
 pub(super) fn update<C: Combine>(
@@ -39,24 +46,32 @@ pub(super) fn update<C: Combine>(
     if out.is_f64() {
         for (i, glide) in glides[..channels].iter_mut().enumerate() {
             let mark = operand.glide_mark(i);
+            let x = input.get_value_f64(i);
             let value = if glide.will_glide(mark) {
-                glide.follow(C::operand(operand.get_value(i)), mark, sample_rate) as f64
+                let form = glide.follow(C::glide_form(operand.get_value(i)), mark, sample_rate);
+                if glide.gliding() {
+                    C::apply_glided(x, form as f64)
+                } else {
+                    C::apply(x, operand.get_value_f64(i))
+                }
             } else {
-                let value = C::operand(operand.get_value_f64(i));
-                glide.settle(value as f32, mark);
-                value
+                let y = operand.get_value_f64(i);
+                glide.settle(C::glide_form(y) as f32, mark);
+                C::apply(x, y)
             };
-            out.set_f64(i, C::apply(input.get_value_f64(i), value));
+            out.set_f64(i, value);
         }
         return;
     }
     for (i, glide) in glides[..channels].iter_mut().enumerate() {
-        let value = glide.follow(
-            C::operand(operand.get_value(i)),
-            operand.glide_mark(i),
-            sample_rate,
-        );
-        out.set(i, C::apply(input.get_value(i), value));
+        let (x, y) = (input.get_value(i), operand.get_value(i));
+        let form = glide.follow(C::glide_form(y), operand.glide_mark(i), sample_rate);
+        let value = if glide.gliding() {
+            C::apply_glided(x, form)
+        } else {
+            C::apply(x, y)
+        };
+        out.set(i, value);
     }
 }
 
@@ -78,16 +93,17 @@ pub(super) fn process_block<C: Combine>(
     let x = input.block_input(range.clone(), channels, &mut s0)?;
     let y = operand.block_input(range.clone(), channels, &mut s1)?;
     for (i, (glide, &last)) in glides.iter_mut().zip(y.row(range.end - 1)).enumerate() {
-        glide.settle(C::operand(last), operand.glide_mark(i));
+        glide.settle(C::glide_form(last), operand.glide_mark(i));
     }
-    block_input::map(out, range, [x, y], |[x, y]| C::apply(x, C::operand(y)));
+    block_input::map(out, range, [x, y], |[x, y]| C::apply(x, y));
     Some(())
 }
 
 /// Stamp an operator module: `input` and one operand (the two positional
 /// args), one output at the precision of its inputs, and `|x, y| combine`
-/// applied per sample at either precision. An optional `glide = |y| form`
-/// sets [`Combine::operand`]. Both expressions run over a generic [`Sample`]
+/// applied per sample at either precision. An optional
+/// `glide = (|y| form, |x, form| combine)` sets [`Combine::glide_form`] and
+/// [`Combine::apply_glided`]. The expressions run over a generic [`Sample`]
 /// `T`.
 macro_rules! operator_module {
     (
@@ -100,7 +116,7 @@ macro_rules! operator_module {
             $(, range = $range:tt)?
             , control_range = ($lo:literal, $hi:literal),
         output = $output_doc:literal,
-        $(glide = |$g:ident| $glide:expr,)?
+        $(glide = (|$g:ident| $form:expr, |$gx:ident, $gf:ident| $glided:expr),)?
         |$x:ident, $y:ident| $combine:expr $(,)?
     ) => {
         paste::paste! {
@@ -138,17 +154,22 @@ macro_rules! operator_module {
             struct [<$Module Combine>];
 
             impl crate::dsp::utilities::operator::Combine for [<$Module Combine>] {
-                $(
-                    #[inline(always)]
-                    fn operand<T: crate::dsp::utils::Sample>($g: T) -> T {
-                        $glide
-                    }
-                )?
-
                 #[inline(always)]
                 fn apply<T: crate::dsp::utils::Sample>($x: T, $y: T) -> T {
                     $combine
                 }
+
+                $(
+                    #[inline(always)]
+                    fn glide_form<T: crate::dsp::utils::Sample>($g: T) -> T {
+                        $form
+                    }
+
+                    #[inline(always)]
+                    fn apply_glided<T: crate::dsp::utils::Sample>($gx: T, $gf: T) -> T {
+                        $glided
+                    }
+                )?
             }
 
             impl $Module {
