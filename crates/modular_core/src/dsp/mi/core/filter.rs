@@ -80,7 +80,7 @@ impl Svf {
 
     /// One sample: the band-pass and low-pass outputs.
     #[inline(always)]
-    fn process(&mut self, x: f32) -> (f32, f32) {
+    pub fn process(&mut self, x: f32) -> (f32, f32) {
         let hp = (x - self.r * self.state_1 - self.g * self.state_1 - self.state_2) * self.h;
         let bp = self.g * hp + self.state_1;
         self.state_1 = self.g * hp + bp;

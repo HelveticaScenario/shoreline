@@ -1,3 +1,4 @@
+use super::interpolate::linear;
 use super::tables::LUT_SINE;
 
 const SINE_LUT_BITS: u32 = 9;
@@ -42,4 +43,27 @@ pub fn sine_pm(phase: u32, pm: f32) -> f32 {
 #[inline(always)]
 pub fn phase_increment(cycles: f32) -> u32 {
     (4294967296.0 * cycles) as i64 as u32
+}
+
+/// Plaits' `SineOscillator`, as its quadrature `Next`: a table sine whose
+/// phase advances by the frequency each sample.
+#[derive(Clone, Copy, Default)]
+pub struct SineOscillator {
+    phase: f32,
+}
+
+impl SineOscillator {
+    /// One sample at `frequency` cycles per sample (at most 0.5): the sine and
+    /// cosine, scaled by `amplitude`.
+    #[inline(always)]
+    pub fn next(&mut self, frequency: f32, amplitude: f32) -> (f32, f32) {
+        self.phase += frequency.min(0.5);
+        if self.phase >= 1.0 {
+            self.phase -= 1.0;
+        }
+        (
+            amplitude * linear(&LUT_SINE, self.phase, SINE_LUT_SIZE),
+            amplitude * linear(&LUT_SINE, self.phase + 0.25, SINE_LUT_SIZE),
+        )
+    }
 }
