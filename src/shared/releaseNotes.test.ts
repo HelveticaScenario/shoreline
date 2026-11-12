@@ -195,17 +195,27 @@ describe('releasesInRange / whatsNewSince', () => {
     });
 
     it('shows nothing on a fresh install', () => {
-        expect(whatsNewSince(changelog, undefined, '0.2.0')).toEqual([]);
+        expect(whatsNewSince(changelog, undefined, '0.2.0', true)).toEqual([]);
     });
 
     it('shows nothing when the version has not changed', () => {
-        expect(whatsNewSince(changelog, '0.2.0', '0.2.0')).toEqual([]);
+        expect(whatsNewSince(changelog, '0.2.0', '0.2.0', false)).toEqual([]);
     });
 
     it('covers every release after the last-seen version', () => {
         expect(
-            whatsNewSince(changelog, '0.0.130', '0.2.0').map((r) => r.version),
+            whatsNewSince(changelog, '0.0.130', '0.2.0', false).map(
+                (r) => r.version,
+            ),
         ).toEqual(['0.2.0', '0.1.0']);
+    });
+
+    it('covers every release up to now for an install that recorded no version', () => {
+        expect(
+            whatsNewSince(changelog, undefined, '0.1.1', false).map(
+                (r) => r.version,
+            ),
+        ).toEqual(['0.1.0']);
     });
 });
 

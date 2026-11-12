@@ -559,6 +559,10 @@ try {
 
 const configStore = createConfigStore(CONFIG_FILE);
 
+// Every release writes the config file at startup, so its absence here means
+// this is the app's first launch on this machine.
+const isFreshInstall = !fs.existsSync(CONFIG_FILE);
+
 // Load saved config to pass to synthesizer. MODULAR_AUDIO_OUTPUT_DEVICE and
 // MODULAR_AUDIO_INPUT_DEVICE override the saved devices, so agents and tests
 // can keep their audio off the user's speakers and microphone.
@@ -1962,6 +1966,7 @@ registerIPCHandler('RELEASE_NOTES_WHATS_NEW', () => {
         bundledChangelog(),
         lastSeenVersion,
         currentVersion,
+        isFreshInstall,
     );
     configStore.update((config) => {
         config.lastSeenVersion = currentVersion;

@@ -14,14 +14,14 @@ import { test, expect } from '../fixtures';
 
 const INSTALLED_VERSION = '0.0.130';
 const FULL_CHANGELOG_URL =
-    'https://github.com/HelveticaScenario/operator/blob/master/CHANGELOG.md';
+    'https://github.com/HelveticaScenario/shoreline/blob/master/CHANGELOG.md';
 
 const RELEASES = [
     {
         body: 'Unstable build.\n\n### New\n\n- Not shown.',
         draft: false,
         html_url:
-            'https://github.com/HelveticaScenario/operator/releases/tag/v0.3.0-beta.1',
+            'https://github.com/HelveticaScenario/shoreline/releases/tag/v0.3.0-beta.1',
         prerelease: true,
         published_at: '2026-11-20T12:00:00Z',
         tag_name: 'v0.3.0-beta.1',
@@ -30,7 +30,7 @@ const RELEASES = [
         body: '### New\n\n- Not shown either.',
         draft: true,
         html_url:
-            'https://github.com/HelveticaScenario/operator/releases/tag/v0.4.0',
+            'https://github.com/HelveticaScenario/shoreline/releases/tag/v0.4.0',
         prerelease: false,
         published_at: null,
         tag_name: 'v0.4.0',
@@ -57,7 +57,7 @@ const RELEASES = [
         ].join('\n'),
         draft: false,
         html_url:
-            'https://github.com/HelveticaScenario/operator/releases/tag/v0.2.0',
+            'https://github.com/HelveticaScenario/shoreline/releases/tag/v0.2.0',
         prerelease: false,
         published_at: '2026-11-02T12:00:00Z',
         tag_name: 'v0.2.0',
@@ -66,7 +66,7 @@ const RELEASES = [
         body: '### Improved\r\n\r\n- Patches load faster.\r\n',
         draft: false,
         html_url:
-            'https://github.com/HelveticaScenario/operator/releases/tag/v0.1.1',
+            'https://github.com/HelveticaScenario/shoreline/releases/tag/v0.1.1',
         prerelease: false,
         published_at: '2026-10-30T12:00:00Z',
         tag_name: 'v0.1.1',
@@ -75,7 +75,7 @@ const RELEASES = [
         body: '### Breaking\n\n- Envelopes take times in seconds.\n',
         draft: false,
         html_url:
-            'https://github.com/HelveticaScenario/operator/releases/tag/v0.1.0',
+            'https://github.com/HelveticaScenario/shoreline/releases/tag/v0.1.0',
         prerelease: false,
         published_at: '2026-10-24T12:00:00Z',
         tag_name: 'v0.1.0',
@@ -84,7 +84,7 @@ const RELEASES = [
         body: 'Some unrelated text from an old release.',
         draft: false,
         html_url:
-            'https://github.com/HelveticaScenario/operator/releases/tag/v0.0.130',
+            'https://github.com/HelveticaScenario/shoreline/releases/tag/v0.0.130',
         prerelease: false,
         published_at: '2026-10-01T12:00:00Z',
         tag_name: 'v0.0.130',

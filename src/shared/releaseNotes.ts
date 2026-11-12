@@ -229,17 +229,23 @@ export function mergeReleaseNotes(
 
 /**
  * Notes to show on launch: every release after the last version the user saw,
- * up to the running one. Nothing when no version was recorded (a fresh install).
+ * up to the running one. Nothing on a fresh install. An existing install with
+ * no recorded version ran a release that predates release notes, so it has
+ * seen none of them.
  */
 export function whatsNewSince(
     changelog: ReleaseNotes[],
     lastSeenVersion: string | undefined,
     currentVersion: string,
+    isFreshInstall: boolean,
 ): ReleaseNotes[] {
-    if (!lastSeenVersion) {
+    if (lastSeenVersion) {
+        return releasesInRange(changelog, lastSeenVersion, currentVersion);
+    }
+    if (isFreshInstall) {
         return [];
     }
-    return releasesInRange(changelog, lastSeenVersion, currentVersion);
+    return releasesInRange(changelog, '0.0.0', currentVersion);
 }
 
 /** Pulls breaking changes out of `releases` (newest first) into one list. */
