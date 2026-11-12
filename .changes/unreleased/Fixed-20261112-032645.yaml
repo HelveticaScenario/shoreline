@@ -1,0 +1,3 @@
+kind: Fixed
+body: 'The mixer''s mute, solo, pan and gain edit `.out()` calls correctly when the options use shorthand such as `{ mute }` or a ternary; mute no longer adds a second `mute: true`.'
+time: 2026-11-12T03:26:45.415309-05:00
