@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * CI gate: a PR that changes shipped code (src/, crates/) must add a
- * changie fragment under .changes/unreleased/, unless it carries the
- * `no-changelog` label. Test-only changes are exempt.
+ * CI gate: a PR that changes shipped code (src/, crates/) must add, edit or
+ * delete a changie fragment under .changes/unreleased/, unless it carries
+ * the `no-changelog` label. Editing or deleting counts because a change to
+ * an unreleased feature belongs in that feature's pending entry. Test-only
+ * changes are exempt.
  *
  * Env: BASE_SHA (the PR base), LABELS (JSON array of label names).
  */
@@ -23,13 +25,6 @@ const changed = execFileSync(
 )
     .split('\n')
     .filter(Boolean);
-const added = execFileSync(
-    'git',
-    ['diff', '--name-only', '--diff-filter=A', `${base}...HEAD`],
-    { encoding: 'utf8' },
-)
-    .split('\n')
-    .filter(Boolean);
 
 const isTest = (path) =>
     /(^|\/)(__tests__|tests|e2e|benches|__fixtures__)\//.test(path) ||
@@ -37,7 +32,7 @@ const isTest = (path) =>
 const shipped = changed.filter(
     (path) => /^(src|crates)\//.test(path) && !isTest(path),
 );
-const fragments = added.filter((path) =>
+const fragments = changed.filter((path) =>
     /^\.changes\/unreleased\/.+\.yaml$/.test(path),
 );
 
@@ -49,8 +44,10 @@ if (shipped.length === 0) {
     console.log('Labelled no-changelog.');
 } else {
     console.error(
-        'This PR changes shipped code but adds no changelog entry.\n' +
-            'Add one with `yarn changelog:new` (see CLAUDE.md, "Changelog"), or\n' +
+        'This PR changes shipped code but touches no changelog entry.\n' +
+            'Add one with `yarn changelog:new`, or edit the pending entry in\n' +
+            '.changes/unreleased/ for an unreleased feature (see CLAUDE.md,\n' +
+            '"Changelog"), or\n' +
             'label the PR `no-changelog` if users will not notice the change.',
     );
     process.exit(1);
