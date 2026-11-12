@@ -224,4 +224,4 @@ At 48 kHz the converted constants reproduce the C++ values exactly, so the refer
 7. `$mi.sixOp`.
 8. `$mi.vowel`, `$mi.speak`.
 9. Drums.
-10. Remove `$macro`, the `mi-plaits-dsp` submodule, workspace member and `extern crate` — a breaking change in its own changeset, with doc examples for the replicable engines in §2.
+10. Mark `$macro` deprecated in its docs, with a table of each engine's replacement from §2. `$macro`, the `mi-plaits-dsp` submodule, workspace member and `extern crate` stay for now; removing them is a later breaking change in its own changeset.
