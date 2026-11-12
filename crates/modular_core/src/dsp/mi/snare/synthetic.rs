@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::synthetic_drum::{SyntheticKnobs, SyntheticRates, SyntheticSnareDrum};
-use crate::dsp::mi::accent::{AccentLevel, plaits_volts};
+use crate::dsp::mi::accent::{Accent, plaits_volts};
 use crate::dsp::mi::drum::{Knob, OUTPUT_GAIN, pitch, rises};
 
 /// The output level at full accent, which with Plaits' own response to
@@ -166,7 +166,7 @@ pub(super) struct Channel {
     decay: Knob,
     snappy: Knob,
     accent: Knob,
-    accent_level: AccentLevel,
+    accent_state: Accent,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// channel, so its noise stays continuous across patch updates.
     seeded: bool,
@@ -188,7 +188,7 @@ impl Channel {
             decay: Knob::new(MiSynthSnareParams::DECAY_DEFAULT),
             snappy: Knob::new(MiSynthSnareParams::SNAPPY_DEFAULT),
             accent: Knob::new(plaits_volts(MiSynthSnareParams::ACCENT_DEFAULT)),
-            accent_level: AccentLevel::default(),
+            accent_state: Accent::default(),
             seeded: false,
         }
     }
@@ -243,19 +243,23 @@ impl MiSynthSnare {
                 (signal.value_or(ch, default), signal.glide_mark(ch))
             };
             let accent = knob(&p.accent, MiSynthSnareParams::ACCENT_DEFAULT);
+            let mark = accent.1;
+            let accent = channel
+                .accent_state
+                .read(accent, trigger, state.sample_rate);
             let knobs = Knobs {
                 attack_fm: knob(&p.attack_fm, MiSynthSnareParams::ATTACK_FM_DEFAULT),
                 decay: knob(&p.decay, MiSynthSnareParams::DECAY_DEFAULT),
                 snappy: knob(&p.snappy, MiSynthSnareParams::SNAPPY_DEFAULT),
-                accent: (plaits_volts(accent.0), accent.1),
+                accent: (plaits_volts(accent), mark),
             };
             let out = channel.step(f0, knobs, trigger, state);
-            let level = channel
-                .accent_level
-                .next(accent, trigger, ACCENT_TRIM, state.sample_rate);
-            self.outputs
-                .sample
-                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0) * level);
+            let out = channel.accent_state.apply(
+                (OUTPUT_GAIN * out).clamp(-5.0, 5.0),
+                ACCENT_TRIM,
+                state.sample_rate,
+            );
+            self.outputs.sample.set(ch, out);
         }
     }
 }

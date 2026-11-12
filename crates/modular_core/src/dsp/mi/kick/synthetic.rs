@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::synthetic_drum::{SyntheticBassDrum, SyntheticKnobs, SyntheticRates};
-use crate::dsp::mi::accent::{AccentLevel, plaits_volts};
+use crate::dsp::mi::accent::{Accent, plaits_volts};
 use crate::dsp::mi::drum::{Knob, OUTPUT_GAIN, pitch, rises};
 
 /// The output level at full accent, which with Plaits' own response to
@@ -188,7 +188,7 @@ pub(super) struct Channel {
     fm_envelope: Knob,
     fm_decay: Knob,
     accent: Knob,
-    accent_level: AccentLevel,
+    accent_state: Accent,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// channel, so its noise stays continuous across patch updates.
     seeded: bool,
@@ -212,7 +212,7 @@ impl Channel {
             fm_envelope: Knob::new(MiSynthKickParams::FM_ENVELOPE_DEFAULT),
             fm_decay: Knob::new(MiSynthKickParams::FM_DECAY_DEFAULT),
             accent: Knob::new(plaits_volts(MiSynthKickParams::ACCENT_DEFAULT)),
-            accent_level: AccentLevel::default(),
+            accent_state: Accent::default(),
             seeded: false,
         }
     }
@@ -278,6 +278,10 @@ impl MiSynthKick {
                 (signal.value_or(ch, default), signal.glide_mark(ch))
             };
             let accent = knob(&p.accent, MiSynthKickParams::ACCENT_DEFAULT);
+            let mark = accent.1;
+            let accent = channel
+                .accent_state
+                .read(accent, trigger, state.sample_rate);
             let knobs = Knobs {
                 tone: knob(&p.tone, MiSynthKickParams::TONE_DEFAULT),
                 decay: knob(&p.decay, MiSynthKickParams::DECAY_DEFAULT),
@@ -287,15 +291,15 @@ impl MiSynthKick {
                 ),
                 fm_envelope: knob(&p.fm_envelope, MiSynthKickParams::FM_ENVELOPE_DEFAULT),
                 fm_decay: knob(&p.fm_decay, MiSynthKickParams::FM_DECAY_DEFAULT),
-                accent: (plaits_volts(accent.0), accent.1),
+                accent: (plaits_volts(accent), mark),
             };
             let out = channel.step(f0, knobs, trigger, state);
-            let level = channel
-                .accent_level
-                .next(accent, trigger, ACCENT_TRIM, state.sample_rate);
-            self.outputs
-                .sample
-                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0) * level);
+            let out = channel.accent_state.apply(
+                (OUTPUT_GAIN * out).clamp(-5.0, 5.0),
+                ACCENT_TRIM,
+                state.sample_rate,
+            );
+            self.outputs.sample.set(ch, out);
         }
     }
 }

@@ -3,7 +3,7 @@
 
 use crate::dsp::{
     mi::{
-        accent::{AccentLevel, plaits_volts},
+        accent::{Accent, plaits_volts},
         core::random::Random,
         drum::{Knob, rises},
     },
@@ -60,7 +60,7 @@ pub(super) struct Channel<M: Model> {
     decay: Knob,
     noisiness: Knob,
     accent: Knob,
-    pub(super) accent_level: AccentLevel,
+    pub(super) accent_state: Accent,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// channel, so its noise stays continuous across patch updates.
     seeded: bool,
@@ -82,7 +82,7 @@ impl<M: Model> Channel<M> {
             decay: Knob::new(KNOB_DEFAULT),
             noisiness: Knob::new(KNOB_DEFAULT),
             accent: Knob::new(plaits_volts(ACCENT_DEFAULT)),
-            accent_level: AccentLevel::default(),
+            accent_state: Accent::default(),
             seeded: false,
         }
     }

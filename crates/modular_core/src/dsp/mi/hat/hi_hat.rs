@@ -151,19 +151,23 @@ impl MiHiHat {
                 (signal.value_or(ch, default), signal.glide_mark(ch))
             };
             let accent = knob(&p.accent, MiHiHatParams::ACCENT_DEFAULT);
+            let mark = accent.1;
+            let accent = channel
+                .accent_state
+                .read(accent, trigger, state.sample_rate);
             let knobs = Knobs {
                 tone: knob(&p.tone, MiHiHatParams::TONE_DEFAULT),
                 decay: knob(&p.decay, MiHiHatParams::DECAY_DEFAULT),
                 noisiness: knob(&p.noisiness, MiHiHatParams::NOISINESS_DEFAULT),
-                accent: (plaits_volts(accent.0), accent.1),
+                accent: (plaits_volts(accent), mark),
             };
             let out = channel.step(f0, knobs, trigger, state);
-            let level = channel
-                .accent_level
-                .next(accent, trigger, ACCENT_TRIM, state.sample_rate);
-            self.outputs
-                .sample
-                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0) * level);
+            let out = channel.accent_state.apply(
+                (OUTPUT_GAIN * out).clamp(-5.0, 5.0),
+                ACCENT_TRIM,
+                state.sample_rate,
+            );
+            self.outputs.sample.set(ch, out);
         }
     }
 }

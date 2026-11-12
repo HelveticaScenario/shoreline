@@ -1,5 +1,6 @@
 //! `accent` on the Plaits voices: 0 V plays at Plaits' default accent, 5 V
-//! hits twice as hard, and the level a strike takes holds through the hit.
+//! hits twice as hard, and the level a strike takes holds through the hit
+//! without stepping what still rings.
 
 mod drum_common;
 
@@ -74,5 +75,48 @@ fn accent_raises_a_drone() {
         let (soft, hard) = (drone(0.0), drone(5.0));
         assert!(soft > 0.0, "{module} silent unaccented");
         assert!(hard > 1.5 * soft, "{module}: {soft} to {hard}");
+    }
+}
+
+/// The biggest sample-to-sample change in the first few samples of each
+/// strike after the first.
+fn strike_steps(x: &[f32], strikes: &[usize]) -> Vec<f32> {
+    strikes[1..]
+        .iter()
+        .map(|&s| {
+            (s..s + 4)
+                .map(|n| (x[n] - x[n - 1]).abs())
+                .fold(0.0, f32::max)
+        })
+        .collect()
+}
+
+/// A step in volts too small to hear.
+const INAUDIBLE: f32 = 5.0e-3;
+
+/// A strike that changes the accent while the last hit still rings steps
+/// the output no more than a fully accented strike does.
+#[test]
+fn changing_accent_does_not_step_a_ringing_voice() {
+    for (module, params, port) in struck() {
+        let mut full = params.clone();
+        full["accent"] = json!(5.0);
+        let (x, strikes) = render_clocks(module, full, &[(port, 4.0)], output(module), 2.0);
+        let bound = strike_steps(&x, &strikes)
+            .into_iter()
+            .fold(0.0f32, f32::max);
+        let (x, strikes) = render_clocks(
+            module,
+            params,
+            &[(port, 4.0), ("accent", 2.0)],
+            output(module),
+            2.0,
+        );
+        for step in strike_steps(&x, &strikes) {
+            assert!(
+                step <= 1.05 * bound + INAUDIBLE,
+                "{module}: {step} past {bound}"
+            );
+        }
     }
 }

@@ -6,7 +6,7 @@ mod speaker;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use super::accent::{AccentLevel, plaits_volts};
+use super::accent::{Accent, plaits_volts};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
@@ -193,7 +193,7 @@ pub struct Channel {
     limiter: Limiter,
     trigger: SchmittTrigger,
     glides: [SwapGlide; 5],
-    accent_level: AccentLevel,
+    accent_state: Accent,
     /// The last finite value of each smoothed knob, which a NaN or infinite
     /// one holds.
     held: [f32; 5],
@@ -208,7 +208,7 @@ impl Default for Channel {
             limiter: Limiter::default(),
             trigger: SchmittTrigger::default(),
             glides: Default::default(),
-            accent_level: AccentLevel::default(),
+            accent_state: Accent::default(),
             held: [
                 SpeakParams::WORD_DEFAULT,
                 SpeakParams::FORMANT_SHIFT_DEFAULT,
@@ -313,6 +313,10 @@ impl Speak {
                 (signal.value_or(ch, default), signal.glide_mark(ch))
             };
             let accent = knob(&p.accent, SpeakParams::ACCENT_DEFAULT);
+            let mark = accent.1;
+            let accent = channel
+                .accent_state
+                .read(accent, trigger, rates.sample_rate);
             let knobs = Knobs {
                 bank: p.bank.value_or(ch, SpeakParams::BANK_DEFAULT),
                 smooth: [
@@ -320,14 +324,14 @@ impl Speak {
                     knob(&p.formant_shift, SpeakParams::FORMANT_SHIFT_DEFAULT),
                     knob(&p.prosody, SpeakParams::PROSODY_DEFAULT),
                     knob(&p.speed, SpeakParams::SPEED_DEFAULT),
-                    (plaits_volts(accent.0), accent.1),
+                    (plaits_volts(accent), mark),
                 ],
             };
             let (out, excitation) = channel.output(f0, knobs, trigger, rates);
-            let level = channel
-                .accent_level
-                .next(accent, trigger, ACCENT_TRIM, rates.sample_rate);
-            self.outputs.sample.set(ch, out * level);
+            let out = channel
+                .accent_state
+                .apply(out, ACCENT_TRIM, rates.sample_rate);
+            self.outputs.sample.set(ch, out);
             self.outputs.excitation.set(ch, excitation);
         }
     }

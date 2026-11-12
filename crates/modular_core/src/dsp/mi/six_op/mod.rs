@@ -8,7 +8,7 @@ mod voice;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use super::accent::{AccentLevel, plaits_volts};
+use super::accent::{Accent, plaits_volts};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
@@ -180,7 +180,7 @@ struct Channel {
     brightness: SwapGlide,
     envelope: SwapGlide,
     accent: SwapGlide,
-    accent_level: AccentLevel,
+    accent_state: Accent,
     /// The last finite brightness, envelope and accent, which a NaN or
     /// infinite knob holds.
     held: [f32; 3],
@@ -202,7 +202,7 @@ impl Default for Channel {
             brightness: SwapGlide::default(),
             envelope: SwapGlide::default(),
             accent: SwapGlide::default(),
-            accent_level: AccentLevel::default(),
+            accent_state: Accent::default(),
             held: [
                 SixOpParams::BRIGHTNESS_DEFAULT,
                 SixOpParams::ENVELOPE_DEFAULT,
@@ -312,6 +312,10 @@ impl SixOp {
                 p.accent.value_or(ch, SixOpParams::ACCENT_DEFAULT),
                 p.accent.glide_mark(ch),
             );
+            let mark = accent.1;
+            let accent = channel
+                .accent_state
+                .read(accent, gate_volts, self.state.sample_rate);
             let knobs = Knobs {
                 bank: p.bank.value_or(ch, SixOpParams::BANK_DEFAULT),
                 patch: p.patch.value_or(ch, SixOpParams::PATCH_DEFAULT),
@@ -323,14 +327,14 @@ impl SixOp {
                     p.envelope.value_or(ch, SixOpParams::ENVELOPE_DEFAULT),
                     p.envelope.glide_mark(ch),
                 ),
-                accent: (plaits_volts(accent.0), accent.1),
+                accent: (plaits_volts(accent), mark),
             };
             let out = channel.step(f0, knobs, gate, &self.state);
-            let level =
+            let out =
                 channel
-                    .accent_level
-                    .next(accent, gate_volts, ACCENT_TRIM, self.state.sample_rate);
-            self.outputs.sample.set(ch, OUTPUT_GAIN * out * level);
+                    .accent_state
+                    .apply(OUTPUT_GAIN * out, ACCENT_TRIM, self.state.sample_rate);
+            self.outputs.sample.set(ch, out);
         }
     }
 }
