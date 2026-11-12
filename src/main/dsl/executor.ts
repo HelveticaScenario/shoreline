@@ -592,14 +592,16 @@ export function executePatchScript(
 
     const $xover = userNamespaceTree['$xover'];
     const $comp = userNamespaceTree['$comp'];
+    const $amp = userNamespaceTree['$amp'];
     const _crossfade = context.namespaceTree['_crossfade'];
     if (
         typeof $xover !== 'function' ||
         typeof $comp !== 'function' ||
+        typeof $amp !== 'function' ||
         typeof _crossfade !== 'function'
     ) {
         throw new Error(
-            'DSL execution error: "$ott" requires "$xover", "$comp", and "_crossfade" modules',
+            'DSL execution error: "$ott" requires "$xover", "$comp", "$amp" and "_crossfade" modules',
         );
     }
 
@@ -656,7 +658,6 @@ export function executePatchScript(
             ...(scBands !== null && { sidechain: scBands._high }),
         });
 
-        const $amp = builder.getFactory('$amp');
         const low = $amp(lowComp, config.lowGain ?? 5);
         const mid = $amp(midComp, config.midGain ?? 5);
         const high = $amp(highComp, config.highGain ?? 5);

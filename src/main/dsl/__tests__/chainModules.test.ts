@@ -278,6 +278,18 @@ describe('.wet', () => {
         expect(normalize(viaWet)).toEqual(normalize(viaPipeMix));
     });
 
+    test('fades .amp(), .shift() and .gain() like any chained module', () => {
+        for (const method of ['amp', 'shift', 'gain']) {
+            const viaWet = execPatch(
+                `$saw(0).lpf("100hz").${method}(2).wet(2).out()`,
+            );
+            const viaPipeMix = execPatch(
+                `$saw(0).lpf("100hz").pipeMix((s) => $${method}(s, 2), 2).out()`,
+            );
+            expect(normalize(viaWet)).toEqual(normalize(viaPipeMix));
+        }
+    });
+
     test('throws on a signal that was not chained', () => {
         expect(() => execPatch('$saw(0).wet(2).out()')).toThrow(/\.wet\(\)/);
         expect(() =>

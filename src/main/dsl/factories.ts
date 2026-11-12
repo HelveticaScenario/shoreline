@@ -280,7 +280,7 @@ export class DSLContext {
         }
 
         // Register factories with the builder for internal use (late binding)
-        // This allows GraphBuilder methods like .amp(), .shift(), .range() to use factories
+        // This allows GraphBuilder methods like .range() and .round() to use factories
         const factoryMap = new Map<string, FactoryFunction>();
         for (const schema of schemas) {
             factoryMap.set(

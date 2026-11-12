@@ -59,10 +59,10 @@ describe('computeControlQuickFixes — wrap chained sugar arguments', () => {
         expect(apply(source, fix)).toContain(`$slider('factor', 0.3, 0, 10)`);
     });
 
-    test('.gain uses the $gain level range', () => {
+    test('.gain uses the perceptual 0..5 level range', () => {
         const { source, fixes } = fixesAt(`$sine('c4').gain(2.|5).out();`);
         const fix = wrapFix(fixes);
-        expect(apply(source, fix)).toContain(`$slider('level', 2.5, 0, 10)`);
+        expect(apply(source, fix)).toContain(`$slider('level', 2.5, 0, 5)`);
     });
 
     test('sugar on a deep chain still resolves', () => {

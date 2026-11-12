@@ -149,6 +149,16 @@ fn paths_agree() {
 }
 
 #[test]
+fn swap_agrees_through_a_factor_glide() {
+    let input = poly_cable("src", CHANNELS);
+    check_swap_agrees(
+        "$amp",
+        json!({ "input": input.clone(), "factor": 1.0 }),
+        json!({ "input": input, "factor": [4.0, 8.0] }),
+    );
+}
+
+#[test]
 fn allocation_free() {
     for params in [
         json!({ "input": poly_cable("src", CHANNELS), "factor": 4.0 }),

@@ -149,8 +149,9 @@ fn apf_swept_sample(channels: usize) -> BenchPatch {
     BenchPatch::with_mode(apf_swept_modules(channels), ProcessingMode::Sample)
 }
 
-/// `$saw` into a chain of 32 `$amp`s with a constant factor: almost no DSP, so this measures per-module engine overhead.
-fn scale_chain(channels: usize) -> BenchPatch {
+/// `$saw` into a chain of 32 `$amp`s with a constant factor: almost no DSP,
+/// so this measures per-module engine overhead.
+fn amp_chain(channels: usize) -> BenchPatch {
     let mut modules = vec![(
         "src".to_string(),
         "$saw",
@@ -171,9 +172,9 @@ fn scale_chain(channels: usize) -> BenchPatch {
     BenchPatch::new(modules)
 }
 
-/// [`scale_chain`] with one cable among the constant factor channels: inputs
+/// [`amp_chain`] with one cable among the constant factor channels: inputs
 /// that cannot be read in place, so block modules copy them out slot by slot.
-fn scale_fallback(channels: usize) -> BenchPatch {
+fn amp_fallback(channels: usize) -> BenchPatch {
     let mut modules = vec![(
         "src".to_string(),
         "$saw",
@@ -607,8 +608,8 @@ fn bench_patches(c: &mut Criterion) {
         ("wide_mix_sample_160", wide_mix_sample),
         ("remap_chain_32", remap_chain),
         ("wide_mix_160", wide_mix),
-        ("scale_fallback_32", scale_fallback),
-        ("scale_chain_32", scale_chain),
+        ("amp_fallback_32", amp_fallback),
+        ("amp_chain_32", amp_chain),
         ("lpf_chain_32", lpf_chain),
         ("apf_swept_50", apf_swept),
         ("apf_swept_sample_50", apf_swept_sample),

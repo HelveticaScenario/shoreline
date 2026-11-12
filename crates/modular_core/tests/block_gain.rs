@@ -48,10 +48,29 @@ fn every_input_a_cable() {
 }
 
 #[test]
+fn negative_level_inverts() {
+    check_module(
+        "$gain",
+        json!({ "input": poly_cable("src", CHANNELS), "level": -2.5 }),
+        |src, _| expected(src, &constant(-2.5)),
+    );
+}
+
+#[test]
 fn paths_agree() {
     check_paths_agree(
         "$gain",
         json!({ "input": poly_cable("src", CHANNELS), "level": cable("lfo", 1) }),
+    );
+}
+
+#[test]
+fn swap_agrees_through_a_level_glide() {
+    let input = poly_cable("src", CHANNELS);
+    check_swap_agrees(
+        "$gain",
+        json!({ "input": input.clone(), "level": 2.0 }),
+        json!({ "input": input, "level": [5.0, 7.5] }),
     );
 }
 

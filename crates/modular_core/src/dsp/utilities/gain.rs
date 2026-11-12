@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use super::glided_operand::{self, Combine};
-use crate::dsp::utils::Sample;
+use crate::dsp::utils::{Sample, audio_taper};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
@@ -21,7 +21,7 @@ struct GainParams {
         "perceptual level: 5 unity, 0 silence, each halving about -18 dB",
         type = control,
         default = 5.0,
-        control_range = (0.0, 10.0),
+        control_range = (0.0, 5.0),
     )]
     level: PolySignal,
 }
@@ -29,7 +29,7 @@ struct GainParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct GainOutputs {
-    #[output("output", "the scaled signal", type = cv, default)]
+    #[output("output", "the scaled signal", type = cv, precision = inherit, default)]
     sample: PolyOutput,
 }
 
@@ -53,15 +53,13 @@ pub struct Gain {
     channel_state: Box<[SwapGlide]>,
 }
 
-/// The amplitude is `(level / 5)` cubed; the DSL's `GAIN_CURVE_EXP` and the
-/// VU meter's dB scale assume this exponent.
+/// Multiplies by [`audio_taper`] of the level.
 struct AudioTaper;
 
 impl Combine for AudioTaper {
     #[inline(always)]
     fn apply<T: Sample>(input: T, level: T) -> T {
-        let g = level / T::from_f32(5.0);
-        input * (g * g * g)
+        input * audio_taper(level)
     }
 }
 

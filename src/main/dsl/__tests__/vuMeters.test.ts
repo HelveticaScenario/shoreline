@@ -1,7 +1,7 @@
 /**
  * Tests for the VU meter output stage: `.out()` / `.outMono()` label, mute,
  * and solo options, the compiled gate chain (__vuTap → __vuSlew → gate
- * _amp driven by a __vuMute $signal), and the `patch.vuMeters`
+ * $amp driven by a __vuMute $signal), and the `patch.vuMeters`
  * entries the renderer panel consumes.
  */
 
@@ -384,7 +384,7 @@ describe('output channel bounds', () => {
 describe('outMono second-argument overload', () => {
     test('a numeric second argument is a gain', () => {
         const patch = execPatch(`$saw('c2').outMono(0, 2.5)`);
-        // The tap id sits on the _gain stage.
+        // The tap id sits on the $gain stage.
         expect(moduleById(patch, '__vuTap_out_1').moduleType).toBe('$gain');
     });
 
@@ -423,7 +423,7 @@ describe('gate chain compilation', () => {
         expect(moduleById(patch, '__vuTap_lead').moduleType).toBe('$gain');
     });
 
-    test('gate chain: $signal → $slew → _amp fed by the tap', () => {
+    test('gate chain: $signal → $slew → $amp fed by the tap', () => {
         const patch = execPatch(`$sine('c4').out({ label: 'lead' })`);
 
         const mute = moduleById(patch, '__vuMute_lead');
@@ -442,7 +442,7 @@ describe('gate chain compilation', () => {
         // through a still-closing gate.
         expect(slew.skipStateTransfer).toBe(true);
 
-        // The gate stage is an _amp whose input cables come from the tap and
+        // The gate stage is a $amp whose input cables come from the tap and
         // whose factor comes from the slewed gate.
         const gates = patch.modules.filter(
             (m) =>

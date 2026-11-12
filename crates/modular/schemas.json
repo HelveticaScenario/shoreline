@@ -24909,7 +24909,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "inherit"
       }
     ],
     "bufferOutputs": [],
@@ -24925,7 +24925,7 @@
         "paramType": "control",
         "defaultValue": 5.0,
         "controlMin": 0.0,
-        "controlMax": 10.0
+        "controlMax": 5.0
       }
     ],
     "positionalArgs": [

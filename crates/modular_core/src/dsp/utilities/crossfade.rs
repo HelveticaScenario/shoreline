@@ -54,23 +54,32 @@ pub struct Crossfade {
     channel_state: Box<[SwapGlide]>,
 }
 
-/// `dry` at a mix of 0 through `wet` at 5; `mix` past either end holds there.
+/// How far along the fade a `mix` sits: 0 all dry, 1 all wet; `mix` past
+/// either end holds there. Edits glide this position, so a jump from past one
+/// end starts moving at once instead of waiting out the overshoot.
 #[inline(always)]
-fn crossfade(dry: f32, wet: f32, mix: f32) -> f32 {
-    let t = (mix / 5.0).clamp(0.0, 1.0);
-    dry * (1.0 - t) + wet * t
+fn position(mix: f32) -> f32 {
+    (mix / 5.0).clamp(0.0, 1.0)
+}
+
+#[inline(always)]
+fn blend(dry: f32, wet: f32, position: f32) -> f32 {
+    dry * (1.0 - position) + wet * position
 }
 
 impl Crossfade {
     fn update(&mut self, sample_rate: f32) {
         let mix = &self.params.mix;
         for i in 0..self.channel_count() {
-            let amount =
-                self.channel_state[i].follow(mix.get_value(i), mix.glide_mark(i), sample_rate);
-            let value = crossfade(
+            let t = self.channel_state[i].follow(
+                position(mix.get_value(i)),
+                mix.glide_mark(i),
+                sample_rate,
+            );
+            let value = blend(
                 self.params.dry.get_value(i),
                 self.params.wet.get_value(i),
-                amount,
+                t,
             );
             self.outputs.sample.set(i, value);
         }
@@ -102,12 +111,14 @@ impl Crossfade {
             .wet
             .block_input(range.clone(), channels, &mut s1)?;
         let amount = mix.block_input(range.clone(), channels, &mut s2)?;
-        mix.settle_glides(glides, amount.row(range.end - 1));
+        for (i, (glide, &last)) in glides.iter_mut().zip(amount.row(range.end - 1)).enumerate() {
+            glide.settle(position(last), mix.glide_mark(i));
+        }
         block_input::map(
             &mut outputs.sample,
             range,
             [dry, wet, amount],
-            |[dry, wet, mix]| crossfade(dry, wet, mix),
+            |[dry, wet, mix]| blend(dry, wet, position(mix)),
         );
         Some(())
     }

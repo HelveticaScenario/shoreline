@@ -57,36 +57,15 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Methods operate on every channel.',
         examples: [
             "const osc = $sine('c4')",
-            'osc.amp(0.5).out()             // Chain methods',
+            'osc.amp(2.5).out()                   // Chain methods',
             "$lpf(osc, 'c3', { q: 4 })            // Use as input to another module",
-            '$c(osc1, osc2, osc3).amp(0.5).out()  // Apply amplitude to all, send to output',
+            '$c(osc1, osc2, osc3).amp(2.5).out()  // Halve all, send to output',
             'const voices = $c(osc1, osc2, osc3)',
             'for (const v of voices) { ... }      // Iterate over one-channel collections',
             '[...voices]                          // Spread to array',
             'voices[0]                            // Index access: a one-channel collection',
         ],
         methods: [
-            {
-                name: 'amp',
-                signature: 'amp(factor: Poly<Signal>): Collection',
-                description:
-                    'Scale all signals in the collection by a linear factor (5 = unity, 2.5 = half, 10 = 2x). For perceptual (audio-taper) volume control, use gain() instead.',
-                example: '$c(osc1, osc2).amp(0.5)',
-            },
-            {
-                name: 'shift',
-                signature: 'shift(offset: Poly<Signal>): Collection',
-                description:
-                    'Add a DC offset to all signals in the collection.',
-                example: 'lfo.shift(2.5)  // Shift LFO to 0-5V range',
-            },
-            {
-                name: 'gain',
-                signature: 'gain(level: Poly<Signal>): Collection',
-                description:
-                    'Scale all signals with a perceptual (audio taper) curve (5 = unity, 0 = silence). For linear amplitude scaling, use amp() instead.',
-                example: '$c(osc1, osc2).gain(2.5)',
-            },
             {
                 name: 'exp',
                 signature: 'exp(exponent: Poly<Signal>): Collection',
@@ -131,7 +110,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                 description:
                     'Pass this collection through a transform function and return the result. ' +
                     'Enables inline transforms and reusable signal-processing helpers.',
-                example: '$c(osc1, osc2).pipe(all => all.amp(0.5)).out()',
+                example: '$c(osc1, osc2).pipe(all => all.amp(2.5)).out()',
             },
             {
                 name: 'pipe',

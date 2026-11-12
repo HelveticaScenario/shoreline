@@ -59,6 +59,16 @@ fn paths_agree() {
 }
 
 #[test]
+fn swap_agrees_through_an_offset_glide() {
+    let input = poly_cable("src", CHANNELS);
+    check_swap_agrees(
+        "$shift",
+        json!({ "input": input.clone(), "offset": -2.0 }),
+        json!({ "input": input, "offset": [1.0, 3.0] }),
+    );
+}
+
+#[test]
 fn allocation_free() {
     for params in [
         json!({ "input": poly_cable("src", CHANNELS), "offset": [0.1, 0.2, 0.3, 0.4] }),
