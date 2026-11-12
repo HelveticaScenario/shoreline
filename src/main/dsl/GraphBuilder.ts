@@ -990,11 +990,12 @@ export class GraphBuilder implements ChainHost {
 
     /**
      * How a param value, as stored, stands towards the range the engine knows
-     * for it: `'constant'` holds still (an unset param reads one),
-     * `'ranged'` cables only from ranged ports, and `'unranged'` has a cable
-     * from any other, a deferred output's among them.
+     * for it, channel by channel: `'constant'` holds still in every channel
+     * (an unset param reads one), `'ranged'` is a cable from a ranged port in
+     * every channel, `'carried'` mixes the two, and `'unranged'` has a cable
+     * from any other port, a deferred output's among them.
      */
-    rangeOf(value: unknown): 'constant' | 'ranged' | 'unranged' {
+    rangeOf(value: unknown): 'constant' | 'ranged' | 'carried' | 'unranged' {
         if (
             value === undefined ||
             typeof value === 'number' ||
@@ -1003,11 +1004,14 @@ export class GraphBuilder implements ChainHost {
             return 'constant';
         }
         if (Array.isArray(value)) {
-            const kinds = value.map((item) => this.rangeOf(item));
-            if (kinds.includes('unranged')) {
+            const kinds = new Set(value.map((item) => this.rangeOf(item)));
+            if (kinds.has('unranged')) {
                 return 'unranged';
             }
-            return kinds.includes('ranged') ? 'ranged' : 'constant';
+            if (kinds.size === 1) {
+                return [...kinds][0];
+            }
+            return kinds.size === 0 ? 'constant' : 'carried';
         }
         if (
             isPlainObject(value) &&
@@ -2041,7 +2045,7 @@ export class ModuleNode {
                     return false;
                 }
                 // A constant holds still: it carries the range along but has
-                // none to give.
+                // none to give, so some input must be ranged in every channel.
                 const params = this.builder.getModule(this.id)?.params ?? {};
                 const tagged = this.schema.signalParams
                     .filter((param) => param.carriesBounds)

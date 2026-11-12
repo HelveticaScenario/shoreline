@@ -2895,8 +2895,8 @@ pub enum BoundsKind {
     Fixed,
     /// Bounded by the module's own params.
     Params,
-    /// Bounded by the inputs the module tags with `bounds`, or by a range
-    /// its params declare; see [`BoundsInputs::inputs_bounded`].
+    /// Bounded by the inputs the module tags with `bounds` or by a range its
+    /// params declare; see [`BoundsInputs::inputs_bounded`].
     Input,
 }
 

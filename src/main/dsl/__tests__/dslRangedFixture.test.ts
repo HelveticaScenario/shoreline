@@ -15,7 +15,13 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import schemas from '@modular/core/schemas.json';
 import { DSLContext } from '../factories';
-import { $r, type Collection, CollectionWithRange } from '../GraphBuilder';
+import {
+    $r,
+    type Collection,
+    CollectionWithRange,
+    DeferredModuleOutput,
+} from '../GraphBuilder';
+import { createOutLane } from '../outLane';
 
 const FIXTURE_PATH = resolve(
     dirname(fileURLToPath(import.meta.url)),
@@ -70,20 +76,52 @@ function buildFixture() {
         slew: chain(lfo(), 'slew', 1),
         smoothControl: factory('_smoothControl')(2, { max: 5, min: -5 }),
         sub: chain(lfo(), 'sub', lfo()),
+        sah: chain(lfo(), 'sah', unranged()),
+        tah: chain(lfo(), 'tah', unranged()),
+        wrap: chain(unranged(), 'wrap', -1, 1),
+        wet: (chain(lfo(), 'slew', 1) as Collection).wet(2),
+        pipeMix: lfo().pipeMix((x) => chain(x, 'slew', 1) as Collection, 2),
     };
+
+    // Lane controls: lifted, so tapped directly, and wrapped around a gain
+    // signal without a range of its own.
+    chain(factory('$saw')('c2'), 'out', { label: 'lifted' });
+    chain(factory('$saw')('c3'), 'out', {
+        gain: unranged(),
+        label: 'wrapped',
+        pan: lfo(),
+    });
+    for (const label of ['lifted', 'wrapped']) {
+        const lane = createOutLane(builder, label);
+        chains[`${label}.active`] = lane.active;
+        chains[`${label}.level`] = lane.level;
+        chains[`${label}.pan`] = lane.pan;
+    }
+
+    // A constant channel beside a ranged one has no range to give.
+    expect(chain(factory('$sine')(['1hz', '2hz']), 'slew', 1)).toBeInstanceOf(
+        CollectionWithRange,
+    );
+    expect(factory('$slew')([lfo().items[0], 3])).not.toBeInstanceOf(
+        CollectionWithRange,
+    );
+
+    const { modules } = builder.toPatch();
 
     const ranged = Object.entries(chains).map(([label, result]) => {
         expect(result, label).toBeInstanceOf(CollectionWithRange);
-        const outputs = (result as CollectionWithRange).items.map(
-            ({ channel, moduleId, portName }) => ({
-                channel,
-                module: moduleId,
-                port: portName,
-            }),
-        );
+        const outputs = (result as CollectionWithRange).items.map((item) => {
+            const output =
+                item instanceof DeferredModuleOutput ? item.resolve()! : item;
+            return {
+                channel: output.channel,
+                module: output.moduleId,
+                port: output.portName,
+            };
+        });
         return { label, outputs };
     });
-    return { modules: builder.toPatch().modules, ranged };
+    return { modules, ranged };
 }
 
 test('emits the DSL ranged fixture', () => {

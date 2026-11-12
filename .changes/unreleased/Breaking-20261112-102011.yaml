@@ -9,8 +9,8 @@ body: |-
     $sine('0.2hz').range(0, 5).erratic(2, { mode: 'clamp' })
 
     // before
-    lfo.range(0, 5).erratic(2, { mode: 'shift' }).range(0, 1)
+    $sine('0.2hz').range(0, 5).erratic(2, { mode: 'shift' }).range(0, 1)
     // after
-    lfo.range(0, 5).erratic(2, { mode: 'shift' }).range(0, 1, 0, 5)
+    $sine('0.2hz').range(0, 5).erratic(2, { mode: 'shift' }).range(0, 1, 0, 5)
     ```
 time: 2026-11-12T10:20:11.93309-05:00

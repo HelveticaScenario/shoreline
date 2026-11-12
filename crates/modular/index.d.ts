@@ -469,8 +469,8 @@ export type BoundsKind = /** Never bounded. */
 /** Bounded by the module's own params. */
 'params'|
 /**
- * Bounded by the inputs the module tags with `bounds`| or by a range
- * its params declare; see [`BoundsInputs::inputs_bounded`].
+ * Bounded by the inputs the module tags with `bounds` or by a range its
+ * params declare; see [`BoundsInputs::inputs_bounded`].
  */
 'input';
 

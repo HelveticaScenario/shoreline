@@ -30,13 +30,17 @@ export function controlParams(
     return { max: range.max, min: range.min, value };
 }
 
+/** A button's or mute/solo gate's live params. */
 export const gateParams = (value: number) => controlParams(GATE_RANGE, value);
 
+/** An out gain fader's live params. */
 export const outGainParams = (value: number) =>
     controlParams(OUT_GAIN_RANGE, value);
 
+/** An out pan knob's live params. */
 export const outPanParams = (value: number) =>
     controlParams(OUT_PAN_RANGE, value);
 
+/** A video region's live params. */
 export const videoCvParams = (value: number) =>
     controlParams(VIDEO_CV_RANGE, value);
