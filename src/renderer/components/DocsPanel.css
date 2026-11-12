@@ -333,6 +333,7 @@
     display: flex;
     padding: 0;
     overflow: hidden;
+    container-type: inline-size;
 }
 
 .docs-content.docs-content-split > * {
@@ -364,6 +365,27 @@
 .docs-panel .module-index-sash::after {
     left: auto;
     right: 0;
+}
+
+/* Narrower than the index's minimum plus the cards' minimum (INDEX_MIN_WIDTH +
+   CARDS_MIN_WIDTH in ModuleReference.tsx), the index sits above the cards.
+   `!important` overrides the width the sash stores inline. */
+@container (max-width: 359px) {
+    .docs-panel .module-reference {
+        flex-direction: column;
+    }
+
+    .docs-panel .module-index {
+        width: auto !important;
+        max-width: none !important;
+        max-height: 30%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .docs-panel .module-index-sash {
+        display: none;
+    }
 }
 
 .docs-panel .module-index-list {

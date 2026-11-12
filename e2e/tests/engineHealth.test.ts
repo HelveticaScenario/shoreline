@@ -18,10 +18,13 @@ test.describe('engine health modal', () => {
 
         const panel = window.locator('.engine-health-panel');
         await expect(panel).toBeVisible();
-        await expect(window.locator('text=Engine Health')).toBeVisible();
-        await expect(window.locator('text=Audio CPU')).toBeVisible();
-        await expect(window.locator('text=Average')).toBeVisible();
-        await expect(window.locator('text=Peak')).toBeVisible();
+        // Scoped and exact: module names elsewhere in the window contain these
+        // words ("$mi.speak").
+        for (const label of ['Engine Health', 'Audio CPU', 'Average', 'Peak']) {
+            await expect(
+                panel.getByText(label, { exact: true }).first(),
+            ).toBeVisible();
+        }
     });
 
     test('engine health modal closes on Escape', async ({ window }) => {
