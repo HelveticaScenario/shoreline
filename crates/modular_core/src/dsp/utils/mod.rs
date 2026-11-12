@@ -150,6 +150,16 @@ impl CatmullRom {
     }
 }
 
+/// The audio-taper gain curve as a multiplier: `(level / 5)³`, unity at 5 and
+/// silence at 0, so equal steps of `level` sound like equal steps of loudness.
+/// Odd, so a negative level inverts. The DSL's `GAIN_CURVE_EXP` and the VU
+/// meter's dB scale assume this exponent.
+#[inline(always)]
+pub fn audio_taper<T: Sample>(level: T) -> T {
+    let g = level * (T::from_f32(1.0) / T::from_f32(5.0));
+    g * g * g
+}
+
 /// A sample value: f32, or f64 for a module whose outputs are f64 (see
 /// `OutputPrecision::Inherit`). Math written over it runs at either precision
 /// from one source.

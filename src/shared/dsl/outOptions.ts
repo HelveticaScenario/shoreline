@@ -35,7 +35,7 @@ export const STEREO_OUT_OPTIONS: readonly OutOptionField[] = [
         type: 'number',
     },
     {
-        doc: 'Output gain. If set, a $scaleAndShift module is added after the stereo mix',
+        doc: 'Output gain on the perceptual `.gain()` scale (5 = unity), applied after the stereo mix',
         name: 'gain',
         type: 'Poly<Signal>',
     },
@@ -59,7 +59,7 @@ export const MONO_OUT_OPTIONS: readonly OutOptionField[] = [
         type: 'number',
     },
     {
-        doc: 'Output gain. If set, a $scaleAndShift module is added after the mix',
+        doc: 'Output gain on the perceptual `.gain()` scale (5 = unity), applied after the mix',
         name: 'gain',
         type: 'Poly<Signal>',
     },

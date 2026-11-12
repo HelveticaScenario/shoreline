@@ -293,7 +293,7 @@ describe('polyphony', () => {
 describe('collections', () => {
     test('$c spreads collections into a new collection', () => {
         const patch = execPatch(
-            '$c(...$sine("C4"), ...$saw("E4")).amplitude(0.5).out()',
+            '$c(...$sine("C4"), ...$saw("E4")).amp(0.5).out()',
         );
         expect(findModules(patch, '$sine').length).toBe(1);
         expect(findModules(patch, '$saw').length).toBe(1);
@@ -366,23 +366,22 @@ describe('mixing', () => {
 // ─── Chaining ────────────────────────────────────────────────────────────────
 
 describe('chaining methods', () => {
-    test('.amplitude() creates a scaleAndShift module', () => {
-        const patch = execPatch('$sine("C4").amplitude(0.5).out()');
+    test('.amp() creates a $amp module', () => {
+        const patch = execPatch('$sine("C4").amp(0.5).out()');
         expect(findModules(patch, '$sine').length).toBe(1);
-        expect(findModules(patch, '$scaleAndShift').length).toBeGreaterThan(0);
+        expect(findModules(patch, '$amp').length).toBeGreaterThan(0);
     });
 
-    test('.shift() creates a scaleAndShift module', () => {
+    test('.shift() creates a $shift module', () => {
         const patch = execPatch('$sine("C4").shift(2.5).out()');
         expect(findModules(patch, '$sine').length).toBe(1);
-        expect(findModules(patch, '$scaleAndShift').length).toBeGreaterThan(0);
+        expect(findModules(patch, '$shift').length).toBeGreaterThan(0);
     });
 
-    test('.gain() creates curve and scaleAndShift modules', () => {
+    test('.gain() creates a $gain module', () => {
         const patch = execPatch('$sine("C4").gain(2.5).out()');
         expect(findModules(patch, '$sine').length).toBe(1);
-        expect(findModules(patch, '$curve').length).toBeGreaterThan(0);
-        expect(findModules(patch, '$scaleAndShift').length).toBeGreaterThan(0);
+        expect(findModules(patch, '$gain').length).toBeGreaterThan(0);
     });
 
     test('.exp() raises to a plain power', () => {
@@ -471,7 +470,7 @@ describe('modulation routing', () => {
     test('LFO modulating oscillator pitch', () => {
         const source = `
             const lfo = $sine($hz(2))
-            $sine(lfo.amplitude(1).shift(0)).out()
+            $sine(lfo.amp(1).shift(0)).out()
         `;
         const patch = execPatch(source);
         // Two sine modules: one as LFO, one as audio oscillator
@@ -1112,11 +1111,6 @@ describe('utilities', () => {
         expect(findModules(patch, '$remap').length).toBe(1);
     });
 
-    test('$scaleAndShift', () => {
-        const patch = execPatch('$scaleAndShift($sine("C4"), 0.5, 2.5).out()');
-        expect(findModules(patch, '$scaleAndShift').length).toBeGreaterThan(0);
-    });
-
     test('$curve', () => {
         const patch = execPatch('$curve($sine("C4"), 2).out()');
         expect(findModules(patch, '$curve').length).toBeGreaterThan(0);
@@ -1295,7 +1289,7 @@ describe('deferred signals', () => {
 describe('sliders', () => {
     test('$slider creates a signal module and returns slider def', () => {
         const result = exec(
-            'const vol = $slider("Volume", 0.5, 0, 1)\n$sine("C4").amplitude(vol).out()',
+            'const vol = $slider("Volume", 0.5, 0, 1)\n$sine("C4").amp(vol).out()',
         );
         expect(result.sliders.length).toBe(1);
         expect(result.sliders[0].label).toBe('Volume');
@@ -1440,7 +1434,7 @@ describe('control groups', () => {
             const synth = $cGroup("Synth")
             const amp = $cGroup("Amp", { collapsed: true, group: synth })
             $saw($slider("Root", "c3", "c2", "c5", synth))
-                .amplitude($slider("Level", 0.5, 0, 1, amp))
+                .amp($slider("Level", 0.5, 0, 1, amp))
                 .out()
             $btn("Kick", $cGroup("Fx")).out()
             $toggleBtn("Hold", false, amp).out()
@@ -1601,7 +1595,7 @@ describe('buttons', () => {
     }
 
     test('$btn creates a gate button backed by a low signal', () => {
-        const source = '$sine("c4").amplitude($adsr($btn("play"))).out()';
+        const source = '$sine("c4").amp($adsr($btn("play"))).out()';
         const result = exec(source);
         expect(result.buttons.length).toBe(1);
         expect(result.buttons[0]).toEqual({
@@ -1648,7 +1642,7 @@ describe('buttons', () => {
 
     test('$toggleBtn initial true starts the signal high', () => {
         const result = exec(
-            '$saw("c2").amplitude(\n    $toggleBtn("drone", true)).out()',
+            '$saw("c2").amp(\n    $toggleBtn("drone", true)).out()',
         );
         expect(result.buttons[0]).toEqual({
             group: [],
@@ -1675,7 +1669,7 @@ describe('buttons', () => {
 
     test('$btn chains through .hold for fixed-length triggers', () => {
         const result = exec(
-            '$sine("c4").amplitude($adsr($btn("hit").hold(0.2))).out()',
+            '$sine("c4").amp($adsr($btn("hit").hold(0.2))).out()',
         );
         const holds = findModules(result.patch, '$hold');
         expect(holds.length).toBe(1);
@@ -2266,11 +2260,9 @@ describe('$delay', () => {
         expect(findModules(patch, '$buffer').length).toBe(1);
         // dry + feedback mix written into the buffer
         expect(findModules(patch, '$mix').length).toBeGreaterThanOrEqual(1);
-        // feedback is clamped then attenuated via $scaleAndShift
+        // feedback is clamped then attenuated via $amp
         expect(findModules(patch, '$clamp').length).toBe(1);
-        expect(
-            findModules(patch, '$scaleAndShift').length,
-        ).toBeGreaterThanOrEqual(1);
+        expect(findModules(patch, '$amp').length).toBeGreaterThanOrEqual(1);
     });
 
     test('maxTime defaults to 5 seconds (buffer length)', () => {
@@ -2329,8 +2321,7 @@ describe('$delay', () => {
     test('.delay(...).wet crossfades the dry signal against the wet delay', () => {
         const patch = execPatch('$sine("C4").delay(0.25).wet(2.5).out()');
         expect(findModules(patch, '$delayRead').length).toBe(1);
-        // crossfadeMix remaps the dry leg — absent from the plain `.` form
-        expect(findModules(patch, '$remap').length).toBeGreaterThanOrEqual(1);
+        expect(findModules(patch, '_crossfade')).toHaveLength(1);
     });
 
     test('exposes the captured buffer for additional taps', () => {
@@ -2490,9 +2481,9 @@ describe('WAV paths and $wavMeta', () => {
         expect(result.patch.scopes[0].channels.length).toBe(2);
     });
 
-    test('$sampler chained with amplitude and scope', () => {
+    test('$sampler chained with amp and scope', () => {
         const result = execWithWavs(
-            '$sampler("/wavs/kick.wav", $pulse("4hz")).amplitude(0.5).scope().out()',
+            '$sampler("/wavs/kick.wav", $pulse("4hz")).amp(0.5).scope().out()',
         );
         const sampler = findModules(result.patch, '$sampler');
         expect(sampler.length).toBe(1);

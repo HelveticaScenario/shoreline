@@ -1,7 +1,7 @@
 /**
  * Tests for the VU meter output stage: `.out()` / `.outMono()` label, mute,
  * and solo options, the compiled gate chain (__vuTap → __vuSlew → gate
- * $scaleAndShift driven by a __vuMute $signal), and the `patch.vuMeters`
+ * $amp driven by a __vuMute $signal), and the `patch.vuMeters`
  * entries the renderer panel consumes.
  */
 
@@ -276,16 +276,10 @@ describe('gain lifting', () => {
         const meter = vuMeters(patch)[0];
         expect(meter.gain).toBe(5);
         expect(meter.gainModuleId).toBe('__vuGain_lead');
-        // The lifted gain feeds a $curve; the tap is the gain stage itself.
-        const curves = patch.modules.filter(
-            (m) =>
-                m.moduleType === '$curve' &&
-                JSON.stringify(m.params.input ?? '').includes('__vuGain_lead'),
-        );
-        expect(curves).toHaveLength(1);
-        expect(moduleById(patch, '__vuTap_lead').moduleType).toBe(
-            '$scaleAndShift',
-        );
+        // The tap is the gain stage itself, fed by the lifted gain.
+        const tap = moduleById(patch, '__vuTap_lead');
+        expect(tap.moduleType).toBe('$gain');
+        expect(JSON.stringify(tap.params.level)).toContain('__vuGain_lead');
     });
 
     test('a numeric gain option seeds the lifted signal', () => {
@@ -312,9 +306,7 @@ describe('gain lifting', () => {
         expect(meter.gainLocked).toBe(true);
         expect(meter.gainSource).toBeDefined();
         // The gain stage still compiles and carries the tap.
-        expect(moduleById(patch, '__vuTap_lead').moduleType).toBe(
-            '$scaleAndShift',
-        );
+        expect(moduleById(patch, '__vuTap_lead').moduleType).toBe('$gain');
     });
 });
 
@@ -392,12 +384,8 @@ describe('output channel bounds', () => {
 describe('outMono second-argument overload', () => {
     test('a numeric second argument is a gain', () => {
         const patch = execPatch(`$saw('c2').outMono(0, 2.5)`);
-        // A gain adds a $curve into the output chain.
-        expect(patch.modules.some((m) => m.moduleType === '$curve')).toBe(true);
-        // The tap id sits on the gain $scaleAndShift.
-        expect(moduleById(patch, '__vuTap_out_1').moduleType).toBe(
-            '$scaleAndShift',
-        );
+        // The tap id sits on the $gain stage.
+        expect(moduleById(patch, '__vuTap_out_1').moduleType).toBe('$gain');
     });
 
     test('an options-only argument can carry the channel', () => {
@@ -418,28 +406,24 @@ describe('outMono second-argument overload', () => {
         const patch = execPatch(
             `$saw('c2').outMono(0, { gain: 2.5, label: 'bass' })`,
         );
-        expect(patch.modules.some((m) => m.moduleType === '$curve')).toBe(true);
+        expect(patch.modules.some((m) => m.moduleType === '$gain')).toBe(true);
         expect(vuMeters(patch)[0].label).toBe('bass');
-        expect(moduleById(patch, '__vuTap_bass').moduleType).toBe(
-            '$scaleAndShift',
-        );
+        expect(moduleById(patch, '__vuTap_bass').moduleType).toBe('$gain');
     });
 
     test('a signal second argument is a gain', () => {
         const patch = execPatch(`$saw('c2').outMono(0, $sine('1hz'))`);
-        expect(patch.modules.some((m) => m.moduleType === '$curve')).toBe(true);
+        expect(patch.modules.some((m) => m.moduleType === '$gain')).toBe(true);
     });
 });
 
 describe('gate chain compilation', () => {
     test('the tap id always sits on the gain stage', () => {
         const patch = execPatch(`$sine('c4').out({ label: 'lead' })`);
-        expect(moduleById(patch, '__vuTap_lead').moduleType).toBe(
-            '$scaleAndShift',
-        );
+        expect(moduleById(patch, '__vuTap_lead').moduleType).toBe('$gain');
     });
 
-    test('gate chain: $signal → $slew → $scaleAndShift fed by the tap', () => {
+    test('gate chain: $signal → $slew → $amp fed by the tap', () => {
         const patch = execPatch(`$sine('c4').out({ label: 'lead' })`);
 
         const mute = moduleById(patch, '__vuMute_lead');
@@ -458,12 +442,12 @@ describe('gate chain compilation', () => {
         // through a still-closing gate.
         expect(slew.skipStateTransfer).toBe(true);
 
-        // The gate stage is a $scaleAndShift whose input cables come from the
-        // tap and whose scale comes from the slewed gate.
+        // The gate stage is a $amp whose input cables come from the tap and
+        // whose factor comes from the slewed gate.
         const gates = patch.modules.filter(
             (m) =>
-                m.moduleType === '$scaleAndShift' &&
-                JSON.stringify(m.params.scale ?? '').includes('__vuSlew_lead'),
+                m.moduleType === '$amp' &&
+                JSON.stringify(m.params.factor ?? '').includes('__vuSlew_lead'),
         );
         expect(gates).toHaveLength(1);
         expect(JSON.stringify(gates[0].params.input)).toContain('__vuTap_lead');
@@ -498,11 +482,9 @@ describe('gate chain compilation', () => {
             `$sine('c4').out({ label: 'lead', gain: 2, mute: true })`,
         );
         // Tap = the gain stage; the gate stage reads from it.
-        expect(moduleById(patch, '__vuTap_lead').moduleType).toBe(
-            '$scaleAndShift',
-        );
+        expect(moduleById(patch, '__vuTap_lead').moduleType).toBe('$gain');
         expect(moduleById(patch, '__vuMute_lead').params.value).toBe(0);
-        expect(patch.modules.some((m) => m.moduleType === '$curve')).toBe(true);
+        expect(patch.modules.some((m) => m.moduleType === '$gain')).toBe(true);
     });
 
     test('a fresh execution resets ordinals and labels', () => {
@@ -540,8 +522,8 @@ describe('$outLane', () => {
         expect(left).toMatchObject({ channel: 0 });
         expect(right).toMatchObject({ channel: 1, module: left.module });
         const gate = moduleById(patch, left.module);
-        expect(gate.moduleType).toBe('$scaleAndShift');
-        expect(gate.params.scale).toMatchObject([{ module: '__vuSlew_bass' }]);
+        expect(gate.moduleType).toBe('$amp');
+        expect(gate.params.factor).toMatchObject([{ module: '__vuSlew_bass' }]);
     });
 
     test('a mono lane fills both channels', () => {
@@ -707,9 +689,9 @@ describe('$outLane', () => {
             $saw('c2').amp(bass.level).out({ label: 'bass', gain: 3 })
         `);
         const amp = patch.modules.find(
-            (m) => m.moduleType === '$scaleAndShift' && !m.id.startsWith('__'),
+            (m) => m.moduleType === '$amp' && !m.id.startsWith('__'),
         )!;
-        expect(amp.params.scale).toMatchObject([{ module: '__vuGain_bass' }]);
+        expect(amp.params.factor).toMatchObject([{ module: '__vuGain_bass' }]);
     });
 
     test('taps of one lane share its sources and range bounds', () => {

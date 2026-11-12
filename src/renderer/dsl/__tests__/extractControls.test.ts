@@ -6,7 +6,7 @@ describe('extractControls', () => {
     test('reads sliders and buttons from literal calls, in source order', () => {
         const { sliders, buttons } = extractControls(`
             const vol = $slider('vol', 0.5, 0, 1);
-            $sine('c4').amplitude(vol).out();
+            $sine('c4').amp(vol).out();
             $btn("hit");
             $toggleBtn('drone', true);
             $slider("off", -1, -2, 2);

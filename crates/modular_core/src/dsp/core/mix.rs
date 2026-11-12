@@ -8,7 +8,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     block_input::{InputScratch, OptionBlockInput, SCRATCH_LEN},
-    dsp::utils::sanitize,
+    dsp::utils::{audio_taper, sanitize},
     poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
@@ -143,14 +143,6 @@ fn fold_min(best_abs: &mut f32, best_val: &mut f32, v: f32) {
 #[inline(always)]
 fn min_result(best_abs: f32, best_val: f32) -> f32 {
     if best_abs.is_finite() { best_val } else { 0.0 }
-}
-
-/// The gain voltage as a multiplier: a cubic curve with 5 V at unity. The cube
-/// is multiplied out, which matches `powf(3.0)` bit for bit on finite inputs.
-#[inline(always)]
-fn gain_curve(amp: f32) -> f32 {
-    let normalized = (amp.abs() * (1.0 / 5.0)).max(0.0);
-    amp.signum() * (normalized * normalized * normalized)
 }
 
 /// Initialise `len` values at `buffer` to `value` and borrow them.
@@ -298,7 +290,7 @@ impl Mix {
             let pre_gain_index = i % max_input_channels;
             let pre_gain_value = pre_gain_values[pre_gain_index];
             let gain_value = self.channel_state[i].follow(
-                gain_curve(gain.value_or(i, 5.0)),
+                audio_taper(gain.value_or(i, 5.0)),
                 gain.glide_mark(i),
                 sample_rate,
             );
@@ -404,12 +396,12 @@ impl Mix {
             let pre = &pre[n * width..(n + 1) * width];
             let gains = gain.row(i);
             for (ch, value) in out.slot_mut(i).iter_mut().enumerate() {
-                *value = sanitize(pre[ch % width] * gain_curve(gains[ch]));
+                *value = sanitize(pre[ch % width] * audio_taper(gains[ch]));
             }
         }
         let last = gain.row(range.end - 1);
         for (i, glide) in glides.iter_mut().enumerate() {
-            glide.settle(gain_curve(last[i]), gain_param.glide_mark(i));
+            glide.settle(audio_taper(last[i]), gain_param.glide_mark(i));
         }
         Some(())
     }

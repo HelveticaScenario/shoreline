@@ -21283,7 +21283,7 @@
         },
         {
           "title": "Gliding through the inversions",
-          "code": "const inv = $sine('0.05hz').range(0, 4)\nconst c = $chord('C3[maj7]', { inversion: inv })\n$saw(c).amplitude(c._level).out()"
+          "code": "const inv = $sine('0.05hz').range(0, 4)\nconst c = $chord('C3[maj7]', { inversion: inv })\n$saw(c).amp(c._level).out()"
         },
         {
           "title": "A drifting melody that stays in key",
@@ -24534,55 +24534,38 @@
     "experimental": false
   },
   {
-    "name": "$scaleAndShift",
+    "name": "$amp",
     "docs": {
-      "summary": "Attenuverter and offset",
-      "description": "Turns a signal up, down or upside down, then adds an offset: the attenuverter-and-offset found on most modular utility panels.",
+      "summary": "Linear gain",
+      "description": "Multiplies a signal by a gain where 5 V is unity, sample by sample.",
       "categories": [
         "math"
       ],
       "sections": [],
       "examples": [
         {
-          "title": "Filter wobble set by depth and centre",
-          "code": "$saw('c2')\n  .lpf($scaleAndShift($sine('0.5hz'), 1.5, 1), 2)\n  .out()"
+          "title": "Tremolo",
+          "code": "$saw('c3').amp($sine('5hz').range(0, 5)).out()"
         }
       ]
     },
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "title": "ScaleAndShiftParams",
+      "title": "AmpParams",
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to scale and shift",
+          "description": "signal to turn up or down",
           "$ref": "#/$defs/PolySignal"
         },
-        "scale": {
-          "description": "gain: 5 unity, 0 silence, 10 double, negative inverts",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PolySignal"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "shift": {
-          "description": "offset added after scaling, in volts",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PolySignal"
-            },
-            {
-              "type": "null"
-            }
-          ]
+        "factor": {
+          "description": "linear gain: 5 unity, 0 silence, 10 double, negative inverts",
+          "$ref": "#/$defs/PolySignal"
         }
       },
       "required": [
-        "input"
+        "input",
+        "factor"
       ],
       "$defs": {
         "PolySignal": {
@@ -24647,7 +24630,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the scaled and shifted signal",
+        "description": "the scaled signal",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -24658,21 +24641,419 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to scale and shift",
+        "description": "signal to turn up or down",
         "paramType": "audio"
       },
       {
-        "name": "scale",
-        "description": "gain: 5 unity, 0 silence, 10 double, negative inverts",
+        "name": "factor",
+        "description": "linear gain: 5 unity, 0 silence, 10 double, negative inverts",
         "paramType": "control",
         "defaultValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 10.0
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
       },
       {
-        "name": "shift",
-        "description": "offset added after scaling, in volts",
+        "name": "factor"
+      }
+    ],
+    "experimental": false
+  },
+  {
+    "name": "_crossfade",
+    "docs": {
+      "summary": "Dry/wet crossfade",
+      "description": "Fades linearly from one signal to another, channel by channel; the narrower of the two cycles across the wider. Backs the `.wet()` and `.pipeMix()` signal methods.",
+      "categories": [
+        "math"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Half-wet filter",
+          "code": "$saw('c2').lpf('400hz').wet(2.5).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "CrossfadeParams",
+      "type": "object",
+      "properties": {
+        "dry": {
+          "description": "signal heard at a mix of 0",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "wet": {
+          "description": "signal heard at a mix of 5",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "mix": {
+          "description": "balance from dry to wet",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "dry",
+        "wet",
+        "mix"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the blend of dry and wet",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "f32"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "dry",
+        "description": "signal heard at a mix of 0",
+        "paramType": "audio"
+      },
+      {
+        "name": "wet",
+        "description": "signal heard at a mix of 5",
+        "paramType": "audio"
+      },
+      {
+        "name": "mix",
+        "description": "balance from dry to wet",
         "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "dry"
+      },
+      {
+        "name": "wet"
+      },
+      {
+        "name": "mix"
+      }
+    ],
+    "experimental": false
+  },
+  {
+    "name": "$gain",
+    "docs": {
+      "summary": "Perceptual gain",
+      "description": "Scales a signal by `(level / 5)³`, an audio-taper curve on which equal steps of `level` sound like equal steps of loudness. Outs apply their gain through it.",
+      "categories": [
+        "math"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Slow swell",
+          "code": "$saw('c3').gain($sine('0.25hz').range(0, 5)).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "GainParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to turn up or down",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "level": {
+          "description": "perceptual level: 5 unity, 0 silence, each halving about -18 dB",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input",
+        "level"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the scaled signal",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "inherit"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to turn up or down",
+        "paramType": "audio"
+      },
+      {
+        "name": "level",
+        "description": "perceptual level: 5 unity, 0 silence, each halving about -18 dB",
+        "paramType": "control",
+        "defaultValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "level"
+      }
+    ],
+    "experimental": false
+  },
+  {
+    "name": "$shift",
+    "docs": {
+      "summary": "DC offset",
+      "description": "Adds an offset to a signal, sample by sample, gliding when the offset is edited.",
+      "categories": [
+        "math"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "LFO raised to sit above 0 V",
+          "code": "$saw('c2').lpf($sine('0.5hz').shift(2), 2).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "ShiftParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to offset",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "offset": {
+          "description": "offset added to the signal, in volts",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input",
+        "offset"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the offset signal",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "inherit"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to offset",
+        "paramType": "audio"
+      },
+      {
+        "name": "offset",
+        "description": "offset added to the signal, in volts",
+        "paramType": "control",
+        "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -24682,10 +25063,7 @@
         "name": "input"
       },
       {
-        "name": "scale"
-      },
-      {
-        "name": "shift"
+        "name": "offset"
       }
     ],
     "experimental": false

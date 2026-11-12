@@ -57,8 +57,8 @@ fn mix_every_mode_across_input_widths() {
                             }
                         };
                         let amp = lfo[k - ch + 3];
-                        let normalized = (amp.abs() * (1.0 / 5.0)).max(0.0);
-                        let v = pre * (amp.signum() * (normalized * normalized * normalized));
+                        let g = amp * (1.0 / 5.0);
+                        let v = pre * (g * g * g);
                         if v.is_finite() { v } else { 0.0 }
                     })
                     .collect()

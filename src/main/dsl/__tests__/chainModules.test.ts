@@ -238,14 +238,11 @@ describe('.wet', () => {
         ).toEqual(normalize(execPatch('$saw(0).lpf("100hz").wet(2.5).out()')));
     });
 
-    test('crossfade emits $mix, $remap, $clamp, and $scaleAndShift', () => {
+    test('crossfade emits one _crossfade', () => {
         const types = moduleTypes(
             execPatch('$saw(0).lpf("100hz").wet(2.5).out()'),
         );
-        expect(types).toContain('$mix');
-        expect(types).toContain('$remap');
-        expect(types).toContain('$clamp');
-        expect(types).toContain('$scaleAndShift');
+        expect(types.filter((t) => t === '_crossfade')).toHaveLength(1);
     });
 
     test('fades a collection against its chained result', () => {
@@ -281,10 +278,22 @@ describe('.wet', () => {
         expect(normalize(viaWet)).toEqual(normalize(viaPipeMix));
     });
 
+    test('fades .amp(), .shift() and .gain() like any chained module', () => {
+        for (const method of ['amp', 'shift', 'gain']) {
+            const viaWet = execPatch(
+                `$saw(0).lpf("100hz").${method}(2).wet(2).out()`,
+            );
+            const viaPipeMix = execPatch(
+                `$saw(0).lpf("100hz").pipeMix((s) => $${method}(s, 2), 2).out()`,
+            );
+            expect(normalize(viaWet)).toEqual(normalize(viaPipeMix));
+        }
+    });
+
     test('throws on a signal that was not chained', () => {
         expect(() => execPatch('$saw(0).wet(2).out()')).toThrow(/\.wet\(\)/);
         expect(() =>
-            execPatch('$saw(0).lpf("100hz").gain(2).wet(2).out()'),
+            execPatch('$saw(0).lpf("100hz").add(2).wet(2).out()'),
         ).toThrow(/\.wet\(\)/);
     });
 });
@@ -313,8 +322,7 @@ describe('$delay as a chain method', () => {
             execPatch('$sine(0).delay(0.25).wet(2.5).out()'),
         );
         expect(types).toContain('$delayRead'); // wet delay tap
-        expect(types).toContain('$remap'); // crossfade dry leg
-        expect(types).toContain('$scaleAndShift');
+        expect(types).toContain('_crossfade');
     });
 });
 
@@ -352,14 +360,14 @@ describe('namespaced chain modules', () => {
             ),
         );
         expect(types).toContain('$unstable.shape.saturate');
-        expect(types).toContain('$remap'); // crossfade dry leg
+        expect(types).toContain('_crossfade');
     });
 });
 
 // ─── pipeMix crossfades dry against wet ──────────────────────────────────────
 
 describe('pipeMix', () => {
-    test('produces a $remap/$clamp crossfade, not a bare 2-input $mix', () => {
+    test('produces a _crossfade, not a bare 2-input $mix', () => {
         const out = new Collection(
             new ModuleOutput(builder, 'src-1', 'out', 0),
         );
@@ -367,8 +375,7 @@ describe('pipeMix', () => {
             (s) => builder.getFactory('$lpf')(s, '100hz') as Collection,
         );
         const types = builder.toPatch().modules.map((m) => m.moduleType);
-        expect(types).toContain('$remap');
-        expect(types).toContain('$clamp');
-        expect(types).toContain('$mix');
+        expect(types).toContain('_crossfade');
+        expect(types).not.toContain('$mix');
     });
 });

@@ -52,11 +52,7 @@ describe('resolution by input type', () => {
 
     test('a control input takes the default, not another cv output', () => {
         expect(
-            ports(
-                `$sine('c').amp($p('0 2 5')).out()`,
-                '$scaleAndShift',
-                'scale',
-            ),
+            ports(`$sine('c').amp($p('0 2 5')).out()`, '$amp', 'factor'),
         ).toEqual(['cv']);
     });
 
@@ -163,9 +159,9 @@ describe('chaining', () => {
     });
 
     test('a chain method reads its receiver as cv', () => {
-        expect(
-            ports(`$p('c e g').amp(2).out()`, '$scaleAndShift', 'input'),
-        ).toEqual(['cv']);
+        expect(ports(`$p('c e g').amp(2).out()`, '$amp', 'input')).toEqual([
+            'cv',
+        ]);
     });
 });
 
@@ -228,7 +224,7 @@ describe('resolution records', () => {
     test('chain methods record the receiver and argument index', () => {
         expect(
             records(
-                `const seq = $p('c e g')\nseq.amp(2).out()\n$sine('c').amp(seq).out()`,
+                `const seq = $p('c e g')\nseq.add(2).out()\n$sine('c').add(seq).out()`,
             ),
         ).toEqual(['2 receiver cv', '3 0 cv']);
     });

@@ -85,16 +85,15 @@ export interface VuMeterGhost {
 /** Exponent of the perceptual (audio-taper) gain curve used by out gains. */
 export const GAIN_CURVE_EXP = 3;
 
-/** Out gain value producing unity amplitude: $curve(5, 3) = 5 → scale 5/5. */
+/** Out gain value producing unity amplitude: (5 / 5)³ = 1. */
 export const UNITY_OUT_GAIN = 5;
 
 /** Global master output-gain default, restored by a master-fader reset. */
 export const DEFAULT_OUTPUT_GAIN = 2.5;
 
 /**
- * Out gain (DSL units, 0…10) → dB. The gain passes through
- * `$curve(g, GAIN_CURVE_EXP)` (5·(g/5)^exp) into a `$scaleAndShift` scale
- * (amplitude g′/5), so amplitude = (g/5)^exp. Returns -Infinity at 0.
+ * Out gain (DSL units, 0…10) → dB. Outs apply their gain through `$gain`,
+ * whose amplitude is (g/5)^GAIN_CURVE_EXP. Returns -Infinity at 0.
  */
 export function outGainToDb(gain: number): number {
     if (gain <= 0) {
