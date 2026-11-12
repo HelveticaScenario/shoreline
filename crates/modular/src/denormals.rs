@@ -90,17 +90,26 @@ mod tests {
     use super::FlushDenormals;
     use std::hint::black_box;
 
+    /// A product computed where it is called, so it runs in the mode held
+    /// there.
+    #[inline(never)]
+    fn product(a: f32, b: f32) -> f32 {
+        black_box(a) * black_box(b)
+    }
+
     #[test]
     fn flushes_denormals_while_held_and_restores_after() {
-        let tiny = black_box(f32::MIN_POSITIVE);
-        assert!(black_box(tiny * 0.5) > 0.0);
+        let half_min = || product(f32::MIN_POSITIVE, 0.5);
+        // Unflushed, this denormal input times 4 is a normal result.
+        let denormal_input = || product(f32::from_bits(0x0040_0000), 4.0);
+        assert_ne!(half_min().to_bits(), 0);
+        assert_eq!(denormal_input(), 2.0 * f32::MIN_POSITIVE);
         {
             let _flush = FlushDenormals::enter();
-            assert_eq!(black_box(tiny * 0.5), 0.0, "results flush");
-            let denormal = black_box(f32::from_bits(1));
-            assert_eq!(black_box(denormal * 2.0), 0.0, "inputs flush");
-            assert_eq!(black_box(tiny * 2.0), f32::MIN_POSITIVE * 2.0);
+            assert_eq!(half_min().to_bits(), 0, "results flush");
+            assert_eq!(denormal_input().to_bits(), 0, "inputs flush");
+            assert_eq!(product(f32::MIN_POSITIVE, 2.0), 2.0 * f32::MIN_POSITIVE);
         }
-        assert!(black_box(tiny * 0.5) > 0.0, "the previous mode returns");
+        assert_ne!(half_min().to_bits(), 0, "the previous mode returns");
     }
 }
