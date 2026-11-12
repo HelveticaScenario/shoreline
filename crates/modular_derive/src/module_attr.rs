@@ -245,24 +245,26 @@ pub fn module_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     // `self.channel_count()` can return a precomputed value set by the
     // main thread via the constructor.
     if let Data::Struct(ref mut data_struct) = ast.data
-        && let Fields::Named(ref mut fields) = data_struct.fields {
-            let field: syn::Field = syn::parse_quote! {
-                pub _channel_count: usize
-            };
-            fields.named.push(field);
-        }
+        && let Fields::Named(ref mut fields) = data_struct.fields
+    {
+        let field: syn::Field = syn::parse_quote! {
+            pub _channel_count: usize
+        };
+        fields.named.push(field);
+    }
 
     // Inject `_block_index: Cell<usize>` so inner DSP can read the current
     // sample position within the block via `self.current_block_index()`.
     // The wrapper's `ensure_processed_to` writes the slot index here before
     // each `inner.update` call.
     if let Data::Struct(ref mut data_struct) = ast.data
-        && let Fields::Named(ref mut fields) = data_struct.fields {
-            let field: syn::Field = syn::parse_quote! {
-                pub _block_index: std::cell::Cell<usize>
-            };
-            fields.named.push(field);
-        }
+        && let Fields::Named(ref mut fields) = data_struct.fields
+    {
+        let field: syn::Field = syn::parse_quote! {
+            pub _block_index: std::cell::Cell<usize>
+        };
+        fields.named.push(field);
+    }
 
     match impl_module_macro_attr(&ast, &attr_args) {
         Ok(generated) => {
@@ -1066,7 +1068,7 @@ fn impl_module_macro_attr(
         }
 
         fn #constructor_name(
-            id: &String,
+            id: &str,
             sample_rate: f32,
             deserialized: crate::params::DeserializedParams,
             _block_size: usize,
@@ -1092,7 +1094,7 @@ fn impl_module_macro_attr(
             crate::types::Connect::apply_default_connections(&mut inner.params);
 
             let sampleable = #struct_name {
-                id: id.clone(),
+                id: id.to_owned(),
                 sample_rate,
                 module: std::cell::UnsafeCell::new(inner),
                 index: std::cell::Cell::new(0),

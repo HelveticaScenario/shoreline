@@ -5,7 +5,7 @@
 
 use modular_core::patch::Patch;
 use modular_core::profiling::ModuleProfileAccum;
-use modular_core::types::{Message, ModuleIdRemap, PreviousIds, Sampleable, ScopeBufferKey};
+use modular_core::types::{ModuleIdRemap, PreviousIds, Sampleable, ScopeBufferKey};
 use napi::Error;
 use napi_derive::napi;
 use rtrb::PushError;
@@ -43,6 +43,7 @@ pub struct TransportMeta {
 ///
 /// This struct ensures the audio thread receives a complete, consistent batch of changes.
 /// The main thread computes the entire diff and sends it as one unit.
+#[derive(Default)]
 pub struct PatchUpdate {
     /// Unique ID for this update, used to track apply/discard on the audio thread.
     pub update_id: u64,
@@ -86,9 +87,6 @@ pub struct PatchUpdate {
     /// displaced list rides this update back through the garbage queue.
     pub process_order_scratch: Vec<crate::audio::ProcessHandle>,
 
-    /// Sample rate for new modules
-    pub sample_rate: f32,
-
     /// Tempo/time-signature for the meter + Link, applied when this update is
     /// applied. `None` when the patch has no ROOT_CLOCK.
     pub transport_meta: Option<TransportMeta>,
@@ -114,25 +112,6 @@ pub struct PatchUpdate {
 }
 
 impl PatchUpdate {
-    /// Create an empty patch update
-    pub fn new(sample_rate: f32) -> Self {
-        Self {
-            update_id: 0,
-            new_patch: Patch::new(),
-            process_order_ids: Vec::new(),
-            transfer_sources: HashMap::new(),
-            scope_next: HashMap::new(),
-            scope_stash_next: ScopeStash::default(),
-            vu_next: Vec::new(),
-            process_order_scratch: Vec::new(),
-            sample_rate,
-            transport_meta: None,
-            reset_clock: false,
-            profile_records_seed: HashMap::new(),
-            profile_shared_seed: HashMap::new(),
-        }
-    }
-
     pub fn set_remaps(&mut self, remaps: &[ModuleIdRemap]) {
         self.transfer_sources.clear();
         for remap in remaps {
@@ -168,7 +147,7 @@ pub enum GraphCommand {
     /// `Immediate` applies on the next frame; `NextBar`/`NextBeat` wait for
     /// ROOT_CLOCK's bar_trigger or beat_trigger output respectively.
     QueuedPatchUpdate {
-        update: PatchUpdate,
+        update: Box<PatchUpdate>,
         trigger: QueuedTrigger,
     },
 
@@ -183,9 +162,6 @@ pub enum GraphCommand {
         module_id: String,
         module: Box<dyn Sampleable>,
     },
-
-    /// MIDI/control messages (can be sent individually)
-    DispatchMessage(Message),
 
     /// Transport control: start playback
     Start,
@@ -256,7 +232,7 @@ pub enum GarbageItem {
     /// A patch update after it is applied (carrying everything it displaced:
     /// old patch, order ids, scope map, evicted profiler
     /// maps) or one superseded by a newer update before it was applied.
-    PatchUpdate(PatchUpdate),
+    PatchUpdate(Box<PatchUpdate>),
     /// The old patch swapped out by `ClearPatch`.
     Patch(Patch),
     /// The old processing-order id list taken by `ClearPatch`.

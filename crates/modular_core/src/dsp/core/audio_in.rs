@@ -33,6 +33,7 @@ pub struct AudioIn {
     ///   - Written during `inject_audio_in` (before the slots it fills are
     ///     processed).
     ///   - Read during `get_value_at` (inside module processing).
+    ///
     /// These phases are serialised on the same thread — no concurrent access.
     block: UnsafeCell<Box<[[f32; PORT_MAX_CHANNELS]]>>,
     /// Number of valid samples in `block`: the slots of the current internal

@@ -108,9 +108,8 @@ impl PreparedWavetable {
         for frame_idx in 0..frame_count {
             // Load channel 0 samples for this frame into the FFT input buffer.
             let src_base = frame_idx * frame_size;
-            for i in 0..frame_size {
-                let s = wav.read(channel, src_base + i);
-                spectrum[i] = Complex::new(s, 0.0);
+            for (i, bin) in spectrum.iter_mut().enumerate() {
+                *bin = Complex::new(wav.read(channel, src_base + i), 0.0);
             }
 
             fft_forward.process(&mut spectrum);
@@ -124,7 +123,7 @@ impl PreparedWavetable {
             // positive-frequency half at the start and the negative-frequency
             // half at the end, with zeros in the middle. This is the standard
             // zero-padded IFFT oversampling approach.
-            for level in 0..mipmap_count {
+            for (level, level_table) in levels.iter_mut().enumerate().take(mipmap_count) {
                 // Clear the padded buffer.
                 for c in padded.iter_mut() {
                     *c = Complex::new(0.0, 0.0);
@@ -140,9 +139,7 @@ impl PreparedWavetable {
                 };
 
                 // Copy positive-frequency bins [0..cutoff) to padded[0..cutoff).
-                for k in 0..cutoff {
-                    padded[k] = spectrum[k];
-                }
+                padded[..cutoff].copy_from_slice(&spectrum[..cutoff]);
 
                 // Copy negative-frequency bins. In the original frame_size FFT,
                 // negative frequencies are at indices [frame_size-cutoff+1 .. frame_size-1].
@@ -158,7 +155,7 @@ impl PreparedWavetable {
                 fft_inverse.process(&mut padded);
 
                 let dest_base = frame_idx * table_size;
-                let dest = &mut levels[level][dest_base..dest_base + table_size];
+                let dest = &mut level_table[dest_base..dest_base + table_size];
                 for (i, c) in padded.iter().enumerate() {
                     dest[i] = c.re * inv_n;
                 }

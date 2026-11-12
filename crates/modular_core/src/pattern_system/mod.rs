@@ -102,24 +102,6 @@ enum PatternImpl<T> {
     /// `compress(begin, end)` — pattern squeezed into [begin, end) of every
     /// cycle. Used by `timecat` (mini-notation `[a@N b@M]/X` weighted seqs).
     Compress(Arc<CompressData<T>>),
-    /// Constant-arg Euclidean rhythm: emits N slot haps per cycle, each
-    /// holding `value` or `rest` according to the Bjorklund rhythm, with
-    /// the (K, N, R) source spans attached as modifier spans.
-    EuclidConst(Arc<EuclidConstData<T>>),
-}
-
-/// Backing data for [`PatternImpl::EuclidConst`].
-pub(crate) struct EuclidConstData<T> {
-    pub value: T,
-    pub rest: T,
-    pub value_span: SourceSpan,
-    /// Source spans for the (K, N, R) atoms, attached as modifier spans
-    /// on each emitted hap.
-    pub pulses_span: SourceSpan,
-    pub steps_span: SourceSpan,
-    pub rotation_span: Option<SourceSpan>,
-    /// Pre-computed slot data: (begin_offset, end_offset, is_pulse).
-    pub slots: Arc<[(Fraction, Fraction, bool)]>,
 }
 
 /// Backing data for [`PatternImpl::Compress`].
@@ -226,51 +208,6 @@ impl<T: Clone + Send + Sync + 'static> Pattern<T> {
         Pattern {
             query: PatternImpl::FastConst(Arc::new(FastConstData { pat, factor })),
             steps,
-        }
-    }
-
-    /// Build a constant-arg Euclidean pattern for `value(K, N[, R])` in
-    /// mini-notation. Each cycle emits N slot haps holding `value` or
-    /// `rest` per the Bjorklund rhythm, with the (K, N, R) source spans
-    /// attached as modifier spans on each hap.
-    pub fn new_euclid_const(
-        value: T,
-        rest: T,
-        value_span: SourceSpan,
-        pulses: i32,
-        steps: u32,
-        rotation: i32,
-        pulses_span: SourceSpan,
-        steps_span: SourceSpan,
-        rotation_span: Option<SourceSpan>,
-    ) -> Self {
-        let n = steps as usize;
-        let n_frac = Fraction::from_integer(n as i64);
-        // Pre-compute (begin_off, end_off, is_pulse) per slot.
-        let rhythm =
-            crate::pattern_system::euclidean::euclidean_rhythm(pulses, steps, Some(rotation));
-        let slots: Arc<[(Fraction, Fraction, bool)]> = rhythm
-            .iter()
-            .enumerate()
-            .map(|(i, &is_pulse)| {
-                let i_frac = Fraction::from_integer(i as i64);
-                let begin = &i_frac / &n_frac;
-                let end = (&i_frac + Fraction::from_integer(1)) / &n_frac;
-                (begin, end, is_pulse)
-            })
-            .collect::<Vec<_>>()
-            .into();
-        Pattern {
-            query: PatternImpl::EuclidConst(Arc::new(EuclidConstData {
-                value,
-                rest,
-                value_span,
-                pulses_span,
-                steps_span,
-                rotation_span,
-                slots,
-            })),
-            steps: Some(n_frac),
         }
     }
 
@@ -405,9 +342,6 @@ impl<T: Clone + Send + Sync + 'static> Pattern<T> {
             }
             PatternImpl::Compress(data) => {
                 compress_query_into(data, state, bump, out);
-            }
-            PatternImpl::EuclidConst(data) => {
-                euclid_const_query_into(data, state, bump, out);
             }
         }
     }
@@ -764,50 +698,6 @@ fn compress_query_into<'b, T: Clone + Send + Sync + 'static>(
                     part: final_part,
                     value: hap.value.clone(),
                     context: hap.context,
-                });
-            }
-        }
-    });
-}
-
-/// Arena-direct query body for [`PatternImpl::EuclidConst`]. Each cycle
-/// emits `N` slot haps holding `value` or `rest` per the precomputed
-/// Bjorklund slots, tagged with the (value, K, N, R) modifier spans.
-fn euclid_const_query_into<'b, T: Clone + Send + Sync + 'static>(
-    data: &EuclidConstData<T>,
-    state: &State,
-    bump: &'b bumpalo::Bump,
-    out: &mut bumpalo::collections::Vec<'b, ArenaHap<'b, T>>,
-) {
-    // Build the per-hap context tree once. Every emitted hap shares it:
-    //   ((value_leaf · pulses_mod) · steps_mod) · rotation_mod
-    let value_leaf = ArenaHapContext::with_span_in(data.value_span.clone(), bump);
-    let p_leaf = ArenaHapContext::with_span_in(data.pulses_span.clone(), bump);
-    let s_leaf = ArenaHapContext::with_span_in(data.steps_span.clone(), bump);
-    let mut ctx = ArenaHapContext::combine_in(value_leaf, p_leaf, bump);
-    ctx = ArenaHapContext::combine_in(ctx, s_leaf, bump);
-    if let Some(rs) = &data.rotation_span {
-        let r_leaf = ArenaHapContext::with_span_in(rs.clone(), bump);
-        ctx = ArenaHapContext::combine_in(ctx, r_leaf, bump);
-    }
-
-    state.span.for_each_cycle_span(|cycle_span| {
-        let cycle_start = cycle_span.begin.floor();
-        for (begin_off, end_off, is_pulse) in data.slots.iter() {
-            let part_begin = &cycle_start + begin_off;
-            let part_end = &cycle_start + end_off;
-            let whole_span = TimeSpan::new(part_begin, part_end);
-            if let Some(part) = cycle_span.intersection(&whole_span) {
-                let value = if *is_pulse {
-                    data.value.clone()
-                } else {
-                    data.rest.clone()
-                };
-                out.push(ArenaHap {
-                    whole: Some(whole_span),
-                    part,
-                    value,
-                    context: ctx,
                 });
             }
         }

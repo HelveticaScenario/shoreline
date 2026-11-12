@@ -596,6 +596,9 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         }
 
         impl crate::types::SignalParamMeta for #name {
+            // Defaults are written as the number the docs show, which may be a
+            // rounded constant such as 0.707107.
+            #[allow(clippy::approx_constant)]
             fn signal_param_schemas() -> Vec<crate::types::SignalParamSchema> {
                 vec![#(#schemas,)*]
             }

@@ -512,7 +512,7 @@ mod tests {
             f64_inputs: false,
         };
         constructors.get("$dattorro").unwrap()(
-            &"test-dattorro".to_string(),
+            "test-dattorro",
             SAMPLE_RATE,
             deserialized,
             TEST_BLOCK_SIZE,

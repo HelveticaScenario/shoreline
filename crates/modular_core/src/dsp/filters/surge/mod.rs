@@ -84,10 +84,12 @@ macro_rules! filter_module {
                     let channels = self.channel_count();
                     crate::dsp::filters::surge::filter_core::run::<$Kernel>(
                         channels,
-                        &self.params.input,
-                        &self.params.cutoff,
-                        &self.params.resonance,
-                        mode,
+                        crate::dsp::filters::surge::filter_core::FilterInputs {
+                            input: &self.params.input,
+                            cutoff: &self.params.cutoff,
+                            resonance: &self.params.resonance,
+                            mode,
+                        },
                         sample_rate,
                         &mut self.state,
                         &mut self.channel_state,

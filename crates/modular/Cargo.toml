@@ -76,6 +76,5 @@ tracy-client = { workspace = true, optional = true }
 [build-dependencies]
 napi-build = "2"
 
-[profile.dev]
-debug     = true
-opt-level = 0
+[lints]
+workspace = true

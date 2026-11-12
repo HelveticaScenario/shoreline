@@ -90,20 +90,20 @@ fn descriptions_leave_the_range_to_the_metadata() {
                 module.name,
                 p.name
             );
-            if let (Some(lo), Some(hi)) = (p.min_value, p.max_value) {
-                if spellings(lo, hi).iter().any(|s| p.description.contains(s)) {
-                    restated.push(format!("{}.{}: {}", module.name, p.name, p.description));
-                }
+            if let (Some(lo), Some(hi)) = (p.min_value, p.max_value)
+                && spellings(lo, hi).iter().any(|s| p.description.contains(s))
+            {
+                restated.push(format!("{}.{}: {}", module.name, p.name, p.description));
             }
         }
         for o in &module.outputs {
-            if let (Some(lo), Some(hi)) = (o.min_value, o.max_value) {
-                if spellings(lo, hi).iter().any(|s| o.description.contains(s)) {
-                    restated.push(format!(
-                        "{}.{} (output): {}",
-                        module.name, o.name, o.description
-                    ));
-                }
+            if let (Some(lo), Some(hi)) = (o.min_value, o.max_value)
+                && spellings(lo, hi).iter().any(|s| o.description.contains(s))
+            {
+                restated.push(format!(
+                    "{}.{} (output): {}",
+                    module.name, o.name, o.description
+                ));
             }
         }
     }

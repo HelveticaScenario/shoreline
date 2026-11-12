@@ -155,6 +155,7 @@ impl CatmullRom {
 /// from one source.
 pub trait Sample:
     Copy
+    + Default
     + PartialOrd
     + std::ops::Add<Output = Self>
     + std::ops::Sub<Output = Self>
@@ -217,12 +218,16 @@ where
         + std::ops::Add<Output = T>
         + std::ops::Rem<Output = T>
         + std::cmp::PartialOrd
+        + Default
         + Copy,
 {
     let span = range.end - range.start;
     let offset = (val - range.start) % span;
-    let zero = span - span;
-    let offset = if offset < zero { offset + span } else { offset };
+    let offset = if offset < T::default() {
+        offset + span
+    } else {
+        offset
+    };
     range.start + offset
 }
 

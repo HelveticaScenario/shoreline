@@ -151,7 +151,7 @@ mod tests {
     use crate::dsp::filters::surge::coeffs::ST_DRIVEN;
     use crate::dsp::filters::surge::filter_core::test_util::{sine_rms, sweep_stays_bounded};
     use crate::dsp::filters::surge::filter_core::{
-        FilterChannel, FilterModuleState, on_patch_update, run,
+        FilterChannel, FilterInputs, FilterModuleState, on_patch_update, run,
     };
 
     fn all_modes() -> Vec<BiquadMode> {
@@ -218,7 +218,17 @@ mod tests {
         for i in 0..4000 {
             let input = PolySignal::mono(Signal::Volts(sig(i)));
             run::<LpBiquad>(
-                1, &input, &cutoff, &reso, standard, sr, &mut state, &mut ch, &mut out,
+                1,
+                FilterInputs {
+                    input: &input,
+                    cutoff: &cutoff,
+                    resonance: &reso,
+                    mode: standard,
+                },
+                sr,
+                &mut state,
+                &mut ch,
+                &mut out,
             );
             let y = out.get(0);
             if i > 2000 {
@@ -235,7 +245,17 @@ mod tests {
         for i in 0..n {
             let input = PolySignal::mono(Signal::Volts(sig(4000 + i)));
             run::<LpBiquad>(
-                1, &input, &cutoff, &reso, driven, sr, &mut state, &mut ch, &mut out,
+                1,
+                FilterInputs {
+                    input: &input,
+                    cutoff: &cutoff,
+                    resonance: &reso,
+                    mode: driven,
+                },
+                sr,
+                &mut state,
+                &mut ch,
+                &mut out,
             );
             let y = out.get(0);
             switch_max = switch_max.max((y - prev).abs());

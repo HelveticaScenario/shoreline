@@ -17,7 +17,6 @@ pub struct DelayLine {
     mask: usize,
 }
 
-
 impl DelayLine {
     /// Create a new delay line that can hold up to `max_delay` samples.
     ///

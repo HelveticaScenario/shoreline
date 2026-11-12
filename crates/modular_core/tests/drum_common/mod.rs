@@ -27,7 +27,7 @@ pub fn make(module_type: &str, params: Value, sample_rate: f32) -> Box<dyn Sampl
     let cached = get_params_deserializers()[module_type](params)
         .unwrap_or_else(|e| panic!("params for {module_type}: {e}"));
     get_constructors()[module_type](
-        &"drum".to_string(),
+        "drum",
         sample_rate,
         DeserializedParams {
             params: cached.params,

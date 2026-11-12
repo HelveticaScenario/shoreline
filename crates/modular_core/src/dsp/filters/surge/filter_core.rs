@@ -211,22 +211,23 @@ pub fn on_patch_update<F: Filter>(
     mode: F::Mode,
 ) {
     if let Some(old) = state.last_mode
-        && old != mode {
-            if F::crossfade_on_mode_change() {
-                state.fade_mode = Some(old);
-                state.fade = FADE_SAMPLES;
-                for cs in channel_state.iter_mut() {
-                    cs.begin_fade();
-                }
-            } else {
-                // Re-fire the change gate; the glide eases the coefficients to the
-                // new mode's targets.
-                for cs in channel_state.iter_mut() {
-                    cs.last_cutoff = f32::NAN;
-                    cs.last_reso = f32::NAN;
-                }
+        && old != mode
+    {
+        if F::crossfade_on_mode_change() {
+            state.fade_mode = Some(old);
+            state.fade = FADE_SAMPLES;
+            for cs in channel_state.iter_mut() {
+                cs.begin_fade();
+            }
+        } else {
+            // Re-fire the change gate; the glide eases the coefficients to the
+            // new mode's targets.
+            for cs in channel_state.iter_mut() {
+                cs.last_cutoff = f32::NAN;
+                cs.last_reso = f32::NAN;
             }
         }
+    }
     state.last_mode = Some(mode);
     state.tick = 0;
 }
@@ -255,6 +256,14 @@ fn process_sample<F: Filter>(
     }
 }
 
+/// The signal inputs and mode every `$unstable.filter.*` module shares.
+pub struct FilterInputs<'a, M> {
+    pub input: &'a PolySignal,
+    pub cutoff: &'a PolySignal,
+    pub resonance: &'a Option<PolySignal>,
+    pub mode: M,
+}
+
 /// Run one sample across all channels of a `$unstable.filter.*` module: on the tick,
 /// change-gate + glide each channel's coefficients; every sample, normalize, run the
 /// kernel (optionally 2× oversampled, optionally crossfading a form change), and write
@@ -262,15 +271,18 @@ fn process_sample<F: Filter>(
 #[inline]
 pub fn run<F: Filter>(
     channels: usize,
-    input: &PolySignal,
-    cutoff: &PolySignal,
-    resonance: &Option<PolySignal>,
-    mode: F::Mode,
+    inputs: FilterInputs<'_, F::Mode>,
     sample_rate: f32,
     state: &mut FilterModuleState<F::Mode>,
     channel_state: &mut [FilterChannel<F::Extra>],
     out: &mut PolyOutput,
 ) {
+    let FilterInputs {
+        input,
+        cutoff,
+        resonance,
+        mode,
+    } = inputs;
     let oversample = F::oversample(mode);
     let rate = if oversample {
         sample_rate * 2.0
@@ -282,8 +294,7 @@ pub fn run<F: Filter>(
     let steps = COEFF_TICK as f32 * if oversample { 2.0 } else { 1.0 };
 
     if state.tick == 0 {
-        for ch in 0..channels {
-            let cs = &mut channel_state[ch];
+        for (ch, cs) in channel_state[..channels].iter_mut().enumerate() {
             let cutoff_v = cutoff.get_value(ch);
             let reso = (resonance.value_or(ch, 0.0) / 5.0).clamp(0.0, 1.0);
             if changed(cutoff_v, cs.last_cutoff) || changed(reso, cs.last_reso) {
@@ -307,8 +318,7 @@ pub fn run<F: Filter>(
     };
 
     let inv_level = 1.0 / AUDIO_LEVEL;
-    for ch in 0..channels {
-        let cs = &mut channel_state[ch];
+    for (ch, cs) in channel_state[..channels].iter_mut().enumerate() {
         let x = input.get_value(ch) * inv_level;
         let new_y = process_sample::<F>(
             mode,
@@ -424,7 +434,17 @@ pub mod test_util {
                 let cutoff_v = -5.0 + 10.0 * (i as f32 / n as f32);
                 let cutoff = PolySignal::mono(Signal::Volts(cutoff_v));
                 run::<F>(
-                    1, &input, &cutoff, &reso, mode, sr, &mut state, &mut ch, &mut out,
+                    1,
+                    FilterInputs {
+                        input: &input,
+                        cutoff: &cutoff,
+                        resonance: &reso,
+                        mode,
+                    },
+                    sr,
+                    &mut state,
+                    &mut ch,
+                    &mut out,
                 );
                 let y = out.get(0);
                 // Loose bound: a linear high-Q peak legitimately rings to hundreds of

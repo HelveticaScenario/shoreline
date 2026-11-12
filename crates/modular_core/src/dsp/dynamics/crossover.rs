@@ -16,7 +16,7 @@ use crate::{
     types::{GlideMark, SwapGlide},
 };
 
-const BUTTERWORTH_Q: f32 = 0.707_107; // 1/sqrt(2)
+const BUTTERWORTH_Q: f32 = std::f32::consts::FRAC_1_SQRT_2;
 
 // ── Params & Outputs ─────────────────────────────────────────────────────────
 

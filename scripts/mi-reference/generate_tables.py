@@ -164,7 +164,7 @@ def main():
         "//! decoded into frames) and `stmlib/dsp/units.cc` at the commits `fetch.sh`",
         "//! pins. Do not edit.",
         "",
-        "#![allow(clippy::excessive_precision)]",
+        "#![allow(clippy::approx_constant, clippy::excessive_precision)]",
         "",
     ]
     for name, ty, *path in TABLES:

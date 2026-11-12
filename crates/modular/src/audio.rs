@@ -25,11 +25,9 @@ use ringbuf::{
 };
 use rtrb::{Consumer as RtrbConsumer, Producer as RtrbProducer, RingBuffer};
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::sync::OnceLock;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -46,6 +44,8 @@ use std::time::Instant;
 /// that adds or removes keys (in `apply_patch`).
 type ModuleStateMap = HashMap<String, Box<dyn ModuleLiveState>>;
 
+type ModuleStateMetas = HashMap<String, Box<dyn ModuleStateMeta>>;
+
 /// Main-thread-only cache of immutable per-module state metadata that doesn't
 /// change while playing. Held behind a single lock (see
 /// [`AudioState::module_state_meta`]) only because `AudioState` is shared by
@@ -54,7 +54,7 @@ type ModuleStateMap = HashMap<String, Box<dyn ModuleLiveState>>;
 struct ModuleStateMetaCache {
     /// Metadata for the patch currently playing on the audio thread, keyed by
     /// module id. Paired with the live slots in `get_module_states`.
-    live: HashMap<String, Box<dyn ModuleStateMeta>>,
+    live: ModuleStateMetas,
     /// Metadata for patch updates sent to the audio thread but not yet swapped
     /// in, each tagged with its `update_id`, in submission (ascending-id)
     /// order. Multiple entries coexist because a superseded update can still
@@ -62,7 +62,7 @@ struct ModuleStateMetaCache {
     /// command is popped. Once the audio thread reports an applied id, the
     /// newest entry at or below it promotes into `live`, so a poll never pairs
     /// one patch's metadata with another patch's still-live state.
-    pending: Vec<(u64, HashMap<String, Box<dyn ModuleStateMeta>>)>,
+    pending: Vec<(u64, ModuleStateMetas)>,
 }
 
 impl ModuleStateMetaCache {
@@ -78,7 +78,7 @@ impl ModuleStateMetaCache {
             .iter()
             .take_while(|(id, _)| *id <= applied_update_id)
             .count();
-        let Some((_, metas)) = self.pending.drain(..applied).last() else {
+        let Some((_, metas)) = self.pending.drain(..applied).next_back() else {
             return;
         };
         // Keep any slot a still-pending update pre-added — its patch may swap
@@ -182,14 +182,6 @@ pub fn preferred_default_sample_rate(device_default: u32, supported_rates: &[u32
 // Device Cache
 // ============================================================================
 
-/// Cached information about a device (includes cpal Device handle)
-#[derive(Clone)]
-pub struct CachedDevice {
-    pub info: AudioDeviceInfo,
-    // Note: cpal::Device doesn't implement Clone, so we store just the info
-    // and look up the device by ID when needed
-}
-
 /// Cache of all available audio hosts and devices
 #[derive(Default)]
 pub struct AudioDeviceCache {
@@ -272,11 +264,6 @@ impl AudioDeviceCache {
     /// Get input devices for a specific host
     pub fn input_devices_for_host(&self, host_id: &str) -> Vec<AudioDeviceInfo> {
         self.input_devices.get(host_id).cloned().unwrap_or_default()
-    }
-
-    /// Get all host IDs
-    pub fn host_ids(&self) -> Vec<String> {
-        self.hosts.iter().map(|h| h.id.clone()).collect()
     }
 }
 
@@ -425,52 +412,6 @@ fn enumerate_input_devices(host: &Host, host_id: &str) -> Vec<AudioDeviceInfo> {
         .unwrap_or_default()
 }
 
-// Legacy functions for backward compatibility (now use cache internally)
-
-/// List all available audio hosts
-pub fn list_available_hosts() -> Vec<HostInfo> {
-    cpal::available_hosts()
-        .into_iter()
-        .map(|host_id| {
-            let name = format!("{:?}", host_id);
-            HostInfo {
-                id: format!("{:?}", host_id),
-                name,
-            }
-        })
-        .collect()
-}
-
-/// List all available audio output devices (legacy - enumerates fresh)
-pub fn list_output_devices() -> Vec<AudioDeviceInfo> {
-    let host = get_host_by_preference();
-    let host_id = format!("{:?}", host.id());
-    enumerate_output_devices(&host, &host_id)
-}
-
-/// List all available audio input devices (legacy - enumerates fresh)
-pub fn list_input_devices() -> Vec<AudioDeviceInfo> {
-    let host = get_host_by_preference();
-    let host_id = format!("{:?}", host.id());
-    enumerate_input_devices(&host, &host_id)
-}
-
-/// Find an output device by id
-pub fn find_output_device(id: &str) -> Option<cpal::Device> {
-    let host = get_host_by_preference();
-    host.output_devices()
-        .ok()?
-        .find(|d| d.id().ok() == cpal::DeviceId::from_str(id).ok())
-}
-
-/// Find an input device by id
-pub fn find_input_device(id: &str) -> Option<cpal::Device> {
-    let host = get_host_by_preference();
-    host.input_devices()
-        .ok()?
-        .find(|d| d.id().ok() == cpal::DeviceId::from_str(id).ok())
-}
-
 /// Find an output device by id in a specific host
 pub fn find_output_device_in_host(host: &Host, id: &str) -> Option<cpal::Device> {
     host.output_devices()
@@ -533,9 +474,9 @@ impl InputBufferReader {
 
         let samples_to_read = self.channels.min(PORT_MAX_CHANNELS);
 
-        for i in 0..samples_to_read {
+        for slot in &mut result[..samples_to_read] {
             if let Some(sample) = self.consumer.try_pop() {
-                result[i] = sample;
+                *slot = sample;
             }
         }
 
@@ -559,96 +500,16 @@ pub fn create_input_ring_buffer(channels: usize) -> (InputBufferWriter, InputBuf
     )
 }
 
-// ============================================================================
-// Multi-Channel Output Buffer
-// ============================================================================
-
-/// Output buffer for multi-channel audio
-/// Each DSP module can write to specific channels
-pub struct OutputBuffer {
-    /// Sample values per channel for current frame
-    samples: [f32; PORT_MAX_CHANNELS],
-    /// Number of active channels
-    channels: u16,
-}
-
-impl OutputBuffer {
-    pub fn new(channels: u16) -> Self {
-        Self {
-            samples: [0.0; PORT_MAX_CHANNELS],
-            channels,
-        }
-    }
-
-    /// Clear all samples to zero
-    pub fn clear(&mut self) {
-        for s in &mut self.samples[..self.channels as usize] {
-            *s = 0.0;
-        }
-    }
-
-    /// Add a sample to a specific channel (mixing)
-    pub fn add(&mut self, channel: usize, value: f32) {
-        if channel < self.channels as usize {
-            self.samples[channel] += value;
-        }
-    }
-
-    /// Set a sample for a specific channel (replacing)
-    pub fn set(&mut self, channel: usize, value: f32) {
-        if channel < self.channels as usize {
-            self.samples[channel] = value;
-        }
-    }
-
-    /// Get sample for a channel
-    pub fn get(&self, channel: usize) -> f32 {
-        if channel < self.channels as usize {
-            self.samples[channel]
-        } else {
-            0.0
-        }
-    }
-
-    pub fn channels(&self) -> u16 {
-        self.channels
-    }
-}
-
-fn apply_patch_debug_enabled() -> bool {
-    static ENABLED: OnceLock<bool> = OnceLock::new();
-    *ENABLED.get_or_init(|| match std::env::var("MODULAR_DEBUG_LOG") {
-        Ok(v) => {
-            let v = v.trim().to_ascii_lowercase();
-            v == "1" || v == "true" || v == "yes" || v == "on"
-        }
-        Err(_) => false,
-    })
-}
-
-fn format_id_set_sample(set: &HashSet<String>, max: usize) -> String {
-    if set.is_empty() {
-        return "(empty)".to_string();
-    }
-
-    let mut ids: Vec<&String> = set.iter().collect();
-    ids.sort();
-
-    let shown: Vec<&str> = ids.iter().take(max).map(|s| s.as_str()).collect();
-
-    if set.len() <= max {
-        shown.join(", ").to_string()
-    } else {
-        format!("{} …(+{})", shown.join(", "), set.len().saturating_sub(max))
-    }
-}
-
-macro_rules! patch_dbg {
-  ($($arg:tt)*) => {
-    if apply_patch_debug_enabled() {
-      eprintln!($($arg)*);
-    }
-  };
+/// A patch graph to build on the main thread, with how and when the audio
+/// thread applies it.
+pub struct PatchSubmission {
+    pub graph: PatchGraph,
+    pub sample_rate: f32,
+    pub trigger: QueuedTrigger,
+    pub update_id: u64,
+    pub wav_data: HashMap<String, Arc<modular_core::types::WavData>>,
+    pub transport_meta: Option<TransportMeta>,
+    pub reset_clock: bool,
 }
 
 #[napi(object)]
@@ -1301,17 +1162,6 @@ pub struct AudioState {
     module_profiling_enable_count: Arc<AtomicU32>,
 }
 
-#[derive(Default)]
-struct AudioThreadHealth {
-    estimated_frame_budget_usage_max: AtomicU64,
-}
-
-#[derive(Debug, Clone, Copy)]
-#[napi(object)]
-pub struct AudioThreadHealthSnapshot {
-    pub estimated_frame_budget_usage_max: f64,
-}
-
 impl AudioState {
     /// Create a new AudioState with command queue channels
     pub fn new_with_channels(
@@ -1596,16 +1446,16 @@ impl AudioState {
 
     /// Build a PatchUpdate from desired graph and send to audio thread.
     /// This computes the diff using the shadow state and constructs new modules on the main thread.
-    pub fn apply_patch(
-        &self,
-        desired_graph: PatchGraph,
-        sample_rate: f32,
-        trigger: QueuedTrigger,
-        update_id: u64,
-        wav_data: HashMap<String, Arc<modular_core::types::WavData>>,
-        transport_meta: Option<TransportMeta>,
-        reset_clock: bool,
-    ) -> Result<()> {
+    pub fn apply_patch(&self, submission: PatchSubmission) -> Result<()> {
+        let PatchSubmission {
+            graph: desired_graph,
+            sample_rate,
+            trigger,
+            update_id,
+            wav_data,
+            transport_meta,
+            reset_clock,
+        } = submission;
         let PatchGraph {
             modules,
             module_id_remaps,
@@ -1615,8 +1465,10 @@ impl AudioState {
         } = desired_graph;
 
         // Build PatchUpdate with all the info needed
-        let mut update = PatchUpdate::new(sample_rate);
-        update.update_id = update_id;
+        let mut update = PatchUpdate {
+            update_id,
+            ..Default::default()
+        };
 
         // Resolve id renames into the per-module transfer-source map the audio
         // thread reads during the swap.
@@ -1700,7 +1552,7 @@ impl AudioState {
         // the audio thread will fill. Only modules registered in
         // `get_module_state_builders` produce any.
         let state_builders = modular_core::dsp::get_module_state_builders();
-        let mut state_metas: HashMap<String, Box<dyn ModuleStateMeta>> = HashMap::new();
+        let mut state_metas: ModuleStateMetas = HashMap::new();
         let mut state_live: HashMap<String, Box<dyn ModuleLiveState>> = HashMap::new();
         for (id, module_state) in desired_modules {
             if let Some(builder) = state_builders.get(&module_state.module_type)
@@ -1835,22 +1687,16 @@ impl AudioState {
         }
 
         // Send the update to audio thread
-        self.send_command(GraphCommand::QueuedPatchUpdate { update, trigger })
+        self.send_command(GraphCommand::QueuedPatchUpdate {
+            update: Box::new(update),
+            trigger,
+        })
     }
 
-    pub fn handle_set_patch(
-        &self,
-        patch_graph: PatchGraph,
-        sample_rate: f32,
-        trigger: QueuedTrigger,
-        update_id: u64,
-        wav_data: HashMap<String, Arc<modular_core::types::WavData>>,
-        transport_meta: Option<TransportMeta>,
-        reset_clock: bool,
-    ) -> Vec<ApplyPatchError> {
+    pub fn handle_set_patch(&self, submission: PatchSubmission) -> Vec<ApplyPatchError> {
         // Validate patch
         let schemas = schema();
-        if let Err(errors) = validate_patch(&patch_graph, &schemas) {
+        if let Err(errors) = validate_patch(&submission.graph, &schemas) {
             return vec![ApplyPatchError {
                 message: "Validation failed".to_string(),
                 errors: Some(errors),
@@ -1871,15 +1717,7 @@ impl AudioState {
         }
 
         // Apply patch
-        if let Err(e) = self.apply_patch(
-            patch_graph,
-            sample_rate,
-            trigger,
-            update_id,
-            wav_data,
-            transport_meta,
-            reset_clock,
-        ) {
+        if let Err(e) = self.apply_patch(submission) {
             return vec![ApplyPatchError {
                 message: format!("Failed to apply patch: {}", e),
                 errors: None,
@@ -1982,7 +1820,7 @@ struct AudioProcessor {
     /// MIDI input manager for polling
     midi_manager: Arc<MidiInputManager>,
     /// Queued patch update waiting for its trigger condition
-    queued_update: Option<(PatchUpdate, QueuedTrigger)>,
+    queued_update: Option<(Box<PatchUpdate>, QueuedTrigger)>,
     /// Transport state meter - written each frame, read by main thread
     transport_meter: Arc<TransportMeter>,
     /// Sample rate of the audio stream
@@ -2176,13 +2014,6 @@ impl AudioProcessor {
                         self.try_push_garbage_item(GarbageItem::Module((module_id, new_module)));
                     }
                 }
-                GraphCommand::DispatchMessage(msg) => {
-                    if let Err(e) = self.patch.dispatch_message(&msg) {
-                        let _ = self
-                            .error_tx
-                            .push(AudioError::MessageDispatchFailed { message: e });
-                    }
-                }
                 GraphCommand::Start => {
                     if self.link.is_active() {
                         // With Link: keep `stopped=true` and arm a pending start.
@@ -2261,7 +2092,7 @@ impl AudioProcessor {
     /// maps — is stowed back into the consumed `update` (the "husk") and
     /// shipped to the garbage queue in a single push at the end, so applying a
     /// patch neither allocates nor deallocates on the audio thread.
-    fn apply_patch_update(&mut self, mut update: PatchUpdate, swap_pos: usize) {
+    fn apply_patch_update(&mut self, mut update: Box<PatchUpdate>, swap_pos: usize) {
         // The new patch arrives fully constructed but unconnected. Bring it to liveness
         // without ever touching the live patch's map, then swap.
 
@@ -2614,19 +2445,32 @@ impl AudioProcessor {
     }
 }
 
+/// The audio callback's ends of the command, error and garbage queues, the
+/// state it shares with the main thread, and the input ring buffer.
+pub struct AudioThreadEndpoints {
+    pub command_rx: CommandConsumer,
+    pub error_tx: ErrorProducer,
+    pub garbage_tx: GarbageProducer,
+    pub shared: AudioSharedState,
+    pub input_reader: InputBufferReader,
+}
+
 pub fn make_stream<T>(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
-    command_rx: CommandConsumer,
-    error_tx: ErrorProducer,
-    garbage_tx: GarbageProducer,
-    shared: AudioSharedState,
-    mut input_reader: InputBufferReader,
+    endpoints: AudioThreadEndpoints,
     block_size: usize,
 ) -> Result<cpal::Stream>
 where
     T: SizedSample + FromSample<f32>,
 {
+    let AudioThreadEndpoints {
+        command_rx,
+        error_tx,
+        garbage_tx,
+        shared,
+        mut input_reader,
+    } = endpoints;
     let num_channels = config.channels as usize;
 
     let err_fn = |err| eprintln!("Error building output sound stream: {err}");
@@ -2868,7 +2712,9 @@ where
                                         // recording tap below so the file captures
                                         // exactly what the declick emitted.
                                         let mut declicked_ch0 = 0.0f32;
-                                        for ch in 0..num_channels.min(PORT_MAX_CHANNELS) {
+                                        for (ch, slot) in
+                                            samples.iter_mut().enumerate().take(num_channels)
+                                        {
                                             // Non-cycling: the root port is only
                                             // as wide as the highest channel the
                                             // patch's out groups name, and device
@@ -2890,7 +2736,7 @@ where
                                                 v * AUDIO_OUTPUT_ATTENUATION
                                                     * final_state_processor.attenuation_factor,
                                             );
-                                            samples[ch] = sample;
+                                            *slot = sample;
                                             if sample.abs() >= 0.0005 {
                                                 any_audible = true;
                                             }
@@ -3111,18 +2957,6 @@ pub fn get_host_by_preference() -> Host {
     default_host
 }
 
-/// Get the sample rate from the default audio device
-pub fn get_sample_rate() -> Result<f32> {
-    let host = get_host_by_preference();
-    let device = host
-        .default_output_device()
-        .ok_or_else(|| napi::Error::from_reason("No audio output device found".to_string()))?;
-    let config = device.default_output_config().map_err(|e| {
-        napi::Error::from_reason(format!("Failed to get default output config: {}", e))
-    })?;
-    Ok(config.sample_rate() as f32)
-}
-
 enum VolumeChange {
     Decrease,
     None,
@@ -3240,14 +3074,6 @@ pub struct AudioBudgetMeter {
 }
 
 impl AudioBudgetMeter {
-    pub const fn new() -> Self {
-        Self {
-            total_samples: AtomicU64::new(0),
-            total_time_ns: AtomicU64::new(0),
-            max_ns_per_sample_q32: AtomicU64::new(0),
-        }
-    }
-
     /// Call from audio callback
     #[inline(always)]
     pub fn record_chunk(&self, samples: u64, time_ns: u64) {
@@ -3560,7 +3386,7 @@ mod tests {
             scope_collection: Arc::new(Mutex::new(HashMap::new())),
             vu_collection: Arc::new(Mutex::new(Vec::new())),
             recording_feed: Arc::new(Mutex::new(None)),
-            audio_budget_meter: Arc::new(AudioBudgetMeter::new()),
+            audio_budget_meter: Arc::new(AudioBudgetMeter::default()),
             module_states: Arc::new(Mutex::new(HashMap::new())),
             midi_manager: Arc::new(MidiInputManager::new()),
             transport_meter: Arc::new(TransportMeter::default()),
@@ -3592,9 +3418,6 @@ mod tests {
     }
 
     impl MockModule {
-        fn new(label: &str) -> Box<dyn modular_core::types::Sampleable> {
-            Self::tagged(label, 0.0)
-        }
         fn tagged(label: &str, state: f32) -> Box<dyn modular_core::types::Sampleable> {
             Box::new(Self {
                 label: label.to_string(),
@@ -3645,7 +3468,7 @@ mod tests {
     }
 
     impl CountingMessageModule {
-        fn new(label: &str, hits: Arc<AtomicUsize>) -> Box<dyn modular_core::types::Sampleable> {
+        fn boxed(label: &str, hits: Arc<AtomicUsize>) -> Box<dyn modular_core::types::Sampleable> {
             Box::new(Self {
                 current_id: label.to_string(),
                 label: label.to_string(),
@@ -3690,7 +3513,7 @@ mod tests {
     }
 
     impl ConstantOutputModule {
-        fn new(id: &str, value: f32) -> Box<dyn modular_core::types::Sampleable> {
+        fn boxed(id: &str, value: f32) -> Box<dyn modular_core::types::Sampleable> {
             Box::new(Self {
                 current_id: id.to_string(),
                 value,
@@ -3726,7 +3549,7 @@ mod tests {
     }
 
     impl PatchUpdateSensitiveModule {
-        fn new(id: &str, signal: Signal) -> Box<dyn modular_core::types::Sampleable> {
+        fn boxed(id: &str, signal: Signal) -> Box<dyn modular_core::types::Sampleable> {
             Box::new(Self {
                 current_id: id.to_string(),
                 params_signal: Mutex::new(signal),
@@ -3770,7 +3593,10 @@ mod tests {
     }
 
     impl CountingProcessModule {
-        fn new(id: &str, processed: Arc<AtomicUsize>) -> Box<dyn modular_core::types::Sampleable> {
+        fn boxed(
+            id: &str,
+            processed: Arc<AtomicUsize>,
+        ) -> Box<dyn modular_core::types::Sampleable> {
             Box::new(Self {
                 current_id: id.to_string(),
                 processed,
@@ -3824,7 +3650,7 @@ mod tests {
             scope_collection: Arc::new(Mutex::new(HashMap::new())),
             vu_collection: Arc::new(Mutex::new(Vec::new())),
             recording_feed: Arc::new(Mutex::new(None)),
-            audio_budget_meter: Arc::new(AudioBudgetMeter::new()),
+            audio_budget_meter: Arc::new(AudioBudgetMeter::default()),
             module_states: Arc::new(Mutex::new(HashMap::new())),
             midi_manager: Arc::new(MidiInputManager::new()),
             transport_meter: Arc::new(TransportMeter::default()),
@@ -3848,11 +3674,8 @@ mod tests {
     /// pairs (plus the implicit HIDDEN_AUDIO_IN), message listeners registered —
     /// mirroring the fully-built, unconnected patch the main thread hands the
     /// audio thread.
-    fn update_with(
-        sample_rate: f32,
-        modules: Vec<(&str, Box<dyn modular_core::types::Sampleable>)>,
-    ) -> PatchUpdate {
-        let mut update = PatchUpdate::new(sample_rate);
+    fn update_with(modules: Vec<(&str, Box<dyn modular_core::types::Sampleable>)>) -> PatchUpdate {
+        let mut update = PatchUpdate::default();
         for (id, module) in modules {
             update.new_patch.sampleables.insert(id.to_string(), module);
         }
@@ -3879,13 +3702,10 @@ mod tests {
             .insert("cycle-3".into(), MockModule::tagged("thirds", 33.0));
 
         // New patch: freshly-built modules at the destination ids (state 0).
-        let mut update = update_with(
-            48000.0,
-            vec![
-                ("cycle-3", MockModule::tagged("new-cycle-3", 0.0)),
-                ("cycle-4", MockModule::tagged("new-cycle-4", 0.0)),
-            ],
-        );
+        let mut update = update_with(vec![
+            ("cycle-3", MockModule::tagged("new-cycle-3", 0.0)),
+            ("cycle-4", MockModule::tagged("new-cycle-4", 0.0)),
+        ]);
         update.set_remaps(&[
             ModuleIdRemap {
                 from: "cycle-2".into(),
@@ -3897,7 +3717,7 @@ mod tests {
             },
         ]);
 
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         // Identity comes from the new patch; only state followed the rename.
         let c3 = processor.patch.sampleables.get("cycle-3").unwrap();
@@ -3933,13 +3753,10 @@ mod tests {
             .sampleables
             .insert("osc-2".into(), MockModule::tagged("beta", 2.0));
 
-        let mut update = update_with(
-            48000.0,
-            vec![
-                ("osc-1", MockModule::tagged("new-osc-1", 0.0)),
-                ("osc-2", MockModule::tagged("new-osc-2", 0.0)),
-            ],
-        );
+        let mut update = update_with(vec![
+            ("osc-1", MockModule::tagged("new-osc-1", 0.0)),
+            ("osc-2", MockModule::tagged("new-osc-2", 0.0)),
+        ]);
         update.set_remaps(&[
             ModuleIdRemap {
                 from: "osc-1".into(),
@@ -3951,7 +3768,7 @@ mod tests {
             },
         ]);
 
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         assert_eq!(
             processor
@@ -3979,7 +3796,7 @@ mod tests {
     fn transfer_source_ids_follow_renames() {
         // Params compare their cables through this view, so a renamed
         // upstream reads as the module it was before the swap.
-        let mut update = PatchUpdate::new(48000.0);
+        let mut update = PatchUpdate::default();
         update.set_remaps(&[ModuleIdRemap {
             from: "lfo-1".into(),
             to: "lfo-2".into(),
@@ -4003,16 +3820,13 @@ mod tests {
             .sampleables
             .insert("vca-1".into(), MockModule::tagged("my-vca", 7.0));
 
-        let mut update = update_with(
-            48000.0,
-            vec![("vca-2", MockModule::tagged("renamed-vca", 0.0))],
-        );
+        let mut update = update_with(vec![("vca-2", MockModule::tagged("renamed-vca", 0.0))]);
         update.set_remaps(&[ModuleIdRemap {
             from: "vca-1".into(),
             to: "vca-2".into(),
         }]);
 
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         assert!(
             !processor.patch.sampleables.contains_key("vca-1"),
@@ -4042,17 +3856,14 @@ mod tests {
             .sampleables
             .insert("gate-1".into(), MockModule::tagged("old-gate", 5.0));
 
-        let mut update = update_with(
-            48000.0,
-            vec![("gate-1", MockModule::tagged("new-gate", 0.0))],
-        );
+        let mut update = update_with(vec![("gate-1", MockModule::tagged("new-gate", 0.0))]);
         update.set_remaps(&[ModuleIdRemap {
             from: "gate-1".into(),
             to: "gate-1".into(),
         }]);
         update.transfer_sources.insert("gate-1".into(), None);
 
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         let gate = processor.patch.sampleables.get("gate-1").unwrap();
         assert_eq!(gate.get_module_type(), "new-gate");
@@ -4139,14 +3950,11 @@ mod tests {
             .sampleables
             .insert("b".into(), MockModule::tagged("old-b", 2.0));
 
-        let mut update = update_with(
-            48000.0,
-            vec![
-                ("a", MockModule::tagged("fresh-a", 0.0)),
-                ("b", MockModule::tagged("new-b", 0.0)),
-                ("c", MockModule::tagged("new-c", 0.0)),
-            ],
-        );
+        let mut update = update_with(vec![
+            ("a", MockModule::tagged("fresh-a", 0.0)),
+            ("b", MockModule::tagged("new-b", 0.0)),
+            ("c", MockModule::tagged("new-c", 0.0)),
+        ]);
         update.set_remaps(&[
             ModuleIdRemap {
                 from: "a".into(),
@@ -4158,7 +3966,7 @@ mod tests {
             },
         ]);
 
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         let value = |id: &str| {
             processor
@@ -4185,8 +3993,8 @@ mod tests {
         // A whole-patch swap replaces the patch wholesale; the reserved
         // HIDDEN_AUDIO_IN must still be present afterward (Patch::new injects it)
         // so per-block input injection keeps targeting it by id.
-        let update = update_with(48000.0, vec![("osc", MockModule::tagged("osc", 0.0))]);
-        processor.apply_patch_update(update, 0);
+        let update = update_with(vec![("osc", MockModule::tagged("osc", 0.0))]);
+        processor.apply_patch_update(Box::new(update), 0);
 
         assert!(
             processor
@@ -4215,8 +4023,8 @@ mod tests {
         // The swap installs a fresh HIDDEN_AUDIO_IN; `transfer_state_from` must
         // carry the injected frame across so consumers don't read silence for
         // the remainder of the block.
-        let update = update_with(48000.0, vec![("osc", MockModule::tagged("osc", 0.0))]);
-        processor.apply_patch_update(update, 0);
+        let update = update_with(vec![("osc", MockModule::tagged("osc", 0.0))]);
+        processor.apply_patch_update(Box::new(update), 0);
 
         assert_eq!(
             processor
@@ -4237,14 +4045,11 @@ mod tests {
         // A swap at a non-zero in-block position moves every new module's
         // per-block cursor to `swap_pos` so slots [0, swap_pos) — already emitted
         // by the pre-swap patch — are not re-filled.
-        let update = update_with(
-            48000.0,
-            vec![
-                ("a", MockModule::tagged("a", 0.0)),
-                ("b", MockModule::tagged("b", 0.0)),
-            ],
-        );
-        processor.apply_patch_update(update, 3);
+        let update = update_with(vec![
+            ("a", MockModule::tagged("a", 0.0)),
+            ("b", MockModule::tagged("b", 0.0)),
+        ]);
+        processor.apply_patch_update(Box::new(update), 3);
 
         for id in ["a", "b"] {
             let recorded = processor
@@ -4328,12 +4133,9 @@ mod tests {
 
         // The new patch carries a fresh clock at the same id; the swap transfers
         // the running phase into it, then reset_clock restarts the transport.
-        let mut update = update_with(
-            44_100.0,
-            vec![(id.as_str(), build_root_clock(processor.block_size))],
-        );
+        let mut update = update_with(vec![(id.as_str(), build_root_clock(processor.block_size))]);
         update.reset_clock = true;
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         // Re-fill the block from the top (mirrors the swap-site eager-fill) and
         // confirm the transport restarted near zero.
@@ -4358,11 +4160,8 @@ mod tests {
         // The new patch's fresh clock inherits the running phase via
         // transfer_state_from (ROOT_CLOCK matched by its constant id); with no
         // reset, the transport keeps advancing from where it was.
-        let update = update_with(
-            44_100.0,
-            vec![(id.as_str(), build_root_clock(processor.block_size))],
-        );
-        processor.apply_patch_update(update, 0);
+        let update = update_with(vec![(id.as_str(), build_root_clock(processor.block_size))]);
+        processor.apply_patch_update(Box::new(update), 0);
 
         let phase_after = advance_clock(&processor, &id, 1);
         assert!(
@@ -4379,20 +4178,24 @@ mod tests {
         // buffer's, so the discarded update's reset must not carry over.
         let (mut cmd_producer, mut processor) = create_test_processor();
 
-        let mut switch_update = PatchUpdate::new(44_100.0);
-        switch_update.reset_clock = true;
+        let switch_update = PatchUpdate {
+            reset_clock: true,
+            ..Default::default()
+        };
         cmd_producer
             .push(GraphCommand::QueuedPatchUpdate {
-                update: switch_update,
+                update: Box::new(switch_update),
                 trigger: QueuedTrigger::NextBar,
             })
             .unwrap();
 
-        let mut reeval_update = PatchUpdate::new(44_100.0);
-        reeval_update.reset_clock = false;
+        let reeval_update = PatchUpdate {
+            reset_clock: false,
+            ..Default::default()
+        };
         cmd_producer
             .push(GraphCommand::QueuedPatchUpdate {
-                update: reeval_update,
+                update: Box::new(reeval_update),
                 trigger: QueuedTrigger::NextBar,
             })
             .unwrap();
@@ -4417,11 +4220,13 @@ mod tests {
     fn cancel_discards_queued_update_and_reports_its_id() {
         let (mut cmd_producer, mut processor) = create_test_processor();
 
-        let mut update = PatchUpdate::new(44_100.0);
-        update.update_id = 7;
+        let update = PatchUpdate {
+            update_id: 7,
+            ..Default::default()
+        };
         cmd_producer
             .push(GraphCommand::QueuedPatchUpdate {
-                update,
+                update: Box::new(update),
                 trigger: QueuedTrigger::NextBar,
             })
             .unwrap();
@@ -4460,12 +4265,12 @@ mod tests {
 
         for cmd in [
             GraphCommand::QueuedPatchUpdate {
-                update: PatchUpdate::new(44_100.0),
+                update: Box::new(PatchUpdate::default()),
                 trigger: QueuedTrigger::NextBar,
             },
             GraphCommand::CancelQueuedUpdate,
             GraphCommand::QueuedPatchUpdate {
-                update: PatchUpdate::new(44_100.0),
+                update: Box::new(PatchUpdate::default()),
                 trigger: QueuedTrigger::NextBar,
             },
         ] {
@@ -4486,16 +4291,18 @@ mod tests {
         // tempo at queue time — both are carried on the update and applied later.
         let (mut cmd_producer, mut processor) = create_test_processor();
 
-        let mut update = PatchUpdate::new(44_100.0);
-        update.transport_meta = Some(TransportMeta {
-            tempo: 90.0,
-            numerator: 3,
-            denominator: 4,
-            tempo_set: true,
-        });
+        let update = PatchUpdate {
+            transport_meta: Some(TransportMeta {
+                tempo: 90.0,
+                numerator: 3,
+                denominator: 4,
+                tempo_set: true,
+            }),
+            ..Default::default()
+        };
         cmd_producer
             .push(GraphCommand::QueuedPatchUpdate {
-                update,
+                update: Box::new(update),
                 trigger: QueuedTrigger::NextBar,
             })
             .unwrap();
@@ -4526,14 +4333,16 @@ mod tests {
     #[test]
     fn apply_patch_update_writes_meter() {
         let (_cmd_producer, mut processor) = create_test_processor();
-        let mut update = PatchUpdate::new(44_100.0);
-        update.transport_meta = Some(TransportMeta {
-            tempo: 90.0,
-            numerator: 3,
-            denominator: 4,
-            tempo_set: false,
-        });
-        processor.apply_patch_update(update, 0);
+        let update = PatchUpdate {
+            transport_meta: Some(TransportMeta {
+                tempo: 90.0,
+                numerator: 3,
+                denominator: 4,
+                tempo_set: false,
+            }),
+            ..Default::default()
+        };
+        processor.apply_patch_update(Box::new(update), 0);
 
         let snap = processor.transport_meter.snapshot();
         assert_eq!(snap.bpm, 90.0);
@@ -4545,8 +4354,8 @@ mod tests {
     fn apply_patch_update_without_transport_meta_leaves_meter() {
         let (_cmd_producer, mut processor) = create_test_processor();
         // transport_meta defaults to None (patch with no ROOT_CLOCK).
-        let update = PatchUpdate::new(44_100.0);
-        processor.apply_patch_update(update, 0);
+        let update = PatchUpdate::default();
+        processor.apply_patch_update(Box::new(update), 0);
 
         let snap = processor.transport_meter.snapshot();
         assert_eq!(snap.bpm, 120.0);
@@ -4561,30 +4370,34 @@ mod tests {
         // the meter at queue time.
         let (mut cmd_producer, mut processor) = create_test_processor();
 
-        let mut b = PatchUpdate::new(44_100.0);
-        b.transport_meta = Some(TransportMeta {
-            tempo: 90.0,
-            numerator: 4,
-            denominator: 4,
-            tempo_set: true,
-        });
+        let b = PatchUpdate {
+            transport_meta: Some(TransportMeta {
+                tempo: 90.0,
+                numerator: 4,
+                denominator: 4,
+                tempo_set: true,
+            }),
+            ..Default::default()
+        };
         cmd_producer
             .push(GraphCommand::QueuedPatchUpdate {
-                update: b,
+                update: Box::new(b),
                 trigger: QueuedTrigger::NextBar,
             })
             .unwrap();
 
-        let mut c = PatchUpdate::new(44_100.0);
-        c.transport_meta = Some(TransportMeta {
-            tempo: 80.0,
-            numerator: 4,
-            denominator: 4,
-            tempo_set: true,
-        });
+        let c = PatchUpdate {
+            transport_meta: Some(TransportMeta {
+                tempo: 80.0,
+                numerator: 4,
+                denominator: 4,
+                tempo_set: true,
+            }),
+            ..Default::default()
+        };
         cmd_producer
             .push(GraphCommand::QueuedPatchUpdate {
-                update: c,
+                update: Box::new(c),
                 trigger: QueuedTrigger::NextBar,
             })
             .unwrap();
@@ -4616,28 +4429,26 @@ mod tests {
         let new_hits = Arc::new(AtomicUsize::new(0));
         processor.patch.sampleables.insert(
             "m1".into(),
-            CountingMessageModule::new("old", Arc::clone(&old_hits)),
+            CountingMessageModule::boxed("old", Arc::clone(&old_hits)),
         );
         processor.patch.rebuild_message_listeners();
 
         cmd_producer
             .push(GraphCommand::SingleModuleUpdate {
                 module_id: "m1".into(),
-                module: CountingMessageModule::new("new", Arc::clone(&new_hits)),
+                module: CountingMessageModule::boxed("new", Arc::clone(&new_hits)),
             })
             .unwrap();
-        cmd_producer
-            .push(GraphCommand::DispatchMessage(Message::MidiNoteOn(
-                MidiNoteOn {
-                    device: None,
-                    channel: 0,
-                    note: 60,
-                    velocity: 100,
-                },
-            )))
-            .unwrap();
-
         processor.process_commands();
+        processor
+            .patch
+            .dispatch_message(&Message::MidiNoteOn(MidiNoteOn {
+                device: None,
+                channel: 0,
+                note: 60,
+                velocity: 100,
+            }))
+            .unwrap();
 
         assert_eq!(old_hits.load(Ordering::SeqCst), 0);
         assert_eq!(new_hits.load(Ordering::SeqCst), 1);
@@ -4650,10 +4461,10 @@ mod tests {
         processor
             .patch
             .sampleables
-            .insert("src".into(), ConstantOutputModule::new("src", 3.5));
+            .insert("src".into(), ConstantOutputModule::boxed("src", 3.5));
         processor.patch.sampleables.insert(
             "dep".into(),
-            PatchUpdateSensitiveModule::new("dep", Signal::cable("src", "out", 0)),
+            PatchUpdateSensitiveModule::boxed("dep", Signal::cable("src", "out", 0)),
         );
 
         processor.patch.connect_all();
@@ -4669,7 +4480,7 @@ mod tests {
         cmd_producer
             .push(GraphCommand::SingleModuleUpdate {
                 module_id: "src".into(),
-                module: ConstantOutputModule::new("src", 7.25),
+                module: ConstantOutputModule::boxed("src", 7.25),
             })
             .unwrap();
 
@@ -4691,16 +4502,13 @@ mod tests {
         let (_cmd_producer, mut processor) = create_test_processor();
         let processed = Arc::new(AtomicUsize::new(0));
 
-        let mut update = update_with(
-            48000.0,
-            vec![(
-                "iso",
-                CountingProcessModule::new("iso", Arc::clone(&processed)),
-            )],
-        );
+        let mut update = update_with(vec![(
+            "iso",
+            CountingProcessModule::boxed("iso", Arc::clone(&processed)),
+        )]);
         update.process_order_ids = vec!["iso".into()];
 
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         // apply_patch_update resolved the id order into a live pointer list.
         assert_eq!(processor.process_order.len(), 1);
@@ -4716,16 +4524,13 @@ mod tests {
         let (_cmd_producer, mut processor) = create_test_processor();
         let processed = Arc::new(AtomicUsize::new(0));
 
-        let mut update = update_with(
-            48000.0,
-            vec![(
-                "real",
-                CountingProcessModule::new("real", Arc::clone(&processed)),
-            )],
-        );
+        let mut update = update_with(vec![(
+            "real",
+            CountingProcessModule::boxed("real", Arc::clone(&processed)),
+        )]);
         update.process_order_ids = vec!["real".into(), "ghost".into()];
 
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         // Only the real module yields a pointer; "ghost" is silently dropped.
         assert_eq!(processor.process_order.len(), 1);
@@ -4741,20 +4546,17 @@ mod tests {
         let old_processed = Arc::new(AtomicUsize::new(0));
         let new_processed = Arc::new(AtomicUsize::new(0));
 
-        let mut update = update_with(
-            48000.0,
-            vec![(
-                "m",
-                CountingProcessModule::new("m", Arc::clone(&old_processed)),
-            )],
-        );
+        let mut update = update_with(vec![(
+            "m",
+            CountingProcessModule::boxed("m", Arc::clone(&old_processed)),
+        )]);
         update.process_order_ids = vec!["m".into()];
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         cmd_producer
             .push(GraphCommand::SingleModuleUpdate {
                 module_id: "m".into(),
-                module: CountingProcessModule::new("m", Arc::clone(&new_processed)),
+                module: CountingProcessModule::boxed("m", Arc::clone(&new_processed)),
             })
             .unwrap();
         processor.process_commands();
@@ -4768,15 +4570,12 @@ mod tests {
     fn process_order_cleared_on_clear_patch() {
         let (mut cmd_producer, mut processor) = create_test_processor();
 
-        let mut update = update_with(
-            48000.0,
-            vec![(
-                "m",
-                CountingProcessModule::new("m", Arc::new(AtomicUsize::new(0))),
-            )],
-        );
+        let mut update = update_with(vec![(
+            "m",
+            CountingProcessModule::boxed("m", Arc::new(AtomicUsize::new(0))),
+        )]);
         update.process_order_ids = vec!["m".into()];
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
         assert_eq!(processor.process_order.len(), 1);
 
         cmd_producer
@@ -4800,24 +4599,21 @@ mod tests {
         let old_hits = Arc::new(AtomicUsize::new(0));
         processor.patch.sampleables.insert(
             "old-id".into(),
-            CountingMessageModule::new("old-id", Arc::clone(&old_hits)),
+            CountingMessageModule::boxed("old-id", Arc::clone(&old_hits)),
         );
         processor.patch.rebuild_message_listeners();
 
         let new_hits = Arc::new(AtomicUsize::new(0));
-        let mut update = update_with(
-            48000.0,
-            vec![(
-                "new-id",
-                CountingMessageModule::new("new-id", Arc::clone(&new_hits)),
-            )],
-        );
+        let mut update = update_with(vec![(
+            "new-id",
+            CountingMessageModule::boxed("new-id", Arc::clone(&new_hits)),
+        )]);
         update.set_remaps(&[ModuleIdRemap {
             from: "old-id".into(),
             to: "new-id".into(),
         }]);
 
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         let message = Message::MidiNoteOn(MidiNoteOn {
             device: None,
@@ -5023,15 +4819,15 @@ mod tests {
         let key1 = scope_key("m1");
         let key2 = scope_key("m2");
 
-        let mut u1 = PatchUpdate::new(44_100.0);
+        let mut u1 = PatchUpdate::default();
         u1.scope_next
             .insert(key1.clone(), ScopeBuffer::new(100, None, 44_100.0));
-        let mut u2 = PatchUpdate::new(44_100.0);
+        let mut u2 = PatchUpdate::default();
         u2.scope_next
             .insert(key2.clone(), ScopeBuffer::new(100, None, 44_100.0));
 
-        processor.apply_patch_update(u1, 0);
-        processor.apply_patch_update(u2, 0);
+        processor.apply_patch_update(Box::new(u1), 0);
+        processor.apply_patch_update(Box::new(u2), 0);
 
         let collection = processor.scope_collection.lock();
         assert!(collection.contains_key(&key2));
@@ -5051,10 +4847,10 @@ mod tests {
         let kept = scope_key("kept");
         let added = scope_key("added");
 
-        let mut u1 = PatchUpdate::new(44_100.0);
+        let mut u1 = PatchUpdate::default();
         u1.scope_next
             .insert(kept.clone(), ScopeBuffer::new(100, None, 44_100.0));
-        processor.apply_patch_update(u1, 0);
+        processor.apply_patch_update(Box::new(u1), 0);
         processor
             .scope_collection
             .lock()
@@ -5062,12 +4858,12 @@ mod tests {
             .unwrap()
             .push(0.75);
 
-        let mut u2 = PatchUpdate::new(44_100.0);
+        let mut u2 = PatchUpdate::default();
         u2.scope_next
             .insert(kept.clone(), ScopeBuffer::new(100, None, 44_100.0));
         u2.scope_next
             .insert(added.clone(), ScopeBuffer::new(100, None, 44_100.0));
-        processor.apply_patch_update(u2, 0);
+        processor.apply_patch_update(Box::new(u2), 0);
 
         let collection = processor.scope_collection.lock();
         assert_eq!(
@@ -5101,7 +4897,7 @@ mod tests {
                 mode,
             )
         };
-        let mut update = PatchUpdate::new(SR);
+        let mut update = PatchUpdate::default();
         update
             .new_patch
             .insert_modules(
@@ -5124,7 +4920,7 @@ mod tests {
             )
             .unwrap();
         update.process_order_ids = vec!["blk".into(), "smp".into()];
-        processor.apply_patch_update(update, 0);
+        processor.apply_patch_update(Box::new(update), 0);
 
         let key = |id: &str, channel: u32, trigger| ScopeBufferKey {
             module_id: id.into(),
@@ -5242,12 +5038,8 @@ mod tests {
         }
     }
 
-    fn pending_entry(
-        id: u64,
-        module: &str,
-        tag: &'static str,
-    ) -> (u64, HashMap<String, Box<dyn ModuleStateMeta>>) {
-        let mut metas: HashMap<String, Box<dyn ModuleStateMeta>> = HashMap::new();
+    fn pending_entry(id: u64, module: &str, tag: &'static str) -> (u64, ModuleStateMetas) {
+        let mut metas: ModuleStateMetas = HashMap::new();
         metas.insert(module.into(), Box::new(TestStateMeta(tag)));
         (id, metas)
     }

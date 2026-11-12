@@ -388,10 +388,10 @@ impl DrumMap {
                 knob(p.sd_density.value_or(ch, 2.5)),
                 knob(p.hh_density.value_or(ch, 2.5)),
             ];
-            for part in 0..NUM_PARTS {
+            for (part, &density) in densities.iter().enumerate() {
                 let level =
                     read_drum_map(step, part, x, y).saturating_add(state.perturbation[part]);
-                if level > !densities[part] {
+                if level > !density {
                     state.triggers[part].set_state(TempGateState::High, TempGateState::Low, hold);
                     if level as f32 * velocity > ACCENT_LEVEL as f32 {
                         state.accents[part].set_state(

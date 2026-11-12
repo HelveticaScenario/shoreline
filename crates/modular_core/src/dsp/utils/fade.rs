@@ -4,8 +4,8 @@
 /// to be inaudible as a fade, long enough to remove the click.
 pub const DEFAULT_FADE_IN_SECS: f32 = 0.005;
 
-/// One-shot fade-in: ramps a gain from 0 to 1 over a fixed time, then holds at
-/// 1. Multiply a module's output by [`FadeIn::advance`] to suppress the click
+/// One-shot fade-in: ramps a gain from 0 to 1 over a fixed time, then holds
+/// at 1. Multiply a module's output by [`FadeIn::advance`] to suppress the click
 /// from the signal stepping out of silence when the module is first added.
 ///
 /// The default state (`gain == 0.0`) is a freshly added module, so it fades in.

@@ -75,9 +75,11 @@ macro_rules! shape_module {
                     let channels = self.channel_count();
                     crate::dsp::shape::shape_core::run(
                         channels,
-                        &self.params.input,
-                        &self.params.drive,
-                        self.params.mode,
+                        crate::dsp::shape::shape_core::ShapeInputs {
+                            input: &self.params.input,
+                            drive: &self.params.drive,
+                            mode: self.params.mode,
+                        },
                         &self.state,
                         &mut self.channel_state,
                         &mut self.outputs.sample,
@@ -139,9 +141,11 @@ macro_rules! shape_module {
                     let channels = self.channel_count();
                     crate::dsp::shape::shape_core::run(
                         channels,
-                        &self.params.input,
-                        &self.params.drive,
-                        (),
+                        crate::dsp::shape::shape_core::ShapeInputs {
+                            input: &self.params.input,
+                            drive: &self.params.drive,
+                            mode: (),
+                        },
                         &self.state,
                         &mut self.channel_state,
                         &mut self.outputs.sample,

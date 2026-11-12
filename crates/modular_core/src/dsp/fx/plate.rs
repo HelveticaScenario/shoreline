@@ -579,7 +579,7 @@ mod tests {
             f64_inputs: false,
         };
         constructors.get("$plate").unwrap()(
-            &"test-plate".to_string(),
+            "test-plate",
             SAMPLE_RATE,
             deserialized,
             TEST_BLOCK_SIZE,

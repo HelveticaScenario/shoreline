@@ -213,10 +213,6 @@ export interface AudioDeviceInfo {
   bufferSizeRange?: BufferSizeRange
 }
 
-export interface AudioThreadHealthSnapshot {
-  estimatedFrameBudgetUsageMax: number
-}
-
 /** Buffer size range for an audio device */
 export interface BufferSizeRange {
   min: number

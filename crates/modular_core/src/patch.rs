@@ -19,6 +19,12 @@ pub struct Patch {
     message_listeners: HashMap<MessageTag, Vec<String>>,
 }
 
+impl Default for Patch {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Patch {
     /// Create a new empty patch
     pub fn new() -> Self {

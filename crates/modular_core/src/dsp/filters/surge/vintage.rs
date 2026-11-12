@@ -226,6 +226,7 @@ const H10_DRIVE: f32 = 4.0;
 
 /// Surge `Huov2010::makeCoefficients`: polynomial fits (in `ω`) for the feedback and
 /// one-pole gains.
+#[expect(clippy::approx_constant, reason = "fitted polynomial coefficients")]
 fn coeffs_huov2010(freq_semi: f32, reso: f32, rate: f32, compensated: bool) -> [f32; N_COEFFS] {
     let cutoff = clamped_frequency(freq_semi, rate);
     let omega = (2.0 * std::f64::consts::PI * cutoff as f64) / rate as f64;

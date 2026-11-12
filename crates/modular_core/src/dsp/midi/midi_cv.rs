@@ -322,12 +322,10 @@ impl MidiCv {
     /// Find which voice is playing a note
     fn find_voice_for_note(&self, note: u8) -> Option<usize> {
         let num_voices = self.params.channels.clamp(1, PORT_MAX_CHANNELS);
-        for i in 0..num_voices {
-            if self.channel_state[i].voice.gate && self.channel_state[i].voice.note == note {
-                return Some(i);
-            }
-        }
-        None
+        (0..num_voices).find(|&i| {
+            let voice = &self.channel_state[i].voice;
+            voice.gate && voice.note == note
+        })
     }
 
     /// Get the note to play in monophonic mode based on priority
@@ -480,8 +478,8 @@ impl MidiCv {
             1 => {
                 // Mod wheel
                 if self.params.poly_mode == PolyMode::Mpe && msg.channel > 0 {
-                    let voice_idx = ((msg.channel - 1) as usize)
-                        .min(self.params.channels.saturating_sub(1));
+                    let voice_idx =
+                        ((msg.channel - 1) as usize).min(self.params.channels.saturating_sub(1));
                     self.channel_state[voice_idx].voice.mod_wheel = msg.value;
                 } else {
                     self.state.global_mod_wheel = msg.value;

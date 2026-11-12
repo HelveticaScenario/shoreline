@@ -19,10 +19,11 @@ pub fn is_type(ty: &Type, is_type_fn: fn(&Type) -> bool) -> bool {
         let segments = &type_path.path.segments;
         if let Some(last) = segments.last()
             && last.ident == "Option"
-                && let syn::PathArguments::AngleBracketed(args) = &last.arguments
-                    && let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
-                        return is_type_fn(inner_ty);
-                    }
+            && let syn::PathArguments::AngleBracketed(args) = &last.arguments
+            && let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first()
+        {
+            return is_type_fn(inner_ty);
+        }
     }
     false
 }

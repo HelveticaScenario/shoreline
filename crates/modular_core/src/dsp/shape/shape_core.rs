@@ -65,8 +65,7 @@ impl<S: Shaper> ShapeChannel<S> {
         drive_raw: f32,
         drive_mark: GlideMark,
         mode: S::Mode,
-        dc_coeff: f32,
-        fade_inc: f32,
+        state: &ShapeModuleState,
         sample_rate: f32,
     ) -> f32 {
         self.drive.update(drive_raw, drive_mark, sample_rate);
@@ -77,11 +76,11 @@ impl<S: Shaper> ShapeChannel<S> {
         // block at 2×, so every mode — including the ADAA folds/rectifiers —
         // matches that by running its state at the oversampled rate.
         let (even, odd) = self.up.process(x);
-        let se = self.shaper.shape(even, drive, mode, dc_coeff);
-        let so = self.shaper.shape(odd, drive, mode, dc_coeff);
+        let se = self.shaper.shape(even, drive, mode, state.dc_coeff);
+        let so = self.shaper.shape(odd, drive, mode, state.dc_coeff);
         let y = self.down.process(se, so);
 
-        y * AUDIO_LEVEL * self.fade.advance(fade_inc)
+        y * AUDIO_LEVEL * self.fade.advance(state.fade_inc)
     }
 }
 
@@ -103,28 +102,32 @@ impl ShapeModuleState {
     }
 }
 
+/// The signal inputs and mode every `$unstable.shape.*` module shares.
+pub struct ShapeInputs<'a, M> {
+    pub input: &'a PolySignal,
+    pub drive: &'a Option<PolySignal>,
+    pub mode: M,
+}
+
 /// Run one sample across all channels of a `$unstable.shape.*` module: gather, shape,
 /// scatter. This is the entire per-sample body every module shares.
 #[inline]
 pub fn run<S: Shaper>(
     channels: usize,
-    input: &PolySignal,
-    drive: &Option<PolySignal>,
-    mode: S::Mode,
+    inputs: ShapeInputs<'_, S::Mode>,
     state: &ShapeModuleState,
     channel_state: &mut [ShapeChannel<S>],
     out: &mut PolyOutput,
     sample_rate: f32,
 ) {
-    for ch in 0..channels {
-        let x = input.get_value(ch);
-        let y = channel_state[ch].process(
-            x,
+    let ShapeInputs { input, drive, mode } = inputs;
+    for (ch, cs) in channel_state[..channels].iter_mut().enumerate() {
+        let y = cs.process(
+            input.get_value(ch),
             drive.value_or(ch, 0.0),
             drive.glide_mark(ch),
             mode,
-            state.dc_coeff,
-            state.fade_inc,
+            state,
             sample_rate,
         );
         out.set(ch, y);

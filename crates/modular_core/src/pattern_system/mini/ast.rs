@@ -344,7 +344,7 @@ pub(crate) mod test_builders {
     //! programmatically. These replace the Pest parser in existing Rust
     //! tests — see `pattern_system::mini::tests` / convert tests.
 
-    use super::{AtomValue, Located, MiniAST, MiniASTF64, MiniASTI32, MiniASTU32};
+    use super::{AtomValue, Located, MiniAST, MiniASTU32};
     use crate::pattern_system::SourceSpan;
 
     pub fn span(start: usize, end: usize) -> SourceSpan {
@@ -375,21 +375,6 @@ pub(crate) mod test_builders {
         MiniAST::Sequence(items)
     }
 
-    pub fn fastcat(items: Vec<(MiniAST, Option<f64>)>) -> MiniAST {
-        MiniAST::FastCat(items)
-    }
-
-    pub fn slowcat(items: Vec<(MiniAST, Option<f64>)>) -> MiniAST {
-        MiniAST::SlowCat(items)
-    }
-
-    pub fn fast_f64(pattern: MiniAST, factor: f64, start: usize, end: usize) -> MiniAST {
-        MiniAST::Fast(
-            Box::new(pattern),
-            Box::new(MiniASTF64::Pure(Located::new(factor, start, end))),
-        )
-    }
-
     pub fn euclidean(pattern: MiniAST, pulses: u32, steps: u32) -> MiniAST {
         MiniAST::Euclidean {
             pattern: Box::new(pattern),
@@ -397,29 +382,6 @@ pub(crate) mod test_builders {
             steps: Box::new(MiniASTU32::Pure(Located::new(steps, 0, 0))),
             rotation: None,
         }
-    }
-
-    #[allow(dead_code)]
-    pub fn euclidean_with_rotation(
-        pattern: MiniAST,
-        pulses: u32,
-        steps: u32,
-        rotation: i32,
-    ) -> MiniAST {
-        MiniAST::Euclidean {
-            pattern: Box::new(pattern),
-            pulses: Box::new(MiniASTU32::Pure(Located::new(pulses, 0, 0))),
-            steps: Box::new(MiniASTU32::Pure(Located::new(steps, 0, 0))),
-            rotation: Some(Box::new(MiniASTI32::Pure(Located::new(rotation, 0, 0)))),
-        }
-    }
-
-    pub fn replicate(pattern: MiniAST, count: u32) -> MiniAST {
-        MiniAST::Replicate(Box::new(pattern), count)
-    }
-
-    pub fn degrade(pattern: MiniAST, prob: Option<f64>, seed: u64) -> MiniAST {
-        MiniAST::Degrade(Box::new(pattern), prob, seed)
     }
 }
 

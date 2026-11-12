@@ -10,6 +10,7 @@ use serde_json::json;
 static GLOBAL: CountingAllocator = CountingAllocator;
 
 type BinaryOp = fn(f32, f32) -> f32;
+type UnaryOp = fn(f32) -> f32;
 
 const OPS: [(&str, BinaryOp); 5] = [
     ("add", |x, y| x + y),
@@ -19,7 +20,7 @@ const OPS: [(&str, BinaryOp); 5] = [
     ("pow", |x, y| x.signum() * x.abs().powf(y)),
 ];
 
-const MODES: [(&str, fn(f32) -> f32); 3] = [
+const MODES: [(&str, UnaryOp); 3] = [
     ("round", f32::round),
     ("floor", f32::floor),
     ("ceil", f32::ceil),

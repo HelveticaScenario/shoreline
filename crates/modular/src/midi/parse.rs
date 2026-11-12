@@ -18,12 +18,6 @@ pub(super) struct MidiCcState {
 }
 
 impl MidiCcState {
-    fn new() -> Self {
-        Self {
-            msb_values: [[None; 32]; 16],
-        }
-    }
-
     /// Store MSB value for later combination with LSB
     fn set_msb(&mut self, channel: u8, cc: u8, value: u8) {
         if cc < 32 && channel < 16 {
@@ -93,9 +87,7 @@ impl MidiParseState {
     }
 
     fn get_cc_state(&mut self, device: &str) -> &mut MidiCcState {
-        self.cc_state
-            .entry(device.to_string())
-            .or_default()
+        self.cc_state.entry(device.to_string()).or_default()
     }
 
     fn track_note_on(&mut self, device: &str, channel: u8, note: u8) {

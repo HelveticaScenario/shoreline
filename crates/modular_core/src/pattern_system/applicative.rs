@@ -43,11 +43,8 @@ impl<T: Clone + Send + Sync + 'static> Pattern<T> {
                     for hap_val in haps_val.iter() {
                         if let Some(part) = hap_fn.part.intersection(&hap_val.part) {
                             let value = f(&hap_fn.value, &hap_val.value);
-                            let context = ArenaHapContext::combine_in(
-                                hap_fn.context,
-                                hap_val.context,
-                                bump,
-                            );
+                            let context =
+                                ArenaHapContext::combine_in(hap_fn.context, hap_val.context, bump);
                             out.push(ArenaHap {
                                 whole: hap_fn.whole.clone(),
                                 part,
@@ -138,11 +135,8 @@ impl<T: Clone + Send + Sync + 'static> Pattern<T> {
                     for hap_fn in haps_fn.iter() {
                         if let Some(part) = hap_fn.part.intersection(&hap_val.part) {
                             let value = f(&hap_fn.value, &hap_val.value);
-                            let context = ArenaHapContext::combine_in(
-                                hap_fn.context,
-                                hap_val.context,
-                                bump,
-                            );
+                            let context =
+                                ArenaHapContext::combine_in(hap_fn.context, hap_val.context, bump);
 
                             out.push(ArenaHap {
                                 whole: hap_val.whole.clone(),
@@ -191,11 +185,8 @@ impl<T: Clone + Send + Sync + 'static> Pattern<T> {
                         };
                         if let Some(part) = hap_fn.part.intersection(&hap_val.part) {
                             let value = f(&hap_fn.value, &hap_val.value);
-                            let context = ArenaHapContext::combine_in(
-                                hap_fn.context,
-                                hap_val.context,
-                                bump,
-                            );
+                            let context =
+                                ArenaHapContext::combine_in(hap_fn.context, hap_val.context, bump);
                             out.push(ArenaHap {
                                 whole: new_whole,
                                 part,

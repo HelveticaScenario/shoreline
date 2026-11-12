@@ -212,7 +212,7 @@ fn grains_derive_channel_count(params: &GrainsParams) -> usize {
     count = count.max(params.length.channel_count());
     count = count.max(params.density.channel_count());
     count = count.max(params.direction_bias.channel_count());
-    count.max(1).min(PORT_MAX_CHANNELS)
+    count.clamp(1, PORT_MAX_CHANNELS)
 }
 
 // ── Module ─────────────────────────────────────────────────────────────────────
@@ -647,7 +647,7 @@ mod tests {
         constructors
             .get(module_type)
             .unwrap_or_else(|| panic!("no constructor for '{module_type}'"))(
-            &id.to_string(),
+            id,
             SAMPLE_RATE,
             deserialized,
             TEST_BLOCK_SIZE,

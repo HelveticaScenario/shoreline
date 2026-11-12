@@ -218,6 +218,7 @@ fn signal_cable_reconnect_to_replacement_source_rebinds_resolved_and_reads_new_v
 #[test]
 fn enum_tag_derive_generates_payload_free_enum() {
     #[derive(modular_derive::EnumTag)]
+    #[expect(dead_code, reason = "the payloads exist to exercise the derive")]
     enum E<'a, T> {
         A,
         B(u32),

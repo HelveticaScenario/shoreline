@@ -235,7 +235,8 @@ impl Mix {
         let mut pre_gain_values = [0.0f32; PORT_MAX_CHANNELS];
         match self.params.mode {
             MixMode::Sum => {
-                for channel in 0..max_input_channels {
+                for (channel, value) in pre_gain_values[..max_input_channels].iter_mut().enumerate()
+                {
                     let mut sum: f32 = 0.0;
                     for input in inputs.iter() {
                         if channel >= input.channels() {
@@ -243,11 +244,12 @@ impl Mix {
                         }
                         sum += input.get_value(channel);
                     }
-                    pre_gain_values[channel] = sum;
+                    *value = sum;
                 }
             }
             MixMode::Average => {
-                for channel in 0..max_input_channels {
+                for (channel, value) in pre_gain_values[..max_input_channels].iter_mut().enumerate()
+                {
                     let mut sum: f32 = 0.0;
                     let mut count: u32 = 0;
                     for input in inputs.iter() {
@@ -257,11 +259,12 @@ impl Mix {
                         sum += input.get_value(channel);
                         count += 1;
                     }
-                    pre_gain_values[channel] = if count > 0 { sum / count as f32 } else { 0.0 };
+                    *value = if count > 0 { sum / count as f32 } else { 0.0 };
                 }
             }
             MixMode::Max => {
-                for channel in 0..max_input_channels {
+                for (channel, value) in pre_gain_values[..max_input_channels].iter_mut().enumerate()
+                {
                     let mut best_abs: f32 = -1.0;
                     let mut best_val: f32 = 0.0;
                     for input in inputs.iter() {
@@ -270,11 +273,12 @@ impl Mix {
                         }
                         fold_max(&mut best_abs, &mut best_val, input.get_value(channel));
                     }
-                    pre_gain_values[channel] = max_result(best_abs, best_val);
+                    *value = max_result(best_abs, best_val);
                 }
             }
             MixMode::Min => {
-                for channel in 0..max_input_channels {
+                for (channel, value) in pre_gain_values[..max_input_channels].iter_mut().enumerate()
+                {
                     let mut best_abs: f32 = f32::INFINITY;
                     let mut best_val: f32 = 0.0;
                     for input in inputs.iter() {
@@ -283,7 +287,7 @@ impl Mix {
                         }
                         fold_min(&mut best_abs, &mut best_val, input.get_value(channel));
                     }
-                    pre_gain_values[channel] = min_result(best_abs, best_val);
+                    *value = min_result(best_abs, best_val);
                 }
             }
         }
@@ -422,14 +426,14 @@ mod tests {
         let channels = mix_derive_channel_count(&params);
         let mut outputs = MixOutputs::default();
         outputs.set_all_channels(channels);
-        let mixer = Mix {
+
+        Mix {
             params,
             outputs,
             _channel_count: channels,
             _block_index: Default::default(),
             channel_state: vec![SwapGlide::default(); channels].into_boxed_slice(),
-        };
-        mixer
+        }
     }
 
     #[test]

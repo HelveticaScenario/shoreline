@@ -145,7 +145,7 @@ fn compute_coeffs(cutoff: f32, resonance: f32, sample_rate: f32) -> (f32, f32) {
     let g = wc.tan();
 
     // Map resonance 0–5 → k 0–4.0 (self-oscillation at k=4)
-    let k = (resonance / 5.0 * 4.0).max(0.0).min(4.0);
+    let k = (resonance / 5.0 * 4.0).clamp(0.0, 4.0);
 
     (g, k)
 }
@@ -208,7 +208,7 @@ fn process_ladder(input: f32, state: &mut [f32; 4], g: f32, k: f32) -> (f32, f32
 #[inline]
 fn tanh_approx(x: f32) -> f32 {
     // Clamp to avoid overflow in x*x
-    let x = x.max(-4.0).min(4.0);
+    let x = x.clamp(-4.0, 4.0);
     let x2 = x * x;
     x * (27.0 + x2) / (27.0 + 9.0 * x2)
 }

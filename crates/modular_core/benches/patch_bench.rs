@@ -601,8 +601,10 @@ fn erratic_modulated(channels: usize) -> BenchPatch {
     erratic_chain(channels, true)
 }
 
+type PatchBuilder = fn(usize) -> BenchPatch;
+
 fn bench_patches(c: &mut Criterion) {
-    let cases: &[(&str, fn(usize) -> BenchPatch)] = &[
+    let cases: &[(&str, PatchBuilder)] = &[
         ("sine_bank_16", sine_bank),
         ("sine_fm_16", sine_fm),
         ("wide_mix_sample_160", wide_mix_sample),
