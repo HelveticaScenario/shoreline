@@ -257,7 +257,7 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * @example $sine("C4")           // Note string
  * @example $sine(2)              // Number
  * @example $sine("440hz")        // Hz string
- * @example $sine($signal('c').shift($sine("1hz").amp(0.1)))   // Collection (1Hz vibrato)
+ * @example $sine($signal('c').add($sine("1hz").amp(0.1)))   // Collection (1Hz vibrato)
  * @see {@link Poly<Signal>} - for multi-channel signals
  * @see {@link Collection} - for module connections
  */
@@ -782,40 +782,6 @@ class BaseCollection {
   chunk(size: number): this[];
 
   /**
-   * Add another signal to this one, sample by sample.
-   * @param operand Signal to add as {@link Poly<Signal>}
-   * @returns The sum as a {@link Collection} for chaining
-   * @example $sine('c3').add($sine('c4')).out()
-   */
-  add(operand: Poly<Signal>): Collection;
-
-  /**
-   * Subtract another signal from this one, sample by sample.
-   * @param operand Signal to subtract as {@link Poly<Signal>}
-   * @returns The difference as a {@link Collection} for chaining
-   * @example $saw('c3').sub($saw('c3', { phaseOffset: 0.5 })).out()  // pulse from two saws
-   */
-  sub(operand: Poly<Signal>): Collection;
-
-  /**
-   * Multiply this signal by another, sample by sample (2 = double).
-   * To change amplitude with a 0–5 V signal such as \`$adsr\`, see
-   * \`.amp()\` and \`.gain()\`.
-   * @param operand Factor as {@link Poly<Signal>}
-   * @returns The product as a {@link Collection} for chaining
-   * @example $sine('c3').mul($sine('2hz')).out()  // ring modulation
-   */
-  mul(operand: Poly<Signal>): Collection;
-
-  /**
-   * Divide this signal by another, sample by sample. Dividing by 0 gives 0.
-   * @param operand Divisor as {@link Poly<Signal>}
-   * @returns The quotient as a {@link Collection} for chaining
-   * @example $clockedDelay($saw('c3').amp($perc($clock._beatTrigger)), { bars: $sine('0.1hz').range(1, 4).round().div(8) }).out()  // 1/8 to 4/8 of a bar
-   */
-  div(operand: Poly<Signal>): Collection;
-
-  /**
    * Round this signal to the nearest whole volt, halves away from zero. On a
    * ranged signal the range rounds too.
    * @returns The rounded {@link Collection} for chaining
@@ -838,16 +804,6 @@ class BaseCollection {
    * @example $sine($saw('0.5hz').range(-4, 0).ceil().add('c4')).out()  // octaves down from C4
    */
   ceil(): Collection;
-
-  /**
-   * Raise this signal to the power \`exponent\`, sample by sample. Negative
-   * values mirror positive ones, so 2 squares the size and keeps the sign.
-   * For a curve that keeps ±5 V at ±5 V, use \\$curve.
-   * @param exponent Power as {@link Poly<Signal>}
-   * @returns The {@link Collection} for chaining
-   * @example $sine('c3').amp($sine('1hz').range(0, 2.2).exp(2)).out()  // tremolo, 0–4.84
-   */
-  exp(exponent: Poly<Signal>): Collection;
 
   /**
    * Apply a wandering random shift of up to ±\`amount\` V. Each channel
@@ -919,7 +875,7 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    *
    * @example
    * // Inline transform
-   * $sine('a').pipe(s => s.amp(0.5).shift(1))
+   * $sine('a').pipe(s => s.amp(0.5).add(1))
    *
    * @example
    * // Reusable helper

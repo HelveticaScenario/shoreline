@@ -65,7 +65,7 @@ describe('generated DSL lib', () => {
         const patchErrors = diagnostics(`
                 const [a, b] = $saw(['c3', 'e3']);
                 a.amp(2).out();
-                b[0][0].shift(1).out();
+                b[0][0].add(1).out();
                 for (const voice of $sine(['c3', 'g3'])) voice.scope();
                 $saw([a, b[0]]).out();
                 $r($sine('1hz'), $sine('2hz')[0]).range(0, 1);

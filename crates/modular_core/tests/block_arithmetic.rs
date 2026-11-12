@@ -1,22 +1,26 @@
-//! `_arithmetic` and `_round` through every block-input resolution path and
-//! the per-sample `update` path, pinned to their formulas.
+//! `$add`, `$sub`, `$mul`, `$div`, `$exp` and `_round` through every
+//! block-input resolution path and the per-sample `update` path, pinned to
+//! their formulas.
 
 mod block_common;
 
 use block_common::*;
-use serde_json::json;
+use serde_json::{Value, json};
 
 #[global_allocator]
 static GLOBAL: CountingAllocator = CountingAllocator;
 
 type BinaryOp = fn(f32, f32) -> f32;
 
-const OPS: [(&str, BinaryOp); 5] = [
-    ("add", |x, y| x + y),
-    ("sub", |x, y| x - y),
-    ("mul", |x, y| x * y),
-    ("div", |x, y| x / y),
-    ("pow", |x, y| x.signum() * x.abs().powf(y)),
+/// Each operator module, the name of its operand and its formula.
+const OPS: [(&str, &str, BinaryOp); 5] = [
+    ("$add", "offset", |x, y| x + y),
+    ("$sub", "offset", |x, y| x - y),
+    ("$mul", "factor", |x, y| x * y),
+    ("$div", "divisor", |x, y| x / y),
+    ("$exp", "exponent", |x, y| {
+        x.signum() * x.abs().powf(y.max(0.0))
+    }),
 ];
 
 const MODES: [(&str, fn(f32) -> f32); 3] = [
@@ -25,20 +29,40 @@ const MODES: [(&str, fn(f32) -> f32); 3] = [
     ("ceil", f32::ceil),
 ];
 
+fn params(operand: &str, input: Value, value: Value) -> Value {
+    json!({ "input": input, operand: value })
+}
+
 fn silenced(v: f32) -> f32 {
     if v.is_finite() { v } else { 0.0 }
 }
 
 #[test]
 fn operations_with_a_cable_operand() {
-    for (op, f) in OPS {
+    for (module, operand, f) in OPS {
         check_module(
-            "_arithmetic",
-            json!({ "input": poly_cable("src", CHANNELS), "operand": poly_cable("lfo", CHANNELS), "op": op }),
-            |src, lfo| {
+            module,
+            params(
+                operand,
+                poly_cable("src", CHANNELS),
+                poly_cable("lfo", CHANNELS),
+            ),
+            |src, lfo| elementwise(src, lfo, f),
+        );
+    }
+}
+
+#[test]
+fn operations_with_constant_operands() {
+    const VALUES: [f32; CHANNELS] = [0.5, -2.0, 3.0, 0.25];
+    for (module, operand, f) in OPS {
+        check_module(
+            module,
+            params(operand, poly_cable("src", CHANNELS), json!(VALUES)),
+            |src, _| {
                 src.iter()
-                    .zip(lfo)
-                    .map(|(&x, &y)| silenced(f(x, y)))
+                    .enumerate()
+                    .map(|(k, &x)| silenced(f(x, VALUES[k % CHANNELS])))
                     .collect()
             },
         );
@@ -46,15 +70,14 @@ fn operations_with_a_cable_operand() {
 }
 
 #[test]
-fn operations_with_constant_operands() {
-    for (op, f) in OPS {
+fn a_mono_input_spreads_across_a_poly_operand() {
+    for (module, operand, f) in OPS {
         check_module(
-            "_arithmetic",
-            json!({ "input": poly_cable("src", CHANNELS), "operand": [0.5, -2.0, 3.0, 0.25], "op": op }),
-            |src, _| {
-                src.iter()
-                    .enumerate()
-                    .map(|(k, &x)| silenced(f(x, [0.5, -2.0, 3.0, 0.25][k % CHANNELS])))
+            module,
+            params(operand, cable("src", 1), poly_cable("lfo", CHANNELS)),
+            |src, lfo| {
+                (0..src.len())
+                    .map(|k| silenced(f(src[k / CHANNELS * CHANNELS + 1], lfo[k])))
                     .collect()
             },
         );
@@ -64,18 +87,18 @@ fn operations_with_constant_operands() {
 #[test]
 fn division_by_zero_outputs_zero() {
     check_module(
-        "_arithmetic",
-        json!({ "input": poly_cable("src", CHANNELS), "operand": 0.0, "op": "div" }),
+        "$div",
+        params("divisor", poly_cable("src", CHANNELS), json!(0.0)),
         |src, _| vec![0.0; src.len()],
     );
 }
 
 #[test]
-fn op_defaults_to_add() {
+fn a_negative_exponent_holds_at_zero() {
     check_module(
-        "_arithmetic",
-        json!({ "input": poly_cable("src", CHANNELS), "operand": 1.5 }),
-        |src, _| src.iter().map(|x| x + 1.5).collect(),
+        "$exp",
+        params("exponent", poly_cable("src", CHANNELS), json!(-2.0)),
+        |src, _| src.iter().map(|&x| x.signum()).collect(),
     );
 }
 
@@ -92,10 +115,10 @@ fn rounding_modes() {
 
 #[test]
 fn paths_agree() {
-    for (op, _) in OPS {
+    for (module, operand, _) in OPS {
         check_paths_agree(
-            "_arithmetic",
-            json!({ "input": poly_cable("src", CHANNELS), "operand": cable("lfo", 1), "op": op }),
+            module,
+            params(operand, poly_cable("src", CHANNELS), cable("lfo", 1)),
         );
     }
     for (mode, _) in MODES {
@@ -107,10 +130,26 @@ fn paths_agree() {
 }
 
 #[test]
+fn swap_agrees_through_an_operand_glide() {
+    for (module, operand, _) in OPS {
+        let input = poly_cable("src", CHANNELS);
+        check_swap_agrees(
+            module,
+            params(operand, input.clone(), json!(1.5)),
+            params(operand, input, json!([3.0, 0.5])),
+        );
+    }
+}
+
+#[test]
 fn allocation_free() {
-    for (op, _) in OPS {
-        let params = json!({ "input": poly_cable("src", CHANNELS), "operand": [cable("lfo", 0), 2.0], "op": op });
-        assert_eq!(allocations_while_rendering("_arithmetic", params), 0);
+    for (module, operand, _) in OPS {
+        let params = params(
+            operand,
+            poly_cable("src", CHANNELS),
+            json!([cable("lfo", 0), 2.0]),
+        );
+        assert_eq!(allocations_while_rendering(module, params), 0);
     }
     for (mode, _) in MODES {
         let params = json!({ "input": poly_cable("src", CHANNELS), "mode": mode });

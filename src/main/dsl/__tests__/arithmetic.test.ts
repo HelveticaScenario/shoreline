@@ -1,8 +1,9 @@
 /**
- * `.add()`, `.sub()`, `.mul()` and `.div()` build a hidden `_arithmetic`
- * module; `.round()`, `.floor()` and `.ceil()` build a hidden `_round`. On a
- * ranged signal the rounding methods round the range too: number bounds in
- * JS, signal bounds through their own `_round`.
+ * `.add()`, `.sub()`, `.mul()`, `.div()` and `.exp()` are the chain methods of
+ * `$add`, `$sub`, `$mul`, `$div` and `$exp`; `.round()`, `.floor()` and
+ * `.ceil()` build a hidden `_round`. On a ranged signal the rounding methods
+ * round the range too: number bounds in JS, signal bounds through their own
+ * `_round`.
  */
 
 import { beforeEach, describe, expect, test } from 'vitest';
@@ -31,38 +32,46 @@ function sine(freq: string): Collection {
     return builder.getFactory('$sine')(freq) as Collection;
 }
 
-describe('arithmetic methods', () => {
-    test.each(['add', 'sub', 'mul', 'div'] as const)(
-        '.%s() passes its operand and op',
-        (op) => {
-            const out = sine('1hz')[op](3);
+function run(source: string) {
+    return executePatchScript(source, schemas, {
+        sampleRate: 48_000,
+        workspaceRoot: '/workspace',
+    }).patch.modules;
+}
 
-            expect(out).toBeInstanceOf(Collection);
-            const [node] = modules('_arithmetic');
-            expect(node.params).toMatchObject({ operand: 3, op });
-        },
-    );
+describe('arithmetic methods', () => {
+    test.each([
+        ['add', '$add', 'offset'],
+        ['sub', '$sub', 'offset'],
+        ['mul', '$mul', 'factor'],
+        ['div', '$div', 'divisor'],
+        ['exp', '$exp', 'exponent'],
+    ])('.%s() builds a %s with its operand', (method, moduleType, operand) => {
+        const [node] = run(`$sine('1hz').${method}(3).out()`).filter(
+            (m) => m.moduleType === moduleType,
+        );
+        expect(node.params).toMatchObject({ [operand]: 3 });
+    });
+
+    test('a missing operand says which', () => {
+        expect(() => run(`$sine('1hz').exp().out()`)).toThrow(
+            /missing required parameter `exponent`/,
+        );
+    });
 
     test('a collection keeps its width', () => {
-        const out = builder.$c('c3', 'e3', 'g3').mul(2);
-
-        expect(out.length).toBe(3);
-        expect(modules('_arithmetic')).toHaveLength(1);
+        const muls = run(`$c('c3', 'e3', 'g3').mul(2).out()`).filter(
+            (m) => m.moduleType === '$mul',
+        );
+        expect(muls).toHaveLength(1);
+        expect(muls[0].params.input).toHaveLength(3);
     });
 
     test('an empty collection builds nothing', () => {
-        expect(new Collection().div(2).length).toBe(0);
         expect(new CollectionWithRange().round().length).toBe(0);
         const types = builder.toPatch().modules.map((m) => m.moduleType);
-        expect(types).not.toContain('_arithmetic');
         expect(types).not.toContain('_round');
     });
-});
-
-test('.exp() without an exponent says so', () => {
-    expect(() => (sine('1hz').exp as (e?: number) => Collection)()).toThrow(
-        '.exp() needs an exponent',
-    );
 });
 
 describe('rounding methods', () => {
@@ -178,14 +187,7 @@ describe('rounding methods', () => {
         expect(modules('_round')).toHaveLength(3);
     });
 
-    test('_arithmetic and _round are not globals or chain methods', () => {
-        const run = (src: string) =>
-            executePatchScript(src, schemas, {
-                sampleRate: 48_000,
-                workspaceRoot: '/workspace',
-            });
-        expect(() => run('$arithmetic(0, 1).out()')).toThrow();
+    test('_round is not a global', () => {
         expect(() => run('$round(0).out()')).toThrow();
-        expect(() => run('$sine(0).arithmetic(1).out()')).toThrow();
     });
 });

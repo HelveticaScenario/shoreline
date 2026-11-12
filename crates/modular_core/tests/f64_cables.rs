@@ -106,8 +106,8 @@ fn playhead_and_inheriting_modules_keep_f64_precision() {
     let modules = [
         (
             "sub",
-            "_arithmetic",
-            json!({ "input": playhead(), "operand": 1000.0, "op": "sub" }),
+            "$sub",
+            json!({ "input": playhead(), "offset": 1000.0 }),
         ),
         (
             "frac",
@@ -126,7 +126,7 @@ fn playhead_and_inheriting_modules_keep_f64_precision() {
         ),
         (
             "early",
-            "$shift",
+            "$add",
             json!({ "input": playhead(), "offset": -3.0 }),
         ),
         (
@@ -136,8 +136,8 @@ fn playhead_and_inheriting_modules_keep_f64_precision() {
         ),
         (
             "plain",
-            "_arithmetic",
-            json!({ "input": playhead(), "operand": 1000.0, "op": "sub" }),
+            "$sub",
+            json!({ "input": playhead(), "offset": 1000.0 }),
         ),
     ];
     let f64_inputs = ["sub", "frac", "bar", "half", "early", "eighth"];

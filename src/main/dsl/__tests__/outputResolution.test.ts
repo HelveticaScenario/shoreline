@@ -224,7 +224,7 @@ describe('resolution records', () => {
     test('chain methods record the receiver and argument index', () => {
         expect(
             records(
-                `const seq = $p('c e g')\nseq.add(2).out()\n$sine('c').add(seq).out()`,
+                `const seq = $p('c e g')\nseq.erratic(2).out()\n$sine('c').erratic(seq).out()`,
             ),
         ).toEqual(['2 receiver cv', '3 0 cv']);
     });

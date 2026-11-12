@@ -1,13 +1,15 @@
 kind: Breaking
 body: |-
-    `$scaleAndShift` and `.amplitude()` are gone. Use `.amp()` to scale and `.shift()` to offset; `$amp`, `$shift` and `$gain` also work as functions, like any other module.
+    `$scaleAndShift`, `.amplitude()` and `.shift()` are gone. Use `.amp()` to scale and `.add()` to offset; `$amp`, `$gain`, `$add`, `$sub`, `$mul`, `$div` and `$exp` also work as functions, like any other module.
 
     ```js
     // before
     $scaleAndShift(lfo, 2.5, 1)
     $saw('c3').amplitude(2.5).out()
+    lfo.shift(1)
     // after
-    lfo.amp(2.5).shift(1)
+    lfo.amp(2.5).add(1)
     $saw('c3').amp(2.5).out()
+    lfo.add(1)
     ```
 time: 2026-11-12T05:50:26.474387-05:00

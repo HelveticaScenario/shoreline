@@ -67,13 +67,6 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         ],
         methods: [
             {
-                name: 'exp',
-                signature: 'exp(exponent: Poly<Signal>): Collection',
-                description:
-                    'Raise all signals in the collection to the power `exponent`; negative values mirror positive ones. For a curve that keeps ±5 V at ±5 V, use $curve.',
-                example: 'lfo.exp(2)  // square, keeping the sign',
-            },
-            {
                 name: 'scope',
                 signature:
                     "scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number]; split?: 'vertical' | 'horizontal' }): this",
