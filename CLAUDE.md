@@ -153,6 +153,16 @@ A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crat
 
 Monaco shows the description, sections and first example; the Reference pane shows everything. `tests/module_docs.rs` checks the shape, and `generatedExampleValidity.test.ts` runs every example, and `referenceDocs.test.ts` checks each is formatted.
 
+### Experimental Modules
+
+`#[module(name = "$comp", docs = COMP_DOCS, args(input), experimental)]` marks a module experimental; the editor's hover, completion and signature help, and the Reference pane tell users its sound and params may still change, so its `ModuleDocs` never says so itself.
+
+- **Mark a module experimental** when any of these hold: its API (name, params, ranges, outputs) isn't settled; its sound hasn't been validated against a reference or by listening; a planned feature would change its param shape; it is one of several competing candidates.
+- **Not a reason:** failing the alloc audit or another engine rule. A module that breaks those never merges.
+- **Graduate** by deleting the flag (the name stays, so patches keep working) once param conventions are followed (0–5 knob ranges, V/Oct), docs and runnable examples exist, tests exist, the API has been stable for a while, and the user signs off explicitly.
+- Changes to an experimental module's API or sound are still breaking changes: changelog kind `Breaking`.
+- `yarn experimental:report` lists experimental modules and flags those unchanged for over 60 days as overdue; every release PR includes it.
+
 ### Reserved Member Names
 
 When adding methods to `BaseCollection`, `Collection`, `CollectionWithRange`, `DeferredCollection`, or patterns (`PATTERN_METHODS` in `src/main/dsl/miniNotation/index.ts`), add the method name to `RESERVED_MEMBER_NAMES` in `crates/reserved_member_names.rs`. This is the single source of truth shared by the Rust proc-macro and, via NAPI, the TypeScript tests that check the list against the classes.
@@ -186,12 +196,13 @@ Models to emulate: `crates/modular_core/src/types.rs` (safety invariants), `src/
 
 Every PR that changes something a user can notice adds a release-note entry: `yarn changelog:new -k <Kind> -b "<text>"`, which writes `.changes/unreleased/*.yaml`. CI fails a PR that changes `src/` or `crates/` without one unless it is labelled `no-changelog` (refactors, internal tooling, test-only work). Users read these in the app before deciding to update, so write for musicians, not developers:
 
-- **Kinds:** `Breaking` (an existing patch can sound or behave differently, or stop running — includes any change to an experimental module's API or sound), `New`, `Improved`, `Fixed`. `Breaking` bumps the minor version (pre-1.0); the rest bump the patch.
+- **Kinds:** `Breaking` (a patch that ran on the last release can sound or behave differently, or stop running — includes any change to an experimental module's API or sound), `New`, `Improved`, `Fixed`. `Breaking` bumps the minor version (pre-1.0); the rest bump the patch.
+- **Write against the last release, not the last PR.** A release's notes describe what changed since the previous published version, read as one list. Before adding an entry, search `.changes/unreleased/` for the names your change touches (`grep -rn mixDown .changes/unreleased`): if an entry already covers that feature, edit it so it describes the result instead of adding one. Changing something users never had is not `Breaking`; renaming it rewrites the existing entry's names and examples, and removing it deletes the entry. CI accepts an edited or deleted entry the same as a new one.
 - **Say what the user can now do or what changes in their patch.** Name modules and params as they appear in the DSL (`$comp`, `attack`). No internals: no crate, file, struct, thread, or refactor names.
 - **One entry per change, one or two sentences.** Several entries in one PR are fine when it ships several user-visible changes.
 - **Every `Breaking` entry shows the migration**: a short before/after code block of a patch.
 
-Entries are reviewed in the PR diff; the release PR collects them.
+Entries are reviewed in the PR diff; the release PR collects them. Before merging the release PR, read its notes as a whole and merge or reword entries that overlap.
 
 ### Releasing
 
