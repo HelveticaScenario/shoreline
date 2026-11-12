@@ -301,19 +301,21 @@ const MACRO_DOCS: ModuleDocs = ModuleDocs {
     summary: "Macro oscillator (Plaits), deprecated",
     description: "**Deprecated:** each engine has its own module, listed under \
                   Replacements, and `$macro` will be removed. Mutable \
-                  Instruments Plaits: 24 engines, from analog and FM to \
-                  chords, speech, strings and drums, each played with the same \
-                  three knobs, `harmonics`, `timbre` and `morph`; triggers \
-                  strike its built-in envelope and lowpass gate, and with no \
-                  trigger it drones. The [Plaits \
+                  Instruments Plaits: 24 engines, each played with the same \
+                  three knobs, `harmonics`, `timbre` and `morph`, which \
+                  triggers strike through a built-in envelope and lowpass \
+                  gate. The [Plaits \
                   manual](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/) \
                   describes what the knobs do on each engine.",
     categories: &[ModuleCategory::Oscillator, ModuleCategory::Drum],
     sections: &[DocSection {
         title: "Replacements",
-        body: "Each engine's modules leave out its lowpass gate: patch \
-               `$lpg` after them, and `$perc` or `$adsr` into any param \
-               for the envelopes `timbreAmt` and `morphAmt` gave.",
+        body: "The replacements have no built-in lowpass gate or trigger \
+               envelope: where `$macro` gated the sound, patch `$lpg` after \
+               them, and send `$perc` or `$adsr` to any param for the sweeps \
+               `timbreAmt`, `morphAmt` and `fmAmt` gave. The strings, drums \
+               and `$mi.sixOp` shape their own notes and take `accent` in \
+               place of `level`.",
         table: Some(DocTable {
             columns: &["Engine", "Use"],
             rows: &[
@@ -330,7 +332,7 @@ const MACRO_DOCS: ModuleDocs = ModuleDocs {
                 ],
                 &[
                     "`'chiptune'`",
-                    "`$pulse` playing `$chord`'s notes, arpeggiated with `$cycle`",
+                    "`$pulse` playing `$chord`, or an arpeggio from `$cycle`",
                 ],
                 &[
                     "`'virtualAnalog'`",
@@ -340,10 +342,13 @@ const MACRO_DOCS: ModuleDocs = ModuleDocs {
                 &["`'twoOpFm'`", "`$mi.twoOp`"],
                 &["`'granularFormant'`", "`$mi.formant` and `$mi.zOsc`"],
                 &["`'additive'`", "`$mi.additive`"],
-                &["`'wavetable'`", "`$wavetable`"],
+                &[
+                    "`'wavetable'`",
+                    "`$wavetable`, with a wavetable WAV of your own",
+                ],
                 &[
                     "`'chords'`",
-                    "`$chord`, with `inversion`, into `$mi.divideDown`",
+                    "`$chord`, with `inversion` and `level`, into `$mi.divideDown`",
                 ],
                 &[
                     "`'speech'`",

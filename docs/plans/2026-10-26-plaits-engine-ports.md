@@ -1,6 +1,6 @@
 # Plaits engines as native Operator modules
 
-Goal: retire `$macro` and the `mi-plaits-dsp` crate. Port the Plaits engines that Operator cannot already build from existing modules as individual, idiomatic modules under `$mi.*`, ported directly from the C++ (`pichenettes/eurorack`, `plaits/dsp` + `stmlib/dsp`, MIT). This is not a `$macro` API replacement.
+Goal: retire `$macro` and the `mi-plaits-dsp` crate, deprecating `$macro` first (step 10). Port the Plaits engines that Operator cannot already build from existing modules as individual, idiomatic modules under `$mi.*`, ported directly from the C++ (`pichenettes/eurorack`, `plaits/dsp` + `stmlib/dsp`, MIT). This is not a `$macro` API replacement.
 
 ## 1. LPG audit
 
