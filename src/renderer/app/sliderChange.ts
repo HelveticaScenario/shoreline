@@ -4,6 +4,7 @@ import {
     voltsToHz,
     voltsToNoteName,
 } from '../../shared/dsl/sliderUnits';
+import { controlParams } from '../../shared/dsl/controlRanges';
 import type { SliderUnit } from '../../shared/dsl/sliderUnits';
 import { extractControls, isIncomplete } from '../dsl/extractControls';
 import type { SourceRange } from '../dsl/extractControls';
@@ -95,7 +96,7 @@ function sliderLiteral(
  * @returns The volts written, as the rewritten literal parses back
  */
 export function applySliderChange(
-    slider: { callStart: number; unit: SliderUnit },
+    slider: { callStart: number; max: number; min: number; unit: SliderUnit },
     newValue: number,
     moduleId: string | null,
     activeModel: SliderEditModel | null,
@@ -122,7 +123,11 @@ export function applySliderChange(
     });
 
     if (moduleId !== null) {
-        setModuleParam(moduleId, '_smoothControl', { value: written });
+        setModuleParam(
+            moduleId,
+            '_smoothControl',
+            controlParams(slider, written),
+        );
     }
     return written;
 }

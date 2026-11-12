@@ -42,6 +42,7 @@ import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
 import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { createControls } from './controls';
+import { VIDEO_CV_RANGE } from '../../shared/dsl/controlRanges';
 import { assertControlsPlaced } from './controlPlacement';
 import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
 import { $p } from './miniNotation';
@@ -709,10 +710,11 @@ export function executePatchScript(
     // Control factories; their collectors fill as the patch calls them.
     const controlFactories = { $signal: signal, _smoothControl };
     const controls = createControls({
-        rangedSignal: (moduleType, value, id, min, max) =>
-            builder
-                .$c(controlFactories[moduleType](value, { id }))
-                .withRange(min, max),
+        rangedSignal: (moduleType, value, id, range) =>
+            controlFactories[moduleType](value, {
+                ...range,
+                id,
+            }) as CollectionWithRange,
     });
 
     if (typeof _videoTap !== 'function') {
@@ -740,7 +742,8 @@ export function executePatchScript(
         publishTap: (output, slot) => {
             _videoTap(output, slot);
         },
-        cvSignal: (id) => builder.$c(signal(0, { id })).withRange(0, 1),
+        cvSignal: (id) =>
+            signal(0, { ...VIDEO_CV_RANGE, id }) as CollectionWithRange,
         mediaAudio: (path, playback) => {
             if (!options.loadMediaAudio) {
                 throw new Error(

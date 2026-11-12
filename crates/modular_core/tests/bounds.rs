@@ -556,3 +556,92 @@ fn only_outputs_whose_bounds_are_read_store_them() {
         "{mapped} from {saw}"
     );
 }
+
+#[test]
+fn a_declared_range_bounds_a_signal_whose_value_has_none() {
+    let modules = [
+        ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
+        (
+            "filter",
+            "$lpf",
+            json!({ "input": cable("saw"), "cutoff": 0.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "unranged",
+            "$signal",
+            json!({ "value": cable("filter"), "min": 0.0, "max": 10.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "constant",
+            "$signal",
+            json!({ "value": 3.0, "min": 0.0, "max": 10.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "swinging",
+            "$signal",
+            json!({ "value": cable("saw"), "min": 0.0, "max": 10.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "control",
+            "_smoothControl",
+            json!({ "value": 3.0, "min": 0.0, "max": 10.0 }),
+            ProcessingMode::Block,
+        ),
+    ];
+    let patch = build(&modules);
+    let order = [
+        "unranged", "constant", "swinging", "control", "filter", "saw",
+    ];
+    render_block(&patch, &order, &[BLOCK_SIZE]);
+    assert!(!read(&patch, "filter", 0).1.is_bounded());
+    let declared = Bounds::new(0.0, 10.0);
+    for slot in 0..BLOCK_SIZE {
+        assert_eq!(read(&patch, "unranged", slot).1, declared, "slot {slot}");
+        assert_eq!(read(&patch, "constant", slot).1, declared, "slot {slot}");
+        assert_eq!(read(&patch, "control", slot).1, declared, "slot {slot}");
+        assert_eq!(
+            read(&patch, "swinging", slot).1,
+            read(&patch, "saw", slot).1,
+            "a value that swings keeps its own range, slot {slot}"
+        );
+    }
+}
+
+#[test]
+fn a_declared_range_needs_both_ends_apart() {
+    let deserializers = get_params_deserializers();
+    for module_type in ["$signal", "_smoothControl"] {
+        for params in [
+            json!({ "value": 1.0, "min": 0.0 }),
+            json!({ "value": 1.0, "max": 0.0 }),
+            json!({ "value": 1.0, "min": 2.0, "max": 2.0 }),
+        ] {
+            assert!(
+                deserializers[module_type](params.clone()).is_err(),
+                "{module_type} {params}"
+            );
+        }
+        assert!(
+            deserializers[module_type](json!({ "value": 1.0, "min": 5.0, "max": 0.0 })).is_ok()
+        );
+    }
+}
+
+#[test]
+fn a_control_without_a_range_holds_its_value_as_a_point() {
+    let modules = [(
+        "control",
+        "_smoothControl",
+        json!({ "value": 2.0 }),
+        ProcessingMode::Block,
+    )];
+    let patch = build(&modules);
+    render_block(&patch, &["control"], &[BLOCK_SIZE]);
+    for slot in 0..BLOCK_SIZE {
+        assert_eq!(read(&patch, "control", slot).1, Bounds::point(2.0));
+    }
+}

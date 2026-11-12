@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import { applySliderChange, type SliderEditModel } from '../sliderChange';
 
-const SLIDER = { callStart: 0, unit: 'number' as const };
+const SLIDER = { callStart: 0, max: 1, min: 0, unit: 'number' as const };
 
 const SOURCE = "$slider('cutoff', 0.5, 0, 1);\n";
 
@@ -29,9 +29,8 @@ describe('applySliderChange', () => {
         expect(setModuleParam).toHaveBeenCalledWith(
             'signal-1',
             '_smoothControl',
-            {
-                value: 0.75,
-            },
+            // The whole params: a live edit replaces them.
+            { max: 1, min: 0, value: 0.75 },
         );
         expect(pushEditOperations).toHaveBeenCalledTimes(1);
         const [, edits] = pushEditOperations.mock.calls[0];
@@ -57,9 +56,7 @@ describe('applySliderChange', () => {
         expect(setModuleParam).toHaveBeenCalledWith(
             'signal-1',
             '_smoothControl',
-            {
-                value: 0.25,
-            },
+            { max: 1, min: 0, value: 0.25 },
         );
     });
 
@@ -76,7 +73,11 @@ describe('applySliderChange', () => {
         );
 
         expect(written).toBe(0.333333);
-        expect(setModuleParam.mock.calls[0][2]).toEqual({ value: 0.333333 });
+        expect(setModuleParam.mock.calls[0][2]).toEqual({
+            max: 1,
+            min: 0,
+            value: 0.333333,
+        });
     });
 
     test('writes hz and note values back in their own unit and quote style', () => {
@@ -85,7 +86,7 @@ describe('applySliderChange', () => {
         );
         // 0 V/Oct is C4.
         applySliderChange(
-            { callStart: 0, unit: 'hz' as const },
+            { ...SLIDER, unit: 'hz' as const },
             0,
             null,
             hzModel.model,
@@ -97,7 +98,7 @@ describe('applySliderChange', () => {
 
         const noteModel = makeModel(`$slider('root', 'c4', 'c2', 'c6');`);
         const written = applySliderChange(
-            { callStart: 0, unit: 'note' as const },
+            { ...SLIDER, unit: 'note' as const },
             9 / 12 + 0.01,
             null,
             noteModel.model,
@@ -119,7 +120,7 @@ describe('applySliderChange', () => {
         const second = source.lastIndexOf('$slider');
 
         applySliderChange(
-            { callStart: second, unit: 'number' },
+            { ...SLIDER, callStart: second, max: 2 },
             1.5,
             null,
             model,

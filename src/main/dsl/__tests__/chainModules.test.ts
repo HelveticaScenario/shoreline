@@ -200,7 +200,7 @@ describe('reserved names', () => {
         const sig = builder.getFactory('$sine')(0) as Collection;
         const fields = [
             sig,
-            sig.withRange(0, 1),
+            sig.range(0, 1, -1, 1),
             new DeferredCollection(new DeferredModuleOutput(builder)),
         ]
             .flatMap((instance) => Object.keys(instance))

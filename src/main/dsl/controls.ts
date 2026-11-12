@@ -12,6 +12,7 @@
 import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
 import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import type { SliderDefinition } from '../../shared/dsl/sliderTypes';
+import { type ControlRange, GATE_RANGE } from '../../shared/dsl/controlRanges';
 import { parseSliderValue } from '../../shared/dsl/sliderUnits';
 import { captureSourceLocation } from './factories';
 import type { CollectionWithRange } from './GraphBuilder';
@@ -19,16 +20,15 @@ import { isPlainObject } from './plainObject';
 
 export interface ControlDeps {
     /**
-     * Create a control module with an explicit id, wrapped as a collection
-     * carrying `[min, max]`: a `$signal` that steps to each value the UI
-     * sets, or a `_smoothControl` that ramps to it.
+     * Create a control module with an explicit id, declaring `range`: a
+     * `$signal` that steps to each value the UI sets, or a `_smoothControl`
+     * that ramps to it.
      */
     rangedSignal(
         moduleType: '$signal' | '_smoothControl',
         value: number,
         id: string,
-        min: number,
-        max: number,
+        range: ControlRange,
     ): CollectionWithRange;
 }
 
@@ -208,8 +208,7 @@ export function createControls(deps: ControlDeps): Controls & {
                 '_smoothControl',
                 parsedValue.volts,
                 moduleId,
-                parsedMin.volts,
-                parsedMax.volts,
+                { max: parsedMax.volts, min: parsedMin.volts },
             );
         },
 
@@ -233,13 +232,7 @@ export function createControls(deps: ControlDeps): Controls & {
                 sourceLocation: captureSourceLocation(),
                 value: false,
             });
-            return deps.rangedSignal(
-                '$signal',
-                0,
-                moduleId,
-                0,
-                GATE_HIGH_VOLTAGE,
-            );
+            return deps.rangedSignal('$signal', 0, moduleId, GATE_RANGE);
         },
 
         /**
@@ -273,8 +266,7 @@ export function createControls(deps: ControlDeps): Controls & {
                 '$signal',
                 initial ? GATE_HIGH_VOLTAGE : 0,
                 moduleId,
-                0,
-                GATE_HIGH_VOLTAGE,
+                GATE_RANGE,
             );
         },
 

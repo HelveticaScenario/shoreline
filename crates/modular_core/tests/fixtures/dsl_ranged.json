@@ -1,0 +1,2256 @@
+{
+    "modules": [
+        {
+            "id": "$sine-1",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-1",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-1",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$add-1",
+            "idIsExplicit": false,
+            "moduleType": "$add",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-1",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "offset": 1
+            }
+        },
+        {
+            "id": "$sine-2",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-2",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$sine-3",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "3hz"
+            }
+        },
+        {
+            "id": "$remap-3",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-3",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 5,
+                "outMax": 0
+            }
+        },
+        {
+            "id": "$add-2",
+            "idIsExplicit": false,
+            "moduleType": "$add",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "offset": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-3",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$sine-4",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-4",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-4",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$amp-1",
+            "idIsExplicit": false,
+            "moduleType": "$amp",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-4",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "factor": 3
+            }
+        },
+        {
+            "id": "$sine-5",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-5",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-5",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "_round-1",
+            "idIsExplicit": false,
+            "moduleType": "_round",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-5",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "mode": "ceil"
+            }
+        },
+        {
+            "id": "$sine-6",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-6",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-6",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$sine-7",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-7",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-7",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$clamp-1",
+            "idIsExplicit": false,
+            "moduleType": "$clamp",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-7",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "min": 0.5
+            }
+        },
+        {
+            "id": "$signal-1",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": "c3"
+            }
+        },
+        {
+            "id": "$lpf-1",
+            "idIsExplicit": false,
+            "moduleType": "$lpf",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$signal-1",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "cutoff": 0
+            }
+        },
+        {
+            "id": "$clamp-2",
+            "idIsExplicit": false,
+            "moduleType": "$clamp",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$lpf-1",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "max": 1,
+                "min": -1
+            }
+        },
+        {
+            "id": "$sine-8",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-8",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-8",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$curve-1",
+            "idIsExplicit": false,
+            "moduleType": "$curve",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-8",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "exp": 2
+            }
+        },
+        {
+            "id": "$signal-2",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": 3,
+                "max": 10,
+                "min": 0
+            }
+        },
+        {
+            "id": "$signal-3",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": "c3"
+            }
+        },
+        {
+            "id": "$lpf-2",
+            "idIsExplicit": false,
+            "moduleType": "$lpf",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$signal-3",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "cutoff": 0
+            }
+        },
+        {
+            "id": "$signal-4",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": [
+                    {
+                        "channel": 0,
+                        "module": "$lpf-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "max": 1,
+                "min": -1
+            }
+        },
+        {
+            "id": "$sine-9",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-9",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-9",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$div-1",
+            "idIsExplicit": false,
+            "moduleType": "$div",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-9",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "divisor": 4
+            }
+        },
+        {
+            "id": "$sine-10",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-10",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-10",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "_erratic-1",
+            "idIsExplicit": false,
+            "moduleType": "_erratic",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-10",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "amount": 2
+            }
+        },
+        {
+            "id": "$sine-11",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "3hz"
+            }
+        },
+        {
+            "id": "$remap-11",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-11",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 5,
+                "outMax": 0
+            }
+        },
+        {
+            "id": "_erratic-2",
+            "idIsExplicit": false,
+            "moduleType": "_erratic",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-11",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "amount": 2,
+                "mode": "clamp"
+            }
+        },
+        {
+            "id": "$sine-12",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-12",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-12",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$exp-1",
+            "idIsExplicit": false,
+            "moduleType": "$exp",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-12",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "exponent": 2
+            }
+        },
+        {
+            "id": "$sine-13",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "3hz"
+            }
+        },
+        {
+            "id": "$remap-13",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-13",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 5,
+                "outMax": 0
+            }
+        },
+        {
+            "id": "$sine-14",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "3hz"
+            }
+        },
+        {
+            "id": "$remap-14",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-14",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 5,
+                "outMax": 0
+            }
+        },
+        {
+            "id": "_round-2",
+            "idIsExplicit": false,
+            "moduleType": "_round",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-14",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "mode": "floor"
+            }
+        },
+        {
+            "id": "$sine-15",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-15",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-15",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$gain-1",
+            "idIsExplicit": false,
+            "moduleType": "$gain",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-15",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "level": 2
+            }
+        },
+        {
+            "id": "$sine-16",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-16",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-16",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$mul-1",
+            "idIsExplicit": false,
+            "moduleType": "$mul",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-16",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "factor": -2
+            }
+        },
+        {
+            "id": "$sine-17",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-17",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-17",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$add-3",
+            "idIsExplicit": false,
+            "moduleType": "$add",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-17",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "offset": 1
+            }
+        },
+        {
+            "id": "$remap-18",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$add-3",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": -1,
+                "outMax": 1
+            }
+        },
+        {
+            "id": "$sine-18",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-19",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-18",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$sine-19",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "3hz"
+            }
+        },
+        {
+            "id": "$remap-20",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-19",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 5,
+                "outMax": 0
+            }
+        },
+        {
+            "id": "$sine-20",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-21",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-20",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "_round-3",
+            "idIsExplicit": false,
+            "moduleType": "_round",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-21",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "mode": "round"
+            }
+        },
+        {
+            "id": "$sine-21",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-22",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-21",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$signal-5",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-22",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$sine-22",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-23",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-22",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$slew-1",
+            "idIsExplicit": false,
+            "moduleType": "$slew",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-23",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "_smoothControl-1",
+            "idIsExplicit": false,
+            "moduleType": "_smoothControl",
+            "params": {
+                "value": 2,
+                "max": 5,
+                "min": -5
+            }
+        },
+        {
+            "id": "$sine-23",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-24",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-23",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$sine-24",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-25",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-24",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$sub-1",
+            "idIsExplicit": false,
+            "moduleType": "$sub",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-24",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "offset": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-25",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$sine-25",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-26",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-25",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$signal-6",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": "c3"
+            }
+        },
+        {
+            "id": "$lpf-3",
+            "idIsExplicit": false,
+            "moduleType": "$lpf",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$signal-6",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "cutoff": 0
+            }
+        },
+        {
+            "id": "$sah-1",
+            "idIsExplicit": false,
+            "moduleType": "$sah",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-26",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "trigger": [
+                    {
+                        "channel": 0,
+                        "module": "$lpf-3",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$sine-26",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-27",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-26",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$signal-7",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": "c3"
+            }
+        },
+        {
+            "id": "$lpf-4",
+            "idIsExplicit": false,
+            "moduleType": "$lpf",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$signal-7",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "cutoff": 0
+            }
+        },
+        {
+            "id": "$tah-1",
+            "idIsExplicit": false,
+            "moduleType": "$tah",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-27",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "gate": [
+                    {
+                        "channel": 0,
+                        "module": "$lpf-4",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$signal-8",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": "c3"
+            }
+        },
+        {
+            "id": "$lpf-5",
+            "idIsExplicit": false,
+            "moduleType": "$lpf",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$signal-8",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "cutoff": 0
+            }
+        },
+        {
+            "id": "$wrap-1",
+            "idIsExplicit": false,
+            "moduleType": "$wrap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$lpf-5",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "min": -1,
+                "max": 1
+            }
+        },
+        {
+            "id": "$sine-27",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-28",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-27",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$slew-2",
+            "idIsExplicit": false,
+            "moduleType": "$slew",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-28",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "_crossfade-1",
+            "idIsExplicit": false,
+            "moduleType": "_crossfade",
+            "params": {
+                "dry": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-28",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "wet": [
+                    {
+                        "channel": 0,
+                        "module": "$slew-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "mix": 2
+            }
+        },
+        {
+            "id": "$sine-28",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-29",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-28",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$slew-3",
+            "idIsExplicit": false,
+            "moduleType": "$slew",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-29",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "_crossfade-2",
+            "idIsExplicit": false,
+            "moduleType": "_crossfade",
+            "params": {
+                "dry": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-29",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "wet": [
+                    {
+                        "channel": 0,
+                        "module": "$slew-3",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "mix": 2
+            }
+        },
+        {
+            "id": "$saw-1",
+            "idIsExplicit": false,
+            "moduleType": "$saw",
+            "params": {
+                "freq": "c2"
+            }
+        },
+        {
+            "id": "$saw-2",
+            "idIsExplicit": false,
+            "moduleType": "$saw",
+            "params": {
+                "freq": "c3"
+            }
+        },
+        {
+            "id": "$signal-9",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": "c3"
+            }
+        },
+        {
+            "id": "$lpf-6",
+            "idIsExplicit": false,
+            "moduleType": "$lpf",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$signal-9",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "cutoff": 0
+            }
+        },
+        {
+            "id": "$sine-29",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-30",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-29",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$sine-30",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": ["1hz", "2hz"]
+            }
+        },
+        {
+            "id": "$slew-4",
+            "idIsExplicit": false,
+            "moduleType": "$slew",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-30",
+                        "port": "output",
+                        "type": "cable"
+                    },
+                    {
+                        "channel": 1,
+                        "module": "$sine-30",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$sine-31",
+            "idIsExplicit": false,
+            "moduleType": "$sine",
+            "params": {
+                "freq": "1hz"
+            }
+        },
+        {
+            "id": "$remap-31",
+            "idIsExplicit": false,
+            "moduleType": "$remap",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$sine-31",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "outMin": 0,
+                "outMax": 2,
+                "inMin": -5,
+                "inMax": 5
+            }
+        },
+        {
+            "id": "$slew-5",
+            "idIsExplicit": false,
+            "moduleType": "$slew",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-31",
+                        "port": "output",
+                        "type": "cable"
+                    },
+                    3
+                ]
+            }
+        },
+        {
+            "id": "__vuGain_lifted",
+            "idIsExplicit": true,
+            "moduleType": "_smoothControl",
+            "params": {
+                "value": 5,
+                "max": 10,
+                "min": 0
+            }
+        },
+        {
+            "id": "__vuPan_lifted",
+            "idIsExplicit": true,
+            "moduleType": "_smoothControl",
+            "params": {
+                "value": 0,
+                "max": 5,
+                "min": -5
+            }
+        },
+        {
+            "id": "$stereoMix-1",
+            "idIsExplicit": false,
+            "moduleType": "$stereoMix",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$saw-1",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "pan": [
+                    {
+                        "channel": 0,
+                        "module": "__vuPan_lifted",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "width": 0
+            }
+        },
+        {
+            "id": "__vuTap_lifted",
+            "idIsExplicit": true,
+            "moduleType": "$gain",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$stereoMix-1",
+                        "port": "output",
+                        "type": "cable"
+                    },
+                    {
+                        "channel": 1,
+                        "module": "$stereoMix-1",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "level": [
+                    {
+                        "channel": 0,
+                        "module": "__vuGain_lifted",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "__vuMute_lifted",
+            "idIsExplicit": true,
+            "moduleType": "$signal",
+            "params": {
+                "value": 5,
+                "max": 5,
+                "min": 0
+            }
+        },
+        {
+            "id": "__vuSlew_lifted",
+            "idIsExplicit": true,
+            "moduleType": "$slew",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "__vuMute_lifted",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "fall": 0.002,
+                "rise": 0.002
+            },
+            "skipStateTransfer": true
+        },
+        {
+            "id": "$amp-2",
+            "idIsExplicit": false,
+            "moduleType": "$amp",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "__vuTap_lifted",
+                        "port": "output",
+                        "type": "cable"
+                    },
+                    {
+                        "channel": 1,
+                        "module": "__vuTap_lifted",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "factor": [
+                    {
+                        "channel": 0,
+                        "module": "__vuSlew_lifted",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$stereoMix-2",
+            "idIsExplicit": false,
+            "moduleType": "$stereoMix",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$saw-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "pan": [
+                    {
+                        "channel": 0,
+                        "module": "$remap-30",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "width": 0
+            }
+        },
+        {
+            "id": "__vuTap_wrapped",
+            "idIsExplicit": true,
+            "moduleType": "$gain",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$stereoMix-2",
+                        "port": "output",
+                        "type": "cable"
+                    },
+                    {
+                        "channel": 1,
+                        "module": "$stereoMix-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "level": [
+                    {
+                        "channel": 0,
+                        "module": "$lpf-6",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "__vuMute_wrapped",
+            "idIsExplicit": true,
+            "moduleType": "$signal",
+            "params": {
+                "value": 5,
+                "max": 5,
+                "min": 0
+            }
+        },
+        {
+            "id": "__vuSlew_wrapped",
+            "idIsExplicit": true,
+            "moduleType": "$slew",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "__vuMute_wrapped",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "fall": 0.002,
+                "rise": 0.002
+            },
+            "skipStateTransfer": true
+        },
+        {
+            "id": "$amp-3",
+            "idIsExplicit": false,
+            "moduleType": "$amp",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "__vuTap_wrapped",
+                        "port": "output",
+                        "type": "cable"
+                    },
+                    {
+                        "channel": 1,
+                        "module": "__vuTap_wrapped",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "factor": [
+                    {
+                        "channel": 0,
+                        "module": "__vuSlew_wrapped",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$mix-1",
+            "idIsExplicit": false,
+            "moduleType": "$mix",
+            "params": {
+                "inputs": [
+                    [
+                        {
+                            "channel": 0,
+                            "module": "$amp-2",
+                            "port": "output",
+                            "type": "cable"
+                        },
+                        {
+                            "channel": 1,
+                            "module": "$amp-2",
+                            "port": "output",
+                            "type": "cable"
+                        }
+                    ],
+                    [
+                        {
+                            "channel": 0,
+                            "module": "$amp-3",
+                            "port": "output",
+                            "type": "cable"
+                        },
+                        {
+                            "channel": 1,
+                            "module": "$amp-3",
+                            "port": "output",
+                            "type": "cable"
+                        }
+                    ]
+                ]
+            }
+        },
+        {
+            "id": "__vuGain_main",
+            "idIsExplicit": true,
+            "moduleType": "_smoothControl",
+            "params": {
+                "value": 2.5,
+                "max": 10,
+                "min": 0
+            }
+        },
+        {
+            "id": "$gain-2",
+            "idIsExplicit": false,
+            "moduleType": "$gain",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$mix-1",
+                        "port": "output",
+                        "type": "cable"
+                    },
+                    {
+                        "channel": 1,
+                        "module": "$mix-1",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "level": [
+                    {
+                        "channel": 0,
+                        "module": "__vuGain_main",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "ROOT_OUTPUT",
+            "idIsExplicit": true,
+            "moduleType": "$signal",
+            "params": {
+                "value": [
+                    {
+                        "channel": 0,
+                        "module": "$gain-2",
+                        "port": "output",
+                        "type": "cable"
+                    },
+                    {
+                        "channel": 1,
+                        "module": "$gain-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$signal-10",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": {
+                    "channel": 0,
+                    "module": "$lpf-6",
+                    "port": "output",
+                    "type": "cable"
+                },
+                "max": 10,
+                "min": 0
+            }
+        },
+        {
+            "id": "$signal-11",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": {
+                    "channel": 0,
+                    "module": "$remap-30",
+                    "port": "output",
+                    "type": "cable"
+                },
+                "max": 5,
+                "min": -5
+            }
+        }
+    ],
+    "ranged": [
+        {
+            "label": "add",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$add-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "addRanged",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$add-2",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "amp",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$amp-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "ceil",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "_round-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "channel",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$remap-6",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "clamp",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$clamp-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "clampLimits",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$clamp-2",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "curve",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$curve-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "declared",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$signal-2",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "declaredOverUnranged",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$signal-4",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "div",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$div-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "erraticBlend",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "_erratic-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "erraticClamp",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "_erratic-2",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "exp",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$exp-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "flipped",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$remap-13",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "floor",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "_round-2",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "gain",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$gain-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "mul",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$mul-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "rangeOfRanged",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$remap-18",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "ranges",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$remap-19",
+                    "port": "output"
+                },
+                {
+                    "channel": 0,
+                    "module": "$remap-20",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "round",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "_round-3",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "signal",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$signal-5",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "slew",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$slew-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "smoothControl",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "_smoothControl-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "sub",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$sub-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "sah",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$sah-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "tah",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$tah-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "wrap",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$wrap-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "wet",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "_crossfade-1",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "pipeMix",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "_crossfade-2",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "lifted.active",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "__vuMute_lifted",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "lifted.level",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "__vuGain_lifted",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "lifted.pan",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "__vuPan_lifted",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "wrapped.active",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "__vuMute_wrapped",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "wrapped.level",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$signal-10",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "wrapped.pan",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$signal-11",
+                    "port": "output"
+                }
+            ]
+        }
+    ]
+}

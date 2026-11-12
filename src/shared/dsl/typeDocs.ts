@@ -140,19 +140,21 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         definition:
             'class extends Iterable<CollectionWithRange> { length: number; [index]: CollectionWithRange; ... }',
         description:
-            'A Collection that knows its value range, as LFOs, envelopes, and other modulation sources return. ' +
-            'The range() method uses the stored range for automatic scaling. Group ranged signals with the $r() helper function.',
+            'A Collection whose range the engine knows, as LFOs, envelopes, controls, and other modulation sources return. ' +
+            'Chains that keep a range, such as add(), mul(), round() and erratic(), return one too. ' +
+            'The range() method maps from that range. Group ranged signals with the $r() helper function.',
         examples: [
             "const lfo = $sine('1hz').range(0, 5)  // LFO outputs 0 to +5",
-            '$r(lfo1, lfo2).range(0, 5).out()     // Remap using stored ranges',
+            'lfo.add(1).range(-5, 5)              // Maps from 1 to 6',
+            '$r(lfo1, lfo2).range(0, 5).out()     // Each maps from its own range',
         ],
         methods: [
             {
                 name: 'range',
                 signature:
-                    'range(outMin: Poly<Signal>, outMax: Poly<Signal>): CollectionWithRange',
+                    'range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin?: Poly<Signal>, inMax?: Poly<Signal>): CollectionWithRange',
                 description:
-                    'Remap all outputs from their stored ranges to a new range.',
+                    'Remap all outputs onto a new range, from their own ranges or from inMin–inMax when given.',
                 example: "lfo.range('c3', 'c5')  // Remap LFO to pitch range",
             },
         ],
@@ -412,7 +414,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Create a CollectionWithRange holding the channels of every ranged argument. The range() method uses the stored ranges.',
+            'Create a CollectionWithRange holding the channels of every ranged argument. The range() method maps each from its own range.',
         examples: ['$r(lfo1, lfo2).range(0, 5).out()'],
         group: 'Helpers',
         name: '$r',

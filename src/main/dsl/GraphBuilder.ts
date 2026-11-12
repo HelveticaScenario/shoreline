@@ -1,5 +1,7 @@
 import type {
+    BoundsKind,
     ModuleSchema,
+    OutputSchema,
     ModuleSpec,
     PatchGraph,
     Scope,
@@ -7,6 +9,12 @@ import type {
     ScopeMode,
     ScopeSplit,
 } from '@modular/core';
+import {
+    type ControlRange,
+    GATE_RANGE,
+    OUT_GAIN_RANGE,
+    OUT_PAN_RANGE,
+} from '../../shared/dsl/controlRanges';
 import type { VuMeterDef } from '../../shared/dsl/vuMeterTypes';
 import {
     EQ_MODULE_TYPE,
@@ -40,7 +48,7 @@ import {
     expandSignalGroups,
     isSignalGroupLike,
 } from './signalGroups';
-import type { OutLaneControl, OutLaneTap } from './outLane';
+import type { OutLaneSources, OutLaneTap } from './outLane';
 
 import z from 'zod';
 
@@ -64,17 +72,6 @@ export interface ScopeConfig {
     triggerWaitToRender?: boolean;
     range?: [number, number];
     split?: ScopeSplit;
-}
-
-// Extended OutputSchema interface that includes optional range
-export interface OutputSchemaWithRange {
-    name: string;
-    description: string;
-    polyphonic?: boolean;
-    minValue?: number;
-    maxValue?: number;
-    /** Fixed channel count; absent outputs follow the module's channel count. */
-    channels?: number;
 }
 
 const ResolvedModuleOutput = z.object({
@@ -190,7 +187,7 @@ export interface ErraticOptions {
 
 /** Options for `.erratic()` on a ranged signal */
 export interface RangedErraticOptions extends ErraticOptions {
-    /** `'clamp'` adds a random offset and clamps to the range; `'shift'` adds it unclamped; `'blend'` moves toward a random value in the range (default `'clamp'`) */
+    /** `'blend'` moves toward a random value in the range (the default); `'clamp'` adds a random offset and clamps to the range; `'shift'` adds it unclamped */
     mode?: 'clamp' | 'shift' | 'blend';
 }
 
@@ -458,7 +455,17 @@ export class BaseCollection<T extends ModuleOutput> {
         if (this.items.length === 0) {
             return new Collection();
         }
-        return erratic(this.items[0].builder, this.items, amount, options);
+        // Without a known range the shift spans a nominal ±5 V.
+        return this.items[0].builder.getFactory('_erratic')(
+            this.items,
+            amount,
+            {
+                ...options,
+                mode: 'shift',
+                min: -5,
+                max: 5,
+            },
+        ) as Collection;
     }
 
     /**
@@ -563,22 +570,6 @@ export class BaseCollection<T extends ModuleOutput> {
         return builder ? wetMix(builder, this, mix) : new Collection();
     }
 
-    /**
-     * Wrap every output as a {@link ModuleOutputWithRange} carrying a known
-     * value range, returning a {@link CollectionWithRange}. `min`/`max` may be
-     * poly: each is normalized and cycled across the items. Internal plumbing
-     * for `.range()`; not part of the DSL surface.
-     */
-    withRange(min: PolySignal, max: PolySignal): CollectionWithRange {
-        const mins = toSignalArray(min);
-        const maxs = toSignalArray(max);
-        return new CollectionWithRange(
-            ...this.items.map((o, i) =>
-                o.withRange(mins[i % mins.length], maxs[i % maxs.length]),
-            ),
-        );
-    }
-
     /** A one-channel collection reads as its channel, so it interpolates into patterns. */
     toString(): string {
         if (this.items.length === 1) {
@@ -637,85 +628,54 @@ function sliceRoot(
 
 type RoundMode = 'round' | 'floor' | 'ceil';
 
-/** `x` rounded to a whole number as `_round` rounds it in `mode`. */
-function roundNumber(x: number, mode: RoundMode): number {
-    switch (mode) {
-        case 'floor':
-            return Math.floor(x);
-        case 'ceil':
-            return Math.ceil(x);
-        case 'round':
-            return Math.sign(x) * Math.round(Math.abs(x));
+/**
+ * The same channels as a ranged collection, for an output the engine bounds
+ * by a rule the schema cannot state (`_erratic` short of a shift) or one
+ * whose source is set later (an `$outLane` control).
+ */
+export function asRanged(
+    collection: BaseCollection<ModuleOutput>,
+): CollectionWithRange {
+    for (const { builder, moduleId, portName } of collection.items) {
+        builder.markRanged(moduleId, portName);
     }
+    return new CollectionWithRange(...collection.items);
 }
 
 /**
- * Round `input` to whole volts through a `_round` module. With a `range`,
- * the result carries that range rounded the same way: numbers round here,
- * other bounds through their own `_round`, never through their own methods,
- * so a ranged bound does not round its range in turn.
+ * `input` rounded to whole volts through a `_round` module, ranged when
+ * `input` is.
  */
 function round(
     builder: GraphBuilder,
     input: ModuleOutput | ModuleOutput[],
     mode: RoundMode,
-    range?: { min: Signal[]; max: Signal[] },
-): Collection {
-    const factory = builder.getFactory('_round');
-    const rounded = factory(input, { mode }) as Collection;
-    if (!range) {
-        return rounded;
-    }
-    // Outputs sharing a bound signal share its rounding.
-    const roundedBounds = new Map<Signal, Signal>();
-    const roundBound = (bound: Signal): Signal => {
-        if (typeof bound === 'number') {
-            return roundNumber(bound, mode);
-        }
-        let out = roundedBounds.get(bound);
-        if (out === undefined) {
-            out = (factory(bound, { mode }) as Collection).items[0];
-            roundedBounds.set(bound, out);
-        }
-        return out;
-    };
-    return rounded.withRange(
-        range.min.map(roundBound),
-        range.max.map(roundBound),
-    );
+): Collection | CollectionWithRange {
+    return builder.getFactory('_round')(input, { mode });
 }
 
 /**
- * Apply an `_erratic` random variation to `input`. With a `range`, the variation
- * scales to the range's width, `mode` applies (clamping by default), and the
- * result carries the range; without one, it is an unclamped shift scaled to a
- * nominal ±5 V.
+ * Remap `items` onto `outMin`…`outMax` through `$remap`, from `inMin`…`inMax`
+ * or, left out, from the range the engine knows for them (±5 for a signal
+ * without one).
  */
-function erratic(
-    builder: GraphBuilder,
-    input: ModuleOutput | ModuleOutput[],
-    amount: PolySignal,
-    { trigger, speed, bias, sparse, mode = 'clamp' }: RangedErraticOptions,
-    range?: { min: PolySignal; max: PolySignal },
-): Collection {
-    const factory = builder.getFactory('_erratic');
-    const options = { trigger, speed, bias, sparse };
-    if (!range) {
-        return factory(input, amount, {
-            ...options,
-            mode: 'shift',
-            min: -5,
-            max: 5,
-        }) as Collection;
+function remapRange(
+    items: ModuleOutput[],
+    outMin: PolySignal,
+    outMax: PolySignal,
+    inMin?: PolySignal,
+    inMax?: PolySignal,
+): CollectionWithRange {
+    if (items.length === 0) {
+        return new CollectionWithRange();
     }
-    return (
-        factory(input, amount, {
-            ...options,
-            mode,
-            min: range.min,
-            max: range.max,
-        }) as Collection
-    ).withRange(range.min, range.max);
+    return items[0].builder.getFactory('$remap')(
+        items,
+        outMin,
+        outMax,
+        inMin,
+        inMax,
+    ) as CollectionWithRange;
 }
 
 /**
@@ -732,82 +692,59 @@ export class Collection extends BaseCollection<ModuleOutput> {
         inMin: PolySignal,
         inMax: PolySignal,
     ): CollectionWithRange {
-        if (this.items.length === 0) {
-            return new CollectionWithRange();
-        }
-        const { builder } = this.items[0];
-        const factory = builder.getFactory('$remap');
-        if (!factory) {
-            throw new Error('Factory for util.remap not registered');
-        }
-        return (
-            factory(this.items, outMin, outMax, inMin, inMax) as Collection
-        ).withRange(outMin, outMax);
+        return remapRange(this.items, outMin, outMax, inMin, inMax);
     }
 }
 
 /**
- * Collection of ModuleOutputWithRange instances.
- * Use .range(outMin, outMax) to remap using stored min/max values.
+ * A collection whose range the engine knows: `.range(outMin, outMax)` maps
+ * from it, and the methods below keep it.
  */
-export class CollectionWithRange extends BaseCollection<ModuleOutputWithRange> {
-    /** Already ranged: returns itself. */
-    withRange(_min: PolySignal, _max: PolySignal): CollectionWithRange {
-        return this;
-    }
-
+export class CollectionWithRange extends BaseCollection<ModuleOutput> {
     /**
-     * Remap outputs from their known range to a new output range
+     * Remap outputs onto `outMin`…`outMax`, from their known range or from
+     * `inMin`…`inMax` when given.
      */
-    range(outMin: PolySignal, outMax: PolySignal): CollectionWithRange {
-        if (this.items.length === 0) {
-            return new CollectionWithRange();
-        }
-        const { builder } = this.items[0];
-        const factory = builder.getFactory('$remap');
-        if (!factory) {
-            throw new Error('Factory for util.remap not registered');
-        }
-        return (
-            factory(
-                this.items,
-                outMin,
-                outMax,
-                this.items.map((o) => o.minValue),
-                this.items.map((o) => o.maxValue),
-            ) as Collection
-        ).withRange(outMin, outMax);
+    range(
+        outMin: PolySignal,
+        outMax: PolySignal,
+        inMin?: PolySignal,
+        inMax?: PolySignal,
+    ): CollectionWithRange {
+        return remapRange(this.items, outMin, outMax, inMin, inMax);
     }
 
     /**
-     * Apply a wandering random shift to all outputs, scaled to each output's
-     * range: `amount` 5 shifts by up to half the range either way. Clamps to
-     * the range unless `mode` is `'shift'`.
+     * Apply a wandering random variation to all outputs within their range:
+     * `amount` 5 reaches across it. Blends toward random values by default,
+     * keeping the range; `'shift'` can carry the signal past it.
      */
     erratic(
         amount: PolySignal,
         options: RangedErraticOptions = {},
-    ): CollectionWithRange {
+    ): CollectionWithRange | Collection {
         if (this.items.length === 0) {
             return new CollectionWithRange();
         }
-        return erratic(this.items[0].builder, this.items, amount, options, {
-            min: this.items.map((o) => o.minValue),
-            max: this.items.map((o) => o.maxValue),
-        }) as CollectionWithRange;
+        const result = this.items[0].builder.getFactory('_erratic')(
+            this.items,
+            amount,
+            options,
+        ) as Collection;
+        return options.mode === 'shift' ? result : asRanged(result);
     }
 
-    /** Round all outputs to the nearest whole volt; the ranges round with them. */
+    /** Round all outputs to the nearest whole volt, keeping their range. */
     round(): CollectionWithRange {
         return this.rounded('round');
     }
 
-    /** Round all outputs down to a whole volt; the ranges round with them. */
+    /** Round all outputs down to a whole volt, keeping their range. */
     floor(): CollectionWithRange {
         return this.rounded('floor');
     }
 
-    /** Round all outputs up to a whole volt; the ranges round with them. */
+    /** Round all outputs up to a whole volt, keeping their range. */
     ceil(): CollectionWithRange {
         return this.rounded('ceil');
     }
@@ -816,18 +753,17 @@ export class CollectionWithRange extends BaseCollection<ModuleOutputWithRange> {
         if (this.items.length === 0) {
             return new CollectionWithRange();
         }
-        return round(this.items[0].builder, this.items, mode, {
-            min: this.items.map((o) => o.minValue),
-            max: this.items.map((o) => o.maxValue),
-        }) as CollectionWithRange;
+        return round(
+            this.items[0].builder,
+            this.items,
+            mode,
+        ) as CollectionWithRange;
     }
 }
 
-/**
- * Create a CollectionWithRange from ModuleOutputWithRange instances
- */
+/** The channels of every ranged collection given, as one ranged collection. */
 export const $r = (
-    ...args: OrArray<BaseCollection<ModuleOutputWithRange>>[]
+    ...args: OrArray<CollectionWithRange>[]
 ): CollectionWithRange =>
     new CollectionWithRange(
         ...args.flat().flatMap((arg) => {
@@ -890,6 +826,8 @@ export class GraphBuilder implements ChainHost {
     /** Resolves multi-output module roots and records each choice. */
     readonly outputResolver = new OutputResolver();
     private modules = new Map<string, ModuleSpec>();
+    /** The output ports handed out as ranged, as `module:port`. */
+    private rangedPorts = new Set<string>();
     private counters = new Map<string, number>();
     private schemas: ProcessedModuleSchema[] = [];
     private schemaByName = new Map<string, ProcessedModuleSchema>();
@@ -1023,6 +961,68 @@ export class GraphBuilder implements ChainHost {
      */
     getModule(id: string): ModuleSpec | undefined {
         return this.modules.get(id);
+    }
+
+    /** Record that module `moduleId`'s `port` is ranged. */
+    markRanged(moduleId: string, port: string): void {
+        this.rangedPorts.add(`${moduleId}:${port}`);
+    }
+
+    /**
+     * Whether module `moduleId` declares its range through its own params
+     * (`$signal`'s `min` and `max`), whatever its input: both set, and apart
+     * when both are numbers.
+     */
+    declaresRange(moduleId: string): boolean {
+        const module = this.modules.get(moduleId);
+        const declared =
+            module && this.schemaByName.get(module.moduleType)?.declaredRange;
+        if (!declared) {
+            return false;
+        }
+        const [min, max] = declared.map((name) => module.params[name]);
+        return (
+            min !== undefined &&
+            max !== undefined &&
+            !(typeof min === 'number' && min === max)
+        );
+    }
+
+    /**
+     * How a param value, as stored, stands towards the range the engine knows
+     * for it, channel by channel: `'constant'` holds still in every channel
+     * (an unset param reads one), `'ranged'` is a cable from a ranged port in
+     * every channel, `'carried'` mixes the two, and `'unranged'` has a cable
+     * from any other port, a deferred output's among them.
+     */
+    rangeOf(value: unknown): 'constant' | 'ranged' | 'carried' | 'unranged' {
+        if (
+            value === undefined ||
+            typeof value === 'number' ||
+            typeof value === 'string'
+        ) {
+            return 'constant';
+        }
+        if (Array.isArray(value)) {
+            const kinds = new Set(value.map((item) => this.rangeOf(item)));
+            if (kinds.has('unranged')) {
+                return 'unranged';
+            }
+            if (kinds.size === 1) {
+                return [...kinds][0];
+            }
+            return kinds.size === 0 ? 'constant' : 'carried';
+        }
+        if (
+            isPlainObject(value) &&
+            value.type === 'cable' &&
+            this.rangedPorts.has(
+                `${String(value.module)}:${String(value.port)}`,
+            )
+        ) {
+            return 'ranged';
+        }
+        return 'unranged';
     }
 
     /**
@@ -1287,6 +1287,7 @@ export class GraphBuilder implements ChainHost {
                         : null;
                     const gainSource = gainControllable
                         ? smoothControlFactory(gainValue, {
+                              ...OUT_GAIN_RANGE,
                               id: `__vuGain_${sk}`,
                           })
                         : group.gain!;
@@ -1296,6 +1297,7 @@ export class GraphBuilder implements ChainHost {
                             ? 0
                             : panControllable
                               ? smoothControlFactory(panValue, {
+                                    ...OUT_PAN_RANGE,
                                     id: `__vuPan_${sk}`,
                                 })
                               : group.pan!;
@@ -1327,6 +1329,7 @@ export class GraphBuilder implements ChainHost {
                     // $slew declicks the 5 V swing over ~10 ms.
                     const gate = (anySolo ? group.solo : !group.mute) ? 5 : 0;
                     const muteSig = signalFactory(gate, {
+                        ...GATE_RANGE,
                         id: `__vuMute_${sk}`,
                     }) as Collection;
                     const smoothed = slewFactory(muteSig, {
@@ -1462,6 +1465,7 @@ export class GraphBuilder implements ChainHost {
                 : null;
             const masterGainSignal = masterGainControllable
                 ? smoothControlFactory(this.outputGain, {
+                      ...OUT_GAIN_RANGE,
                       id: '__vuGain_main',
                   })
                 : this.outputGain;
@@ -1504,36 +1508,25 @@ export class GraphBuilder implements ChainHost {
             signalFactory(0, { id: 'ROOT_OUTPUT' });
         }
 
-        const constants = new Map<number, ModuleOutput>();
-        const toOutput = (value: Signal): ModuleOutput => {
-            if (value instanceof ModuleOutput) {
-                return value;
-            }
-            if (typeof value === 'number') {
-                let constant = constants.get(value);
-                if (!constant) {
-                    constant = this.$c(value).items[0];
-                    constants.set(value, constant);
-                }
-                return constant;
-            }
-            return this.$c(value).items[0];
-        };
-        // A lane control is the first channel of its source, declaring that
-        // channel's own range when it has one.
+        // A lane control is the first channel of its source: tapped directly
+        // when the source declares its range, as a lifted control does, and
+        // otherwise through a `$signal` declaring the control's usual span,
+        // which a source that swings overrides with its own.
         const control = (
             source: PolySignal,
-            defaultMin: number,
-            defaultMax: number,
-        ): OutLaneControl => {
+            range: ControlRange,
+        ): ModuleOutput => {
             const first = firstChannel(source);
-            const hasRange = first instanceof ModuleOutputWithRange;
-            return {
-                max: toOutput(hasRange ? first.maxValue : defaultMax),
-                min: toOutput(hasRange ? first.minValue : defaultMin),
-                output: toOutput(first),
-            };
+            if (
+                first instanceof ModuleOutput &&
+                this.declaresRange(first.moduleId)
+            ) {
+                return first;
+            }
+            return (signalFactory(first, { ...range }) as Collection).items[0];
         };
+        // Every tap of a lane shares its sources.
+        const laneSources = new Map<string, OutLaneSources>();
         for (const { label, tap, sourceLocation } of this.outLaneTaps) {
             const lane = lanesByLabel.get(label);
             if (!lane) {
@@ -1542,12 +1535,17 @@ export class GraphBuilder implements ChainHost {
                     : '';
                 throw new Error(`$outLane: no out is labeled "${label}"${at}`);
             }
-            tap.resolve({
-                active: lane.active,
-                audio: lane.audio,
-                level: control(lane.level, 0, 10),
-                pan: control(lane.pan, -5, 5),
-            });
+            let sources = laneSources.get(label);
+            if (!sources) {
+                sources = {
+                    active: control(lane.active, GATE_RANGE),
+                    audio: lane.audio,
+                    level: control(lane.level, OUT_GAIN_RANGE),
+                    pan: control(lane.pan, OUT_PAN_RANGE),
+                };
+                laneSources.set(label, sources);
+            }
+            tap.resolve(sources);
         }
 
         for (const meter of vuMeters) {
@@ -1721,6 +1719,7 @@ export class GraphBuilder implements ChainHost {
      */
     reset(): void {
         this.modules.clear();
+        this.rangedPorts.clear();
         this.scopes = [];
         this.eqPanels = [];
         this.counters.clear();
@@ -2026,13 +2025,55 @@ export class ModuleNode {
     }
 
     /**
+     * Whether the engine knows the range of `output`, as far as the DSL can
+     * tell without running the patch: a fixed range, one the module's own
+     * params set or declare, or one that follows inputs that are ranged or
+     * constant, at least one ranged.
+     * It errs towards unranged, so a ranged output is always bounded in the
+     * engine.
+     */
+    private isRanged(output: OutputSchema): boolean {
+        switch (output.bounds as BoundsKind) {
+            case 'fixed':
+            case 'params':
+                return true;
+            case 'input': {
+                if (this.builder.declaresRange(this.id)) {
+                    return true;
+                }
+                if (this.schema.customBounds) {
+                    return false;
+                }
+                // A constant holds still: it carries the range along but has
+                // none to give, so some input must be ranged in every channel.
+                const params = this.builder.getModule(this.id)?.params ?? {};
+                const tagged = this.schema.signalParams
+                    .filter((param) => param.carriesBounds)
+                    .map((param) => ({
+                        kind: this.builder.rangeOf(params[param.name]),
+                        needsConstant: param.boundsNeedConstant,
+                    }));
+                return (
+                    tagged.every(({ kind, needsConstant }) =>
+                        needsConstant
+                            ? kind === 'constant'
+                            : kind !== 'unranged',
+                    ) && tagged.some(({ kind }) => kind === 'ranged')
+                );
+            }
+            default:
+                return false;
+        }
+    }
+
+    /**
      * An output port of this module, as a collection of its channels: ranged
-     * when the port declares a value range. A mono port is one channel.
+     * when the engine knows its range. A mono port is one channel.
      */
     _output(portName: string): Collection | CollectionWithRange {
         const outputSchema = this.schema.outputs.find(
             (o) => o.name === portName,
-        ) as OutputSchemaWithRange | undefined;
+        );
         if (!outputSchema) {
             throw new Error(
                 `Module ${this.moduleType} does not have output: ${portName}`,
@@ -2042,29 +2083,15 @@ export class ModuleNode {
         const channels = outputSchema.polyphonic
             ? (outputSchema.channels ?? this.channelCount)
             : 1;
-        const { minValue, maxValue } = outputSchema;
-        if (minValue !== undefined && maxValue !== undefined) {
-            return new CollectionWithRange(
-                ...Array.from(
-                    { length: channels },
-                    (_, i) =>
-                        new ModuleOutputWithRange(
-                            this.builder,
-                            this.id,
-                            portName,
-                            i,
-                            minValue,
-                            maxValue,
-                        ),
-                ),
-            );
-        }
-        return new Collection(
-            ...Array.from(
-                { length: channels },
-                (_, i) => new ModuleOutput(this.builder, this.id, portName, i),
-            ),
+        const items = Array.from(
+            { length: channels },
+            (_, i) => new ModuleOutput(this.builder, this.id, portName, i),
         );
+        if (this.isRanged(outputSchema)) {
+            this.builder.markRanged(this.id, portName);
+            return new CollectionWithRange(...items);
+        }
+        return new Collection(...items);
     }
 }
 
@@ -2090,44 +2117,8 @@ export class ModuleOutput {
         this.channel = channel;
     }
 
-    /** This channel carrying a known value range. */
-    withRange(min: Signal, max: Signal): ModuleOutputWithRange {
-        return new ModuleOutputWithRange(
-            this.builder,
-            this.moduleId,
-            this.portName,
-            this.channel,
-            min,
-            max,
-        );
-    }
-
     toString(): string {
         return `module(${this.moduleId}:${this.portName}:${this.channel})`;
-    }
-}
-
-/** A {@link ModuleOutput} channel with a known value range. */
-export class ModuleOutputWithRange extends ModuleOutput {
-    readonly minValue: Signal;
-    readonly maxValue: Signal;
-
-    constructor(
-        builder: GraphBuilder,
-        moduleId: string,
-        portName: string,
-        channel: number = 0,
-        minValue: Signal,
-        maxValue: Signal,
-    ) {
-        super(builder, moduleId, portName, channel);
-        this.minValue = minValue;
-        this.maxValue = maxValue;
-    }
-
-    /** Already ranged: returns itself. */
-    withRange(_min: Signal, _max: Signal): ModuleOutputWithRange {
-        return this;
     }
 }
 

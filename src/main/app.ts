@@ -83,6 +83,7 @@ import {
 import { executePatchScript } from './dsl/executor';
 import { buildSignalSiteTables } from './dsl/signalSiteTables';
 import type { SignalSiteTables } from '../shared/dsl/signalSites';
+import { videoCvParams } from '../shared/dsl/controlRanges';
 import { buildLibSource } from './dsl/typescriptLibGen';
 import * as fs from 'fs';
 import * as net from 'net';
@@ -1146,7 +1147,7 @@ registerIPCHandler('VIDEO_CV_VALUES', (values) => {
     }
     for (const { id, value } of values) {
         if (cvSent.values.get(id) === value) continue;
-        synth.setModuleParam(id, '$signal', { value });
+        synth.setModuleParam(id, '$signal', videoCvParams(value));
         cvSent.values.set(id, value);
     }
 });

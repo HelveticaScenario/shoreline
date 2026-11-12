@@ -55,14 +55,11 @@ describe('BaseCollection.slice', () => {
         expect(col.items).toEqual(outs);
     });
 
-    test('preserves CollectionWithRange and its ranges', () => {
-        const ranged = new CollectionWithRange(
-            ...makeOutputs(3).map((o, i) => o.withRange(i, i + 10)),
-        );
-        const sliced = ranged.slice(1);
+    test('preserves CollectionWithRange', () => {
+        const outs = makeOutputs(3);
+        const sliced = new CollectionWithRange(...outs).slice(1);
         expect(sliced).toBeInstanceOf(CollectionWithRange);
-        expect(sliced.items.map((o) => o.minValue)).toEqual([1, 2]);
-        expect(sliced.items.map((o) => o.maxValue)).toEqual([11, 12]);
+        expect(sliced.items).toEqual(outs.slice(1));
     });
 
     test('preserves DeferredCollection', () => {
@@ -148,13 +145,11 @@ describe('BaseCollection indexing and iteration', () => {
         expect(third).toBe(col[2]);
     });
 
-    test('a ranged channel keeps its range', () => {
-        const ranged = new CollectionWithRange(
-            ...makeOutputs(2).map((o, i) => o.withRange(i, i + 10)),
-        );
+    test('a ranged channel stays ranged', () => {
+        const outs = makeOutputs(2);
+        const ranged = new CollectionWithRange(...outs);
         expect(ranged[1]).toBeInstanceOf(CollectionWithRange);
-        expect(ranged[1].items[0].minValue).toBe(1);
-        expect(ranged[1].items[0].maxValue).toBe(11);
+        expect(ranged[1].items).toEqual([outs[1]]);
     });
 
     test('a deferred channel sets its own placeholder', () => {
@@ -202,9 +197,7 @@ describe('BaseCollection.chunk', () => {
     });
 
     test('preserves CollectionWithRange', () => {
-        const ranged = new CollectionWithRange(
-            ...makeOutputs(4).map((o) => o.withRange(0, 5)),
-        );
+        const ranged = new CollectionWithRange(...makeOutputs(4));
         for (const c of ranged.chunk(3)) {
             expect(c).toBeInstanceOf(CollectionWithRange);
         }

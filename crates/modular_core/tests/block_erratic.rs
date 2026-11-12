@@ -63,7 +63,7 @@ fn allocation_free() {
 }
 
 #[test]
-fn bounds_are_the_range_unless_shifting() {
+fn bounds_are_the_range_in_its_order_unless_shifting() {
     let input = poly_cable("src", CHANNELS);
     for mode in ["blend", "clamp"] {
         let bounds = check_bounds_agree(
@@ -71,7 +71,7 @@ fn bounds_are_the_range_unless_shifting() {
             json!({ "input": input, "amount": 3.0, "min": 3.0, "max": -1.0, "mode": mode }),
         );
         assert!(
-            bounds.iter().all(|&b| b == Bounds::new(-1.0, 3.0)),
+            bounds.iter().all(|&b| b == Bounds::new(3.0, -1.0)),
             "{mode}"
         );
     }

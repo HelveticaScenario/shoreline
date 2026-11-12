@@ -212,3 +212,19 @@ pub fn take_cf<E>(cf: ControlFlow<E, E>) -> E {
         ControlFlow::Break(e) | ControlFlow::Continue(e) => e,
     }
 }
+
+/// Check a range declared by optional `min` and `max` params: both or
+/// neither, and apart, so a declared range always spans something.
+pub fn check_declared_range(min: Option<f32>, max: Option<f32>) -> Result<(), ModuleParamErrors> {
+    let message = match (min, max) {
+        (Some(min), Some(max)) if min == max => "min and max must differ",
+        (Some(_), None) | (None, Some(_)) => "set min and max together",
+        _ => return Ok(()),
+    };
+    let mut err = ModuleParamErrors::default();
+    err.add(
+        if min.is_some() { "min" } else { "max" }.to_string(),
+        message.to_string(),
+    );
+    Err(err)
+}

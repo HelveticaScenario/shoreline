@@ -1,29 +1,26 @@
 import { captureSourceLocation } from './captureSourceLocation';
 import {
+    asRanged,
     Collection,
-    CollectionWithRange,
+    type CollectionWithRange,
     DeferredCollection,
     DeferredModuleOutput,
     type GraphBuilder,
     type ModuleOutput,
 } from './GraphBuilder';
 
-/** A lane control's tap, with the range its source declares. */
-export interface OutLaneControl {
-    output: ModuleOutput;
-    min: ModuleOutput;
-    max: ModuleOutput;
-}
-
-/** A labeled out lane's signals, as compiled in toPatch. */
+/**
+ * A labeled out lane's signals, as compiled in toPatch. The controls are
+ * outputs the engine knows the range of.
+ */
 export interface OutLaneSources {
     /** Post-gain, post-mute audio: two channels for stereo outs, one for mono. */
     audio: ModuleOutput[];
-    /** Mute/solo gate $signal (5 audible, 0 silenced). */
+    /** Mute/solo gate (5 audible, 0 silenced). */
     active: ModuleOutput;
-    level: OutLaneControl;
+    level: ModuleOutput;
     /** Center (0) for mono outs. */
-    pan: OutLaneControl;
+    pan: ModuleOutput;
 }
 
 interface OutLaneControls {
@@ -58,40 +55,29 @@ export class OutLane extends Collection {
 }
 
 /**
- * The deferred outputs behind one `$outLane` call. Every channel, control,
- * and range bound is deferred because the out may be declared after the tap;
- * the audio is fixed at two channels so consumers can derive channel counts
- * at call time.
+ * The deferred outputs behind one `$outLane` call. Every channel and control
+ * is deferred because the out may be declared after the tap; the audio is
+ * fixed at two channels so consumers can derive channel counts at call time.
+ * The controls are ranged: each resolves to an output whose range the engine
+ * knows.
  */
 export class OutLaneTap {
     readonly lane: OutLane;
     private readonly audio: DeferredCollection;
     private readonly active: DeferredModuleOutput;
     private readonly level: DeferredModuleOutput;
-    private readonly levelMin: DeferredModuleOutput;
-    private readonly levelMax: DeferredModuleOutput;
     private readonly pan: DeferredModuleOutput;
-    private readonly panMin: DeferredModuleOutput;
-    private readonly panMax: DeferredModuleOutput;
 
     constructor(builder: GraphBuilder) {
         const deferred = () => new DeferredModuleOutput(builder);
         this.audio = new DeferredCollection(deferred(), deferred());
         this.active = deferred();
         this.level = deferred();
-        this.levelMin = deferred();
-        this.levelMax = deferred();
         this.pan = deferred();
-        this.panMin = deferred();
-        this.panMax = deferred();
         this.lane = new OutLane(this.audio.items, {
-            active: new CollectionWithRange(this.active.withRange(0, 5)),
-            level: new CollectionWithRange(
-                this.level.withRange(this.levelMin, this.levelMax),
-            ),
-            pan: new CollectionWithRange(
-                this.pan.withRange(this.panMin, this.panMax),
-            ),
+            active: asRanged(new Collection(this.active)),
+            level: asRanged(new Collection(this.level)),
+            pan: asRanged(new Collection(this.pan)),
         });
     }
 
@@ -99,12 +85,8 @@ export class OutLaneTap {
     resolve(sources: OutLaneSources): void {
         this.audio.set(sources.audio);
         this.active.set(sources.active);
-        this.level.set(sources.level.output);
-        this.levelMin.set(sources.level.min);
-        this.levelMax.set(sources.level.max);
-        this.pan.set(sources.pan.output);
-        this.panMin.set(sources.pan.min);
-        this.panMax.set(sources.pan.max);
+        this.level.set(sources.level);
+        this.pan.set(sources.pan);
     }
 }
 

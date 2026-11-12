@@ -33,12 +33,6 @@ pub(super) trait Combine {
     fn apply_glided<T: Sample>(input: T, form: T) -> T {
         Self::apply(input, form)
     }
-
-    /// Whether the operand bounds the output, given that the input is
-    /// bounded; see [`PolySignal::statically_bounded`].
-    fn operand_bounded(operand: &PolySignal, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
-        operand.statically_bounded(is_bounded)
-    }
 }
 
 /// The output's bounds for one channel: the input's through the operation,
@@ -143,9 +137,9 @@ pub(super) fn process_block<C: Combine>(
 /// args), one output at the precision of its inputs, and `|x, y| combine`
 /// applied per sample at either precision. An optional
 /// `glide = (|y| form, |x, form| combine)` sets [`Combine::glide_form`] and
-/// [`Combine::apply_glided`], and an optional `operand_bounded = |y| test`
-/// sets [`Combine::operand_bounded`]. The expressions run over a generic
-/// [`Sample`] `T`.
+/// [`Combine::apply_glided`], and `operand_bounds = constant` bounds the
+/// output only while the operand holds a constant. The expressions run over a
+/// generic [`Sample`] `T`.
 macro_rules! operator_module {
     (
         $Module:ident,
@@ -158,11 +152,11 @@ macro_rules! operator_module {
             , control_range = ($lo:literal, $hi:literal),
         output = $output_doc:literal,
         $(glide = (|$g:ident| $form:expr, |$gx:ident, $gf:ident| $glided:expr),)?
-        $(operand_bounded = |$ob:ident| $obexpr:expr,)?
+        $(operand_bounds = $operand_bounds:ident,)?
         |$x:ident, $y:ident| $combine:expr $(,)?
     ) => {
         paste::paste! {
-            #[params(bounded_when = [<$Module:snake _bounded>])]
+            #[params]
             #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
@@ -172,7 +166,7 @@ macro_rules! operator_module {
                 #[input(
                     $operand_doc,
                     type = control,
-                    bounds,
+                    bounds $(= $operand_bounds)?,
                     $(default = $default,)?
                     $(range = $range,)?
                     control_range = ($lo, $hi),
@@ -194,17 +188,6 @@ macro_rules! operator_module {
                 channel_state: Box<[crate::types::SwapGlide]>,
             }
 
-            fn [<$Module:snake _bounded>](
-                p: &[<$Module Params>],
-                is_bounded: &dyn Fn(&str, &str) -> bool,
-            ) -> bool {
-                p.input.statically_bounded(is_bounded)
-                    && <[<$Module Combine>] as crate::dsp::utilities::operator::Combine>::operand_bounded(
-                        &p.$operand,
-                        is_bounded,
-                    )
-            }
-
             struct [<$Module Combine>];
 
             impl crate::dsp::utilities::operator::Combine for [<$Module Combine>] {
@@ -212,15 +195,6 @@ macro_rules! operator_module {
                 fn apply<T: crate::dsp::utils::Sample>($x: T, $y: T) -> T {
                     $combine
                 }
-
-                $(
-                    fn operand_bounded(
-                        $ob: &crate::poly::PolySignal,
-                        _is_bounded: &dyn Fn(&str, &str) -> bool,
-                    ) -> bool {
-                        $obexpr
-                    }
-                )?
 
                 $(
                     #[inline(always)]

@@ -38,6 +38,7 @@
         "build:grammar": "node scripts/buildGrammar.mjs",
         "changelog:new": "changie new",
         "gen:sp-fixtures": "node scripts/gen-sp-fixture.mjs",
+        "gen:dsl-ranged-fixture": "UPDATE_FIXTURES=1 vitest run src/main/dsl/__tests__/dslRangedFixture.test.ts",
         "gen:parser-parity-fixture": "vitest run src/main/dsl/miniNotation/__tests__/peggy_parser_parity_fixture.test.ts --reporter=verbose",
         "generate-lib": "yarn build-native && tsx scripts/generateLib.ts",
         "postinstall": "husky && node scripts/patch-electron-plist.mjs"

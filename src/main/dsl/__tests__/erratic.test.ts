@@ -1,7 +1,8 @@
 /**
- * `.erratic()` builds a hidden `_erratic` module. On a ranged signal it passes
- * the range as `min`/`max`, uses `mode: 'clamp'` by default, and the result
- * keeps the range; on an unranged signal it passes neither range nor mode.
+ * `.erratic()` builds a hidden `_erratic` module. On a ranged signal it leaves
+ * the range and mode to the engine, which varies within the signal's range
+ * and blends by default, and the result keeps the range unless it shifts; on
+ * an unranged signal it shifts across a nominal ±5 V.
  */
 
 import { beforeEach, describe, expect, test } from 'vitest';
@@ -11,7 +12,6 @@ import {
     Collection,
     CollectionWithRange,
     type GraphBuilder,
-    ModuleOutputWithRange,
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
 
@@ -30,50 +30,41 @@ function erraticParams(): Record<string, unknown> {
 }
 
 describe('.erratic()', () => {
-    test('ranged output passes its range, clamps, and keeps the range', () => {
+    test('a ranged output leaves its range and mode to the engine', () => {
         const out = (builder.getFactory('$sine')('1hz') as CollectionWithRange)
             .range(0, 10)[0]
             .erratic(2, { speed: 3 });
 
         expect(out).toBeInstanceOf(CollectionWithRange);
-        expect(out.items[0].minValue).toBe(0);
-        expect(out.items[0].maxValue).toBe(10);
         const params = erraticParams();
-        expect(params).toMatchObject({ min: [0], max: [10], mode: 'clamp' });
+        expect(params.speed).toBe(3);
+        expect(params).not.toHaveProperty('min');
+        expect(params).not.toHaveProperty('max');
+        expect(params).not.toHaveProperty('mode');
     });
 
-    test("mode: 'shift' on a ranged collection", () => {
+    test("mode: 'shift' on a ranged collection gives up the range", () => {
         const out = (builder.getFactory('$sine')('1hz') as CollectionWithRange)
             .range(-3, -1)
             .erratic(5, { mode: 'shift' });
 
-        expect(out).toBeInstanceOf(CollectionWithRange);
-        expect(erraticParams()).toMatchObject({
-            min: [-3],
-            max: [-1],
-            mode: 'shift',
-        });
+        expect(out).toBeInstanceOf(Collection);
+        expect(erraticParams()).toMatchObject({ mode: 'shift' });
     });
 
-    test('per-output ranges of a ranged collection are kept', () => {
-        const sine = builder.getFactory('$sine');
-        const ranged = new CollectionWithRange(
-            ...(sine('1hz') as CollectionWithRange).range(0, 1).items,
-            ...(sine('2hz') as CollectionWithRange).range(2, 5).items,
-        );
-        const out = ranged.erratic(1);
+    test("mode: 'clamp' on a ranged collection keeps the range", () => {
+        const out = (builder.getFactory('$sine')('1hz') as CollectionWithRange)
+            .range(-3, -1)
+            .erratic(5, { mode: 'clamp' });
 
-        expect(out.items.map((o) => [o.minValue, o.maxValue])).toEqual([
-            [0, 1],
-            [2, 5],
-        ]);
+        expect(out).toBeInstanceOf(CollectionWithRange);
+        expect(erraticParams()).toMatchObject({ mode: 'clamp' });
     });
 
     test('unranged signal stays unranged', () => {
         const out = builder.$c('c3').erratic(1, { bias: 2 });
 
         expect(out).toBeInstanceOf(Collection);
-        expect(out.items[0]).not.toBeInstanceOf(ModuleOutputWithRange);
         expect(erraticParams().bias).toBe(2);
     });
 

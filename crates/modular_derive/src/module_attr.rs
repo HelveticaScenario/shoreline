@@ -1233,6 +1233,9 @@ fn impl_module_macro_attr(
                     channels_param: #module_channels_param,
                     channels_param_default: #module_channels_param_default,
                     experimental: #experimental,
+                    custom_bounds: <#params_struct_name as crate::types::BoundsInputs>::CUSTOM_TEST,
+                    declared_range: <#params_struct_name as crate::types::BoundsInputs>::DECLARED_RANGE
+                        .map(|(min, max)| vec![min.to_string(), max.to_string()]),
                 }
             }
         }

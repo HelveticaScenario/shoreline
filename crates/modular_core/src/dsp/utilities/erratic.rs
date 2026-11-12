@@ -213,12 +213,13 @@ fn input_range(input: Bounds) -> (f32, f32) {
     }
 }
 
-/// The bounds of a channel's output: its range, unless it shifts.
+/// The bounds of a channel's output: its range, in the order it runs,
+/// unless it shifts.
 #[inline(always)]
 fn output_bounds(min: f32, max: f32, mode: ErraticMode) -> Bounds {
     match mode {
         ErraticMode::Shift => Bounds::UNBOUNDED,
-        ErraticMode::Clamp | ErraticMode::Blend => Bounds::new(min, max).sorted(),
+        ErraticMode::Clamp | ErraticMode::Blend => Bounds::new(min, max),
     }
 }
 
