@@ -216,7 +216,7 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Plucks in a big plate",
         code: r#"
-            const notes = $p('c4 eb4 g4 bb4').c
+            const notes = $p('c4 eb4 g4 bb4')
             $sine(notes)
               .amp($perc(notes, { decay: 0.2 }))
               .dattorro({ decay: 3 })
@@ -509,6 +509,7 @@ mod tests {
         let deserialized = DeserializedParams {
             params: cached.params,
             channel_count: cached.channel_count,
+            f64_inputs: false,
         };
         constructors.get("$dattorro").unwrap()(
             &"test-dattorro".to_string(),

@@ -647,7 +647,7 @@ describe('$outLane', () => {
 
     test('a sequenced gain reads its $cycle', () => {
         const patch = execPatch(`
-            $saw('c2').out({ label: 'bass', gain: $p('1 4').c })
+            $saw('c2').out({ label: 'bass', gain: $p('1 4') })
             $signal($outLane('bass').level, { id: 'probe' })
         `);
         const cycles = patch.modules.filter((m) => m.moduleType === '$cycle');
@@ -728,13 +728,14 @@ describe('$outLane', () => {
         expect(three.input).not.toEqual(one.input);
     });
 
-    test('a pattern gain is refused', () => {
-        expect(() =>
-            exec(`
-                $saw('c2').out({ label: 'bass', gain: $p('1 4') })
-                $signal($outLane('bass').level, { id: 'probe' })
-            `),
-        ).toThrow(/is a pattern, not a signal/);
+    test('a pattern gain plays through its $cycle', () => {
+        const patch = execPatch(`
+            $saw('c2').out({ label: 'bass', gain: $p('1 4') })
+            $signal($outLane('bass').level, { id: 'probe' })
+        `);
+        expect(
+            patch.modules.filter((m) => m.moduleType === '$cycle').length,
+        ).toBe(1);
     });
 
     test('slices keep the lane properties', () => {

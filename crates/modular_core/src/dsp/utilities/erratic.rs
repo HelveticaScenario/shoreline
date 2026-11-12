@@ -252,7 +252,7 @@ const ERRATIC_DOCS: ModuleDocs = ModuleDocs {
               .amp(
                 $sine('4hz')
                   .range(2, 5)
-                  .erratic(2, { trigger: $clock.o.beatTrigger }),
+                  .erratic(2, { trigger: $clock._beatTrigger }),
               )
               .out()
         "#,
@@ -523,7 +523,7 @@ mod tests {
             block.channel_state.copy_from_slice(&sample.channel_state);
 
             let channels = sample.channel_count();
-            let mut outputs = ErraticBlockOutputs::new(64, channels);
+            let mut outputs = ErraticBlockOutputs::new(64, channels, false);
             let mut expected = Vec::new();
             let mut actual = Vec::new();
             for (n, len) in [1, 9, 1, 30, 23].into_iter().cycle().take(20).enumerate() {

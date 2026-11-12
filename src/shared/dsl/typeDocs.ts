@@ -33,6 +33,7 @@ export const DSL_TYPE_NAMES = [
     'Poly<Signal>',
     'Mono<Signal>',
     'Multi-output modules',
+    'Pattern',
     'Collection',
     'CollectionWithRange',
     'Note',
@@ -213,14 +214,79 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'A module with several outputs, such as a sequencer with a pitch, a gate and a trigger, can be used without naming one. ' +
             'Each input takes the output that suits it: a trigger input takes the trigger, a gate input the gate, and everything else the main output. ' +
             'The editor shows the output it picked beside the value; double-click that hint to write it into the code. ' +
-            'Its outputs are also listed by name under `.o`, as in `seq.o.gate`; naming one yourself always uses that output, whatever the input.',
+            'Each output is also there by name behind an underscore, as in `seq._gate`; naming one yourself always uses that output, whatever the input. ' +
+            'A pattern from `$p` is such a module too: it is the sequencer that plays it.',
         examples: [
-            "const seq = $p('c e g a').c\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope",
-            "const seq = $p('c3 ~ g3 ~').c\n$sine(seq).amp(seq.adsr()).out()   // the gate opens the envelope",
-            "const seq = $p('c e g a').c\n$sine(seq).amp($adsr(seq.o.gate)).amp(seq.o.velocity).out()   // named outputs are used as they are",
+            "const seq = $p('c e g a')\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope",
+            "const seq = $p('c3 ~ g3 ~')\n$sine(seq).amp(seq.adsr()).out()   // the gate opens the envelope",
+            "const seq = $p('c e g a')\n$sine(seq).amp($adsr(seq._gate)).amp(seq._velocity).out()   // named outputs are used as they are",
         ],
         name: 'Multi-output modules',
-        seeAlso: ['Collection', 'Signal'],
+        seeAlso: ['Pattern', 'Collection', 'Signal'],
+    },
+
+    Pattern: {
+        description:
+            'A mini-notation pattern, made by `$p`, `$p.s` or `$p.arrange`. A pattern is the sequencer that plays it: use it wherever a module goes, read its outputs (`_cv`, `_gate`, `_trig`, `_velocity`) and chain any Collection method or module. ' +
+            'Every such use of one pattern shares one sequencer. ' +
+            'The pattern methods each give a new pattern. To play a pattern with other sequencer settings, pass it to `$cycle` or call `.cycle(...)`, which makes a sequencer of its own.',
+        examples: [
+            "const seq = $p('c e g a')\n$saw(seq).amp($perc(seq)).out()   // one sequencer: pitch for the saw, triggers for the envelope",
+            "$p('c3 ~ g3 ~').fast(2).saw().lpf('800hz').out()   // pattern methods, then chain modules",
+            "$p.s('0 2 4 7', 'c(major)').trans('<0 3>').saw().out()   // scale degrees, transposed every other cycle",
+        ],
+        methods: [
+            {
+                description: 'Speed the pattern up by a factor',
+                example: "$p('c e g').fast(2)",
+                name: 'fast',
+                signature: 'fast(factor: number | string): Pattern',
+            },
+            {
+                description: 'Slow the pattern down by a factor',
+                example: "$p('c e g').slow(2)",
+                name: 'slow',
+                signature: 'slow(factor: number | string): Pattern',
+            },
+            {
+                description:
+                    'Take the rhythm from a boolean pattern, sampling this pattern at each onset',
+                example: "$p('c e').struct('x ~ x x')",
+                name: 'struct',
+                signature: 'struct(boolPattern: string): Pattern',
+            },
+            {
+                description:
+                    'Play this pattern at chosen beats of a divided cycle',
+                example: "$p('c2').beat('0,7,10', 16)",
+                name: 'beat',
+                signature:
+                    'beat(t: number | string, div: number | string): Pattern',
+            },
+            {
+                description: 'Glide into each note over a length in cycles',
+                example: "$p('c e g').glide(0.1)",
+                name: 'glide',
+                signature:
+                    'glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): Pattern',
+            },
+            {
+                description:
+                    'Transpose a `$p.s` pattern by another scale-degree pattern',
+                example: "$p.s('0 2 4', 'c(major)').trans('0 7')",
+                name: 'trans',
+                signature: 'trans(rhs: string): ScalePattern',
+            },
+            {
+                description:
+                    'Play this pattern through a `$cycle` of its own, with `$cycle` settings',
+                example: "$p('c e g').cycle({ ribbon: [0, 2] })",
+                name: 'cycle',
+                signature: 'cycle(config?): CycleOutputs',
+            },
+        ],
+        name: 'Pattern',
+        seeAlso: ['Multi-output modules', 'Collection'],
     },
 
     'Mono<Signal>': {
@@ -230,7 +296,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Takes what Poly<Signal> takes except a signal group: the module will not produce per-voice output from this parameter. ' +
             'Used for control parameters like tempo, stereo width, or math variables where a single combined value is needed.',
         examples: [
-            '$clockDivider(clock.o.trigger, 4)                // Clock signal summed to mono',
+            '$clockDivider(clock._trigger, 4)                // Clock signal summed to mono',
             '$stereoMix(osc, { width: lfo })                  // Width control summed to mono',
             '$math("x + y", { x: osc1, y: osc2 })            // Variables summed to single values',
         ],

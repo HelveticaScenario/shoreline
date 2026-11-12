@@ -1,6 +1,6 @@
 # Plaits engines as native Operator modules
 
-Goal: retire `$macro` and the `mi-plaits-dsp` crate. Port the Plaits engines that Operator cannot already build from existing modules as individual, idiomatic modules under `$mi.*`, ported directly from the C++ (`pichenettes/eurorack`, `plaits/dsp` + `stmlib/dsp`, MIT). This is not a `$macro` API replacement.
+Goal: retire `$macro` and the `mi-plaits-dsp` crate, deprecating `$macro` first (step 10). Port the Plaits engines that Operator cannot already build from existing modules as individual, idiomatic modules under `$mi.*`, ported directly from the C++ (`pichenettes/eurorack`, `plaits/dsp` + `stmlib/dsp`, MIT). This is not a `$macro` API replacement.
 
 ## 1. LPG audit
 
@@ -111,7 +111,7 @@ Parameter names are semantic (no harmonics/timbre/morph). Absolute frequencies (
 | `$mi.kick`             | `drums/analog_bass_drum` + overdrive             | `tone`, `decay`, `attackFm`, `selfFm`, `drive`                                              | `freq`, `fm`, `trigger`, `accent`        | `output`             |
 | `$mi.synthKick`        | `drums/synthetic_bass_drum`                      | `tone`, `decay`, `dirt`, `fmEnvelope`, `fmDecay`                                            | `freq`, `fm`, `trigger`, `accent`        | `output`             |
 | `$mi.snare`            | `drums/analog_snare_drum`                        | `tone`, `decay`, `snappy`                                                                   | `freq`, `fm`, `trigger`, `accent`        | `output`             |
-| `$mi.synthSnare`       | `drums/synthetic_snare_drum`                     | `tone`, `decay`, `snappy`                                                                   | `freq`, `fm`, `trigger`, `accent`        | `output`             |
+| `$mi.synthSnare`       | `drums/synthetic_snare_drum`                     | `attackFm`, `decay`, `snappy`                                                               | `freq`, `fm`, `trigger`, `accent`        | `output`             |
 | `$mi.hiHat`            | `drums/hi_hat` (square noise, swing VCA, HPF)    | `tone`, `decay`, `noisiness`                                                                | `freq`, `fm`, `trigger`, `accent`        | `output`             |
 | `$mi.ringHat`          | `drums/hi_hat` (ring-mod noise, linear VCA)      | `tone`, `decay`, `noisiness`                                                                | `freq`, `fm`, `trigger`, `accent`        | `output`             |
 
@@ -224,4 +224,4 @@ At 48 kHz the converted constants reproduce the C++ values exactly, so the refer
 7. `$mi.sixOp`.
 8. `$mi.vowel`, `$mi.speak`.
 9. Drums.
-10. Remove `$macro`, the `mi-plaits-dsp` submodule, workspace member and `extern crate` — a breaking change in its own changeset, with doc examples for the replicable engines in §2.
+10. Mark `$macro` deprecated in its docs, with a table of each engine's replacement from §2. `$macro`, the `mi-plaits-dsp` submodule, workspace member and `extern crate` stay for now; removing them is a later breaking change in its own changeset.

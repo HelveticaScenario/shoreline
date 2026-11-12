@@ -57,14 +57,14 @@ const CB808_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Cowbell riff",
             code: r#"
-                $tr808.kick($p('c*4').c).out()
-                $tr808.cowbell($p('~ c ~ c c ~ c ~').c).out()
+                $tr808.kick($p('c*4')).out()
+                $tr808.cowbell($p('~ c ~ c c ~ c ~')).out()
             "#,
         },
         DocExample {
             title: "Tuned cowbell melody",
             code: r#"
-                const bell = $p('c5 ~ eb5 c5 ~ g4 ~ bb4').c
+                const bell = $p('c5 ~ eb5 c5 ~ g4 ~ bb4')
                 $tr808.cowbell(bell, { freq: bell }).out()
             "#,
         },

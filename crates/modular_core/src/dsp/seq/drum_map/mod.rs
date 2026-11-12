@@ -97,7 +97,7 @@ struct DrumMapParams {
         range = (0.0, ..),
         control_range = (0.0, 1.0),
     )]
-    #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
+    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
     #[input(
@@ -240,8 +240,8 @@ const DRUM_MAP_DOCS: ModuleDocs = ModuleDocs {
               chaos: 0.5,
             })
             $tr808.kick(drums).out()
-            $tr808.snare(drums.o.sd).out()
-            $tr808.hiHat(drums.o.hh).out()
+            $tr808.snare(drums._sd).out()
+            $tr808.hiHat(drums._hh).out()
         "#,
     }],
 };

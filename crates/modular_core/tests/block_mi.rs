@@ -66,13 +66,19 @@ fn allocation_free() {
         "$mi.additive",
         "$mi.divideDown",
         "$mi.formant",
+        "$mi.hiHat",
+        "$mi.kick",
         "$mi.modal",
         "$mi.particles",
         "$mi.phaseDistortion",
+        "$mi.ringHat",
         "$mi.sixOp",
+        "$mi.snare",
         "$mi.speak",
         "$mi.string",
         "$mi.swarm",
+        "$mi.synthKick",
+        "$mi.synthSnare",
         "$mi.twoOp",
         "$mi.formantVowel",
         "$mi.samVowel",
@@ -138,6 +144,32 @@ fn speak_allocation_free() {
     );
 }
 
+/// Strikes, with every knob moving under them, allocate nothing.
+#[test]
+fn drum_allocation_free() {
+    for (module, knobs) in [
+        (
+            "$mi.kick",
+            &["tone", "decay", "attackFm", "selfFm", "drive", "accent"][..],
+        ),
+        (
+            "$mi.synthKick",
+            &["tone", "decay", "dirt", "fmEnvelope", "fmDecay", "accent"],
+        ),
+        ("$mi.snare", &["tone", "decay", "snappy", "accent"]),
+        ("$mi.synthSnare", &["attackFm", "decay", "snappy", "accent"]),
+        ("$mi.hiHat", &["tone", "decay", "noisiness", "accent"]),
+        ("$mi.ringHat", &["tone", "decay", "noisiness", "accent"]),
+    ] {
+        let mut params =
+            json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS) });
+        for (i, &knob) in knobs.iter().enumerate() {
+            params[knob] = cable("lfo", i % CHANNELS);
+        }
+        assert_eq!(allocations_while_rendering(module, params), 0, "{module}");
+    }
+}
+
 #[test]
 fn chorus_allocation_free() {
     assert_eq!(
@@ -179,6 +211,32 @@ fn resonator_instances_draw_their_own_grains() {
         assert!(
             a.iter().zip(&b).any(|(x, y)| x != y),
             "{module}: identical grains"
+        );
+    }
+}
+
+/// Two noisy drones with the same settings draw their own noise.
+#[test]
+fn drum_instances_draw_their_own_noise() {
+    for (module, params) in [
+        ("$mi.synthKick", json!({ "freq": 0.0, "dirt": 5.0 })),
+        ("$mi.snare", json!({ "freq": 0.0, "snappy": 5.0 })),
+        ("$mi.synthSnare", json!({ "freq": 0.0, "snappy": 5.0 })),
+        ("$mi.hiHat", json!({ "freq": 0.0, "noisiness": 5.0 })),
+        ("$mi.ringHat", json!({ "freq": 0.0, "noisiness": 5.0 })),
+    ] {
+        let a = build(
+            ProcessingMode::Block,
+            ProcessingMode::Block,
+            module,
+            params.clone(),
+        );
+        let b = build(ProcessingMode::Block, ProcessingMode::Block, module, params);
+        let a = render_ports(&a, "output", 64);
+        let b = render_ports(&b, "output", 64);
+        assert!(
+            a.iter().zip(&b).any(|(x, y)| x != y),
+            "{module}: identical noise"
         );
     }
 }

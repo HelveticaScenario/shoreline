@@ -1,7 +1,8 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use crate::params::ParamsDeserializer;
-use crate::types::{ModuleSchema, SampleableConstructor};
+use crate::types::{ModuleSchema, OutputPrecision, SampleableConstructor};
 
 pub mod chaos;
 pub mod consts;
@@ -93,4 +94,24 @@ pub fn schema() -> Vec<ModuleSchema> {
         shape::schemas(),
     ]
     .concat()
+}
+
+/// Each module type's outputs that are not plain f32, by port name.
+pub fn output_precisions() -> &'static HashMap<String, HashMap<String, OutputPrecision>> {
+    static PRECISIONS: LazyLock<HashMap<String, HashMap<String, OutputPrecision>>> =
+        LazyLock::new(|| {
+            schema()
+                .into_iter()
+                .filter_map(|module| {
+                    let ports: HashMap<String, OutputPrecision> = module
+                        .outputs
+                        .into_iter()
+                        .filter(|output| output.precision != OutputPrecision::F32)
+                        .map(|output| (output.name, output.precision))
+                        .collect();
+                    (!ports.is_empty()).then_some((module.name, ports))
+                })
+                .collect()
+        });
+    &PRECISIONS
 }

@@ -290,6 +290,13 @@ fn connect_noop_for_non_cable_and_non_track_signals() {
     approx_eq(s.get_value(), 1.0, 1e-6);
 }
 
+fn source(module: &str, port: &str) -> modular_core::types::CableSource {
+    modular_core::types::CableSource {
+        module: module.to_string(),
+        port: port.to_string(),
+    }
+}
+
 #[test]
 fn collect_cables_volts_emits_nothing() {
     use modular_core::types::Connect;
@@ -300,12 +307,12 @@ fn collect_cables_volts_emits_nothing() {
 }
 
 #[test]
-fn collect_cables_cable_emits_module_id() {
+fn collect_cables_cable_emits_module_and_port() {
     use modular_core::types::Connect;
     let s = Signal::cable("OSC1", "out", 0);
     let mut sink = Vec::new();
     s.collect_cables(&mut sink);
-    assert_eq!(sink, vec!["OSC1".to_string()]);
+    assert_eq!(sink, vec![source("OSC1", "out")]);
 }
 
 #[test]
@@ -318,7 +325,7 @@ fn collect_cables_container_forwarding() {
     ];
     let mut sink = Vec::new();
     signals.collect_cables(&mut sink);
-    assert_eq!(sink, vec!["A".to_string(), "B".to_string()]);
+    assert_eq!(sink, vec![source("A", "out"), source("B", "trig")]);
 }
 
 #[test]
@@ -337,7 +344,7 @@ fn collect_cables_buffer_emits_source_module() {
     let buf = Buffer::new("RECORDER".into(), "out".into(), 2);
     let mut sink = Vec::new();
     buf.collect_cables(&mut sink);
-    assert_eq!(sink, vec!["RECORDER".to_string()]);
+    assert_eq!(sink, vec![source("RECORDER", "out")]);
 }
 
 #[test]
@@ -350,7 +357,7 @@ fn collect_cables_phase_warp_with_signal_cable() {
     };
     let mut sink = Vec::new();
     warp.collect_cables(&mut sink);
-    assert_eq!(sink, vec!["LFO".to_string()]);
+    assert_eq!(sink, vec![source("LFO", "out")]);
 }
 
 #[test]
@@ -369,7 +376,7 @@ fn collect_cables_phase_warp_pipe_recurses() {
     };
     let mut sink = Vec::new();
     warp.collect_cables(&mut sink);
-    assert_eq!(sink, vec!["A".to_string(), "B".to_string()]);
+    assert_eq!(sink, vec![source("A", "out"), source("B", "out")]);
 }
 
 #[test]

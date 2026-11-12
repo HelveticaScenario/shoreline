@@ -1,23 +1,22 @@
 /// Names taken by the built-in properties and methods of `BaseCollection`,
-/// `Collection`, `CollectionWithRange` and `DeferredCollection`, and by
-/// JavaScript built-in properties.
+/// `Collection`, `CollectionWithRange` and `DeferredCollection`, by the
+/// methods of patterns, and by JavaScript built-in properties.
 ///
-/// A module output cannot take one of these names. Nor can the first segment
-/// of a module's name after its `$`: every chainable module is also a method
-/// of collections (`$lpf` as `.lpf(...)`, `$mi.chorus` as `.mi.chorus(...)`),
-/// so `$gain` or `$gain.soft` would shadow `.gain(...)`.
+/// The first segment of a module's name after its `$` cannot be one of them:
+/// every chainable module is also a method of collections (`$lpf` as
+/// `.lpf(...)`, `$mi.chorus` as `.mi.chorus(...)`), so `$gain` or `$gain.soft`
+/// would shadow `.gain(...)`. A pattern has every collection member beside its
+/// own methods, so those are taken too; `$cycle` alone keeps its name, being
+/// what a pattern's `.cycle(...)` calls. A module's outputs sit behind an
+/// underscore (`seq._gate`), so an output may take any of these names.
 ///
 /// This file is the single source of truth. It is `include!()`-ed by both
 /// `modular_derive` (compile-time validation) and `modular` (NAPI export to JS).
-/// The names are in camelCase because the TypeScript DSL converts all output names
-/// to camelCase before checking. The Rust proc-macro derives snake_case variants
-/// automatically from this list.
-const RESERVED_OUTPUT_NAMES: &[&str] = &[
+const RESERVED_MEMBER_NAMES: &[&str] = &[
     // BaseCollection properties
     "items",
     "length",
     "channelViews",
-    "o",
     // BaseCollection methods
     "channel",
     "slice",
@@ -49,6 +48,14 @@ const RESERVED_OUTPUT_NAMES: &[&str] = &[
     "range",
     // DeferredCollection methods
     "set",
+    // Pattern methods
+    "cycle",
+    "fast",
+    "slow",
+    "struct",
+    "beat",
+    "glide",
+    "trans",
     // JavaScript built-in property names
     "constructor",
     "prototype",

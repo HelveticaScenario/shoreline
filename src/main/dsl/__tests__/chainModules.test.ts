@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, test } from 'vitest';
-import { getReservedOutputNames, type PatchGraph } from '@modular/core';
+import { getReservedMemberNames, type PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { DSLContext } from '../factories';
 import {
@@ -18,6 +18,7 @@ import {
     ModuleOutput,
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
+import { PATTERN_METHODS } from '../miniNotation';
 import { OutLane } from '../outLane';
 import { processModuleSchema, qualifiesForChain } from '../paramsSchema';
 
@@ -97,16 +98,18 @@ describe('chain modules', () => {
         expect(normalize(viaChain)).toEqual(normalize(viaFactory));
     });
 
-    test('multi-output module exposes its outputs on .o', () => {
+    test('multi-output module exposes its outputs by name', () => {
         const sig = builder.getFactory('$sine')(0) as unknown as Chained;
-        const xover = sig.xover() as { o: Record<string, unknown> };
-        expect(Object.keys(xover.o)).toEqual(['thru', 'low', 'mid', 'high']);
+        const xover = sig.xover() as Record<string, unknown>;
+        for (const name of ['_thru', '_low', '_mid', '_high']) {
+            expect(xover[name]).toBeInstanceOf(BaseCollection);
+        }
     });
 
     test('chains off a named output and off a root', () => {
-        const named = execPatch('$sine(0).xover().o.low.lpf("100hz").out()');
+        const named = execPatch('$sine(0).xover()._low.lpf("100hz").out()');
         const viaFactory = execPatch(
-            '$lpf($xover($sine(0)).o.low, "100hz").out()',
+            '$lpf($xover($sine(0))._low, "100hz").out()',
         );
         expect(normalize(named)).toEqual(normalize(viaFactory));
         const root = execPatch('$sine(0).xover().lpf("100hz").out()');
@@ -163,11 +166,12 @@ describe('chain modules', () => {
 // ─── reserved names ──────────────────────────────────────────────────────────
 
 describe('reserved names', () => {
-    const reserved = new Set(getReservedOutputNames());
+    const reserved = new Set(getReservedMemberNames());
 
     test('no module name starts with a reserved word', () => {
         for (const { name } of schemas) {
-            if (name.startsWith('_')) {
+            // `$cycle` is what a pattern's reserved `.cycle(...)` calls.
+            if (name.startsWith('_') || name === '$cycle') {
                 continue;
             }
             expect(name.startsWith('$'), name).toBe(true);
@@ -206,6 +210,14 @@ describe('reserved names', () => {
                 (member) => !reserved.has(member),
             ),
         ).toEqual([]);
+    });
+
+    test('every pattern method is reserved, and no collection member shadows one', () => {
+        for (const method of PATTERN_METHODS) {
+            expect(reserved.has(method), method).toBe(true);
+            expect(method in Collection.prototype, method).toBe(false);
+            expect(method in CollectionWithRange.prototype, method).toBe(false);
+        }
     });
 });
 
@@ -251,10 +263,10 @@ describe('.wet', () => {
         expect(normalize(root)).toEqual(
             normalize(execPatch('$saw(0).pipeMix((s) => $xover(s), 2).out()')),
         );
-        const named = execPatch('$saw(0).xover().o.low.wet(2).out()');
+        const named = execPatch('$saw(0).xover()._low.wet(2).out()');
         expect(normalize(named)).toEqual(
             normalize(
-                execPatch('$saw(0).pipeMix((s) => $xover(s).o.low, 2).out()'),
+                execPatch('$saw(0).pipeMix((s) => $xover(s)._low, 2).out()'),
             ),
         );
     });

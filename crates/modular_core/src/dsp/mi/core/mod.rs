@@ -4,6 +4,7 @@
 pub mod control;
 pub mod delay_line;
 pub mod downsampler;
+pub mod dsp;
 pub mod fast_sine;
 pub mod filter;
 #[cfg(test)]

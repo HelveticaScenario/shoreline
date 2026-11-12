@@ -24,6 +24,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
     let deserialized = DeserializedParams {
         params: cached.params,
         channel_count: cached.channel_count,
+        f64_inputs: false,
     };
     constructors
         .get(module_type)

@@ -285,7 +285,7 @@ const REVERB2_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Dark, long-tailed plucks",
         code: r#"
-            const notes = $p('c5 g4 eb5 ~').c
+            const notes = $p('c5 g4 eb5 ~')
             $sine(notes)
               .amp($perc(notes, { decay: 0.15 }))
               .unstable.reverb2({ decay: 4, damping: 4 })
@@ -613,6 +613,7 @@ mod tests {
         let deserialized = DeserializedParams {
             params: cached.params,
             channel_count: cached.channel_count,
+            f64_inputs: false,
         };
         constructors.get("$unstable.reverb2").unwrap()(
             &"test-reverb2".to_string(),

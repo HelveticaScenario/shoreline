@@ -239,7 +239,7 @@ const GRAINS_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Grain chords from a melody",
             code: r#"
-                const seq = $p('<[c3, g3] [eb3, bb3]>').c
+                const seq = $p('<[c3, g3] [eb3, bb3]>')
                 $grains(seq, '/wavs/strings.wav', seq, {
                   length: 2,
                   density: 3,
@@ -642,6 +642,7 @@ mod tests {
         let deserialized = DeserializedParams {
             params: cached.params,
             channel_count: cached.channel_count,
+            f64_inputs: false,
         };
         constructors
             .get(module_type)

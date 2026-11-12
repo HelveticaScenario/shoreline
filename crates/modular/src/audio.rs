@@ -1694,6 +1694,7 @@ impl AudioState {
             modular_core::params::DeserializedParams,
         )> = Vec::with_capacity(desired_modules.len());
         let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
+        let mut cables: HashMap<String, Vec<modular_core::types::CableSource>> = HashMap::new();
         // Build each stateful module's editor-state halves from the raw params now,
         // before the deserialize step below consumes them: the immutable metadata
         // (cached to build the editor JSON on poll) and the pre-allocated live slot
@@ -1717,9 +1718,13 @@ impl AudioState {
                             id, e
                         ))
                     })?;
-            let mut producers = Vec::new();
-            deserialized.params.collect_cables(&mut producers);
-            adjacency.insert(id.clone(), producers);
+            let mut sources = Vec::new();
+            deserialized.params.collect_cables(&mut sources);
+            adjacency.insert(
+                id.clone(),
+                sources.iter().map(|source| source.module.clone()).collect(),
+            );
+            cables.insert(id.clone(), sources);
             deserialized_modules.push((id, module_state.module_type, deserialized));
         }
 
@@ -1729,6 +1734,11 @@ impl AudioState {
         // time and the 1-sample feedback delay invariant holds; everyone else
         // gets `Block`. The order lists producers before consumers.
         let analysis = crate::graph_analysis::analyze(&adjacency);
+        let module_types: HashMap<&str, &str> = deserialized_modules
+            .iter()
+            .map(|(id, module_type, _)| (id.as_str(), module_type.as_str()))
+            .collect();
+        let f64_readers = crate::graph_analysis::f64_modules(&cables, &module_types);
         let mode_map = analysis.modes;
         update.process_order_ids = analysis.order;
         // Empty storage, allocated here, that the audio thread swaps in for its
@@ -1748,7 +1758,8 @@ impl AudioState {
         )> = Vec::with_capacity(deserialized_modules.len());
         let mut block_ids: Vec<String> = Vec::new();
         let mut sample_ids: Vec<String> = Vec::new();
-        for (id, module_type, deserialized) in deserialized_modules {
+        for (id, module_type, mut deserialized) in deserialized_modules {
+            deserialized.f64_inputs = f64_readers.contains(&id);
             // ROOT_CLOCK is always Sample mode: the block-aware audio callback
             // (when it lands) needs to eager-fill its trigger outputs one sample
             // at a time so the queued-update trigger check can fire on an exact
@@ -2662,6 +2673,9 @@ where
                 // caught unwind. Compiles to nothing without `--features=alloc-detector`.
                 #[cfg(feature = "alloc-detector")]
                 let _alloc_scope = crate::alloc_detector::AudioThreadScope::enter();
+                // Outside `catch_unwind` too, so a caught unwind still restores
+                // the host's mode.
+                let _flush_denormals = crate::denormals::FlushDenormals::enter();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     use modular_core::types::{ROOT_CLOCK_ID, ROOT_ID};
                     profiling::scope!("audio_callback");
@@ -2966,8 +2980,9 @@ where
                         let has_queued = audio_processor.queued_update.is_some();
                         if let Some(clock) = audio_processor.patch.sampleables.get(&*ROOT_CLOCK_ID)
                         {
-                            let bar_phase = clock.get_value_at("playhead", 0, last) as f64;
-                            let bar_count = clock.get_value_at("playhead", 1, last) as u64;
+                            let bars = clock.get_value_at_f64("playhead", 0, last);
+                            let bar_phase = bars.fract();
+                            let bar_count = bars.floor() as u64;
                             let beat_in_bar = clock.get_value_at("beatInBar", 0, last) as u32;
                             let is_playing = !audio_processor.is_stopped();
                             audio_processor.transport_meter.write_from_audio(
@@ -4295,7 +4310,7 @@ mod tests {
         let mut phase = 0.0;
         for _ in 0..samples {
             clock.start_block();
-            phase = clock.get_value_at("playhead", 0, 0);
+            phase = clock.get_value_at_f64("playhead", 0, 0).fract() as f32;
         }
         phase
     }
@@ -5082,6 +5097,7 @@ mod tests {
                 modular_core::params::DeserializedParams {
                     params: cached.params,
                     channel_count: cached.channel_count,
+                    f64_inputs: false,
                 },
                 mode,
             )
