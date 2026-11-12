@@ -588,7 +588,7 @@ fn erratic_chain(channels: usize, modulated: bool) -> BenchPatch {
             params["speed"] = poly_cable("lfo", "output", channels);
             params["trigger"] = poly_cable("gate", "output", channels);
         }
-        modules.push((format!("e{i}"), "_erratic", params));
+        modules.push((format!("e{i}"), "$erratic", params));
     }
     BenchPatch::new(modules)
 }

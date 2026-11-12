@@ -1,15 +1,14 @@
 /**
- * `.erratic()` builds a hidden `_erratic` module. On a ranged signal it leaves
- * the range and mode to the engine, which varies within the signal's range
- * and blends by default, and the result keeps the range unless it shifts; on
- * an unranged signal it shifts across a nominal ±5 V.
+ * `.erratic()` is the chain method of `$erratic`. Unset, its `mode` blends
+ * within a signal's range and shifts a signal without one; the result is
+ * ranged when the mode keeps a range, as the engine bounds it.
  */
 
 import { beforeEach, describe, expect, test } from 'vitest';
 import schemas from '@modular/core/schemas.json';
 import { DSLContext } from '../factories';
 import {
-    Collection,
+    type Collection,
     CollectionWithRange,
     type GraphBuilder,
 } from '../GraphBuilder';
@@ -21,19 +20,26 @@ beforeEach(() => {
     builder = new DSLContext(schemas).getBuilder();
 });
 
+/** Call chain method `method`, which the builder installs at runtime. */
+function chain(receiver: unknown, method: string, ...args: unknown[]) {
+    const methods = receiver as Record<string, (...a: unknown[]) => unknown>;
+    return methods[method](...args);
+}
+
 function erraticParams(): Record<string, unknown> {
     const node = builder
         .toPatch()
-        .modules.find((m) => m.moduleType === '_erratic');
+        .modules.find((m) => m.moduleType === '$erratic');
     expect(node).toBeDefined();
     return node!.params as Record<string, unknown>;
 }
 
+const lfo = () =>
+    (builder.getFactory('$sine')('1hz') as Collection).range(0, 10, -5, 5);
+
 describe('.erratic()', () => {
-    test('a ranged output leaves its range and mode to the engine', () => {
-        const out = (builder.getFactory('$sine')('1hz') as CollectionWithRange)
-            .range(0, 10)[0]
-            .erratic(2, { speed: 3 });
+    test('a ranged signal stays ranged, its range and mode left to the engine', () => {
+        const out = chain(lfo(), 'erratic', 2, { speed: 3 });
 
         expect(out).toBeInstanceOf(CollectionWithRange);
         const params = erraticParams();
@@ -43,57 +49,43 @@ describe('.erratic()', () => {
         expect(params).not.toHaveProperty('mode');
     });
 
-    test("mode: 'shift' on a ranged collection gives up the range", () => {
-        const out = (builder.getFactory('$sine')('1hz') as CollectionWithRange)
-            .range(-3, -1)
-            .erratic(5, { mode: 'shift' });
+    test("mode: 'shift' gives up the range", () => {
+        const out = chain(lfo(), 'erratic', 5, { mode: 'shift' });
 
-        expect(out).toBeInstanceOf(Collection);
+        expect(out).not.toBeInstanceOf(CollectionWithRange);
         expect(erraticParams()).toMatchObject({ mode: 'shift' });
     });
 
-    test("mode: 'clamp' on a ranged collection keeps the range", () => {
-        const out = (builder.getFactory('$sine')('1hz') as CollectionWithRange)
-            .range(-3, -1)
-            .erratic(5, { mode: 'clamp' });
+    test.each(['clamp', 'blend'])(
+        "mode: '%s' keeps a range on any signal",
+        (mode) => {
+            expect(chain(lfo(), 'erratic', 5, { mode })).toBeInstanceOf(
+                CollectionWithRange,
+            );
+            expect(
+                chain(builder.$c('c3'), 'erratic', 5, { mode }),
+            ).toBeInstanceOf(CollectionWithRange);
+        },
+    );
 
-        expect(out).toBeInstanceOf(CollectionWithRange);
-        expect(erraticParams()).toMatchObject({ mode: 'clamp' });
+    test('a constant signal has no range, so it shifts', () => {
+        const out = chain(builder.$c('c3'), 'erratic', 1, { bias: 2 });
+
+        expect(out).not.toBeInstanceOf(CollectionWithRange);
+        const params = erraticParams();
+        expect(params.bias).toBe(2);
+        expect(params).not.toHaveProperty('mode');
     });
 
-    test('unranged signal stays unranged', () => {
-        const out = builder.$c('c3').erratic(1, { bias: 2 });
-
-        expect(out).toBeInstanceOf(Collection);
-        expect(erraticParams().bias).toBe(2);
-    });
-
-    test('mode and sparse pass through on a ranged signal', () => {
-        (builder.getFactory('$sine')('1hz') as CollectionWithRange)
-            .range(0, 5)
-            .erratic(5, { mode: 'blend', sparse: true });
-        expect(erraticParams()).toMatchObject({
-            mode: 'blend',
-            sparse: true,
-        });
-    });
-
-    test('unranged signal passes sparse and shifts across a nominal ±5 V', () => {
-        builder.$c('c3').erratic(1, { sparse: true, mode: 'blend' } as object);
-        expect(erraticParams()).toMatchObject({
-            sparse: true,
-            mode: 'shift',
-            min: -5,
-            max: 5,
-        });
-    });
-
-    test('_erratic is not a global', () => {
+    test('$erratic is a global', () => {
         const run = (src: string) =>
             executePatchScript(src, schemas, {
                 sampleRate: 48_000,
                 workspaceRoot: '/workspace',
             });
-        expect(() => run('$erratic(0, 1).out()')).toThrow();
+        const types = run('$erratic($sine("1hz"), 1).out()').patch.modules.map(
+            (m) => m.moduleType,
+        );
+        expect(types).toContain('$erratic');
     });
 });

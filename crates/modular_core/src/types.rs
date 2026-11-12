@@ -320,14 +320,20 @@ pub trait Sampleable: MessageHandler + Send {
     fn port_names(&self) -> &'static [&'static str] {
         &[]
     }
-    /// Let the params fix their choices from which outputs in the patch are
-    /// bounded (see [`BoundsInputs::settle`]). Main thread, before the module
-    /// is shipped to the audio thread.
-    fn settle_params(&self, _is_bounded: &dyn Fn(&str, &str) -> bool) {}
-    /// The outputs of this module that carry bounds in a patch whose bounded
-    /// outputs `is_bounded(module, port)` names, as bits by port index.
-    /// Main thread, before the module is shipped to the audio thread.
-    fn bounded_outputs(&self, _is_bounded: &dyn Fn(&str, &str) -> bool) -> u64 {
+    /// Let the params fix their choices from what the patch has settled
+    /// about its outputs (see [`BoundsInputs::settle`]). Main thread, before
+    /// the module is shipped to the audio thread.
+    fn settle_params(&self, _settled: &dyn crate::bounds::Settled) {}
+    /// The outputs of this module that carry bounds in a patch as `settled`
+    /// so far, as bits by port index. Main thread, before the module is
+    /// shipped to the audio thread.
+    fn bounded_outputs(&self, _settled: &dyn crate::bounds::Settled) -> u64 {
+        0
+    }
+    /// The outputs of this module that carry a range in a patch as `settled`
+    /// so far, as bits by port index: bounded ones whose bounds swing. Main
+    /// thread, before the module is shipped to the audio thread.
+    fn ranged_outputs(&self, _settled: &dyn crate::bounds::Settled) -> u64 {
         0
     }
     /// The outputs whose bounds this module reads, given the outputs of its
@@ -2903,17 +2909,20 @@ pub enum BoundsKind {
 /// How a module's params take part in bounds, for the patch analysis on the
 /// main thread. `#[params]` derives it: the inputs tagged
 /// `#[input(…, bounds)]` are those its `bounds = input` outputs' bounds come
-/// from, and `#[params(bounded_when = …, reads_bounds = …)]` supply the other
-/// two methods.
+/// from, `#[input(…, bounding = (…))]` and `#[params(declares_range = …)]`
+/// change when they are bounded, and `#[params(reads_bounds = …, settles =
+/// …)]` supply the methods of those names.
 pub trait BoundsInputs {
-    /// Whether [`inputs_bounded`](Self::inputs_bounded) is the module's own
-    /// test rather than the tagged inputs'.
-    const CUSTOM_TEST: bool = false;
-
     /// The two optional params, as the DSL names them, that bound the
     /// `bounds = input` outputs when both are set, whatever the inputs
     /// (`#[params(declares_range = (min, max))]`).
     const DECLARED_RANGE: Option<(&'static str, &'static str)> = None;
+
+    /// The optional param, as the DSL names it, that decides whether the
+    /// `bounds = input` outputs are bounded, and the values, as the DSL names
+    /// them, for which they are: unset, they are bounded when the tagged
+    /// inputs give a range (`#[input(…, bounding = (…))]`).
+    const BOUNDING_PARAM: Option<(&'static str, &'static [&'static str])> = None;
 
     /// The connected inputs the `bounds = input` outputs' bounds come from.
     fn bounds_inputs(&self) -> Vec<&crate::poly::PolySignal>;
@@ -2926,19 +2935,36 @@ pub trait BoundsInputs {
     /// The tagged inputs' test: every input in
     /// [`bounds_inputs`](Self::bounds_inputs) is bounded, and every one that
     /// must hold a constant does.
-    fn tagged_inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
+    fn tagged_inputs_bounded(&self, settled: &dyn crate::bounds::Settled) -> bool {
         self.constants_hold()
             && self
                 .bounds_inputs()
                 .iter()
-                .all(|input| input.statically_bounded(is_bounded))
+                .all(|input| input.statically_bounded(settled))
     }
 
-    /// Whether the `bounds = input` outputs are bounded, given which outputs
-    /// in the patch are: by default, the
+    /// Whether the tagged inputs give a range: they are
+    /// [bounded](Self::tagged_inputs_bounded), and one of them is ranged in
+    /// every channel. Constants beside it carry its range along.
+    fn tagged_inputs_ranged(&self, settled: &dyn crate::bounds::Settled) -> bool {
+        self.tagged_inputs_bounded(settled)
+            && self
+                .bounds_inputs()
+                .iter()
+                .any(|input| input.statically_ranged(settled))
+    }
+
+    /// Whether the `bounds = input` outputs are bounded in a patch as
+    /// `settled` so far: by default, the
     /// [tagged inputs' test](Self::tagged_inputs_bounded).
-    fn inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
-        self.tagged_inputs_bounded(is_bounded)
+    fn inputs_bounded(&self, settled: &dyn crate::bounds::Settled) -> bool {
+        self.tagged_inputs_bounded(settled)
+    }
+
+    /// Whether the `bounds = input` outputs carry a range: by default, when
+    /// the [tagged inputs give one](Self::tagged_inputs_ranged).
+    fn inputs_ranged(&self, settled: &dyn crate::bounds::Settled) -> bool {
+        self.tagged_inputs_ranged(settled)
     }
 
     /// The inputs whose bounds the module reads for itself, beyond deriving
@@ -2948,8 +2974,9 @@ pub trait BoundsInputs {
     }
 
     /// Fix, once per patch, any choice the module makes from whether its
-    /// inputs are bounded, so it never changes while the patch plays.
-    fn settle(&mut self, _is_bounded: &dyn Fn(&str, &str) -> bool) {}
+    /// inputs are bounded or ranged, so it never changes while the patch
+    /// plays.
+    fn settle(&mut self, _settled: &dyn crate::bounds::Settled) {}
 }
 
 pub trait OutputStruct: Default + Send + 'static {
@@ -3066,16 +3093,26 @@ pub struct ModuleSchema {
     /// still change between releases. Always serialized, like `buffer_outputs`.
     #[serde(default)]
     pub experimental: bool,
-    /// Whether the module decides for itself when its `bounds = input`
-    /// outputs are bounded (`#[params(bounded_when = …)]`), rather than when
-    /// every input that carries bounds is.
-    #[serde(default)]
-    pub custom_bounds: bool,
-    /// The two optional params, `[min, max]`, that bound the module's `bounds = input`
-    /// outputs when both are set, whatever its inputs
+    /// The two optional params, `[min, max]`, that bound the module's
+    /// `bounds = input` outputs when both are set, whatever its inputs
     /// (`#[params(declares_range = …)]`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub declared_range: Option<Vec<String>>,
+    /// The optional param that decides whether the module's `bounds = input`
+    /// outputs are bounded (`#[input(…, bounding = (…))]`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bounding_param: Option<BoundingParam>,
+}
+
+/// A param that decides whether a module's `bounds = input` outputs are
+/// bounded: they are for `values`, not for its other values, and, unset, when
+/// the inputs tagged `bounds` give a range.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[napi(object)]
+pub struct BoundingParam {
+    pub name: String,
+    pub values: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

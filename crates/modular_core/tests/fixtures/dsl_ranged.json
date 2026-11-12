@@ -479,9 +479,9 @@
             }
         },
         {
-            "id": "_erratic-1",
+            "id": "$erratic-1",
             "idIsExplicit": false,
-            "moduleType": "_erratic",
+            "moduleType": "$erratic",
             "params": {
                 "input": [
                     {
@@ -520,9 +520,9 @@
             }
         },
         {
-            "id": "_erratic-2",
+            "id": "$erratic-2",
             "idIsExplicit": false,
-            "moduleType": "_erratic",
+            "moduleType": "$erratic",
             "params": {
                 "input": [
                     {
@@ -534,6 +534,31 @@
                 ],
                 "amount": 2,
                 "mode": "clamp"
+            }
+        },
+        {
+            "id": "$signal-5",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": "c3"
+            }
+        },
+        {
+            "id": "$erratic-3",
+            "idIsExplicit": false,
+            "moduleType": "$erratic",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$signal-5",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "amount": 2,
+                "mode": "blend"
             }
         },
         {
@@ -912,7 +937,7 @@
             }
         },
         {
-            "id": "$signal-5",
+            "id": "$signal-6",
             "idIsExplicit": false,
             "moduleType": "$signal",
             "params": {
@@ -1083,7 +1108,7 @@
             }
         },
         {
-            "id": "$signal-6",
+            "id": "$signal-7",
             "idIsExplicit": false,
             "moduleType": "$signal",
             "params": {
@@ -1098,7 +1123,7 @@
                 "input": [
                     {
                         "channel": 0,
-                        "module": "$signal-6",
+                        "module": "$signal-7",
                         "port": "output",
                         "type": "cable"
                     }
@@ -1157,7 +1182,7 @@
             }
         },
         {
-            "id": "$signal-7",
+            "id": "$signal-8",
             "idIsExplicit": false,
             "moduleType": "$signal",
             "params": {
@@ -1172,7 +1197,7 @@
                 "input": [
                     {
                         "channel": 0,
-                        "module": "$signal-7",
+                        "module": "$signal-8",
                         "port": "output",
                         "type": "cable"
                     }
@@ -1204,7 +1229,7 @@
             }
         },
         {
-            "id": "$signal-8",
+            "id": "$signal-9",
             "idIsExplicit": false,
             "moduleType": "$signal",
             "params": {
@@ -1219,7 +1244,7 @@
                 "input": [
                     {
                         "channel": 0,
-                        "module": "$signal-8",
+                        "module": "$signal-9",
                         "port": "output",
                         "type": "cable"
                     }
@@ -1393,7 +1418,7 @@
             }
         },
         {
-            "id": "$signal-9",
+            "id": "$signal-10",
             "idIsExplicit": false,
             "moduleType": "$signal",
             "params": {
@@ -1408,7 +1433,7 @@
                 "input": [
                     {
                         "channel": 0,
-                        "module": "$signal-9",
+                        "module": "$signal-10",
                         "port": "output",
                         "type": "cable"
                     }
@@ -1513,6 +1538,30 @@
                     },
                     3
                 ]
+            }
+        },
+        {
+            "id": "$signal-11",
+            "idIsExplicit": false,
+            "moduleType": "$signal",
+            "params": {
+                "value": "c3"
+            }
+        },
+        {
+            "id": "$erratic-4",
+            "idIsExplicit": false,
+            "moduleType": "$erratic",
+            "params": {
+                "input": [
+                    {
+                        "channel": 0,
+                        "module": "$signal-11",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "amount": 2
             }
         },
         {
@@ -1853,7 +1902,7 @@
             }
         },
         {
-            "id": "$signal-10",
+            "id": "$signal-12",
             "idIsExplicit": false,
             "moduleType": "$signal",
             "params": {
@@ -1868,7 +1917,7 @@
             }
         },
         {
-            "id": "$signal-11",
+            "id": "$signal-13",
             "idIsExplicit": false,
             "moduleType": "$signal",
             "params": {
@@ -1999,7 +2048,7 @@
             "outputs": [
                 {
                     "channel": 0,
-                    "module": "_erratic-1",
+                    "module": "$erratic-1",
                     "port": "output"
                 }
             ]
@@ -2009,7 +2058,17 @@
             "outputs": [
                 {
                     "channel": 0,
-                    "module": "_erratic-2",
+                    "module": "$erratic-2",
+                    "port": "output"
+                }
+            ]
+        },
+        {
+            "label": "erraticModeOverConstant",
+            "outputs": [
+                {
+                    "channel": 0,
+                    "module": "$erratic-3",
                     "port": "output"
                 }
             ]
@@ -2104,7 +2163,7 @@
             "outputs": [
                 {
                     "channel": 0,
-                    "module": "$signal-5",
+                    "module": "$signal-6",
                     "port": "output"
                 }
             ]
@@ -2234,7 +2293,7 @@
             "outputs": [
                 {
                     "channel": 0,
-                    "module": "$signal-10",
+                    "module": "$signal-12",
                     "port": "output"
                 }
             ]
@@ -2244,7 +2303,7 @@
             "outputs": [
                 {
                     "channel": 0,
-                    "module": "$signal-11",
+                    "module": "$signal-13",
                     "port": "output"
                 }
             ]

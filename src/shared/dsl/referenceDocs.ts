@@ -1,6 +1,6 @@
 /**
  * The shape every reference entry's docs take — modules today; globals,
- * collection methods (`.amp`, `.erratic`) and video modules as they join one
+ * collection methods (`.range`, `.out`) and video modules as they join one
  * reference — and the two renderings of it: compact JSDoc for Monaco's hover
  * and completion, and a `ReferenceEntry` the Reference pane lays out in
  * full. Type docs (`TYPE_DOCS`) keep their own shape.

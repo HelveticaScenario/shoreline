@@ -3,7 +3,7 @@
 //! outputs carry bounds, and which store them, before it runs.
 
 use modular_core::Patch;
-use modular_core::bounds::Bounds;
+use modular_core::bounds::{Bounds, Settled};
 use modular_core::dsp::get_params_deserializers;
 use modular_core::params::DeserializedParams;
 use modular_core::types::{ProcessingMode, SameIds};
@@ -691,6 +691,109 @@ fn rounding_rounds_the_range_in_its_order() {
         ("round_down", Bounds::new(4.0, -2.0)),
         ("floor_down", Bounds::new(3.0, -2.0)),
         ("ceil_down", Bounds::new(4.0, -1.0)),
+    ] {
+        for slot in 0..BLOCK_SIZE {
+            assert_eq!(read(&patch, id, slot).1, expected, "{id} slot {slot}");
+        }
+    }
+}
+
+#[test]
+fn constants_carry_bounds_but_no_range() {
+    let modules = [
+        ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
+        (
+            "held",
+            "$signal",
+            json!({ "value": 3.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "declared",
+            "$signal",
+            json!({ "value": 3.0, "min": 0.0, "max": 10.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "offset",
+            "$add",
+            json!({ "input": cable("held"), "offset": 1.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "moving",
+            "$add",
+            json!({ "input": cable("held"), "offset": cable("saw") }),
+            ProcessingMode::Block,
+        ),
+    ];
+    let patch = build(&modules);
+    let settled = &patch.bounds;
+    for id in ["saw", "held", "declared", "offset", "moving"] {
+        assert!(settled.bounded(id, "output"), "{id} is bounded");
+    }
+    for (id, ranged) in [
+        ("saw", true),
+        ("held", false),
+        ("declared", true),
+        ("offset", false),
+        ("moving", true),
+    ] {
+        assert_eq!(settled.ranged(id, "output"), ranged, "{id}");
+    }
+}
+
+#[test]
+fn erratic_blends_only_an_input_with_a_range() {
+    let modules = [
+        ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
+        (
+            "held",
+            "$signal",
+            json!({ "value": 3.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "over_range",
+            "$erratic",
+            json!({ "input": cable("saw"), "amount": 3.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "over_held",
+            "$erratic",
+            json!({ "input": cable("held"), "amount": 3.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "clamped",
+            "$erratic",
+            json!({ "input": cable("held"), "amount": 3.0, "mode": "clamp" }),
+            ProcessingMode::Block,
+        ),
+        (
+            "shifted",
+            "$erratic",
+            json!({ "input": cable("saw"), "amount": 3.0, "mode": "shift" }),
+            ProcessingMode::Block,
+        ),
+    ];
+    let patch = build(&modules);
+    let order = [
+        "over_range",
+        "over_held",
+        "clamped",
+        "shifted",
+        "saw",
+        "held",
+    ];
+    render_block(&patch, &order, &[BLOCK_SIZE]);
+    // A held value has no range, so an unset mode shifts across ±5 around it.
+    for (id, expected) in [
+        ("over_range", Bounds::new(-5.0, 5.0)),
+        ("over_held", Bounds::UNBOUNDED),
+        ("clamped", Bounds::new(-5.0, 5.0)),
+        ("shifted", Bounds::UNBOUNDED),
     ] {
         for slot in 0..BLOCK_SIZE {
             assert_eq!(read(&patch, id, slot).1, expected, "{id} slot {slot}");

@@ -59,8 +59,11 @@ function buildFixture() {
             min: -1,
         }),
         div: chain(lfo(), 'div', 4),
-        erraticBlend: lfo().erratic(2),
-        erraticClamp: flipped().erratic(2, { mode: 'clamp' }),
+        erraticBlend: chain(lfo(), 'erratic', 2),
+        erraticClamp: chain(flipped(), 'erratic', 2, { mode: 'clamp' }),
+        erraticModeOverConstant: chain(builder.$c('c3'), 'erratic', 2, {
+            mode: 'blend',
+        }),
         exp: chain(lfo(), 'exp', 2),
         flipped: flipped(),
         floor: chain(flipped(), 'floor'),
@@ -103,6 +106,10 @@ function buildFixture() {
         CollectionWithRange,
     );
     expect(factory('$slew')([lfo().items[0], 3])).not.toBeInstanceOf(
+        CollectionWithRange,
+    );
+    // A constant has no range for an unset mode to blend within.
+    expect(chain(builder.$c('c3'), 'erratic', 2)).not.toBeInstanceOf(
         CollectionWithRange,
     );
 

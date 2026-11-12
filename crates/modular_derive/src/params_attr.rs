@@ -20,7 +20,7 @@ use syn::{Attribute, Fields, Ident, ItemStruct, LitFloat, LitStr, Token, Type};
 
 use crate::utils::{
     is_mono_signal_type, is_option_mono_signal_type, is_option_poly_signal_type,
-    is_poly_signal_type,
+    is_poly_signal_type, option_inner,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -107,6 +107,11 @@ struct InputAttr {
     /// `bounds = constant`: as `bounds`, and only while this input holds a
     /// constant.
     bounds_need_constant: bool,
+    /// `bounding = (Variant, …)`: an optional enum param for whose listed
+    /// variants the `bounds = input` outputs are bounded, and for whose
+    /// others they are not; unset, they are when the tagged inputs give a
+    /// range.
+    bounding: Option<Vec<Ident>>,
 }
 
 fn parse_number(input: ParseStream) -> syn::Result<Number> {
@@ -187,6 +192,7 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
             control_range: None,
             carries_bounds: false,
             bounds_need_constant: false,
+            bounding: None,
         };
         while !input.is_empty() {
             input.parse::<Token![,]>()?;
@@ -209,6 +215,21 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
                         ));
                     }
                     parsed.bounds_need_constant = true;
+                }
+                continue;
+            }
+            if key == "bounding" {
+                input.parse::<Token![=]>()?;
+                let list;
+                syn::parenthesized!(list in input);
+                let variants =
+                    syn::punctuated::Punctuated::<Ident, Token![,]>::parse_terminated(&list)?;
+                if parsed
+                    .bounding
+                    .replace(variants.into_iter().collect())
+                    .is_some()
+                {
+                    return Err(syn::Error::new(key.span(), "duplicate `bounding`"));
                 }
                 continue;
             }
@@ -466,14 +487,12 @@ pub fn params_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 /// `#[params(…)]` options: `declares_range = (min, max)` names two optional
 /// params that bound the `bounds = input` outputs when both are set, whatever
-/// the inputs; `bounded_when = path` replaces the test that the tagged inputs
-/// are bounded; `reads_bounds = path` names the inputs whose bounds the
+/// the inputs; `reads_bounds = path` names the inputs whose bounds the
 /// module reads for itself; and `settles = path` fixes choices made from
 /// which inputs are bounded. Each path is a function of the params.
 #[derive(Default)]
 struct ParamsOptions {
     declares_range: Option<(Ident, Ident)>,
-    bounded_when: Option<syn::Path>,
     reads_bounds: Option<syn::Path>,
     settles: Option<syn::Path>,
 }
@@ -504,14 +523,13 @@ fn parse_params_options(attr: TokenStream2) -> syn::Result<ParamsOptions> {
             }
             let path: syn::Path = input.parse()?;
             let slot = match key.to_string().as_str() {
-                "bounded_when" => &mut options.bounded_when,
                 "reads_bounds" => &mut options.reads_bounds,
                 "settles" => &mut options.settles,
                 other => {
                     return Err(syn::Error::new(
                         key.span(),
                         format!(
-                            "unknown `#[params]` option `{other}`; expected declares_range, bounded_when, reads_bounds or settles"
+                            "unknown `#[params]` option `{other}`; expected declares_range, reads_bounds or settles"
                         ),
                     ));
                 }
@@ -526,12 +544,6 @@ fn parse_params_options(attr: TokenStream2) -> syn::Result<ParamsOptions> {
         }
     };
     syn::parse::Parser::parse2(parser, attr)?;
-    if let (Some((min, _)), Some(_)) = (&options.declares_range, &options.bounded_when) {
-        return Err(syn::Error::new(
-            min.span(),
-            "`declares_range` and `bounded_when` both set the bounded test; use one",
-        ));
-    }
     Ok(options)
 }
 
@@ -557,6 +569,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
     let mut defaults = Vec::new();
     let mut bounds_checks = Vec::new();
     let mut constant_checks = Vec::new();
+    let mut bounding: Option<(Ident, Type, Vec<Ident>)> = None;
     for field in fields.named.iter_mut() {
         let ident = field.ident.clone().expect("named field");
         let position = field.attrs.iter().position(|a| a.path().is_ident("input"));
@@ -587,6 +600,23 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         }
         let parsed = parse_input_attr(&input_attr)?;
         validate(&parsed, field)?;
+        if let Some(variants) = &parsed.bounding {
+            let Some(enum_ty) = option_inner(&field.ty) else {
+                return Err(syn::Error::new(
+                    field.ty.span(),
+                    "`bounding` applies to an `Option` of an enum param",
+                ));
+            };
+            if bounding
+                .replace((ident.clone(), enum_ty.clone(), variants.clone()))
+                .is_some()
+            {
+                return Err(syn::Error::new(
+                    field.span(),
+                    "one `bounding` param per module",
+                ));
+            }
+        }
         if parsed.bounds_need_constant {
             if !is_poly_signal_type(&field.ty) {
                 return Err(syn::Error::new(
@@ -711,30 +741,52 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         }
     }
 
-    let inputs_bounded = if let Some(test) = options.bounded_when {
-        Some(quote! {
-            const CUSTOM_TEST: bool = true;
+    let inputs_bounded = match (&options.declares_range, &bounding) {
+        (Some((min, _)), Some(_)) => {
+            return Err(syn::Error::new(
+                min.span(),
+                "`declares_range` and a `bounding` param both decide when the outputs are bounded; use one",
+            ));
+        }
+        (Some((min, max)), None) => {
+            let names = [min, max].map(|ident| ident.to_string().to_case(Case::Camel));
+            Some(quote! {
+                const DECLARED_RANGE: Option<(&'static str, &'static str)> =
+                    Some((#(#names),*));
 
-            fn inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
-                #test(self, is_bounded)
-            }
-        })
-    } else if let Some((min, max)) = &options.declares_range {
-        let names = [min, max].map(|ident| {
-            let name = ident.to_string().to_case(Case::Camel);
-            quote! { #name }
-        });
-        Some(quote! {
-            const DECLARED_RANGE: Option<(&'static str, &'static str)> =
-                Some((#(#names),*));
+                fn inputs_bounded(&self, settled: &dyn crate::bounds::Settled) -> bool {
+                    (self.#min.is_some() && self.#max.is_some())
+                        || self.tagged_inputs_bounded(settled)
+                }
 
-            fn inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
-                (self.#min.is_some() && self.#max.is_some())
-                    || self.tagged_inputs_bounded(is_bounded)
-            }
-        })
-    } else {
-        None
+                fn inputs_ranged(&self, settled: &dyn crate::bounds::Settled) -> bool {
+                    (self.#min.is_some() && self.#max.is_some())
+                        || self.tagged_inputs_ranged(settled)
+                }
+            })
+        }
+        (None, Some((field, enum_ty, variants))) => {
+            let name = field.to_string().to_case(Case::Camel);
+            let values = variants
+                .iter()
+                .map(|variant| variant.to_string().to_case(Case::Camel));
+            Some(quote! {
+                const BOUNDING_PARAM: Option<(&'static str, &'static [&'static str])> =
+                    Some((#name, &[#(#values),*]));
+
+                fn inputs_bounded(&self, settled: &dyn crate::bounds::Settled) -> bool {
+                    match self.#field {
+                        Some(value) => matches!(value, #(#enum_ty::#variants)|*),
+                        None => self.tagged_inputs_ranged(settled),
+                    }
+                }
+
+                fn inputs_ranged(&self, settled: &dyn crate::bounds::Settled) -> bool {
+                    self.inputs_bounded(settled)
+                }
+            })
+        }
+        (None, None) => None,
     };
     let bounds_read = options.reads_bounds.map(|read| {
         quote! {
@@ -745,8 +797,8 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
     });
     let settle = options.settles.map(|settle| {
         quote! {
-            fn settle(&mut self, is_bounded: &dyn Fn(&str, &str) -> bool) {
-                #settle(self, is_bounded)
+            fn settle(&mut self, settled: &dyn crate::bounds::Settled) {
+                #settle(self, settled)
             }
         }
     });

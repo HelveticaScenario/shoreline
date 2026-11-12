@@ -173,24 +173,6 @@ export interface MonoOutOptions {
     solo?: boolean;
 }
 
-/** Options for `.erratic()` on a signal without a known range */
-export interface ErraticOptions {
-    /** Rising edge samples and holds the current random value */
-    trigger?: PolySignal;
-    /** How fast the variation wanders: 0 = frozen, 5 = a fresh value every sample (default 2) */
-    speed?: PolySignal;
-    /** Leans the variation upward (positive) or downward (negative); ±5 makes it one-sided (default 0) */
-    bias?: PolySignal;
-    /** Draw a random depth per value: low amounts mostly stay near the input with rare big jumps, high amounts mostly jump (default false) */
-    sparse?: boolean;
-}
-
-/** Options for `.erratic()` on a ranged signal */
-export interface RangedErraticOptions extends ErraticOptions {
-    /** `'blend'` moves toward a random value in the range (the default); `'clamp'` adds a random offset and clamps to the range; `'shift'` adds it unclamped */
-    mode?: 'clamp' | 'shift' | 'blend';
-}
-
 /** VU meter / mute / solo state shared by both out group kinds */
 interface OutGroupVuState {
     label?: string;
@@ -424,27 +406,6 @@ export class BaseCollection<T extends ModuleOutput> {
     }
 
     /**
-     * Apply a wandering random shift of up to ±`amount` (0–5) to all outputs,
-     * where 5 shifts by up to ±5 V.
-     */
-    erratic(amount: PolySignal, options: ErraticOptions = {}): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        // Without a known range the shift spans a nominal ±5 V.
-        return this.items[0].builder.getFactory('_erratic')(
-            this.items,
-            amount,
-            {
-                ...options,
-                mode: 'shift',
-                min: -5,
-                max: 5,
-            },
-        ) as Collection;
-    }
-
-    /**
      * Add scope visualization for all outputs in the collection
      */
     scope(config?: ScopeConfig): this {
@@ -603,9 +564,8 @@ function sliceRoot(
 }
 
 /**
- * The same channels as a ranged collection, for an output the engine bounds
- * by a rule the schema cannot state (`_erratic` short of a shift) or one
- * whose source is set later (an `$outLane` control).
+ * The same channels as a ranged collection, for outputs whose source is set
+ * later to one the engine bounds (an `$outLane` control).
  */
 export function asRanged(
     collection: BaseCollection<ModuleOutput>,
@@ -660,7 +620,7 @@ export class Collection extends BaseCollection<ModuleOutput> {
 
 /**
  * A collection whose range the engine knows: `.range(outMin, outMax)` maps
- * from it, and the methods below keep it.
+ * from it.
  */
 export class CollectionWithRange extends BaseCollection<ModuleOutput> {
     /**
@@ -674,26 +634,6 @@ export class CollectionWithRange extends BaseCollection<ModuleOutput> {
         inMax?: PolySignal,
     ): CollectionWithRange {
         return remapRange(this.items, outMin, outMax, inMin, inMax);
-    }
-
-    /**
-     * Apply a wandering random variation to all outputs within their range:
-     * `amount` 5 reaches across it. Blends toward random values by default,
-     * keeping the range; `'shift'` can carry the signal past it.
-     */
-    erratic(
-        amount: PolySignal,
-        options: RangedErraticOptions = {},
-    ): CollectionWithRange | Collection {
-        if (this.items.length === 0) {
-            return new CollectionWithRange();
-        }
-        const result = this.items[0].builder.getFactory('_erratic')(
-            this.items,
-            amount,
-            options,
-        ) as Collection;
-        return options.mode === 'shift' ? result : asRanged(result);
     }
 }
 
@@ -1977,12 +1917,15 @@ export class ModuleNode {
                 if (this.builder.declaresRange(this.id)) {
                     return true;
                 }
-                if (this.schema.customBounds) {
-                    return false;
+                const params = this.builder.getModule(this.id)?.params ?? {};
+                const bounding = this.schema.boundingParam;
+                if (bounding && params[bounding.name] !== undefined) {
+                    return bounding.values.includes(
+                        params[bounding.name] as string,
+                    );
                 }
                 // A constant holds still: it carries the range along but has
                 // none to give, so some input must be ranged in every channel.
-                const params = this.builder.getModule(this.id)?.params ?? {};
                 const tagged = this.schema.signalParams
                     .filter((param) => param.carriesBounds)
                     .map((param) => ({

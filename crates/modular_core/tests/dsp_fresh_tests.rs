@@ -420,7 +420,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$bpf" => json!({ "input": 0.0, "center": 0.0 }),
         "$xover" => json!({ "input": 0.0, "lowMidFreq": 0.0, "midHighFreq": 0.0 }),
         "$comp" => json!({ "input": 0.0, "threshold": 0.0 }),
-        "_erratic" => json!({ "input": 0.0, "amount": 1.0 }),
+        "$erratic" => json!({ "input": 0.0, "amount": 1.0 }),
         "$add" | "$sub" => json!({ "input": 0.0, "offset": 0.0 }),
         "$mul" => json!({ "input": 0.0, "factor": 1.0 }),
         "$div" => json!({ "input": 0.0, "divisor": 1.0 }),

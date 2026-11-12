@@ -213,8 +213,7 @@
       }
     ],
     "positionalArgs": [],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$swell",
@@ -443,8 +442,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$signal",
@@ -580,7 +578,6 @@
       }
     ],
     "experimental": false,
-    "customBounds": false,
     "declaredRange": [
       "min",
       "max"
@@ -748,8 +745,7 @@
         "name": "inputs"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mixDown",
@@ -908,8 +904,7 @@
       }
     ],
     "channelsParam": "channels",
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$stereoMix",
@@ -1085,8 +1080,7 @@
       }
     ],
     "channels": 2,
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "_clock",
@@ -1319,8 +1313,7 @@
       }
     ],
     "channels": 1,
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.kick",
@@ -1541,8 +1534,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.snare",
@@ -1759,8 +1751,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.rimShot",
@@ -1931,8 +1922,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.claves",
@@ -2126,8 +2116,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.cowbell",
@@ -2302,8 +2291,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.clap",
@@ -2450,8 +2438,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.maracas",
@@ -2598,8 +2585,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.cymbal",
@@ -2797,8 +2783,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.hiHat",
@@ -3036,8 +3021,7 @@
         "name": "closed"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.lowTom",
@@ -3231,8 +3215,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.midTom",
@@ -3426,8 +3409,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.highTom",
@@ -3621,8 +3603,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.lowConga",
@@ -3816,8 +3797,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.midConga",
@@ -4011,8 +3991,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr808.highConga",
@@ -4206,8 +4185,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr909.kick",
@@ -4447,8 +4425,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr909.snare",
@@ -4665,8 +4642,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr909.rimShot",
@@ -4813,8 +4789,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr909.clap",
@@ -4961,8 +4936,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr909.lowTom",
@@ -5156,8 +5130,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr909.midTom",
@@ -5351,8 +5324,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tr909.highTom",
@@ -5546,8 +5518,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$comp",
@@ -5910,8 +5881,7 @@
         "name": "input"
       }
     ],
-    "experimental": true,
-    "customBounds": false
+    "experimental": true
   },
   {
     "name": "$xover",
@@ -6095,8 +6065,7 @@
         "name": "input"
       }
     ],
-    "experimental": true,
-    "customBounds": false
+    "experimental": true
   },
   {
     "name": "$fold",
@@ -6259,8 +6228,7 @@
         "name": "amount"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$cheby",
@@ -6423,8 +6391,7 @@
         "name": "amount"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$dattorro",
@@ -6691,8 +6658,7 @@
       }
     ],
     "channels": 2,
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$overdrive",
@@ -6888,8 +6854,7 @@
         "name": "drive"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$filterDC",
@@ -7006,8 +6971,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$plate",
@@ -7228,8 +7192,7 @@
       }
     ],
     "channels": 2,
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$quantNoise",
@@ -7410,8 +7373,7 @@
         "name": "amount"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.reverb",
@@ -7680,8 +7642,7 @@
       }
     ],
     "channels": 2,
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.reverb2",
@@ -7950,8 +7911,7 @@
       }
     ],
     "channels": 2,
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$segment",
@@ -8109,8 +8069,7 @@
         "name": "amount"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$reverb",
@@ -8350,8 +8309,7 @@
       }
     ],
     "channels": 2,
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$granular",
@@ -8761,8 +8719,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$granularSampler",
@@ -9125,8 +9082,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$wowFlutter",
@@ -9308,8 +9264,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$clockedDelay",
@@ -9676,8 +9631,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$sine",
@@ -9884,8 +9838,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$saw",
@@ -10120,8 +10073,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$pulse",
@@ -10374,8 +10326,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$pSine",
@@ -10497,8 +10448,7 @@
         "name": "phase"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$pSaw",
@@ -10643,8 +10593,7 @@
         "name": "phase"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$pPulse",
@@ -10812,8 +10761,7 @@
         "name": "phase"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$noise",
@@ -11046,8 +10994,7 @@
         "name": "color"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$macro",
@@ -11693,8 +11640,7 @@
         "name": "engine"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$supersaw",
@@ -11913,8 +11859,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$enosc",
@@ -12844,8 +12789,7 @@
         "name": "scale"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$wavetable",
@@ -13285,8 +13229,7 @@
         "name": "position"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$lpf",
@@ -13449,8 +13392,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$apf",
@@ -13669,8 +13611,7 @@
         "name": "cutoff"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$hpf",
@@ -13832,8 +13773,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$bpf",
@@ -13995,8 +13935,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$jup6f",
@@ -14194,8 +14133,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$lpg",
@@ -14407,8 +14345,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$multimode",
@@ -14689,8 +14626,7 @@
         "name": "mode"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$eq",
@@ -14943,8 +14879,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.lp",
@@ -15150,8 +15085,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.hp",
@@ -15357,8 +15291,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.bp",
@@ -15574,8 +15507,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.notch",
@@ -15776,8 +15708,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.ap",
@@ -15938,8 +15869,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.legacyLadder",
@@ -16130,8 +16060,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.diodeLadder",
@@ -16322,8 +16251,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.vintageLadder",
@@ -16514,8 +16442,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.k35Lp",
@@ -16711,8 +16638,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.k35Hp",
@@ -16908,8 +16834,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.obxd2Lp",
@@ -17090,8 +17015,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.obxd2Bp",
@@ -17272,8 +17196,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.obxd2Hp",
@@ -17454,8 +17377,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.obxd2Notch",
@@ -17636,8 +17558,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.obxd4",
@@ -17833,8 +17754,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.xpander",
@@ -18080,8 +18000,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.cutoffWarpLp",
@@ -18278,8 +18197,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.cutoffWarpHp",
@@ -18476,8 +18394,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.cutoffWarpBp",
@@ -18674,8 +18591,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.cutoffWarpNotch",
@@ -18872,8 +18788,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.cutoffWarpAp",
@@ -19070,8 +18985,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.resWarpLp",
@@ -19263,8 +19177,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.resWarpHp",
@@ -19456,8 +19369,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.resWarpBp",
@@ -19649,8 +19561,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.resWarpNotch",
@@ -19842,8 +19753,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.resWarpAp",
@@ -20035,8 +19945,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.tripole",
@@ -20238,8 +20147,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.fastSvf",
@@ -20440,8 +20348,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.sah",
@@ -20602,8 +20509,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.filter.comb",
@@ -20804,8 +20710,7 @@
         "name": "resonance"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$pWarp",
@@ -21120,8 +21025,7 @@
         "name": "phase"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$ramp",
@@ -21241,8 +21145,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$addHz",
@@ -21376,8 +21279,7 @@
         "name": "offset"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$adsr",
@@ -21636,8 +21538,7 @@
         "name": "gate"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$add",
@@ -21771,8 +21672,7 @@
         "name": "offset"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$sub",
@@ -21906,8 +21806,7 @@
         "name": "offset"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mul",
@@ -22041,8 +21940,7 @@
         "name": "factor"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$div",
@@ -22176,8 +22074,7 @@
         "name": "divisor"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$exp",
@@ -22312,8 +22209,7 @@
         "name": "exponent"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$round",
@@ -22434,8 +22330,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$floor",
@@ -22552,8 +22447,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$ceil",
@@ -22670,8 +22564,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$bufRead",
@@ -22827,8 +22720,7 @@
         "name": "frame"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$buffer",
@@ -22951,8 +22843,7 @@
         "name": "length"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$chord",
@@ -23181,8 +23072,7 @@
         "name": "chord"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$clamp",
@@ -23344,7 +23234,6 @@
       }
     ],
     "experimental": false,
-    "customBounds": false,
     "declaredRange": [
       "min",
       "max"
@@ -23496,8 +23385,7 @@
         "name": "division"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$coinFlip",
@@ -23654,8 +23542,7 @@
         "name": "probability"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$scan",
@@ -23831,8 +23718,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$curve",
@@ -23968,8 +23854,7 @@
         "name": "exp"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$delayRead",
@@ -24129,14 +24014,13 @@
         "name": "time"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
-    "name": "_erratic",
+    "name": "$erratic",
     "docs": {
       "summary": "Wandering random variation",
-      "description": "Adds a wandering random variation to a signal, shifting it or pulling it toward random values within its range, for movement that never quite repeats. Backs the `.erratic()` signal method, which takes the range from a ranged signal.",
+      "description": "Adds a wandering random variation to a signal, shifting it or pulling it toward random values within its range, for movement that never quite repeats. A signal with a range keeps it.",
       "categories": [
         "random",
         "modulation"
@@ -24146,6 +24030,10 @@
         {
           "title": "Tremolo that changes depth each beat",
           "code": "$saw('c3')\n  .amp(\n    $sine('4hz')\n      .range(2, 5)\n      .erratic(2, { trigger: $clock._beatTrigger }),\n  )\n  .out()"
+        },
+        {
+          "title": "Pitch that drifts",
+          "code": "$sine($c('a3').erratic(0.1, { speed: 1.5 })).out()"
         }
       ]
     },
@@ -24411,7 +24299,13 @@
       }
     ],
     "experimental": false,
-    "customBounds": true
+    "boundingParam": {
+      "name": "mode",
+      "values": [
+        "clamp",
+        "blend"
+      ]
+    }
   },
   {
     "name": "$hold",
@@ -24555,8 +24449,7 @@
         "name": "time"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$slew",
@@ -24720,8 +24613,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$rising",
@@ -24840,8 +24732,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$falling",
@@ -24960,8 +24851,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$math",
@@ -25151,8 +25041,7 @@
         "name": "expression"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$motionFollower",
@@ -25402,8 +25291,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mulHz",
@@ -25539,8 +25427,7 @@
         "name": "factor"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "_hz",
@@ -25660,8 +25547,7 @@
         "name": "input"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$remap",
@@ -25864,8 +25750,7 @@
         "name": "inMax"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$sah",
@@ -26001,8 +25886,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$tah",
@@ -26134,8 +26018,7 @@
         "name": "gate"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$perc",
@@ -26280,8 +26163,7 @@
         "name": "trigger"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$quantizer",
@@ -26476,8 +26358,7 @@
         "name": "scale"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$amp",
@@ -26612,8 +26493,7 @@
         "name": "factor"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "_crossfade",
@@ -26765,8 +26645,7 @@
         "name": "mix"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$gain",
@@ -26901,8 +26780,7 @@
         "name": "level"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "_smoothControl",
@@ -26972,7 +26850,6 @@
       }
     ],
     "experimental": false,
-    "customBounds": false,
     "declaredRange": [
       "min",
       "max"
@@ -27149,8 +27026,7 @@
       }
     ],
     "channelsParam": "count",
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unison",
@@ -27307,8 +27183,7 @@
         "name": "spread"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "_videoTap",
@@ -27436,8 +27311,7 @@
         "name": "slot"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$wrap",
@@ -27595,8 +27469,7 @@
         "name": "max"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$cycle",
@@ -30039,8 +29912,7 @@
         "name": "pattern"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$track",
@@ -30236,8 +30108,7 @@
         "name": "keyframes"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$step",
@@ -30400,8 +30271,7 @@
         "name": "next"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$drumMap",
@@ -30788,8 +30658,7 @@
       }
     ],
     "positionalArgs": [],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$groove",
@@ -31041,8 +30910,7 @@
         "name": "template"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$midiCV",
@@ -31247,8 +31115,7 @@
     "signalParams": [],
     "positionalArgs": [],
     "channelsParam": "channels",
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$midiCC",
@@ -31328,8 +31195,7 @@
     "bufferOutputs": [],
     "signalParams": [],
     "positionalArgs": [],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.additive",
@@ -31584,8 +31450,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.chorus",
@@ -31766,8 +31631,7 @@
       }
     ],
     "channels": 2,
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.divideDown",
@@ -31956,8 +31820,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.formant",
@@ -32184,8 +32047,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.hiHat",
@@ -32461,8 +32323,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.ringHat",
@@ -32738,8 +32599,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.kick",
@@ -33061,8 +32921,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.synthKick",
@@ -33385,8 +33244,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.modal",
@@ -33691,8 +33549,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.particles",
@@ -33957,8 +33814,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.phaseDistortion",
@@ -34198,8 +34054,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.sixOp",
@@ -34498,8 +34353,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.snare",
@@ -34775,8 +34629,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.synthSnare",
@@ -35052,8 +34905,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.speak",
@@ -35386,8 +35238,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.string",
@@ -35692,8 +35543,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.swarm",
@@ -35957,8 +35807,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.twoOp",
@@ -36204,8 +36053,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.formantVowel",
@@ -36442,8 +36290,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.samVowel",
@@ -36680,8 +36527,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.lpcVowel",
@@ -36918,8 +36764,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.waveTerrain",
@@ -37165,8 +37010,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.waveshaper",
@@ -37412,8 +37256,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$mi.zOsc",
@@ -37644,8 +37487,7 @@
         "name": "freq"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$grains",
@@ -37958,8 +37800,7 @@
         "name": "gate"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "_mediaAudio",
@@ -38054,8 +37895,7 @@
         "name": "wav"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$sampler",
@@ -38300,8 +38140,7 @@
         "name": "gate"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.shape.saturate",
@@ -38484,8 +38323,7 @@
         "name": "drive"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.shape.harmonic",
@@ -38698,8 +38536,7 @@
         "name": "drive"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.shape.rectify",
@@ -38877,8 +38714,7 @@
         "name": "drive"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.shape.fold",
@@ -39066,8 +38902,7 @@
         "name": "drive"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.shape.fuzz",
@@ -39250,8 +39085,7 @@
         "name": "drive"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.shape.trigonometric",
@@ -39464,8 +39298,7 @@
         "name": "drive"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.shape.digital",
@@ -39610,8 +39443,7 @@
         "name": "drive"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   },
   {
     "name": "$unstable.shape.sine",
@@ -39756,7 +39588,6 @@
         "name": "drive"
       }
     ],
-    "experimental": false,
-    "customBounds": false
+    "experimental": false
   }
 ]

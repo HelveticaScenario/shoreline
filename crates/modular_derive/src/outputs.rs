@@ -1097,8 +1097,9 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 }
             }
 
-            /// The ports bounded in a patch where the module's tagged inputs
-            /// are bounded or not, as bits by port index.
+            /// The ports bounded, or ranged, in a patch where the module's
+            /// `bounds = input` outputs are or not, as bits by port index: a
+            /// fixed range and one the params set always are.
             pub fn bounded_mask(#inputs_bounded_param: bool) -> u64 {
                 0u64 #(#bounded_mask_terms)*
             }

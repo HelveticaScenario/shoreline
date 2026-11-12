@@ -170,7 +170,7 @@ describe('chain method options', () => {
         expect(
             ports(
                 `$sine('c').erratic(1, { trigger: $p('c e') }).out()`,
-                '_erratic',
+                '$erratic',
                 'trigger',
             ),
         ).toEqual(['trig']);
@@ -224,7 +224,7 @@ describe('resolution records', () => {
     test('chain methods record the receiver and argument index', () => {
         expect(
             records(
-                `const seq = $p('c e g')\nseq.erratic(2).out()\n$sine('c').erratic(seq).out()`,
+                `const seq = $p('c e g')\nseq.range(0, 1, -5, 5).out()\n$sine('1hz').range(seq, 5).out()`,
             ),
         ).toEqual(['2 receiver cv', '3 0 cv']);
     });
