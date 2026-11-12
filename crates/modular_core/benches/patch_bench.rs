@@ -553,7 +553,7 @@ fn video_taps(channels: usize) -> BenchPatch {
     BenchPatch::new(modules)
 }
 
-/// `$saw` into a chain of 32 `_erratic`s. With `modulated`, speed follows an
+/// `$saw` into a chain of 32 `$erratic`s. With `modulated`, speed follows an
 /// `$sine` and a `$pulse` triggers the hold; otherwise every setting is a
 /// constant.
 fn erratic_chain(channels: usize, modulated: bool) -> BenchPatch {

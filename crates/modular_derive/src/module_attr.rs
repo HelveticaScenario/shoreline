@@ -1027,7 +1027,7 @@ fn impl_module_macro_attr(
                 // SAFETY: main thread, before the module is shipped to the
                 // audio thread; nothing else holds the inner module.
                 let module = unsafe { &*self.module.get() };
-                <#block_outputs_ty>::bounded_mask(crate::types::BoundsInputs::inputs_bounded(
+                <#block_outputs_ty>::settled_mask(crate::types::BoundsInputs::inputs_bounded(
                     &module.params,
                     settled,
                 ))
@@ -1036,7 +1036,7 @@ fn impl_module_macro_attr(
             fn ranged_outputs(&self, settled: &dyn crate::bounds::Settled) -> u64 {
                 // SAFETY: as `bounded_outputs`.
                 let module = unsafe { &*self.module.get() };
-                <#block_outputs_ty>::bounded_mask(crate::types::BoundsInputs::inputs_ranged(
+                <#block_outputs_ty>::settled_mask(crate::types::BoundsInputs::inputs_ranged(
                     &module.params,
                     settled,
                 ))

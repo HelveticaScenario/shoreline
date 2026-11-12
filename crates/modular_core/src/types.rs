@@ -2919,9 +2919,10 @@ pub trait BoundsInputs {
     const DECLARED_RANGE: Option<(&'static str, &'static str)> = None;
 
     /// The optional param, as the DSL names it, that decides whether the
-    /// `bounds = input` outputs are bounded, and the values, as the DSL names
-    /// them, for which they are: unset, they are bounded when the tagged
-    /// inputs give a range (`#[input(…, bounding = (…))]`).
+    /// `bounds = input` outputs can be bounded, and the values, as the DSL
+    /// names them, for which they can: set to one of those or unset, they are
+    /// bounded when the tagged inputs give a range, and set to another, never
+    /// (`#[input(…, bounding = (…))]`).
     const BOUNDING_PARAM: Option<(&'static str, &'static [&'static str])> = None;
 
     /// The connected inputs the `bounds = input` outputs' bounds come from.
@@ -3099,14 +3100,14 @@ pub struct ModuleSchema {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub declared_range: Option<Vec<String>>,
     /// The optional param that decides whether the module's `bounds = input`
-    /// outputs are bounded (`#[input(…, bounding = (…))]`).
+    /// outputs can be bounded (`#[input(…, bounding = (…))]`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bounding_param: Option<BoundingParam>,
 }
 
-/// A param that decides whether a module's `bounds = input` outputs are
-/// bounded: they are for `values`, not for its other values, and, unset, when
-/// the inputs tagged `bounds` give a range.
+/// A param that decides whether a module's `bounds = input` outputs can be
+/// bounded: set to one of `values` or unset, they are when the inputs tagged
+/// `bounds` give a range, and set to another value, never.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[napi(object)]

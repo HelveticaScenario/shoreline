@@ -173,7 +173,7 @@ struct ErraticChannelState {
 
 /// An unset `mode` blends when the input has a range and shifts when not.
 fn erratic_settle(p: &mut ErraticParams, settled: &dyn Settled) {
-    let unset = if p.tagged_inputs_ranged(settled) {
+    let unset = if p.inputs_bounded(settled) {
         ErraticMode::Blend
     } else {
         ErraticMode::Shift
@@ -316,7 +316,8 @@ const ERRATIC_DOCS: ModuleDocs = ModuleDocs {
     summary: "Wandering random variation",
     description: "Adds a wandering random variation to a signal, shifting it or \
                   pulling it toward random values within its range, for movement that \
-                  never quite repeats. A signal with a range keeps it.",
+                  never quite repeats. Clamped or blended, a signal with a range keeps \
+                  it, and one without stays within -5 to 5.",
     categories: &[ModuleCategory::Random, ModuleCategory::Modulation],
     sections: &[],
     examples: &[

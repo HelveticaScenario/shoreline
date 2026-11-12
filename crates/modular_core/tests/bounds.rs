@@ -788,15 +788,76 @@ fn erratic_blends_only_an_input_with_a_range() {
         "held",
     ];
     render_block(&patch, &order, &[BLOCK_SIZE]);
-    // A held value has no range, so an unset mode shifts across ±5 around it.
+    // A held value has no range: an unset mode shifts across ±5 around it,
+    // and a clamp keeps it within ±5 without giving it a range.
     for (id, expected) in [
         ("over_range", Bounds::new(-5.0, 5.0)),
         ("over_held", Bounds::UNBOUNDED),
-        ("clamped", Bounds::new(-5.0, 5.0)),
+        ("clamped", Bounds::UNBOUNDED),
         ("shifted", Bounds::UNBOUNDED),
     ] {
         for slot in 0..BLOCK_SIZE {
             assert_eq!(read(&patch, id, slot).1, expected, "{id} slot {slot}");
         }
+    }
+}
+
+#[test]
+fn a_clamped_erratic_in_a_cycle_reads_no_range_of_its_own() {
+    for mode in ["clamp", "blend"] {
+        let modules = [
+            (
+                "wander",
+                "$erratic",
+                json!({ "input": cable("next"), "amount": 1.0, "speed": 5.0, "mode": mode }),
+                ProcessingMode::Sample,
+            ),
+            (
+                "next",
+                "$mul",
+                json!({ "input": cable("wander"), "factor": 2.0 }),
+                ProcessingMode::Sample,
+            ),
+        ];
+        let patch = build(&modules);
+        for _ in 0..BLOCKS {
+            render_block(&patch, &["wander", "next"], &[BLOCK_SIZE]);
+            for slot in 0..BLOCK_SIZE {
+                let (value, bounds) = read(&patch, "wander", slot);
+                assert!(!bounds.is_bounded(), "{mode} slot {slot}");
+                assert!((-5.0..=5.0).contains(&value), "{mode} slot {slot}: {value}");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_constant_beside_a_ranged_channel_gives_no_range() {
+    let modules = [
+        ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
+        (
+            "mixed",
+            "$erratic",
+            json!({ "input": [cable("saw"), 3.0], "amount": 3.0 }),
+            ProcessingMode::Block,
+        ),
+    ];
+    let patch = build(&modules);
+    assert!(!patch.bounds.bounded("mixed", "output"));
+}
+
+#[test]
+fn a_clamp_over_a_constant_has_its_limits_for_a_range() {
+    let modules = [(
+        "clamped",
+        "$clamp",
+        json!({ "input": 3.0, "min": 0.0, "max": 10.0 }),
+        ProcessingMode::Block,
+    )];
+    let patch = build(&modules);
+    assert!(patch.bounds.ranged("clamped", "output"));
+    render_block(&patch, &["clamped"], &[BLOCK_SIZE]);
+    for slot in 0..BLOCK_SIZE {
+        assert_eq!(read(&patch, "clamped", slot), (3.0, Bounds::new(0.0, 10.0)));
     }
 }

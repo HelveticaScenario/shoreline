@@ -24020,7 +24020,7 @@
     "name": "$erratic",
     "docs": {
       "summary": "Wandering random variation",
-      "description": "Adds a wandering random variation to a signal, shifting it or pulling it toward random values within its range, for movement that never quite repeats. A signal with a range keeps it.",
+      "description": "Adds a wandering random variation to a signal, shifting it or pulling it toward random values within its range, for movement that never quite repeats. Clamped or blended, a signal with a range keeps it, and one without stays within -5 to 5.",
       "categories": [
         "random",
         "modulation"

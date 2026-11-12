@@ -107,10 +107,9 @@ struct InputAttr {
     /// `bounds = constant`: as `bounds`, and only while this input holds a
     /// constant.
     bounds_need_constant: bool,
-    /// `bounding = (Variant, …)`: an optional enum param for whose listed
-    /// variants the `bounds = input` outputs are bounded, and for whose
-    /// others they are not; unset, they are when the tagged inputs give a
-    /// range.
+    /// `bounding = (Variant, …)`: an optional enum param for whose other
+    /// variants the `bounds = input` outputs are unbounded; set to a listed
+    /// one or unset, they are bounded when the tagged inputs give a range.
     bounding: Option<Vec<Ident>>,
 }
 
@@ -489,7 +488,7 @@ pub fn params_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// params that bound the `bounds = input` outputs when both are set, whatever
 /// the inputs; `reads_bounds = path` names the inputs whose bounds the
 /// module reads for itself; and `settles = path` fixes choices made from
-/// which inputs are bounded. Each path is a function of the params.
+/// which inputs are bounded or ranged. Each path is a function of the params.
 #[derive(Default)]
 struct ParamsOptions {
     declares_range: Option<(Ident, Ident)>,
@@ -601,7 +600,8 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         let parsed = parse_input_attr(&input_attr)?;
         validate(&parsed, field)?;
         if let Some(variants) = &parsed.bounding {
-            let Some(enum_ty) = option_inner(&field.ty) else {
+            let Some(enum_ty) = option_inner(&field.ty).filter(|ty| !is_poly_signal_type(ty))
+            else {
                 return Err(syn::Error::new(
                     field.ty.span(),
                     "`bounding` applies to an `Option` of an enum param",
@@ -766,6 +766,14 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             })
         }
         (None, Some((field, enum_ty, variants))) => {
+            if bounds_checks.is_empty() {
+                return Err(syn::Error::new(
+                    field.span(),
+                    "a `bounding` param decides on the inputs tagged `bounds`; tag one",
+                ));
+            }
+            // The schema names variants as the enum's `rename_all = "camelCase"`
+            // serializes them.
             let name = field.to_string().to_case(Case::Camel);
             let values = variants
                 .iter()
@@ -775,10 +783,11 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                     Some((#name, &[#(#values),*]));
 
                 fn inputs_bounded(&self, settled: &dyn crate::bounds::Settled) -> bool {
-                    match self.#field {
+                    let listed = match self.#field {
                         Some(value) => matches!(value, #(#enum_ty::#variants)|*),
-                        None => self.tagged_inputs_ranged(settled),
-                    }
+                        None => true,
+                    };
+                    listed && self.tagged_inputs_ranged(settled)
                 }
 
                 fn inputs_ranged(&self, settled: &dyn crate::bounds::Settled) -> bool {
@@ -874,6 +883,44 @@ mod tests {
             out.contains("control_min : Some (0f64)") || out.contains("control_min : Some (0.0")
         );
         assert!(!out.contains("# [input"));
+    }
+
+    #[test]
+    fn a_bounding_param_is_an_optional_enum_over_tagged_inputs() {
+        let tagged = r#"#[input("x", type = audio, bounds)] x: PolySignal,"#;
+        let out = expand(&format!(
+            r#"#[derive(Clone)] struct P {{ {tagged}
+                #[input("m", bounding = (Clamp, Blend))] mode: Option<Mode>, }}"#
+        ))
+        .unwrap();
+        assert!(out.contains(r#"Some (("mode" , & ["clamp" , "blend"]))"#));
+        assert!(
+            err(r#"#[derive(Clone)] struct P {
+                #[input("m", bounding = (Clamp))] mode: Option<Mode>, }"#)
+            .contains("tag one")
+        );
+        assert!(
+            err(&format!(
+                r#"#[derive(Clone)] struct P {{ {tagged}
+                #[input("m", bounding = (Clamp))] mode: Mode, }}"#
+            ))
+            .contains("an `Option` of an enum")
+        );
+        assert!(
+            err(&format!(
+                r#"#[derive(Clone)] struct P {{ {tagged}
+                #[input("m", type = audio, bounding = (Clamp))] mode: Option<PolySignal>, }}"#
+            ))
+            .contains("an `Option` of an enum")
+        );
+        assert!(
+            err(&format!(
+                r#"#[derive(Clone)] struct P {{ {tagged}
+                #[input("m", bounding = (Clamp))] mode: Option<Mode>,
+                #[input("n", bounding = (Clamp))] other: Option<Mode>, }}"#
+            ))
+            .contains("one `bounding` param")
+        );
     }
 
     #[test]

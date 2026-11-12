@@ -1,4 +1,4 @@
-//! `_erratic` through every block-input resolution path. Its shift is random,
+//! `$erratic` through every block-input resolution path. Its shift is random,
 //! so the exact checks use a zero `amount`, where the output is the input
 //! clamped to `[min, max]`; the in-module tests pin the shift itself, comparing
 //! `process_block` against `update` from one seeded state.

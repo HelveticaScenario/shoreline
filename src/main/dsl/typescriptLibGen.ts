@@ -931,6 +931,8 @@ class Collection extends BaseCollection {
  * @see {@link $r} - helper to create CollectionWithRange
  */
 class CollectionWithRange extends BaseCollection {
+  /** Sets a ranged collection apart from one whose range is unknown. */
+  #ranged: true;
   protected constructor();
 
   /**
@@ -1758,8 +1760,9 @@ function renderRangedChainMethod(
         ...doc,
         `${indent}${chainMethodName(moduleSchema.name)}(${ranged.join(', ')}): CollectionWithRange;`,
     ];
+    // The ranged overload already covers a declared range.
     if (ranged.some((arg, i) => arg !== args[i])) {
-        lines.push(...renderChainMethod(moduleSchema, indent));
+        lines.push(...renderChainMethod(moduleSchema, indent, false));
     }
     return lines;
 }
@@ -2057,9 +2060,9 @@ function buildSignature(
     return { args, docLines };
 }
 
-/** The literal type of `values`. */
+/** The literal type of `values`, quoted as the schema's enums render. */
 function valuesType(values: string[]): string {
-    return values.map((value) => `'${value}'`).join(' | ');
+    return values.map((value) => JSON.stringify(value)).join(' | ');
 }
 
 /** `args` with the trailing config arg passed through `edit`. */
@@ -2071,32 +2074,27 @@ function withConfig(
 }
 
 /**
- * The args of `moduleSchema`'s overload for a range its params decide,
- * whatever its input: both declaring params given, or its bounding param
- * set to one of its bounding values. `null` for a module whose params decide
- * none.
+ * The args of `moduleSchema`'s overload for the range it declares with both
+ * declaring params given, whatever its input. `null` for a module that
+ * declares none.
  */
-function decidedRangeArgs(
+function declaredRangeArgs(
     moduleSchema: Schema,
     args: string[],
 ): string[] | null {
     const declared = moduleSchema.declaredRange;
-    const bounding = moduleSchema.boundingParam;
-    if (!declared && !bounding) {
+    if (!declared) {
         return null;
     }
     return withConfig(args, (config) => {
-        let decided = config.replace(/^config\?:/, 'config:');
-        for (const name of declared ?? []) {
-            decided = decided.replace(new RegExp(`\\b${name}\\?:`), `${name}:`);
-        }
-        if (bounding) {
-            decided = decided.replace(
-                new RegExp(`\\b${bounding.name}\\?: [^;}]+`),
-                `${bounding.name}: ${valuesType(bounding.values)}`,
+        let required = config.replace(/^config\?:/, 'config:');
+        for (const name of declared) {
+            required = required.replace(
+                new RegExp(`\\b${name}\\?:`),
+                `${name}:`,
             );
         }
-        return decided;
+        return required;
     });
 }
 
@@ -2129,12 +2127,16 @@ function chainSignature(
 
 /**
  * Render the chain method of `moduleSchema`, with the overload for a range
- * its params decide first.
+ * it declares first unless `withDeclared` is unset.
  *
  * Only called on schemas passing `qualifiesForChain`, which guarantees
  * `chainMethodName` yields a valid TS identifier for the interface member.
  */
-function renderChainMethod(moduleSchema: Schema, indent: string): string[] {
+function renderChainMethod(
+    moduleSchema: Schema,
+    indent: string,
+    withDeclared = true,
+): string[] {
     const methodName = chainMethodName(moduleSchema.name);
     const { args, doc } = chainSignature(moduleSchema, indent);
     // The chain interfaces sit outside the module's namespace, so a
@@ -2144,11 +2146,11 @@ function renderChainMethod(moduleSchema: Schema, indent: string): string[] {
             ? qualifiedMultiOutputInterfaceName(moduleSchema)
             : getFactoryReturnType(moduleSchema);
     const lines: string[] = [];
-    const decided = decidedRangeArgs(moduleSchema, args);
-    if (decided) {
+    const declared = declaredRangeArgs(moduleSchema, args);
+    if (declared && withDeclared) {
         lines.push(
             ...doc,
-            `${indent}${methodName}(${decided.join(', ')}): CollectionWithRange;`,
+            `${indent}${methodName}(${declared.join(', ')}): CollectionWithRange;`,
         );
     }
     lines.push(
@@ -2192,9 +2194,9 @@ function renderFactoryFunction(
             ),
         );
     }
-    const decided = decidedRangeArgs(moduleSchema, args);
-    if (decided) {
-        lines.push(...overload(decided, 'CollectionWithRange'));
+    const declared = declaredRangeArgs(moduleSchema, args);
+    if (declared) {
+        lines.push(...overload(declared, 'CollectionWithRange'));
     }
     lines.push(...overload(args, returnType));
 

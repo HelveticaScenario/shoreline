@@ -204,7 +204,7 @@ impl BufferWriteBlockOutputs {
 
     pub const PORT_NAMES: &'static [&'static str] = &["output"];
 
-    pub fn bounded_mask(_inputs_bounded: bool) -> u64 {
+    pub fn settled_mask(_inputs_settled: bool) -> u64 {
         0
     }
 }

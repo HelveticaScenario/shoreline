@@ -1904,7 +1904,7 @@ export class ModuleNode {
      * Whether the engine knows the range of `output`, as far as the DSL can
      * tell without running the patch: a fixed range, one the module's own
      * params set or declare, or one that follows inputs that are ranged or
-     * constant, at least one ranged.
+     * constant, at least one ranged, unless a bounding param rules it out.
      * It errs towards unranged, so a ranged output is always bounded in the
      * engine.
      */
@@ -1918,11 +1918,15 @@ export class ModuleNode {
                     return true;
                 }
                 const params = this.builder.getModule(this.id)?.params ?? {};
+                // A bounding param set to another value rules a range out.
                 const bounding = this.schema.boundingParam;
-                if (bounding && params[bounding.name] !== undefined) {
-                    return bounding.values.includes(
-                        params[bounding.name] as string,
-                    );
+                const decider = bounding ? params[bounding.name] : undefined;
+                if (
+                    bounding &&
+                    typeof decider === 'string' &&
+                    !bounding.values.includes(decider)
+                ) {
+                    return false;
                 }
                 // A constant holds still: it carries the range along but has
                 // none to give, so some input must be ranged in every channel.

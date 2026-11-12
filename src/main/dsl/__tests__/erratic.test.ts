@@ -1,7 +1,8 @@
 /**
  * `.erratic()` is the chain method of `$erratic`. Unset, its `mode` blends
  * within a signal's range and shifts a signal without one; the result is
- * ranged when the mode keeps a range, as the engine bounds it.
+ * ranged when the signal is and the mode keeps its range, as the engine
+ * bounds it.
  */
 
 import { beforeEach, describe, expect, test } from 'vitest';
@@ -57,14 +58,21 @@ describe('.erratic()', () => {
     });
 
     test.each(['clamp', 'blend'])(
-        "mode: '%s' keeps a range on any signal",
+        "mode: '%s' keeps a ranged signal's range",
         (mode) => {
             expect(chain(lfo(), 'erratic', 5, { mode })).toBeInstanceOf(
                 CollectionWithRange,
             );
+        },
+    );
+
+    test.each(['clamp', 'blend'])(
+        "mode: '%s' gives a signal without a range none",
+        (mode) => {
             expect(
                 chain(builder.$c('c3'), 'erratic', 5, { mode }),
-            ).toBeInstanceOf(CollectionWithRange);
+            ).not.toBeInstanceOf(CollectionWithRange);
+            expect(erraticParams()).toMatchObject({ mode });
         },
     );
 

@@ -94,3 +94,36 @@ test('the generated lib names only types it declares', () => {
 test('a name that is no module or method is an error', () => {
     expect(errors(`$saw('c3').notAModule().out()`)).toHaveLength(1);
 });
+
+test('a two-argument .range() needs a signal the engine gives a range', () => {
+    const lfo = `const lfo = $sine('1hz').range(0, 2)`;
+    const un = `const un = $saw('c3').lpf('100hz')`;
+    expect(
+        errors(
+            [
+                lfo,
+                `lfo.erratic(2).range(0, 1)`,
+                `lfo.erratic(2, { mode: 'clamp' }).range(0, 1)`,
+                `lfo.erratic(2, { mode: 'blend', sparse: true }).range(0, 1)`,
+                `$erratic(lfo, 2).range(0, 1)`,
+                `lfo.add(1).div(2).round().range(-5, 5)`,
+                `$clamp(lfo, { min: 0 }).range(0, 1)`,
+                `$signal(3, { min: 0, max: 10 }).range(0, 1)`,
+            ].join('\n'),
+        ),
+    ).toEqual([]);
+    for (const unranged of [
+        `lfo.erratic(2, { mode: 'shift' }).range(0, 1)`,
+        `un.erratic(2).range(0, 1)`,
+        `un.erratic(2, { mode: 'clamp' }).range(0, 1)`,
+        `$erratic(un, 2).range(0, 1)`,
+        `$erratic($c('c3'), 2).range(0, 1)`,
+        `$clamp(un, { min: 0 }).range(0, 1)`,
+        `$r(un)`,
+        `lfo.div(lfo).range(0, 1)`,
+    ]) {
+        expect(errors([lfo, un, unranged].join('\n')), unranged).toHaveLength(
+            1,
+        );
+    }
+});

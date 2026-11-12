@@ -458,9 +458,9 @@ export interface WavTimeSignature {
   den: number
 }
 /**
- * A param that decides whether a module's `bounds = input` outputs are
- * bounded: they are for `values`, not for its other values, and, unset, when
- * the inputs tagged `bounds` give a range.
+ * A param that decides whether a module's `bounds = input` outputs can be
+ * bounded: set to one of `values` or unset, they are when the inputs tagged
+ * `bounds` give a range, and set to another value, never.
  */
 export interface BoundingParam {
   name: string
@@ -592,7 +592,7 @@ export interface ModuleSchema {
   declaredRange?: Array<string>
   /**
    * The optional param that decides whether the module's `bounds = input`
-   * outputs are bounded (`#[input(…, bounding = (…))]`).
+   * outputs can be bounded (`#[input(…, bounding = (…))]`).
    */
   boundingParam?: BoundingParam
 }
