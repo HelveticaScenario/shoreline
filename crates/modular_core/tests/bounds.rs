@@ -3,7 +3,7 @@
 //! outputs carry bounds, and which store them, before it runs.
 
 use modular_core::Patch;
-use modular_core::bounds::Bounds;
+use modular_core::bounds::{Bounds, Settled};
 use modular_core::dsp::get_params_deserializers;
 use modular_core::params::DeserializedParams;
 use modular_core::types::{ProcessingMode, SameIds};
@@ -558,7 +558,7 @@ fn only_outputs_whose_bounds_are_read_store_them() {
 }
 
 #[test]
-fn a_declared_range_bounds_a_signal_whose_value_has_none() {
+fn a_declared_range_is_the_signals_whatever_its_value() {
     let modules = [
         ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
         (
@@ -603,11 +603,7 @@ fn a_declared_range_bounds_a_signal_whose_value_has_none() {
         assert_eq!(read(&patch, "unranged", slot).1, declared, "slot {slot}");
         assert_eq!(read(&patch, "constant", slot).1, declared, "slot {slot}");
         assert_eq!(read(&patch, "control", slot).1, declared, "slot {slot}");
-        assert_eq!(
-            read(&patch, "swinging", slot).1,
-            read(&patch, "saw", slot).1,
-            "a value that swings keeps its own range, slot {slot}"
-        );
+        assert_eq!(read(&patch, "swinging", slot).1, declared, "slot {slot}");
     }
 }
 
@@ -694,6 +690,212 @@ fn rounding_rounds_the_range_in_its_order() {
     ] {
         for slot in 0..BLOCK_SIZE {
             assert_eq!(read(&patch, id, slot).1, expected, "{id} slot {slot}");
+        }
+    }
+}
+
+#[test]
+fn constants_carry_bounds_but_no_range() {
+    let modules = [
+        ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
+        (
+            "held",
+            "$signal",
+            json!({ "value": 3.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "declared",
+            "$signal",
+            json!({ "value": 3.0, "min": 0.0, "max": 10.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "offset",
+            "$add",
+            json!({ "input": cable("held"), "offset": 1.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "moving",
+            "$add",
+            json!({ "input": cable("held"), "offset": cable("saw") }),
+            ProcessingMode::Block,
+        ),
+    ];
+    let patch = build(&modules);
+    let settled = &patch.bounds;
+    for id in ["saw", "held", "declared", "offset", "moving"] {
+        assert!(settled.bounded(id, "output"), "{id} is bounded");
+    }
+    for (id, ranged) in [
+        ("saw", true),
+        ("held", false),
+        ("declared", true),
+        ("offset", false),
+        ("moving", true),
+    ] {
+        assert_eq!(settled.ranged(id, "output"), ranged, "{id}");
+    }
+}
+
+#[test]
+fn erratic_blends_only_an_input_with_a_range() {
+    let modules = [
+        ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
+        (
+            "held",
+            "$signal",
+            json!({ "value": 3.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "over_range",
+            "$erratic",
+            json!({ "input": cable("saw"), "amount": 3.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "over_held",
+            "$erratic",
+            json!({ "input": cable("held"), "amount": 3.0 }),
+            ProcessingMode::Block,
+        ),
+        (
+            "clamped",
+            "$erratic",
+            json!({ "input": cable("held"), "amount": 3.0, "mode": "clamp" }),
+            ProcessingMode::Block,
+        ),
+        (
+            "shifted",
+            "$erratic",
+            json!({ "input": cable("saw"), "amount": 3.0, "mode": "shift" }),
+            ProcessingMode::Block,
+        ),
+    ];
+    let patch = build(&modules);
+    let order = [
+        "over_range",
+        "over_held",
+        "clamped",
+        "shifted",
+        "saw",
+        "held",
+    ];
+    render_block(&patch, &order, &[BLOCK_SIZE]);
+    // A held value has no range: an unset mode shifts across ±5 around it,
+    // and a clamp keeps it within ±5 without giving it a range.
+    for (id, expected) in [
+        ("over_range", Bounds::new(-5.0, 5.0)),
+        ("over_held", Bounds::UNBOUNDED),
+        ("clamped", Bounds::UNBOUNDED),
+        ("shifted", Bounds::UNBOUNDED),
+    ] {
+        for slot in 0..BLOCK_SIZE {
+            assert_eq!(read(&patch, id, slot).1, expected, "{id} slot {slot}");
+        }
+    }
+}
+
+#[test]
+fn a_clamped_erratic_in_a_cycle_reads_no_range_of_its_own() {
+    for (mode, processing) in [
+        ("clamp", ProcessingMode::Sample),
+        ("blend", ProcessingMode::Sample),
+        ("clamp", ProcessingMode::Block),
+    ] {
+        let modules = [
+            (
+                "wander",
+                "$erratic",
+                json!({ "input": cable("next"), "amount": 1.0, "speed": 5.0, "mode": mode }),
+                processing,
+            ),
+            (
+                "next",
+                "$mul",
+                json!({ "input": cable("wander"), "factor": 2.0 }),
+                processing,
+            ),
+        ];
+        let patch = build(&modules);
+        for _ in 0..BLOCKS {
+            render_block(&patch, &["wander", "next"], &[BLOCK_SIZE]);
+            for slot in 0..BLOCK_SIZE {
+                let (value, bounds) = read(&patch, "wander", slot);
+                assert!(!bounds.is_bounded(), "{mode} slot {slot}");
+                assert!((-5.0..=5.0).contains(&value), "{mode} slot {slot}: {value}");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_constant_beside_a_ranged_channel_gives_no_range() {
+    let modules = [
+        ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
+        (
+            "mixed",
+            "$erratic",
+            json!({ "input": [cable("saw"), 3.0], "amount": 3.0 }),
+            ProcessingMode::Block,
+        ),
+    ];
+    let patch = build(&modules);
+    assert!(!patch.bounds.bounded("mixed", "output"));
+}
+
+#[test]
+fn a_clamp_over_a_constant_has_its_limits_for_a_range() {
+    let modules = [(
+        "clamped",
+        "$clamp",
+        json!({ "input": 3.0, "min": 0.0, "max": 10.0 }),
+        ProcessingMode::Block,
+    )];
+    let patch = build(&modules);
+    assert!(patch.bounds.ranged("clamped", "output"));
+    render_block(&patch, &["clamped"], &[BLOCK_SIZE]);
+    for slot in 0..BLOCK_SIZE {
+        assert_eq!(read(&patch, "clamped", slot), (3.0, Bounds::new(0.0, 10.0)));
+    }
+}
+
+#[test]
+fn a_declared_range_in_a_cycle_holds() {
+    for mode in [ProcessingMode::Sample, ProcessingMode::Block] {
+        let modules = [
+            (
+                "declared",
+                "$signal",
+                json!({ "value": cable("doubled"), "min": -1.0, "max": 1.0 }),
+                mode,
+            ),
+            (
+                "doubled",
+                "$mul",
+                json!({ "input": cable("declared"), "factor": 2.0 }),
+                mode,
+            ),
+        ];
+        let patch = build(&modules);
+        for _ in 0..BLOCKS {
+            render_block(&patch, &["declared", "doubled"], &[BLOCK_SIZE]);
+            for slot in 0..BLOCK_SIZE {
+                assert_eq!(
+                    read(&patch, "declared", slot).1,
+                    Bounds::new(-1.0, 1.0),
+                    "{mode:?} slot {slot}"
+                );
+                // Around the loop's one-sample delay the first slot reads
+                // what came before the patch; the bounds never grow past 2.
+                let doubled = read(&patch, "doubled", slot).1;
+                assert!(
+                    doubled.lo() >= -2.0 && doubled.hi() <= 2.0,
+                    "{mode:?} slot {slot}: {doubled:?}"
+                );
+            }
         }
     }
 }

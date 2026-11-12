@@ -1,4 +1,4 @@
-//! `_erratic` through every block-input resolution path. Its shift is random,
+//! `$erratic` through every block-input resolution path. Its shift is random,
 //! so the exact checks use a zero `amount`, where the output is the input
 //! clamped to `[min, max]`; the in-module tests pin the shift itself, comparing
 //! `process_block` against `update` from one seeded state.
@@ -15,7 +15,7 @@ static GLOBAL: CountingAllocator = CountingAllocator;
 #[test]
 fn zero_amount_passes_cable_input_through() {
     check_module(
-        "_erratic",
+        "$erratic",
         json!({ "input": poly_cable("src", CHANNELS), "amount": 0.0, "speed": cable("lfo", 1) }),
         |src, _| src.to_vec(),
     );
@@ -24,7 +24,7 @@ fn zero_amount_passes_cable_input_through() {
 #[test]
 fn clamps_to_cable_range() {
     check_module(
-        "_erratic",
+        "$erratic",
         json!({
             "input": poly_cable("src", CHANNELS),
             "amount": 0.0,
@@ -58,7 +58,7 @@ fn allocation_free() {
         json!({ "input": cable("src", 1), "amount": [1.0, 2.0, 3.0, 4.0], "bias": [cable("lfo", 2), 1.0], "min": -1.0, "max": 1.0, "mode": "clamp" }),
         json!({ "input": poly_cable("src", CHANNELS), "amount": 5.0, "speed": 5.0, "trigger": poly_cable("src", CHANNELS), "mode": "blend", "sparse": true }),
     ] {
-        assert_eq!(allocations_while_rendering("_erratic", params), 0);
+        assert_eq!(allocations_while_rendering("$erratic", params), 0);
     }
 }
 
@@ -67,7 +67,7 @@ fn bounds_are_the_range_in_its_order_unless_shifting() {
     let input = poly_cable("src", CHANNELS);
     for mode in ["blend", "clamp"] {
         let bounds = check_bounds_agree(
-            "_erratic",
+            "$erratic",
             json!({ "input": input, "amount": 3.0, "min": 3.0, "max": -1.0, "mode": mode }),
         );
         assert!(
@@ -78,7 +78,7 @@ fn bounds_are_the_range_in_its_order_unless_shifting() {
     let patch = build(
         ProcessingMode::Block,
         ProcessingMode::Block,
-        "_erratic",
+        "$erratic",
         json!({ "input": input, "amount": 3.0, "mode": "shift" }),
     );
     assert!(
@@ -92,7 +92,7 @@ fn bounds_are_the_range_in_its_order_unless_shifting() {
 fn an_unset_mode_blends_within_a_ranged_input() {
     // The saw swings over ±5, so an unset mode blends within it.
     let bounds = check_bounds_agree(
-        "_erratic",
+        "$erratic",
         json!({ "input": poly_cable("src", CHANNELS), "amount": 3.0 }),
     );
     assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
@@ -100,7 +100,7 @@ fn an_unset_mode_blends_within_a_ranged_input() {
     let patch = build(
         ProcessingMode::Block,
         ProcessingMode::Block,
-        "_erratic",
+        "$erratic",
         json!({ "input": 1.0, "amount": 3.0 }),
     );
     assert!(

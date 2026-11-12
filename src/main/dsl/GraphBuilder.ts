@@ -173,24 +173,6 @@ export interface MonoOutOptions {
     solo?: boolean;
 }
 
-/** Options for `.erratic()` on a signal without a known range */
-export interface ErraticOptions {
-    /** Rising edge samples and holds the current random value */
-    trigger?: PolySignal;
-    /** How fast the variation wanders: 0 = frozen, 5 = a fresh value every sample (default 2) */
-    speed?: PolySignal;
-    /** Leans the variation upward (positive) or downward (negative); ±5 makes it one-sided (default 0) */
-    bias?: PolySignal;
-    /** Draw a random depth per value: low amounts mostly stay near the input with rare big jumps, high amounts mostly jump (default false) */
-    sparse?: boolean;
-}
-
-/** Options for `.erratic()` on a ranged signal */
-export interface RangedErraticOptions extends ErraticOptions {
-    /** `'blend'` moves toward a random value in the range (the default); `'clamp'` adds a random offset and clamps to the range; `'shift'` adds it unclamped */
-    mode?: 'clamp' | 'shift' | 'blend';
-}
-
 /** VU meter / mute / solo state shared by both out group kinds */
 interface OutGroupVuState {
     label?: string;
@@ -424,27 +406,6 @@ export class BaseCollection<T extends ModuleOutput> {
     }
 
     /**
-     * Apply a wandering random shift of up to ±`amount` (0–5) to all outputs,
-     * where 5 shifts by up to ±5 V.
-     */
-    erratic(amount: PolySignal, options: ErraticOptions = {}): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        // Without a known range the shift spans a nominal ±5 V.
-        return this.items[0].builder.getFactory('_erratic')(
-            this.items,
-            amount,
-            {
-                ...options,
-                mode: 'shift',
-                min: -5,
-                max: 5,
-            },
-        ) as Collection;
-    }
-
-    /**
      * Add scope visualization for all outputs in the collection
      */
     scope(config?: ScopeConfig): this {
@@ -603,9 +564,8 @@ function sliceRoot(
 }
 
 /**
- * The same channels as a ranged collection, for an output the engine bounds
- * by a rule the schema cannot state (`_erratic` short of a shift) or one
- * whose source is set later (an `$outLane` control).
+ * The same channels as a ranged collection, for outputs whose source is set
+ * later to one the engine bounds (an `$outLane` control).
  */
 export function asRanged(
     collection: BaseCollection<ModuleOutput>,
@@ -660,7 +620,7 @@ export class Collection extends BaseCollection<ModuleOutput> {
 
 /**
  * A collection whose range the engine knows: `.range(outMin, outMax)` maps
- * from it, and the methods below keep it.
+ * from it.
  */
 export class CollectionWithRange extends BaseCollection<ModuleOutput> {
     /**
@@ -674,26 +634,6 @@ export class CollectionWithRange extends BaseCollection<ModuleOutput> {
         inMax?: PolySignal,
     ): CollectionWithRange {
         return remapRange(this.items, outMin, outMax, inMin, inMax);
-    }
-
-    /**
-     * Apply a wandering random variation to all outputs within their range:
-     * `amount` 5 reaches across it. Blends toward random values by default,
-     * keeping the range; `'shift'` can carry the signal past it.
-     */
-    erratic(
-        amount: PolySignal,
-        options: RangedErraticOptions = {},
-    ): CollectionWithRange | Collection {
-        if (this.items.length === 0) {
-            return new CollectionWithRange();
-        }
-        const result = this.items[0].builder.getFactory('_erratic')(
-            this.items,
-            amount,
-            options,
-        ) as Collection;
-        return options.mode === 'shift' ? result : asRanged(result);
     }
 }
 
@@ -1445,17 +1385,22 @@ export class GraphBuilder implements ChainHost {
         }
 
         // A lane control is the first channel of its source: tapped directly
-        // when the source declares its range, as a lifted control does, and
-        // otherwise through a `$signal` declaring the control's usual span,
-        // which a source that swings overrides with its own.
+        // when the source is ranged, as a lifted control is, and otherwise
+        // through a `$signal` declaring the control's usual span.
         const control = (
             source: PolySignal,
             range: ControlRange,
         ): ModuleOutput => {
-            const first = firstChannel(source);
+            // Every deferred is set by now, so a deferred source is judged by
+            // the output it was set to.
+            const channel = firstChannel(source);
+            const first =
+                channel instanceof DeferredModuleOutput
+                    ? (channel.resolve() ?? channel)
+                    : channel;
             if (
                 first instanceof ModuleOutput &&
-                this.declaresRange(first.moduleId)
+                this.rangedPorts.has(`${first.moduleId}:${first.portName}`)
             ) {
                 return first;
             }
@@ -1964,7 +1909,7 @@ export class ModuleNode {
      * Whether the engine knows the range of `output`, as far as the DSL can
      * tell without running the patch: a fixed range, one the module's own
      * params set or declare, or one that follows inputs that are ranged or
-     * constant, at least one ranged.
+     * constant, at least one ranged, unless a bounding param rules it out.
      * It errs towards unranged, so a ranged output is always bounded in the
      * engine.
      */
@@ -1977,12 +1922,19 @@ export class ModuleNode {
                 if (this.builder.declaresRange(this.id)) {
                     return true;
                 }
-                if (this.schema.customBounds) {
+                const params = this.builder.getModule(this.id)?.params ?? {};
+                // A bounding param set to another value rules a range out.
+                const bounding = this.schema.boundingParam;
+                const decider = bounding ? params[bounding.name] : undefined;
+                if (
+                    bounding &&
+                    typeof decider === 'string' &&
+                    !bounding.values.includes(decider)
+                ) {
                     return false;
                 }
                 // A constant holds still: it carries the range along but has
                 // none to give, so some input must be ranged in every channel.
-                const params = this.builder.getModule(this.id)?.params ?? {};
                 const tagged = this.schema.signalParams
                     .filter((param) => param.carriesBounds)
                     .map((param) => ({

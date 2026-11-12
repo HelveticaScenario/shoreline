@@ -458,6 +458,16 @@ export interface WavTimeSignature {
   den: number
 }
 /**
+ * A param that decides whether a module's `bounds = input` outputs can be
+ * bounded: set to one of `values` or unset, they are when the inputs tagged
+ * `bounds` give a range, and set to another value, never.
+ */
+export interface BoundingParam {
+  name: string
+  values: Array<string>
+}
+
+/**
  * How an output's bounds arise, named in `#[output(bounds = …)]` or implied
  * by its `range`. Whether an `Input` output is bounded in a given patch is
  * settled when the patch is built.
@@ -575,17 +585,16 @@ export interface ModuleSchema {
    */
   experimental: boolean
   /**
-   * Whether the module decides for itself when its `bounds = input`
-   * outputs are bounded (`#[params(bounded_when = …)]`), rather than when
-   * every input that carries bounds is.
-   */
-  customBounds: boolean
-  /**
-   * The two optional params, `[min, max]`, that bound the module's `bounds = input`
-   * outputs when both are set, whatever its inputs
+   * The two optional params, `[min, max]`, that bound the module's
+   * `bounds = input` outputs when both are set, whatever its inputs
    * (`#[params(declares_range = …)]`).
    */
   declaredRange?: Array<string>
+  /**
+   * The optional param that decides whether the module's `bounds = input`
+   * outputs can be bounded (`#[input(…, bounding = (…))]`).
+   */
+  boundingParam?: BoundingParam
 }
 
 export interface ModuleSpec {
