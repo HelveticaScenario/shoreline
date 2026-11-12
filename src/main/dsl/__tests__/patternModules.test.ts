@@ -121,6 +121,30 @@ describe('a pattern that is not played', () => {
         expect(cycles(exec(`${source}\n$sine('c3').out()`).patch)).toEqual([]);
     });
 
+    test.each([
+        [$p('c e'), ['__kind', 'ast', 'source', 'all_spans']],
+        [
+            $p.s('0 2', 'c(maj)').trans('1'),
+            ['__kind', 'sources', 'scale', 'ops', 'argument_spans'],
+        ],
+        [$p.arrange([1, $p('c')]), ['__kind', 'sections']],
+        [$p('c e').fast(2), ['__kind', 'pattern', 'factor']],
+        [$p('c e').struct('x ~'), ['__kind', 'pattern', 'bool_pattern']],
+        [$p('c').beat(0, 4), ['__kind', 'pattern', 't']],
+        [$p('c e').glide(0.1), ['__kind', 'pattern', 'mode']],
+    ])('keeps its wire fields out of reach: %#', (pattern, fields) => {
+        const handle = pattern as unknown as Record<string, unknown>;
+        const payload = patternPayload(pattern) as unknown as Record<
+            string,
+            unknown
+        >;
+        for (const field of fields) {
+            expect(payload[field], field).toBeDefined();
+            expect(handle[field], field).toBeUndefined();
+            expect(field in handle, field).toBe(false);
+        }
+    });
+
     test('has no keys of its own and serializes as its wire payload', () => {
         const pattern = $p('c e').glide(0.1);
         expect(Object.keys(pattern)).toEqual([]);

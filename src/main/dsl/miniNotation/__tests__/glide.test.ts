@@ -32,8 +32,12 @@ describe('.glide builder', () => {
     });
 
     test('only a string glide appends an argument span', () => {
-        expect($p('c4 e4').glide(0.1).argument_spans).toHaveLength(1);
-        expect($p('c4 e4').glide('0 0.1').argument_spans).toHaveLength(2);
+        expect(
+            patternPayload($p('c4 e4').glide(0.1)).argument_spans,
+        ).toHaveLength(1);
+        expect(
+            patternPayload($p('c4 e4').glide('0 0.1')).argument_spans,
+        ).toHaveLength(2);
         const chained = patternPayload(
             $p.s('0 2 4', 'c(maj)').trans('0 5').glide('0.1'),
         );
@@ -119,16 +123,16 @@ describe('.glide composition', () => {
     });
 
     test('works on $p.s and $p.arrange patterns, and as arrange sections', () => {
-        expect($p.s('0 2 4', 'c(maj)').glide(0.1).pattern.__kind).toBe(
-            'SpPattern',
-        );
         expect(
-            $p.arrange([2, $p('c4')], [2, $p('e4')]).glide(0.1).pattern.__kind,
+            patternPayload($p.s('0 2 4', 'c(maj)').glide(0.1)).pattern.__kind,
+        ).toBe('SpPattern');
+        expect(
+            patternPayload($p.arrange([2, $p('c4')], [2, $p('e4')]).glide(0.1))
+                .pattern.__kind,
         ).toBe('ArrangePattern');
 
-        const r = $p.arrange(
-            [2, $p('c4').glide('0.1')],
-            [2, $p('e4').glide(0.2)],
+        const r = patternPayload(
+            $p.arrange([2, $p('c4').glide('0.1')], [2, $p('e4').glide(0.2)]),
         );
         expect(r.sections[0].pattern.__kind).toBe('GlidePattern');
         // (c4 + glide) + e4 = 3 flat spans.

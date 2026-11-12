@@ -25,8 +25,8 @@ interface PatternValue {
 
 /**
  * The wire payload behind each pattern a patch script holds. The script's
- * value is a proxy that also answers as the pattern's `$cycle`, so its own
- * fields are read through here.
+ * value is a proxy that answers as the pattern's `$cycle` and keeps the
+ * payload's fields out of reach, so host code reads them through here.
  */
 const PAYLOADS = new WeakMap<object, object>();
 
@@ -45,11 +45,18 @@ export function registerPattern(handle: object, payload: object): void {
     }
 }
 
+/** Types a script's handle by the wire payload behind it. */
+export declare const PAYLOAD: unique symbol;
+
+type PayloadOf<T> = T extends { readonly [PAYLOAD]: infer P } ? P : T;
+
 /** The wire payload of a pattern: itself unless it is a script's handle. */
-export function patternPayload<T>(pattern: T): T {
-    return typeof pattern === 'object' && pattern !== null
-        ? ((PAYLOADS.get(pattern) as T | undefined) ?? pattern)
-        : pattern;
+export function patternPayload<T>(pattern: T): PayloadOf<T> {
+    return (
+        typeof pattern === 'object' && pattern !== null
+            ? (PAYLOADS.get(pattern) ?? pattern)
+            : pattern
+    ) as PayloadOf<T>;
 }
 
 export function isPatternValue(value: unknown): value is PatternValue {

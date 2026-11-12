@@ -28,6 +28,7 @@ import { Collection, CollectionWithRange } from '../GraphBuilder';
 import {
     cycleOf,
     makeCycle,
+    type PAYLOAD,
     patternPayload,
     registerPattern,
 } from '../patternKinds';
@@ -62,7 +63,7 @@ export { MiniParseError } from './parser';
  *
  * Throws `MiniParseError` if `source` is not a string or fails to parse.
  */
-function $pImpl(source: string): ParsedPattern & TimeModifiable {
+function $pImpl(source: string): Pattern<ParsedPattern> {
     if (typeof source !== 'string') {
         throw new MiniParseError(
             `$p() expects a string argument, got ${typeof source}`,
@@ -154,8 +155,8 @@ export interface ParsedPatternPayload {
 }
 
 /** `.trans`: callable, with a method for each alignment mode. */
-export type SpCombineBuilder = ((rhs: string) => SpPattern & TimeModifiable) & {
-    [M in SpAlignmentMode]: (rhs: string) => SpPattern & TimeModifiable;
+export type SpCombineBuilder = ((rhs: string) => SpPatternHandle) & {
+    [M in SpAlignmentMode]: (rhs: string) => SpPatternHandle;
 };
 
 /**
@@ -174,8 +175,12 @@ export interface SpPattern {
     scale: string;
     ops: Array<SpOp>;
     argument_spans: Array<SourceSpan>;
-    trans: SpCombineBuilder;
 }
+
+/** What `$p.s` and `.trans` return: a pattern that can be transposed. */
+export type SpPatternHandle = Pattern<SpPattern> & {
+    readonly trans: SpCombineBuilder;
+};
 
 /**
  * Parse a scale-degree mini-notation source against `scale`, returning
@@ -200,7 +205,7 @@ export interface SpPattern {
  * brackets (`"c[maj7]"`, `"a3[m9 inv1]"`) whose degrees step through the
  * chord tones.
  */
-function $spImpl(source: string, scale: string): SpPattern & TimeModifiable {
+function $spImpl(source: string, scale: string): SpPatternHandle {
     if (typeof source !== 'string') {
         throw new MiniParseError(
             `$p.s() expects a string source, got ${typeof source}`,
@@ -238,26 +243,23 @@ function buildSpPattern(
     scale: string,
     ops: SpOp[],
     argument_spans: SourceSpan[],
-): SpPattern & TimeModifiable {
-    const payload = {
+): SpPatternHandle {
+    const payload: SpPattern = {
         __kind: SP_KIND,
         sources,
         scale,
         ops,
         argument_spans,
     };
-    return patternHandle(payload as SpPattern, {
+    return patternHandle(payload, {
         get trans() {
             return makeCombineBuilder(payload);
         },
     });
 }
 
-function makeCombineBuilder(pat: Omit<SpPattern, 'trans'>): SpCombineBuilder {
-    const apply = (
-        mode: SpAlignmentMode,
-        rhs: string,
-    ): SpPattern & TimeModifiable => {
+function makeCombineBuilder(pat: SpPattern): SpCombineBuilder {
+    const apply = (mode: SpAlignmentMode, rhs: string): SpPatternHandle => {
         if (typeof rhs !== 'string') {
             throw new MiniParseError(
                 `$p.s().trans.${mode}() expects a string RHS, got ${typeof rhs}`,
@@ -304,7 +306,7 @@ export type SectionPattern =
     | GlidePattern;
 
 /** One `[cycles, pattern]` tuple accepted by `$p.arrange`. */
-export type ArrangeSectionArg = readonly [number, SectionPattern];
+export type ArrangeSectionArg = readonly [number, SectionPattern | Pattern];
 
 /**
  * Wire shape for one arrange section. `cycles` is a positive integer, or the
@@ -354,7 +356,7 @@ export function isArrangePattern(value: unknown): value is ArrangePattern {
  */
 function $arrangeImpl(
     ...sections: ArrangeSectionArg[]
-): ArrangePattern & TimeModifiable {
+): Pattern<ArrangePattern> {
     if (sections.length === 0) {
         throw new MiniParseError(
             '$p.arrange() requires at least one [cycles, pattern] section',
@@ -449,20 +451,24 @@ const GLIDE_KIND = 'GlidePattern' as const;
  * `.cycle(...rest)`: shorthand for `$cycle(pattern, ...rest)`, forwarding
  * every argument after the pattern to the `$cycle` factory.
  */
+/**
+ * What a patch script holds for a pattern whose wire payload is `T`: the
+ * pattern methods, with the payload itself out of reach.
+ */
+export type Pattern<T extends SectionPattern = SectionPattern> =
+    TimeModifiable & { readonly [PAYLOAD]: T };
+
 export interface TimeModifiable {
     cycle(...rest: unknown[]): unknown;
-    fast(factor: number | string): FastPattern & TimeModifiable;
-    slow(factor: number | string): SlowPattern & TimeModifiable;
-    struct(boolPattern: string): StructPattern & TimeModifiable;
-    beat(
-        t: number | string,
-        div: number | string,
-    ): BeatPattern & TimeModifiable;
+    fast(factor: number | string): Pattern<FastPattern>;
+    slow(factor: number | string): Pattern<SlowPattern>;
+    struct(boolPattern: string): Pattern<StructPattern>;
+    beat(t: number | string, div: number | string): Pattern<BeatPattern>;
     glide(
         g: number | string,
         curve?: GlideCurve,
         mode?: GlideMode,
-    ): GlidePattern & TimeModifiable;
+    ): Pattern<GlidePattern>;
 }
 
 /**
@@ -471,7 +477,7 @@ export interface TimeModifiable {
  * the wrapped pattern (any `SectionPattern`, so wrappers chain and nest);
  * `argument_spans` is the wrapped pattern's flat per-source span list, plus the
  * factor's span when the factor is a pattern string. The bare interface is the
- * JSON wire shape; the builders return it behind a `& TimeModifiable` handle.
+ * JSON wire shape; the builders return it behind a `Pattern` handle.
  */
 export interface FastPattern {
     __kind: typeof FAST_KIND;
@@ -617,7 +623,7 @@ function factorPayload(
 function makeFast(
     inner: SectionPattern,
     factor: number | string,
-): FastPattern & TimeModifiable {
+): Pattern<FastPattern> {
     return patternHandle({
         __kind: FAST_KIND,
         pattern: inner,
@@ -630,7 +636,7 @@ function makeFast(
 function makeSlow(
     inner: SectionPattern,
     factor: number | string,
-): SlowPattern & TimeModifiable {
+): Pattern<SlowPattern> {
     return patternHandle({
         __kind: SLOW_KIND,
         pattern: inner,
@@ -659,7 +665,7 @@ function makeGlide(
     g: number | string,
     curve: GlideCurve = 'linear',
     mode: GlideMode = 'in',
-): GlidePattern & TimeModifiable {
+): Pattern<GlidePattern> {
     return patternHandle({
         __kind: GLIDE_KIND,
         pattern: inner,
@@ -674,7 +680,7 @@ function makeGlide(
 function makeStruct(
     inner: SectionPattern,
     boolPattern: string,
-): StructPattern & TimeModifiable {
+): Pattern<StructPattern> {
     if (typeof boolPattern !== 'string') {
         throw new MiniParseError(
             `struct() expects a mini-notation string, got ${typeof boolPattern}`,
@@ -701,7 +707,7 @@ function makeBeat(
     inner: SectionPattern,
     t: number | string,
     div: number | string,
-): BeatPattern & TimeModifiable {
+): Pattern<BeatPattern> {
     const innerSpans = collectPatternSpans(inner, '$p(...).beat()');
     // Span order must match the Rust `per_source` push order: inner sources,
     // then t (string only), then div (string only).
@@ -799,15 +805,14 @@ function isCycleMember(prop: string | symbol): boolean {
  * The value a patch script holds for the pattern `payload`: a proxy with the
  * pattern methods (`extra` adds a kind's own) that otherwise is the pattern's
  * `$cycle`. Reading a collection member, or using the pattern where a signal
- * belongs, makes that `$cycle`; a collection member shadows a payload field of
- * the same name. The payload itself is what crosses to the engine: it is the
- * handle's JSON form, and the handle has no enumerable keys of its own.
+ * belongs, makes that `$cycle`. The payload is what crosses to the engine: it
+ * is the handle's JSON form and what `patternPayload` gives host code, and
+ * the script cannot read its fields.
  */
-function patternHandle<T extends SectionPattern>(
-    payload: Omit<T, 'trans'>,
-    extra: { readonly trans?: SpCombineBuilder } = {},
-): T & TimeModifiable {
-    const pattern = payload as T;
+function patternHandle<T extends SectionPattern, E extends object = object>(
+    pattern: T,
+    extra?: E,
+): Pattern<T> & E {
     const shared = {
         beat: (t: number | string, div: number | string) =>
             makeBeat(pattern, t, div),
@@ -824,30 +829,33 @@ function patternHandle<T extends SectionPattern>(
     >;
     const methods = Object.defineProperties(
         shared,
-        Object.getOwnPropertyDescriptors(extra),
+        Object.getOwnPropertyDescriptors(extra ?? {}),
     );
-    const handle = new Proxy(pattern, {
-        get: (target, prop) => {
-            if (Object.hasOwn(methods, prop)) {
-                return Reflect.get(methods, prop);
-            }
-            if (isCycleMember(prop)) {
-                const cycle = cycleOf(target) as object;
-                const value: unknown = Reflect.get(cycle, prop, cycle);
-                return typeof value === 'function' ? value.bind(cycle) : value;
-            }
-            return Reflect.get(target, prop);
+    const handle = new Proxy(
+        {},
+        {
+            get: (target, prop) => {
+                if (Object.hasOwn(methods, prop)) {
+                    return Reflect.get(methods, prop);
+                }
+                if (isCycleMember(prop)) {
+                    const cycle = cycleOf(pattern) as object;
+                    const value: unknown = Reflect.get(cycle, prop, cycle);
+                    return typeof value === 'function'
+                        ? value.bind(cycle)
+                        : value;
+                }
+                return Reflect.get(target, prop);
+            },
+            // Host code tells signals apart with `instanceof`, so a pattern
+            // passes wherever a collection does.
+            getPrototypeOf: () => Collection.prototype,
+            has: (target, prop) =>
+                Object.hasOwn(methods, prop) ||
+                isCycleMember(prop) ||
+                Reflect.has(target, prop),
         },
-        getOwnPropertyDescriptor: () => undefined,
-        // Host code tells signals apart with `instanceof`, so a pattern
-        // passes wherever a collection does.
-        getPrototypeOf: () => Collection.prototype,
-        has: (target, prop) =>
-            Object.hasOwn(methods, prop) ||
-            isCycleMember(prop) ||
-            Reflect.has(target, prop),
-        ownKeys: () => [],
-    }) as T & TimeModifiable;
+    ) as Pattern<T> & E;
     registerPattern(handle, pattern);
     return handle;
 }

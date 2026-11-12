@@ -24,7 +24,7 @@ describe('playing a pattern outside a patch run', () => {
 
 describe('.fast / .slow builders', () => {
     test('$p(...).fast(n) builds a FastPattern wrapping the inner pattern', () => {
-        const r = $p('c4 e4').fast(2);
+        const r = patternPayload($p('c4 e4').fast(2));
 
         expect(isFastPattern(r)).toBe(true);
         expect(r.__kind).toBe('FastPattern');
@@ -34,7 +34,7 @@ describe('.fast / .slow builders', () => {
     });
 
     test('$p(...).slow(n) builds a SlowPattern', () => {
-        const r = $p('c4 e4').slow(2);
+        const r = patternPayload($p('c4 e4').slow(2));
         expect(isSlowPattern(r)).toBe(true);
         expect(r.__kind).toBe('SlowPattern');
         expect(r.pattern.__kind).toBe('ParsedPattern');
@@ -42,7 +42,7 @@ describe('.fast / .slow builders', () => {
     });
 
     test('a string factor is parsed as a mini-notation number pattern', () => {
-        const { factor } = $p('c4').fast('2 4');
+        const { factor } = patternPayload($p('c4').fast('2 4'));
         if (typeof factor === 'number') {
             throw new Error('expected a pattern factor, got a number');
         }
@@ -52,7 +52,7 @@ describe('.fast / .slow builders', () => {
     });
 
     test('.fast / .slow chain and nest', () => {
-        const r = $p('c4 e4').fast(3).slow(3);
+        const r = patternPayload($p('c4 e4').fast(3).slow(3));
         expect(r.__kind).toBe('SlowPattern');
         expect(isFastPattern(r.pattern)).toBe(true);
         if (isFastPattern(r.pattern)) {
@@ -61,11 +61,13 @@ describe('.fast / .slow builders', () => {
     });
 
     test('works on $p.s and $p.arrange patterns', () => {
-        const onSp = $p.s('0 2 4', 'c(maj)').fast(2);
+        const onSp = patternPayload($p.s('0 2 4', 'c(maj)').fast(2));
         expect(onSp.__kind).toBe('FastPattern');
         expect(onSp.pattern.__kind).toBe('SpPattern');
 
-        const onArrange = $p.arrange([2, $p('c4')], [2, $p('e4')]).slow(2);
+        const onArrange = patternPayload(
+            $p.arrange([2, $p('c4')], [2, $p('e4')]).slow(2),
+        );
         expect(onArrange.__kind).toBe('SlowPattern');
         expect(onArrange.pattern.__kind).toBe('ArrangePattern');
     });
@@ -73,23 +75,35 @@ describe('.fast / .slow builders', () => {
     test('a number factor adds no argument span; a string factor adds one', () => {
         // Number factor: only the wrapped pattern's span(s). The bare number is
         // a constant and is not highlightable.
-        expect($p('c4 e4').fast(2).argument_spans).toHaveLength(1);
-        const chainedNum = $p.s('0 2 4', 'c(maj)').trans('0 5').fast(2);
+        expect(patternPayload($p('c4 e4').fast(2)).argument_spans).toHaveLength(
+            1,
+        );
+        const chainedNum = patternPayload(
+            $p.s('0 2 4', 'c(maj)').trans('0 5').fast(2),
+        );
         expect(chainedNum.argument_spans).toHaveLength(2);
         // String factor: wrapped pattern's span(s) + the factor span.
-        expect($p('c4 e4').fast('2 4').argument_spans).toHaveLength(2);
-        const chainedStr = $p.s('0 2 4', 'c(maj)').trans('0 5').fast('2 4');
+        expect(
+            patternPayload($p('c4 e4').fast('2 4')).argument_spans,
+        ).toHaveLength(2);
+        const chainedStr = patternPayload(
+            $p.s('0 2 4', 'c(maj)').trans('0 5').fast('2 4'),
+        );
         expect(chainedStr.argument_spans).toHaveLength(3);
     });
 
     test('a FastPattern is a valid $p.arrange section, spans flatten', () => {
         // Number factor → the FastPattern contributes only its inner span.
-        const r = $p.arrange([2, $p('c4').fast(2)], [2, $p('e4')]);
+        const r = patternPayload(
+            $p.arrange([2, $p('c4').fast(2)], [2, $p('e4')]),
+        );
         expect(r.sections[0].pattern.__kind).toBe('FastPattern');
         // 1 (fast's inner c4) + 1 (e4) = 2 flat spans.
         expect(r.argument_spans).toHaveLength(2);
         // String factor → the FastPattern contributes inner + factor.
-        const r2 = $p.arrange([2, $p('c4').fast('2 4')], [2, $p('e4')]);
+        const r2 = patternPayload(
+            $p.arrange([2, $p('c4').fast('2 4')], [2, $p('e4')]),
+        );
         // 2 (inner c4 + factor) + 1 (e4) = 3 flat spans.
         expect(r2.argument_spans).toHaveLength(3);
     });
@@ -127,7 +141,7 @@ describe('.fast / .slow builders', () => {
     });
 
     test('a zero factor is allowed (lenient — lowers to silence in the engine)', () => {
-        const r = $p('c4 e4').fast(0);
+        const r = patternPayload($p('c4 e4').fast(0));
         expect(r.__kind).toBe('FastPattern');
         expect(r.factor).toBe(0);
     });

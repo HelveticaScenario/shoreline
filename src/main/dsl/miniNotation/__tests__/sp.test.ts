@@ -24,7 +24,7 @@ const MODES: SpAlignmentMode[] = [
 
 describe('$p.s builder', () => {
     test('returns an SpPattern wrapper with the wire-shape discriminator', () => {
-        const r = $p.s('0 2 4', 'c(major)');
+        const r = patternPayload($p.s('0 2 4', 'c(major)'));
         expect(isSpPattern(r)).toBe(true);
         expect(r.__kind).toBe('SpPattern');
         expect(r.scale).toBe('c(major)');
@@ -42,7 +42,7 @@ describe('$p.s builder', () => {
     });
 
     test('argument_spans length tracks sources length', () => {
-        const r = $p.s('0', 'c(major)');
+        const r = patternPayload($p.s('0', 'c(major)'));
         expect(r.argument_spans.length).toBe(r.sources.length);
     });
 });
@@ -73,7 +73,7 @@ describe('$p.s empty/whitespace source rejection', () => {
 
 describe('$p.s chain methods', () => {
     test('.trans(rhs) appends source + op with default mode "in"', () => {
-        const r = $p.s('0 2 4', 'c(maj)').trans('0 2');
+        const r = patternPayload($p.s('0 2 4', 'c(maj)').trans('0 2'));
         expect(r.sources.length).toBe(2);
         expect(r.ops.length).toBe(1);
         expect(r.ops[0]).toEqual({ mode: 'in' });
@@ -82,8 +82,8 @@ describe('$p.s chain methods', () => {
     });
 
     test('bare .trans(x) is deep-equal to .trans.in(x)', () => {
-        const a = $p.s('0 2 4', 'c(maj)').trans('0 2');
-        const b = $p.s('0 2 4', 'c(maj)').trans.in('0 2');
+        const a = patternPayload($p.s('0 2 4', 'c(maj)').trans('0 2'));
+        const b = patternPayload($p.s('0 2 4', 'c(maj)').trans.in('0 2'));
         expect(a.ops).toEqual(b.ops);
         expect(a.sources[1].source).toBe(b.sources[1].source);
     });
@@ -91,18 +91,15 @@ describe('$p.s chain methods', () => {
     test('all 7 modes are callable on .trans', () => {
         const base = $p.s('0 1 2', 'c(maj)');
         for (const mode of MODES) {
-            const r = (
-                base.trans as unknown as Record<
-                    string,
-                    (rhs: string) => SpPattern
-                >
-            )[mode]('0');
+            const r = patternPayload(base.trans[mode]('0'));
             expect(r.ops[0]).toEqual({ mode });
         }
     });
 
     test('chain accumulates: .trans(...).trans.squeeze(...)', () => {
-        const r = $p.s('0 2 4', 'c(maj)').trans('0 2').trans.squeeze('1');
+        const r = patternPayload(
+            $p.s('0 2 4', 'c(maj)').trans('0 2').trans.squeeze('1'),
+        );
         expect(r.sources.length).toBe(3);
         expect(r.ops.length).toBe(2);
         expect(r.ops[0]).toEqual({ mode: 'in' });
@@ -111,9 +108,9 @@ describe('$p.s chain methods', () => {
 
     test('chain is immutable — original SpPattern unchanged', () => {
         const base = $p.s('0', 'c(maj)');
-        const chained = base.trans('1');
-        expect(base.sources.length).toBe(1);
-        expect(base.ops.length).toBe(0);
+        const chained = patternPayload(base.trans('1'));
+        expect(patternPayload(base).sources.length).toBe(1);
+        expect(patternPayload(base).ops.length).toBe(0);
         expect(chained.sources.length).toBe(2);
     });
 
@@ -151,7 +148,7 @@ describe('$p.s JSON serialization', () => {
 
 describe('$p.s source AST integrity', () => {
     test('rest atoms pass through into the source AST', () => {
-        const r = $p.s('0 ~ 4', 'c(maj)');
+        const r = patternPayload($p.s('0 ~ 4', 'c(maj)'));
         const ast = r.sources[0].ast;
         if ('Sequence' in ast) {
             expect('Rest' in ast.Sequence[1][0]).toBe(true);
@@ -161,14 +158,14 @@ describe('$p.s source AST integrity', () => {
     });
 
     test('chain RHS is parsed into its own AST', () => {
-        const r = $p.s('0 2 4', 'c(maj)').trans('1 3');
+        const r = patternPayload($p.s('0 2 4', 'c(maj)').trans('1 3'));
         expect(r.sources[1].source).toBe('1 3');
         const ast = r.sources[1].ast;
         expect('Sequence' in ast).toBe(true);
     });
 
     test('euclidean modifier in source preserved', () => {
-        const r = $p.s('0(3,8)', 'c(maj)');
+        const r = patternPayload($p.s('0(3,8)', 'c(maj)'));
         const ast = r.sources[0].ast;
         expect('Euclidean' in ast).toBe(true);
     });
@@ -176,12 +173,12 @@ describe('$p.s source AST integrity', () => {
 
 describe('$p.s source string + spans', () => {
     test('source string is preserved verbatim', () => {
-        const r = $p.s('0 2 4', 'c(maj)');
+        const r = patternPayload($p.s('0 2 4', 'c(maj)'));
         expect(r.sources[0].source).toBe('0 2 4');
     });
 
     test('all_spans count matches the number of atoms', () => {
-        const r = $p.s('0 2 4', 'c(maj)');
+        const r = patternPayload($p.s('0 2 4', 'c(maj)'));
         expect(r.sources[0].all_spans.length).toBe(3);
     });
 });

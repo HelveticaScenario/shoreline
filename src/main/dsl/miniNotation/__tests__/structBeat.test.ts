@@ -13,7 +13,7 @@ import { patternPayload } from '../../patternKinds';
 
 describe('.struct builder', () => {
     test('$p(...).struct(s) builds a StructPattern wrapping the inner pattern', () => {
-        const r = $p('c4 e4').struct('x ~ x x');
+        const r = patternPayload($p('c4 e4').struct('x ~ x x'));
 
         expect(isStructPattern(r)).toBe(true);
         expect(r.__kind).toBe('StructPattern');
@@ -24,9 +24,15 @@ describe('.struct builder', () => {
     });
 
     test('accepts numeric bool atoms and full mini-notation', () => {
-        expect($p('c4').struct('1 0 1 1').__kind).toBe('StructPattern');
-        expect($p('c4').struct('x ~ <x ~>').__kind).toBe('StructPattern');
-        expect($p('c4').struct('x(3,8)').__kind).toBe('StructPattern');
+        expect(patternPayload($p('c4').struct('1 0 1 1')).__kind).toBe(
+            'StructPattern',
+        );
+        expect(patternPayload($p('c4').struct('x ~ <x ~>')).__kind).toBe(
+            'StructPattern',
+        );
+        expect(patternPayload($p('c4').struct('x(3,8)')).__kind).toBe(
+            'StructPattern',
+        );
     });
 
     test('rejects a non-string bool pattern', () => {
@@ -41,8 +47,12 @@ describe('.struct builder', () => {
     });
 
     test('the bool pattern always appends an argument span', () => {
-        expect($p('c4 e4').struct('x ~').argument_spans).toHaveLength(2);
-        const chained = $p.s('0 2 4', 'c(maj)').trans('0 5').struct('x ~');
+        expect(
+            patternPayload($p('c4 e4').struct('x ~')).argument_spans,
+        ).toHaveLength(2);
+        const chained = patternPayload(
+            $p.s('0 2 4', 'c(maj)').trans('0 5').struct('x ~'),
+        );
         expect(chained.argument_spans).toHaveLength(3);
     });
 
@@ -104,11 +114,17 @@ describe('.beat builder', () => {
 
     test('string args append argument spans in t-then-div order', () => {
         // Both numbers: only the wrapped pattern's span.
-        expect($p('c2').beat(0, 16).argument_spans).toHaveLength(1);
+        expect(
+            patternPayload($p('c2').beat(0, 16)).argument_spans,
+        ).toHaveLength(1);
         // String t only.
-        expect($p('c2').beat('0,7', 16).argument_spans).toHaveLength(2);
+        expect(
+            patternPayload($p('c2').beat('0,7', 16)).argument_spans,
+        ).toHaveLength(2);
         // String t and div.
-        expect($p('c2').beat('0,7', '<16 8>').argument_spans).toHaveLength(3);
+        expect(
+            patternPayload($p('c2').beat('0,7', '<16 8>')).argument_spans,
+        ).toHaveLength(3);
     });
 
     test('rejects non-finite number args', () => {
@@ -155,13 +171,13 @@ describe('.struct / .beat composition', () => {
             expect(isFastPattern(r.pattern.pattern)).toBe(true);
         }
 
-        const r2 = $p('c4').struct('x ~').fast(2);
+        const r2 = patternPayload($p('c4').struct('x ~').fast(2));
         expect(r2.__kind).toBe('FastPattern');
         expect(isStructPattern(r2.pattern)).toBe(true);
     });
 
     test('work on $p.s and $p.arrange patterns', () => {
-        const onSp = $p.s('0 2 4', 'c(maj)').struct('x ~ x');
+        const onSp = patternPayload($p.s('0 2 4', 'c(maj)').struct('x ~ x'));
         expect(onSp.__kind).toBe('StructPattern');
         expect(onSp.pattern.__kind).toBe('SpPattern');
 
@@ -173,9 +189,11 @@ describe('.struct / .beat composition', () => {
     });
 
     test('valid as $p.arrange sections, spans flatten', () => {
-        const r = $p.arrange(
-            [2, $p('c4').struct('x ~')],
-            [2, $p('e4').beat('0,7', 16)],
+        const r = patternPayload(
+            $p.arrange(
+                [2, $p('c4').struct('x ~')],
+                [2, $p('e4').beat('0,7', 16)],
+            ),
         );
         expect(r.sections[0].pattern.__kind).toBe('StructPattern');
         expect(r.sections[1].pattern.__kind).toBe('BeatPattern');
