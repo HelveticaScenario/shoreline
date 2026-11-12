@@ -1,5 +1,4 @@
 import react from '@vitejs/plugin-react';
-import reactCompiler from 'babel-plugin-react-compiler';
 import { defineConfig } from 'vite';
 
 // https://vitejs.dev/config
@@ -10,7 +9,9 @@ export default defineConfig({
     plugins: [
         react({
             babel: {
-                plugins: [reactCompiler],
+                // By name: plugin-react recognises the compiler only by this
+                // string, and turns off `retainLines` for it.
+                plugins: ['babel-plugin-react-compiler'],
             },
         }),
     ],
