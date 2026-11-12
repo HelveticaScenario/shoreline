@@ -103,21 +103,15 @@ describe('.fast / .slow builders', () => {
         expect(r2.argument_spans).toHaveLength(3);
     });
 
-    test('only the wire shape serializes', () => {
-        const r = $p('c4').fast(2);
-        expect(Object.keys(patternPayload(r)).sort()).toEqual([
+    test('the wire payload is plain data', () => {
+        const r = patternPayload($p('c4').fast(2));
+        expect(Object.keys(r).sort()).toEqual([
             '__kind',
             'argument_spans',
             'factor',
             'pattern',
         ]);
-        const json: { __kind: unknown; pattern: Record<string, unknown> } =
-            JSON.parse(JSON.stringify(r));
-        expect(json.__kind).toBe('FastPattern');
-        expect('fast' in json).toBe(false);
-        expect('slow' in json).toBe(false);
-        // The nested pattern's methods are dropped too.
-        expect('fast' in json.pattern).toBe(false);
+        expect(JSON.parse(JSON.stringify(r))).toEqual(patternPayload(r));
     });
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {

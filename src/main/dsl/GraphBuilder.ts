@@ -34,7 +34,7 @@ import {
     type OutputSet,
     outputSetOf,
 } from './outputResolution';
-import { isPatternValue } from './patterns';
+import { isPattern } from './patterns';
 import { isPlainObject } from './plainObject';
 import {
     assertSignalGroupsTopLevelOnly,
@@ -2421,17 +2421,13 @@ export function replaceValues(input: unknown, replacer: Replacer): unknown {
             return replaced;
         }
 
-        // Opaque payloads (ParsedPattern from $p(), SpPattern from $p.s(),
-        // ArrangePattern from $p.arrange(), and the .fast()/.slow()/.struct()/
-        // .beat()/.glide() wrappers) must be preserved verbatim — walking them would
-        // collapse the nulls in `accidental`/`octave`/weight slots to 0 via
-        // valueToSignal, producing zero-duration haps and silence. Returning the
-        // wrapper verbatim also preserves the nested pattern payloads it carries.
-        // SignalGroup wrappers are deliberately NOT listed: their signals
-        // payload must be walked so outputs become cables; expandSignalGroups
-        // later erases the wrapper itself.
+        // A pattern payload is returned verbatim, with the payloads nested in
+        // it: walking it would collapse the nulls in its `accidental`,
+        // `octave` and weight slots to 0 via valueToSignal, producing
+        // zero-duration haps and silence. A SignalGroup wrapper is walked, so
+        // its outputs become cables; expandSignalGroups later erases it.
         if (!Array.isArray(replaced)) {
-            if (isPatternValue(replaced)) {
+            if (isPattern(replaced)) {
                 return replaced;
             }
         }
@@ -2514,13 +2510,10 @@ export function replaceDeferredStrings(
     }
 
     if (typeof input === 'object' && input !== null) {
-        // Opaque pattern payloads (ParsedPattern from $p(), SpPattern from
-        // $p.s(), ArrangePattern from $p.arrange(), and the .fast()/.slow()/
-        // .struct()/.beat()/.glide() wrappers) are JSON-only data with no
-        // deferred-output strings, so they return verbatim, as in replaceValues.
-        // SignalGroup wrappers are deliberately NOT listed here either — their
-        // signals payload may carry deferred-output strings to resolve.
-        if (isPatternValue(input)) {
+        // A pattern payload holds no deferred-output strings and is returned
+        // verbatim, as in replaceValues. A SignalGroup wrapper is walked: its
+        // signals may carry deferred-output strings to resolve.
+        if (isPattern(input)) {
             return input;
         }
 

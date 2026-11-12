@@ -645,10 +645,10 @@ pub struct GlidePatternPayload {
     pub mode: GlideMode,
 }
 
-/// Wire-level dispatch shape: a `.fast`/`.slow`/`.struct`/`.beat` wrapper, an
-/// `$p.arrange` payload, a chained `$p.s` payload with multi-source
-/// highlighting, or a single `ParsedPatternPayload` (the legacy single-source
-/// path used by `$cycle($p(...))`).
+/// Wire-level dispatch shape: a `.fast`/`.slow`/`.struct`/`.beat`/`.glide`
+/// wrapper, an `$p.arrange` payload, a chained `$p.s` payload with
+/// multi-source highlighting, or a single `ParsedPatternPayload` (the
+/// single-source path of `$p(...)`).
 ///
 /// The `__kind`-tagged variants are listed before the untagged `Single`; each
 /// carries a distinct required `__kind` literal, so the untagged enum
@@ -684,8 +684,8 @@ pub struct SeqSourceMeta {
 /// derived runtime state.
 ///
 /// Wire shape is [`SeqPatternSource`] — either a single
-/// [`ParsedPatternPayload`] (the existing single-source path for
-/// `$cycle($p(...))`) or an [`SpPatternPayload`] carrying multiple
+/// [`ParsedPatternPayload`] (the single-source path of `$p(...)`) or an
+/// [`SpPatternPayload`] carrying multiple
 /// degree patterns + scale + chain modes for `$cycle($p.s(...).trans(...))`.
 /// Either way the resolved runtime is a [`Pattern<SeqValue>`] plus
 /// per-cycle hap storage.
@@ -1125,7 +1125,7 @@ impl SeqPatternParam {
         self.pattern.as_ref()
     }
 
-    /// Per-source metadata. Single-source legacy payloads return a
+    /// Per-source metadata. Single-source payloads return a
     /// one-element slice; chained `$p.s` payloads return one entry per
     /// source string in the chain.
     pub(crate) fn per_source(&self) -> &[SeqSourceMeta] {

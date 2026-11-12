@@ -24,6 +24,7 @@ import {
     renderOutOptionsJsDocList,
     renderOutOptionsMembers,
 } from '../../shared/dsl/outOptions';
+import { ALIGNMENT_MODES } from './alignmentModes';
 import { GLIDE_CURVES, GLIDE_MODES, literalUnion } from './glideCurves';
 import {
     formatOutputMeta,
@@ -364,7 +365,7 @@ type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : neve
 /**
  * The \`$cycle\` sequencer a pattern plays through, as the pattern has it.
  * What a member gives back (a channel, a slice, the receiver of \`.out()\`)
- * is that sequencer's signal, no longer a pattern.
+ * is that sequencer's signal, not a pattern.
  */
 type PatternModule = { [K in keyof CycleOutputs]: CycleOutputs[K] };
 
@@ -650,21 +651,14 @@ function arrange(
 /**
  * One Strudel-style alignment for \`.trans\`.
  */
-type SpAlignmentMode =
-  | 'in'
-  | 'out'
-  | 'mix'
-  | 'squeeze'
-  | 'squeezeout'
-  | 'reset'
-  | 'restart';
+type AlignmentMode = ${literalUnion(ALIGNMENT_MODES)};
 
 /**
  * \`.trans\` on a {@link ScalePattern}: callable, with a method for each
  * alignment. Called bare, it is \`.in\`.
  */
 type Transpose = ((rhs: string) => ScalePattern) & {
-  readonly [M in SpAlignmentMode]: (rhs: string) => ScalePattern;
+  readonly [M in AlignmentMode]: (rhs: string) => ScalePattern;
 };
 
 /**

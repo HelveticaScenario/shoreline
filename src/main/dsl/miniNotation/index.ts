@@ -21,12 +21,13 @@ import type {
 } from './ast';
 import { collectLeafSpans } from './collectLeafSpans';
 import { MiniParseError, parseMini } from './parser';
+import { ALIGNMENT_MODES, type AlignmentMode } from '../alignmentModes';
 import { captureSourceLocation } from '../captureSourceLocation';
 import { lookupArgumentSpan } from '../factories';
-import { Collection, CollectionWithRange } from '../GraphBuilder';
+import { Collection } from '../GraphBuilder';
 import {
     cycleOf,
-    isPatternValue,
+    isPattern,
     makeCycle,
     type PAYLOAD,
     patternPayload,
@@ -51,7 +52,7 @@ export { MiniParseError } from './parser';
  * ```js
  * $saw($p("c4 e4 g4")).out()
  * const bass = $p("c2 [c2 g2] c2 e2");
- * $cycle(bass, { ribbon: [0, 2] })
+ * $saw(bass).amp($perc(bass)).out()
  * ```
  *
  * The payload matches the Rust `{ ast, source, all_spans }` shape expected
@@ -97,32 +98,12 @@ export const $p: typeof $pImpl & {
 
 // ─── $p.s chainable + alignment ─────────────────────────────────────────
 
-/** Strudel-style alignment modes for `.trans`. */
-export type SpAlignmentMode =
-    | 'in'
-    | 'out'
-    | 'mix'
-    | 'squeeze'
-    | 'squeezeout'
-    | 'reset'
-    | 'restart';
-
-const ALIGNMENT_MODES: ReadonlyArray<SpAlignmentMode> = [
-    'in',
-    'out',
-    'mix',
-    'squeeze',
-    'squeezeout',
-    'reset',
-    'restart',
-];
-
 /** Discriminator string the Rust side matches against. */
 const SP_KIND = 'SpPattern' as const;
 
 /**
- * Mini-notation payload shape — same as `ParsedPattern` minus chain
- * methods. Used as elements of `SpPattern.sources`.
+ * A parsed mini-notation source: a `ParsedPattern` without its kind and
+ * call-site span. Used as elements of `SpPattern.sources`.
  *
  * Mutable arrays (rather than readonly) so the shape lines up with the
  * factory's schema-generated param types. Treat as immutable by
@@ -136,7 +117,7 @@ export interface ParsedPatternPayload {
 
 /** `.trans`: callable, with a method for each alignment mode. */
 export type Transpose = ((rhs: string) => ScalePattern) & {
-    [M in SpAlignmentMode]: (rhs: string) => ScalePattern;
+    [M in AlignmentMode]: (rhs: string) => ScalePattern;
 };
 
 /**
@@ -154,7 +135,7 @@ export interface SpPattern {
     sources: Array<ParsedPatternPayload>;
     scale: string;
     /** The alignment of each `.trans` link: `modes[i]` adds `sources[i + 1]`. */
-    modes: Array<SpAlignmentMode>;
+    modes: Array<AlignmentMode>;
     argument_spans: Array<SourceSpan>;
 }
 
@@ -217,7 +198,7 @@ function parsePayload(source: string): ParsedPatternPayload {
 function buildSpPattern(
     sources: ParsedPatternPayload[],
     scale: string,
-    modes: SpAlignmentMode[],
+    modes: AlignmentMode[],
     argument_spans: SourceSpan[],
 ): ScalePattern {
     const payload: SpPattern = {
@@ -229,13 +210,13 @@ function buildSpPattern(
     };
     return patternHandle(payload, {
         get trans() {
-            return makeCombineBuilder(payload);
+            return transposer(payload);
         },
     });
 }
 
-function makeCombineBuilder(pat: SpPattern): Transpose {
-    const apply = (mode: SpAlignmentMode, rhs: string): ScalePattern => {
+function transposer(pat: SpPattern): Transpose {
+    const apply = (mode: AlignmentMode, rhs: string): ScalePattern => {
         if (typeof rhs !== 'string') {
             throw new MiniParseError(
                 `$p.s().trans.${mode}() expects a string RHS, got ${typeof rhs}`,
@@ -271,7 +252,7 @@ function makeCombineBuilder(pat: SpPattern): Transpose {
 const ARRANGE_KIND = 'ArrangePattern' as const;
 
 /** A pattern usable as an `$p.arrange` section (and as a `$cycle` argument). */
-export type SectionPattern =
+export type PatternPayload =
     | ParsedPattern
     | SpPattern
     | ArrangePattern
@@ -282,7 +263,7 @@ export type SectionPattern =
     | GlidePattern;
 
 /** One `[cycles, pattern]` tuple accepted by `$p.arrange`. */
-export type ArrangeSectionArg = readonly [number, SectionPattern | Pattern];
+export type ArrangeSectionArg = readonly [number, Pattern];
 
 /**
  * Wire shape for one arrange section. `cycles` is a positive integer, or the
@@ -292,7 +273,7 @@ export type ArrangeSectionArg = readonly [number, SectionPattern | Pattern];
  */
 export interface ArrangeSectionWire {
     cycles: number | 'Infinity';
-    pattern: SectionPattern;
+    pattern: PatternPayload;
 }
 
 /**
@@ -396,7 +377,7 @@ const GLIDE_KIND = 'GlidePattern' as const;
  * What a patch script holds for a pattern whose wire payload is `T`: the
  * pattern methods, with the payload itself out of reach.
  */
-export type Pattern<T extends SectionPattern = SectionPattern> =
+export type Pattern<T extends PatternPayload = PatternPayload> =
     PatternMethods & { readonly [PAYLOAD]: T };
 
 /**
@@ -447,14 +428,14 @@ export interface PatternMethods {
 /**
  * Wire shape for `pattern.fast(factor)`. Recognised by the Rust
  * `SeqPatternSource` untagged enum via `__kind === 'FastPattern'`. `pattern` is
- * the wrapped pattern (any `SectionPattern`, so wrappers chain and nest);
+ * the wrapped pattern (any `PatternPayload`, so wrappers chain and nest);
  * `argument_spans` is the wrapped pattern's flat per-source span list, plus the
  * factor's span when the factor is a pattern string. The bare interface is the
  * JSON wire shape; the builders return it behind a `Pattern` handle.
  */
 export interface FastPattern {
     __kind: typeof FAST_KIND;
-    pattern: SectionPattern;
+    pattern: PatternPayload;
     /**
      * The speed factor. A bare `number` is a constant (`.fast(2)`) and is *not*
      * highlightable. A `ParsedPatternPayload` (`.fast("2 4")`) is its own
@@ -467,7 +448,7 @@ export interface FastPattern {
 /** Wire shape for `pattern.slow(factor)` — the time-inverse of `FastPattern`. */
 export interface SlowPattern {
     __kind: typeof SLOW_KIND;
-    pattern: SectionPattern;
+    pattern: PatternPayload;
     /** See {@link FastPattern.factor}. */
     factor: number | ParsedPatternPayload;
     argument_spans: Array<SourceSpan>;
@@ -481,7 +462,7 @@ export interface SlowPattern {
  */
 export interface StructPattern {
     __kind: typeof STRUCT_KIND;
-    pattern: SectionPattern;
+    pattern: PatternPayload;
     bool_pattern: ParsedPatternPayload;
     argument_spans: Array<SourceSpan>;
 }
@@ -495,7 +476,7 @@ export interface StructPattern {
  */
 export interface BeatPattern {
     __kind: typeof BEAT_KIND;
-    pattern: SectionPattern;
+    pattern: PatternPayload;
     t: number | ParsedPatternPayload;
     div: number | ParsedPatternPayload;
     argument_spans: Array<SourceSpan>;
@@ -509,7 +490,7 @@ export interface BeatPattern {
  */
 export interface GlidePattern {
     __kind: typeof GLIDE_KIND;
-    pattern: SectionPattern;
+    pattern: PatternPayload;
     length: number | ParsedPatternPayload;
     curve: GlideCurve;
     mode: GlideMode;
@@ -518,14 +499,14 @@ export interface GlidePattern {
 
 /**
  * Collect a pattern's flat per-source argument spans in the same order the Rust
- * side flattens `per_source`. Shared by `$p.arrange` (per section) and the
- * `.fast`/`.slow` wrappers (the wrapped pattern). Throws on a non-pattern value.
+ * side flattens `per_source`: of each `$p.arrange` section, and of the pattern
+ * a pattern method wraps. Throws on a non-pattern value.
  */
 function collectPatternSpans(
-    pattern: SectionPattern,
+    pattern: PatternPayload,
     context: string,
 ): SourceSpan[] {
-    if (!isPatternValue(pattern)) {
+    if (!isPattern(pattern)) {
         throw new MiniParseError(
             `${context}: pattern must be a $p(...), $p.s(...), $p.arrange(...), ` +
                 `or .fast(...)/.slow(...)/.struct(...)/.beat(...)/.glide(...) value`,
@@ -560,7 +541,7 @@ function factorPayload(
 
 /** Build a `FastPattern` wrapper around `inner`. */
 function makeFast(
-    inner: SectionPattern,
+    inner: PatternPayload,
     factor: number | string,
 ): Pattern<FastPattern> {
     return patternHandle({
@@ -573,7 +554,7 @@ function makeFast(
 
 /** Build a `SlowPattern` wrapper around `inner`. */
 function makeSlow(
-    inner: SectionPattern,
+    inner: PatternPayload,
     factor: number | string,
 ): Pattern<SlowPattern> {
     return patternHandle({
@@ -600,7 +581,7 @@ function expectOneOf<T extends string>(
 
 /** Build a `GlidePattern` wrapper around `inner`. */
 function makeGlide(
-    inner: SectionPattern,
+    inner: PatternPayload,
     g: number | string,
     curve: GlideCurve = 'linear',
     mode: GlideMode = 'in',
@@ -617,7 +598,7 @@ function makeGlide(
 
 /** Build a `StructPattern` wrapper around `inner`. */
 function makeStruct(
-    inner: SectionPattern,
+    inner: PatternPayload,
     boolPattern: string,
 ): Pattern<StructPattern> {
     if (typeof boolPattern !== 'string') {
@@ -643,7 +624,7 @@ function makeStruct(
 
 /** Build a `BeatPattern` wrapper around `inner`. */
 function makeBeat(
-    inner: SectionPattern,
+    inner: PatternPayload,
     t: number | string,
     div: number | string,
 ): Pattern<BeatPattern> {
@@ -677,7 +658,7 @@ function makeBeat(
  * Rust `per_source` order). A number factor is a constant: no span, no source.
  */
 function factorArgumentSpans(
-    inner: SectionPattern,
+    inner: PatternPayload,
     factor: number | string,
     methodName: 'fast' | 'slow' | 'glide',
 ): SourceSpan[] {
@@ -705,20 +686,18 @@ export const PATTERN_METHODS = [
     'trans',
 ] as const;
 
-/** Whether a collection has `name`, own or inherited, as an API member. */
+/** Whether a `$cycle` has `name`, own or inherited, as a collection member. */
 function isCollectionMember(name: string): boolean {
     if (name === 'constructor') {
         return false;
     }
-    for (const start of [Collection.prototype, CollectionWithRange.prototype]) {
-        for (
-            let proto: object | null = start;
-            proto !== null && proto !== Object.prototype;
-            proto = Object.getPrototypeOf(proto)
-        ) {
-            if (Object.hasOwn(proto, name)) {
-                return true;
-            }
+    for (
+        let proto: object | null = Collection.prototype;
+        proto !== null && proto !== Object.prototype;
+        proto = Object.getPrototypeOf(proto)
+    ) {
+        if (Object.hasOwn(proto, name)) {
+            return true;
         }
     }
     return false;
@@ -744,11 +723,10 @@ function isCycleMember(prop: string | symbol): boolean {
  * The value a patch script holds for the pattern `payload`: a proxy with the
  * pattern methods (`extra` adds a kind's own) that otherwise is the pattern's
  * `$cycle`. Reading a collection member, or using the pattern where a signal
- * belongs, makes that `$cycle`. The payload is what crosses to the engine: it
- * is the handle's JSON form and what `patternPayload` gives host code, and
- * the script cannot read its fields.
+ * belongs, makes that `$cycle`. The payload is what crosses to the engine:
+ * `patternPayload` gives it to host code, and the script cannot reach it.
  */
-function patternHandle<T extends SectionPattern, E extends object = object>(
+function patternHandle<T extends PatternPayload, E extends object = object>(
     pattern: T,
     extra?: E,
 ): Pattern<T> & E {
@@ -761,9 +739,8 @@ function patternHandle<T extends SectionPattern, E extends object = object>(
             makeGlide(pattern, g, curve, mode),
         slow: (factor: number | string) => makeSlow(pattern, factor),
         struct: (boolPattern: string) => makeStruct(pattern, boolPattern),
-        toJSON: () => pattern,
     } satisfies Record<
-        Exclude<(typeof PATTERN_METHODS)[number], 'trans'> | 'toJSON',
+        Exclude<(typeof PATTERN_METHODS)[number], 'trans'>,
         unknown
     >;
     const methods = Object.defineProperties(

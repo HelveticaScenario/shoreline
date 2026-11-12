@@ -1,4 +1,4 @@
-//! Strudel-style alignment combiners for `$p.s` chain ops.
+//! Strudel-style alignment combiners for `$p.s(...).trans(...)`.
 //!
 //! Direct combiner functions that take a left pattern, a right pattern, and
 //! a binary value combiner, and produce a new pattern via one of the seven

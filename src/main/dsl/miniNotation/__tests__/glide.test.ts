@@ -67,9 +67,9 @@ describe('.glide builder', () => {
         expect(() => $p('c4').glide(Infinity)).toThrow(MiniParseError);
     });
 
-    test('only the wire shape serializes', () => {
+    test('the wire payload is plain data', () => {
         const r = patternPayload($p('c4').glide('0 0.1'));
-        expect(Object.keys(patternPayload(r)).sort()).toEqual([
+        expect(Object.keys(r).sort()).toEqual([
             '__kind',
             'argument_spans',
             'curve',
@@ -77,15 +77,7 @@ describe('.glide builder', () => {
             'mode',
             'pattern',
         ]);
-        const json: {
-            __kind: unknown;
-            length: Record<string, unknown>;
-            pattern: Record<string, unknown>;
-        } = JSON.parse(JSON.stringify(r));
-        expect(json.__kind).toBe('GlidePattern');
-        expect(json.length.source).toBe('0 0.1');
-        expect('fast' in json).toBe(false);
-        expect('glide' in json.pattern).toBe(false);
+        expect(JSON.parse(JSON.stringify(r))).toEqual(r);
     });
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {

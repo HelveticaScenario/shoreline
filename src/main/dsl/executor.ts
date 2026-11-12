@@ -907,10 +907,9 @@ export function executePatchScript(
         // Helper functions with $ prefix
         $hz,
         $note: note,
-        // Mini-notation parser — wraps a string in a ParsedPattern that
-        // $cycle consumes as a positional argument. Carries
-        // $p.s(source, scale) for scale-degree patterns (integer degrees
-        // resolved through a scale string into voltage atoms for $cycle).
+        // Mini-notation patterns: $p(source), $p.s(source, scale) for scale
+        // degrees and $p.arrange(...) for sections. Each is the $cycle that
+        // plays it.
         $p,
         // Phase-warp descriptors for $wavetable, $enosc and $pWarp
         $phase,

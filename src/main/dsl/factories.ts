@@ -9,6 +9,7 @@ import {
 } from './GraphBuilder';
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
+import type { CallSiteSpans } from './sourceAnalysisTypes';
 import {
     chooseOutput,
     elementSlot,
@@ -18,7 +19,7 @@ import './chainMethods';
 import { outputName } from './outputNames';
 import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
-import { isPatternValue, patternPayload } from './patterns';
+import { isPattern, patternPayload } from './patterns';
 import { isSignalGroupLike } from './signalGroups';
 import { signalParamsOf } from './signalParams';
 import {
@@ -74,7 +75,7 @@ function patternArgumentSpans(
     paramName: string,
     value: unknown,
 ): ArgumentSpans {
-    if (!isPatternValue(value)) {
+    if (!isPattern(value)) {
         return {};
     }
     const { argument_span: single, argument_spans: perSource } = value as {
@@ -93,34 +94,30 @@ function patternArgumentSpans(
     );
 }
 
-/**
- * Look up argument spans from the active span registry using the source location.
- * Returns undefined if no registry is set or no spans found for this call site.
- *
- * @param sourceLocation - The line/column from captureSourceLocation()
- * @returns Map of argument names to their source spans, or undefined
- */
-function captureArgumentSpans(
+/** The spans the analyzer recorded for the call at `sourceLocation`. */
+function callSiteSpans(
     sourceLocation: { line: number; column: number } | undefined,
-): ArgumentSpans | undefined {
+): CallSiteSpans | undefined {
     if (!activeSpanRegistry || !sourceLocation) {
         return undefined;
     }
-
     const key: CallSiteKey = `${sourceLocation.line}:${sourceLocation.column}`;
+    return activeSpanRegistry.get(key);
+}
 
-    const entry = activeSpanRegistry.get(key);
-    if (!entry) {
-        return undefined;
-    }
-
-    // Convert Map to plain object for serialization to Rust
-    const spans: ArgumentSpans = {};
-    for (const [argName, span] of entry.args) {
-        spans[argName] = span;
-    }
-
-    return spans;
+/**
+ * The argument spans of the `moduleType` call at `sourceLocation`, as a plain
+ * object for the engine. A pattern's `$cycle` runs at the call that built the
+ * pattern, whose spans are that call's own and not the module's.
+ */
+function captureArgumentSpans(
+    sourceLocation: { line: number; column: number } | undefined,
+    moduleType: string,
+): ArgumentSpans | undefined {
+    const entry = callSiteSpans(sourceLocation);
+    return entry?.moduleType === moduleType
+        ? Object.fromEntries(entry.args)
+        : undefined;
 }
 
 /**
@@ -134,8 +131,7 @@ export function lookupArgumentSpan(
     sourceLocation: { line: number; column: number } | undefined,
     argName: string,
 ): SourceSpan | undefined {
-    const spans = captureArgumentSpans(sourceLocation);
-    return spans ? spans[argName] : undefined;
+    return callSiteSpans(sourceLocation)?.args.get(argName);
 }
 
 /**
@@ -331,7 +327,6 @@ export class DSLContext {
         value: unknown,
         inputClass: OutputClass,
         slot: string,
-        module: string,
         sourceLocation: CallSite | undefined,
     ): unknown {
         if (isSignalGroupLike(value)) {
@@ -341,7 +336,6 @@ export class DSLContext {
                     value.signals,
                     inputClass,
                     slot,
-                    module,
                     sourceLocation,
                 ),
             };
@@ -385,7 +379,10 @@ export class DSLContext {
 
         return (...args: any[]): ModuleReturn => {
             const sourceLocation = captureSourceLocation();
-            const argumentSpans = captureArgumentSpans(sourceLocation);
+            const argumentSpans = captureArgumentSpans(
+                sourceLocation,
+                schema.name,
+            );
             const positionalArgs = schema.positionalArgs || [];
             const params: Record<string, any> = {};
             let config: any = {};
@@ -417,20 +414,13 @@ export class DSLContext {
                     params[name],
                     inputClass,
                     name,
-                    schema.name,
                     sourceLocation,
                 );
             }
             for (const { mapper, name } of signalParams.nested) {
                 if (params[name] !== undefined) {
                     params[name] = mapper(params[name], name, (value, path) =>
-                        this.signalParam(
-                            value,
-                            'cv',
-                            path,
-                            schema.name,
-                            sourceLocation,
-                        ),
+                        this.signalParam(value, 'cv', path, sourceLocation),
                     );
                 }
             }

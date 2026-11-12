@@ -1,26 +1,12 @@
 import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
-import {
-    $p,
-    MiniParseError,
-    type SpAlignmentMode,
-    type SpPattern,
-} from '../index';
+import { $p, MiniParseError, type SpPattern } from '../index';
 import type { ParsedPattern } from '../ast';
 import { parseMini } from '../parser';
+import { ALIGNMENT_MODES } from '../../alignmentModes';
 import { replaceSignals } from '../../GraphBuilder';
 import { patternPayload } from '../../patterns';
-
-const MODES: SpAlignmentMode[] = [
-    'in',
-    'out',
-    'mix',
-    'squeeze',
-    'squeezeout',
-    'reset',
-    'restart',
-];
 
 describe('$p.s builder', () => {
     test('returns an SpPattern wrapper with the wire-shape discriminator', () => {
@@ -72,7 +58,7 @@ describe('$p.s empty/whitespace source rejection', () => {
 });
 
 describe('$p.s chain methods', () => {
-    test('.trans(rhs) appends source + op with default mode "in"', () => {
+    test('.trans(rhs) appends a source with default mode "in"', () => {
         const r = patternPayload($p.s('0 2 4', 'c(maj)').trans('0 2'));
         expect(r.sources.length).toBe(2);
         expect(r.modes.length).toBe(1);
@@ -90,7 +76,7 @@ describe('$p.s chain methods', () => {
 
     test('all 7 modes are callable on .trans', () => {
         const base = $p.s('0 1 2', 'c(maj)');
-        for (const mode of MODES) {
+        for (const mode of ALIGNMENT_MODES) {
             const r = patternPayload(base.trans[mode]('0'));
             expect(r.modes[0]).toBe(mode);
         }
@@ -121,23 +107,20 @@ describe('$p.s chain methods', () => {
     });
 });
 
-describe('$p.s JSON serialization', () => {
-    test('JSON.stringify produces the wire-shape (no helper methods)', () => {
-        const r = $p.s('0 2', 'c(maj)').trans('1');
-        const json = JSON.parse(JSON.stringify(r));
-        expect(json.__kind).toBe('SpPattern');
-        expect(json.scale).toBe('c(maj)');
-        expect(json.modes).toEqual(['in']);
-        expect(json.sources.length).toBe(2);
-        expect(json.argument_spans.length).toBe(2);
-        // The pattern methods are not part of the wire shape.
-        expect('trans' in json).toBe(false);
+describe('$p.s wire payload', () => {
+    test('is plain data: kind, scale, sources, modes and spans', () => {
+        const r = patternPayload($p.s('0 2', 'c(maj)').trans('1'));
+        expect(JSON.parse(JSON.stringify(r))).toEqual(r);
+        expect(r.__kind).toBe('SpPattern');
+        expect(r.scale).toBe('c(maj)');
+        expect(r.modes).toEqual(['in']);
+        expect(r.sources.length).toBe(2);
+        expect(r.argument_spans.length).toBe(2);
     });
 
     test('each source carries the standard ParsedPatternPayload fields', () => {
-        const r = $p.s('0 2 4', 'c(maj)').trans('0 2');
-        const json = JSON.parse(JSON.stringify(r));
-        for (const s of json.sources) {
+        const r = patternPayload($p.s('0 2 4', 'c(maj)').trans('0 2'));
+        for (const s of r.sources) {
             expect(typeof s.source).toBe('string');
             expect(Array.isArray(s.all_spans)).toBe(true);
             // AST is the parsed MiniAST object.

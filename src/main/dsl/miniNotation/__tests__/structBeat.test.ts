@@ -50,20 +50,15 @@ describe('.struct builder', () => {
         expect(chained.argument_spans).toHaveLength(3);
     });
 
-    test('only the wire shape serializes', () => {
-        const r = $p('c4').struct('x ~');
-        expect(Object.keys(patternPayload(r)).sort()).toEqual([
+    test('the wire payload is plain data', () => {
+        const r = patternPayload($p('c4').struct('x ~'));
+        expect(Object.keys(r).sort()).toEqual([
             '__kind',
             'argument_spans',
             'bool_pattern',
             'pattern',
         ]);
-        const json: { __kind: unknown; pattern: Record<string, unknown> } =
-            JSON.parse(JSON.stringify(r));
-        expect(json.__kind).toBe('StructPattern');
-        expect('struct' in json).toBe(false);
-        expect('beat' in json).toBe(false);
-        expect('fast' in json.pattern).toBe(false);
+        expect(JSON.parse(JSON.stringify(r))).toEqual(patternPayload(r));
     });
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {
@@ -126,18 +121,16 @@ describe('.beat builder', () => {
         expect(() => $p('c2').beat(0, Infinity)).toThrow(MiniParseError);
     });
 
-    test('only the wire shape serializes', () => {
+    test('the wire payload is plain data', () => {
         const r = patternPayload($p('c2').beat('0,7', 16));
-        expect(Object.keys(patternPayload(r)).sort()).toEqual([
+        expect(Object.keys(r).sort()).toEqual([
             '__kind',
             'argument_spans',
             'div',
             'pattern',
             't',
         ]);
-        const json: { __kind: unknown } = JSON.parse(JSON.stringify(r));
-        expect(json.__kind).toBe('BeatPattern');
-        expect('beat' in json).toBe(false);
+        expect(JSON.parse(JSON.stringify(r))).toEqual(r);
     });
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {

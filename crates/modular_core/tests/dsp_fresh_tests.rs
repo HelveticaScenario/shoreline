@@ -1750,7 +1750,8 @@ fn total_highlight_spans(module: &dyn modular_core::types::Sampleable) -> usize 
 
 #[test]
 fn seq_highlight_survives_state_transfer_from_single_to_multi_source() {
-    // Regression for the stale cached_hap highlight bug.
+    // A held voice keeps its highlight across a state transfer that changes
+    // the pattern's source count.
     //
     // On a live edit that turns `$cycle($p('[0 1 2 3 4 5 6] 5'))` into the
     // chained `$cycle($p.s('0 5').trans('2 4'))`, patchSimilarityRemap reuses the

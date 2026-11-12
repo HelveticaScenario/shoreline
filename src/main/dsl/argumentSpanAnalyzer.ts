@@ -26,7 +26,7 @@ import { findControlCalls } from '../../shared/dsl/controlCalls';
 import { validateControlCall } from './controlCallValidation';
 import {
     isPsCall,
-    isSpChainCall,
+    isTransCall,
     PATTERN_METHOD_ARGS,
     patternMethodCallName,
 } from './patternChains';
@@ -150,7 +150,7 @@ export function analyzeArgumentSpans(
 
         // `.trans(rhs)` links of a `$p.s` chain, read back by the
         // chain method under `rhs`.
-        if (isSpChainCall(call)) {
+        if (isTransCall(call)) {
             const argsMap = new Map<string, SourceSpan>();
             if (args.length < 1 || !record(argsMap, 'rhs', args[0])) {
                 return;

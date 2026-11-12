@@ -283,7 +283,9 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
     description: "Plays a `$p(...)` mini-notation pattern in time with the clock, putting out \
                   pitch, gate, trigger and velocity for every note. The pattern repeats once \
                   per bar, overlapping notes get voices of their own so stacks play as \
-                  chords, and note starts follow the global groove set with `$setGroove`.",
+                  chords, and note starts follow the global groove set with `$setGroove`. \
+                  A pattern used as a module plays through a `$cycle` of its own; call \
+                  `$cycle` to give one other settings.",
     categories: &[ModuleCategory::Sequencer],
     sections: &[
         DocSection {

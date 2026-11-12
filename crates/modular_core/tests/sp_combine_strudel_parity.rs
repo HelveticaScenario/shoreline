@@ -1,4 +1,4 @@
-//! Strudel parity regression for `combine_sp`.
+//! Strudel parity for `combine_sp`.
 //!
 //! Two fixtures, both produced by `scripts/gen-sp-fixture.mjs` against
 //! the real `@strudel/core` + `@strudel/mini` JS packages.

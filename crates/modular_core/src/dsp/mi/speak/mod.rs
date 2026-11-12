@@ -151,9 +151,8 @@ const SPEAK_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Hello",
             code: r#"
-                const word = $cycle($p('7 4 11 11 14'))
-                const trigger = word._trig
-                $mi.speak('c3', { trigger, bank: 2, word }).out()
+                const word = $p('7 4 11 11 14')
+                $mi.speak('c3', { trigger: word, bank: 2, word }).out()
             "#,
         },
         DocExample {

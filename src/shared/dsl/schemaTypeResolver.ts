@@ -41,13 +41,6 @@ export interface JSONSchema {
     readonly maximum?: number;
 }
 
-/**
- * The schema definitions of a pattern's wire payload, one per kind. Each
- * recurses, and the DSL exposes them all as the one `Pattern` type.
- */
-const PATTERN_PAYLOAD =
-    /^(Parsed|Sp|Arrange|Fast|Slow|Struct|Beat|Glide)PatternPayload$/;
-
 function isValidIdentifier(name: string): boolean {
     return /^[$A-Z_][0-9A-Z_$]*$/i.test(name);
 }
@@ -87,10 +80,6 @@ export function resolveRef(
     if (ref === 'EnoscScale') {
         return 'EnoscScale';
     }
-    if (PATTERN_PAYLOAD.test(ref)) {
-        return 'Pattern';
-    }
-
     const defsPrefix = '#/$defs/';
     if (!ref.startsWith(defsPrefix)) {
         throw new Error(`Unsupported $ref: ${ref}`);
@@ -123,7 +112,9 @@ export function resolveRef(
     if (defName === 'ScaleSpec') {
         return 'ScaleSpec';
     }
-    if (PATTERN_PAYLOAD.test(defName)) {
+    // The wire payload of a pattern, which recurses; the DSL exposes it as
+    // the `Pattern` type.
+    if (defName === 'SeqPatternSource') {
         return 'Pattern';
     }
 
@@ -154,9 +145,6 @@ export function resolveRef(
     }
     if (resolved?.title === 'EnoscScale') {
         return 'EnoscScale';
-    }
-    if (resolved?.title && PATTERN_PAYLOAD.test(resolved.title)) {
-        return 'Pattern';
     }
     return resolved;
 }
@@ -278,8 +266,8 @@ export function schemaToTypeExpr(
                 return 'Poly<Signal>';
             }
 
-            // Otherwise, return the union of the distinct variant types
-            return [...new Set(types)].join(' | ');
+            // Otherwise, return the union of all variant types
+            return types.join(' | ');
         }
     }
     if (schema.allOf) {

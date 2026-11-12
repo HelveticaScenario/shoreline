@@ -25106,7 +25106,7 @@
     "name": "$cycle",
     "docs": {
       "summary": "Mini-notation pattern sequencer",
-      "description": "Plays a `$p(...)` mini-notation pattern in time with the clock, putting out pitch, gate, trigger and velocity for every note. The pattern repeats once per bar, overlapping notes get voices of their own so stacks play as chords, and note starts follow the global groove set with `$setGroove`.",
+      "description": "Plays a `$p(...)` mini-notation pattern in time with the clock, putting out pitch, gate, trigger and velocity for every note. The pattern repeats once per bar, overlapping notes get voices of their own so stacks play as chords, and note starts follow the global groove set with `$setGroove`. A pattern used as a module plays through a `$cycle` of its own; call `$cycle` to give one other settings.",
       "categories": [
         "sequencer"
       ],
@@ -25344,7 +25344,7 @@
       ],
       "$defs": {
         "SeqPatternSource": {
-          "description": "Wire-level dispatch shape: a `.fast`/`.slow`/`.struct`/`.beat` wrapper, an\n`$p.arrange` payload, a chained `$p.s` payload with multi-source\nhighlighting, or a single `ParsedPatternPayload` (the legacy single-source\npath used by `$cycle($p(...))`).\n\nThe `__kind`-tagged variants are listed before the untagged `Single`; each\ncarries a distinct required `__kind` literal, so the untagged enum\ndisambiguates them unambiguously before falling back to `Single`.",
+          "description": "Wire-level dispatch shape: a `.fast`/`.slow`/`.struct`/`.beat`/`.glide`\nwrapper, an `$p.arrange` payload, a chained `$p.s` payload with\nmulti-source highlighting, or a single `ParsedPatternPayload` (the\nsingle-source path of `$p(...)`).\n\nThe `__kind`-tagged variants are listed before the untagged `Single`; each\ncarries a distinct required `__kind` literal, so the untagged enum\ndisambiguates them unambiguously before falling back to `Single`.",
           "anyOf": [
             {
               "$ref": "#/$defs/FastPatternPayload"
@@ -29590,11 +29590,11 @@
       "examples": [
         {
           "title": "Four on the floor",
-          "code": "$mi.kick('g1', { trigger: $p('c*4').c, decay: 3 }).out()"
+          "code": "$mi.kick('g1', { trigger: $p('c*4'), decay: 3 }).out()"
         },
         {
           "title": "Driven, bending kick",
-          "code": "const hits = $p('c ~ ~ c ~ ~ c ~').c\n$mi.kick('e1', { trigger: hits, decay: 4, drive: 4 }).out()"
+          "code": "const hits = $p('c ~ ~ c ~ ~ c ~')\n$mi.kick('e1', { trigger: hits, decay: 4, drive: 4 }).out()"
         }
       ]
     },
@@ -29892,11 +29892,11 @@
       "examples": [
         {
           "title": "Four on the floor",
-          "code": "$mi.synthKick('a1', { trigger: $p('c*4').c }).out()"
+          "code": "$mi.synthKick('a1', { trigger: $p('c*4') }).out()"
         },
         {
           "title": "Long, gritty sweep",
-          "code": "const trigger = $p('c ~ c ~ ~ c ~ ~').c\nconst kick = $mi.synthKick('e1', {\n  trigger,\n  decay: 4,\n  dirt: 4,\n  fmDecay: 3,\n})\nkick.out()"
+          "code": "const trigger = $p('c ~ c ~ ~ c ~ ~')\nconst kick = $mi.synthKick('e1', {\n  trigger,\n  decay: 4,\n  dirt: 4,\n  fmDecay: 3,\n})\nkick.out()"
         }
       ]
     },
@@ -31240,7 +31240,7 @@
       "examples": [
         {
           "title": "Hello",
-          "code": "const word = $cycle($p('7 4 11 11 14'))\nconst trigger = word._trig\n$mi.speak('c3', { trigger, bank: 2, word }).out()"
+          "code": "const word = $p('7 4 11 11 14')\n$mi.speak('c3', { trigger: word, bank: 2, word }).out()"
         },
         {
           "title": "Scanned machine voice",
@@ -31842,7 +31842,7 @@
         },
         {
           "title": "Bursts",
-          "code": "const seq = $cycle($p('c3 [~ c3] eb3 <g3 bb2>'))\n$mi.swarm(seq, { trigger: seq._trig })._sine.out()"
+          "code": "const seq = $p('c3 [~ c3] eb3 <g3 bb2>')\n$mi.swarm(seq, { trigger: seq })._sine.out()"
         }
       ]
     },

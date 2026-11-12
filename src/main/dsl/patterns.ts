@@ -10,45 +10,27 @@ import {
 } from './captureSourceLocation';
 
 /**
- * Wire-shape discriminators of every pattern payload: `$p(...)`,
- * `$p.s(...)`, `$p.arrange(...)` and the `.fast`/`.slow`/`.struct`/`.beat`/
- * `.glide` chains built from them.
- */
-const PATTERN_KINDS: ReadonlySet<string> = new Set([
-    'ParsedPattern',
-    'SpPattern',
-    'ArrangePattern',
-    'FastPattern',
-    'SlowPattern',
-    'StructPattern',
-    'BeatPattern',
-    'GlidePattern',
-]);
-
-interface PatternValue {
-    readonly __kind: string;
-}
-
-/**
  * The wire payload behind each pattern a patch script holds. The script's
  * value is a proxy that answers as the pattern's `$cycle` and keeps the
  * payload's fields out of reach, so host code reads them through here.
  */
 const PAYLOADS = new WeakMap<object, object>();
 
-/** Where the script built each pattern, by payload. */
-const LOCATIONS = new WeakMap<object, { line: number; column: number }>();
+/**
+ * Every pattern payload, with where the script built it when that is known.
+ */
+const BUILT_AT = new WeakMap<
+    object,
+    { line: number; column: number } | undefined
+>();
 
 /**
  * Record `payload` as the wire payload of the pattern `handle`, built by the
- * script call running now.
+ * running script call.
  */
 export function registerPattern(handle: object, payload: object): void {
     PAYLOADS.set(handle, payload);
-    const location = captureSourceLocation();
-    if (location) {
-        LOCATIONS.set(payload, location);
-    }
+    BUILT_AT.set(payload, captureSourceLocation());
 }
 
 /** Types a script's handle by the wire payload behind it. */
@@ -65,12 +47,13 @@ export function patternPayload<T>(pattern: T): PayloadOf<T> {
     ) as PayloadOf<T>;
 }
 
-export function isPatternValue(value: unknown): value is PatternValue {
-    if (typeof value !== 'object' || value === null) {
-        return false;
-    }
-    const kind = (patternPayload(value) as { __kind?: unknown }).__kind;
-    return typeof kind === 'string' && PATTERN_KINDS.has(kind);
+/** Whether `value` is a pattern: a script's handle or a wire payload. */
+export function isPattern(value: unknown): value is object {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        BUILT_AT.has(patternPayload(value))
+    );
 }
 
 type CycleFactory = (pattern: unknown, ...rest: unknown[]) => unknown;
@@ -106,7 +89,7 @@ export function cycleOf(pattern: object): unknown {
     const payload = patternPayload(pattern);
     let cycle = sharedCycles.get(payload);
     if (cycle === undefined) {
-        cycle = withSourceLocation(LOCATIONS.get(payload), () =>
+        cycle = withSourceLocation(BUILT_AT.get(payload), () =>
             makeCycle(payload, []),
         );
         sharedCycles.set(payload, cycle);
@@ -116,5 +99,5 @@ export function cycleOf(pattern: object): unknown {
 
 /** `value` as a signal: a pattern is its `$cycle`, anything else itself. */
 export function patternSignal(value: unknown): unknown {
-    return isPatternValue(value) ? cycleOf(value) : value;
+    return isPattern(value) ? cycleOf(value) : value;
 }
