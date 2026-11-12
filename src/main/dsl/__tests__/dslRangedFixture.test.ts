@@ -111,12 +111,15 @@ function buildFixture() {
     expect(factory('$slew')([lfo().items[0], 3])).not.toBeInstanceOf(
         CollectionWithRange,
     );
-    // A constant has no range for an unset mode to blend within, and a
-    // clamp or blend over one holds it within ±5 without giving it a range.
+    // A constant or an unranged signal has no range for an unset mode to
+    // blend within, and a clamp or blend over one holds it within ±5
+    // without giving it a range.
     for (const options of [{}, { mode: 'clamp' }, { mode: 'blend' }]) {
-        expect(
-            chain(builder.$c('c3'), 'erratic', 2, options),
-        ).not.toBeInstanceOf(CollectionWithRange);
+        for (const receiver of [builder.$c('c3'), unranged()]) {
+            expect(chain(receiver, 'erratic', 2, options)).not.toBeInstanceOf(
+                CollectionWithRange,
+            );
+        }
     }
 
     const { modules } = builder.toPatch();

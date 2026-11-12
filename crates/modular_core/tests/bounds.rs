@@ -558,7 +558,7 @@ fn only_outputs_whose_bounds_are_read_store_them() {
 }
 
 #[test]
-fn a_declared_range_bounds_a_signal_whose_value_has_none() {
+fn a_declared_range_is_the_signals_whatever_its_value() {
     let modules = [
         ("saw", "$saw", json!({ "freq": 2.0 }), ProcessingMode::Block),
         (
@@ -603,11 +603,7 @@ fn a_declared_range_bounds_a_signal_whose_value_has_none() {
         assert_eq!(read(&patch, "unranged", slot).1, declared, "slot {slot}");
         assert_eq!(read(&patch, "constant", slot).1, declared, "slot {slot}");
         assert_eq!(read(&patch, "control", slot).1, declared, "slot {slot}");
-        assert_eq!(
-            read(&patch, "swinging", slot).1,
-            read(&patch, "saw", slot).1,
-            "a value that swings keeps its own range, slot {slot}"
-        );
+        assert_eq!(read(&patch, "swinging", slot).1, declared, "slot {slot}");
     }
 }
 
@@ -804,19 +800,23 @@ fn erratic_blends_only_an_input_with_a_range() {
 
 #[test]
 fn a_clamped_erratic_in_a_cycle_reads_no_range_of_its_own() {
-    for mode in ["clamp", "blend"] {
+    for (mode, processing) in [
+        ("clamp", ProcessingMode::Sample),
+        ("blend", ProcessingMode::Sample),
+        ("clamp", ProcessingMode::Block),
+    ] {
         let modules = [
             (
                 "wander",
                 "$erratic",
                 json!({ "input": cable("next"), "amount": 1.0, "speed": 5.0, "mode": mode }),
-                ProcessingMode::Sample,
+                processing,
             ),
             (
                 "next",
                 "$mul",
                 json!({ "input": cable("wander"), "factor": 2.0 }),
-                ProcessingMode::Sample,
+                processing,
             ),
         ];
         let patch = build(&modules);
@@ -859,5 +859,43 @@ fn a_clamp_over_a_constant_has_its_limits_for_a_range() {
     render_block(&patch, &["clamped"], &[BLOCK_SIZE]);
     for slot in 0..BLOCK_SIZE {
         assert_eq!(read(&patch, "clamped", slot), (3.0, Bounds::new(0.0, 10.0)));
+    }
+}
+
+#[test]
+fn a_declared_range_in_a_cycle_holds() {
+    for mode in [ProcessingMode::Sample, ProcessingMode::Block] {
+        let modules = [
+            (
+                "declared",
+                "$signal",
+                json!({ "value": cable("doubled"), "min": -1.0, "max": 1.0 }),
+                mode,
+            ),
+            (
+                "doubled",
+                "$mul",
+                json!({ "input": cable("declared"), "factor": 2.0 }),
+                mode,
+            ),
+        ];
+        let patch = build(&modules);
+        for _ in 0..BLOCKS {
+            render_block(&patch, &["declared", "doubled"], &[BLOCK_SIZE]);
+            for slot in 0..BLOCK_SIZE {
+                assert_eq!(
+                    read(&patch, "declared", slot).1,
+                    Bounds::new(-1.0, 1.0),
+                    "{mode:?} slot {slot}"
+                );
+                // Around the loop's one-sample delay the first slot reads
+                // what came before the patch; the bounds never grow past 2.
+                let doubled = read(&patch, "doubled", slot).1;
+                assert!(
+                    doubled.lo() >= -2.0 && doubled.hi() <= 2.0,
+                    "{mode:?} slot {slot}: {doubled:?}"
+                );
+            }
+        }
     }
 }

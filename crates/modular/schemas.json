@@ -470,7 +470,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "min": {
-          "description": "bottom of the range the signal sweeps when its value has none of its own; set with max",
+          "description": "bottom of the range the signal declares, whatever its value; set with max",
           "type": [
             "number",
             "null"
@@ -479,7 +479,7 @@
           "default": null
         },
         "max": {
-          "description": "top of the range the signal sweeps when its value has none of its own; set with min",
+          "description": "top of the range the signal declares, whatever its value; set with min",
           "type": [
             "number",
             "null"

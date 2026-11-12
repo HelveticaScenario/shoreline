@@ -1385,9 +1385,8 @@ export class GraphBuilder implements ChainHost {
         }
 
         // A lane control is the first channel of its source: tapped directly
-        // when the source declares its range, as a lifted control does, and
-        // otherwise through a `$signal` declaring the control's usual span,
-        // which a source that swings overrides with its own.
+        // when the source is ranged, as a lifted control is, and otherwise
+        // through a `$signal` declaring the control's usual span.
         const control = (
             source: PolySignal,
             range: ControlRange,
@@ -1395,7 +1394,7 @@ export class GraphBuilder implements ChainHost {
             const first = firstChannel(source);
             if (
                 first instanceof ModuleOutput &&
-                this.declaresRange(first.moduleId)
+                this.rangedPorts.has(`${first.moduleId}:${first.portName}`)
             ) {
                 return first;
             }

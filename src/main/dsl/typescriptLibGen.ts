@@ -1760,7 +1760,8 @@ function renderRangedChainMethod(
         ...doc,
         `${indent}${chainMethodName(moduleSchema.name)}(${ranged.join(', ')}): CollectionWithRange;`,
     ];
-    // The ranged overload already covers a declared range.
+    // The ranged overload already covers a declared range while the receiver
+    // is the declaring module's only tagged param, as for `$clamp`.
     if (ranged.some((arg, i) => arg !== args[i])) {
         lines.push(...renderChainMethod(moduleSchema, indent, false));
     }
@@ -2127,7 +2128,7 @@ function chainSignature(
 
 /**
  * Render the chain method of `moduleSchema`, with the overload for a range
- * it declares first unless `withDeclared` is unset.
+ * it declares first unless `withDeclared` is false.
  *
  * Only called on schemas passing `qualifiesForChain`, which guarantees
  * `chainMethodName` yields a valid TS identifier for the interface member.

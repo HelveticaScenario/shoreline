@@ -173,12 +173,13 @@ struct ErraticChannelState {
 
 /// An unset `mode` blends when the input has a range and shifts when not.
 fn erratic_settle(p: &mut ErraticParams, settled: &dyn Settled) {
-    let unset = if p.inputs_bounded(settled) {
-        ErraticMode::Blend
-    } else {
-        ErraticMode::Shift
-    };
-    p.settled_mode = Some(p.mode.unwrap_or(unset));
+    p.settled_mode = Some(p.mode.unwrap_or_else(|| {
+        if p.inputs_bounded(settled) {
+            ErraticMode::Blend
+        } else {
+            ErraticMode::Shift
+        }
+    }));
 }
 
 /// An unset `min` or `max` follows the input's range.
