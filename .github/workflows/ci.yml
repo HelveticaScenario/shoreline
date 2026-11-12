@@ -117,11 +117,8 @@ jobs:
               if: ${{ !cancelled() }}
               run: cargo fmt -p modular_core -p modular_derive -p modular -- --check
 
-            # Non-gating: surfaces clippy findings as annotations without
-            # failing the build (the tree is not yet clippy-clean).
-            - name: Clippy (informational)
+            - name: Clippy
               if: ${{ !cancelled() }}
-              continue-on-error: true
               run: cargo clippy -p modular_core -p modular_derive -p modular --all-targets
 
     # The branch ruleset requires this check name; it passes only when every

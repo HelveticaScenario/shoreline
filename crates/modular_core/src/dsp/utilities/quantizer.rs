@@ -60,7 +60,7 @@ impl JsonSchema for ScaleSignal {
     fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
         #[derive(JsonSchema)]
         #[serde(untagged)]
-        #[allow(dead_code)]
+        #[allow(dead_code, clippy::large_enum_variant)]
         enum ScaleSignalSchema {
             Spec(ScaleSpec),
             Signal(PolySignal),

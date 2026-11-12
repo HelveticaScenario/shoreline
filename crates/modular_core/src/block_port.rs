@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn block_port_set() {
         let mut bp = BlockPort::new(4, 16);
-        bp.set(1, 2, 3.14);
-        assert!((bp.get(1, 2) - 3.14).abs() < 1e-6);
+        bp.set(1, 2, 2.5);
+        assert!((bp.get(1, 2) - 2.5).abs() < 1e-6);
     }
 }

@@ -879,29 +879,6 @@ fn eval_u32(ast: &MiniASTU32) -> u32 {
     }
 }
 
-/// Evaluate a MiniASTI32 to get a single i32 value.
-#[cfg(test)]
-fn eval_i32(ast: &MiniASTI32) -> i32 {
-    match ast {
-        MiniASTI32::Pure(Located { node, .. }) => *node,
-        MiniASTI32::Rest(_) => 0, // Rest evaluates to 0
-        MiniASTI32::List(Located { node, .. }) => node.first().map(eval_i32).unwrap_or(0),
-        MiniASTI32::Sequence(elements) | MiniASTI32::FastCat(elements) => {
-            elements.first().map(|(e, _)| eval_i32(e)).unwrap_or(0)
-        }
-        MiniASTI32::SlowCat(elements) => elements.first().map(|(e, _)| eval_i32(e)).unwrap_or(0),
-        MiniASTI32::RandomChoice(elements, _) | MiniASTI32::Stack(elements) => {
-            elements.first().map(eval_i32).unwrap_or(0)
-        }
-        MiniASTI32::Fast(pattern, _) => eval_i32(pattern),
-        MiniASTI32::Slow(pattern, _) => eval_i32(pattern),
-        MiniASTI32::Replicate(pattern, _count) => eval_i32(pattern),
-        MiniASTI32::Degrade(pattern, _, _) => eval_i32(pattern),
-        MiniASTI32::Euclidean { pattern, .. } => eval_i32(pattern),
-        MiniASTI32::Polymeter { children, .. } => children.first().map(eval_i32).unwrap_or(0),
-    }
-}
-
 fn convert_inner<T: FromMiniAtom>(ast: &MiniAST) -> Result<Pattern<T>, ConvertError> {
     match ast {
         MiniAST::Pure(Located { node, span }) => {

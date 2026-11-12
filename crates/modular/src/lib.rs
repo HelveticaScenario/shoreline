@@ -1,5 +1,3 @@
-#![deny(clippy::all)]
-
 #[cfg(feature = "alloc-detector")]
 mod alloc_detector;
 
@@ -39,9 +37,9 @@ use napi::Result;
 use napi_derive::napi;
 
 use crate::audio::{
-    ApplyPatchError, AudioBudgetSnapshot, AudioDeviceCache, AudioDeviceInfo, AudioSharedState,
-    AudioState, CurrentAudioState, DeviceCacheSnapshot, GarbageProducer, HostDeviceInfo, HostInfo,
-    InputBufferReader, InputBufferWriter, TransportSnapshot, create_audio_channels,
+    ApplyPatchError, AudioBudgetSnapshot, AudioDeviceCache, AudioDeviceInfo, AudioState,
+    AudioThreadEndpoints, CurrentAudioState, DeviceCacheSnapshot, HostDeviceInfo, HostInfo,
+    InputBufferWriter, PatchSubmission, TransportSnapshot, create_audio_channels,
     create_input_ring_buffer, find_input_device_in_host, find_output_device_in_host,
     get_host_by_preference, make_input_stream, make_stream, preferred_default_sample_rate,
 };
@@ -181,14 +179,13 @@ fn detect_wavetable_frame_size(file_path: &Path) -> Option<usize> {
                         .collect();
                     // Only parse if we saw a non-digit terminator within the buffer;
                     // otherwise the number may have been truncated by the 256-byte read cap.
-                    if !digits.is_empty() && digits.len() < stripped.len() {
-                        if let Ok(s) = std::str::from_utf8(&digits) {
-                            if let Ok(n) = s.parse::<usize>() {
-                                if n > 0 {
-                                    return Some(n);
-                                }
-                            }
-                        }
+                    if !digits.is_empty()
+                        && digits.len() < stripped.len()
+                        && let Ok(s) = std::str::from_utf8(&digits)
+                        && let Ok(n) = s.parse::<usize>()
+                        && n > 0
+                    {
+                        return Some(n);
                     }
                 }
                 // No parseable frame size — keep scanning
@@ -402,16 +399,16 @@ impl WavCache {
         })?;
         let mtime = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
 
-        if let Some(entry) = self.entries.get(&key) {
-            if entry.mtime == mtime {
-                return Ok(Some(build_wav_load_info(
-                    &key,
-                    entry.data.channel_count() as u32,
-                    entry.data.frame_count() as u32,
-                    &entry.metadata,
-                    mtime_to_epoch_millis(mtime),
-                )));
-            }
+        if let Some(entry) = self.entries.get(&key)
+            && entry.mtime == mtime
+        {
+            return Ok(Some(build_wav_load_info(
+                &key,
+                entry.data.channel_count() as u32,
+                entry.data.frame_count() as u32,
+                &entry.metadata,
+                mtime_to_epoch_millis(mtime),
+            )));
         }
 
         let Some(audio) =
@@ -463,7 +460,7 @@ impl WavCache {
     /// Load a WAV file, returning cached data if mtime hasn't changed.
     /// `path` starts with `/`, which is the workspace root, and is also the
     /// cache key a `Wav` parameter uses to find the decoded audio.
-    fn load(&mut self, path: &str, engine_sample_rate: f32) -> Result<WavLoadInfo> {
+    fn load(&mut self, path: &str) -> Result<WavLoadInfo> {
         let full_path = self.workspace_file(path)?;
 
         let metadata = std::fs::metadata(&full_path).map_err(|e| {
@@ -472,16 +469,16 @@ impl WavCache {
         let mtime = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
 
         // Cache hit — mtime matches
-        if let Some(entry) = self.entries.get(path) {
-            if entry.mtime == mtime {
-                return Ok(build_wav_load_info(
-                    path,
-                    entry.data.channel_count() as u32,
-                    entry.data.frame_count() as u32,
-                    &entry.metadata,
-                    mtime_to_epoch_millis(mtime),
-                ));
-            }
+        if let Some(entry) = self.entries.get(path)
+            && entry.mtime == mtime
+        {
+            return Ok(build_wav_load_info(
+                path,
+                entry.data.channel_count() as u32,
+                entry.data.frame_count() as u32,
+                &entry.metadata,
+                mtime_to_epoch_millis(mtime),
+            ));
         }
 
         // Cache miss or stale — decode
@@ -840,54 +837,14 @@ fn build_output_stream(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
     sample_format: cpal::SampleFormat,
-    command_rx: crate::audio::CommandConsumer,
-    error_tx: crate::audio::ErrorProducer,
-    garbage_tx: GarbageProducer,
-    shared: AudioSharedState,
-    input_reader: InputBufferReader,
+    endpoints: AudioThreadEndpoints,
     block_size: usize,
 ) -> Result<cpal::Stream> {
     match sample_format {
-        cpal::SampleFormat::I8 => make_stream::<i8>(
-            device,
-            config,
-            command_rx,
-            error_tx,
-            garbage_tx,
-            shared,
-            input_reader,
-            block_size,
-        ),
-        cpal::SampleFormat::I16 => make_stream::<i16>(
-            device,
-            config,
-            command_rx,
-            error_tx,
-            garbage_tx,
-            shared,
-            input_reader,
-            block_size,
-        ),
-        cpal::SampleFormat::I32 => make_stream::<i32>(
-            device,
-            config,
-            command_rx,
-            error_tx,
-            garbage_tx,
-            shared,
-            input_reader,
-            block_size,
-        ),
-        cpal::SampleFormat::F32 => make_stream::<f32>(
-            device,
-            config,
-            command_rx,
-            error_tx,
-            garbage_tx,
-            shared,
-            input_reader,
-            block_size,
-        ),
+        cpal::SampleFormat::I8 => make_stream::<i8>(device, config, endpoints, block_size),
+        cpal::SampleFormat::I16 => make_stream::<i16>(device, config, endpoints, block_size),
+        cpal::SampleFormat::I32 => make_stream::<i32>(device, config, endpoints, block_size),
+        cpal::SampleFormat::F32 => make_stream::<f32>(device, config, endpoints, block_size),
         _ => Err(napi::Error::from_reason(format!(
             "Unsupported output sample format: {:?}",
             sample_format
@@ -1007,11 +964,13 @@ fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
         params.output_device,
         &stream_config,
         params.output_config.sample_format(),
-        command_rx,
-        error_tx,
-        garbage_tx,
-        shared,
-        input_reader,
+        AudioThreadEndpoints {
+            command_rx,
+            error_tx,
+            garbage_tx,
+            shared,
+            input_reader,
+        },
         block_size,
     )?;
 
@@ -1388,15 +1347,15 @@ impl Synthesizer {
             };
 
         let wav_data_snapshot = self.wav_cache.snapshot();
-        let errors = self.state.handle_set_patch(
-            patch,
-            self.sample_rate,
+        let errors = self.state.handle_set_patch(PatchSubmission {
+            graph: patch,
+            sample_rate: self.sample_rate,
             trigger,
             update_id,
-            wav_data_snapshot,
+            wav_data: wav_data_snapshot,
             transport_meta,
             reset_clock,
-        );
+        });
 
         PatchUpdateResult {
             errors,
@@ -1408,7 +1367,7 @@ impl Synthesizer {
     /// sample. `path` starts with `/`, the workspace root.
     #[napi]
     pub fn load_wav(&mut self, path: String) -> Result<WavLoadInfo> {
-        self.wav_cache.load(&path, self.sample_rate)
+        self.wav_cache.load(&path)
     }
 
     /// Decode the audio track of a workspace media file into the cache. `None`
@@ -2330,7 +2289,7 @@ mod detect_wavetable_tests {
         // == stripped.len() → possibly-truncated → fall through.
         let mut long_digits_payload = Vec::new();
         long_digits_payload.extend_from_slice(b"<!>");
-        long_digits_payload.extend(std::iter::repeat(b'1').take(300));
+        long_digits_payload.extend(std::iter::repeat_n(b'1', 300));
 
         let mut buf = riff_header();
         append_fmt(&mut buf);
@@ -2420,7 +2379,7 @@ mod wav_cache_tests {
         let file_len = std::fs::metadata(&wav_path).expect("stat wav").len();
 
         let mut cache = WavCache::new(workspace.clone());
-        let result = cache.load("/wavs/hostile.wav", 48000.0);
+        let result = cache.load("/wavs/hostile.wav");
         let _ = std::fs::remove_dir_all(&workspace);
 
         result.expect("a wav with an overlong data chunk must decode");
@@ -2469,7 +2428,7 @@ mod wav_cache_tests {
             .expect("write wav");
 
         let mut cache = WavCache::new(workspace.clone());
-        let result = cache.load("/wavs/trunc.wav", 48000.0);
+        let result = cache.load("/wavs/trunc.wav");
         let _ = std::fs::remove_dir_all(&workspace);
 
         result.expect("truncated stereo wav must decode without error");
@@ -2510,7 +2469,7 @@ mod wav_cache_tests {
             .and_then(|mut f| f.write_all(&bytes))
             .expect("write wav");
         let mut cache = WavCache::new(workspace.clone());
-        let result = cache.load("/wavs/odd.wav", 48000.0);
+        let result = cache.load("/wavs/odd.wav");
         let _ = std::fs::remove_dir_all(&workspace);
 
         let info = result.expect("a wav with an odd-length chunk must decode");

@@ -243,7 +243,7 @@ fn synthesized_note_offs_survive_a_full_buffer() {
         &last.message,
         Message::MidiNoteOff(off) if off.channel == 0 && off.note == 60
     ));
-    assert!(state.held_notes.get("Keystep").is_none());
+    assert!(!state.held_notes.contains_key("Keystep"));
 }
 
 #[test]
@@ -278,5 +278,5 @@ fn prune_synthesizes_note_offs_for_held_notes() {
     assert_eq!(offs.len(), 2);
     assert!(offs.contains(&(12, 0, 60)));
     assert!(offs.contains(&(12, 1, 64)));
-    assert!(state.held_notes.get("Keystep").is_none());
+    assert!(!state.held_notes.contains_key("Keystep"));
 }

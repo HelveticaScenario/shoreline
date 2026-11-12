@@ -341,19 +341,16 @@ mod tests {
         assert_eq!(ast1, ast2, "Same pattern should produce identical ASTs");
 
         // Verify seeds are distinct within the pattern
-        if let crate::pattern_system::mini::ast::MiniAST::Sequence(elements) = &ast1 {
-            if let (crate::pattern_system::mini::ast::MiniAST::Degrade(_, _, seed0), _) =
+        if let crate::pattern_system::mini::ast::MiniAST::Sequence(elements) = &ast1
+            && let (crate::pattern_system::mini::ast::MiniAST::Degrade(_, _, seed0), _) =
                 &elements[0]
-            {
-                if let (crate::pattern_system::mini::ast::MiniAST::Degrade(_, _, seed1), _) =
-                    &elements[1]
-                {
-                    assert_ne!(
-                        seed0, seed1,
-                        "Different ? operators should get different seeds"
-                    );
-                }
-            }
+            && let (crate::pattern_system::mini::ast::MiniAST::Degrade(_, _, seed1), _) =
+                &elements[1]
+        {
+            assert_ne!(
+                seed0, seed1,
+                "Different ? operators should get different seeds"
+            );
         }
     }
 }

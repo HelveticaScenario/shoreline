@@ -657,10 +657,10 @@ impl Seq {
         // frees), because `logical` wraps at the ribbon seam.
         self.state.voices_to_release.clear();
         for i in 0..num_channels {
-            if let Some(cached) = self.channel_state[i].voice.cached_hap {
-                if !cached.contains(straight) {
-                    self.state.voices_to_release.push(i);
-                }
+            if let Some(cached) = self.channel_state[i].voice.cached_hap
+                && !cached.contains(straight)
+            {
+                self.state.voices_to_release.push(i);
             }
         }
         for i in self.state.voices_to_release.iter().copied() {
@@ -908,8 +908,8 @@ impl Seq {
             // Apply the chosen voice for each placed onset. Map the note's logical
             // span onto the straight clock so release keys off monotonic straight
             // time and the note plays its full length across the ribbon wrap. A stolen voice re-triggers (gate Low→High), cutting its old note.
-            for ei in 0..n {
-                let Some(voice_idx) = assigned[ei] else {
+            for (ei, &voice) in assigned[..n].iter().enumerate() {
+                let Some(voice_idx) = voice else {
                     continue;
                 };
                 let event = self.state.events_to_process[ei];
@@ -1063,7 +1063,7 @@ fn assign_nearest(
     // chosen). Whether events or candidates are the rows flips which index in a
     // matched pair is the event vs the voice.
     let events_are_rows = evs.len() <= cands.len();
-    let (rows, cols): (&[(f32, u32)], &[(f32, u32)]) = if events_are_rows {
+    let (rows, cols): (&[_], &[_]) = if events_are_rows {
         (&evs, &cands)
     } else {
         (&cands, &evs)
@@ -1186,7 +1186,7 @@ impl crate::types::StatefulModule for Seq {
                 for span in &storage.span_arena[start..end] {
                     let idx = span.pattern_idx as usize;
                     if idx < num_sources {
-                        out.push_span(idx, span.start as u32, span.end as u32);
+                        out.push_span(idx, span.start, span.end);
                     }
                 }
             }

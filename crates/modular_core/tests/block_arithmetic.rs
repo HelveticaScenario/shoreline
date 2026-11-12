@@ -12,6 +12,7 @@ use serde_json::{Value, json};
 static GLOBAL: CountingAllocator = CountingAllocator;
 
 type BinaryOp = fn(f32, f32) -> f32;
+type UnaryOp = fn(f32) -> f32;
 
 /// Each operator module, the name of its operand and its formula.
 const OPS: [(&str, &str, BinaryOp); 5] = [
@@ -28,7 +29,7 @@ const OPS: [(&str, &str, BinaryOp); 5] = [
     }),
 ];
 
-const MODES: [(&str, fn(f32) -> f32); 3] = [
+const MODES: [(&str, UnaryOp); 3] = [
     ("round", f32::round),
     ("floor", f32::floor),
     ("ceil", f32::ceil),

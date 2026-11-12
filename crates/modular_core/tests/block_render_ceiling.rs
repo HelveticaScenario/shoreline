@@ -28,7 +28,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
     get_constructors()
         .get(module_type)
         .unwrap_or_else(|| panic!("no constructor for '{module_type}'"))(
-        &id.to_string(),
+        id,
         SAMPLE_RATE,
         deserialized,
         BLOCK_SIZE,

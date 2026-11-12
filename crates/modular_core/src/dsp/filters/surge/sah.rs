@@ -109,7 +109,7 @@ mod tests {
             prev = y;
         }
         assert!(
-            changes >= 9 && changes <= 12,
+            (9..=12).contains(&changes),
             "expected ~10 clock ticks: {changes}"
         );
         assert!(holds > 9000, "expected long held runs: {holds}");

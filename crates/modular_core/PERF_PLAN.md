@@ -73,7 +73,7 @@ Same `(K, N, R)` tuple recurs across pattern instances (e.g.
 type BjorklundCache = HashMap<(i32, u32, i32), Arc<[bool]>>;
 ```
 
-Hook into both `Pattern::new_euclid_const` and `euclid_bool`.
+Hook into `euclid_bool`.
 
 **Effort:** 30 min. **Risk:** low (parse-time only). **Benefit:** parse-time
 (cold path); useful if Bjorklund instantiations are frequent.
@@ -156,7 +156,7 @@ struct PureFastConstData<T> {
 }
 ```
 
-`query_into` emits N haps inline per cycle. Same idea as `EuclidConst`.
+`query_into` emits N haps inline per cycle.
 
 Mini-converter peephole: detect `MiniAST::Fast(Pure(value), Pure(n))` and emit
 the fused variant.

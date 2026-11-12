@@ -40,8 +40,7 @@
         "gen:sp-fixtures": "node scripts/gen-sp-fixture.mjs",
         "gen:parser-parity-fixture": "vitest run src/main/dsl/miniNotation/__tests__/peggy_parser_parity_fixture.test.ts --reporter=verbose",
         "generate-lib": "yarn build-native && tsx scripts/generateLib.ts",
-        "postinstall": "node scripts/patch-electron-plist.mjs",
-        "prepare": "husky"
+        "postinstall": "husky && node scripts/patch-electron-plist.mjs"
     },
     "keywords": [],
     "author": {
@@ -70,7 +69,9 @@
         "@types/electron-squirrel-startup": "^1.0.2",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
+        "@vitejs/plugin-react": "5.2.0",
         "@webgpu/types": "^0.1.74",
+        "babel-plugin-react-compiler": "1.0.0",
         "changie": "^1.26.0",
         "concurrently": "^9.2.1",
         "electron": "39.2.7",

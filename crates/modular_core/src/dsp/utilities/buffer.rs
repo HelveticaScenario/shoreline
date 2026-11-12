@@ -504,7 +504,7 @@ mod tests {
         constructors
             .get(module_type)
             .unwrap_or_else(|| panic!("no constructor for '{module_type}'"))(
-            &id.to_string(),
+            id,
             SAMPLE_RATE,
             deserialized,
             TEST_BLOCK_SIZE,

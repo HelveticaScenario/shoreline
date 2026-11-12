@@ -4,7 +4,7 @@ use super::sam::SamSynth;
 use super::*;
 use crate::dsp::mi::core::fixture::{assert_rate_independent, harmonics, max_error, records};
 use crate::dsp::mi::core::random::Random;
-use crate::poly::{PolySignal, PolySignalExt};
+use crate::poly::PolySignal;
 use crate::types::Signal;
 
 fn mark() -> GlideMark {

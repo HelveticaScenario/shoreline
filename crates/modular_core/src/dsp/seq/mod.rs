@@ -18,6 +18,10 @@ pub mod glide_curve;
 pub mod groove;
 pub mod highlight;
 pub mod interval_value;
+#[expect(
+    clippy::module_inception,
+    reason = "`$seq` shares the name of its directory"
+)]
 pub mod seq;
 pub mod seq_value;
 pub mod step;

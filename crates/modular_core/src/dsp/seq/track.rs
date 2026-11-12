@@ -77,7 +77,7 @@ pub struct Track {
 
 impl Track {
     fn update(&mut self, _sample_rate: f32) {
-        let t = (self.params.playhead.value_or_zero() as f32).clamp(0.0, 1.0);
+        let t = self.params.playhead.value_or_zero().clamp(0.0, 1.0);
         let channel_count = self.channel_count();
 
         for channel in 0..channel_count {

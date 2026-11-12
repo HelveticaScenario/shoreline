@@ -81,6 +81,9 @@ const MAX_T60: f32 = 18.0;
 /// Per-line DC gains are clamped below 1.0 so the loop can never become
 /// lossless even at the maximum decay time.
 const MAX_FEEDBACK: f32 = 0.9995;
+/// Per-line absorption coefficients `(g_dc, k)`.
+type LineAbsorption = [(f32, f32); NUM_LINES];
+
 /// Smallest high-frequency-to-DC gain ratio for the absorption filters. Floors
 /// the pole away from 1.0 (an unstable integrator in the feedback loop) while
 /// still allowing heavy high-frequency damping.
@@ -255,7 +258,7 @@ struct Reverb2State {
     /// `(glided angle, sin, cos)`.
     cross: Option<(f32, f32, f32)>,
     /// `((glided decay_k, glided size, hf_exponent), per-line (g_dc, k))`.
-    absorption: Option<((f32, f32, f32), [(f32, f32); NUM_LINES])>,
+    absorption: Option<((f32, f32, f32), LineAbsorption)>,
 
     sample_rate: f32,
 
@@ -324,8 +327,8 @@ impl Reverb2 {
         self.state.predelay_r = DelayLine::new(max_predelay);
 
         // Input diffusers: one chain per channel, sized for the largest room.
-        for i in 0..NUM_DIFFUSERS {
-            let base = DIFFUSER_DELAYS[i] * sr_scale;
+        for (i, &delay) in DIFFUSER_DELAYS.iter().enumerate() {
+            let base = delay * sr_scale;
             self.state.diffuser_len[i] = base;
             let cap = (base * MAX_SIZE).ceil() as usize + 4;
             self.state.diffusers_l[i] = DelayLine::new(cap.max(1));
@@ -616,7 +619,7 @@ mod tests {
             f64_inputs: false,
         };
         constructors.get("$unstable.reverb2").unwrap()(
-            &"test-reverb2".to_string(),
+            "test-reverb2",
             sample_rate,
             deserialized,
             TEST_BLOCK_SIZE,

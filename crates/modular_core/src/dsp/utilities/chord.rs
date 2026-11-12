@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
-use crate::poly::{MonoSignal, MonoSignalExt, PORT_MAX_CHANNELS, PolyOutput};
+use crate::poly::{MonoSignal, PORT_MAX_CHANNELS, PolyOutput};
 
 use super::scale::ScaleSpec;
 

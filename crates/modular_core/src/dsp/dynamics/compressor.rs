@@ -34,6 +34,20 @@ fn follower_coeff(time: f32, sample_rate: f32) -> f32 {
     (-1.0 / (time.max(1e-6) * sample_rate)).exp()
 }
 
+/// One channel's compressor settings for the current sample, already mapped
+/// out of volts: thresholds in dB, attack/release as [`follower_coeff`]s and
+/// makeup as a linear gain.
+#[derive(Clone, Copy)]
+struct CompressorSettings {
+    threshold_db: f32,
+    ratio: f32,
+    upward_threshold_db: f32,
+    upward_ratio: f32,
+    attack_coeff: f32,
+    release_coeff: f32,
+    makeup: f32,
+}
+
 /// Compute compressor gain for a single sample.
 ///
 /// Envelope is updated from `detector_sample` (the side-chain signal — for
@@ -54,14 +68,17 @@ fn compress(
     sample: f32,
     detector_sample: f32,
     envelope: &mut f32,
-    threshold_db: f32,
-    ratio: f32,
-    upward_threshold_db: f32,
-    upward_ratio: f32,
-    attack_coeff: f32,
-    release_coeff: f32,
-    makeup: f32,
+    settings: CompressorSettings,
 ) -> f32 {
+    let CompressorSettings {
+        threshold_db,
+        ratio,
+        upward_threshold_db,
+        upward_ratio,
+        attack_coeff,
+        release_coeff,
+        makeup,
+    } = settings;
     // Lower-bound the ratios at 1e-3 so `1/ratio` stays finite. The gain math
     // is shaped by `(1 - 1/ratio)`: ratio ∈ (0, 1) is expansion, ratio == 1 is
     // passthrough, ratio > 1 is compression. The ±60 dB clamp on `level_db`
@@ -338,24 +355,22 @@ impl Compressor {
             let makeup = state.makeup.get(makeup_voltage, voltage_to_gain);
 
             // Compress
-            let compressed = compress(
-                gained,
-                detector,
-                &mut state.envelope,
-                state.threshold_db.get(threshold, threshold_to_db),
+            let settings = CompressorSettings {
+                threshold_db: state.threshold_db.get(threshold, threshold_to_db),
                 ratio,
-                state
+                upward_threshold_db: state
                     .upward_threshold_db
                     .get(upward_threshold, threshold_to_db),
                 upward_ratio,
-                state
+                attack_coeff: state
                     .attack_coeff
                     .get(attack, |t| follower_coeff(t, sample_rate)),
-                state
+                release_coeff: state
                     .release_coeff
                     .get(release, |t| follower_coeff(t, sample_rate)),
                 makeup,
-            );
+            };
+            let compressed = compress(gained, detector, &mut state.envelope, settings);
 
             // Apply output gain
             let output_gain_voltage = self
@@ -401,13 +416,15 @@ mod tests {
                 sample,
                 sample,
                 &mut env,
-                threshold_to_db(threshold),
-                ratio,
-                threshold_to_db(upward_threshold),
-                upward_ratio,
-                follower_coeff(0.001, 48_000.0),
-                follower_coeff(0.001, 48_000.0),
-                1.0,
+                CompressorSettings {
+                    threshold_db: threshold_to_db(threshold),
+                    ratio,
+                    upward_threshold_db: threshold_to_db(upward_threshold),
+                    upward_ratio,
+                    attack_coeff: follower_coeff(0.001, 48_000.0),
+                    release_coeff: follower_coeff(0.001, 48_000.0),
+                    makeup: 1.0,
+                },
             );
         }
         last

@@ -26,6 +26,7 @@
                 "src/main/dsl/miniNotation/grammar.generated.ts"
             ],
             "ignoreDependencies": [
+                "babel-plugin-react-compiler",
                 "@strudel/core",
                 "@modular/core",
                 "@fontsource/anonymous-pro",

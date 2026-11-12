@@ -454,14 +454,14 @@ mod tests {
         let channels = wavetable_derive_channel_count(&params);
         let mut outputs = WavetableOscOutputs::default();
         outputs.set_all_channels(channels);
-        let osc = WavetableOsc {
+
+        WavetableOsc {
             params,
             outputs,
             channel_state: vec![ChannelState::default(); channels].into_boxed_slice(),
             _channel_count: channels,
             _block_index: Default::default(),
-        };
-        osc
+        }
     }
 
     fn base_params() -> WavetableOscParams {

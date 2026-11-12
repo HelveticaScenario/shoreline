@@ -199,13 +199,10 @@ mod tests {
 
     use serde_json::json;
 
-    use super::*;
     use crate::dsp::{get_constructors, get_params_deserializers};
     use crate::params::DeserializedParams;
     use crate::patch::Patch;
-    use crate::types::{
-        Connect, OutputStruct, PatchUpdateHandler, SampleBuffer, Sampleable, WavData,
-    };
+    use crate::types::{SampleBuffer, Sampleable, WavData};
 
     const SAMPLE_RATE: f32 = 48000.0;
 
@@ -214,7 +211,7 @@ mod tests {
         let cached = deserializers["_mediaAudio"](params)
             .unwrap_or_else(|e| panic!("params deserialization failed: {e}"));
         get_constructors()["_mediaAudio"](
-            &"m".to_string(),
+            "m",
             SAMPLE_RATE,
             DeserializedParams {
                 params: cached.params,
@@ -278,7 +275,7 @@ mod tests {
         let module = connected(json!({ "loopStart": 0.01 }), 4800);
         assert_eq!(tick(module.as_ref()), 0.0);
         // Ten frames into a 48-frame fade the gain is about a fifth.
-        let early = (0..10).map(|_| tick(module.as_ref())).last().unwrap();
+        let early = (0..10).map(|_| tick(module.as_ref())).next_back().unwrap();
         let full = 490.0 / 10_000.0 * 5.0;
         assert!(early > 0.0 && early < full * 0.5, "early = {early}");
     }

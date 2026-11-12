@@ -56,7 +56,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
     constructors
         .get(module_type)
         .unwrap_or_else(|| panic!("no constructor for '{module_type}'"))(
-        &id.to_string(),
+        id,
         SAMPLE_RATE,
         deserialized,
         TEST_BLOCK_SIZE,
@@ -2584,12 +2584,12 @@ fn cycle_swap_does_not_fire_in_progress_note_until_its_onset() {
     let mut onsets_cycle0 = 0;
     for _ in 0..100 {
         process_frame(&b);
-        for ch in 0..2 {
+        for (ch, prev) in prev_hi.iter_mut().enumerate() {
             let hi = seq_val(&b, "trig", ch) > 2.5;
-            if hi && !prev_hi[ch] {
+            if hi && !*prev {
                 onsets_cycle0 += 1;
             }
-            prev_hi[ch] = hi;
+            *prev = hi;
         }
     }
     assert_eq!(
@@ -2601,12 +2601,12 @@ fn cycle_swap_does_not_fire_in_progress_note_until_its_onset() {
     let mut onsets_cycle1 = 0;
     for _ in 0..200 {
         process_frame(&b);
-        for ch in 0..2 {
+        for (ch, prev) in prev_hi.iter_mut().enumerate() {
             let hi = seq_val(&b, "trig", ch) > 2.5;
-            if hi && !prev_hi[ch] {
+            if hi && !*prev {
                 onsets_cycle1 += 1;
             }
-            prev_hi[ch] = hi;
+            *prev = hi;
         }
     }
     assert!(

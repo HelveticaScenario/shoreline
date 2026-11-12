@@ -42,7 +42,7 @@ fn gcd_i128(a: i128, b: i128) -> i128 {
 /// - `den > 0` (denominator is always positive)
 /// - `gcd(|num|, den) == 1` (always in reduced form)
 /// - Zero is represented as `0/1`
-#[derive(Clone, Debug, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Fraction {
     num: i64,
     den: i64,
@@ -211,15 +211,6 @@ impl From<f64> for Fraction {
         let precision = 10000i64;
         let numer = (f * precision as f64).round() as i64;
         Fraction::new(numer, precision)
-    }
-}
-
-impl PartialEq for Fraction {
-    #[inline]
-    fn eq(&self, other: &Self) -> bool {
-        // Since fractions are always in reduced form with positive denominator,
-        // equality is just component-wise comparison.
-        self.num == other.num && self.den == other.den
     }
 }
 

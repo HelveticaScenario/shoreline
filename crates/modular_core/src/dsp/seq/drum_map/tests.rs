@@ -119,16 +119,13 @@ fn hits_match_map_threshold() {
     let mut m = make(params(1.3, 3.7, 3.0, DrumMapResolution::ThirtySecond));
     let hits = run_cycle(&mut m, 0);
     let (x, y, density) = (knob(1.3), knob(3.7), knob(3.0));
-    for part in 0..NUM_PARTS {
-        for step in 0..STEPS_PER_PATTERN {
+    let (parts, accents) = hits.split_at(NUM_PARTS);
+    for (part, (row, accent_row)) in parts.iter().zip(accents).enumerate() {
+        for (step, (&hit, &accent)) in row.iter().zip(accent_row).enumerate() {
             let level = read_drum_map(step, part, x, y);
+            assert_eq!(hit, level > !density, "part {part} step {step}");
             assert_eq!(
-                hits[part][step],
-                level > !density,
-                "part {part} step {step}"
-            );
-            assert_eq!(
-                hits[part + 3][step],
+                accent,
                 level > !density && level > ACCENT_LEVEL,
                 "accent part {part} step {step}"
             );
@@ -147,9 +144,9 @@ fn zero_density_is_silent() {
 fn full_density_plays_every_nonzero_step() {
     let mut m = make(params(0.0, 0.0, 5.0, DrumMapResolution::ThirtySecond));
     let hits = run_cycle(&mut m, 0);
-    for part in 0..NUM_PARTS {
-        for step in 0..STEPS_PER_PATTERN {
-            assert_eq!(hits[part][step], read_drum_map(step, part, 0, 0) > 0);
+    for (part, row) in hits[..NUM_PARTS].iter().enumerate() {
+        for (step, &hit) in row.iter().enumerate() {
+            assert_eq!(hit, read_drum_map(step, part, 0, 0) > 0);
         }
     }
 }
@@ -164,12 +161,13 @@ fn velocity_scales_accents_but_not_hits() {
         ))));
         let mut m = make(p);
         let hits = run_cycle(&mut m, 0);
-        for part in 0..NUM_PARTS {
-            for step in 0..STEPS_PER_PATTERN {
+        let (parts, accent_rows) = hits.split_at(NUM_PARTS);
+        for (part, (row, accent_row)) in parts.iter().zip(accent_rows).enumerate() {
+            for (step, (&hit, &accent_hit)) in row.iter().zip(accent_row).enumerate() {
                 let level = read_drum_map(step, part, 0, 0);
-                assert_eq!(hits[part][step], level > 0);
+                assert_eq!(hit, level > 0);
                 let accent = level as f32 * volts / 5.0 > ACCENT_LEVEL as f32;
-                assert_eq!(hits[NUM_PARTS + part][step], accent);
+                assert_eq!(accent_hit, accent);
                 if volts == 5.0 && accent {
                     accents_at_full += 1;
                 }
@@ -184,9 +182,9 @@ fn sixteenth_resolution_skips_odd_steps() {
     let mut m = make(params(4.0, 1.0, 5.0, DrumMapResolution::Sixteenth));
     let hits = run_cycle(&mut m, 0);
     assert!(hits[0][0], "downbeat bass drum plays");
-    for part in 0..NUM_PARTS {
-        for step in (1..STEPS_PER_PATTERN).step_by(2) {
-            assert!(!hits[part][step], "part {part} odd step {step}");
+    for (part, row) in hits[..NUM_PARTS].iter().enumerate() {
+        for (step, &hit) in row.iter().enumerate().skip(1).step_by(2) {
+            assert!(!hit, "part {part} odd step {step}");
         }
     }
 }

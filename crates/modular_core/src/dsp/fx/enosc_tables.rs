@@ -66,14 +66,14 @@ pub static FOLD_MAX_TABLE: LazyLock<[f32; FOLD_MAX_SIZE]> = LazyLock::new(|| {
     let mut max = 0.0f32;
     // Start from center of fold table and scan rightward.
     let start = (FOLD_SIZE - 1) / 2;
-    for i in 0..FOLD_MAX_SIZE {
+    for (i, slot) in table.iter_mut().enumerate() {
         let idx = (i + start).min(FOLD_SIZE - 1);
         let val = fold[idx].abs();
         if val > max {
             max = val;
         }
         // Attenuation factor accounts for interpolation error
-        table[i] = 0.92 / (max + 0.00001);
+        *slot = 0.92 / (max + 0.00001);
     }
 
     table
@@ -84,6 +84,10 @@ pub static FOLD_MAX_TABLE: LazyLock<[f32; FOLD_MAX_SIZE]> = LazyLock::new(|| {
 pub static CHEBY_TABLES: LazyLock<[[f32; CHEBY_SIZE]; CHEBY_TABLES_COUNT]> = LazyLock::new(|| {
     let mut tables = [[0.0f32; CHEBY_SIZE]; CHEBY_TABLES_COUNT];
 
+    #[expect(
+        clippy::needless_range_loop,
+        reason = "each column runs the recurrence down the tables"
+    )]
     for i in 0..CHEBY_SIZE {
         let x = (i as f32 * 2.0) / (CHEBY_SIZE - 1) as f32 - 1.0; // [-1, 1]
 
@@ -277,7 +281,7 @@ mod tests {
     fn test_fold_table_bounds() {
         // Table should be bounded — fold values are within ~[-1, 1]
         for &v in FOLD_TABLE.iter() {
-            assert!(v >= -2.0 && v <= 2.0, "Fold value out of bounds: {}", v);
+            assert!((-2.0..=2.0).contains(&v), "Fold value out of bounds: {}", v);
         }
     }
 
@@ -302,9 +306,9 @@ mod tests {
     fn test_triangle_linear() {
         // First triangle table should be linear
         let table = &TRIANGLE_TABLES[0];
-        for i in 0..TRIANGLE_SIZE {
+        for (i, &value) in table.iter().enumerate() {
             let expected = (i as f32 * 2.0) / (TRIANGLE_SIZE - 1) as f32 - 1.0;
-            assert!((table[i] - expected).abs() < 0.001);
+            assert!((value - expected).abs() < 0.001);
         }
     }
 

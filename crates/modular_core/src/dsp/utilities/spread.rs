@@ -5,10 +5,6 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput};
 
-fn default_count() -> usize {
-    2
-}
-
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
@@ -71,7 +67,7 @@ pub struct Spread {
 
 impl Spread {
     fn update(&mut self, _sample_rate: f32) {
-        let count = self.channel_count().max(1) as usize;
+        let count = self.channel_count().max(1);
         let min_val = self.params.min.get_value();
         let max_val = self.params.max.get_value();
         let bias = self.params.bias.value_or(0.0);
