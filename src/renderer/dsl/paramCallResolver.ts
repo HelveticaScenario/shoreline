@@ -1,243 +1,256 @@
 /**
- * Resolve a DSL call expression to the module schema behind it, and each of
- * its arguments to the param it sets.
+ * Resolve a DSL call expression to the params its arguments set.
  *
- * Handles direct factory calls (`$saw(...)`, `$unstable.filter.lp(...)`),
- * `.$.` / `.$m.` module chains, and the chainable sugar methods
- * (`.amplitude(x)`, `.gain(x)`, ...), whose single argument sets a param of
- * a utility module.
+ * Module calls — direct factories (`$saw(...)`, `$unstable.filter.lp(...)`)
+ * and chain modules on audio signals (`.lpf(...)`) — resolve through the module
+ * schemas, which carry each param's signal type, range, and default. Every
+ * other API call — functions (`$setOutputGain`, `$phase.bend`, `$v.osc`),
+ * methods (`.out`, `.send`, `.amp`, `.range`), and video chains — resolves
+ * through the generated DSL lib's signatures (apiSignatures.ts), in the
+ * family of its receiver (receiverFamily.ts), with ranges and defaults from
+ * API_CONTROLS, then from the lib's JSDoc.
  */
-import { Node, SyntaxKind, ts } from 'ts-morph';
-import type { CallExpression, Expression, SourceFile } from 'ts-morph';
+import ts from 'typescript';
 
-import { dottedCalleeName } from '../../shared/dsl/calleeName';
+import { negatableNumber } from '../../shared/dsl/ast/literals';
+import { dottedName } from '../../shared/dsl/ast/names';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
-import type { ParamLiteral, ParamSpec } from './paramControls';
+import type { ApiIndex, Family } from './apiSignatures';
+import {
+    API_CONTROLS,
+    controlRef,
+    hintedRef,
+    schemaParamRef,
+} from './apiParamControls';
+import type { ParamRef, SchemaEntry } from './apiParamControls';
+import type { ApiParam, ApiSignature, DocHints } from './apiTypeReader';
+import type { ParamLiteral } from './paramControls';
+import { createFamilyReader, splitChain } from './receiverFamily';
 
-export type SchemaEntry = Schemas[number];
-
-/**
- * Chainable sugar methods on BaseCollection/ModuleOutput in
- * src/main/dsl/GraphBuilder.ts — each wraps its single argument in the named
- * utility module's param, whose schema supplies the control's metadata.
- */
-const SUGAR_METHODS: Record<
-    string,
-    { module: string; param: string; range?: { min: number; max: number } }
-> = {
-    amp: { module: '$scaleAndShift', param: 'scale' },
-    amplitude: { module: '$scaleAndShift', param: 'scale' },
-    addHz: { module: '$addHz', param: 'offset' },
-    exp: { module: '$curve', param: 'exp' },
-    // gain's level is perceptual: 5 = unity, 0 = silence — narrower than
-    // scale's schema range.
-    gain: {
-        module: '$scaleAndShift',
-        param: 'scale',
-        range: { max: 5, min: 0 },
-    },
-    mulHz: { module: '$mulHz', param: 'factor' },
-    shift: { module: '$scaleAndShift', param: 'shift' },
-};
-
-/** The `.$m.` crossfade mix argument: 0 = dry, 5 = wet, 2.5 = equal. */
-export const MIX_SPEC: ParamSpec = {
-    defaultValue: 2.5,
-    maxValue: 5,
-    minValue: 0,
-    signalType: 'control',
-};
-
-export type ResolvedCall =
-    | {
-          kind: 'direct' | 'chain' | 'chainMix';
-          schema: SchemaEntry;
-          /** Maps a call-argument index to the schema positionalArgs index,
-           *  or null when that call-arg is not a positional module param
-           *  (the `.$m.` mix arg). */
-          argToPositional: (argIndex: number) => number | null;
-          /** Call-argument index where the config object literal sits. */
-          configSlot: number;
-      }
-    | {
-          kind: 'sugar';
-          /** Method name as written at the call site ('amp', 'gain', ...). */
-          name: string;
-          spec: ParamSpec;
-      };
-
-export function paramSpec(
-    schema: SchemaEntry,
-    name: string,
-): ParamSpec | undefined {
-    return schema.signalParams.find((p) => p.name === name);
+export interface ResolvedCall {
+    /** The param the argument at `index` sets, or null when a control
+     *  cannot drive it. */
+    argParam(index: number): ParamRef | null;
+    /** The option object argument `index` accepts, by member key (null for
+     *  a member a control cannot drive), or null when it takes none. */
+    options(index: number): ReadonlyMap<string, ParamRef | null> | null;
+    /** Names the first `argCount` arguments set, which an option object
+     *  must not set again. */
+    positionalNames(argCount: number): ReadonlySet<string>;
 }
 
-/** A resolver for calls against `schemas`. */
+/** A resolver for calls in `file` against the module `schemas` and the DSL
+ *  `api`. */
 export function createCallResolver(
+    file: ts.SourceFile,
     schemas: Schemas,
-): (call: CallExpression) => ResolvedCall | null {
+    api: ApiIndex,
+): (call: ts.CallExpression) => ResolvedCall | null {
     const byName = new Map<string, SchemaEntry>();
     const byChainPath = new Map<string, SchemaEntry>();
-    const declared = new WeakMap<SourceFile, Set<string>>();
-    /**
-     * Whether an identifier can hold a DSL signal: a `$` global, or a name
-     * the patch itself declares. Rules out JS globals like `Math`, whose
-     * methods (`Math.exp`) share names with the sugar methods.
-     */
-    const isSignalRoot = (id: Node) => {
-        const name = id.getText();
-        if (name.startsWith('$')) {
-            return true;
-        }
-        const file = id.getSourceFile();
-        let names = declared.get(file);
-        if (!names) {
-            names = declaredNames(file);
-            declared.set(file, names);
-        }
-        return names.has(name);
-    };
     for (const s of schemas) {
         byName.set(s.name, s);
         byChainPath.set(s.name.startsWith('$') ? s.name.slice(1) : s.name, s);
     }
-
-    return (call) => {
-        const expr = call.getExpression();
-
-        // Direct factory: the callee names the schema ($saw,
-        // $unstable.filter.lp), however it is spread across lines.
-        const calleeName = dottedCalleeName(expr);
-        const direct = calleeName === null ? undefined : byName.get(calleeName);
-        if (direct) {
-            const count = direct.positionalArgs?.length ?? 0;
-            return {
-                argToPositional: (i) => (i < count ? i : null),
-                configSlot: count,
-                kind: 'direct',
-                schema: direct,
-            };
+    const familyOf = createFamilyReader(api);
+    let declared: Set<string> | undefined;
+    /**
+     * Whether a property chain starts at a DSL value: a call, a `$` global,
+     * or a name the patch itself declares. Rules out JS globals like `Math`,
+     * whose methods (`Math.exp`) share names with DSL methods.
+     */
+    const hasDslRoot = (expr: ts.PropertyAccessExpression) => {
+        let root: ts.Expression = expr;
+        while (ts.isPropertyAccessExpression(root)) {
+            root = root.expression;
         }
-
-        if (!Node.isPropertyAccessExpression(expr)) {
-            return null;
+        if (ts.isCallExpression(root)) {
+            return true;
         }
-
-        // Flatten the property chain: `x.$.unstable.filter.lp` yields
-        // segments ['$', 'unstable', 'filter', 'lp'] with root `x`.
-        const segments: string[] = [];
-        let root: Expression = expr;
-        while (Node.isPropertyAccessExpression(root)) {
-            segments.unshift(root.getName());
-            root = root.getExpression();
+        if (!ts.isIdentifier(root)) {
+            return false;
         }
-        if (
-            !(Node.isIdentifier(root) && isSignalRoot(root)) &&
-            !Node.isCallExpression(root)
-        ) {
-            return null;
+        if (root.text.startsWith('$')) {
+            return true;
         }
-
-        // `.$.` / `.$m.` chain: the chained signal is injected as the
-        // module's first positional argument; `.$m.` adds a leading
-        // crossfade mix argument.
-        const dollarIdx = Math.max(
-            segments.lastIndexOf('$'),
-            segments.lastIndexOf('$m'),
-        );
-        if (dollarIdx >= 0) {
-            const schema = byChainPath.get(
-                segments.slice(dollarIdx + 1).join('.'),
-            );
-            if (!schema) {
-                return null;
-            }
-            const count = schema.positionalArgs?.length ?? 0;
-            if (segments[dollarIdx] === '$m') {
-                return {
-                    argToPositional: (i) => (i >= 1 && i < count ? i : null),
-                    configSlot: count,
-                    kind: 'chainMix',
-                    schema,
-                };
-            }
-            return {
-                argToPositional: (i) => (i + 1 < count ? i + 1 : null),
-                configSlot: count - 1,
-                kind: 'chain',
-                schema,
-            };
-        }
-
-        const name = segments[segments.length - 1];
-        const sugar = SUGAR_METHODS[name];
-        const module = sugar && byName.get(sugar.module);
-        const spec = module && paramSpec(module, sugar.param);
-        if (!spec) {
-            return null;
+        declared ??= declaredNames(file);
+        return declared.has(root.text);
+    };
+    const schemaRef = (schema: SchemaEntry, name: string): ParamRef | null =>
+        schemaParamRef(schema, name, name);
+    const moduleCall = (
+        schema: SchemaEntry,
+        argToPositional: (i: number) => number | null,
+        configSlot: number,
+        chained: boolean,
+    ): ResolvedCall => {
+        const positionals = schema.positionalArgs ?? [];
+        const config = new Map<string, ParamRef | null>();
+        for (const key of Object.keys(schema.paramsSchema?.properties ?? {})) {
+            config.set(key, schemaRef(schema, key));
         }
         return {
-            kind: 'sugar',
-            name,
-            spec: {
-                ...spec,
-                maxValue: sugar.range?.max ?? spec.maxValue,
-                minValue: sugar.range?.min ?? spec.minValue,
+            argParam: (i) => {
+                const pi = argToPositional(i);
+                return pi === null
+                    ? null
+                    : schemaRef(schema, positionals[pi].name);
+            },
+            options: (i) => (i === configSlot ? config : null),
+            positionalNames: (count) => {
+                const names = new Set<string>();
+                // A chain injects the first positional, so it is always set.
+                if (chained && positionals[0]) {
+                    names.add(positionals[0].name);
+                }
+                for (let i = 0; i < count; i++) {
+                    const pi = argToPositional(i);
+                    if (pi !== null && positionals[pi]) {
+                        names.add(positionals[pi].name);
+                    }
+                }
+                return names;
             },
         };
+    };
+    const apiCall = (
+        family: Family,
+        callee: string,
+        sig: ApiSignature,
+    ): ResolvedCall => {
+        const controls = API_CONTROLS[family][callee] ?? {};
+        const ref = (
+            name: string,
+            signal: boolean,
+            hints: DocHints,
+        ): ParamRef | null => {
+            if (!signal) {
+                return null;
+            }
+            const source = controls[name];
+            return source
+                ? controlRef(name, source, byName)
+                : hintedRef(name, hints);
+        };
+        const paramAt = (i: number): ApiParam | undefined => {
+            const last = sig[sig.length - 1];
+            return i < sig.length ? sig[i] : last?.rest ? last : undefined;
+        };
+        return {
+            argParam: (i) => {
+                const p = paramAt(i);
+                return p ? ref(p.name, p.signal, p.hints) : null;
+            },
+            options: (i) => {
+                const p = paramAt(i);
+                if (!p?.options) {
+                    return null;
+                }
+                const members = new Map<string, ParamRef | null>();
+                for (const [key, m] of p.options) {
+                    members.set(key, ref(key, m.signal, m.hints));
+                }
+                return members;
+            },
+            positionalNames: () => new Set(),
+        };
+    };
+    /** A chain module: the receiver is its first positional argument. */
+    const moduleChain = (schema: SchemaEntry) => {
+        const count = schema.positionalArgs?.length ?? 0;
+        return moduleCall(
+            schema,
+            (i) => (i + 1 < count ? i + 1 : null),
+            count - 1,
+            true,
+        );
+    };
+
+    return (call) => {
+        const expr = call.expression;
+
+        // A module factory or API function, named by its callee however it
+        // is spread across lines.
+        const calleeName = dottedName(expr);
+        if (calleeName !== null) {
+            const direct = byName.get(calleeName);
+            if (direct) {
+                const count = direct.positionalArgs?.length ?? 0;
+                return moduleCall(
+                    direct,
+                    (i) => (i < count ? i : null),
+                    count,
+                    false,
+                );
+            }
+            const fn = api.functions.get(calleeName);
+            if (fn) {
+                const family = api.videoFunctions.has(calleeName)
+                    ? 'video'
+                    : 'audio';
+                return apiCall(family, calleeName, fn);
+            }
+        }
+
+        if (!ts.isPropertyAccessExpression(expr) || !hasDslRoot(expr)) {
+            return null;
+        }
+        // Audio and video members share names, so the receiver's family
+        // picks which apply; an unknown receiver tries audio first.
+        const { chain, receiver } = splitChain(expr, api);
+        const known = familyOf(receiver);
+        const schema =
+            chain !== null && known !== 'video'
+                ? byChainPath.get(chain)
+                : undefined;
+        if (schema) {
+            return moduleChain(schema);
+        }
+        const name = expr.name.text;
+        const families: Family[] = known ? [known] : ['audio', 'video'];
+        for (const family of families) {
+            const sig = api[family].methods.get(name);
+            if (sig) {
+                return apiCall(family, name, sig);
+            }
+        }
+        return null;
     };
 }
 
 /** Every name a variable, parameter, or function declaration binds. */
-function declaredNames(file: SourceFile): Set<string> {
+function declaredNames(file: ts.SourceFile): Set<string> {
     const names = new Set<string>();
-    for (const kind of [
-        SyntaxKind.VariableDeclaration,
-        SyntaxKind.Parameter,
-        SyntaxKind.BindingElement,
-        SyntaxKind.FunctionDeclaration,
-    ] as const) {
-        for (const decl of file.getDescendantsOfKind(kind)) {
-            const name = decl.getNameNode();
-            if (name && Node.isIdentifier(name)) {
-                names.add(name.getText());
-            }
+    const visit = (node: ts.Node) => {
+        if (
+            (ts.isVariableDeclaration(node) ||
+                ts.isParameter(node) ||
+                ts.isBindingElement(node) ||
+                ts.isFunctionDeclaration(node)) &&
+            node.name &&
+            ts.isIdentifier(node.name)
+        ) {
+            names.add(node.name.text);
         }
-    }
+        ts.forEachChild(node, visit);
+    };
+    visit(file);
     return names;
 }
 
 /** A numeric (optionally negated) or plain string literal, or null for any
  *  other expression. */
-export function asLiteral(node: Node): ParamLiteral | null {
-    if (Node.isNumericLiteral(node)) {
-        return {
-            kind: 'number',
-            text: node.getText(),
-            value: node.getLiteralValue(),
-        };
-    }
+export function asLiteral(
+    node: ts.Node,
+    file: ts.SourceFile,
+): ParamLiteral | null {
     // Only unary minus: control-literal validation rejects a unary plus.
-    if (
-        Node.isPrefixUnaryExpression(node) &&
-        node.getOperatorToken() === ts.SyntaxKind.MinusToken
-    ) {
-        const operand = node.getOperand();
-        if (Node.isNumericLiteral(operand)) {
-            return {
-                kind: 'number',
-                text: node.getText(),
-                value: -operand.getLiteralValue(),
-            };
-        }
+    const value = negatableNumber(node);
+    if (value !== null) {
+        return { kind: 'number', text: node.getText(file), value };
     }
-    if (Node.isStringLiteral(node)) {
-        return {
-            kind: 'string',
-            text: node.getText(),
-            value: node.getLiteralText(),
-        };
+    if (ts.isStringLiteral(node)) {
+        return { kind: 'string', text: node.getText(file), value: node.text };
     }
     return null;
 }

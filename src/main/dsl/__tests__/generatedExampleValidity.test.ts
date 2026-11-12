@@ -1,42 +1,29 @@
 /**
- * Validates that every code example embedded in the generated DSL type
- * definitions evaluates to a valid patch.
+ * Validates that every documented code example evaluates to a valid patch.
  *
- * The generated `dsl.d.ts` (produced by `buildLibSource`) is the documentation
- * surface developers read in Monaco. Its examples come from two sources:
- *   1. `@example` JSDoc tags hand-written in `typescriptLibGen.ts`.
- *   2. ```js fenced blocks inside each module's Rust doc comment, carried
- *      through `schemas.json` into the generated JSDoc.
+ * Examples come from three sources:
+ *   1. Each module's structured docs (`docs.examples` and section examples),
+ *      declared in its Rust `ModuleDocs` const and carried by `schemas.json`.
+ *   2. `@example` JSDoc tags hand-written in `typescriptLibGen.ts`.
+ *   3. ```js fenced blocks in hand-written JSDoc there.
  *
- * This test regenerates that surface, extracts every example, and asserts each
- * one runs through `executePatchScript` without error and produces a graph that
- * passes the engine's own `validatePatchGraph`. A failure here means a code
- * example a user could copy out of the editor does not actually work — fix it
- * at its source (the `@example` tag or the Rust doc comment).
+ * Each one must run through `executePatchScript` without error and produce a
+ * graph that passes the engine's own `validatePatchGraph`. A failure here
+ * means an example a user could copy out of the editor does not work — fix
+ * it at its source.
  */
 
 import { describe, expect, test } from 'vitest';
 import { validatePatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
-import {
-    type DSLExecutionOptions,
-    type WavsFolderNode,
-    executePatchScript,
-} from '../executor';
+import { type DSLExecutionOptions, executePatchScript } from '../executor';
 
 // ─── Execution environment ──────────────────────────────────────────────────
 //
-// A stub wavs folder so examples that read samples via `$wavs()` can build a
-// graph without real audio files on disk. Covers every wav path referenced by
-// the examples (`pad`, `strings`, `kick`, `tables/pad`).
-
-const STUB_WAVS_TREE: WavsFolderNode = {
-    pad: 'file',
-    strings: 'file',
-    kick: 'file',
-    tables: { pad: 'file' },
-};
+// A stub WAV loader so examples that play samples can build a graph without
+// real audio files on disk. Every path loads as the same two-second stereo
+// file.
 
 const stubLoadWav: NonNullable<DSLExecutionOptions['loadWav']> = (path) => ({
     channels: 2,
@@ -58,15 +45,15 @@ const EXECUTION_OPTIONS: DSLExecutionOptions = {
     loadMediaAudio: stubLoadMediaAudio,
     sampleRate: 48_000,
     workspaceRoot: '/workspace',
-    wavsFolderTree: STUB_WAVS_TREE,
     loadWav: stubLoadWav,
 };
 
 // ─── Example extraction ─────────────────────────────────────────────────────
 
 interface DocExample {
-    /** Where the example came from: an `@example` tag or a ```js fence. */
-    kind: 'tag' | 'fence';
+    /** Where the example came from: a module's docs, an `@example` tag, or
+     *  a ```js fence in hand-written JSDoc. */
+    kind: 'module' | 'tag' | 'fence';
     /** Ordinal within the generated source, for stable test labels. */
     ordinal: number;
     /** The example source code. */
@@ -164,8 +151,31 @@ function isTypeLevelExample(code: string): boolean {
 
 // ─── The check ──────────────────────────────────────────────────────────────
 
+/** Every example in the modules' structured docs, sections included. */
+function moduleExamples(): DocExample[] {
+    return schemas.flatMap((module) =>
+        [
+            ...module.docs.examples,
+            ...module.docs.sections.flatMap((s) => s.examples),
+        ].map((e, ordinal) => ({
+            code: e.code,
+            kind: 'module' as const,
+            label: `${module.name}: ${e.title}`,
+            ordinal,
+        })),
+    );
+}
+
 const generated = buildLibSource(schemas);
-const allExamples = extractDocExamples(generated);
+const fromModules = moduleExamples();
+const moduleCode = new Set(fromModules.map((e) => e.code));
+// The generated JSDoc repeats each module's first example; count it once.
+const allExamples = [
+    ...fromModules,
+    ...extractDocExamples(generated).filter(
+        (e) => !moduleCode.has(e.code.replace(/^\/\/.*\n/, '')),
+    ),
+];
 const patchExamples = allExamples.filter((e) => !isTypeLevelExample(e.code));
 
 describe('generated DSL example extraction', () => {

@@ -22,8 +22,12 @@ use crate::{
     poly::{MonoSignalExt, PORT_MAX_CHANNELS, PolyOutput},
 };
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
+
+use super::glide::{GlideRamp, GlideTracker, GlideVoice, Playhead};
 use super::groove::{GrooveHold, before_first_step, fill_groove_inputs};
-use super::seq_value::{SeqCycleStorage, SeqPatternParam, SeqValue};
+use super::seq_value::{HAP_MATCH_EPS, SeqCycleHap, SeqCycleStorage, SeqPatternParam, SeqValue};
 
 /// Cached hap copied into voice state as scalars. Voices can hold these
 /// by value without keeping the cycle storage alive.
@@ -59,13 +63,18 @@ impl CachedHap {
 
     fn get_cv(&self) -> Option<f64> {
         match self.value {
-            SeqValue::Voltage(v) => Some(v),
+            SeqValue::Voltage { volts, .. } => Some(volts),
             SeqValue::Rest => None,
         }
     }
 
     fn is_rest(&self) -> bool {
         matches!(self.value, SeqValue::Rest)
+    }
+
+    fn same_window(&self, hap: &SeqCycleHap) -> bool {
+        (hap.whole_begin - self.whole_begin).abs() < HAP_MATCH_EPS
+            && (hap.whole_end - self.whole_end).abs() < HAP_MATCH_EPS
     }
 }
 
@@ -114,33 +123,44 @@ fn default_ribbon() -> (f64, f64) {
     (0.0, DEFAULT_RIBBON_LENGTH)
 }
 
-#[derive(Clone, Deserr, ChannelCount, JsonSchema, Connect, Debug, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, ChannelCount, JsonSchema, Connect, Debug)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = seq_bake_ribbon -> ModuleParamErrors)]
 pub struct SeqParams {
-    /// pattern string in mini-notation
+    #[input("the pattern to play, in mini-notation")]
     pattern: SeqPatternParam,
-    /// playhead position (driven by the global clock)
-    #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
-    #[signal(range = (0.0, 1.0))]
+    #[input(
+        "playhead position in cycles; follows the global clock by default",
+        type = control,
+        range = (0.0, ..),
+        control_range = (0.0, 1.0),
+    )]
+    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
-    /// groove offset added to the playhead to time note onsets; follows the
-    /// global groove by default, and is 0 when `playhead` is set without it
+    #[input(
+        "groove shift of note starts, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
+        type = control,
+        control_range = (-5.0, 5.0),
+    )]
     #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
     #[deserr(default)]
     groove: Option<MonoSignal>,
-    /// groove velocity (0-5V), sampled at each note onset; follows the global
-    /// groove by default, and is full (5V) when `playhead` or `groove` is set
-    /// without it
+    #[input(
+        "velocity held from each note start onto the `velocity` output. Follows the global groove, unless you set your own `playhead` or `groove`: then every note is full velocity until given a velocity too",
+        type = control,
+        control_range = (0.0, 5.0),
+    )]
     #[default_connection(module = RootClock, port = "grooveVelocity", channel = 0)]
-    #[signal(range = (0.0, 5.0))]
     #[deserr(default)]
     velocity: Option<MonoSignal>,
-    /// Number of polyphonic voices (1-64)
+    #[input("number of voices; worked out from the pattern when unset", range = (1, 64))]
     #[deserr(default)]
     pub channels: Option<usize>,
-    /// loop window [offset, length] in cycles (fractional allowed)
+    #[input(
+        "[offset, length] of the looped stretch of the pattern, in cycles; fractions are allowed"
+    )]
     #[serde(default = "default_ribbon")]
     #[deserr(default = default_ribbon())]
     ribbon: (f64, f64),
@@ -193,8 +213,8 @@ fn seq_bake_ribbon(
 
 /// Channel count derivation for Seq.
 ///
-/// Analyzes the pattern to determine maximum polyphony by running 90 cycles
-/// of the pattern and counting maximum simultaneous haps.
+/// Analyzes the baked ribbon window to determine maximum polyphony: the most
+/// non-rest haps sounding at once.
 ///
 /// This is called by TypeScript to derive channel count from params.
 /// Inside Seq::update(), we read params.channels directly (which TypeScript
@@ -213,40 +233,33 @@ pub fn seq_derive_channel_count(params: &SeqParams) -> usize {
 
     const MAX_POLYPHONY: usize = 16;
 
-    // Sweep line algorithm using f64 coordinates from cached haps
-    let mut events: Vec<(f64, i32)> = Vec::new();
-
-    for cycle_storage in cached {
-        for hap in cycle_storage.haps.iter() {
-            if hap.value.is_rest() {
-                continue;
-            }
-            events.push((hap.part_begin, 1)); // +1 at start
-            events.push((hap.part_end, -1)); // -1 at end
-        }
-    }
-
-    // Sort by time, with ends (-1) before starts (+1) at same time
-    events.sort_by(|a, b| {
-        match a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal) {
-            Ordering::Equal => a.1.cmp(&b.1), // -1 comes before +1
-            other => other,
-        }
-    });
-
-    // Sweep through events tracking current and max polyphony
-    let mut current: usize = 0;
+    // A baked hap's part never leaves its cycle, so each cycle is swept on its
+    // own. Starts come from the haps, which are sorted by `part_begin`; a part
+    // ending exactly where another starts does not overlap it. Zero-length
+    // parts never sound, so they are skipped; every counted end then belongs
+    // to a hap that started earlier.
+    let mut starts: Vec<f64> = Vec::new();
+    let mut ends: Vec<f64> = Vec::new();
     let mut max_simultaneous: usize = 0;
-
-    for (_time, delta) in events {
-        if delta > 0 {
-            current += 1;
-            max_simultaneous = max_simultaneous.max(current);
+    for cycle_storage in cached {
+        starts.clear();
+        ends.clear();
+        for hap in &cycle_storage.haps {
+            if !hap.value.is_rest() && hap.part_end > hap.part_begin {
+                starts.push(hap.part_begin);
+                ends.push(hap.part_end);
+            }
+        }
+        ends.sort_by(f64::total_cmp);
+        let mut ended = 0;
+        for (started, &begin) in starts.iter().enumerate() {
+            while ended < ends.len() && ends[ended] <= begin {
+                ended += 1;
+            }
+            max_simultaneous = max_simultaneous.max(started + 1 - ended);
             if max_simultaneous >= MAX_POLYPHONY {
                 return MAX_POLYPHONY;
             }
-        } else {
-            current = current.saturating_sub(1);
         }
     }
     max_simultaneous.max(1)
@@ -255,133 +268,189 @@ pub fn seq_derive_channel_count(params: &SeqParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SeqOutputs {
-    #[output("cv", "pitch output in V/Oct", default)]
+    #[output("cv", "pitch of the current or last note", type = cv, default)]
     cv: PolyOutput,
-    #[output("gate", "high (5 V) while a note is active, low (0 V) otherwise", range = (0.0, 5.0))]
+    #[output("gate", "high while a note plays", type = gate)]
     gate: PolyOutput,
-    #[output("trig", "short pulse (5 V) at the start of each note", range = (0.0, 5.0))]
+    #[output("trig", "fires at the start of each note", type = trig)]
     trig: PolyOutput,
-    #[output("velocity", "groove velocity (0-5 V) of the current or last note", range = (0.0, 5.0))]
+    #[output("velocity", "groove velocity of the current or last note", type = cv, range = (0.0, 5.0))]
     velocity: PolyOutput,
 }
 
-/// Pattern sequencer using mini-notation strings.
-///
-/// Write rhythmic and melodic patterns using a compact text syntax ported
-/// from TidalCycles/Strudel. The pattern loops each **cycle** and supports
-/// polyphony — overlapping notes are automatically allocated to separate
-/// output channels.
-///
-/// ## Cycles
-///
-/// A **cycle** is one full traversal of the pattern. The playhead position
-/// determines timing: its integer part selects the current cycle number and
-/// the fractional part selects the position within that cycle. Space-separated
-/// values divide the cycle into equal time slots.
-///
-/// ## Values
-///
-/// | Syntax | Meaning | Example |
-/// |--------|---------|---------|
-/// | Note name | Pitch (octave defaults to 3) | `'c4'`, `'a#3'`, `'db5'` |
-/// | Bare number | MIDI note number | `60`, `72` |
-/// | `Xhz` | Frequency | `'440hz'` |
-/// | `Xv` | Explicit voltage | `'0v'`, `'1v'`, `'-0.5v'` |
-/// | `~` | Rest (gate low, no change in CV) | `'c4 ~ e4 ~'` |
-///
-/// Bare numbers are MIDI note numbers (A0 = MIDI 33 = 0 V).
-///
-/// ## Grouping
-///
-/// - **`[a b c]`** — fast subsequence: subdivides the parent time slot so all
-///   elements play within it.
-/// - **`<a b c>`** — slow / alternating: plays one element per cycle,
-///   advancing each time the pattern loops.
-///
-/// ```js
-/// $cycle($p("c4 [d4 e4]"))   // c4 for half the cycle, d4 & e4 share the other half
-/// $cycle($p("<c4 g4> e4"))   // cycle 1: c4 e4, cycle 2: g4 e4, …
-/// ```
-///
-/// ## Stacks
-///
-/// **`a b, c d`** — comma-separated patterns play **simultaneously** (layered).
-/// Each sub-pattern has its own independent timing.
-///
-/// ```js
-/// $cycle($p("c4 e4, g4 b4"))   // two patterns layered on top of each other
-/// $cycle($p("c4 d4 e4, g3"))   // three-note melody over a pedal tone
-/// ```
-///
-/// ## Random choice
-///
-/// **`a|b|c`** — randomly selects one option each time the slot is reached.
-///
-/// ```js
-/// $cycle($p("c4|d4|e4 g4"))  // first slot is a random pick each cycle
-/// ```
-///
-/// ## Nesting
-///
-/// Grouping, stacks, and random choice nest arbitrarily:
-///
-/// ```js
-/// $cycle($p("<c4 [d4 e4]> [f4|g4 a4]"))  // slow + fast + random combined
-/// $cycle($p("[c4 e4, g4] a4"))           // stack inside a fast subsequence
-/// ```
-///
-/// ## Per-element modifiers
-///
-/// Modifiers attach directly to an element (no spaces). Multiple modifiers
-/// can be chained in any order.
-///
-/// | Modifier | Syntax | Meaning |
-/// |----------|--------|---------|
-/// | Weight | `@n` | Relative duration within a sequence (default 1). `c4@2 e4` gives c4 twice the time. |
-/// | Speed up | `*n` | Repeat/subdivide `n` times within the slot. `c4*3` plays c4 three times. |
-/// | Slow down | `/n` | Stretch over `n` cycles. `c4/2` plays every other cycle. |
-/// | Replicate | `!n` | Duplicate the element `n` times (default 2). `c4!3` is equivalent to `c4 c4 c4`. |
-/// | Degrade | `?` or `?n` | Randomly drop the element. `c4?` drops ~50 % of the time; `c4?0.8` drops 80 %. |
-/// | Euclidean | `(k,n)` or `(k,n,offset)` | Distribute `k` pulses over `n` steps using the Bjorklund algorithm. Optional `offset` rotates the pattern. |
-///
-/// ```js
-/// $cycle($p("c4*2 e4 g4"))        // c4 plays twice in its slot
-/// $cycle($p("c4@3 e4 g4"))        // c4 gets 3/5 of the cycle, e4 and g4 get 1/5 each
-/// $cycle($p("c4? e4 g4"))         // c4 randomly drops out ~50 % of the time
-/// $cycle($p("c4(3,8) e4"))        // Euclidean: 3 hits spread over 8 steps
-/// $cycle($p("[c4 d4 e4 f4](3,8)")) // Euclidean applied to a subpattern
-/// ```
-///
-/// Modifier operands can also be subpatterns: `c4*[2 3]` alternates between
-/// doubling and tripling each slot.
-///
-/// ## Outputs
-///
-/// - **cv** — V/Oct pitch (C4 = 0 V).
-/// - **gate** — 5 V while a note is active, 0 V otherwise.
-/// - **trig** — single-sample 5 V pulse at each note onset.
-/// - **velocity** — groove velocity (0–5 V) sampled at each note onset.
-///
-/// ## Groove
-///
-/// By default notes start on the global groove set with `$setGroove`, and
-/// `velocity` reports that groove's step velocity. The groove moves when each
-/// note starts; every note keeps its written length. Pass a `$groove` as
-/// `groove` (with its `velocity`) to use a different groove, or `groove: 0` to
-/// play straight.
-///
-/// ```js
-/// $setGroove($swing(0.6))
-/// const hats = $cycle($p('c5*8'))
-/// const bass = $cycle($p('c2*4'), { groove: 0 })
-/// $sine(hats).amp($adsr(hats.gate)).amp(hats.velocity).out()
-/// $sine(bass).amp($adsr(bass.gate)).out()
-/// ```
+const CYCLE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Mini-notation pattern sequencer",
+    description: "Plays a `$p(...)` mini-notation pattern in time with the clock, putting out \
+                  pitch, gate, trigger and velocity for every note. The pattern repeats once \
+                  per bar, overlapping notes get voices of their own so stacks play as \
+                  chords, and note starts follow the global groove set with `$setGroove`. \
+                  A pattern used as a module plays through a `$cycle` of its own; call \
+                  `$cycle` to give one other settings.",
+    categories: &[ModuleCategory::Sequencer],
+    sections: &[
+        DocSection {
+            title: "Values",
+            body: "Space-separated values share the cycle equally.",
+            table: Some(DocTable {
+                columns: &["Form", "Plays", "Example"],
+                rows: &[
+                    &[
+                        "note name",
+                        "that note; octave 4 when left out",
+                        "`c4`, `a#3`, `eb`",
+                    ],
+                    &[
+                        "number",
+                        "a pitch voltage, 1 V per octave with 0 at C4",
+                        "`0`, `-1`, `0.25`",
+                    ],
+                    &["`Nhz`", "a frequency", "`440hz`"],
+                    &[
+                        "`~` or `-`",
+                        "a rest: the gate drops and the pitch holds",
+                        "`c4 ~ e4 ~`",
+                    ],
+                ],
+            }),
+            examples: &[DocExample {
+                title: "Plucked bass line",
+                code: r#"
+                    const seq = $p('c2 ~ eb2 g2 ~ c3 bb2 g2')
+                    $saw(seq)
+                      .lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)
+                      .out()
+                "#,
+            }],
+        },
+        DocSection {
+            title: "Grouping",
+            body: "Groups nest inside each other freely.",
+            table: Some(DocTable {
+                columns: &["Syntax", "Plays", "Example"],
+                rows: &[
+                    &[
+                        "`[a b]`",
+                        "the group squeezed into one slot",
+                        "`c3 [e3 g3]`",
+                    ],
+                    &[
+                        "`<a b>`",
+                        "one element per cycle, taking turns",
+                        "`<c3 f3 g3> e4`",
+                    ],
+                    &[
+                        "`{a b, c d e}`",
+                        "the parts step together at the first part's rate, so they drift against each other; `%n` sets the steps per cycle",
+                        "`{c3 e3, g3 b3 d4}%8`",
+                    ],
+                ],
+            }),
+            examples: &[DocExample {
+                title: "Bass that changes every bar",
+                code: r#"
+                    const seq = $p('<c2 ab1 f1 g1> [~ c3] ~ c2')
+                    $saw(seq).lpf('c5', 1).amp($adsr(seq)).out()
+                "#,
+            }],
+        },
+        DocSection {
+            title: "Stacks",
+            body: "`a b, c d` plays comma-separated patterns at the same time, each with its \
+                   own timing and its own voices.",
+            table: None,
+            examples: &[DocExample {
+                title: "Melody over a drone",
+                code: r#"
+                    const seq = $p('c4 eb4 g4 bb4, c3')
+                    $saw(seq).lpf('c5', 1).amp($adsr(seq)).out()
+                "#,
+            }],
+        },
+        DocSection {
+            title: "Random choice",
+            body: "`a|b|c` picks one option each time the slot comes round, and `?` after an \
+                   element drops it at random.",
+            table: None,
+            examples: &[DocExample {
+                title: "A melody that never quite repeats",
+                code: r#"
+                    const seq = $p('c4 [eb4|g4|bb4] f4? [g4|c5]')
+                    $sine(seq).amp($adsr(seq)).out()
+                "#,
+            }],
+        },
+        DocSection {
+            title: "Modifiers",
+            body: "Modifiers attach to an element with no space between and chain in any \
+                   order. Their numbers can be patterns too: `c4*<2 3>` alternates doubling \
+                   and tripling.",
+            table: Some(DocTable {
+                columns: &["Modifier", "Does", "Example"],
+                rows: &[
+                    &[
+                        "`@n`",
+                        "makes the element n slots long; `@` alone is 2",
+                        "`c4@3 e4`",
+                    ],
+                    &[
+                        "`_`",
+                        "stretches the previous element by one slot",
+                        "`c4 _ _ e4`",
+                    ],
+                    &["`*n`", "repeats the element n times in its slot", "`c4*3`"],
+                    &[
+                        "`/n`",
+                        "spreads the element over n cycles",
+                        "`[c4 e4 g4]/2`",
+                    ],
+                    &[
+                        "`!n`",
+                        "copies the element n times; `!` alone is 2",
+                        "`c4!3 e4`",
+                    ],
+                    &[
+                        "`?` or `?n`",
+                        "drops the element at random, half the time or with chance n",
+                        "`c4?0.3`",
+                    ],
+                    &[
+                        "`(k,n)` or `(k,n,r)`",
+                        "k evenly spread hits over n steps, rotated by r",
+                        "`c2(3,8)`",
+                    ],
+                ],
+            }),
+            examples: &[DocExample {
+                title: "Euclidean rhythm",
+                code: r#"
+                    const seq = $p('c2(3,8) [g2 c3](5,8,2)')
+                    $pulse(seq).lpf('c5', 2).amp($adsr(seq)).out()
+                "#,
+            }],
+        },
+    ],
+    examples: &[DocExample {
+        title: "Swung hats over a straight bass",
+        code: r#"
+            $setGroove($swing(0.6))
+            const hats = $p('c5*8')
+            const bass = $cycle($p('c2*4'), { groove: 0 })
+            $noise('white')
+              .amp($perc(hats, { decay: 0.05 }))
+              .amp(hats._velocity)
+              .out()
+            $saw(bass).lpf('c4', 1).amp($adsr(bass)).out()
+        "#,
+    }],
+};
+
 #[module(
     name = "$cycle",
+    docs = CYCLE_DOCS,
     channels_derive = seq_derive_channel_count,
     args(pattern),
     stateful,
+    patch_update,
 )]
 pub struct Seq {
     outputs: SeqOutputs,
@@ -403,6 +472,49 @@ struct SeqChannel {
     last_cv: f32,
     /// Velocity input latched at this voice's last onset.
     velocity: f32,
+    /// Ramp into the upcoming note this voice has claimed.
+    glide: Option<GlideRamp>,
+    /// CV a ramp left this voice at when it ended without its onset. The voice
+    /// holds it until its next onset or claim, so a pattern swap mid-ramp
+    /// never snaps back to the old pitch.
+    glide_hold: Option<f32>,
+}
+
+impl SeqChannel {
+    /// The pitch this voice sounds when no ramp drives it.
+    fn held_cv(&self) -> f32 {
+        self.glide_hold
+            .or_else(|| {
+                self.voice
+                    .cached_hap
+                    .and_then(|held| held.get_cv())
+                    .map(|cv| cv as f32)
+            })
+            .unwrap_or(self.last_cv)
+    }
+}
+
+impl GlideVoice for SeqChannel {
+    fn ramp(&self) -> Option<&GlideRamp> {
+        self.glide.as_ref()
+    }
+
+    fn free_by(&self, onset: f64) -> bool {
+        !self.voice.active
+            || self
+                .voice
+                .cached_hap
+                .is_some_and(|held| held.raw_end <= onset)
+    }
+
+    fn held_cv(&self) -> f32 {
+        SeqChannel::held_cv(self)
+    }
+
+    fn claim(&mut self, ramp: GlideRamp) {
+        self.glide_hold = None;
+        self.glide = Some(ramp);
+    }
 }
 
 /// Module-level state for the Seq module.
@@ -430,6 +542,8 @@ struct SeqState {
     /// Pre-allocated DP scratch for nearest-value voice assignment. Boxed and
     /// built here (main thread) so the audio thread never allocates.
     assign: Box<AssignScratch>,
+    /// Glide windows the playhead is inside that no voice has claimed yet.
+    glides: GlideTracker,
 }
 
 impl Default for SeqState {
@@ -442,6 +556,7 @@ impl Default for SeqState {
             voices_to_release: ArrayVec::new(),
             events_to_process: ArrayVec::new(),
             assign: Box::new(AssignScratch::default()),
+            glides: GlideTracker::default(),
         }
     }
 }
@@ -467,19 +582,13 @@ impl Seq {
     /// `[c4*2]`). Note: this is stricter than `resolve_hap_index`, whose
     /// geometry-only fallback is for highlight display, not steal eligibility.
     fn voice_is_orphan(&self, cached: &CachedHap) -> bool {
-        const EPS: f64 = 1e-6;
         let Some(storage) = self.get_cycle_storage(cached.cached_cycle) else {
             return true; // cycle no longer in the baked window → orphaned
         };
-        !storage.haps.iter().any(|h| {
-            (h.whole_begin - cached.whole_begin).abs() < EPS
-                && (h.whole_end - cached.whole_end).abs() < EPS
-                && match (h.value, cached.value) {
-                    (SeqValue::Voltage(a), SeqValue::Voltage(b)) => (a - b).abs() < EPS,
-                    (SeqValue::Rest, SeqValue::Rest) => true,
-                    _ => false,
-                }
-        })
+        !storage
+            .haps
+            .iter()
+            .any(|h| cached.same_window(h) && h.value.same_pitch(&cached.value))
     }
 
     fn update(&mut self, sample_rate: f32) {
@@ -563,6 +672,27 @@ impl Seq {
                 .set_state(TempGateState::Low, TempGateState::Low, 0);
         }
 
+        let mut voices_changed = !self.state.voices_to_release.is_empty();
+        // Glide windows are tracked by the playhead stepping forward within a
+        // lap; anything else, or a new bake, rescans them.
+        let rescan_glides = self.state.glides.rescan
+            || !started
+            || raw_clamped < prev_raw
+            || raw_clamped - prev_raw >= length
+            || (!lap_wrapped && logical < prev_logical);
+        let step = (raw_clamped - prev_raw).abs();
+        for channel in &mut self.channel_state[..num_channels] {
+            if let Some(ramp) = channel.glide
+                && !(ramp.in_range(raw_clamped, step)
+                    && (!rescan_glides
+                        || ramp.target_exists(base, self.params.pattern.cached_haps())))
+            {
+                channel.glide_hold = Some(ramp.value_at(raw_clamped));
+                channel.glide = None;
+                voices_changed = true;
+            }
+        }
+
         if self.params.pattern.pattern().is_none() {
             for ch in 0..num_channels {
                 self.outputs.cv.set(ch, 0.0);
@@ -579,7 +709,7 @@ impl Seq {
             return;
         }
         if waiting {
-            self.write_voice_outputs();
+            self.write_voice_outputs(raw_clamped);
             return;
         }
 
@@ -590,7 +720,20 @@ impl Seq {
         events_to_process.clear();
         let storage_opt = self.params.pattern.cached_haps().get(storage_index);
         if let Some(storage) = storage_opt {
-            for (hap_index, hap) in storage.haps.iter().enumerate() {
+            let haps = &storage.haps;
+            // A forward step can only enter haps whose part starts in
+            // `(prev_logical, logical]`: one starting at or before
+            // `prev_logical` that still holds `logical` held `prev_logical`
+            // too. Haps are sorted by `part_begin`, so that is a binary-searched
+            // slice; any other step scans the whole cycle.
+            let candidates = if started && !lap_wrapped && prev_logical <= logical {
+                haps.partition_point(|h| h.part_begin <= prev_logical)
+                    ..haps.partition_point(|h| h.part_begin <= logical)
+            } else {
+                0..haps.len()
+            };
+            for hap_index in candidates {
+                let hap = &haps[hap_index];
                 if !hap.has_onset || logical < hap.part_begin || logical >= hap.part_end {
                     continue;
                 }
@@ -646,14 +789,27 @@ impl Seq {
         // pattern — so a new hap is never dropped while a stale note rings. A
         // current-pattern continuation is never stolen. Onsets with no free,
         // ended or orphan voice are dropped.
+        //
+        // A gliding onset goes to the voice that claimed it. Tier 4 gives a
+        // claimed voice to another onset only when nothing else is left; the
+        // cancelled ramp is claimed again after that onset.
         let n = self.state.events_to_process.len();
+        voices_changed |= n > 0;
         if n > 0 {
             let mut assigned: [Option<usize>; PORT_MAX_CHANNELS] = [None; PORT_MAX_CHANNELS];
+            for (ei, event) in self.state.events_to_process.iter().enumerate() {
+                assigned[ei] = (0..num_channels).find(|&i| {
+                    self.channel_state[i]
+                        .glide
+                        .is_some_and(|ramp| ramp.targets(current_cycle, event.hap_index))
+                });
+            }
+            let claimed = |channel: &SeqChannel| channel.glide.is_some();
 
             // Tier 1: free voices.
             let mut free: ArrayVec<usize, PORT_MAX_CHANNELS> = ArrayVec::new();
             for i in 0..num_channels {
-                if !self.channel_state[i].voice.active {
+                if !self.channel_state[i].voice.active && !claimed(&self.channel_state[i]) {
                     free.push(i);
                 }
             }
@@ -678,6 +834,7 @@ impl Seq {
                 let mut ended: ArrayVec<usize, PORT_MAX_CHANNELS> = ArrayVec::new();
                 for i in 0..num_channels {
                     if self.channel_state[i].voice.active
+                        && !claimed(&self.channel_state[i])
                         && let Some(cached) = self.channel_state[i].voice.cached_hap
                         && raw >= cached.raw_end
                     {
@@ -704,6 +861,7 @@ impl Seq {
                 let mut orphans: ArrayVec<usize, PORT_MAX_CHANNELS> = ArrayVec::new();
                 for i in 0..num_channels {
                     if self.channel_state[i].voice.active
+                        && !claimed(&self.channel_state[i])
                         && !assigned[..n].contains(&Some(i))
                         && let Some(cached) = self.channel_state[i].voice.cached_hap
                         && self.voice_is_orphan(&cached)
@@ -725,6 +883,28 @@ impl Seq {
                 );
             }
 
+            // Tier 4: claimed voices.
+            if (0..n).any(|ei| assigned[ei].is_none()) {
+                let mut claimed_voices: ArrayVec<usize, PORT_MAX_CHANNELS> = ArrayVec::new();
+                for i in 0..num_channels {
+                    if claimed(&self.channel_state[i]) && !assigned[..n].contains(&Some(i)) {
+                        claimed_voices.push(i);
+                    }
+                }
+                let SeqState {
+                    events_to_process,
+                    assign,
+                    ..
+                } = &mut self.state;
+                assign_nearest(
+                    events_to_process,
+                    &mut assigned,
+                    &claimed_voices,
+                    &self.channel_state,
+                    assign,
+                );
+            }
+
             // Apply the chosen voice for each placed onset. Map the note's logical
             // span onto the straight clock so release keys off monotonic straight
             // time and the note plays its full length across the ribbon wrap. A stolen voice re-triggers (gate Low→High), cutting its old note.
@@ -734,6 +914,12 @@ impl Seq {
                 };
                 let event = self.state.events_to_process[ei];
                 self.channel_state[voice_idx].velocity = velocity;
+                if let Some(ramp) = self.channel_state[voice_idx].glide.take()
+                    && !ramp.targets(current_cycle, event.hap_index)
+                {
+                    self.state.glides.push(ramp.target);
+                }
+                self.channel_state[voice_idx].glide_hold = None;
                 let voice = &mut self.channel_state[voice_idx].voice;
                 voice.cached_hap = Some(CachedHap {
                     hap_index: event.hap_index,
@@ -755,10 +941,25 @@ impl Seq {
             }
         }
 
-        self.write_voice_outputs();
+        self.state.glides.advance(
+            &self.params.pattern.glide,
+            &Playhead {
+                raw: raw_clamped,
+                pos,
+                prev_pos: prev_logical,
+                lap_wrapped,
+                offset,
+                length,
+            },
+            rescan_glides,
+            &mut self.channel_state[..num_channels],
+            voices_changed,
+        );
+
+        self.write_voice_outputs(raw_clamped);
     }
 
-    fn write_voice_outputs(&mut self) {
+    fn write_voice_outputs(&mut self, raw: f64) {
         for ch in 0..self.channel_count() {
             let channel = &mut self.channel_state[ch];
             if let Some(cached) = channel.voice.cached_hap
@@ -766,7 +967,11 @@ impl Seq {
             {
                 channel.last_cv = cv as f32;
             }
-            self.outputs.cv.set(ch, channel.last_cv);
+            let cv = match channel.glide {
+                Some(ramp) => ramp.value_at(raw),
+                None => channel.glide_hold.unwrap_or(channel.last_cv),
+            };
+            self.outputs.cv.set(ch, cv);
             self.outputs.gate.set(ch, channel.voice.gate.process());
             self.outputs.trig.set(ch, channel.voice.trigger.process());
             self.outputs.velocity.set(ch, channel.velocity);
@@ -929,20 +1134,12 @@ fn assign_nearest(
 /// matching geometry. `cached.hap_index` is owned by the audio thread and is
 /// never written here.
 fn resolve_hap_index(storage: &SeqCycleStorage, cached: &CachedHap) -> Option<usize> {
-    const EPS: f64 = 1e-6;
-    let geometry_matches = |hap: &super::seq_value::SeqCycleHap| {
-        (hap.whole_begin - cached.whole_begin).abs() < EPS
-            && (hap.whole_end - cached.whole_end).abs() < EPS
-    };
+    let geometry_matches = |hap: &super::seq_value::SeqCycleHap| cached.same_window(hap);
     // Held value disambiguates two simultaneous same-geometry haps (a chord /
     // stacked source) that would otherwise alias onto the same index. It is a
     // tie-breaker, not a requirement: a live state transfer onto a pattern
     // with different values must still re-resolve by geometry alone.
-    let value_matches = |value: &SeqValue| match (value, &cached.value) {
-        (SeqValue::Voltage(a), SeqValue::Voltage(b)) => (a - b).abs() < EPS,
-        (SeqValue::Rest, SeqValue::Rest) => true,
-        _ => false,
-    };
+    let value_matches = |value: &SeqValue| value.same_pitch(&cached.value);
     let idx = cached.hap_index as usize;
     if let Some(hap) = storage.haps.get(idx)
         && geometry_matches(hap)
@@ -994,6 +1191,13 @@ impl crate::types::StatefulModule for Seq {
                 }
             }
         }
+    }
+}
+
+impl crate::types::PatchUpdateHandler for Seq {
+    /// A patch update may bring a new bake, so the glide windows rescan.
+    fn on_patch_update(&mut self) {
+        self.state.glides.rescan = true;
     }
 }
 
@@ -1062,7 +1266,7 @@ mod tests {
             hap_index: 0,
             whole_begin: 0.0,
             whole_end: 1.0,
-            value: SeqValue::Voltage(v),
+            value: SeqValue::voltage(v),
         }
     }
 

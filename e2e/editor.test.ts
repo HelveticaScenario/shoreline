@@ -31,19 +31,15 @@ test.describe('DSL editor interaction', () => {
         await expect(stopBtn).toBeVisible();
     });
 
-    test('Help button opens help window', async ({ electronApp, window }) => {
-        const helpBtn = window.locator('button:has-text("Help")');
+    test('Docs tab shows the type and module reference', async ({ window }) => {
+        await window.getByRole('button', { name: 'Docs' }).click();
+        const docs = window.locator('.docs-panel');
+        await expect(docs.locator('.module-card').first()).toBeVisible({
+            timeout: 15_000,
+        });
 
-        // Click help
-        const windowPromise = electronApp.waitForEvent('window');
-        await helpBtn.click();
-        const helpWindow = await windowPromise;
-
-        // Verify the help window opened
-        expect(helpWindow).toBeTruthy();
-        await helpWindow.waitForLoadState('domcontentloaded');
-        const helpTitle = await helpWindow.title();
-        expect(helpTitle.length).toBeGreaterThan(0);
+        await docs.getByRole('button', { name: 'Types' }).click();
+        await expect(docs.locator('.type-card').first()).toBeVisible();
     });
 });
 

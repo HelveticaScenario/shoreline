@@ -6,7 +6,7 @@
 //! stored in `params.prepared` (a [`PreparedWavetable`]). The audio-thread
 //! `update()` loop reads from that table using `params.pitch` (V/Oct),
 //! `params.position` (frame index in 0–5V normalized to 0–1), and an
-//! optional `params.phase` [`Table`] that warps the raw phase before
+//! optional `params.phase` [`PhaseWarp`] that warps the raw phase before
 //! sampling.
 //!
 //! If the WAV isn't loaded or the prepared table is empty, the oscillator
@@ -15,49 +15,64 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 use std::collections::HashMap;
+use std::ops::Range;
 use std::sync::Arc;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{
             FmMode, apply_fm, sync_blep, sync_edge_fraction, wavetable_prep::PreparedWavetable,
         },
-        utils::SchmittTrigger,
+        phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState, ResolvedWarp},
+        utils::{SchmittTrigger, sanitize},
     },
     poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
-    types::{Table, Wav, WavData},
+    types::{Wav, WavData},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 pub(crate) struct WavetableOscParams {
-    /// Loaded WAV reference containing the wavetable data.
-    pub(crate) wav: Wav,
-    /// Pitch in V/Oct (0V = C4).
-    #[signal(type = pitch)]
+    #[input("oscillator pitch", type = pitch)]
     pub(crate) pitch: PolySignal,
-    /// Frame position as a signal. 0V maps to the first frame, 5V maps to
-    /// the last frame. Values are clamped to [0, 5] before being normalized.
-    #[signal(range = (0.0, 5.0))]
+    #[input("WAV file holding the wavetable frames")]
+    pub(crate) wav: Wav,
+    #[input(
+        "which frame plays: 0 the first, 5 the last, blending between neighbours",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     pub(crate) position: Option<PolySignal>,
-    /// FM input signal (pre-scaled by user).
+    #[input(
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
+        type = audio,
+    )]
     #[deserr(default)]
     pub(crate) fm: Option<PolySignal>,
-    /// FM mode: throughZero (default), lin, or exp.
+    #[input("how `fm` bends the frequency")]
     #[serde(default)]
     #[deserr(default)]
     pub(crate) fm_mode: FmMode,
-    /// hard sync source — rising edges reset the oscillator phase.
+    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
     #[deserr(default)]
+    #[block_input(optional)]
     pub(crate) sync: Option<PolySignal>,
-    /// Optional phase-warp table applied before sampling.
+    #[input("reshapes the cycle before the table is read, built with `$phase.*`")]
     #[deserr(default)]
-    pub(crate) phase: Option<Table>,
-    /// phase offset in [0, 1) added to the internal phase before warping/sampling
-    #[signal(default = 0.0, range = (0.0, 1.0))]
+    pub(crate) phase: Option<PhaseWarp>,
+    #[input(
+        "shifts where in the cycle the table is read, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
     #[deserr(default)]
     pub(crate) phase_offset: Option<PolySignal>,
     /// Pre-computed mipmap pyramid, populated by `prepare_resources` on the
@@ -71,7 +86,7 @@ pub(crate) struct WavetableOscParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WavetableOscOutputs {
-    #[output("output", "signal output", default, range = (-5.0, 5.0))]
+    #[output("output", "the wavetable oscillator", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -95,6 +110,10 @@ struct ChannelState {
     freq: f32,
     /// Mipmap level for `freq`.
     level: usize,
+    /// State of the `phase` warp's feedback stages.
+    warp: PhaseWarpState,
+    /// Glides for the `phase` warp's signals.
+    warp_glides: PhaseWarpGlides,
 }
 
 impl Default for ChannelState {
@@ -108,12 +127,118 @@ impl Default for ChannelState {
             last_fm: f32::NAN,
             freq: 0.0,
             level: 0,
+            warp: PhaseWarpState::default(),
+            warp_glides: PhaseWarpGlides::default(),
         }
     }
 }
 
 /// Derive the channel count from the maximum of `pitch` and (optional)
 /// `position`. Clamped to `[1, PORT_MAX_CHANNELS]`.
+impl ChannelState {
+    /// Track `pitch` and `fm`, recomputing the frequency and mipmap level only
+    /// when they change.
+    #[inline(always)]
+    fn tune(&mut self, prepared: &PreparedWavetable, pitch: f32, fm: f32, fm_mode: FmMode) {
+        if pitch != self.last_pitch || fm != self.last_fm {
+            self.freq = apply_fm(pitch, fm, fm_mode);
+            self.level = prepared.mipmap_level_for_freq(self.freq);
+            self.last_pitch = pitch;
+            self.last_fm = fm;
+        }
+    }
+
+    /// One output sample (±5 V) at `position` (0–5 V across the frames), then
+    /// advance the phase. `warp` reshapes the read phase with its stage values
+    /// already resolved for this channel; `sync` is this sample's sync input,
+    /// if connected.
+    #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
+    fn step(
+        &mut self,
+        prepared: &PreparedWavetable,
+        sample_rate: f32,
+        inv_sr: f64,
+        position: f32,
+        offset: f32,
+        warp: Option<(&PhaseWarp, &ResolvedWarp)>,
+        sync: Option<f32>,
+    ) -> f32 {
+        let frame_scale = if prepared.frame_count > 1 {
+            (prepared.frame_count - 1) as f32
+        } else {
+            0.0
+        };
+        // Frame index: 0–5V → 0..=frame_count-1.
+        let frame_f = (position.clamp(0.0, 5.0) / 5.0) * frame_scale;
+
+        // The phase offset shifts the read position without altering the
+        // accumulator, so it never drifts. The current phase is read before
+        // it advances, so the first sample reads the starting phase.
+        let read_offset = offset.rem_euclid(1.0);
+        let raw_phase = (self.phase as f32 + read_offset).rem_euclid(1.0);
+        let freq_norm = self.freq / sample_rate;
+        // The warp's state as it stood before this sample, for the sync
+        // reset's second read below.
+        let warp_before = self.warp;
+        let warped_phase = match warp {
+            Some((warp, resolved)) => warp.evaluate(raw_phase, resolved, freq_norm, &mut self.warp),
+            None => raw_phase,
+        };
+        let before = prepared.read_sample(self.level, frame_f, warped_phase);
+
+        // Naive read plus any residual carried from a sync reset on the
+        // previous sample.
+        let mut sample = before + self.blep_carry;
+        self.blep_carry = 0.0;
+
+        // Advance phase, wrap to [0, 1). rem_euclid in f64.
+        let increment = self.freq as f64 * inv_sr;
+        let mut next = self.phase + increment;
+        // Fast wrap for the common case; rem_euclid handles the rest.
+        if next >= 1.0 {
+            next -= 1.0;
+            if next >= 1.0 {
+                next = next.rem_euclid(1.0);
+            }
+        } else if next < 0.0 {
+            next = next.rem_euclid(1.0);
+        }
+        if !next.is_finite() {
+            next = 0.0;
+        }
+
+        // Hard sync: a rising edge resets the phase so the next sample reads
+        // from the table's start. A PolyBLEP at the subsample crossing
+        // band-limits the resulting step.
+        if let Some(v) = sync {
+            if self.sync_schmitt.process(v) {
+                let frac = sync_edge_fraction(self.sync_prev, v);
+                // After a reset the accumulator is 0, so the effective read
+                // phase is the offset itself.
+                let warped_zero = match warp {
+                    Some((warp, resolved)) => {
+                        let mut scratch = warp_before;
+                        warp.evaluate(read_offset, resolved, freq_norm, &mut scratch)
+                    }
+                    None => read_offset,
+                };
+                let after = prepared.read_sample(self.level, frame_f, warped_zero);
+                let (now, carry) = sync_blep(after - before, frac);
+                sample += now;
+                self.blep_carry = carry;
+                next = 0.0;
+            }
+            self.sync_prev = v;
+        }
+
+        self.phase = next;
+        // Wavetables are normalized in [-1, 1] after the FFT round-trip;
+        // scale to the synth's audio range.
+        sample * 5.0
+    }
+}
+
 #[allow(private_interfaces)]
 pub fn wavetable_derive_channel_count(params: &WavetableOscParams) -> usize {
     let pitch_ch = params.pitch.channels();
@@ -135,26 +260,45 @@ pub fn wavetable_derive_channel_count(params: &WavetableOscParams) -> usize {
         .clamp(1, PORT_MAX_CHANNELS)
 }
 
-/// A band-limited wavetable oscillator.
-///
-/// Reads a pre-built mipmap pyramid (FFT-filtered frame copies) and
-/// selects a level appropriate for the playback frequency to suppress
-/// aliasing. Frame position can be swept across multi-frame tables for
-/// classic wavetable timbral sweeps, and an optional phase-warp `Table`
-/// reshapes the read phase before sampling.
-///
-/// ## Example
-///
-/// ```js
-/// $wavetable('c4', $wavs().tables.pad).out()
-/// $wavetable('c2', $wavs().tables.pad, $sine('0.2hz').range(0, 5)).out()
-/// ```
+const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Wavetable oscillator",
+    description: "Plays the single-cycle frames of a wavetable WAV and blends \
+                  between them, for evolving glassy, vocal or digital timbres. \
+                  Sweep `position` with an LFO or envelope, and bend each cycle \
+                  further with a `$phase.*` warp.",
+    categories: &[ModuleCategory::Oscillator],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Scanning pad",
+            code: r#"
+                $wavetable(
+                  $chord('C3[m9]'),
+                  '/wavs/tables/pad.wav',
+                  $sine('0.1hz').range(0, 5),
+                ).out()
+            "#,
+        },
+        DocExample {
+            title: "Plucked table sweep",
+            code: r#"
+                const seq = $p('c3 eb3 g3 bb3')
+                const env = $perc(seq, { decay: 0.5 })
+                $wavetable(seq, '/wavs/tables/pad.wav', env.range(0, 4))
+                  .amp(env)
+                  .out()
+            "#,
+        },
+    ],
+};
+
 #[module(
-    name = "$wavetable",
+    name = "$wavetable", docs = WAVETABLE_DOCS,
     channels_derive = wavetable_derive_channel_count,
     args(pitch, wav, position),
     has_prepare_resources,
     patch_update,
+    block,
 )]
 pub struct WavetableOsc {
     params: WavetableOscParams,
@@ -165,109 +309,93 @@ pub struct WavetableOsc {
 impl WavetableOsc {
     fn update(&mut self, sample_rate: f32) {
         let channels = self.channel_count();
-
-        // Silent fallback — prepared mipmap is missing (wav unloaded / empty).
-        let Some(prepared) = self.params.prepared.as_ref() else {
+        let Some(prepared) = self.params.prepared.as_ref().filter(|p| p.is_playable()) else {
+            // Silent fallback — prepared mipmap is missing (wav unloaded / empty).
             for ch in 0..channels {
                 self.outputs.sample.set(ch, 0.0);
             }
             return;
         };
-        if prepared.frame_count == 0 || prepared.frame_size == 0 {
-            for ch in 0..channels {
-                self.outputs.sample.set(ch, 0.0);
-            }
-            return;
-        }
-
         let inv_sr = 1.0 / sample_rate as f64;
-        let frame_scale = if prepared.frame_count > 1 {
-            (prepared.frame_count - 1) as f32
-        } else {
-            0.0
-        };
-
-        for ch in 0..channels {
-            let state = &mut self.channel_state[ch];
-
-            let pitch_v = self.params.pitch.get_value(ch);
-            let fm = self.params.fm.value_or(ch, 0.0);
-            if pitch_v != state.last_pitch || fm != state.last_fm {
-                state.freq = apply_fm(pitch_v, fm, self.params.fm_mode);
-                state.level = prepared.mipmap_level_for_freq(state.freq);
-                state.last_pitch = pitch_v;
-                state.last_fm = fm;
-            }
-            let (freq, level) = (state.freq, state.level);
-
-            // Frame index: 0–5V → 0..=frame_count-1.
-            let pos_v = self.params.position.value_or(ch, 0.0).clamp(0.0, 5.0);
-            let frame_f = (pos_v / 5.0) * frame_scale;
-
-            // Advance raw phase first, then apply warp. Using the pre-advance
-            // phase is equivalent here but we advance after reading so the
-            // very first sample uses the state's starting phase (0.0 by
-            // default). The phase offset shifts the read position without
-            // altering the accumulator, so it never drifts.
-            let offset = self.params.phase_offset.value_or(ch, 0.0);
-            let read_offset = offset.rem_euclid(1.0);
-            let raw_phase = (state.phase as f32 + read_offset).rem_euclid(1.0);
-            let warped_phase = match &self.params.phase {
-                Some(table) => table.evaluate(raw_phase, ch),
-                None => raw_phase,
-            };
-
-            let before = prepared.read_sample(level, frame_f, warped_phase);
-
-            // Naive read plus any residual carried from a sync reset on the
-            // previous sample.
-            let mut sample = before + state.blep_carry;
-            state.blep_carry = 0.0;
-
-            // Advance phase, wrap to [0, 1). rem_euclid in f64.
-            let increment = freq as f64 * inv_sr;
-            let mut next = state.phase + increment;
-            // Fast wrap for the common case; rem_euclid handles the rest.
-            if next >= 1.0 {
-                next -= 1.0;
-                if next >= 1.0 {
-                    next = next.rem_euclid(1.0);
-                }
-            } else if next < 0.0 {
-                next = next.rem_euclid(1.0);
-            }
-            if !next.is_finite() {
-                next = 0.0;
-            }
-
-            // Hard sync: a rising edge resets the phase so the next sample reads
-            // from the table's start. A PolyBLEP at the subsample crossing
-            // band-limits the resulting step.
-            if let Some(sync) = &self.params.sync {
-                let v = sync.get_value(ch);
-                if state.sync_schmitt.process(v) {
-                    let frac = sync_edge_fraction(state.sync_prev, v);
-                    // After a reset the accumulator is 0, so the effective read
-                    // phase is the offset itself.
-                    let warped_zero = match &self.params.phase {
-                        Some(table) => table.evaluate(read_offset, ch),
-                        None => read_offset,
-                    };
-                    let after = prepared.read_sample(level, frame_f, warped_zero);
-                    let (now, carry) = sync_blep(after - before, frac);
-                    sample += now;
-                    state.blep_carry = carry;
-                    next = 0.0;
-                }
-                state.sync_prev = v;
-            }
-
-            // Output ±5V — wavetables are normalized in [-1, 1] after the
-            // FFT round-trip; scale to the synth's audio range.
-            self.outputs.sample.set(ch, sample * 5.0);
-
-            state.phase = next;
+        let p = &self.params;
+        for (ch, state) in self.channel_state.iter_mut().enumerate() {
+            state.tune(
+                prepared,
+                p.pitch.get_value(ch),
+                p.fm.value_or(ch, 0.0),
+                p.fm_mode,
+            );
+            let resolved = p
+                .phase
+                .as_ref()
+                .map(|warp| (warp, warp.resolve(ch, sample_rate, &mut state.warp_glides)));
+            let sample = state.step(
+                prepared,
+                sample_rate,
+                inv_sr,
+                p.position
+                    .value_or(ch, WavetableOscParams::POSITION_DEFAULT),
+                p.phase_offset
+                    .value_or(ch, WavetableOscParams::PHASE_OFFSET_DEFAULT),
+                resolved.as_ref().map(|(warp, resolved)| (*warp, resolved)),
+                p.sync.as_ref().map(|sync| sync.get_value(ch)),
+            );
+            self.outputs.sample.set(ch, sample);
         }
+    }
+
+    fn process_block(
+        &mut self,
+        outputs: &mut WavetableOscBlockOutputs,
+        range: Range<usize>,
+        sample_rate: f32,
+    ) -> Option<()> {
+        let p = &self.params;
+        // A warp reads its own signals and glides per sample: leave it to
+        // `update`.
+        if p.phase.is_some() {
+            return None;
+        }
+        let out = &mut outputs.sample;
+        let Some(prepared) = p.prepared.as_ref().filter(|p| p.is_playable()) else {
+            for i in range {
+                out.slot_mut(i).fill(0.0);
+            }
+            return Some(());
+        };
+        let channels = self.channel_count();
+        let mut scratch = Default::default();
+        let WavetableOscParamsBlockInputs {
+            pitch,
+            position,
+            fm,
+            sync,
+            phase_offset: offset,
+        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
+        let inv_sr = 1.0 / sample_rate as f64;
+        for i in range {
+            let (pitch, fm, position, offset) =
+                (pitch.row(i), fm.row(i), position.row(i), offset.row(i));
+            let sync = sync.as_ref().map(|sync| sync.row(i));
+            let slots = out
+                .slot_mut(i)
+                .iter_mut()
+                .zip(self.channel_state.iter_mut());
+            for (ch, (out, state)) in slots.enumerate() {
+                state.tune(prepared, pitch[ch], fm[ch], p.fm_mode);
+                let sample = state.step(
+                    prepared,
+                    sample_rate,
+                    inv_sr,
+                    position[ch],
+                    offset[ch],
+                    None,
+                    sync.map(|sync| sync[ch]),
+                );
+                *out = sanitize(sample);
+            }
+        }
+        Some(())
     }
 
     /// Main-thread resource preparation. Builds the mipmap pyramid from the
@@ -456,7 +584,7 @@ mod tests {
 
         let mut p_warped = base_params();
         p_warped.pitch = PolySignal::mono(Signal::Volts(0.0));
-        p_warped.phase = Some(Table::Mirror {
+        p_warped.phase = Some(PhaseWarp::Mirror {
             amount: PolySignal::mono(Signal::Volts(3.0)),
         });
         p_warped.prepared = Some(PreparedWavetable::from_wav_data(&wav, 48000.0));

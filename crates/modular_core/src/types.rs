@@ -43,15 +43,14 @@ use serde_json::Value;
 use std::borrow::Cow;
 use std::cell::UnsafeCell;
 use std::fmt::Debug;
-use std::ops::{Add, Deref, Div, Mul, Sub};
+use std::ops::Deref;
 use std::ptr::NonNull;
 use std::result::Result as StdResult;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::dsp::tables::warp;
 use crate::dsp::utils::{hz_to_voct, midi_to_voct};
+use crate::module_category::ModuleCategory;
 use crate::patch::Patch;
-use crate::poly::PolySignal;
 
 // ============================================================================
 // Well-known module IDs and ports
@@ -289,6 +288,11 @@ pub trait Sampleable: MessageHandler + Send {
     /// (wrapping at the block boundary) when called re-entrantly during the
     /// wrapper's own update loop — preserving the 1-sample feedback delay.
     fn get_value_at(&self, port: &str, ch: usize, index: usize) -> f32;
+    /// Like [`get_value_at`](Self::get_value_at), at full precision from an
+    /// f64 port.
+    fn get_value_at_f64(&self, port: &str, ch: usize, index: usize) -> f64 {
+        self.get_value_at(port, ch, index) as f64
+    }
     /// Direct read access to port `port`'s block buffer, for cables to keep
     /// as a [`CableView`]. `None` for an unknown port, a zero-width port, or a
     /// module whose reads must always go through
@@ -362,7 +366,11 @@ pub trait Sampleable: MessageHandler + Send {
     ///    replace removes `old` from the map before the call. The command-
     ///    processing phase is synchronous on the audio thread, so no `update()`
     ///    races the transfer on either module.
-    fn transfer_state_from(&self, _old: &dyn Sampleable) {}
+    ///
+    /// `ids` maps the incoming patch's module ids to the outgoing one's, so
+    /// params can tell which of their sources changed (see
+    /// [`Connect::mark_glides`]).
+    fn transfer_state_from(&self, _old: &dyn Sampleable, _ids: &dyn PreviousIds) {}
 }
 
 pub trait Module {
@@ -394,115 +402,148 @@ pub type SampleableMap = HashMap<String, Box<dyn Sampleable>>;
 /// audio-thread reads; callers must not hold or use it across another reconnect.
 pub type SampleablePtr = NonNull<dyn Sampleable>;
 
-/// One-pole lowpass filter for parameter smoothing to prevent clicking
-/// Coefficient of 0.99 gives roughly 5ms smoothing time at 48kHz
-const SMOOTHING_COEFF: f32 = 0.99;
+/// Default time constant of the [`SwapGlide`] offset decay.
+const SWAP_GLIDE_TAU_SECONDS: f32 = 0.002;
+/// Below this magnitude the offset snaps to zero and the input passes through.
+const SWAP_GLIDE_EPSILON: f32 = 1e-6;
 
-pub fn smooth_value(current: f32, target: f32) -> f32 {
-    current * SMOOTHING_COEFF + target * (1.0 - SMOOTHING_COEFF)
+/// Where a glided param stands relative to the patch swap that installed it:
+/// the swap's generation, and which of the param's channels read a different
+/// source than in the replaced module. Obtained per channel from the param
+/// signal; whether this channel changed is only worked out on a new
+/// generation, so the per-sample cost is one comparison.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GlideMark {
+    pub(crate) generation: u64,
+    /// Bit `i` set when the param's channel `i` changed.
+    pub(crate) changed: u64,
+    /// The channel read, before cycling over `channels`.
+    pub(crate) channel: usize,
+    pub(crate) channels: usize,
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-pub struct Clickless {
+impl GlideMark {
+    /// An absent optional param. Its default is a constant, so leaving it
+    /// absent across a swap never moves it, while it differs from every
+    /// present param's generation and so glides when a present param is
+    /// removed.
+    pub const ABSENT: GlideMark = GlideMark {
+        generation: u64::MAX,
+        changed: u64::MAX,
+        channel: 0,
+        channels: 1,
+    };
+
+    #[inline]
+    pub(crate) fn changed(&self) -> bool {
+        self.changed & (1 << (self.channel % self.channels)) != 0
+    }
+}
+
+/// Passes a control value through unchanged, except that the first
+/// [`update`](Self::update) after a patch swap that changed the param's source
+/// glides from the pre-swap value onto the new input with a decaying offset.
+/// The current value is read through `Deref`.
+#[derive(Debug, Clone, Copy)]
+pub struct SwapGlide {
+    /// Current value; `NaN` until the first `update`, so a freshly
+    /// constructed module starts on its input with no glide.
     value: f32,
-    initialized: bool,
-}
-impl Clickless {
-    pub fn update(&mut self, input: f32) {
-        if !self.initialized {
-            // On first call, snap to input — but guard against NaN/Inf
-            // so the smoother never starts in a corrupted state.
-            self.value = if input.is_finite() { input } else { 0.0 };
-            self.initialized = true;
-            return;
-        }
-        let smoothed = smooth_value(self.value, input);
-        if smoothed.is_finite() {
-            self.value = smoothed;
-        } else if input.is_finite() {
-            // Smoother corrupted but input is valid — snap to input to recover.
-            self.value = input;
-        }
-        // If neither is finite, hold previous value (best-effort freeze).
-    }
+    offset: f32,
+    coeff: f32,
+    /// Generation of the last mark seen; a different one means a swap happened.
+    generation: u64,
+    /// Offset decay time constant, in seconds.
+    tau: f32,
 }
 
-impl From<Clickless> for f32 {
-    fn from(clickless: Clickless) -> Self {
-        clickless.value
-    }
-}
-
-impl From<f32> for Clickless {
-    fn from(value: f32) -> Self {
-        Clickless {
-            value,
-            initialized: false,
+impl Default for SwapGlide {
+    fn default() -> Self {
+        Self {
+            value: f32::NAN,
+            offset: 0.0,
+            coeff: 0.0,
+            generation: 0,
+            tau: SWAP_GLIDE_TAU_SECONDS,
         }
     }
 }
 
-impl Deref for Clickless {
+impl SwapGlide {
+    pub fn with_time_constant(seconds: f32) -> Self {
+        Self {
+            tau: seconds,
+            ..Self::default()
+        }
+    }
+
+    /// Whether a patch-update glide is in progress.
+    pub fn gliding(&self) -> bool {
+        self.offset != 0.0
+    }
+
+    /// Whether the next `update` with `mark` starts a glide or continues one.
+    #[inline]
+    pub fn will_glide(&self, mark: GlideMark) -> bool {
+        self.offset != 0.0 || (mark.generation != self.generation && mark.changed())
+    }
+
+    /// Records `value` as the current input for a stretch a block path ran
+    /// without calling `update`. Only valid while
+    /// [`will_glide`](Self::will_glide)`(mark)` is false; a non-finite value
+    /// keeps the current one, as `update` would.
+    #[inline]
+    pub fn settle(&mut self, value: f32, mark: GlideMark) {
+        if value.is_finite() {
+            self.value = value;
+        }
+        self.generation = mark.generation;
+    }
+
+    /// Updates with `input` and returns the value to use: the glided one
+    /// mid-glide, `input` itself otherwise, so a per-sample path reads the
+    /// param exactly as a block path that skips idle glides does.
+    #[inline]
+    pub fn follow(&mut self, input: f32, mark: GlideMark, sample_rate: f32) -> f32 {
+        self.update(input, mark, sample_rate);
+        if self.gliding() { self.value } else { input }
+    }
+
+    /// A non-finite input holds the current value (0 before the first update).
+    #[inline]
+    pub fn update(&mut self, input: f32, mark: GlideMark, sample_rate: f32) {
+        let input = if input.is_finite() {
+            input
+        } else if self.value.is_finite() {
+            self.value
+        } else {
+            0.0
+        };
+        if mark.generation != self.generation {
+            self.generation = mark.generation;
+            if mark.changed() && self.value.is_finite() {
+                self.offset = self.value - input;
+                self.coeff = (-1.0 / (self.tau * sample_rate)).exp();
+            }
+        }
+        self.value = if self.offset == 0.0 {
+            input
+        } else {
+            let out = input + self.offset;
+            self.offset *= self.coeff;
+            if self.offset.abs() < SWAP_GLIDE_EPSILON {
+                self.offset = 0.0;
+            }
+            out
+        };
+    }
+}
+
+impl Deref for SwapGlide {
     type Target = f32;
 
     fn deref(&self) -> &Self::Target {
         &self.value
-    }
-}
-
-impl Add<f32> for Clickless {
-    type Output = f32;
-    fn add(self, rhs: f32) -> Self::Output {
-        self.value + rhs
-    }
-}
-
-impl Add for Clickless {
-    type Output = f32;
-    fn add(self, rhs: Self) -> Self::Output {
-        self.value + rhs.value
-    }
-}
-
-impl Sub<f32> for Clickless {
-    type Output = f32;
-    fn sub(self, rhs: f32) -> Self::Output {
-        self.value - rhs
-    }
-}
-
-impl Sub for Clickless {
-    type Output = f32;
-    fn sub(self, rhs: Self) -> Self::Output {
-        self.value - rhs.value
-    }
-}
-
-impl Mul<f32> for Clickless {
-    type Output = f32;
-    fn mul(self, rhs: f32) -> Self::Output {
-        self.value * rhs
-    }
-}
-
-impl Mul for Clickless {
-    type Output = f32;
-    fn mul(self, rhs: Self) -> Self::Output {
-        self.value * rhs.value
-    }
-}
-
-impl Div<f32> for Clickless {
-    type Output = f32;
-    fn div(self, rhs: f32) -> Self::Output {
-        self.value / rhs
-    }
-}
-
-impl Div for Clickless {
-    type Output = f32;
-    fn div(self, rhs: Self) -> Self::Output {
-        self.value / rhs.value
     }
 }
 
@@ -518,12 +559,12 @@ pub trait Connect {
     /// thread during patch apply, so it must not allocate.
     fn connect(&mut self, patch: &Patch);
 
-    /// Walk this value and push every producer module ID it references
-    /// (cables, buffer sources, table-internal signals) into `sink`.
+    /// Walk this value and push every producer output it references
+    /// (cables, buffer sources, signals inside phase warps) into `sink`.
     ///
-    /// Used by graph_analysis to build SCC adjacency before module
-    /// construction.
-    fn collect_cables(&self, sink: &mut Vec<String>);
+    /// Used before module construction to build the SCC adjacency and to work
+    /// out which modules read f64 outputs.
+    fn collect_cables(&self, sink: &mut Vec<CableSource>);
 
     /// Walk this value and inject `ptr` as the back-pointer that every
     /// `Signal::Cable` reads at sample-time to know which sample slot of
@@ -534,6 +575,30 @@ pub trait Connect {
     /// their explicit impl. Every `Connect` impl must declare its behaviour
     /// — same contract as `collect_cables`.
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>);
+
+    /// Stamp every signal with `generation` and record which of its channels
+    /// differ from the matching signal in `old`, the params of the module this
+    /// one replaces (`None` when nothing matches, so every channel counts as
+    /// changed). A [`SwapGlide`] glides only across a changed channel. Runs on
+    /// the audio thread during the swap, so it must not allocate. Containers
+    /// pair items by position; leaf types are no-op.
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds);
+}
+
+/// Maps a module id in the incoming patch to the id the same module had in
+/// the outgoing one, so a cable whose upstream was renamed still counts as
+/// unchanged. `None` means the module has no predecessor.
+pub trait PreviousIds {
+    fn previous<'a>(&'a self, id: &'a str) -> Option<&'a str>;
+}
+
+/// Every module keeps its id.
+pub struct SameIds;
+
+impl PreviousIds for SameIds {
+    fn previous<'a>(&'a self, id: &'a str) -> Option<&'a str> {
+        Some(id)
+    }
 }
 
 // ============================================================================
@@ -545,8 +610,9 @@ macro_rules! impl_connect_noop {
         $(impl Connect for $t {
             fn apply_default_connections(&mut self) {}
             fn connect(&mut self, _patch: &Patch) {}
-            fn collect_cables(&self, _sink: &mut Vec<String>) {}
+            fn collect_cables(&self, _sink: &mut Vec<CableSource>) {}
             fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {}
+            fn mark_glides(&mut self, _old: Option<&Self>, _generation: u64, _ids: &dyn PreviousIds) {}
         })*
     };
 }
@@ -570,7 +636,7 @@ impl<T: Connect> Connect for Vec<T> {
             item.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         for item in self {
             item.collect_cables(sink);
         }
@@ -578,6 +644,11 @@ impl<T: Connect> Connect for Vec<T> {
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for item in self {
             item.inject_index_ptr(ptr);
+        }
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        for (i, item) in self.iter_mut().enumerate() {
+            item.mark_glides(old.and_then(|o| o.get(i)), generation, ids);
         }
     }
 }
@@ -593,7 +664,7 @@ impl<T: Connect> Connect for Option<T> {
             inner.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         if let Some(inner) = self {
             inner.collect_cables(sink);
         }
@@ -601,6 +672,11 @@ impl<T: Connect> Connect for Option<T> {
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         if let Some(inner) = self {
             inner.inject_index_ptr(ptr);
+        }
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        if let Some(inner) = self {
+            inner.mark_glides(old.and_then(|o| o.as_ref()), generation, ids);
         }
     }
 }
@@ -612,11 +688,14 @@ impl<T: Connect> Connect for Box<T> {
     fn connect(&mut self, patch: &Patch) {
         (**self).connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         (**self).collect_cables(sink);
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         (**self).inject_index_ptr(ptr);
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        (**self).mark_glides(old.map(|o| &**o), generation, ids);
     }
 }
 
@@ -631,7 +710,7 @@ impl<T: Connect, const N: usize> Connect for [T; N] {
             item.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         for item in self {
             item.collect_cables(sink);
         }
@@ -639,6 +718,11 @@ impl<T: Connect, const N: usize> Connect for [T; N] {
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for item in self {
             item.inject_index_ptr(ptr);
+        }
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        for (i, item) in self.iter_mut().enumerate() {
+            item.mark_glides(old.and_then(|o| o.get(i)), generation, ids);
         }
     }
 }
@@ -654,7 +738,7 @@ impl<V: Connect> Connect for std::collections::HashMap<String, V> {
             v.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         for v in self.values() {
             v.collect_cables(sink);
         }
@@ -662,6 +746,11 @@ impl<V: Connect> Connect for std::collections::HashMap<String, V> {
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for v in self.values_mut() {
             v.inject_index_ptr(ptr);
+        }
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        for (k, v) in self.iter_mut() {
+            v.mark_glides(old.and_then(|o| o.get(k)), generation, ids);
         }
     }
 }
@@ -677,7 +766,7 @@ impl<V: Connect> Connect for std::collections::BTreeMap<String, V> {
             v.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         for v in self.values() {
             v.collect_cables(sink);
         }
@@ -685,6 +774,11 @@ impl<V: Connect> Connect for std::collections::BTreeMap<String, V> {
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for v in self.values_mut() {
             v.inject_index_ptr(ptr);
+        }
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        for (k, v) in self.iter_mut() {
+            v.mark_glides(old.and_then(|o| o.get(k)), generation, ids);
         }
     }
 }
@@ -697,11 +791,14 @@ impl<T1: Connect> Connect for (T1,) {
     fn connect(&mut self, patch: &Patch) {
         self.0.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        self.0.mark_glides(old.map(|o| &o.0), generation, ids);
     }
 }
 
@@ -714,13 +811,17 @@ impl<T1: Connect, T2: Connect> Connect for (T1, T2) {
         self.0.connect(patch);
         self.1.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
         self.1.collect_cables(sink);
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
         self.1.inject_index_ptr(ptr);
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        self.0.mark_glides(old.map(|o| &o.0), generation, ids);
+        self.1.mark_glides(old.map(|o| &o.1), generation, ids);
     }
 }
 
@@ -735,7 +836,7 @@ impl<T1: Connect, T2: Connect, T3: Connect> Connect for (T1, T2, T3) {
         self.1.connect(patch);
         self.2.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
         self.1.collect_cables(sink);
         self.2.collect_cables(sink);
@@ -744,6 +845,11 @@ impl<T1: Connect, T2: Connect, T3: Connect> Connect for (T1, T2, T3) {
         self.0.inject_index_ptr(ptr);
         self.1.inject_index_ptr(ptr);
         self.2.inject_index_ptr(ptr);
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        self.0.mark_glides(old.map(|o| &o.0), generation, ids);
+        self.1.mark_glides(old.map(|o| &o.1), generation, ids);
+        self.2.mark_glides(old.map(|o| &o.2), generation, ids);
     }
 }
 
@@ -760,7 +866,7 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect> Connect for (T1, T2, T3
         self.2.connect(patch);
         self.3.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
         self.1.collect_cables(sink);
         self.2.collect_cables(sink);
@@ -771,6 +877,12 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect> Connect for (T1, T2, T3
         self.1.inject_index_ptr(ptr);
         self.2.inject_index_ptr(ptr);
         self.3.inject_index_ptr(ptr);
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        self.0.mark_glides(old.map(|o| &o.0), generation, ids);
+        self.1.mark_glides(old.map(|o| &o.1), generation, ids);
+        self.2.mark_glides(old.map(|o| &o.2), generation, ids);
+        self.3.mark_glides(old.map(|o| &o.3), generation, ids);
     }
 }
 
@@ -791,7 +903,7 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect, T5: Connect> Connect
         self.3.connect(patch);
         self.4.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
         self.1.collect_cables(sink);
         self.2.collect_cables(sink);
@@ -804,6 +916,13 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect, T5: Connect> Connect
         self.2.inject_index_ptr(ptr);
         self.3.inject_index_ptr(ptr);
         self.4.inject_index_ptr(ptr);
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        self.0.mark_glides(old.map(|o| &o.0), generation, ids);
+        self.1.mark_glides(old.map(|o| &o.1), generation, ids);
+        self.2.mark_glides(old.map(|o| &o.2), generation, ids);
+        self.3.mark_glides(old.map(|o| &o.3), generation, ids);
+        self.4.mark_glides(old.map(|o| &o.4), generation, ids);
     }
 }
 
@@ -818,8 +937,15 @@ pub trait PolySignalFields {
     }
 }
 
+/// `skip_serializing_if` predicate `#[params]` puts on a param with a
+/// documented default, so the JSON schema shows that value instead of the
+/// field type's own default.
+pub fn documented_schema_default<T>(_: &T) -> bool {
+    true
+}
+
 /// Trait for params structs to expose signal parameter metadata.
-/// Auto-derived by the `SignalParams` derive macro.
+/// Emitted by the `#[params]` attribute.
 pub trait SignalParamMeta {
     fn signal_param_schemas() -> Vec<SignalParamSchema>
     where
@@ -967,14 +1093,6 @@ impl SampleBuffer {
         f(&mut self.samples)
     }
 
-    /// Hermite (4-point cubic) interpolation at a fractional frame position.
-    /// Out-of-bounds indices are clamped — suitable for one-shot sample playback.
-    /// Allocation-free; safe for the audio thread.
-    #[inline]
-    pub fn read_hermite_clamped(&self, channel: usize, frame: f32) -> f32 {
-        hermite_clamped(self.channel(channel), frame)
-    }
-
     /// One channel's samples; empty for a channel the buffer does not have.
     #[inline]
     pub fn channel(&self, channel: usize) -> &[f32] {
@@ -1021,22 +1139,46 @@ impl SampleBuffer {
     }
 }
 
+/// Hermite (4-point cubic) read of `samples` as a ring of `len` frames: the
+/// position and its neighbours wrap, so the last frame interpolates into the
+/// first. The frame is f64 for the same reason as [`hermite_clamped`].
+#[inline]
+pub fn hermite_wrapped(samples: &[f32], frame: f64) -> f32 {
+    let n = samples.len();
+    if !frame.is_finite() || n == 0 {
+        return 0.0;
+    }
+    let frame = frame.rem_euclid(n as f64);
+    // rem_euclid can round up to exactly n for tiny negative inputs.
+    let left = (frame as usize).min(n - 1);
+    let frac = (frame - left as f64) as f32;
+    if frac <= f32::EPSILON {
+        return samples[left];
+    }
+    hermite4(
+        samples[(left + n - 1) % n],
+        samples[left],
+        samples[(left + 1) % n],
+        samples[(left + 2) % n],
+        frac,
+    )
+}
+
 /// Hermite (4-point cubic) read of `samples` at a fractional frame position,
 /// silent outside `[0, len - 1]` and clamping the neighbours at the ends.
+/// The frame is f64 and only the fraction narrows to f32: past 2^24 frames
+/// (about six minutes at 48 kHz) an f32 frame cannot hold a fraction, and
+/// its rounding can carry a bounds check past the last frame.
 #[inline]
-pub fn hermite_clamped(samples: &[f32], frame: f32) -> f32 {
+pub fn hermite_clamped(samples: &[f32], frame: f64) -> f32 {
     let frame_count = samples.len();
-    if !frame.is_finite() || frame_count == 0 {
+    // Also rejects NaN and an empty buffer.
+    if !(frame >= 0.0 && frame <= frame_count as f64 - 1.0) {
         return 0.0;
     }
 
-    let max_frame = (frame_count - 1) as f32;
-    if frame < 0.0 || frame > max_frame {
-        return 0.0;
-    }
-
-    let left = frame.floor() as usize;
-    let frac = frame - left as f32;
+    let left = frame as usize;
+    let frac = (frame - left as f64) as f32;
     if frac <= f32::EPSILON {
         return samples[left];
     }
@@ -1101,12 +1243,6 @@ impl WavData {
 
     pub fn read(&self, channel: usize, frame: usize) -> f32 {
         self.buffer.read(channel, frame)
-    }
-
-    /// Hermite-interpolated read with clamping (for one-shot sample playback).
-    #[inline]
-    pub fn read_hermite_clamped(&self, channel: usize, frame: f32) -> f32 {
-        self.buffer.read_hermite_clamped(channel, frame)
     }
 
     /// One channel's samples; empty for a channel the file does not have.
@@ -1179,13 +1315,6 @@ impl Wav {
             .unwrap_or(0.0)
     }
 
-    pub fn read_hermite_clamped(&self, channel: usize, frame: f32) -> f32 {
-        self.cached_data
-            .as_ref()
-            .map(|d| d.read_hermite_clamped(channel, frame))
-            .unwrap_or(0.0)
-    }
-
     /// One channel's samples; empty when unloaded or for a channel the file
     /// does not have. Reading through the slice skips the per-read lookups.
     pub fn channel(&self, channel: usize) -> &[f32] {
@@ -1211,12 +1340,13 @@ impl Connect for Wav {
             self.cached_data = None;
         }
     }
-    fn collect_cables(&self, _sink: &mut Vec<String>) {
+    fn collect_cables(&self, _sink: &mut Vec<CableSource>) {
         // Wav references a file path, not a module — no graph edge.
     }
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {
         // No cables — nothing to back-point.
     }
+    fn mark_glides(&mut self, _old: Option<&Self>, _generation: u64, _ids: &dyn PreviousIds) {}
 }
 
 impl std::fmt::Debug for Wav {
@@ -1804,14 +1934,18 @@ impl Connect for Buffer {
         self.cached_source_ptr = None;
         self.cached_buffer = None;
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         // `source_module` is a producer dependency, equivalent to a cable.
-        sink.push(self.source_module.clone());
+        sink.push(CableSource {
+            module: self.source_module.clone(),
+            port: self.source_port.clone(),
+        });
     }
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {
         // Buffer reads `BufferData` directly via cached pointer, not via a
         // sample-indexed cable. No back-pointer needed.
     }
+    fn mark_glides(&mut self, _old: Option<&Self>, _generation: u64, _ids: &dyn PreviousIds) {}
 }
 
 impl std::fmt::Debug for Buffer {
@@ -1838,322 +1972,12 @@ impl PartialEq for Buffer {
     }
 }
 
-// ============================================================================
-// Table — function-object param type for phase warping
-// ============================================================================
-
-/// A function-object param type used by modules (e.g., `$wavetable`) that need a
-/// parameterized phase-warp. Each variant holds `PolySignal` fields for dynamic
-/// parameters; the consuming module resolves signals via `connect()` and calls
-/// `evaluate(x, channel)` per-sample.
-///
-/// JSON shape (serialized/deserialized):
-/// ```json
-/// { "type": "identity" }
-/// { "type": "mirror", "amount": <signal> }
-/// { "type": "bend",   "amount": <signal> }
-/// { "type": "sync",   "ratio":  <signal> }
-/// { "type": "fold",   "amount": <signal> }
-/// { "type": "pwm",    "width":  <signal> }
-/// { "type": "pipe",   "first":  <table>, "second": <table> }
-/// ```
-#[derive(Clone, Debug, Connect)]
-pub enum Table {
-    Identity,
-    Mirror {
-        amount: PolySignal,
-    },
-    Bend {
-        amount: PolySignal,
-    },
-    Sync {
-        ratio: PolySignal,
-    },
-    Fold {
-        amount: PolySignal,
-    },
-    Pwm {
-        width: PolySignal,
-    },
-    /// Compose two tables: output phase of `first` becomes input phase of `second`.
-    Pipe {
-        first: Box<Table>,
-        second: Box<Table>,
-    },
-}
-
-impl Table {
-    /// Evaluate the table warp at position `x` for the given channel.
-    ///
-    /// Must be cheap and allocation-free — called per-sample on the audio thread.
-    #[inline]
-    pub fn evaluate(&self, x: f32, channel: usize) -> f32 {
-        match self {
-            Table::Identity => x,
-            Table::Mirror { amount } => warp::mirror(x, amount.get_value(channel)),
-            Table::Bend { amount } => warp::bend(x, amount.get_value(channel)),
-            Table::Sync { ratio } => warp::sync(x, ratio.get_value(channel)),
-            Table::Fold { amount } => warp::fold(x, amount.get_value(channel)),
-            Table::Pwm { width } => warp::pwm(x, width.get_value(channel)),
-            Table::Pipe { first, second } => second.evaluate(first.evaluate(x, channel), channel),
-        }
-    }
-
-    pub fn channels(&self) -> usize {
-        match self {
-            Table::Identity => 0,
-            Table::Mirror { amount } => amount.channels(),
-            Table::Bend { amount } => amount.channels(),
-            Table::Sync { ratio } => ratio.channels(),
-            Table::Fold { amount } => amount.channels(),
-            Table::Pwm { width } => width.channels(),
-            Table::Pipe { first, second } => first.channels().max(second.channels()),
-        }
-    }
-}
-
-// --- Serde Serialize / Deserialize (internally-tagged on "type") ---
-
-#[derive(Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum TableSerde {
-    Identity,
-    Mirror {
-        amount: PolySignal,
-    },
-    Bend {
-        amount: PolySignal,
-    },
-    Sync {
-        ratio: PolySignal,
-    },
-    Fold {
-        amount: PolySignal,
-    },
-    Pwm {
-        width: PolySignal,
-    },
-    Pipe {
-        first: Box<TableSerde>,
-        second: Box<TableSerde>,
-    },
-}
-
-impl From<TableSerde> for Table {
-    fn from(s: TableSerde) -> Self {
-        match s {
-            TableSerde::Identity => Table::Identity,
-            TableSerde::Mirror { amount } => Table::Mirror { amount },
-            TableSerde::Bend { amount } => Table::Bend { amount },
-            TableSerde::Sync { ratio } => Table::Sync { ratio },
-            TableSerde::Fold { amount } => Table::Fold { amount },
-            TableSerde::Pwm { width } => Table::Pwm { width },
-            TableSerde::Pipe { first, second } => Table::Pipe {
-                first: Box::new(Table::from(*first)),
-                second: Box::new(Table::from(*second)),
-            },
-        }
-    }
-}
-
-impl<'a> From<&'a Table> for TableSerdeRef<'a> {
-    fn from(t: &'a Table) -> Self {
-        match t {
-            Table::Identity => TableSerdeRef::Identity,
-            Table::Mirror { amount } => TableSerdeRef::Mirror { amount },
-            Table::Bend { amount } => TableSerdeRef::Bend { amount },
-            Table::Sync { ratio } => TableSerdeRef::Sync { ratio },
-            Table::Fold { amount } => TableSerdeRef::Fold { amount },
-            Table::Pwm { width } => TableSerdeRef::Pwm { width },
-            Table::Pipe { first, second } => TableSerdeRef::Pipe {
-                first: Box::new(TableSerdeRef::from(first.as_ref())),
-                second: Box::new(TableSerdeRef::from(second.as_ref())),
-            },
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum TableSerdeRef<'a> {
-    Identity,
-    Mirror {
-        amount: &'a PolySignal,
-    },
-    Bend {
-        amount: &'a PolySignal,
-    },
-    Sync {
-        ratio: &'a PolySignal,
-    },
-    Fold {
-        amount: &'a PolySignal,
-    },
-    Pwm {
-        width: &'a PolySignal,
-    },
-    Pipe {
-        first: Box<TableSerdeRef<'a>>,
-        second: Box<TableSerdeRef<'a>>,
-    },
-}
-
-impl<'de> Deserialize<'de> for Table {
-    fn deserialize<D>(deserializer: D) -> StdResult<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        TableSerde::deserialize(deserializer).map(Table::from)
-    }
-}
-
-impl Serialize for Table {
-    fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        TableSerdeRef::from(self).serialize(serializer)
-    }
-}
-
-// --- deserr impl (mirrors the serde shape: object with "type" discriminant) ---
-
-impl<E: DeserializeError> deserr::Deserr<E> for Table {
-    fn deserialize_from_value<V: IntoValue>(
-        value: deserr::Value<V>,
-        location: ValuePointerRef<'_>,
-    ) -> StdResult<Self, E> {
-        let mut map = match value {
-            deserr::Value::Map(m) => m,
-            _ => {
-                return Err(deserr::take_cf_content(E::error::<V>(
-                    None,
-                    ErrorKind::Unexpected {
-                        msg: "Table must be an object with a \"type\" field".to_string(),
-                    },
-                    location,
-                )));
-            }
-        };
-
-        let type_val = map.remove("type").and_then(|v| match v.into_value() {
-            deserr::Value::String(s) => Some(s),
-            _ => None,
-        });
-
-        let type_str = type_val.ok_or_else(|| {
-            deserr::take_cf_content(E::error::<V>(
-                None,
-                ErrorKind::MissingField { field: "type" },
-                location,
-            ))
-        })?;
-
-        // Helper: pull a named PolySignal field out of the remaining map.
-        fn take_signal<E2: DeserializeError, V2: IntoValue>(
-            map: &mut impl DeserrMap<Value = V2>,
-            field: &'static str,
-            location: ValuePointerRef<'_>,
-        ) -> StdResult<PolySignal, E2> {
-            let raw = map.remove(field).ok_or_else(|| {
-                deserr::take_cf_content(E2::error::<V2>(
-                    None,
-                    ErrorKind::MissingField { field },
-                    location,
-                ))
-            })?;
-            PolySignal::deserialize_from_value(raw.into_value(), location)
-        }
-
-        match type_str.as_str() {
-            "identity" => Ok(Table::Identity),
-            "mirror" => {
-                let amount = take_signal::<E, V>(&mut map, "amount", location)?;
-                Ok(Table::Mirror { amount })
-            }
-            "bend" => {
-                let amount = take_signal::<E, V>(&mut map, "amount", location)?;
-                Ok(Table::Bend { amount })
-            }
-            "sync" => {
-                let ratio = take_signal::<E, V>(&mut map, "ratio", location)?;
-                Ok(Table::Sync { ratio })
-            }
-            "fold" => {
-                let amount = take_signal::<E, V>(&mut map, "amount", location)?;
-                Ok(Table::Fold { amount })
-            }
-            "pwm" => {
-                let width = take_signal::<E, V>(&mut map, "width", location)?;
-                Ok(Table::Pwm { width })
-            }
-            "pipe" => {
-                let first_raw = map.remove("first").ok_or_else(|| {
-                    deserr::take_cf_content(E::error::<V>(
-                        None,
-                        ErrorKind::MissingField { field: "first" },
-                        location,
-                    ))
-                })?;
-                let second_raw = map.remove("second").ok_or_else(|| {
-                    deserr::take_cf_content(E::error::<V>(
-                        None,
-                        ErrorKind::MissingField { field: "second" },
-                        location,
-                    ))
-                })?;
-                let first = Table::deserialize_from_value(first_raw.into_value(), location)?;
-                let second = Table::deserialize_from_value(second_raw.into_value(), location)?;
-                Ok(Table::Pipe {
-                    first: Box::new(first),
-                    second: Box::new(second),
-                })
-            }
-            other => Err(deserr::take_cf_content(E::error::<V>(
-                None,
-                ErrorKind::Unexpected {
-                    msg: format!("unknown table type: {}", other),
-                },
-                location,
-            ))),
-        }
-    }
-}
-
-impl JsonSchema for Table {
-    fn schema_name() -> Cow<'static, str> {
-        Cow::Borrowed("Table")
-    }
-
-    fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        // Schema matches the serialized form: internally-tagged on "type", camelCase.
-        #[derive(JsonSchema)]
-        #[serde(tag = "type", rename_all = "camelCase")]
-        #[allow(dead_code)]
-        enum TableSchema {
-            Identity,
-            Mirror {
-                amount: PolySignal,
-            },
-            Bend {
-                amount: PolySignal,
-            },
-            Sync {
-                ratio: PolySignal,
-            },
-            Fold {
-                amount: PolySignal,
-            },
-            Pwm {
-                width: PolySignal,
-            },
-            Pipe {
-                first: Box<Table>,
-                second: Box<Table>,
-            },
-        }
-        TableSchema::json_schema(r#gen)
-    }
+/// The module output an input reads from, as reported by
+/// [`Connect::collect_cables`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CableSource {
+    pub module: String,
+    pub port: String,
 }
 
 /// A single-channel signal value.
@@ -2199,6 +2023,9 @@ pub struct PortView {
     pub data: *const f32,
     /// The port's channel width (`>= 1`).
     pub channels: usize,
+    /// f32 values per channel: 2 for an f64 port (see
+    /// [`BlockPort`](crate::block_port::BlockPort)), otherwise 1.
+    pub lanes: usize,
     /// The producing wrapper's per-block cursor: slots below it are computed.
     pub processed: *const std::cell::Cell<usize>,
 }
@@ -2214,6 +2041,8 @@ pub struct CableView {
     data: *const f32,
     stride: usize,
     offset: usize,
+    /// Whether the value at `offset` is followed by its f64 remainder.
+    f64: bool,
     processed: *const std::cell::Cell<usize>,
 }
 
@@ -2221,9 +2050,28 @@ impl CableView {
     fn new(port: PortView, channel: usize) -> Self {
         Self {
             data: port.data,
-            stride: port.channels,
-            offset: channel % port.channels,
+            stride: port.channels * port.lanes,
+            offset: (channel % port.channels) * port.lanes,
+            f64: port.lanes == 2,
             processed: port.processed,
+        }
+    }
+
+    /// Like [`read`](Self::read), at full precision from an f64 port.
+    #[inline]
+    fn read_f64(&self, index: usize) -> Option<f64> {
+        // SAFETY: as `read`; an f64 port's remainder sits inside the same row.
+        unsafe {
+            if index < (*self.processed).get() {
+                let at = self.data.add(index * self.stride + self.offset);
+                Some(if self.f64 {
+                    crate::block_port::join_f64(*at, *at.add(1))
+                } else {
+                    *at as f64
+                })
+            } else {
+                None
+            }
         }
     }
 
@@ -2261,8 +2109,8 @@ pub struct PolyCableView {
 unsafe impl Send for PolyCableView {}
 
 impl PolyCableView {
-    /// `None` unless every signal is a viewed cable onto the same port, signal
-    /// `i` reading the port channel just after signal `i - 1`'s.
+    /// `None` unless every signal is a viewed cable onto the same f32 port,
+    /// signal `i` reading the port channel just after signal `i - 1`'s.
     pub(crate) fn resolve(signals: &[Signal]) -> Option<Self> {
         let mut port: Option<(CableView, SampleablePtr)> = None;
         for (i, signal) in signals.iter().enumerate() {
@@ -2274,6 +2122,9 @@ impl PolyCableView {
             else {
                 return None;
             };
+            if view.f64 {
+                return None;
+            }
             match port {
                 None => port = Some((*view, *source)),
                 Some((first, _)) if first.data == view.data && view.offset == first.offset + i => {}
@@ -2580,6 +2431,35 @@ impl Signal {
             },
         }
     }
+
+    /// Like [`get_value`](Self::get_value), at full precision when the cable
+    /// comes from an f64 port.
+    pub fn get_value_f64(&self) -> f64 {
+        match self {
+            Signal::Volts(v) => *v as f64,
+            Signal::Cable {
+                resolved,
+                port,
+                channel,
+                index_ptr,
+                view,
+                ..
+            } => match resolved {
+                Some(ptr) => {
+                    let index = if index_ptr.is_null() {
+                        0
+                    } else {
+                        unsafe { (*(*index_ptr)).get() }
+                    };
+                    if let Some(value) = view.and_then(|v| v.read_f64(index)) {
+                        return value;
+                    }
+                    unsafe { ptr.as_ref() }.get_value_at_f64(port, *channel, index)
+                }
+                None => 0.0,
+            },
+        }
+    }
 }
 
 /// Extension trait for normalling pattern on optional signals.
@@ -2636,9 +2516,12 @@ impl Connect for Signal {
                 .map(|port_view| CableView::new(port_view, *channel));
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
-        if let Signal::Cable { module, .. } = self {
-            sink.push(module.clone());
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
+        if let Signal::Cable { module, port, .. } = self {
+            sink.push(CableSource {
+                module: module.clone(),
+                port: port.clone(),
+            });
         }
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
@@ -2648,11 +2531,42 @@ impl Connect for Signal {
             *index_ptr = ptr;
         }
     }
+    fn mark_glides(&mut self, _old: Option<&Self>, _generation: u64, _ids: &dyn PreviousIds) {}
 }
 
 impl PartialEq for Box<dyn Sampleable> {
     fn eq(&self, other: &Self) -> bool {
         self.get_id() == other.get_id()
+    }
+}
+
+impl Signal {
+    /// Whether this signal, in the incoming patch, reads the same source as
+    /// `old` did in the outgoing one: the same constant, or a cable from the
+    /// same module (across renames), port and channel.
+    pub(crate) fn same_source(&self, old: &Signal, ids: &dyn PreviousIds) -> bool {
+        match (self, old) {
+            (Signal::Volts(a), Signal::Volts(b)) => a.to_bits() == b.to_bits(),
+            (
+                Signal::Cable {
+                    module,
+                    port,
+                    channel,
+                    ..
+                },
+                Signal::Cable {
+                    module: old_module,
+                    port: old_port,
+                    channel: old_channel,
+                    ..
+                },
+            ) => {
+                channel == old_channel
+                    && port == old_port
+                    && ids.previous(module) == Some(old_module.as_str())
+            }
+            _ => false,
+        }
     }
 }
 
@@ -2738,10 +2652,67 @@ pub enum Seq {
 pub struct SignalParamSchema {
     pub name: String,
     pub description: String,
-    pub signal_type: String,
-    pub default_value: f64,
-    pub min_value: f64,
-    pub max_value: f64,
+    /// A `ParamType` value.
+    #[napi(ts_type = "string")]
+    pub param_type: ParamType,
+    /// What a disconnected input reads, when it reads a fixed value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<f64>,
+    /// The default in words, for one that depends on other params; the docs
+    /// show it in place of `default_value`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_doc: Option<String>,
+    /// Lower bound of the usable range; `None` when unbounded below.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_value: Option<f64>,
+    /// Upper bound of the usable range; `None` when unbounded above.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_value: Option<f64>,
+    /// Slider span of a `control` input; set for every control, `None`
+    /// otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control_min: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub control_max: Option<f64>,
+}
+
+/// The kind of voltage a signal input reads, named in `#[input(type = …)]`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[napi(string_enum = "lowercase")]
+pub enum ParamType {
+    Audio,
+    Control,
+    Pitch,
+    Frequency,
+    Gate,
+    Trig,
+}
+
+/// What an output emits, named in `#[output(type = …)]`: a continuous
+/// voltage, or a gate or trigger on the 0–5 V convention.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[napi(string_enum = "lowercase")]
+pub enum OutputType {
+    Cv,
+    Gate,
+    Trig,
+}
+
+/// The precision of an output's values, named in `#[output(precision = …)]`.
+/// `F64` is for a value such as a song position, which keeps growing past
+/// where f32 can resolve a single sample. `Inherit` is f64 when any of the
+/// module's cables comes from an f64 output, so arithmetic on an f64 value
+/// keeps its precision.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[napi(string_enum = "lowercase")]
+pub enum OutputPrecision {
+    #[default]
+    F32,
+    F64,
+    Inherit,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2750,6 +2721,9 @@ pub struct SignalParamSchema {
 pub struct OutputSchema {
     pub name: String,
     pub description: String,
+    /// An `OutputType` value.
+    #[napi(ts_type = "string")]
+    pub output_type: OutputType,
     /// Whether this output is polyphonic (PolyOutput) or monophonic (f32/f64)
     #[serde(default)]
     pub polyphonic: bool,
@@ -2762,11 +2736,23 @@ pub struct OutputSchema {
     /// The maximum value of the raw output range (before any remapping)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_value: Option<f64>,
+    /// Fixed channel count of a polyphonic output; `None` follows the
+    /// module's derived channel count.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channels: Option<u32>,
+    /// An `OutputPrecision` value.
+    #[serde(default)]
+    #[napi(ts_type = "string")]
+    pub precision: OutputPrecision,
 }
 
 pub trait OutputStruct: Default + Send + 'static {
     /// Set the channel count on all PolyOutput fields.
     fn set_all_channels(&mut self, channels: usize);
+    /// Make the f64 outputs full precision: every `F64` output, and the
+    /// `Inherit` ones when `inherit` is set. Allocates — main thread only,
+    /// after [`set_all_channels`](Self::set_all_channels).
+    fn make_f64_outputs(&mut self, _inherit: bool) {}
     fn schemas() -> Vec<OutputSchema>
     where
         Self: Sized;
@@ -2845,8 +2831,7 @@ pub struct PositionalArg {
 #[napi(object)]
 pub struct ModuleSchema {
     pub name: String,
-    /// Documentation extracted from `///` doc comments on the module struct.
-    pub documentation: String,
+    pub docs: crate::module_docs::ModuleDocsSchema,
     #[napi(ts_type = "Record<string, unknown>")]
     pub params_schema: SchemaContainer,
     pub outputs: Vec<OutputSchema>,
@@ -3752,6 +3737,33 @@ mod sample_buffer_tests {
         let sum: f32 = buf.with_data(|data| data[0].iter().sum());
         assert_eq!(sum, 30.0);
     }
+
+    /// Longer than 2^24 frames, with a length whose last index rounds up to
+    /// the length itself in f32.
+    const LONG_FILE_FRAMES: usize = (1 << 24) + 4;
+
+    #[test]
+    fn hermite_reads_stay_in_bounds_and_precise_past_f32_range() {
+        let n = LONG_FILE_FRAMES;
+        assert_eq!((n - 1) as f32, n as f32, "setup: last index must round up");
+        let samples: Vec<f32> = (0..n).map(|i| (i % 7) as f32).collect();
+        let last = (n - 1) as f64;
+        assert_eq!(hermite_clamped(&samples, last), samples[n - 1]);
+        assert_eq!(hermite_clamped(&samples, last + 0.5), 0.0);
+        assert_eq!(hermite_wrapped(&samples, last), samples[n - 1]);
+        // The fraction survives far into the file.
+        let frame = (1u64 << 24) as f64 + 0.25;
+        let left = 1 << 24;
+        let want = hermite4(
+            samples[left - 1],
+            samples[left],
+            samples[left + 1],
+            samples[left + 2],
+            0.25,
+        );
+        assert_eq!(hermite_clamped(&samples, frame), want);
+        assert_eq!(hermite_wrapped(&samples, frame), want);
+    }
 }
 
 #[cfg(test)]
@@ -3857,332 +3869,89 @@ mod wav_tests {
 }
 
 #[cfg(test)]
-mod table_tests {
-    use super::*;
-    use crate::poly::PolySignal;
+mod swap_glide_tests {
+    use super::{GlideMark, SwapGlide};
 
-    fn constant(v: f32) -> PolySignal {
-        PolySignal::mono(Signal::Volts(v))
+    const SR: f32 = 48_000.0;
+
+    const fn mark(generation: u64, changed: bool) -> GlideMark {
+        GlideMark {
+            generation,
+            changed: if changed { u64::MAX } else { 0 },
+            channel: 0,
+            channels: 1,
+        }
     }
 
-    // ---------- evaluate() ----------
+    fn step(g: &mut SwapGlide, x: f32, m: GlideMark) -> f32 {
+        g.update(x, m, SR);
+        **g
+    }
 
     #[test]
-    fn identity_evaluates_as_passthrough() {
-        let t = Table::Identity;
-        for i in 0..=10 {
-            let x = i as f32 / 10.0;
-            assert!((t.evaluate(x, 0) - x).abs() < 1e-6);
+    fn passes_modulation_through_unfiltered() {
+        let mut g = SwapGlide::default();
+        for i in 0..1000 {
+            let x = if (i / 7) % 2 == 0 { -5.0 } else { 5.0 };
+            assert_eq!(step(&mut g, x, mark(0, true)), x);
         }
     }
 
     #[test]
-    fn mirror_evaluates_with_constant_signal() {
-        let t = Table::Mirror {
-            amount: constant(0.0),
-        };
-        // amount=0 => identity.
-        for i in 0..=10 {
-            let x = i as f32 / 10.0;
-            assert!((t.evaluate(x, 0) - x).abs() < 1e-6);
+    fn fresh_module_starts_on_input() {
+        let mut g = SwapGlide::default();
+        assert_eq!(step(&mut g, 3.0, mark(1, true)), 3.0);
+    }
+
+    #[test]
+    fn changed_swap_continues_from_last_value_and_converges() {
+        let mut g = SwapGlide::default();
+        step(&mut g, 0.0, mark(0, true));
+        assert!(g.will_glide(mark(1, true)));
+        let mut prev = step(&mut g, 4.0, mark(1, true));
+        assert_eq!(prev, 0.0);
+        assert!(g.gliding());
+        for _ in 0..(SR as usize / 20) {
+            let y = step(&mut g, 4.0, mark(1, true));
+            assert!(y >= prev && y <= 4.0);
+            prev = y;
         }
-        // amount=1 at midpoint => 1.0.
-        let t = Table::Mirror {
-            amount: constant(1.0),
-        };
-        assert!((t.evaluate(0.5, 0) - 1.0).abs() < 1e-6);
+        assert_eq!(prev, 4.0);
+        assert!(!g.gliding());
     }
 
     #[test]
-    fn bend_evaluates_with_constant_signal() {
-        let t = Table::Bend {
-            amount: constant(0.0),
-        };
-        for i in 0..=10 {
-            let x = i as f32 / 10.0;
-            assert!((t.evaluate(x, 0) - x).abs() < 1e-6);
-        }
-        // Endpoints preserved even under bend.
-        let t = Table::Bend {
-            amount: constant(0.7),
-        };
-        assert!(t.evaluate(0.0, 0).abs() < 1e-6);
-        assert!((t.evaluate(1.0, 0) - 1.0).abs() < 1e-6);
+    fn unchanged_swap_passes_the_jump_through() {
+        let mut g = SwapGlide::default();
+        step(&mut g, 0.0, mark(0, true));
+        assert!(!g.will_glide(mark(1, false)));
+        assert_eq!(step(&mut g, 4.0, mark(1, false)), 4.0);
     }
 
     #[test]
-    fn sync_evaluates_with_constant_signal() {
-        // ratio=0 => 1x (identity on [0, 1)).
-        let t = Table::Sync {
-            ratio: constant(0.0),
-        };
-        for i in 0..100 {
-            let x = i as f32 / 100.0;
-            assert!((t.evaluate(x, 0) - x).abs() < 1e-6);
-        }
+    fn removing_a_param_glides_to_its_default() {
+        let mut g = SwapGlide::default();
+        step(&mut g, 3.0, mark(4, false));
+        assert_eq!(step(&mut g, 0.0, GlideMark::ABSENT), 3.0);
+        assert!(g.gliding());
     }
 
     #[test]
-    fn fold_evaluates_with_constant_signal() {
-        // amount=0 => identity.
-        let t = Table::Fold {
-            amount: constant(0.0),
-        };
-        for i in 0..=10 {
-            let x = i as f32 / 10.0;
-            assert!((t.evaluate(x, 0) - x).abs() < 1e-6);
-        }
+    fn glide_preserves_modulation_on_top_of_offset() {
+        let mut g = SwapGlide::default();
+        step(&mut g, 0.0, mark(0, true));
+        let a = step(&mut g, 4.0, mark(1, true));
+        let b = step(&mut g, 5.0, mark(1, true));
+        let c = step(&mut g, 4.0, mark(1, true));
+        assert!(b - a > 0.9);
+        assert!(b - c > 0.9);
     }
 
     #[test]
-    fn pwm_evaluates_with_constant_signal() {
-        let t = Table::Pwm {
-            width: constant(0.5),
-        };
-        assert!(t.evaluate(0.0, 0).abs() < 1e-6);
-        assert!((t.evaluate(1.0, 0) - 1.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn evaluate_output_in_range_across_sweep() {
-        let cases: Vec<Table> = vec![
-            Table::Identity,
-            Table::Mirror {
-                amount: constant(0.5),
-            },
-            Table::Bend {
-                amount: constant(0.5),
-            },
-            Table::Sync {
-                ratio: constant(0.5),
-            },
-            Table::Fold {
-                amount: constant(0.5),
-            },
-            Table::Pwm {
-                width: constant(0.3),
-            },
-        ];
-        for t in &cases {
-            for i in 0..=100 {
-                let x = i as f32 / 100.0;
-                let y = t.evaluate(x, 0);
-                assert!(
-                    (0.0..=1.0).contains(&y),
-                    "table variant output {} out of range for x={}",
-                    y,
-                    x
-                );
-            }
-        }
-    }
-
-    // ---------- connect() ----------
-
-    #[test]
-    fn connect_identity_is_noop() {
-        let patch = Patch::new();
-        let mut t = Table::Identity;
-        t.connect(&patch);
-        assert!(matches!(t, Table::Identity));
-    }
-
-    #[test]
-    fn connect_resolves_polysignal_for_every_variant() {
-        // With PolySignal::mono(Signal::Volts(x)), `connect()` is a no-op on Volts,
-        // so we mostly assert that it runs without panic and evaluates sensibly.
-        let patch = Patch::new();
-
-        let mut mirror = Table::Mirror {
-            amount: constant(0.25),
-        };
-        mirror.connect(&patch);
-        // At x=0.5 the reflection is 1.0; interpolated at amount=0.25: 0.5 + 0.5*0.25 = 0.625.
-        assert!((mirror.evaluate(0.5, 0) - 0.625).abs() < 1e-4);
-
-        let mut bend = Table::Bend {
-            amount: constant(0.0),
-        };
-        bend.connect(&patch);
-        assert!((bend.evaluate(0.5, 0) - 0.5).abs() < 1e-6);
-
-        let mut sync = Table::Sync {
-            ratio: constant(0.0),
-        };
-        sync.connect(&patch);
-        assert!((sync.evaluate(0.25, 0) - 0.25).abs() < 1e-6);
-
-        let mut fold = Table::Fold {
-            amount: constant(0.0),
-        };
-        fold.connect(&patch);
-        assert!((fold.evaluate(0.5, 0) - 0.5).abs() < 1e-6);
-
-        let mut pwm = Table::Pwm {
-            width: constant(0.5),
-        };
-        pwm.connect(&patch);
-        assert!((pwm.evaluate(0.5, 0) - 0.5).abs() < 1e-6);
-    }
-
-    // ---------- (de)serialization round trip ----------
-
-    #[test]
-    fn table_deserializes_identity() {
-        let t: Table = serde_json::from_str(r#"{"type":"identity"}"#).unwrap();
-        assert!(matches!(t, Table::Identity));
-    }
-
-    #[test]
-    fn table_deserializes_mirror_with_scalar_signal() {
-        let t: Table = serde_json::from_str(r#"{"type":"mirror","amount":0.5}"#).unwrap();
-        match t {
-            Table::Mirror { amount } => {
-                assert!((amount.get_value(0) - 0.5).abs() < 1e-6);
-            }
-            _ => panic!("expected Mirror"),
-        }
-    }
-
-    #[test]
-    fn table_deserializes_pwm_with_scalar_signal() {
-        let t: Table = serde_json::from_str(r#"{"type":"pwm","width":0.25}"#).unwrap();
-        match t {
-            Table::Pwm { width } => {
-                assert!((width.get_value(0) - 0.25).abs() < 1e-6);
-            }
-            _ => panic!("expected Pwm"),
-        }
-    }
-
-    #[test]
-    fn table_roundtrips_identity() {
-        let t = Table::Identity;
-        let json = serde_json::to_string(&t).unwrap();
-        assert_eq!(json, r#"{"type":"identity"}"#);
-    }
-
-    #[test]
-    fn table_roundtrips_sync() {
-        let t = Table::Sync {
-            ratio: constant(0.75),
-        };
-        let json = serde_json::to_string(&t).unwrap();
-        let back: Table = serde_json::from_str(&json).unwrap();
-        match back {
-            Table::Sync { ratio } => {
-                assert!((ratio.get_value(0) - 0.75).abs() < 1e-6);
-            }
-            _ => panic!("expected Sync"),
-        }
-    }
-
-    // ---------- deserr parity ----------
-
-    #[test]
-    fn table_deserr_parses_mirror() {
-        use deserr::deserialize;
-
-        let value: serde_json::Value =
-            serde_json::from_str(r#"{"type":"mirror","amount":0.5}"#).unwrap();
-        let t: Table = deserialize::<Table, _, deserr::errors::JsonError>(value).unwrap();
-        match t {
-            Table::Mirror { amount } => {
-                assert!((amount.get_value(0) - 0.5).abs() < 1e-6);
-            }
-            _ => panic!("expected Mirror"),
-        }
-    }
-
-    #[test]
-    fn table_deserr_parses_identity() {
-        use deserr::deserialize;
-        let value: serde_json::Value = serde_json::from_str(r#"{"type":"identity"}"#).unwrap();
-        let t: Table = deserialize::<Table, _, deserr::errors::JsonError>(value).unwrap();
-        assert!(matches!(t, Table::Identity));
-    }
-
-    #[test]
-    fn table_deserr_rejects_unknown_type() {
-        use deserr::deserialize;
-        let value: serde_json::Value = serde_json::from_str(r#"{"type":"bogus"}"#).unwrap();
-        let res: StdResult<Table, deserr::errors::JsonError> = deserialize(value);
-        assert!(res.is_err());
-    }
-
-    // ---------- Pipe composition ----------
-
-    #[test]
-    fn pipe_chains_evaluate_first_then_second() {
-        // mirror(0.5) at x=0.5 → reflected to 1.0 (full mirror).
-        // Then bend(0.0) at 1.0 → 1.0 (identity at amount=0).
-        let t = Table::Pipe {
-            first: Box::new(Table::Mirror {
-                amount: constant(1.0),
-            }),
-            second: Box::new(Table::Bend {
-                amount: constant(0.0),
-            }),
-        };
-        // At x=0.5, mirror with amount=1 maps 0.5→1.0; bend with 0 maps 1.0→1.0.
-        let out = t.evaluate(0.5, 0);
-        assert!((out - 1.0).abs() < 1e-4, "expected ~1.0 got {out}");
-    }
-
-    #[test]
-    fn pipe_channels_is_max_of_both() {
-        let t = Table::Pipe {
-            first: Box::new(Table::Mirror {
-                amount: constant(0.5),
-            }),
-            second: Box::new(Table::Identity),
-        };
-        assert_eq!(t.channels(), 1); // Mirror has 1, Identity has 0
-    }
-
-    #[test]
-    fn pipe_serializes_and_deserializes_via_serde() {
-        let t = Table::Pipe {
-            first: Box::new(Table::Mirror {
-                amount: constant(0.5),
-            }),
-            second: Box::new(Table::Bend {
-                amount: constant(0.3),
-            }),
-        };
-        let json = serde_json::to_string(&t).unwrap();
-        assert!(
-            json.contains("\"type\":\"pipe\""),
-            "missing pipe tag: {json}"
-        );
-        assert!(
-            json.contains("\"type\":\"mirror\""),
-            "missing first: {json}"
-        );
-        assert!(json.contains("\"type\":\"bend\""), "missing second: {json}");
-        let back: Table = serde_json::from_str(&json).unwrap();
-        match back {
-            Table::Pipe { first, second } => {
-                assert!(matches!(*first, Table::Mirror { .. }));
-                assert!(matches!(*second, Table::Bend { .. }));
-            }
-            _ => panic!("expected Pipe"),
-        }
-    }
-
-    #[test]
-    fn pipe_parses_via_deserr() {
-        use deserr::deserialize;
-        let value: serde_json::Value = serde_json::from_str(
-            r#"{"type":"pipe","first":{"type":"mirror","amount":0.5},"second":{"type":"fold","amount":0.2}}"#,
-        ).unwrap();
-        let t: Table = deserialize::<Table, _, deserr::errors::JsonError>(value).unwrap();
-        match t {
-            Table::Pipe { first, second } => {
-                assert!(matches!(*first, Table::Mirror { .. }));
-                assert!(matches!(*second, Table::Fold { .. }));
-            }
-            _ => panic!("expected Pipe"),
-        }
+    fn non_finite_input_holds_the_current_value() {
+        let mut g = SwapGlide::default();
+        assert_eq!(step(&mut g, f32::NAN, mark(0, true)), 0.0);
+        step(&mut g, 2.0, mark(0, true));
+        assert_eq!(step(&mut g, f32::INFINITY, mark(0, true)), 2.0);
     }
 }

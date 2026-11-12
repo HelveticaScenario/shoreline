@@ -164,7 +164,7 @@ describe('$v warps and modulators', () => {
 
         it('chains the way the function is called', () => {
             const chained = wgslOf(`
-                $v.hsv($v.ramp()).$.modulateScale(${noise}, 2, 0.5).out();
+                $v.hsv($v.ramp()).modulateScale(${noise}, 2, 0.5).out();
             `);
             const called = wgslOf(`
                 $v.out($v.modulateScale($v.hsv($v.ramp()), ${noise}, 2, 0.5));

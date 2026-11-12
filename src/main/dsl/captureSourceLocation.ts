@@ -10,8 +10,29 @@ export function setDSLWrapperLineOffset(offset: number): void {
     dslWrapperLineOffset = offset;
 }
 
-export function getDSLWrapperLineOffset(): number {
-    return dslWrapperLineOffset;
+type SourceLocation = { line: number; column: number };
+
+let pinnedLocation: SourceLocation | undefined;
+
+/**
+ * Run `body` with every capture inside it reading `location`: a call made on
+ * the script's behalf belongs to the place the script wrote, not to the place
+ * that happened to trigger it.
+ */
+export function withSourceLocation<T>(
+    location: SourceLocation | undefined,
+    body: () => T,
+): T {
+    if (!location) {
+        return body();
+    }
+    const outer = pinnedLocation;
+    pinnedLocation = location;
+    try {
+        return body();
+    } finally {
+        pinnedLocation = outer;
+    }
 }
 
 /**
@@ -22,9 +43,10 @@ export function getDSLWrapperLineOffset(): number {
  *
  * Returns `undefined` if the source location cannot be determined.
  */
-export function captureSourceLocation():
-    | { line: number; column: number }
-    | undefined {
+export function captureSourceLocation(): SourceLocation | undefined {
+    if (pinnedLocation) {
+        return pinnedLocation;
+    }
     const stackHolder: { stack?: string } = {};
     Error.captureStackTrace(stackHolder, captureSourceLocation);
 

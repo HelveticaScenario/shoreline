@@ -1,96 +1,60 @@
 /**
- * E2E tests for the Settings panel.
+ * E2E tests for the settings panel in the sidebar.
  */
 
 import { test, expect } from '../fixtures';
 
+const OPEN_SETTINGS = process.platform === 'darwin' ? 'Meta+,' : 'Control+,';
+
 test.describe('settings panel', () => {
-    test('settings can be opened via Cmd+comma or button', async ({
-        window,
-    }) => {
-        await window.waitForTimeout(2000);
+    test('Cmd+comma shows settings in the sidebar', async ({ window }) => {
+        await window.keyboard.press(OPEN_SETTINGS);
 
-        const shortcut = process.platform === 'darwin' ? 'Meta+,' : 'Control+,';
-        await window.keyboard.press(shortcut);
-        await window.waitForTimeout(500);
-
-        // Check if settings panel is visible
-        let settingsVisible = await window
-            .locator('.settings-panel, .settings-overlay, [class*="settings"]')
-            .first()
-            .isVisible()
-            .catch(() => false);
-
-        if (!settingsVisible) {
-            // Try clicking a settings button if keyboard didn't work
-            const settingsBtn = window.locator(
-                'button:has-text("Settings"), button[aria-label="Settings"], .settings-button',
-            );
-            const btnExists = await settingsBtn
-                .first()
-                .isVisible()
-                .catch(() => false);
-            if (btnExists) {
-                await settingsBtn.first().click();
-                await window.waitForTimeout(500);
-                settingsVisible = await window
-                    .locator(
-                        '.settings-panel, .settings-overlay, [class*="settings"]',
-                    )
-                    .first()
-                    .isVisible()
-                    .catch(() => false);
-            }
-        }
-
-        // Settings should be visible by some mechanism
-        // If neither works, this test documents the current state
-        expect(settingsVisible).toBe(true);
+        await expect(window.locator('.settings-sidebar')).toBeVisible();
+        await expect(window.locator('#app-sidebar-title')).toHaveText(
+            'Settings',
+        );
     });
 
-    test('settings panel shows audio device section', async ({ window }) => {
-        await window.waitForTimeout(2000);
+    test('the activity bar opens settings', async ({ window }) => {
+        await window.getByRole('button', { name: 'Settings' }).click();
 
-        // Open settings
-        const shortcut = process.platform === 'darwin' ? 'Meta+,' : 'Control+,';
-        await window.keyboard.press(shortcut);
-
-        // Look for audio-related content
-        const audioSection = window
-            .locator(
-                'text=Audio, text=Output Device, text=Sample Rate, text=Buffer Size',
-            )
-            .first();
-        const hasAudio = await audioSection.isVisible().catch(() => false);
-
-        // If settings opened, there should be audio configuration
-        if (hasAudio) {
-            expect(hasAudio).toBe(true);
-        }
+        await expect(window.locator('.settings-sidebar')).toBeVisible();
     });
 
-    test('settings panel can be closed', async ({ window }) => {
-        await window.waitForTimeout(2000);
+    test('the audio tab shows the output device', async ({ window }) => {
+        await window.keyboard.press(OPEN_SETTINGS);
+        await window.getByRole('tab', { name: 'Audio' }).click();
 
-        // Open settings
-        const shortcut = process.platform === 'darwin' ? 'Meta+,' : 'Control+,';
-        await window.keyboard.press(shortcut);
-        await window.waitForTimeout(500);
+        await expect(
+            window.getByRole('heading', { name: 'Output Device' }),
+        ).toBeVisible();
+    });
 
-        const settingsPanel = window
-            .locator('.settings-panel, .settings-overlay, [class*="settings"]')
-            .first();
-        const wasVisible = await settingsPanel.isVisible().catch(() => false);
+    test('another panel hides settings', async ({ window }) => {
+        await window.keyboard.press(OPEN_SETTINGS);
+        await window.getByRole('button', { name: 'Explorer' }).click();
 
-        if (wasVisible) {
-            // Try Escape to close
-            await window.keyboard.press('Escape');
-            await window.waitForTimeout(500);
+        await expect(window.locator('.settings-sidebar')).toBeHidden();
+    });
 
-            const stillVisible = await settingsPanel
-                .isVisible()
-                .catch(() => false);
-            expect(stillVisible).toBe(false);
-        }
+    test('the sidebar side setting moves the sidebar', async ({ window }) => {
+        await window.keyboard.press(OPEN_SETTINGS);
+        const sidebar = window.locator('.app-sidebar');
+        const sideSelect = window
+            .locator('.settings-section', { hasText: 'Sidebar Side' })
+            .locator('select');
+        const windowWidth = await window.evaluate(() => window.innerWidth);
+
+        await sideSelect.selectOption('left');
+        await expect(sidebar).toHaveClass(/\bleft\b/);
+        expect((await sidebar.boundingBox())?.x).toBe(0);
+
+        await sideSelect.selectOption('right');
+        await expect(sidebar).toHaveClass(/\bright\b/);
+        const box = await sidebar.boundingBox();
+        expect(Math.round((box?.x ?? 0) + (box?.width ?? 0))).toBe(
+            windowWidth,
+        );
     });
 });

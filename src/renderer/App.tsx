@@ -8,21 +8,17 @@ import { performanceOutput } from './video/PerformanceOutput';
 import { AudioControls } from './components/AudioControls';
 import { TransportDisplay } from './components/TransportDisplay';
 import { ErrorDisplay } from './components/ErrorDisplay';
-import { Settings } from './components/Settings';
 import { AudioPanicDialog } from './components/AudioPanicDialog';
 import { EngineHealth } from './components/EngineHealth';
 import { ModuleProfile } from './components/ModuleProfile';
-import { MigrationDiffModal } from './components/MigrationDiffModal';
 import {
     SaveConflictDiff,
     SaveConflictNotification,
 } from './components/SaveConflict';
-import type { MigrationModalSummary } from './components/MigrationDiffModal';
-import { migrateChebyBlockDC } from './dsl/migrateChebyBlockDC';
-import { migrateCycleCalls } from './dsl/migrateCycleCalls';
-import { migrateWavetableArgs } from './dsl/migrateWavetableArgs';
 import type { UpdateNotificationState } from './components/UpdateNotification';
 import { UpdateNotification } from './components/UpdateNotification';
+import { ReleaseNotesDialog } from './components/ReleaseNotesDialog';
+import type { ReleaseNotes } from '../shared/releaseNotes';
 import { CommandPalette } from './components/CommandPalette';
 import './App.css';
 import { editor } from 'monaco-editor';
@@ -33,7 +29,11 @@ import { ControlPanel } from './components/ControlPanel';
 import electronAPI from './electronAPI';
 import type { ValidationError } from '@modular/core';
 import type { QueuedTrigger, ScopeStats } from '@modular/core';
-import type { FileTreeEntry, UpdateAvailableInfo } from '../shared/ipcTypes';
+import type {
+    ChangelogInfo,
+    FileTreeEntry,
+    UpdateAvailableInfo,
+} from '../shared/ipcTypes';
 import type { SliderDefinition } from '../shared/dsl/sliderTypes';
 import type { ButtonDefinition } from '../shared/dsl/buttonTypes';
 import type { VuMeterDef, VuMeterGhost } from '../shared/dsl/vuMeterTypes';
@@ -47,11 +47,12 @@ import type { EditorBuffer } from './types/editor';
 import { applySliderChange } from './app/sliderChange';
 import { applyButtonChange, applyGroupCollapse } from './app/buttonChange';
 import { resolvePrettierOptions } from './components/monaco/formattingProvider';
-import { codeStyleFromPrettier } from './dsl/objectPropertyInsert';
+import { codeStyleFromPrettier } from './dsl/listEdits';
 import { bindControls } from './app/controlBinding';
 import { performanceControls } from './app/performanceControls';
 import { formatPath } from './components/monaco/monacoHelpers';
 import { ControlAnchors, createControlAnchors } from './app/controlAnchors';
+import { applyRuntimeResolutions } from './components/monaco/outputResolutionHints';
 import { extractControls, resolveControls } from './dsl/extractControls';
 import type { ResolvedControls } from './dsl/extractControls';
 import { resolveScopeCallRange } from './app/scopeCallRange';
@@ -65,11 +66,11 @@ import {
     computeOutOptionEdit,
     computeSetOutputGainEdit,
 } from './dsl/outSourceEdit';
-import {
-    VU_PANEL_MAX_HEIGHT,
-    VU_PANEL_MIN_HEIGHT,
-    VuMeterPanel,
-} from './components/VuMeterPanel';
+import { VuMeterPanel } from './components/VuMeterPanel';
+import { BottomBar } from './components/BottomBar';
+import { BottomPanel } from './components/BottomPanel';
+import { useBottomPanel } from './hooks/useBottomPanel';
+import { useEditableConfig } from './hooks/useEditableConfig';
 import type { VuBallistics } from './app/vuMeter';
 import {
     drawVuMeter,
@@ -108,6 +109,11 @@ import {
 } from './app/transportStore';
 import { useTheme } from './themes/ThemeContext';
 
+type ReleaseNotesView =
+    | { kind: 'update' }
+    | { kind: 'whatsNew'; currentVersion: string; releases: ReleaseNotes[] }
+    | { kind: 'changelog'; info: ChangelogInfo };
+
 function App() {
     const {
         codeBackdropOpacity,
@@ -136,7 +142,7 @@ function App() {
     const keybindingsPathRef = useRef<string | null>(null);
     const handleFileSaved = useCallback((filePath: string) => {
         if (filePath === keybindingsPathRef.current) {
-            window.dispatchEvent(new Event('operator:keybindings-changed'));
+            window.dispatchEvent(new Event('shoreline:keybindings-changed'));
         }
     }, []);
 
@@ -172,18 +178,9 @@ function App() {
     // Audio state
     const [isClockRunning, setIsClockRunning] = useState(true);
     const [isRecording, setIsRecording] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isEngineHealthOpen, setIsEngineHealthOpen] = useState(false);
     const [isPaletteOpen, setIsPaletteOpen] = useState(false);
     const [isModuleProfileOpen, setIsModuleProfileOpen] = useState(false);
-    const [migrationState, setMigrationState] = useState<{
-        bufferId: string;
-        original: string;
-        migrated: string;
-        summary: MigrationModalSummary;
-        title?: string;
-        skippedLabel?: string;
-    } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<
         ValidationError[] | null
@@ -210,8 +207,14 @@ function App() {
     const [sliderDefs, setSliderDefs] = useState<SliderDefinition[]>([]);
     const [buttonDefs, setButtonDefs] = useState<ButtonDefinition[]>([]);
     const [vuOutputs, setVuOutputs] = useState<VuMeterDef[]>([]);
-    const [isVuPanelVisible, setIsVuPanelVisible] = useState(false);
-    const [vuPanelHeight, setVuPanelHeight] = useState(150);
+    const [appConfig, changeAppConfig, appConfigLoaded] =
+        useEditableConfig(true);
+    const bottomPanel = useBottomPanel(
+        appConfig,
+        changeAppConfig,
+        appConfigLoaded,
+    );
+    const showBottomPanel = bottomPanel.show;
     /** Code-side control values diverging from the running audio after
      *  Ctrl/Cmd (code-only) panel edits, keyed by meter key. Cleared when a
      *  patch update applies. */
@@ -228,6 +231,8 @@ function App() {
     });
     // Store the version currently being offered so we can reference it later
     const pendingUpdateVersion = useRef('');
+    const [releaseNotesView, setReleaseNotesView] =
+        useState<ReleaseNotesView | null>(null);
 
     const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
     // Mirror of editorRef as state so children that need to react when the
@@ -634,10 +639,10 @@ function App() {
     useEffect(() => {
         vuOutputsRef.current = vuOutputs;
     }, [vuOutputs]);
-    const isVuPanelVisibleRef = useRef(false);
+    const isMixerVisibleRef = useRef(false);
     useEffect(() => {
-        isVuPanelVisibleRef.current = isVuPanelVisible;
-    }, [isVuPanelVisible]);
+        isMixerVisibleRef.current = bottomPanel.tab === 'mixer';
+    }, [bottomPanel.tab]);
 
     /** Set or clear (`value` undefined) one ghost property for a meter. The
      *  ref updates synchronously so a redraw in the same tick sees it. */
@@ -963,26 +968,6 @@ function App() {
         [handleVuToggle],
     );
 
-    // Restore panel visibility and height from the app config once on mount.
-    useEffect(() => {
-        electronAPI.config
-            .read()
-            .then((config) => {
-                setIsVuPanelVisible(config.vuPanelVisible ?? false);
-                if (config.vuPanelHeight !== undefined) {
-                    setVuPanelHeight(
-                        Math.min(
-                            VU_PANEL_MAX_HEIGHT,
-                            Math.max(VU_PANEL_MIN_HEIGHT, config.vuPanelHeight),
-                        ),
-                    );
-                }
-            })
-            .catch((err) => {
-                console.error('Failed to read config:', err);
-            });
-    }, []);
-
     // Load workspace and file tree on mount
     useEffect(() => {
         electronAPI.filesystem
@@ -998,13 +983,10 @@ function App() {
             });
     }, [refreshFileTree]);
 
-    // Refresh file tree when wavs/ folder changes
-    useEffect(() => {
-        const unsubscribe = electronAPI.onWavsChange(() => {
-            void refreshFileTree();
-        });
-        return unsubscribe;
-    }, [refreshFileTree]);
+    useEffect(
+        () => electronAPI.filesystem.onTreeChange(() => void refreshFileTree()),
+        [refreshFileTree],
+    );
 
     const selectWorkspaceFolder = useCallback(async () => {
         // Check for dirty file-backed buffers before switching
@@ -1143,6 +1125,9 @@ function App() {
             (info: UpdateAvailableInfo) => {
                 pendingUpdateVersion.current = info.version;
                 setUpdateState({
+                    currentVersion: info.currentVersion,
+                    hasBreakingChanges: info.hasBreakingChanges,
+                    releaseNotes: info.releaseNotes,
                     releaseUrl: info.releaseUrl,
                     status: 'available',
                     supportsInAppUpdate: info.supportsInAppUpdate,
@@ -1176,6 +1161,39 @@ function App() {
             unsubDownloaded();
             unsubError();
         };
+    }, []);
+
+    // The main process records the running version as seen on the first call,
+    // so the result is applied even if this effect is torn down meanwhile.
+    useEffect(() => {
+        electronAPI.releaseNotes
+            .whatsNew()
+            .then((info) => {
+                if (info.releaseNotes.length > 0) {
+                    setReleaseNotesView({
+                        currentVersion: info.currentVersion,
+                        kind: 'whatsNew',
+                        releases: info.releaseNotes,
+                    });
+                }
+            })
+            .catch((err) => {
+                console.warn("[release-notes] What's new failed:", err);
+            });
+        return electronAPI.releaseNotes.onMenuShow(() => {
+            electronAPI.releaseNotes
+                .getAll()
+                .then((info) => {
+                    setReleaseNotesView({ info, kind: 'changelog' });
+                })
+                .catch((err) => {
+                    console.warn('[release-notes] Changelog failed:', err);
+                });
+        });
+    }, []);
+
+    const closeReleaseNotes = useCallback(() => {
+        setReleaseNotesView(null);
     }, []);
 
     const handleUpdateDownload = useCallback(() => {
@@ -1514,10 +1532,6 @@ function App() {
         }
     }, []);
 
-    const handleVuPanelHeightCommit = useCallback((height: number) => {
-        void electronAPI.config.write({ vuPanelHeight: height });
-    }, []);
-
     const patchCodeRef = useRef(patchCode);
     useEffect(() => {
         patchCodeRef.current = patchCode;
@@ -1565,7 +1579,7 @@ function App() {
                 electronAPI.synthesizer.getScopes(),
                 electronAPI.synthesizer.getTransportState(),
                 // Hidden panel costs zero IPC.
-                isVuPanelVisibleRef.current
+                isMixerVisibleRef.current
                     ? electronAPI.synthesizer.getVuMeters()
                     : Promise.resolve([]),
             ])
@@ -1648,7 +1662,7 @@ function App() {
                     // drain block, not silence — keep the previous frame on
                     // screen instead of blinking the bars to the floor.
                     if (
-                        isVuPanelVisibleRef.current &&
+                        isMixerVisibleRef.current &&
                         vuCanvasMapRef.current.size > 0 &&
                         vuFrames.length > 0
                     ) {
@@ -1801,7 +1815,7 @@ function App() {
         eqController,
     ]);
 
-    // Keep Link phase indicator live while Link is enabled but Operator is stopped.
+    // Keep Link phase indicator live while Link is enabled but Shoreline is stopped.
     // The main tick loop only runs when isClockRunning; this fills the gap so
     // the phase indicator stays animated even before the user presses play.
     useEffect(() => {
@@ -1957,6 +1971,14 @@ function App() {
 
                 const editorInstance = editorRef.current;
                 const model = editorInstance?.getModel();
+
+                if (model) {
+                    void applyRuntimeResolutions(
+                        model,
+                        patchCodeValue,
+                        result.outputResolutions ?? [],
+                    );
+                }
 
                 const previewAnchors = editorInstance
                     ? createVideoPreviewAnchors(
@@ -2201,12 +2223,12 @@ function App() {
             getVuOutputs: () => vuOutputsRef.current,
             getEqPanels: () => eqController.snapshot(),
             isClockRunning: () => isClockRunningRef.current,
-            newUntitledFile: () => executeCommand('operator.newFile'),
+            newUntitledFile: () => executeCommand('shoreline.newFile'),
             openEngineHealth: () => setIsEngineHealthOpen(true),
             openModuleProfile: () => setIsModuleProfileOpen(true),
             setEditorValue: (code: string) => editorRef.current?.setValue(code),
-            setVuPanelVisible: (visible: boolean) =>
-                setIsVuPanelVisible(visible),
+            setMixerVisible: (visible: boolean) =>
+                showBottomPanel(visible ? 'mixer' : null),
             toggleVuMute: (key: string, codeOnly = false) =>
                 handleVuToggle(key, 'mute', codeOnly),
             toggleVuSolo: (key: string, codeOnly = false) =>
@@ -2215,7 +2237,7 @@ function App() {
         return () => {
             delete window.__TEST_API__;
         };
-    }, [eqController, handleVuToggle]);
+    }, [eqController, handleVuToggle, showBottomPanel]);
 
     const handleStopRef = useRef(() => {});
     useEffect(() => {
@@ -2234,28 +2256,6 @@ function App() {
         setValidationErrors(null);
     }, []);
 
-    const handleCloseBuffer = useCallback(
-        async (id: string) => {
-            setMigrationState(null);
-            await closeBuffer(id);
-        },
-        [closeBuffer],
-    );
-
-    const handleSelectBuffer = useCallback(
-        (id: string) => {
-            setMigrationState(null);
-            setActiveBufferId(id);
-        },
-        [setActiveBufferId],
-    );
-
-    useEffect(() => {
-        setMigrationState((prev) =>
-            prev && prev.bufferId !== activeBufferId ? null : prev,
-        );
-    }, [activeBufferId]);
-
     // Refs keep command handlers stable across renders so the registration
     // effect below only needs to run once. Anything captured by closure must
     // funnel through a ref or it goes stale between renders.
@@ -2264,10 +2264,10 @@ function App() {
         activeBufferIdRef.current = activeBufferId;
     }, [activeBufferId]);
 
-    const handleCloseBufferRef = useRef(handleCloseBuffer);
+    const closeBufferRef = useRef(closeBuffer);
     useEffect(() => {
-        handleCloseBufferRef.current = handleCloseBuffer;
-    }, [handleCloseBuffer]);
+        closeBufferRef.current = closeBuffer;
+    }, [closeBuffer]);
 
     const createUntitledFileRef = useRef(createUntitledFile);
     useEffect(() => {
@@ -2301,13 +2301,13 @@ function App() {
             .catch(() => {});
     }, []);
 
-    // Register operator.* commands in the global registry. The Electron menu
+    // Register shoreline.* commands in the global registry. The Electron menu
     // IPC dispatchers below, the cmdk palette, the editor context menu, and
     // the tinykeys keymap all dispatch through `executeCommand` — single
     // source of truth for what each command does.
     useEffect(() => {
         registerCommand(
-            'operator.updatePatch',
+            'shoreline.updatePatch',
             () => {
                 handleSubmitRef.current('NextBar');
             },
@@ -2318,7 +2318,7 @@ function App() {
             },
         );
         registerCommand(
-            'operator.updatePatchNextBeat',
+            'shoreline.updatePatchNextBeat',
             () => {
                 handleSubmitRef.current('NextBeat');
             },
@@ -2329,7 +2329,7 @@ function App() {
             },
         );
         registerCommand(
-            'operator.stop',
+            'shoreline.stop',
             () => {
                 handleStopRef.current();
             },
@@ -2340,7 +2340,7 @@ function App() {
             },
         );
         registerCommand(
-            'operator.cancelQueuedUpdate',
+            'shoreline.cancelQueuedUpdate',
             () => {
                 void electronAPI.synthesizer.cancelQueuedUpdate();
             },
@@ -2351,45 +2351,38 @@ function App() {
             },
         );
         registerCommand(
-            'operator.newFile',
+            'shoreline.newFile',
             () => {
                 createUntitledFileRef.current();
             },
             { label: 'New File', category: 'File' },
         );
         registerCommand(
-            'operator.closeBuffer',
+            'shoreline.closeBuffer',
             () => {
                 const id = activeBufferIdRef.current;
                 if (id) {
-                    void handleCloseBufferRef.current(id);
+                    void closeBufferRef.current(id);
                 }
             },
             { label: 'Close Buffer', category: 'File' },
         );
         registerCommand(
-            'operator.save',
+            'shoreline.save',
             () => {
                 handleSaveFileRef.current();
             },
             { label: 'Save', category: 'File' },
         );
         registerCommand(
-            'operator.openWorkspace',
+            'shoreline.openWorkspace',
             () => {
                 handleOpenWorkspaceRef.current();
             },
             { label: 'Open Workspace…', category: 'File' },
         );
         registerCommand(
-            'operator.openSettings',
-            () => {
-                setIsSettingsOpen(true);
-            },
-            { label: 'Open Settings', category: 'Preferences' },
-        );
-        registerCommand(
-            'operator.showCommandPalette',
+            'shoreline.showCommandPalette',
             () => {
                 setIsPaletteOpen(true);
             },
@@ -2400,7 +2393,7 @@ function App() {
             },
         );
         registerCommand(
-            'operator.openKeybindings',
+            'shoreline.openKeybindings',
             () => {
                 void handleOpenKeybindingsRef.current();
             },
@@ -2410,26 +2403,14 @@ function App() {
             },
         );
         registerCommand(
-            'operator.toggleVuMeters',
-            () => {
-                setIsVuPanelVisible((visible) => {
-                    void electronAPI.config.write({
-                        vuPanelVisible: !visible,
-                    });
-                    return !visible;
-                });
-            },
-            { label: 'Toggle VU Meters', category: 'View' },
-        );
-        registerCommand(
-            'operator.togglePerformanceWindow',
+            'shoreline.togglePerformanceWindow',
             () => {
                 performanceOutput.toggle();
             },
             { label: 'Toggle Performance Window', category: 'View' },
         );
         registerCommand(
-            'operator.togglePerformanceCode',
+            'shoreline.togglePerformanceCode',
             () => {
                 void electronAPI.config.read().then((config) =>
                     electronAPI.config.write({
@@ -2443,20 +2424,18 @@ function App() {
         );
 
         return () => {
-            unregisterCommand('operator.togglePerformanceWindow');
-            unregisterCommand('operator.togglePerformanceCode');
-            unregisterCommand('operator.toggleVuMeters');
-            unregisterCommand('operator.updatePatch');
-            unregisterCommand('operator.updatePatchNextBeat');
-            unregisterCommand('operator.stop');
-            unregisterCommand('operator.cancelQueuedUpdate');
-            unregisterCommand('operator.newFile');
-            unregisterCommand('operator.closeBuffer');
-            unregisterCommand('operator.save');
-            unregisterCommand('operator.openWorkspace');
-            unregisterCommand('operator.openSettings');
-            unregisterCommand('operator.showCommandPalette');
-            unregisterCommand('operator.openKeybindings');
+            unregisterCommand('shoreline.togglePerformanceWindow');
+            unregisterCommand('shoreline.togglePerformanceCode');
+            unregisterCommand('shoreline.updatePatch');
+            unregisterCommand('shoreline.updatePatchNextBeat');
+            unregisterCommand('shoreline.stop');
+            unregisterCommand('shoreline.cancelQueuedUpdate');
+            unregisterCommand('shoreline.newFile');
+            unregisterCommand('shoreline.closeBuffer');
+            unregisterCommand('shoreline.save');
+            unregisterCommand('shoreline.openWorkspace');
+            unregisterCommand('shoreline.showCommandPalette');
+            unregisterCommand('shoreline.openKeybindings');
         };
     }, []);
 
@@ -2469,7 +2448,7 @@ function App() {
         void electronAPI.syphon.isSupported().then((supported) => {
             if (!active || !supported) return;
             registerCommand(
-                'operator.toggleSyphon',
+                'shoreline.toggleSyphon',
                 () => {
                     void electronAPI.syphon.toggle();
                 },
@@ -2478,7 +2457,7 @@ function App() {
         });
         return () => {
             active = false;
-            unregisterCommand('operator.toggleSyphon');
+            unregisterCommand('shoreline.toggleSyphon');
         };
     }, []);
 
@@ -2488,32 +2467,32 @@ function App() {
         // toggling it reads render-state isRecording directly, hence this
         // effect's dependency on it.
         const cleanupNewFile = electronAPI.onMenuNewFile(() => {
-            executeCommand('operator.newFile');
+            executeCommand('shoreline.newFile');
         });
         const cleanupSave = electronAPI.onMenuSave(() => {
-            executeCommand('operator.save');
+            executeCommand('shoreline.save');
         });
         const cleanupStop = electronAPI.onMenuStop(() => {
-            executeCommand('operator.stop');
+            executeCommand('shoreline.stop');
         });
         const cleanupCancelQueuedUpdate = electronAPI.onMenuCancelQueuedUpdate(
             () => {
-                executeCommand('operator.cancelQueuedUpdate');
+                executeCommand('shoreline.cancelQueuedUpdate');
             },
         );
         const cleanupUpdate = electronAPI.onMenuUpdatePatch(() => {
-            executeCommand('operator.updatePatch');
+            executeCommand('shoreline.updatePatch');
         });
         const cleanupUpdateNextBeat = electronAPI.onMenuUpdatePatchNextBeat(
             () => {
-                executeCommand('operator.updatePatchNextBeat');
+                executeCommand('shoreline.updatePatchNextBeat');
             },
         );
         const cleanupOpenWorkspace = electronAPI.onMenuOpenWorkspace(() => {
-            executeCommand('operator.openWorkspace');
+            executeCommand('shoreline.openWorkspace');
         });
         const cleanupCloseBuffer = electronAPI.onMenuCloseBuffer(() => {
-            executeCommand('operator.closeBuffer');
+            executeCommand('shoreline.closeBuffer');
         });
         const cleanupToggleRecording = electronAPI.onMenuToggleRecording(() => {
             if (isRecording) {
@@ -2525,17 +2504,17 @@ function App() {
             }
         });
 
-        const cleanupToggleVuMeters = electronAPI.onMenuToggleVuMeters(() => {
-            executeCommand('operator.toggleVuMeters');
+        const cleanupToggleMixer = electronAPI.onMenuToggleMixer(() => {
+            executeCommand('shoreline.toggleMixer');
         });
         const cleanupTogglePerformanceWindow =
             electronAPI.onMenuTogglePerformanceWindow(() => {
-                executeCommand('operator.togglePerformanceWindow');
+                executeCommand('shoreline.togglePerformanceWindow');
             });
 
         // Handle opening settings from menu (Cmd+,)
         const cleanupOpenSettings = electronAPI.onMenuOpenSettings(() => {
-            executeCommand('operator.openSettings');
+            executeCommand('shoreline.openSettings');
         });
         const cleanupOpenEngineHealth = electronAPI.onMenuOpenEngineHealth(
             () => {
@@ -2547,129 +2526,6 @@ function App() {
                 setIsModuleProfileOpen(true);
             },
         );
-        const cleanupMigrateBuffer = electronAPI.onMenuMigrateBuffer(() => {
-            const ed = editorRef.current;
-            // Read the live id from the ref: this listener is registered once
-            // (deps below), so closing over the `activeBufferId` state would
-            // migrate a stale buffer after the user switches buffers.
-            const activeId = activeBufferIdRef.current;
-            if (!ed || !activeId) {
-                console.warn('Migrate buffer: no editor available');
-                setMigrationState({
-                    bufferId: activeId ?? '',
-                    original: '',
-                    migrated: '',
-                    summary: {
-                        callsChanged: 0,
-                        assignmentsChanged: 0,
-                        commentsChanged: 0,
-                        skippedVariables: [],
-                        error: 'No editor available',
-                    },
-                });
-                return;
-            }
-            const original = ed.getValue();
-            const result = migrateCycleCalls(original);
-            setMigrationState({
-                bufferId: activeId,
-                original,
-                migrated: result.migrated,
-                summary: {
-                    callsChanged: result.callsChanged,
-                    assignmentsChanged: result.assignmentsChanged,
-                    commentsChanged: result.commentsChanged,
-                    skippedVariables: result.skippedVariables,
-                    error: result.error,
-                },
-            });
-        });
-
-        const cleanupMigrateWavetable = electronAPI.onMenuMigrateWavetable(
-            () => {
-                const ed = editorRef.current;
-                // Read the live id from the ref: this listener is registered
-                // once (deps below), so closing over the `activeBufferId` state
-                // would migrate a stale buffer after the user switches buffers.
-                const activeId = activeBufferIdRef.current;
-                const wavetableTitle =
-                    'Migrate $wavetable to pitch-first order';
-                if (!ed || !activeId) {
-                    console.warn('Migrate wavetable: no editor available');
-                    setMigrationState({
-                        bufferId: activeId ?? '',
-                        original: '',
-                        migrated: '',
-                        title: wavetableTitle,
-                        summary: {
-                            callsChanged: 0,
-                            commentsChanged: 0,
-                            skippedVariables: [],
-                            error: 'No editor available',
-                        },
-                    });
-                    return;
-                }
-                const original = ed.getValue();
-                const result = migrateWavetableArgs(original);
-                setMigrationState({
-                    bufferId: activeId,
-                    original,
-                    migrated: result.migrated,
-                    title: wavetableTitle,
-                    skippedLabel: 'Needs manual review:',
-                    summary: {
-                        callsChanged: result.callsChanged,
-                        commentsChanged: result.commentsChanged,
-                        skippedVariables: result.skipped,
-                        error: result.error,
-                    },
-                });
-            },
-        );
-
-        const cleanupMigrateChebyBlockDC =
-            electronAPI.onMenuMigrateChebyBlockDC(() => {
-                const ed = editorRef.current;
-                // Read the live id from the ref: this listener is registered
-                // once (deps below), so closing over the `activeBufferId` state
-                // would migrate a stale buffer after the user switches buffers.
-                const activeId = activeBufferIdRef.current;
-                const chebyTitle =
-                    'Migrate $cheby to preserve pre-DC-blocker output';
-                if (!ed || !activeId) {
-                    console.warn('Migrate $cheby: no editor available');
-                    setMigrationState({
-                        bufferId: activeId ?? '',
-                        original: '',
-                        migrated: '',
-                        title: chebyTitle,
-                        summary: {
-                            callsChanged: 0,
-                            commentsChanged: 0,
-                            skippedVariables: [],
-                            error: 'No editor available',
-                        },
-                    });
-                    return;
-                }
-                const original = ed.getValue();
-                const result = migrateChebyBlockDC(original);
-                setMigrationState({
-                    bufferId: activeId,
-                    original,
-                    migrated: result.migrated,
-                    title: chebyTitle,
-                    skippedLabel: 'Needs manual review:',
-                    summary: {
-                        callsChanged: result.callsChanged,
-                        commentsChanged: 0,
-                        skippedVariables: result.skipped,
-                        error: result.error,
-                    },
-                });
-            });
-
         return () => {
             cleanupNewFile();
             cleanupSave();
@@ -2680,18 +2536,15 @@ function App() {
             cleanupOpenWorkspace();
             cleanupCloseBuffer();
             cleanupToggleRecording();
-            cleanupToggleVuMeters();
+            cleanupToggleMixer();
             cleanupTogglePerformanceWindow();
             cleanupOpenSettings();
             cleanupOpenEngineHealth();
             cleanupOpenModuleProfile();
-            cleanupMigrateBuffer();
-            cleanupMigrateWavetable();
-            cleanupMigrateChebyBlockDC();
         };
     }, [isRecording]);
 
-    // Install the window-level tinykeys keymap. Runs after the operator.*
+    // Install the window-level tinykeys keymap. Runs after the shoreline.*
     // commands above have been registered (effects fire in declaration order),
     // so dispatch always finds a handler. The loader merges user overrides
     // from `<userData>/keybindings.json` on top of `DEFAULT_KEYMAP`.
@@ -2719,11 +2572,11 @@ function App() {
         install();
         // Re-read and re-install when the user saves keybindings.json.
         const onChanged = () => install();
-        window.addEventListener('operator:keybindings-changed', onChanged);
+        window.addEventListener('shoreline:keybindings-changed', onChanged);
         return () => {
             disposed = true;
             window.removeEventListener(
-                'operator:keybindings-changed',
+                'shoreline:keybindings-changed',
                 onChanged,
             );
             disposer?.();
@@ -2788,11 +2641,6 @@ function App() {
                 onDismiss={dismissError}
             />
 
-            <Settings
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-            />
-
             <EngineHealth
                 isOpen={isEngineHealthOpen}
                 onClose={() => setIsEngineHealthOpen(false)}
@@ -2811,56 +2659,18 @@ function App() {
                 editor={paletteEditor}
             />
 
-            {migrationState && (
-                <MigrationDiffModal
-                    isOpen
-                    original={migrationState.original}
-                    migrated={migrationState.migrated}
-                    summary={migrationState.summary}
-                    title={migrationState.title}
-                    skippedLabel={migrationState.skippedLabel}
-                    onCancel={() => setMigrationState(null)}
-                    onApply={() => {
-                        const ed = editorRef.current;
-                        const model = ed?.getModel();
-                        if (!ed || !model) {
-                            setMigrationState(null);
-                            return;
-                        }
-                        if (migrationState.bufferId !== activeBufferId) {
-                            console.warn(
-                                'Migrate apply: active buffer changed since modal opened; aborting',
-                            );
-                            setMigrationState(null);
-                            return;
-                        }
-                        model.pushEditOperations(
-                            [],
-                            [
-                                {
-                                    range: model.getFullModelRange(),
-                                    text: migrationState.migrated,
-                                },
-                            ],
-                            () => null,
-                        );
-                        setMigrationState(null);
-                    }}
-                />
-            )}
-
             <main className="app-main">
-                {!workspaceRoot ? (
-                    <div className="empty-state">
-                        <button
-                            className="open-folder-button"
-                            onClick={selectWorkspaceFolder}
-                        >
-                            Open Folder
-                        </button>
-                    </div>
-                ) : (
-                    <>
+                <div className="app-workspace">
+                    {!workspaceRoot ? (
+                        <div className="empty-state">
+                            <button
+                                className="open-folder-button"
+                                onClick={selectWorkspaceFolder}
+                            >
+                                Open Folder
+                            </button>
+                        </div>
+                    ) : (
                         <div className="editor-panel">
                             <VideoBackdrop
                                 codeBackdropOpacity={codeBackdropOpacity}
@@ -2886,72 +2696,80 @@ function App() {
                             />
                             <PerformancePreview />
                         </div>
-
-                        <Sidebar
-                            explorerContent={
-                                <FileExplorer
-                                    workspaceRoot={workspaceRoot}
-                                    fileTree={fileTree}
-                                    buffers={buffers}
-                                    activeBufferId={activeBufferId}
-                                    runningBufferId={runningBufferId}
-                                    renamingPath={renamingPath}
-                                    formatLabel={formatLabel}
-                                    onSelectBuffer={handleSelectBuffer}
-                                    onOpenFile={handleOpenFile}
-                                    onCreateFile={createUntitledFile}
-                                    onSaveFile={handleSaveFileStable}
-                                    onRenameFile={renameFile}
-                                    onDeleteFile={handleDeleteFile}
-                                    onCloseBuffer={handleCloseBuffer}
-                                    onSelectWorkspace={selectWorkspaceFolder}
-                                    onRefreshTree={refreshFileTree}
-                                    onRenameCommit={handleRenameCommitSafe}
-                                    onRenameCancel={() => setRenamingPath(null)}
-                                    onKeepBuffer={keepBuffer}
-                                />
-                            }
-                            performContent={<PerformancePanel />}
-                            controlContent={
-                                <ControlPanel
-                                    sliders={controlViews.sliders}
-                                    buttons={controlViews.buttons}
-                                    groups={codeControls.groups}
-                                    onGroupToggle={handleGroupToggle}
-                                    onSliderChange={handleSliderChange}
-                                    onButtonChange={handleButtonChange}
-                                    onJump={handleControlJump}
-                                />
-                            }
+                    )}
+                    <BottomPanel
+                        state={bottomPanel}
+                        mixer={
+                            <VuMeterPanel
+                                outputs={vuOutputs}
+                                onToggleMute={handleVuToggleMute}
+                                onToggleSolo={handleVuToggleSolo}
+                                ghosts={vuGhosts}
+                                onPanChange={handleVuPanChange}
+                                onPanCommit={handleVuPanCommit}
+                                onGainChange={handleVuGainChange}
+                                onGainCommit={handleVuGainCommit}
+                                onGainReset={handleVuGainReset}
+                                onGainRevert={handleVuGainRevert}
+                                onPeakReset={handleVuPeakReset}
+                                onCanvasResized={handleVuCanvasResized}
+                                registerCanvas={registerVuCanvas}
+                                unregisterCanvas={unregisterVuCanvas}
+                                registerReadout={registerVuReadout}
+                                unregisterReadout={unregisterVuReadout}
+                                registerPanPointer={registerVuPanPointer}
+                                unregisterPanPointer={unregisterVuPanPointer}
+                            />
+                        }
+                    />
+                </div>
+                <Sidebar
+                    docs={bottomPanel.docs}
+                    config={appConfig}
+                    onConfigChange={changeAppConfig}
+                    configLoaded={appConfigLoaded}
+                    explorerContent={
+                        <FileExplorer
+                            workspaceRoot={workspaceRoot}
+                            fileTree={fileTree}
+                            buffers={buffers}
+                            activeBufferId={activeBufferId}
+                            runningBufferId={runningBufferId}
+                            renamingPath={renamingPath}
+                            formatLabel={formatLabel}
+                            onSelectBuffer={setActiveBufferId}
+                            onOpenFile={handleOpenFile}
+                            onCreateFile={createUntitledFile}
+                            onSaveFile={handleSaveFileStable}
+                            onRenameFile={renameFile}
+                            onDeleteFile={handleDeleteFile}
+                            onCloseBuffer={closeBuffer}
+                            onSelectWorkspace={selectWorkspaceFolder}
+                            onRefreshTree={refreshFileTree}
+                            onRenameCommit={handleRenameCommitSafe}
+                            onRenameCancel={() => setRenamingPath(null)}
+                            onKeepBuffer={keepBuffer}
                         />
-                    </>
-                )}
-            </main>
-            {isVuPanelVisible && workspaceRoot && (
-                <VuMeterPanel
-                    outputs={vuOutputs}
-                    height={vuPanelHeight}
-                    onHeightChange={setVuPanelHeight}
-                    onHeightCommit={handleVuPanelHeightCommit}
-                    onToggleMute={handleVuToggleMute}
-                    onToggleSolo={handleVuToggleSolo}
-                    ghosts={vuGhosts}
-                    onPanChange={handleVuPanChange}
-                    onPanCommit={handleVuPanCommit}
-                    onGainChange={handleVuGainChange}
-                    onGainCommit={handleVuGainCommit}
-                    onGainReset={handleVuGainReset}
-                    onGainRevert={handleVuGainRevert}
-                    onPeakReset={handleVuPeakReset}
-                    onCanvasResized={handleVuCanvasResized}
-                    registerCanvas={registerVuCanvas}
-                    unregisterCanvas={unregisterVuCanvas}
-                    registerReadout={registerVuReadout}
-                    unregisterReadout={unregisterVuReadout}
-                    registerPanPointer={registerVuPanPointer}
-                    unregisterPanPointer={unregisterVuPanPointer}
+                    }
+                    performContent={<PerformancePanel />}
+                    controlContent={
+                        <ControlPanel
+                            sliders={controlViews.sliders}
+                            buttons={controlViews.buttons}
+                            groups={codeControls.groups}
+                            onGroupToggle={handleGroupToggle}
+                            onSliderChange={handleSliderChange}
+                            onButtonChange={handleButtonChange}
+                            onJump={handleControlJump}
+                        />
+                    }
                 />
-            )}
+            </main>
+            <BottomBar
+                tab={bottomPanel.tab}
+                onToggle={bottomPanel.toggle}
+                docsLocation={bottomPanel.docs.location}
+            />
             {saveConflict && (
                 <SaveConflictNotification
                     filePath={saveConflict.filePath}
@@ -2986,7 +2804,59 @@ function App() {
                 onInstall={handleUpdateInstall}
                 onSkip={handleUpdateSkip}
                 onDismiss={handleUpdateDismiss}
+                onShowReleaseNotes={() =>
+                    setReleaseNotesView({ kind: 'update' })
+                }
             />
+            {releaseNotesView?.kind === 'update' &&
+                updateState.status === 'available' && (
+                    <ReleaseNotesDialog
+                        title={`Version ${updateState.version} is available`}
+                        summary={`You have version ${updateState.currentVersion}. Here is everything that changed since then.`}
+                        releases={updateState.releaseNotes}
+                        actions={[
+                            {
+                                label: updateState.supportsInAppUpdate
+                                    ? 'Download & Install'
+                                    : 'View Release',
+                                onClick: () => {
+                                    closeReleaseNotes();
+                                    handleUpdateDownload();
+                                },
+                                primary: true,
+                            },
+                            {
+                                label: 'Skip This Version',
+                                onClick: () => {
+                                    closeReleaseNotes();
+                                    handleUpdateSkip();
+                                },
+                            },
+                            { label: 'Not Now', onClick: closeReleaseNotes },
+                        ]}
+                        onClose={closeReleaseNotes}
+                    />
+                )}
+            {releaseNotesView?.kind === 'whatsNew' && (
+                <ReleaseNotesDialog
+                    title={`What's new in version ${releaseNotesView.currentVersion}`}
+                    releases={releaseNotesView.releases}
+                    onClose={closeReleaseNotes}
+                />
+            )}
+            {releaseNotesView?.kind === 'changelog' && (
+                <ReleaseNotesDialog
+                    title="Release Notes"
+                    releases={releaseNotesView.info.releaseNotes}
+                    liftBreaking={false}
+                    installedVersion={releaseNotesView.info.currentVersion}
+                    link={{
+                        href: releaseNotesView.info.fullChangelogUrl,
+                        label: 'Full changelog on GitHub',
+                    }}
+                    onClose={closeReleaseNotes}
+                />
+            )}
         </div>
     );
 }

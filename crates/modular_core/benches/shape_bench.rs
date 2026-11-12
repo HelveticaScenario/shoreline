@@ -21,6 +21,7 @@ fn make(module: &str, params: serde_json::Value, channels: usize) -> Box<dyn Sam
     let deserialized = DeserializedParams {
         params: cached.params,
         channel_count: channels,
+        f64_inputs: false,
     };
     get_constructors()[module](
         &"bench".to_string(),

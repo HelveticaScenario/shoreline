@@ -5,7 +5,11 @@
  * Shared between main and renderer processes.
  */
 
+import type { AssetKind } from './assetFiles';
+import type { OutputResolutionRecord } from './dsl/outputResolutionRule';
+import type { SignalSiteTables } from './dsl/signalSites';
 import type { MonospaceFont } from './fonts';
+import type { ReleaseNotes } from './releaseNotes';
 import type {
     ApplyPatchError,
     AudioConfigOptions,
@@ -99,6 +103,8 @@ export interface AppConfig {
     lastOpenedFolder?: string;
     audioConfig?: AudioConfig;
     skippedUpdateVersion?: string;
+    /** App version whose release notes were last shown; absent until the first launch records it. */
+    lastSeenVersion?: string;
     /** Opacity (0..1) of the dark backing behind each line of code while video shows behind the code. Default 0.6. */
     codeBackdropOpacity?: number;
     /** Shape of the performance window: a fixed aspect ratio, or free. Default 'free'. */
@@ -125,10 +131,14 @@ export interface AppConfig {
     performanceScrollSpeed?: number;
     /** Theme id for the code's colors in the performance window; absent follows the editor's theme. */
     performanceTheme?: string;
-    /** VU meter panel visibility. Default false. */
-    vuPanelVisible?: boolean;
-    /** VU meter panel height in px (84–480). Default 150. */
-    vuPanelHeight?: number;
+    /** Which side of the window the sidebar sits on. Default 'right'. */
+    sidebarSide?: 'left' | 'right';
+    /** Where the docs open: a panel under the editor or a sidebar tab. Default 'bottom'. */
+    docsLocation?: 'bottom' | 'sidebar';
+    /** The panel open under the editor; absent leaves it collapsed. */
+    bottomPanel?: 'mixer' | 'docs';
+    /** Height in px of the panel under the editor, at least 84. Default 200. */
+    bottomPanelHeight?: number;
 }
 
 /** Result of toggling the macOS Syphon window-output helper. */
@@ -163,6 +173,26 @@ export interface UpdateAvailableInfo {
      * primary action opens the release page in the browser instead.
      */
     supportsInAppUpdate: boolean;
+    /** The running app's version. */
+    currentVersion: string;
+    /** Notes for every release after `currentVersion` up to `version`, newest first. */
+    releaseNotes: ReleaseNotes[];
+    /** Whether installing this update may require changes to the user's patches. */
+    hasBreakingChanges: boolean;
+}
+
+export interface ChangelogInfo {
+    currentVersion: string;
+    /** Newest first; may include releases newer than `currentVersion`. */
+    releaseNotes: ReleaseNotes[];
+    /** The complete changelog on GitHub. */
+    fullChangelogUrl: string;
+}
+
+export interface WhatsNewInfo {
+    currentVersion: string;
+    /** Releases the user has not seen notes for yet, newest first; empty when there is nothing to show. */
+    releaseNotes: ReleaseNotes[];
 }
 
 export interface UpdatePatchResult {
@@ -223,6 +253,8 @@ export interface DSLExecuteResult {
     eqPanels?: EqPanelDef[];
     /** One entry per `$v.preview` call, in the order the shader draws them */
     videoPreviews?: VideoPreviewSite[];
+    /** Every contextual output choice made while the script ran */
+    outputResolutions?: OutputResolutionRecord[];
 }
 
 /**
@@ -232,7 +264,7 @@ export interface FileTreeEntry {
     name: string;
     path: string; // Relative to workspace root
     type: 'file' | 'directory';
-    fileType?: 'js' | 'wav';
+    fileType?: 'js' | AssetKind;
     children?: FileTreeEntry[];
 }
 
@@ -268,7 +300,7 @@ export interface FileContextMenuOptions {
  * One row in the editor context menu, built in the renderer and shipped to
  * the main process, which materializes a native menu.
  *
- *  - `command`: an Operator registry command. Clicking echoes `commandId`
+ *  - `command`: a Shoreline registry command. Clicking echoes `commandId`
  *    back via ON_CONTEXT_MENU_COMMAND and the renderer runs `executeCommand`.
  *  - `role`: a native Electron clipboard role. The OS performs cut/copy/paste
  *    against the focused editor directly — no round-trip — which is also why
@@ -320,6 +352,7 @@ export const IPC_CHANNELS = {
     // DSL operations
     DSL_EXECUTE: 'modular:dsl:execute',
     GET_DSL_LIB_SOURCE: 'modular:dsl:get-lib-source',
+    GET_SIGNAL_SITE_TABLES: 'modular:dsl:get-signal-site-tables',
 
     // Synthesizer operations
     SYNTH_GET_SAMPLE_RATE: 'modular:synth:get-sample-rate',
@@ -376,6 +409,7 @@ export const IPC_CHANNELS = {
     FS_SELECT_WORKSPACE: 'modular:fs:select-workspace',
     FS_GET_WORKSPACE: 'modular:fs:get-workspace',
     FS_LIST_FILES: 'modular:fs:list-files',
+    FS_TREE_ON_CHANGE: 'modular:fs:tree-on-change',
     FS_READ_FILE: 'modular:fs:read-file',
     FS_WRITE_FILE: 'modular:fs:write-file',
     FS_RENAME_FILE: 'modular:fs:rename-file',
@@ -392,10 +426,6 @@ export const IPC_CHANNELS = {
     ON_CONTEXT_MENU_COMMAND: 'ui:on-context-menu-command',
     MENU_SET_ACCELERATORS: 'ui:menu-set-accelerators',
     SHOW_UNSAVED_CHANGES_DIALOG: 'ui:show-unsaved-changes-dialog',
-
-    // Window operations
-    OPEN_HELP_WINDOW: 'modular:window:open-help',
-    OPEN_HELP_FOR_SYMBOL: 'modular:window:open-help-for-symbol',
 
     // Config operations
     CONFIG_GET_PATH: 'modular:config:get-path',
@@ -425,9 +455,6 @@ export const IPC_CHANNELS = {
     // Main process logging
     MAIN_LOG: 'modular:main:log',
 
-    // WAV operations
-    WAVS_ON_CHANGE: 'modular:wavs:on-change',
-
     // Update operations
     UPDATE_CHECK: 'modular:update:check',
     UPDATE_DOWNLOAD: 'modular:update:download',
@@ -437,23 +464,25 @@ export const IPC_CHANNELS = {
     UPDATE_PREPARING: 'modular:update:preparing',
     UPDATE_DOWNLOADED: 'modular:update:downloaded',
     UPDATE_ERROR: 'modular:update:error',
+
+    // Release notes
+    RELEASE_NOTES_WHATS_NEW: 'modular:release-notes:whats-new',
+    RELEASE_NOTES_GET_ALL: 'modular:release-notes:get-all',
 } as const;
 
 export const MENU_CHANNELS = {
     CLOSE_BUFFER: 'modular:menu:close-buffer',
-    MIGRATE_BUFFER: 'modular:menu:migrate-buffer',
-    MIGRATE_CHEBY_BLOCK_DC: 'modular:menu:migrate-cheby-block-dc',
-    MIGRATE_WAVETABLE: 'modular:menu:migrate-wavetable',
     NEW_FILE: 'modular:menu:new-file',
     OPEN_ENGINE_HEALTH: 'modular:menu:open-engine-health',
     OPEN_MODULE_PROFILE: 'modular:menu:open-module-profile',
     OPEN_SETTINGS: 'modular:menu:open-settings',
     OPEN_WORKSPACE: 'modular:menu:open-workspace',
     SAVE: 'modular:menu:save',
+    SHOW_RELEASE_NOTES: 'modular:menu:show-release-notes',
     STOP: 'modular:menu:stop',
     CANCEL_QUEUED_UPDATE: 'modular:menu:cancel-queued-update',
     TOGGLE_RECORDING: 'modular:menu:toggle-recording',
-    TOGGLE_VU_METERS: 'modular:menu:toggle-vu-meters',
+    TOGGLE_MIXER: 'modular:menu:toggle-mixer',
     TOGGLE_PERFORMANCE_WINDOW: 'modular:menu:toggle-performance-window',
     UPDATE_PATCH: 'modular:menu:update-patch',
     UPDATE_PATCH_NEXT_BEAT: 'modular:menu:update-patch-next-beat',
@@ -473,6 +502,7 @@ export interface IPCHandlers {
         trigger?: QueuedTrigger,
     ) => DSLExecuteResult;
     [IPC_CHANNELS.GET_DSL_LIB_SOURCE]: () => string;
+    [IPC_CHANNELS.GET_SIGNAL_SITE_TABLES]: () => SignalSiteTables;
 
     // Synthesizer operations
     [IPC_CHANNELS.SYNTH_GET_SAMPLE_RATE]: typeof Synthesizer.prototype.sampleRate;
@@ -556,6 +586,7 @@ export interface IPCHandlers {
     [IPC_CHANNELS.FS_SELECT_WORKSPACE]: () => WorkspaceFolder | null;
     [IPC_CHANNELS.FS_GET_WORKSPACE]: () => WorkspaceFolder | null;
     [IPC_CHANNELS.FS_LIST_FILES]: () => FileTreeEntry[];
+    [IPC_CHANNELS.FS_TREE_ON_CHANGE]: () => void;
     [IPC_CHANNELS.FS_READ_FILE]: (filePath: string) => string;
     /**
      * With `expectedDiskContent`, the write is refused with a `conflict`
@@ -596,13 +627,6 @@ export interface IPCHandlers {
         fileName: string,
     ) => Promise<number>;
 
-    // Window operations
-    [IPC_CHANNELS.OPEN_HELP_WINDOW]: () => void;
-    [IPC_CHANNELS.OPEN_HELP_FOR_SYMBOL]: (
-        symbolType: 'type' | 'module' | 'namespace',
-        symbolName: string,
-    ) => void;
-
     // Config operations
     [IPC_CHANNELS.CONFIG_GET_PATH]: () => string;
     [IPC_CHANNELS.CONFIG_READ]: () => AppConfig;
@@ -633,9 +657,6 @@ export interface IPCHandlers {
     // Main process logging
     [IPC_CHANNELS.MAIN_LOG]: (entry: MainLogEntry) => void;
 
-    // WAV operations
-    [IPC_CHANNELS.WAVS_ON_CHANGE]: () => void;
-
     /** A watched file changed on disk; `content` is as FS_READ_FILE returns. */
     [IPC_CHANNELS.FS_ON_FILE_CHANGED]: (change: FileChange) => void;
 
@@ -649,6 +670,17 @@ export interface IPCHandlers {
     [IPC_CHANNELS.UPDATE_PREPARING]: () => void;
     [IPC_CHANNELS.UPDATE_DOWNLOADED]: () => void;
     [IPC_CHANNELS.UPDATE_ERROR]: (message: string) => void;
+
+    /**
+     * Notes for releases since the last launch, from the bundled changelog.
+     * Records the running version as seen, so a second call returns nothing.
+     */
+    [IPC_CHANNELS.RELEASE_NOTES_WHATS_NEW]: () => WhatsNewInfo;
+    /**
+     * Every release with notes, published and bundled, newest first. Falls
+     * back to the bundled changelog alone when the releases cannot be fetched.
+     */
+    [IPC_CHANNELS.RELEASE_NOTES_GET_ALL]: () => Promise<ChangelogInfo>;
 }
 
 /**

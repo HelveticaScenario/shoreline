@@ -2,6 +2,8 @@ import { describe, expect, test } from 'vitest';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
 import { EXPERIMENTAL_NOTICE } from '../../../shared/dsl/experimental';
+import { moduleToReferenceEntry } from '../../../shared/dsl/referenceDocs';
+import type { Schema } from '../../../shared/dsl/schemaTypeResolver';
 
 /** The JSDoc block directly above the declaration matching `declaration`. */
 function jsDocAbove(source: string, declaration: RegExp): string {
@@ -25,7 +27,7 @@ describe('experimental module docs', () => {
         expect(doc).toMatch(/\* @experimental\n/);
     });
 
-    test('its `.$.` method carries the same marker', () => {
+    test('its chain method carries the same marker', () => {
         const doc = jsDocAbove(source, /^\s*comp\(/m);
         expect(doc.split('\n')[1].trim()).toBe(`* ${EXPERIMENTAL_NOTICE}`);
         expect(doc).toMatch(/\* @experimental\n/);
@@ -35,5 +37,14 @@ describe('experimental module docs', () => {
         const doc = jsDocAbove(source, /export function \$sine\(/);
         expect(doc).not.toContain(EXPERIMENTAL_NOTICE);
         expect(doc).not.toContain('@experimental');
+    });
+
+    test('the Reference pane entry carries the flag', () => {
+        const entry = (name: string) =>
+            moduleToReferenceEntry(
+                schemas.find((s) => s.name === name) as Schema,
+            );
+        expect(entry('$comp').experimental).toBe(true);
+        expect(entry('$sine').experimental).toBe(false);
     });
 });

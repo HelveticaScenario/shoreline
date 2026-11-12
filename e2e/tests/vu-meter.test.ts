@@ -39,7 +39,7 @@ async function setupTwoOutPatch(window: import('playwright').Page) {
     await window.waitForTimeout(2000);
 
     await window.evaluate(() => {
-        window.__TEST_API__!.setVuPanelVisible(true);
+        window.__TEST_API__!.setMixerVisible(true);
     });
     await window.waitForTimeout(500);
 }
@@ -298,7 +298,7 @@ test.describe('vu meter panel', () => {
         await expect(window.locator('.vu-meter-panel')).toBeVisible();
 
         await window.evaluate(() => {
-            window.__TEST_API__!.setVuPanelVisible(false);
+            window.__TEST_API__!.setMixerVisible(false);
         });
         await expect(window.locator('.vu-meter-panel')).not.toBeVisible();
     });
@@ -315,7 +315,7 @@ test.describe('vu meter panel', () => {
         await window.evaluate(() => window.__TEST_API__!.executePatch());
         await window.waitForTimeout(1500);
         await window.evaluate(() => {
-            window.__TEST_API__!.setVuPanelVisible(true);
+            window.__TEST_API__!.setMixerVisible(true);
         });
 
         await expect(window.locator('.vu-meter-empty')).toBeVisible();

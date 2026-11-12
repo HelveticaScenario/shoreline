@@ -27,13 +27,16 @@ export {
 export interface CallSiteSpans {
     /** Spans for each positional argument, keyed by argument name */
     args: Map<string, SourceSpan>;
-    /** The module type being called (e.g., "seq", "sine") */
-    moduleType: string;
+    /**
+     * What the call builds: a module, whose factory sends the spans to the
+     * engine, or a pattern, whose builder keeps them with the pattern.
+     */
+    kind: 'module' | 'pattern';
 }
 
 /**
  * Call site key using line:column format (both 1-based).
- * This matches the format produced by both ts-morph and V8 Error.captureStackTrace.
+ * This matches the format V8's Error.captureStackTrace reports.
  */
 export type CallSiteKey = `${number}:${number}`;
 

@@ -9,20 +9,22 @@ use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
 use crate::dsp::utils::adaa::Adaa;
 use crate::dsp::utils::dc_blocker::DcBlocker;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Rectification algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum RectifyMode {
-    /// Full-wave — flips the negative half up (doubles the pitch).
+    /// full-wave, flips the negative half up an octave higher
     #[default]
     Full,
-    /// Positive half-wave — keeps only the upper half.
+    /// positive half-wave, keeps only the upper half
     Positive,
-    /// Negative half-wave — keeps only the lower half.
+    /// negative half-wave, keeps only the lower half
     Negative,
-    /// Softer rectification with rounded edges.
+    /// softer rectification with rounded edges
     Soft,
 }
 
@@ -70,16 +72,21 @@ impl Shaper for RectifyShaper {
     }
 }
 
+const RECTIFY_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Rectifier",
+    description: "Flips or cuts off half the waveform for a harder, buzzier \
+                  tone; full-wave rectifying a sine lifts it an octave. \
+                  Modelled on the Surge XT rectifier shapes.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Octave-up buzz",
+        code: "$sine('c3').unstable.shape.rectify('full').out()",
+    }],
+};
+
 shape_module! {
-    /// Rectification, from Surge XT's Rectifier waveshapers — folds or gates the
-    /// waveform for a harder, buzzier tone. `mode` selects full-wave,
-    /// positive/negative half-wave, or a softer rectifier; `drive` sets the level
-    /// going in (−5..5, 0 = unity).
-    ///
-    /// ## Example
-    /// ```js
-    /// $unstable.shape.rectify($sine('c3'), 'full', 1).out()
-    /// ```
+    docs = RECTIFY_DOCS,
     name = "$unstable.shape.rectify", ident = Rectify, mode = RectifyMode, shaper = RectifyShaper
 }
 
@@ -112,6 +119,7 @@ mod tests {
                 &state,
                 &mut ch,
                 &mut out,
+                sr,
             );
         }
         for i in 0..256 {
@@ -124,6 +132,7 @@ mod tests {
                 &state,
                 &mut ch,
                 &mut out,
+                sr,
             );
             let y = out.get(0);
             assert!(

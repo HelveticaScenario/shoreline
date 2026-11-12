@@ -63,6 +63,7 @@ impl BenchPatch {
                         DeserializedParams {
                             params: cached.params,
                             channel_count: cached.channel_count,
+                            f64_inputs: false,
                         },
                         mode,
                     )
@@ -250,6 +251,41 @@ fn wide_mix_sample(channels: usize) -> BenchPatch {
     BenchPatch::with_mode(wide_mix_modules(channels), ProcessingMode::Sample)
 }
 
+/// 16 `$sine`s at constant pitches: LFOs and drones.
+fn sine_bank(channels: usize) -> BenchPatch {
+    let modules = (0..16)
+        .map(|i| {
+            (
+                format!("s{i}"),
+                "$sine",
+                json!({ "freq": poly(i as f32 * 0.25 - 2.0, channels) }),
+            )
+        })
+        .collect();
+    BenchPatch::new(modules)
+}
+
+/// 16 `$sine`s with audio-rate exponential FM from one `$saw`.
+fn sine_fm(channels: usize) -> BenchPatch {
+    let mut modules = vec![(
+        "src".to_string(),
+        "$saw",
+        json!({ "freq": poly(-1.0, channels) }),
+    )];
+    for i in 0..16 {
+        modules.push((
+            format!("s{i}"),
+            "$sine",
+            json!({
+                "freq": poly(i as f32 * 0.25 - 2.0, channels),
+                "fm": poly_cable("src", "output", channels),
+                "fmMode": "exp",
+            }),
+        ));
+    }
+    BenchPatch::new(modules)
+}
+
 /// 8 copies of gate → `$adsr` → (`$saw` → `$lpf` with envelope cutoff →
 /// envelope VCA) → `$mix`.
 fn voices(channels: usize) -> BenchPatch {
@@ -322,7 +358,8 @@ fn comp_chain(channels: usize) -> BenchPatch {
     BenchPatch::new(modules)
 }
 
-/// Two seconds of deterministic white noise at 48 kHz, for `$grains`.
+/// Two seconds of deterministic white noise at 48 kHz, for `$grains` and
+/// `$granularSampler`.
 fn noise_wav() -> Arc<WavData> {
     let mut state = 1u32;
     let samples = (0..96_000)
@@ -377,6 +414,56 @@ fn grains(channels: usize) -> BenchPatch {
                 "gate": poly_cable(&gate, "output", channels),
                 "density": density,
                 "length": length,
+            }),
+        ));
+    }
+    BenchPatch::new(modules)
+}
+
+/// 4 `$granularSampler` clouds, triggered at 5, 20, 80 and 320 Hz.
+fn granular(channels: usize) -> BenchPatch {
+    let mut modules = Vec::new();
+    for (i, rate) in [5.0f32, 20.0, 80.0, 320.0].iter().enumerate() {
+        let trigger = format!("trigger{i}");
+        modules.push((
+            trigger.clone(),
+            "$pulse",
+            json!({ "freq": poly((rate / 261.625_58).log2(), channels) }),
+        ));
+        modules.push((
+            format!("grains{i}"),
+            "$granularSampler",
+            json!({
+                "wav": { "type": "wav_ref", "path": "noise", "channels": 1 },
+                "trigger": poly_cable(&trigger, "output", channels),
+            }),
+        ));
+    }
+    BenchPatch::new(modules)
+}
+
+/// A `$saw` through a `$clockedDelay` in each quality, following the root
+/// clock.
+fn clocked_delays(channels: usize) -> BenchPatch {
+    let mut modules = vec![
+        (
+            "ROOT_CLOCK".to_string(),
+            "_clock",
+            json!({ "tempo": 120.0, "numerator": 4, "denominator": 4 }),
+        ),
+        (
+            "saw".to_string(),
+            "$saw",
+            json!({ "freq": poly(0.0, channels) }),
+        ),
+    ];
+    for quality in ["digital", "vintage", "cleanTape", "dirtyTape"] {
+        modules.push((
+            format!("delay_{quality}"),
+            "$clockedDelay",
+            json!({
+                "input": poly_cable("saw", "output", channels),
+                "quality": quality,
             }),
         ));
     }
@@ -495,7 +582,7 @@ fn erratic_chain(channels: usize, modulated: bool) -> BenchPatch {
         };
         let mut params = json!({
             "input": poly_cable(&prev, "output", channels),
-            "amount": 0.5, "speed": 2.5, "bias": 1.0, "clamp": true,
+            "amount": 0.5, "speed": 2.5, "bias": 1.0,
         });
         if modulated {
             params["speed"] = poly_cable("lfo", "output", channels);
@@ -515,7 +602,9 @@ fn erratic_modulated(channels: usize) -> BenchPatch {
 }
 
 fn bench_patches(c: &mut Criterion) {
-    let cases: [(&str, fn(usize) -> BenchPatch); 14] = [
+    let cases: &[(&str, fn(usize) -> BenchPatch)] = &[
+        ("sine_bank_16", sine_bank),
+        ("sine_fm_16", sine_fm),
         ("wide_mix_sample_160", wide_mix_sample),
         ("remap_chain_32", remap_chain),
         ("wide_mix_160", wide_mix),
@@ -527,13 +616,15 @@ fn bench_patches(c: &mut Criterion) {
         ("voices_8", voices),
         ("comp_chain_8", comp_chain),
         ("grains_4", grains),
+        ("granular_4", granular),
+        ("clocked_delay_4", clocked_delays),
         ("wavetable_8", wavetables),
         ("eq_8", eqs),
         ("video_tap_16", video_taps),
         ("erratic_constant_32", erratic_constant),
         ("erratic_modulated_32", erratic_modulated),
     ];
-    for (name, build) in cases {
+    for &(name, build) in cases {
         let mut group = c.benchmark_group(name);
         for channels in CHANNELS {
             let patch = build(channels);

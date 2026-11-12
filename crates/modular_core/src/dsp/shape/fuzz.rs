@@ -10,22 +10,24 @@ use schemars::JsonSchema;
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers::{self, FuzzKind};
 use crate::dsp::utils::dc_blocker::DcBlocker;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Fuzz algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum FuzzMode {
-    /// Hard, gated fuzz.
+    /// hard, gated fuzz
     #[default]
     Fuzz,
-    /// Softer fuzz.
+    /// softer fuzz
     Soft,
-    /// Heavier, noisier fuzz.
+    /// heavier, noisier fuzz
     Heavy,
-    /// Fuzz focused around the zero crossings.
+    /// fuzz focused around the zero crossings
     Center,
-    /// Fuzz focused on the loud peaks.
+    /// fuzz focused on the loud peaks
     SoftEdge,
 }
 
@@ -57,14 +59,19 @@ impl Shaper for FuzzShaper {
     }
 }
 
+const FUZZ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Fuzz distortion",
+    description: "Gritty, broken-up fuzz for leads and dirty basses. Modelled \
+                  on the Surge XT fuzz shapes.",
+    categories: &[ModuleCategory::Distortion],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Fuzz lead",
+        code: "$saw('a3').unstable.shape.fuzz('heavy', 2).lpf('c7').out()",
+    }],
+};
+
 shape_module! {
-    /// Fuzz, from Surge XT's Fuzz waveshapers — a gritty, broken-up distortion.
-    /// `mode` selects the flavour (fuzz, soft, heavy, center, softEdge); `drive`
-    /// sets the level going in (−5..5, 0 = unity).
-    ///
-    /// ## Example
-    /// ```js
-    /// $unstable.shape.fuzz($saw('c3'), 'heavy', 2).out()
-    /// ```
+    docs = FUZZ_DOCS,
     name = "$unstable.shape.fuzz", ident = Fuzz, mode = FuzzMode, shaper = FuzzShaper
 }

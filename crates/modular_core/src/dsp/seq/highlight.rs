@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use crate::module_state::{ModuleLiveState, ModuleStateMeta};
 
 /// Max pattern sources a `$cycle` highlight publishes. A plain pattern has one
-/// source; a chained `$p.s(...).add(...)` has one per link. Extra sources are
+/// source; a chained `$p.s(...).trans(...)` has one per link. Extra sources are
 /// not highlighted.
 pub const MAX_SEQ_SOURCES: usize = 16;
 

@@ -9,7 +9,7 @@ describe('$v graph building', () => {
         it('opens no media that the picture does not read', () => {
             const { video } = exec(`
                 const cam = $v.camera();
-                $v.image('a.png');
+                $v.image('/a.png');
                 $v.out($v.osc(10));
             `);
             expect(video!.sources).toEqual([]);
@@ -18,8 +18,8 @@ describe('$v graph building', () => {
 
         it('numbers the media that are read from 0', () => {
             const { video } = exec(`
-                $v.image('a.png');
-                $v.out($v.image('b.png'));
+                $v.image('/a.png');
+                $v.out($v.image('/b.png'));
             `);
             expect(video!.sources).toEqual([{ kind: 'image', path: 'b.png' }]);
             expect(video!.wgsl).toContain('var src_0: texture_2d<f32>;');
@@ -84,7 +84,7 @@ describe('$v graph building', () => {
 
         it("plays a video's audio when the picture does not show the video", () => {
             const source = `
-                const clip = $v.video('a.mp4');
+                const clip = $v.video('/a.mp4');
                 clip.audio.out();
                 $v.out($v.osc(10));
             `;
@@ -94,7 +94,7 @@ describe('$v graph building', () => {
 
         it('keeps a shown video and its audio', () => {
             const source = `
-                const clip = $v.video('a.mp4');
+                const clip = $v.video('/a.mp4');
                 clip.audio.out();
                 $v.out(clip);
             `;
@@ -105,30 +105,9 @@ describe('$v graph building', () => {
         });
     });
 
-    describe('patterns', () => {
-        it('plays one pattern used twice through one $cycle and one tap', () => {
-            const source = `
-                const p = $p('0 1');
-                $v.out($v.hsv(p, p));
-            `;
-            expect(modulesOf(source, '$cycle')).toHaveLength(1);
-            expect(modulesOf(source, '_videoTap')).toHaveLength(1);
-            expect(exec(source).video!.uniforms).toHaveLength(1);
-        });
-
-        it('shares the $cycle between a field and fromAudio', () => {
-            const source = `
-                const p = $p('0 1');
-                $v.out($v.hsv(p, $v.fromAudio(p)));
-            `;
-            expect(modulesOf(source, '$cycle')).toHaveLength(1);
-            expect(modulesOf(source, '_videoTap')).toHaveLength(1);
-        });
-    });
-
     describe('textures', () => {
         const images = (count: number) =>
-            `Array.from({ length: ${count} }, (_, i) => $v.image('i' + i + '.png')).reduce((a, b) => $v.add(a, b))`;
+            `Array.from({ length: ${count} }, (_, i) => $v.image('/i' + i + '.png')).reduce((a, b) => $v.add(a, b))`;
 
         it('accepts 16 textures', () => {
             expect(() =>

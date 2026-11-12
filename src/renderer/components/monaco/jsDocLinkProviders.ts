@@ -1,14 +1,25 @@
-import type { IDisposable, IPosition, Uri, editor, languages } from 'monaco-editor';
+import type {
+    IDisposable,
+    IPosition,
+    Uri,
+    editor,
+    languages,
+} from 'monaco-editor';
 import {
     QuickInfoAdapter,
     SignatureHelpAdapter,
     SuggestAdapter,
 } from 'monaco-editor/esm/vs/language/typescript/languageFeatures.js';
 import { ICommandService } from 'monaco-editor/esm/vs/platform/commands/common/commands.js';
-import type { JSDocTagInfo, SignatureHelpItem, SymbolDisplayPart } from 'typescript';
+import type {
+    JSDocTagInfo,
+    SignatureHelpItem,
+    SymbolDisplayPart,
+} from 'typescript';
 import type { ModuleSchema } from '@modular/core';
 import type { Monaco } from '../../hooks/useCustomMonaco';
-import electronAPI from '../../electronAPI';
+import { type DocsTarget, SHOW_DOCS_COMMAND } from '../docsCommand';
+import { executeCommand } from '../../keybindings/commands';
 import { isDslType } from '../../../shared/dsl/typeDocs';
 import {
     type JsDocLinkRef,
@@ -21,17 +32,13 @@ function plainText(parts: readonly SymbolDisplayPart[] | undefined): string {
     return parts?.map((p) => p.text).join('') ?? '';
 }
 
-const OPEN_LINK_COMMAND = 'operator.openJsDocLink';
+const OPEN_LINK_COMMAND = 'shoreline.openJsDocLink';
 
 /** `isTrusted` scoped to the link command, so doc text cannot run others. */
 const LINK_TRUST = { enabledCommands: [OPEN_LINK_COMMAND] };
 
 type LinkAction =
-    | {
-          kind: 'help';
-          symbolType: 'type' | 'module' | 'namespace';
-          name: string;
-      }
+    | ({ kind: 'docs' } & DocsTarget)
     | {
           kind: 'peek';
           from: string;
@@ -43,7 +50,7 @@ type LinkAction =
 
 /**
  * Resolves links shown at `position` in `model`: DSL types and modules open
- * in the help window, any other declaration opens in a peek at `position`.
+ * in the Docs panel, any other declaration opens in a peek at `position`.
  */
 function linkResolver(
     moduleNames: ReadonlySet<string>,
@@ -54,18 +61,21 @@ function linkResolver(
     return ({ name, target }: JsDocLinkRef) => {
         let action: LinkAction | undefined;
         if (isDslType(name)) {
-            action = { kind: 'help', name, symbolType: 'type' };
+            action = { kind: 'docs', name, symbolType: 'type' };
         } else if (moduleNames.has(name)) {
-            action = { kind: 'help', name, symbolType: 'module' };
+            action = { kind: 'docs', name, symbolType: 'module' };
         } else if (namespaces.has(name)) {
-            action = { kind: 'help', name, symbolType: 'namespace' };
+            action = { kind: 'docs', name, symbolType: 'namespace' };
         } else if (target) {
             action = {
                 file: target.fileName,
                 from: from.toString(),
                 kind: 'peek',
                 length: target.textSpan.length,
-                position: { column: position.column, lineNumber: position.lineNumber },
+                position: {
+                    column: position.column,
+                    lineNumber: position.lineNumber,
+                },
                 start: target.textSpan.start,
             };
         }
@@ -76,9 +86,14 @@ function linkResolver(
     };
 }
 
-function openLink(monaco: Monaco, commands: ICommandService, action: LinkAction) {
-    if (action.kind === 'help') {
-        void electronAPI.openHelpForSymbol(action.symbolType, action.name);
+function openLink(
+    monaco: Monaco,
+    commands: ICommandService,
+    action: LinkAction,
+) {
+    if (action.kind === 'docs') {
+        const { name, symbolType } = action;
+        executeCommand(SHOW_DOCS_COMMAND, { name, symbolType });
         return;
     }
     const target = monaco.editor.getModel(monaco.Uri.parse(action.file));
@@ -121,11 +136,13 @@ export function registerJsDocLinkProviders(
     const namespaces = new Set(
         schemas.flatMap((s) => {
             const segments = s.name.split('.');
-            return segments.slice(1).map((_, i) => segments.slice(0, i + 1).join('.'));
+            return segments
+                .slice(1)
+                .map((_, i) => segments.slice(0, i + 1).join('.'));
         }),
     );
     // Completion labels an experimental module can appear under: its factory
-    // name and its `.$.` method name.
+    // name and its chain-method name.
     const experimentalLabels = new Set(
         schemas
             .filter((s) => s.experimental)
@@ -137,10 +154,14 @@ export function registerJsDocLinkProviders(
     const resolverAt = (from: Uri, position: IPosition) =>
         linkResolver(moduleNames, namespaces, from, position);
 
-    const worker = async (...uris: Uri[]) => (await ts.getJavaScriptWorker())(...uris);
+    const worker = async (...uris: Uri[]) =>
+        (await ts.getJavaScriptWorker())(...uris);
 
     class LinkedQuickInfoAdapter extends QuickInfoAdapter {
-        override async provideHover(model: editor.ITextModel, position: IPosition) {
+        override async provideHover(
+            model: editor.ITextModel,
+            position: IPosition,
+        ) {
             const resource = model.uri;
             const languageService = await this._worker(resource);
             if (model.isDisposed()) {
@@ -177,10 +198,15 @@ export function registerJsDocLinkProviders(
          * is confirmed by the `@experimental` tag, so a user identifier that
          * shares the name stays unmarked.
          */
-        override async provideCompletionItems(model: editor.ITextModel, position: IPosition) {
+        override async provideCompletionItems(
+            model: editor.ITextModel,
+            position: IPosition,
+        ) {
             const list = await super.provideCompletionItems(model, position);
             const candidates = list?.suggestions.filter(
-                (item) => typeof item.label === 'string' && experimentalLabels.has(item.label),
+                (item) =>
+                    typeof item.label === 'string' &&
+                    experimentalLabels.has(item.label),
             );
             if (!candidates?.length) {
                 return list;
@@ -192,13 +218,21 @@ export function registerJsDocLinkProviders(
             await Promise.all(
                 candidates.map(async (item) => {
                     const name = item.label as string;
-                    const details = await languageService.getCompletionEntryDetails(
-                        model.uri.toString(),
-                        model.getOffsetAt(position),
-                        name,
-                    );
-                    if (details?.tags?.some((tag: JSDocTagInfo) => tag.name === 'experimental')) {
-                        item.label = { description: 'experimental', label: name };
+                    const details =
+                        await languageService.getCompletionEntryDetails(
+                            model.uri.toString(),
+                            model.getOffsetAt(position),
+                            name,
+                        );
+                    if (
+                        details?.tags?.some(
+                            (tag: JSDocTagInfo) => tag.name === 'experimental',
+                        )
+                    ) {
+                        item.label = {
+                            description: 'experimental',
+                            label: name,
+                        };
                     }
                 }),
             );
@@ -206,12 +240,14 @@ export function registerJsDocLinkProviders(
         }
 
         override async resolveCompletionItem(item: languages.CompletionItem) {
-            const { uri, position, offset } = item as languages.CompletionItem & {
-                uri: Uri;
-                position: IPosition;
-                offset: number;
-            };
-            const name = typeof item.label === 'string' ? item.label : item.label.label;
+            const { uri, position, offset } =
+                item as languages.CompletionItem & {
+                    uri: Uri;
+                    position: IPosition;
+                    offset: number;
+                };
+            const name =
+                typeof item.label === 'string' ? item.label : item.label.label;
             const languageService = await this._worker(uri);
             const details = await languageService.getCompletionEntryDetails(
                 uri.toString(),
@@ -233,7 +269,8 @@ export function registerJsDocLinkProviders(
                     ),
                 },
                 kind: SuggestAdapter.convertKind(details.kind),
-                label: typeof item.label === 'string' ? details.name : item.label,
+                label:
+                    typeof item.label === 'string' ? details.name : item.label,
             };
         }
     }
@@ -254,7 +291,9 @@ export function registerJsDocLinkProviders(
                 model.getOffsetAt(position),
                 {
                     triggerReason:
-                        SignatureHelpAdapter._toSignatureHelpTriggerReason(context),
+                        SignatureHelpAdapter._toSignatureHelpTriggerReason(
+                            context,
+                        ),
                 },
             );
             if (!info || model.isDisposed()) {
@@ -296,8 +335,10 @@ export function registerJsDocLinkProviders(
     }
 
     const disposables = [
-        monaco.editor.registerCommand(OPEN_LINK_COMMAND, (accessor, action: LinkAction) =>
-            openLink(monaco, accessor.get(ICommandService), action),
+        monaco.editor.registerCommand(
+            OPEN_LINK_COMMAND,
+            (accessor, action: LinkAction) =>
+                openLink(monaco, accessor.get(ICommandService), action),
         ),
         monaco.languages.registerHoverProvider(
             'javascript',

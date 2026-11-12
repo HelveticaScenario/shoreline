@@ -1,0 +1,563 @@
+.docs-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    color: var(--text-primary);
+    user-select: text;
+}
+
+.docs-panel[hidden] {
+    display: none;
+}
+
+.docs-pages {
+    display: flex;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.docs-pages button {
+    padding: var(--sp-half) var(--sp-2);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: calc(var(--font-size) - 2px);
+    cursor: pointer;
+}
+
+.docs-pages button:hover {
+    color: var(--text-secondary);
+}
+
+.docs-pages button.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--text-primary);
+}
+
+.docs-pages button:focus-visible {
+    outline: 1px solid var(--text-secondary);
+    outline-offset: -1px;
+}
+
+.docs-content {
+    flex: 1;
+    box-sizing: border-box;
+    font-size: max(11px, calc(var(--font-size) - 4px));
+    min-height: 0;
+    padding: var(--sp-1);
+    overflow-y: auto;
+}
+
+/* Keeps lines readable across the width of the editor column. */
+.docs-content > * {
+    max-width: 80ch;
+}
+
+.docs-panel h2,
+.docs-panel h3 {
+    margin: var(--sp-1) 0 var(--sp-half);
+    font-size: 1em;
+}
+
+.docs-panel h2 {
+    margin-top: 0;
+}
+
+.docs-panel h4,
+.docs-panel h5 {
+    margin: var(--sp-1) 0 var(--sp-half);
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+.docs-panel pre {
+    background: var(--bg-primary);
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.85em;
+}
+
+.docs-panel .module-card {
+    background: var(--bg-tertiary);
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    /* Long names and signatures break anywhere rather than widen the card. */
+    overflow-wrap: anywhere;
+}
+
+.docs-panel .module-card pre {
+    max-width: 100%;
+    overflow-wrap: normal;
+}
+
+.docs-panel .module-documentation {
+    margin: 8px 0 12px;
+    padding: 0 4px;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.docs-panel .module-documentation pre {
+    padding: 8px 12px;
+}
+
+.docs-panel .module-documentation code {
+    background: var(--bg-hover);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.docs-panel .module-documentation pre code {
+    background: none;
+    padding: 0;
+}
+
+.docs-panel .module-documentation p {
+    margin: 4px 0;
+}
+
+.docs-panel .module-documentation ul,
+.docs-panel .module-documentation ol {
+    margin: 4px 0;
+    padding-left: 20px;
+}
+
+.docs-panel .type-link {
+    color: var(--accent-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    font-family: inherit;
+    font-size: inherit;
+    padding: 0;
+    margin: 0;
+}
+
+.docs-panel .type-link:hover {
+    text-decoration-style: solid;
+    color: var(--accent-secondary);
+}
+
+.docs-panel .search-input {
+    width: 100%;
+    padding: 8px;
+    background: var(--bg-tertiary);
+    color: var(--text-bright);
+    border: 1px solid var(--border-default);
+    border-radius: 4px;
+    font: inherit;
+}
+
+.docs-panel .search-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.docs-panel .types-intro {
+    margin-bottom: 20px;
+    color: var(--text-secondary);
+}
+
+.docs-panel .types-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.docs-panel .type-card {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.docs-panel .type-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.docs-panel .type-card-header:hover {
+    background: var(--bg-hover);
+}
+
+.docs-panel .type-card-header h3 {
+    margin: 0;
+    color: var(--accent-primary);
+    font-family: var(--font-mono);
+}
+
+.docs-panel .expand-icon {
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+.docs-panel .type-description {
+    padding: 0 15px 12px;
+    margin: 0;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.docs-panel .type-card.expanded .type-description {
+    border-bottom: 1px solid var(--border-default);
+    padding-bottom: 15px;
+}
+
+.docs-panel .type-details {
+    padding: 15px;
+    background: var(--bg-secondary);
+}
+
+.docs-panel .type-details h4 {
+    margin: 0 0 8px;
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.docs-panel .type-details > div {
+    margin-bottom: 15px;
+}
+
+.docs-panel .type-details > div:last-child {
+    margin-bottom: 0;
+}
+
+.docs-panel .type-definition code {
+    display: block;
+    background: var(--bg-primary);
+    padding: 10px;
+    border-radius: 4px;
+    color: var(--color-info);
+    font-family: var(--font-mono);
+}
+
+.docs-panel .type-examples pre {
+    margin: 0;
+}
+
+.docs-panel .method-card {
+    background: var(--bg-primary);
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.docs-panel .method-card:last-child {
+    margin-bottom: 0;
+}
+
+.docs-panel .method-signature {
+    display: block;
+    color: var(--color-warning);
+    font-family: var(--font-mono);
+    margin-bottom: 8px;
+}
+
+.docs-panel .method-card p {
+    margin: 0 0 8px;
+    color: var(--text-primary);
+}
+
+.docs-panel .method-example {
+    margin: 0;
+    padding: 8px;
+}
+
+.docs-panel .see-also-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.docs-panel .see-also-links .type-link {
+    background: var(--bg-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-decoration: none;
+}
+
+.docs-panel .see-also-links .type-link:hover {
+    background: var(--bg-hover);
+}
+
+.docs-panel .enum-variants {
+    margin: 4px 0 2px;
+    padding-left: 20px;
+    font-size: 0.85em;
+    list-style: none;
+}
+
+.docs-panel .enum-variants ul {
+    margin: 4px 0 0;
+    padding-left: 0;
+    list-style: none;
+}
+
+.docs-panel .enum-variants li {
+    margin: 2px 0;
+    color: var(--text-primary);
+}
+
+.docs-panel .enum-variants code {
+    background: var(--bg-hover);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--color-warning);
+    font-family: var(--font-mono);
+}
+
+.docs-panel .enum-variants summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+    margin: 4px 0;
+}
+
+.docs-panel .enum-variants summary:hover {
+    color: var(--text-primary);
+}
+
+.docs-content.docs-content-split {
+    display: flex;
+    padding: 0;
+    overflow: hidden;
+}
+
+.docs-content.docs-content-split > * {
+    max-width: none;
+}
+
+.docs-panel .module-reference {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+}
+
+.docs-panel .module-index {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    flex: 0 0 auto;
+    width: 200px;
+    min-width: 120px;
+    gap: var(--sp-1);
+    padding: var(--sp-1);
+    border-right: 1px solid var(--border-subtle);
+}
+
+.docs-panel .module-index-sash {
+    right: -1px;
+}
+
+.docs-panel .module-index-sash::after {
+    left: auto;
+    right: 0;
+}
+
+.docs-panel .module-index-list {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    list-style: none;
+    /* One column as wide as the longest name, never narrower than the list,
+       so every row's hover background spans the scrolled width. */
+    display: grid;
+    grid-template-columns: minmax(max-content, auto);
+    align-content: start;
+}
+
+.docs-panel .module-index-list button {
+    display: block;
+    width: 100%;
+    padding: 2px 6px;
+    background: none;
+    border: none;
+    border-radius: 3px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: inherit;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.docs-panel .module-index-list button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.docs-panel .module-index-list button.active {
+    color: var(--accent-primary);
+}
+
+.docs-panel .module-reference-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.docs-panel .module-categories {
+    display: flex;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    gap: 6px;
+    padding: var(--sp-1);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.docs-panel .module-categories button {
+    padding: 2px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.docs-panel .module-categories button:hover {
+    color: var(--text-primary);
+}
+
+.docs-panel .module-categories button.active {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.docs-panel .module-cards {
+    flex: 1;
+    min-height: 0;
+    padding: var(--sp-1);
+    overflow-y: auto;
+}
+
+.docs-panel .module-reference-empty {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+.docs-panel .module-list {
+    position: relative;
+}
+
+.docs-panel .module-list-item {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+.docs-panel .module-list .module-card {
+    margin-bottom: 0;
+}
+
+.docs-panel .param-meta {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    font-variant-numeric: tabular-nums;
+}
+
+.docs-panel .module-card {
+    container-type: inline-size;
+}
+
+.docs-panel .doc-summary {
+    margin: 2px 0 8px;
+    color: var(--text-secondary);
+}
+
+.docs-panel .doc-experimental {
+    margin: 0 0 8px;
+    padding-left: 8px;
+    border-left: 2px solid var(--color-warning);
+}
+
+.docs-panel .doc-section h4 {
+    margin-top: 14px;
+}
+
+.docs-panel .doc-example {
+    margin: 8px 0;
+}
+
+.docs-panel .doc-example figcaption {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    margin-bottom: 4px;
+}
+
+.docs-panel .doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 0.95em;
+}
+
+.docs-panel .doc-table th,
+.docs-panel .doc-table td {
+    text-align: left;
+    vertical-align: top;
+    padding: 4px 8px 4px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.docs-panel .doc-table th {
+    color: var(--text-secondary);
+    font-weight: normal;
+}
+
+.docs-panel .doc-table td:first-child {
+    white-space: nowrap;
+}
+
+/* A narrow card stacks each row: its key as a heading, then `column: value`. */
+@container (max-width: 36ch) {
+    .docs-panel .doc-table thead {
+        display: none;
+    }
+
+    .docs-panel .doc-table,
+    .docs-panel .doc-table tbody,
+    .docs-panel .doc-table tr,
+    .docs-panel .doc-table td {
+        display: block;
+        width: auto;
+    }
+
+    .docs-panel .doc-table tr {
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .docs-panel .doc-table td {
+        border: none;
+        padding: 1px 0;
+    }
+
+    .docs-panel .doc-table td:first-child {
+        font-weight: bold;
+        white-space: normal;
+    }
+
+    .docs-panel .doc-table td:not(:first-child)::before {
+        content: attr(data-label) ': ';
+        color: var(--text-secondary);
+    }
+}

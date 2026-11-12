@@ -1,14 +1,17 @@
 /**
  * Finding an EQ call in the source and the list literals the panel edits.
  * Each edit parses the current document and finds the call by the offset of
- * its callee — `$eq` itself, or the `eq` of a `.$.eq(...)` chain (the
+ * its callee — `$eq` itself, or the `eq` of a `.eq(...)` chain (the
  * panel's tracked anchor) — then the config object holding `ui` and its
  * `sections`: the array itself, or one channel's nested array.
  */
-import { ts } from 'ts-morph';
+import ts from 'typescript';
 
+import { signedNumericLiteral } from '../../shared/dsl/ast/literals';
+import { propertyName } from '../../shared/dsl/ast/names';
+import { parseDsl } from '../../shared/dsl/ast/parse';
 import type { EqField } from './eqPanelModel';
-import { eolOf, indentAt, lineEnd } from '../dsl/objectPropertyInsert';
+import type { ListEdit } from '../dsl/listEdits';
 
 export interface TextEdit {
     /** Half-open [start, end) replacement span. */
@@ -38,16 +41,6 @@ export type EqSourceEditResult =
      * list is not an array literal.
      */
     | { ok: false; reason: 'stale' | 'unsupported' };
-
-function parse(source: string): ts.SourceFile {
-    return ts.createSourceFile(
-        'patch.js',
-        source,
-        ts.ScriptTarget.Latest,
-        true,
-        ts.ScriptKind.JS,
-    );
-}
 
 function findEqCall(
     sf: ts.SourceFile,
@@ -102,7 +95,7 @@ export function locateSections(
     source: string,
     anchor: number,
 ): LocatedSections {
-    const sf = parse(source);
+    const sf = parseDsl(source);
     const call = findEqCall(sf, anchor);
     if (!call) {
         return { ok: false, reason: 'stale' };
@@ -165,13 +158,6 @@ export function locate(
     return { ok: true, sections: list, sf };
 }
 
-function propertyNameText(name: ts.PropertyName): string | null {
-    if (ts.isIdentifier(name) || ts.isStringLiteral(name)) {
-        return name.text;
-    }
-    return null;
-}
-
 export function findProperty(
     obj: ts.ObjectLiteralExpression,
     name: string,
@@ -180,7 +166,7 @@ export function findProperty(
         if (
             (ts.isPropertyAssignment(p) ||
                 ts.isShorthandPropertyAssignment(p)) &&
-            propertyNameText(p.name) === name
+            propertyName(p) === name
         ) {
             return p;
         }
@@ -189,18 +175,10 @@ export function findProperty(
 }
 
 export function isRewritableLiteral(node: ts.Expression): boolean {
-    if (
-        ts.isNumericLiteral(node) ||
-        ts.isStringLiteral(node) ||
-        ts.isNoSubstitutionTemplateLiteral(node)
-    ) {
-        return true;
-    }
     return (
-        ts.isPrefixUnaryExpression(node) &&
-        (node.operator === ts.SyntaxKind.MinusToken ||
-            node.operator === ts.SyntaxKind.PlusToken) &&
-        ts.isNumericLiteral(node.operand)
+        ts.isStringLiteral(node) ||
+        ts.isNoSubstitutionTemplateLiteral(node) ||
+        signedNumericLiteral(node) !== null
     );
 }
 
@@ -231,43 +209,17 @@ export function diffEdit(before: string, after: string): TextEdit | null {
     return { end: endBefore, start, text: after.slice(start, endAfter) };
 }
 
-/** Append `text` as the array's last element, matching its layout. */
-export function appendElement(
-    sf: ts.SourceFile,
-    array: ts.ArrayLiteralExpression,
-    text: string,
-): TextEdit {
-    const source = sf.text;
-    const elements = array.elements;
-    const close = array.getEnd() - 1;
-    if (elements.length === 0) {
-        return { end: close, start: array.getStart(sf) + 1, text };
-    }
-    const last = elements[elements.length - 1];
-    const comma = /^\s*,/.exec(source.slice(last.getEnd(), close));
-    const expanded = source
-        .slice(array.getStart(sf) + 1, elements[0].getStart(sf))
-        .includes('\n');
-    if (expanded) {
-        const nl = eolOf(source);
-        const indent = indentAt(source, last.getStart(sf));
-        if (comma) {
-            const afterComma = last.getEnd() + comma[0].length;
-            const eol = lineEnd(source, afterComma);
-            const at = eol < close ? eol : afterComma;
-            return { end: at, start: at, text: `${nl}${indent}${text},` };
-        }
-        return {
-            end: last.getEnd(),
-            start: last.getEnd(),
-            text: `,${nl}${indent}${text}`,
-        };
-    }
-    if (comma) {
-        const at = last.getEnd() + comma[0].length;
-        return { end: at, start: at, text: ` ${text}` };
-    }
-    return { end: last.getEnd(), start: last.getEnd(), text: `, ${text}` };
+/** `edit` in this module's start/end/text shape. */
+export function asTextEdit(edit: ListEdit): TextEdit {
+    return { end: edit.span.end, start: edit.span.start, text: edit.newText };
+}
+
+/** The result of an op that appends to a list: unsupported when the list
+ *  has no closing bracket to append before. */
+export function appendResult(edit: ListEdit | null): EqSourceEditResult {
+    return edit
+        ? { edit: asTextEdit(edit), ok: true, skipped: [] }
+        : { ok: false, reason: 'unsupported' };
 }
 
 /**

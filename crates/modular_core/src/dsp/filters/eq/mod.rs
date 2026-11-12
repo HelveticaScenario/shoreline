@@ -1,10 +1,16 @@
 //! `$eq`: serial parametric EQ of trapezoidal state-variable filter
 //! sections.
 
+use std::ops::Range;
+
 use schemars::JsonSchema;
 
+use crate::block_input::{BlockInput, InputScratch};
+use crate::dsp::filters::svf_core;
 use crate::dsp::utils::sanitize;
-use crate::poly::PolyOutput;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, DocSection, ModuleDocs};
+use crate::poly::{MonoSignal, PolyOutput};
 
 mod live;
 mod params;
@@ -12,13 +18,13 @@ mod svf;
 
 pub use live::eq_state_builder;
 
-use params::{EqSections, MAX_EQ_SECTIONS, ParametricEqParams, eq_derive_channel_count};
+use params::{DEFAULT_Q, EqSections, MAX_EQ_SECTIONS, ParametricEqParams, eq_derive_channel_count};
 use svf::SectionRuntime;
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ParametricEqOutputs {
-    #[output("output", "equalized signal", default)]
+    #[output("output", "equalized signal", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -45,7 +51,7 @@ impl Default for ParametricEqChannel {
 struct ParametricEqState {
     /// Coefficients of the shared section list, used by every channel.
     mono: [SectionRuntime; MAX_EQ_SECTIONS],
-    /// The runtimes that ran last; the others hold smoothing from an older
+    /// The runtimes that ran last; the others hold glide state from an older
     /// form. None before the first patch update.
     active: Option<ActiveRuntimes>,
 }
@@ -68,62 +74,62 @@ impl Default for ParametricEqState {
     }
 }
 
-/// Parametric EQ: shape the tone of a sound with up to 8 bands.
-///
-/// Each band in **sections** has a **type**:
-///
-/// - `'peak'` (default): boost or cut around a frequency.
-/// - `'lowShelf'` / `'highShelf'`: boost or cut everything below / above a
-///   frequency.
-/// - `'lowpass'` / `'highpass'`: remove everything above / below a frequency.
-/// - `'notch'`: remove a narrow band around a frequency.
-///
-/// and sets:
-///
-/// - **freq**: where the band sits, like `'1000hz'` or `'c4'`.
-/// - **gain**: how much to boost or cut, in dB (-24 to 24). Peaks and shelves
-///   only.
-/// - **q**: how narrow the band is (0.1 to 20, default 0.707). On shelves and
-///   lowpass/highpass, values above 0.707 add a resonant bump at the
-///   frequency; on shelves, lower values make a gentler slope.
-///
-/// Any of them can be modulated. With no sections, the sound passes through
-/// unchanged.
-///
-/// To EQ channels differently, give **sections** one list of bands per
-/// channel, like one for left and one for right.
-///
-/// **adaptiveQ** makes peaks narrower the more you boost or cut them, like
-/// many classic analog EQs.
-///
-/// **ui: true** shows an editor under the call. Drag a band's dot to move it,
-/// scroll over it or drag its handles to change q, and double-click to add a
-/// band. Changes play right away and are written into your code. Hold
-/// Ctrl/Cmd to change only the code, and right-click a control to reset it.
-///
-/// ```js
-/// // Warm up the lows, sweep a dip through the mids, clear out rumble
-/// $eq($saw('c2'), {
-///   sections: [
-///     { type: 'lowShelf', freq: '150hz', gain: 3 },
-///     { type: 'peak', freq: $sine('0.5hz').range('400hz', '2000hz'), gain: -6, q: 2 },
-///     { type: 'highpass', freq: '40hz' },
-///   ],
-///   adaptiveQ: true,
-/// })
-///
-/// // A darker left channel, a brighter right one
-/// $eq($saw(['c2', 'g2']), {
-///   sections: [
-///     [{ type: 'highShelf', freq: '3000hz', gain: -6 }],
-///     [{ type: 'highShelf', freq: '3000hz', gain: 4 }],
-///   ],
-/// })
-///
-/// // Start empty and build the EQ in the editor
-/// $eq($saw('c2'), { ui: true })
-/// ```
-#[module(name = "$eq", channels_derive = eq_derive_channel_count, patch_update, stateful, args(input))]
+const EQ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Parametric EQ",
+    description: "Shapes tone with up to 8 bands of peaks, shelves, cuts and notches, any of \
+                  which can be modulated. Give `sections` one list of bands per channel to EQ \
+                  left and right differently, or set `ui: true` to shape it by hand.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[DocSection {
+        title: "Editing in the EQ editor",
+        body: "Drag a band's dot to move it, scroll over it or drag its handles to change `q`, \
+               and double-click to add a band. Changes play right away and are written into \
+               your code. Hold Ctrl/Cmd to change only the code, and right-click a control to \
+               reset it.",
+        table: None,
+        examples: &[DocExample {
+            title: "Start empty and build the EQ by hand",
+            code: "$saw('c2').eq({ ui: true }).out()",
+        }],
+    }],
+    examples: &[
+        DocExample {
+            title: "Warm lows with a sweeping mid dip",
+            code: r#"
+                $saw('c2')
+                  .eq({
+                    sections: [
+                      { type: 'lowShelf', freq: '150hz', gain: 3 },
+                      {
+                        type: 'peak',
+                        freq: $sine('0.5hz').range('400hz', '2000hz'),
+                        gain: -6,
+                        q: 2,
+                      },
+                      { type: 'highpass', freq: '40hz' },
+                    ],
+                    adaptiveQ: true,
+                  })
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "A darker left channel, a brighter right one",
+            code: r#"
+                $saw(['c2', 'g2'])
+                  .eq({
+                    sections: [
+                      [{ type: 'highShelf', freq: '3000hz', gain: -6 }],
+                      [{ type: 'highShelf', freq: '3000hz', gain: 4 }],
+                    ],
+                  })
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(name = "$eq", docs = EQ_DOCS, channels_derive = eq_derive_channel_count, patch_update, stateful, args(input), block)]
 pub struct ParametricEq {
     outputs: ParametricEqOutputs,
     state: ParametricEqState,
@@ -145,7 +151,7 @@ impl ParametricEq {
                     let cs = &mut self.channel_state[ch];
                     let mut x = sanitize(self.params.input.get_value(ch));
                     for s in 0..n {
-                        x = svf::process(
+                        x = svf_core::process(
                             &self.state.mono[s].coeffs,
                             &mut cs.ic1[s],
                             &mut cs.ic2[s],
@@ -173,11 +179,128 @@ impl ParametricEq {
                     for s in 0..n {
                         let c = self.channel_state[l].per[s].coeffs;
                         let cs = &mut self.channel_state[ch];
-                        x = svf::process(&c, &mut cs.ic1[s], &mut cs.ic2[s], x);
+                        x = svf_core::process(&c, &mut cs.ic1[s], &mut cs.ic2[s], x);
                     }
                     self.outputs.sample.set(ch, x);
                 }
             }
+        }
+    }
+
+    fn process_block(
+        &mut self,
+        outputs: &mut ParametricEqBlockOutputs,
+        range: Range<usize>,
+        sample_rate: f32,
+    ) -> Option<()> {
+        let channels = self.channel_count();
+        let adaptive_q = self.params.adaptive_q;
+        let shared = matches!(self.params.sections, EqSections::Shared(_));
+        let (lists, num_lists) = match &self.params.sections {
+            EqSections::Shared(list) => (std::slice::from_ref(list), 1),
+            EqSections::PerChannel(lists) => (&lists[..], lists.len().min(channels)),
+        };
+        let mut s_in = InputScratch::new();
+        let input = self
+            .params
+            .input
+            .block_input(range.clone(), channels, &mut s_in)?;
+
+        // The params of every section not yet settled, in `update`'s refresh
+        // order; more such sections than fit decline the range.
+        let mut pool: [InputScratch; 3 * MAX_EQ_SECTIONS] =
+            std::array::from_fn(|_| InputScratch::new());
+        let mut free = pool.iter_mut();
+        let mut moving = [None; MAX_EQ_SECTIONS];
+        let mut count = 0;
+        for (l, list) in lists.iter().take(num_lists).enumerate() {
+            let n = list.len().min(MAX_EQ_SECTIONS);
+            for (s, sec) in list[..n].iter().enumerate() {
+                let rt = if shared {
+                    &self.state.mono[s]
+                } else {
+                    &self.channel_state[l].per[s]
+                };
+                if rt.is_settled() {
+                    continue;
+                }
+                let targets = [
+                    Target::resolve(Some(&sec.freq), 0.0, &range, free.next()?)?,
+                    Target::resolve(sec.gain.as_ref(), 0.0, &range, free.next()?)?,
+                    Target::resolve(sec.q.as_ref(), DEFAULT_Q, &range, free.next()?)?,
+                ];
+                *moving.get_mut(count)? = Some((l, s, targets));
+                count += 1;
+            }
+        }
+
+        for i in range {
+            for &(l, s, [f, g, q]) in moving[..count].iter().flatten() {
+                let rt = if shared {
+                    &mut self.state.mono[s]
+                } else {
+                    &mut self.channel_state[l].per[s]
+                };
+                if !rt.is_settled() {
+                    rt.advance(
+                        &lists[l][s],
+                        [f.at(i), g.at(i), q.at(i)],
+                        sample_rate,
+                        adaptive_q,
+                    );
+                }
+            }
+            let row = input.row(i);
+            let slot = outputs.sample.slot_mut(i);
+            for (ch, (out, &x)) in slot.iter_mut().zip(row).enumerate() {
+                let l = ch % num_lists;
+                let n = lists[l].len().min(MAX_EQ_SECTIONS);
+                let mut x = sanitize(x);
+                for s in 0..n {
+                    let c = if shared {
+                        self.state.mono[s].coeffs
+                    } else {
+                        self.channel_state[l].per[s].coeffs
+                    };
+                    let cs = &mut self.channel_state[ch];
+                    x = svf_core::process(&c, &mut cs.ic1[s], &mut cs.ic2[s], x);
+                }
+                *out = sanitize(x);
+            }
+        }
+        Some(())
+    }
+}
+
+/// A section param resolved for a block range: the channels it sums, or its
+/// default when absent.
+#[derive(Clone, Copy)]
+enum Target<'a> {
+    Summed(BlockInput<'a>),
+    Default(f32),
+}
+
+impl<'a> Target<'a> {
+    fn resolve(
+        signal: Option<&'a MonoSignal>,
+        default: f32,
+        range: &Range<usize>,
+        scratch: &'a mut InputScratch,
+    ) -> Option<Self> {
+        let Some(signal) = signal else {
+            return Some(Target::Default(default));
+        };
+        let poly = signal.poly();
+        poly.block_input(range.clone(), poly.channels(), scratch)
+            .map(Target::Summed)
+    }
+
+    /// Slot `i`'s value, summed as [`MonoSignal::get_value`] sums.
+    #[inline(always)]
+    fn at(&self, i: usize) -> f32 {
+        match self {
+            Target::Summed(rows) => rows.row(i).iter().sum(),
+            Target::Default(value) => *value,
         }
     }
 }
@@ -189,7 +312,7 @@ impl crate::types::PatchUpdateHandler for ParametricEq {
     /// sample.
     ///
     /// Runtimes coming back into use after another form ran hold stale
-    /// smoothing, so they start fresh and snap to the new values.
+    /// glide state, so they start fresh and snap to the new values.
     fn on_patch_update(&mut self) {
         let now = match &self.params.sections {
             EqSections::Shared(_) => ActiveRuntimes::Shared,
@@ -287,7 +410,7 @@ mod tests {
     }
 
     /// RMS of the module output for a unit sine at `freq_hz`, skipping the
-    /// first 1000 samples of smoothing/filter transient.
+    /// first 1000 samples of filter transient.
     fn sine_rms(m: &mut ParametricEq, freq_hz: f32, n: usize) -> f32 {
         let mut acc = 0.0f64;
         let mut count = 0usize;
@@ -504,7 +627,7 @@ mod tests {
     fn settled_section_takes_a_changed_value_after_patch_update() {
         use crate::types::PatchUpdateHandler;
         let mut m = make(vec![section(EqSectionType::Peak, 0.0, 1.0)]);
-        // Long enough for the smoothers to reach their targets and settle.
+        // Long enough for the filter to settle.
         sine_rms(&mut m, C4_HZ, 20_000);
         let EqSections::Shared(list) = &mut m.params.sections else {
             unreachable!()

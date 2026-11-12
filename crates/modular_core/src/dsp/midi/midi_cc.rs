@@ -7,29 +7,32 @@ use deserr::Deserr;
 use napi::Result;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::types::{DeviceName, MidiControlChange, MidiControlChange14Bit};
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MidiCcParams {
-    /// MIDI device name to receive from (leave unset to receive from all devices)
+    #[input("MIDI device to listen to; every device when unset")]
     #[deserr(default)]
     device: Option<String>,
 
-    /// CC number to monitor (0-127 for 7-bit, 0-31 for 14-bit mode)
+    #[input("controller number to follow; 0–31 in high-resolution mode", range = (0, 127))]
     cc: u8,
 
-    /// MIDI channel to listen on (1–16, leave unset for omni/all channels)
+    #[input("MIDI channel to listen to; every channel when unset", range = (1, 16))]
     #[deserr(default)]
     channel: Option<u8>,
 
-    /// Smoothing time in milliseconds (0 = instant)
+    #[input("glide time between controller values, in milliseconds; 0 jumps instantly", range = (0.0, ..))]
     #[serde(default)]
     #[deserr(default)]
     smoothing_ms: f32,
 
-    /// Enable 14-bit high-resolution CC mode (CC 0-31 MSB + CC 32-63 LSB)
+    #[input("read 14-bit controllers, pairing CC 0–31 with CC 32–63 for finer steps")]
     #[serde(default)]
     #[deserr(default)]
     high_resolution: bool,
@@ -38,7 +41,7 @@ struct MidiCcParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MidiCcOutputs {
-    #[output("output", "CC value as voltage (0-5V)", default, range = (0.0, 5.0))]
+    #[output("output", "the controller's value: 0 at its minimum, 5 at its maximum", type = cv, default, range = (0.0, 5.0))]
     output: f32,
 }
 
@@ -51,24 +54,22 @@ struct MidiCcState {
     smoothed_value: f32,
 }
 
-/// Converts a MIDI continuous controller (CC) message into a smooth control voltage (0–5V).
-///
-/// Use the `cc` parameter to select which CC number to listen to (0–127).
-/// Optional `smoothingMs` applies a slew filter to reduce stepping artifacts.
-/// Enable `highResolution` for 14-bit CC precision (pairs CC 0–31 with 32–63).
-///
-/// ## Example
-///
-/// ```js
-/// // Use mod wheel (CC 1) to sweep a filter cutoff
-/// const mod = $midiCC({ cc: 1 });
-/// $lpf($saw('c3'), mod.range('c2', 'c6')).out();
-///
-/// // High-resolution breath controller with smoothing
-/// const breath = $midiCC({ cc: 2, highResolution: true, smoothingMs: 10 });
-/// $sine('c4').amplitude(breath).out();
-/// ```
-#[module(name = "$midiCC", args())]
+const MIDI_CC_DOCS: ModuleDocs = ModuleDocs {
+    summary: "MIDI controller to voltage",
+    description: "Follows one knob, fader or wheel on a MIDI controller as a 0–5 V control \
+                  voltage, for playing any param of a patch by hand.",
+    categories: &[ModuleCategory::Midi],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Mod wheel filter sweep",
+        code: r#"
+            const wheel = $midiCC({ cc: 1, smoothingMs: 10 })
+            $saw('c2').lpf(wheel.range('c3', 'c7'), 2).out()
+        "#,
+    }],
+};
+
+#[module(name = "$midiCC", docs = MIDI_CC_DOCS, args())]
 pub struct MidiCc {
     outputs: MidiCcOutputs,
     params: MidiCcParams,
