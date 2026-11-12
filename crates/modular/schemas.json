@@ -201,7 +201,8 @@
         "controlMax": 5.0
       }
     ],
-    "positionalArgs": []
+    "positionalArgs": [],
+    "experimental": false
   },
   {
     "name": "$swell",
@@ -418,7 +419,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$signal",
@@ -531,7 +533,8 @@
       {
         "name": "value"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mix",
@@ -691,7 +694,8 @@
       {
         "name": "inputs"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mixDown",
@@ -846,7 +850,8 @@
         "name": "channels"
       }
     ],
-    "channelsParam": "channels"
+    "channelsParam": "channels",
+    "experimental": false
   },
   {
     "name": "$stereoMix",
@@ -1014,7 +1019,8 @@
         "name": "input"
       }
     ],
-    "channels": 2
+    "channels": 2,
+    "experimental": false
   },
   {
     "name": "_clock",
@@ -1235,7 +1241,8 @@
         "name": "denominator"
       }
     ],
-    "channels": 1
+    "channels": 1,
+    "experimental": false
   },
   {
     "name": "$tr808.kick",
@@ -1444,7 +1451,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.snare",
@@ -1649,7 +1657,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.rimShot",
@@ -1812,7 +1821,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.claves",
@@ -1996,7 +2006,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.cowbell",
@@ -2163,7 +2174,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.clap",
@@ -2304,7 +2316,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.maracas",
@@ -2445,7 +2458,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.cymbal",
@@ -2633,7 +2647,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.hiHat",
@@ -2857,7 +2872,8 @@
       {
         "name": "closed"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.lowTom",
@@ -3041,7 +3057,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.midTom",
@@ -3225,7 +3242,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.highTom",
@@ -3409,7 +3427,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.lowConga",
@@ -3593,7 +3612,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.midConga",
@@ -3777,7 +3797,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr808.highConga",
@@ -3961,7 +3982,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr909.kick",
@@ -4187,7 +4209,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr909.snare",
@@ -4392,7 +4415,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr909.rimShot",
@@ -4533,7 +4557,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr909.clap",
@@ -4674,7 +4699,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr909.lowTom",
@@ -4858,7 +4884,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr909.midTom",
@@ -5042,7 +5069,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tr909.highTom",
@@ -5226,7 +5254,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$comp",
@@ -5563,7 +5592,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": true
   },
   {
     "name": "$xover",
@@ -5736,7 +5766,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": true
   },
   {
     "name": "$fold",
@@ -5891,7 +5922,8 @@
       {
         "name": "amount"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$cheby",
@@ -6046,7 +6078,8 @@
       {
         "name": "amount"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$dattorro",
@@ -6297,7 +6330,8 @@
         "name": "input"
       }
     ],
-    "channels": 2
+    "channels": 2,
+    "experimental": false
   },
   {
     "name": "$overdrive",
@@ -6485,7 +6519,8 @@
       {
         "name": "drive"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$filterDC",
@@ -6598,7 +6633,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$plate",
@@ -6807,7 +6843,8 @@
         "name": "input"
       }
     ],
-    "channels": 2
+    "channels": 2,
+    "experimental": false
   },
   {
     "name": "$quantNoise",
@@ -6978,7 +7015,8 @@
       {
         "name": "amount"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.reverb",
@@ -7231,7 +7269,8 @@
         "name": "input"
       }
     ],
-    "channels": 2
+    "channels": 2,
+    "experimental": false
   },
   {
     "name": "$unstable.reverb2",
@@ -7484,7 +7523,8 @@
         "name": "input"
       }
     ],
-    "channels": 2
+    "channels": 2,
+    "experimental": false
   },
   {
     "name": "$segment",
@@ -7634,7 +7674,8 @@
       {
         "name": "amount"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$reverb",
@@ -7864,7 +7905,8 @@
         "name": "amount"
       }
     ],
-    "channels": 2
+    "channels": 2,
+    "experimental": false
   },
   {
     "name": "$granular",
@@ -8247,7 +8289,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$granularSampler",
@@ -8591,7 +8634,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$wowFlutter",
@@ -8765,7 +8809,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$clockedDelay",
@@ -9108,7 +9153,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$sine",
@@ -9305,7 +9351,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$saw",
@@ -9528,7 +9575,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$pulse",
@@ -9767,7 +9815,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$pSine",
@@ -9885,7 +9934,8 @@
       {
         "name": "phase"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$pSaw",
@@ -10024,7 +10074,8 @@
       {
         "name": "phase"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$pPulse",
@@ -10184,7 +10235,8 @@
       {
         "name": "phase"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$noise",
@@ -10413,7 +10465,8 @@
       {
         "name": "color"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$macro",
@@ -11029,7 +11082,8 @@
       {
         "name": "engine"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$supersaw",
@@ -11238,7 +11292,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$enosc",
@@ -12140,7 +12195,8 @@
       {
         "name": "scale"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$wavetable",
@@ -12568,7 +12624,8 @@
       {
         "name": "position"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$lpf",
@@ -12723,7 +12780,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$apf",
@@ -12930,7 +12988,8 @@
       {
         "name": "cutoff"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$hpf",
@@ -13084,7 +13143,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$bpf",
@@ -13238,7 +13298,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$jup6f",
@@ -13425,7 +13486,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$lpg",
@@ -13625,7 +13687,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$multimode",
@@ -13889,7 +13952,8 @@
       {
         "name": "mode"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$eq",
@@ -14138,7 +14202,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.lp",
@@ -14336,7 +14401,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.hp",
@@ -14534,7 +14600,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.bp",
@@ -14742,7 +14809,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.notch",
@@ -14935,7 +15003,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.ap",
@@ -15088,7 +15157,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.legacyLadder",
@@ -15271,7 +15341,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.diodeLadder",
@@ -15454,7 +15525,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.vintageLadder",
@@ -15637,7 +15709,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.k35Lp",
@@ -15825,7 +15898,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.k35Hp",
@@ -16013,7 +16087,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.obxd2Lp",
@@ -16186,7 +16261,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.obxd2Bp",
@@ -16359,7 +16435,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.obxd2Hp",
@@ -16532,7 +16609,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.obxd2Notch",
@@ -16705,7 +16783,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.obxd4",
@@ -16893,7 +16972,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.xpander",
@@ -17131,7 +17211,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.cutoffWarpLp",
@@ -17320,7 +17401,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.cutoffWarpHp",
@@ -17509,7 +17591,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.cutoffWarpBp",
@@ -17698,7 +17781,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.cutoffWarpNotch",
@@ -17887,7 +17971,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.cutoffWarpAp",
@@ -18076,7 +18161,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.resWarpLp",
@@ -18260,7 +18346,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.resWarpHp",
@@ -18444,7 +18531,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.resWarpBp",
@@ -18628,7 +18716,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.resWarpNotch",
@@ -18812,7 +18901,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.resWarpAp",
@@ -18996,7 +19086,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.tripole",
@@ -19190,7 +19281,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.fastSvf",
@@ -19383,7 +19475,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.sah",
@@ -19536,7 +19629,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.filter.comb",
@@ -19729,7 +19823,8 @@
       {
         "name": "resonance"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$pWarp",
@@ -20038,7 +20133,8 @@
       {
         "name": "phase"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$ramp",
@@ -20154,7 +20250,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$addHz",
@@ -20282,7 +20379,8 @@
       {
         "name": "offset"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$adsr",
@@ -20525,7 +20623,8 @@
       {
         "name": "gate"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "_arithmetic",
@@ -20677,7 +20776,8 @@
       {
         "name": "operand"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "_round",
@@ -20815,7 +20915,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$bufRead",
@@ -20967,7 +21068,8 @@
       {
         "name": "frame"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$buffer",
@@ -21086,7 +21188,8 @@
       {
         "name": "length"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$chord",
@@ -21310,7 +21413,8 @@
       {
         "name": "chord"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$clamp",
@@ -21463,7 +21567,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$clockDivider",
@@ -21605,7 +21710,8 @@
       {
         "name": "division"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$coinFlip",
@@ -21755,7 +21861,8 @@
       {
         "name": "probability"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$scan",
@@ -21921,7 +22028,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$curve",
@@ -22051,7 +22159,8 @@
       {
         "name": "exp"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$delayRead",
@@ -22207,7 +22316,8 @@
       {
         "name": "time"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "_erratic",
@@ -22463,7 +22573,8 @@
       {
         "name": "amount"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$hold",
@@ -22601,7 +22712,8 @@
       {
         "name": "time"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$slew",
@@ -22757,7 +22869,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$rising",
@@ -22872,7 +22985,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$falling",
@@ -22987,7 +23101,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$math",
@@ -23169,7 +23284,8 @@
       {
         "name": "expression"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$motionFollower",
@@ -23403,7 +23519,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mulHz",
@@ -23533,7 +23650,8 @@
       {
         "name": "factor"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "_hz",
@@ -23649,7 +23767,8 @@
       {
         "name": "input"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$remap",
@@ -23826,7 +23945,8 @@
       {
         "name": "inMax"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$sah",
@@ -23956,7 +24076,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$tah",
@@ -24082,7 +24203,8 @@
       {
         "name": "gate"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$perc",
@@ -24221,7 +24343,8 @@
       {
         "name": "trigger"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$quantizer",
@@ -24407,7 +24530,8 @@
       {
         "name": "scale"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$scaleAndShift",
@@ -24563,7 +24687,8 @@
       {
         "name": "shift"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "_smoothControl",
@@ -24612,7 +24737,8 @@
       {
         "name": "value"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$spread",
@@ -24777,7 +24903,8 @@
         "name": "count"
       }
     ],
-    "channelsParam": "count"
+    "channelsParam": "count",
+    "experimental": false
   },
   {
     "name": "$unison",
@@ -24928,7 +25055,8 @@
       {
         "name": "spread"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "_videoTap",
@@ -25052,7 +25180,8 @@
       {
         "name": "slot"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$wrap",
@@ -25202,7 +25331,8 @@
       {
         "name": "max"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$cycle",
@@ -27634,7 +27764,8 @@
       {
         "name": "pattern"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$track",
@@ -27826,7 +27957,8 @@
       {
         "name": "keyframes"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$step",
@@ -27983,7 +28115,8 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$drumMap",
@@ -28345,7 +28478,8 @@
         "controlMax": 5.0
       }
     ],
-    "positionalArgs": []
+    "positionalArgs": [],
+    "experimental": false
   },
   {
     "name": "$groove",
@@ -28591,7 +28725,8 @@
       {
         "name": "template"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$midiCV",
@@ -28788,7 +28923,8 @@
     "bufferOutputs": [],
     "signalParams": [],
     "positionalArgs": [],
-    "channelsParam": "channels"
+    "channelsParam": "channels",
+    "experimental": false
   },
   {
     "name": "$midiCC",
@@ -28866,7 +29002,8 @@
     ],
     "bufferOutputs": [],
     "signalParams": [],
-    "positionalArgs": []
+    "positionalArgs": [],
+    "experimental": false
   },
   {
     "name": "$mi.additive",
@@ -29109,7 +29246,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.chorus",
@@ -29282,7 +29420,8 @@
         "name": "input"
       }
     ],
-    "channels": 2
+    "channels": 2,
+    "experimental": false
   },
   {
     "name": "$mi.divideDown",
@@ -29463,7 +29602,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.formant",
@@ -29678,7 +29818,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.hiHat",
@@ -29938,7 +30079,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.ringHat",
@@ -30198,7 +30340,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.kick",
@@ -30500,7 +30643,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.synthKick",
@@ -30803,7 +30947,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.modal",
@@ -31089,7 +31234,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.particles",
@@ -31339,7 +31485,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.phaseDistortion",
@@ -31567,7 +31714,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.sixOp",
@@ -31848,7 +31996,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.snare",
@@ -32108,7 +32257,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.synthSnare",
@@ -32368,7 +32518,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.speak",
@@ -32680,7 +32831,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.string",
@@ -32966,7 +33118,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.swarm",
@@ -33215,7 +33368,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.twoOp",
@@ -33448,7 +33602,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.formantVowel",
@@ -33672,7 +33827,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.samVowel",
@@ -33896,7 +34052,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.lpcVowel",
@@ -34120,7 +34277,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.waveTerrain",
@@ -34353,7 +34511,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.waveshaper",
@@ -34586,7 +34745,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$mi.zOsc",
@@ -34805,7 +34965,8 @@
       {
         "name": "freq"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$grains",
@@ -35104,7 +35265,8 @@
       {
         "name": "gate"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "_mediaAudio",
@@ -35197,7 +35359,8 @@
       {
         "name": "wav"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$sampler",
@@ -35436,7 +35599,8 @@
       {
         "name": "gate"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.shape.saturate",
@@ -35613,7 +35777,8 @@
       {
         "name": "drive"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.shape.harmonic",
@@ -35820,7 +35985,8 @@
       {
         "name": "drive"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.shape.rectify",
@@ -35992,7 +36158,8 @@
       {
         "name": "drive"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.shape.fold",
@@ -36174,7 +36341,8 @@
       {
         "name": "drive"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.shape.fuzz",
@@ -36351,7 +36519,8 @@
       {
         "name": "drive"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.shape.trigonometric",
@@ -36558,7 +36727,8 @@
       {
         "name": "drive"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.shape.digital",
@@ -36697,7 +36867,8 @@
       {
         "name": "drive"
       }
-    ]
+    ],
+    "experimental": false
   },
   {
     "name": "$unstable.shape.sine",
@@ -36836,6 +37007,7 @@
       {
         "name": "drive"
       }
-    ]
+    ],
+    "experimental": false
   }
 ]

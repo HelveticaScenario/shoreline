@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    `.mix(channels, mode)` is now `.mixDown(channels, { mode })`. `$mix` is unchanged.
+
+    ```js
+    // before
+    $c($sine('c3'), $sine('e3')).mix(1, 'average').out()
+    // after
+    $c($sine('c3'), $sine('e3')).mixDown(1, { mode: 'average' }).out()
+    ```
+time: 2026-11-12T03:26:22.411159-05:00
