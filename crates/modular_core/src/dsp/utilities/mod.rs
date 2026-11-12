@@ -53,6 +53,8 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     arithmetic::Div::install_constructor(map);
     arithmetic::Exp::install_constructor(map);
     round::Round::install_constructor(map);
+    round::Floor::install_constructor(map);
+    round::Ceil::install_constructor(map);
     buffer::BufRead::install_constructor(map);
     buffer::BufferWrite::install_constructor(map);
     chord::Chord::install_constructor(map);
@@ -95,6 +97,8 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     arithmetic::Div::install_params_deserializer(map);
     arithmetic::Exp::install_params_deserializer(map);
     round::Round::install_params_deserializer(map);
+    round::Floor::install_params_deserializer(map);
+    round::Ceil::install_params_deserializer(map);
     buffer::BufRead::install_params_deserializer(map);
     buffer::BufferWrite::install_params_deserializer(map);
     chord::Chord::install_params_deserializer(map);
@@ -138,6 +142,8 @@ pub fn schemas() -> Vec<ModuleSchema> {
         arithmetic::Div::get_schema(),
         arithmetic::Exp::get_schema(),
         round::Round::get_schema(),
+        round::Floor::get_schema(),
+        round::Ceil::get_schema(),
         buffer::BufRead::get_schema(),
         buffer::BufferWrite::get_schema(),
         chord::Chord::get_schema(),

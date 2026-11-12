@@ -335,7 +335,7 @@ mod tests {
             ("clock", "_clock"),
             ("sub", "$sub"),
             ("frac", "$wrap"),
-            ("bar", "_round"),
+            ("bar", "$floor"),
             ("half", "$amp"),
             ("lfo", "$sine"),
             ("mix", "$add"),

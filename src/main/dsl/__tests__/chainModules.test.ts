@@ -290,10 +290,22 @@ describe('.wet', () => {
         }
     });
 
+    test('blends a rounding against the signal it rounds', () => {
+        const patch = execPatch('$saw(0).lpf("100hz").round().wet(2).out()');
+        const crossfade = patch.modules.find(
+            (m) => m.moduleType === '_crossfade',
+        )!;
+        const round = patch.modules.find((m) => m.moduleType === '$round')!;
+        const lpf = patch.modules.find((m) => m.moduleType === '$lpf')!;
+        const params = JSON.stringify(crossfade.params);
+        expect(params).toContain(round.id);
+        expect(params).toContain(lpf.id);
+    });
+
     test('throws on a signal that was not chained', () => {
         expect(() => execPatch('$saw(0).wet(2).out()')).toThrow(/\.wet\(\)/);
         expect(() =>
-            execPatch('$saw(0).lpf("100hz").round().wet(2).out()'),
+            execPatch('$saw(0).lpf("100hz").erratic(1).wet(2).out()'),
         ).toThrow(/\.wet\(\)/);
     });
 });

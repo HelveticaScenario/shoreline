@@ -423,30 +423,6 @@ export class BaseCollection<T extends ModuleOutput> {
         return chunks;
     }
 
-    /** Round all outputs to the nearest whole volt, halves away from zero. */
-    round(): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        return round(this.items[0].builder, this.items, 'round');
-    }
-
-    /** Round all outputs down to a whole volt. */
-    floor(): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        return round(this.items[0].builder, this.items, 'floor');
-    }
-
-    /** Round all outputs up to a whole volt. */
-    ceil(): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        return round(this.items[0].builder, this.items, 'ceil');
-    }
-
     /**
      * Apply a wandering random shift of up to ±`amount` (0–5) to all outputs,
      * where 5 shifts by up to ±5 V.
@@ -626,8 +602,6 @@ function sliceRoot(
     markRoot(sliced, { outputs: set.outputs, values });
 }
 
-type RoundMode = 'round' | 'floor' | 'ceil';
-
 /**
  * The same channels as a ranged collection, for an output the engine bounds
  * by a rule the schema cannot state (`_erratic` short of a shift) or one
@@ -640,18 +614,6 @@ export function asRanged(
         builder.markRanged(moduleId, portName);
     }
     return new CollectionWithRange(...collection.items);
-}
-
-/**
- * `input` rounded to whole volts through a `_round` module, ranged when
- * `input` is.
- */
-function round(
-    builder: GraphBuilder,
-    input: ModuleOutput | ModuleOutput[],
-    mode: RoundMode,
-): Collection | CollectionWithRange {
-    return builder.getFactory('_round')(input, { mode });
 }
 
 /**
@@ -732,32 +694,6 @@ export class CollectionWithRange extends BaseCollection<ModuleOutput> {
             options,
         ) as Collection;
         return options.mode === 'shift' ? result : asRanged(result);
-    }
-
-    /** Round all outputs to the nearest whole volt, keeping their range. */
-    round(): CollectionWithRange {
-        return this.rounded('round');
-    }
-
-    /** Round all outputs down to a whole volt, keeping their range. */
-    floor(): CollectionWithRange {
-        return this.rounded('floor');
-    }
-
-    /** Round all outputs up to a whole volt, keeping their range. */
-    ceil(): CollectionWithRange {
-        return this.rounded('ceil');
-    }
-
-    private rounded(mode: RoundMode): CollectionWithRange {
-        if (this.items.length === 0) {
-            return new CollectionWithRange();
-        }
-        return round(
-            this.items[0].builder,
-            this.items,
-            mode,
-        ) as CollectionWithRange;
     }
 }
 

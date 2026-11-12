@@ -114,11 +114,9 @@ fn playhead_and_inheriting_modules_keep_f64_precision() {
             "$wrap",
             json!({ "input": cable("sub"), "min": 0.0, "max": 1.0 }),
         ),
-        (
-            "bar",
-            "_round",
-            json!({ "input": playhead(), "mode": "floor" }),
-        ),
+        ("bar", "$floor", json!({ "input": playhead() })),
+        ("nearest", "$round", json!({ "input": playhead() })),
+        ("next", "$ceil", json!({ "input": playhead() })),
         (
             "half",
             "$amp",
@@ -151,7 +149,7 @@ fn playhead_and_inheriting_modules_keep_f64_precision() {
         ),
     ];
     let f64_inputs = [
-        "sub", "frac", "bar", "half", "early", "double", "quarter", "eighth",
+        "sub", "frac", "bar", "nearest", "next", "half", "early", "double", "quarter", "eighth",
     ];
     for (clock_mode, block_size) in [(ProcessingMode::Sample, 1), (ProcessingMode::Block, 64)] {
         let patch = build(&modules, &f64_inputs, clock_mode, block_size);
@@ -168,6 +166,8 @@ fn playhead_and_inheriting_modules_keep_f64_precision() {
             close("sub", bars - 1000.0);
             close("frac", (bars - 1000.0).rem_euclid(1.0));
             close("bar", bars.floor());
+            close("nearest", bars.round());
+            close("next", bars.ceil());
             close("half", bars * 0.5);
             close("early", bars - 3.0);
             close("double", bars * 2.0);

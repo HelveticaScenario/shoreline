@@ -425,7 +425,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$mul" => json!({ "input": 0.0, "factor": 1.0 }),
         "$div" => json!({ "input": 0.0, "divisor": 1.0 }),
         "$exp" => json!({ "input": 0.0, "exponent": 1.0 }),
-        "_round" | "_hz" => json!({ "input": 0.0 }),
+        "$round" | "$floor" | "$ceil" | "_hz" => json!({ "input": 0.0 }),
         "$wrap" | "$clamp" => json!({ "input": 0.0, "min": -5.0, "max": 5.0 }),
         "$addHz" => json!({ "input": 0.0, "offset": 0.0 }),
         "$mulHz" => json!({ "input": 0.0, "factor": 1.0 }),
