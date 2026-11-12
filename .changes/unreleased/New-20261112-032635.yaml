@@ -1,0 +1,3 @@
+kind: New
+body: '`$wavMeta(''/wavs/loop.wav'')` reads a wav''s tempo, loops and cue points, so a patch can follow a loop''s own tempo: `$setTempo($wavMeta(''/wavs/loop.wav'').bpm ?? 120)`.'
+time: 2026-11-12T03:26:35.065036-05:00

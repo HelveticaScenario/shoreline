@@ -158,7 +158,7 @@ const XOVER_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$xover", docs = XOVER_DOCS, args(input))]
+#[module(name = "$xover", docs = XOVER_DOCS, args(input), experimental)]
 pub struct Crossover {
     outputs: CrossoverOutputs,
     channel_state: Box<[ChannelState]>,

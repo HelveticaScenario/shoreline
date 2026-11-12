@@ -3,6 +3,7 @@ import Markdown from 'react-markdown';
 import { LinkifyTypes } from './DocsTypeLinks';
 import { useCustomMonaco } from '../hooks/useCustomMonaco';
 import { useTheme } from '../themes/ThemeContext';
+import { EXPERIMENTAL_NOTICE } from '../../shared/dsl/experimental';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type { EnumVariantInfo } from '../../shared/dsl/schemaTypeResolver';
 import type {
@@ -161,6 +162,11 @@ export const ReferenceCard = memo<ReferenceCardProps>(
                     <code>{entry.signature}</code>
                 </h3>
                 <p className="doc-summary">{docs.summary}</p>
+                {entry.experimental && (
+                    <p className="doc-experimental">
+                        <InlineDoc text={EXPERIMENTAL_NOTICE} />
+                    </p>
+                )}
                 <div className="module-documentation">
                     <p>
                         <InlineDoc text={docs.description} />
