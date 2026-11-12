@@ -1,8 +1,12 @@
-//! `plaits::Oscillator` with the slope shape, on its through-zero path: a
-//! band-limited triangle whose peak sits at `pw` of the cycle.
+//! `plaits::Oscillator`: the slope shape on its through-zero path, a
+//! band-limited triangle whose peak sits at `pw` of the cycle, and the square
+//! and saw shapes on its plain path.
 
 use super::control::Ramp;
-use super::polyblep::{edge_time, next_integrated_blep_sample, this_integrated_blep_sample};
+use super::polyblep::{
+    edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
+    this_integrated_blep_sample,
+};
 
 #[derive(Clone, Copy)]
 pub struct SlopeOscillator {
@@ -90,6 +94,92 @@ impl SlopeOscillator {
         } else {
             1.0 - (self.phase - pw) * slope_down
         };
+        self.next_sample = next_sample;
+        2.0 * this_sample - 1.0
+    }
+}
+
+/// `plaits::Oscillator` rendering one of its square or saw shapes, at a
+/// width of 1/2 and without FM.
+#[derive(Clone, Copy)]
+pub struct BlepOscillator {
+    phase: f32,
+    next_sample: f32,
+    /// Whether the square is in its high half.
+    high: bool,
+    /// Plaits' one-sample `ParameterInterpolator`, kept so the oscillator
+    /// matches Plaits bit for bit.
+    frequency: Ramp,
+}
+
+impl Default for BlepOscillator {
+    fn default() -> Self {
+        let mut frequency = Ramp::default();
+        frequency.set(0.001, None);
+        Self {
+            phase: 0.5,
+            next_sample: 0.0,
+            high: true,
+            frequency,
+        }
+    }
+}
+
+impl BlepOscillator {
+    /// Plaits' frequency range for the plain path, in cycles per sample; at
+    /// 0.25 the square's width bounds meet at 1/2, so the width never moves.
+    const MIN_FREQUENCY: f32 = 0.000001;
+    const MAX_FREQUENCY: f32 = 0.25;
+
+    /// The ramped frequency for this sample, advancing the phase by it.
+    #[inline(always)]
+    fn advance(&mut self, frequency: f32) -> f32 {
+        let target = constrain(frequency, Self::MIN_FREQUENCY, Self::MAX_FREQUENCY);
+        self.frequency.set(target, Some(1.0));
+        let frequency = self.frequency.next_value();
+        self.phase += frequency;
+        frequency
+    }
+
+    /// One sample of the square, from −1 to 1, at `frequency` cycles per
+    /// sample.
+    #[inline(always)]
+    pub fn square(&mut self, frequency: f32) -> f32 {
+        let frequency = self.advance(frequency);
+        let mut this_sample = self.next_sample;
+        let mut next_sample = 0.0;
+        if self.high ^ (self.phase >= 0.5) {
+            let t = (self.phase - 0.5) / frequency;
+            this_sample += this_blep_sample(t);
+            next_sample += next_blep_sample(t);
+            self.high = self.phase >= 0.5;
+        }
+        if self.phase >= 1.0 {
+            self.phase -= 1.0;
+            let t = self.phase / frequency;
+            this_sample -= this_blep_sample(t);
+            next_sample -= next_blep_sample(t);
+            self.high = false;
+        }
+        next_sample += if self.phase < 0.5 { 0.0 } else { 1.0 };
+        self.next_sample = next_sample;
+        2.0 * this_sample - 1.0
+    }
+
+    /// One sample of the rising saw, from −1 to 1, at `frequency` cycles per
+    /// sample.
+    #[inline(always)]
+    pub fn saw(&mut self, frequency: f32) -> f32 {
+        let frequency = self.advance(frequency);
+        let mut this_sample = self.next_sample;
+        let mut next_sample = 0.0;
+        if self.phase >= 1.0 {
+            self.phase -= 1.0;
+            let t = self.phase / frequency;
+            this_sample -= this_blep_sample(t);
+            next_sample -= next_blep_sample(t);
+        }
+        next_sample += self.phase;
         self.next_sample = next_sample;
         2.0 * this_sample - 1.0
     }

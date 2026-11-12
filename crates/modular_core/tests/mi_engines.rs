@@ -3,7 +3,8 @@
 //! its output gain): the engine's knobs map onto the module's params, and its
 //! `out` and `aux` reach the same level, spectrum and polarity once both have
 //! settled. String and modal draw the same grains as Plaits, from the seed
-//! the test pins. The drums are struck on a steady pulse as well as droning.
+//! the test pins. The drums are struck on a steady pulse as well as droning
+//! or, for the hi-hats, hissing.
 //! The per-sample fixtures compare waveforms; this pins the knob mappings and
 //! output gains.
 
@@ -189,6 +190,13 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
             [
                 port("$mi.snare", knobs("tone"), "output"),
                 port("$mi.synthSnare", knobs("attackFm"), "output"),
+            ]
+        }
+        23 => {
+            let knobs = json!({ "tone": 5.0 * t, "decay": 5.0 * m, "noisiness": 5.0 * h });
+            [
+                port("$mi.hiHat", knobs.clone(), "output"),
+                port("$mi.ringHat", knobs, "output"),
             ]
         }
         _ => panic!("no module for engine {engine}"),
@@ -438,7 +446,9 @@ fn matches_plaits_engines() {
             // block at a time, so with snares the modules match it only to the
             // noise's spread, and polarity only where the shell leads.
             let snares = engine == 22 && h > 0.0;
-            let (level_db, near_db) = if snares { (0.25, 1.5) } else { (0.1, near_db) };
+            // The engine's two hi-hats share its noise generator too.
+            let noisy = snares || (engine == 23 && h > 0.0);
+            let (level_db, near_db) = if noisy { (0.25, 1.5) } else { (0.1, near_db) };
             assert_sounds_alike(&name, &actual, &expected, level_db, near_db, 3.0);
             // Particles draw Plaits' values in Plaits' order on its block
             // timing, and the snare drums with no snares mute their noise, so
@@ -446,14 +456,21 @@ fn matches_plaits_engines() {
             // given in volts. The pulse wave striking the snare drums rises
             // a sample ahead of the engine's second strike, so they compare
             // up to it.
-            if engine == 18 || (engine == 22 && !snares) {
+            // The 808 hi-hat with no noise matches it too, once its drone's
+            // level has ramped up (over a sample, where Plaits ramps over its
+            // first block). The ring hat's oscillators ramp their frequency
+            // from Plaits' initial one the same way, so they keep a phase
+            // offset and match only in sound.
+            let square_hat = engine == 23 && h == 0.0 && port.module == "$mi.hiHat";
+            if engine == 18 || (engine == 22 && !snares) || square_hat {
                 let exact = match trigger_period {
-                    Some(period) if engine == 22 => period as usize - 1,
-                    _ => samples,
+                    Some(period) if engine >= 22 => 0..period as usize - 1,
+                    None if square_hat => SETTLE..samples,
+                    _ => 0..samples,
                 };
-                let error = actual[..exact]
+                let error = actual[exact.clone()]
                     .iter()
-                    .zip(&expected)
+                    .zip(&expected[exact])
                     .fold(0.0f32, |m, (a, e)| m.max((a - e).abs()));
                 assert!(error < 1e-4, "{name}: max error {error}");
             }

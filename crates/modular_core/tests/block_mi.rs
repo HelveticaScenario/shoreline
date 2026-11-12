@@ -66,10 +66,12 @@ fn allocation_free() {
         "$mi.additive",
         "$mi.divideDown",
         "$mi.formant",
+        "$mi.hiHat",
         "$mi.kick",
         "$mi.modal",
         "$mi.particles",
         "$mi.phaseDistortion",
+        "$mi.ringHat",
         "$mi.sixOp",
         "$mi.snare",
         "$mi.speak",
@@ -156,6 +158,8 @@ fn drum_allocation_free() {
         ),
         ("$mi.snare", &["tone", "decay", "snappy", "accent"]),
         ("$mi.synthSnare", &["attackFm", "decay", "snappy", "accent"]),
+        ("$mi.hiHat", &["tone", "decay", "noisiness", "accent"]),
+        ("$mi.ringHat", &["tone", "decay", "noisiness", "accent"]),
     ] {
         let mut params =
             json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS) });
@@ -218,6 +222,8 @@ fn drum_instances_draw_their_own_noise() {
         ("$mi.synthKick", json!({ "freq": 0.0, "dirt": 5.0 })),
         ("$mi.snare", json!({ "freq": 0.0, "snappy": 5.0 })),
         ("$mi.synthSnare", json!({ "freq": 0.0, "snappy": 5.0 })),
+        ("$mi.hiHat", json!({ "freq": 0.0, "noisiness": 5.0 })),
+        ("$mi.ringHat", json!({ "freq": 0.0, "noisiness": 5.0 })),
     ] {
         let a = build(
             ProcessingMode::Block,

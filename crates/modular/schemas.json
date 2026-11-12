@@ -29602,6 +29602,526 @@
     ]
   },
   {
+    "name": "$mi.hiHat",
+    "docs": {
+      "summary": "808-style hi-hat",
+      "description": "Mutable Instruments Plaits' 808-style hi-hat: six square oscillators make a metallic noise, band-passed, then shaped by a swinging VCA and a high-pass. Leave `trigger` unpatched and it hisses steadily.",
+      "categories": [
+        "drum"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Eighths",
+          "code": "const trigger = $p('c*8').c\nconst hat = $mi.hiHat('a3', { trigger })\nhat.out()"
+        },
+        {
+          "title": "Open, noisy hat on the off-beat",
+          "code": "const trigger = $p('~ c').c\nconst hat = $mi.hiHat('a3', {\n  trigger,\n  tone: 4,\n  decay: 4,\n  noisiness: 3.5,\n})\nhat.out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiHiHatParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the metallic tone's pitch: six square oscillators from twice it to five times it, with the clocked noise following",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "strikes the hat. Unpatched, the hat hisses steadily, as loud as `accent` and `decay` together allow",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tone": {
+          "description": "the hat's colour: the band its metal rings in, from a dull 150 Hz (0) to a bright 9.6 kHz (5), ringing more as it rises; a high-pass at the same frequency thins what lies below",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decay": {
+          "description": "how long the hat rings, from a closed tick (0) to an open wash (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "noisiness": {
+          "description": "blends noise into the metal, from none (0) to all noise (5), slowly at first; the noise is clocked at 32 down to 16 times the pitch as it rises",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accent": {
+          "description": "how hard each hit is: louder; unpatched trigger, scales the hiss's level",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the hat",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "precision": "f32"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the metallic tone's pitch: six square oscillators from twice it to five times it, with the clocked noise following",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "strikes the hat. Unpatched, the hat hisses steadily, as loud as `accent` and `decay` together allow",
+        "paramType": "trig"
+      },
+      {
+        "name": "tone",
+        "description": "the hat's colour: the band its metal rings in, from a dull 150 Hz (0) to a bright 9.6 kHz (5), ringing more as it rises; a high-pass at the same frequency thins what lies below",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "decay",
+        "description": "how long the hat rings, from a closed tick (0) to an open wash (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "noisiness",
+        "description": "blends noise into the metal, from none (0) to all noise (5), slowly at first; the noise is clocked at 32 down to 16 times the pitch as it rises",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "accent",
+        "description": "how hard each hit is: louder; unpatched trigger, scales the hiss's level",
+        "paramType": "control",
+        "defaultValue": 4.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
+    "name": "$mi.ringHat",
+    "docs": {
+      "summary": "Ring-modulated hi-hat",
+      "description": "Mutable Instruments Plaits' second hi-hat: three ring-modulated square and saw pairs make a harsher metallic noise, band-passed, then shaped by an envelope that chokes its tail and a high-pass. Leave `trigger` unpatched and it hisses steadily.",
+      "categories": [
+        "drum"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Sixteenths",
+          "code": "const trigger = $p('c*16').c\nconst hat = $mi.ringHat('a3', { trigger })\nhat.out()"
+        },
+        {
+          "title": "Choked open hat on the off-beat",
+          "code": "const trigger = $p('~ c').c\nconst hat = $mi.ringHat('a3', {\n  trigger,\n  tone: 3.5,\n  decay: 4.5,\n  noisiness: 1,\n})\nhat.out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiRingHatParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the metallic tone's pitch: its partials climb as it rises, levelling off above about 2 kHz, and the clocked noise follows",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "trigger": {
+          "description": "strikes the hat. Unpatched, the hat hisses steadily, as loud as `accent` and `decay` together allow",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tone": {
+          "description": "the hat's colour: the band its metal sounds in, from a dull 150 Hz (0) to a bright 9.6 kHz (5); a high-pass at the same frequency thins what lies below",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decay": {
+          "description": "how long the hat rings, from a closed tick (0) to an open wash (5); its tail is choked faster once it falls to about a third of a full strike",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "noisiness": {
+          "description": "blends noise into the metal, from none (0) to all noise (5), slowly at first; the noise is clocked at 32 down to 16 times the pitch as it rises",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "accent": {
+          "description": "how hard each hit is: louder, and longer before its tail is choked; unpatched trigger, scales the hiss's level",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the hat",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "precision": "f32"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the metallic tone's pitch: its partials climb as it rises, levelling off above about 2 kHz, and the clocked noise follows",
+        "paramType": "pitch"
+      },
+      {
+        "name": "trigger",
+        "description": "strikes the hat. Unpatched, the hat hisses steadily, as loud as `accent` and `decay` together allow",
+        "paramType": "trig"
+      },
+      {
+        "name": "tone",
+        "description": "the hat's colour: the band its metal sounds in, from a dull 150 Hz (0) to a bright 9.6 kHz (5); a high-pass at the same frequency thins what lies below",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "decay",
+        "description": "how long the hat rings, from a closed tick (0) to an open wash (5); its tail is choked faster once it falls to about a third of a full strike",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "noisiness",
+        "description": "blends noise into the metal, from none (0) to all noise (5), slowly at first; the noise is clocked at 32 down to 16 times the pitch as it rises",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "accent",
+        "description": "how hard each hit is: louder, and longer before its tail is choked; unpatched trigger, scales the hiss's level",
+        "paramType": "control",
+        "defaultValue": 4.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
+        "paramType": "audio"
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ]
+  },
+  {
     "name": "$mi.kick",
     "docs": {
       "summary": "Analog bass drum",
