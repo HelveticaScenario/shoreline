@@ -6,6 +6,7 @@
 import ts from 'typescript';
 
 import { constInitializerOf } from '../../shared/dsl/ast/consts';
+import { ALIGNMENT_MODES } from './alignmentModes';
 
 /** Pattern methods whose argument spans are recorded. */
 export type PatternMethodName = 'fast' | 'slow' | 'struct' | 'beat' | 'glide';
@@ -23,16 +24,7 @@ export const PATTERN_METHOD_ARGS: Record<
     struct: ['boolPattern'],
 };
 
-const SP_OPS = new Set(['add', 'sub']);
-const SP_MODES = new Set([
-    'in',
-    'out',
-    'mix',
-    'squeeze',
-    'squeezeout',
-    'reset',
-    'restart',
-]);
+const ALIGNMENTS: ReadonlySet<string> = new Set(ALIGNMENT_MODES);
 
 type PatternRoot = '$p' | '$p.s' | '$p.arrange';
 
@@ -90,24 +82,24 @@ export function isPsCall(call: ts.CallExpression): boolean {
 }
 
 /**
- * An `.add(rhs)` / `.sub(rhs)` link, or one with a mode (`.add.in(rhs)`,
- * `.sub.squeeze(rhs)`, …), on a chain rooted at `$p.s(...)`.
+ * A `.trans(rhs)` link, or one with a mode (`.trans.in(rhs)`,
+ * `.trans.squeeze(rhs)`, …), on a chain rooted at `$p.s(...)`.
  */
-export function isSpChainCall(call: ts.CallExpression): boolean {
+export function isTransCall(call: ts.CallExpression): boolean {
     const callee = call.expression;
     if (!ts.isPropertyAccessExpression(callee)) {
         return false;
     }
     let receiver = callee.expression;
-    if (SP_MODES.has(callee.name.text)) {
+    if (ALIGNMENTS.has(callee.name.text)) {
         if (
             !ts.isPropertyAccessExpression(receiver) ||
-            !SP_OPS.has(receiver.name.text)
+            receiver.name.text !== 'trans'
         ) {
             return false;
         }
         receiver = receiver.expression;
-    } else if (!SP_OPS.has(callee.name.text)) {
+    } else if (callee.name.text !== 'trans') {
         return false;
     }
     return chainRoot(receiver) === '$p.s';

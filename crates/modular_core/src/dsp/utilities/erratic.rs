@@ -252,7 +252,7 @@ const ERRATIC_DOCS: ModuleDocs = ModuleDocs {
               .amp(
                 $sine('4hz')
                   .range(2, 5)
-                  .erratic(2, { trigger: $clock.o.beatTrigger }),
+                  .erratic(2, { trigger: $clock._beatTrigger }),
               )
               .out()
         "#,

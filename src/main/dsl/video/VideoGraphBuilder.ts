@@ -1,4 +1,3 @@
-import { refusePattern } from '../patternKinds';
 import {
     MAX_SCOPE_TRACES,
     MAX_VIDEO_TAPS,
@@ -177,7 +176,6 @@ export class VideoGraphBuilder implements VideoCore {
     }
 
     value(fn: string, name: string, v: unknown): VideoValue {
-        refusePattern(v, `${fn}: ${name}`);
         if (typeof v === 'number') {
             // The shader holds constants as f32, whose range ends near 3.4e38.
             if (!Number.isFinite(Math.fround(v))) {
@@ -223,7 +221,6 @@ export class VideoGraphBuilder implements VideoCore {
         position: VideoSource = this.ramp('horizontal'),
         config?: VideoAudioConfig,
     ): VideoOutput => {
-        refusePattern(signal, '$v.fromAudio: signal');
         if (!(signal instanceof BaseCollection)) {
             throw new Error(
                 `$v.fromAudio: signal must be an audio signal, got ${describe(signal)}`,
@@ -363,7 +360,6 @@ export class VideoGraphBuilder implements VideoCore {
         if (Array.isArray(value)) {
             return value.flatMap((v: unknown) => this.channelsOf(fn, name, v));
         }
-        refusePattern(value, `${fn}: ${name}`);
         const signal =
             typeof value === 'number' || typeof value === 'string'
                 ? this.host.constantSignal(value)

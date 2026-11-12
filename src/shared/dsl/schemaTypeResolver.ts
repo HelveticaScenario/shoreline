@@ -66,14 +66,7 @@ export function resolveRef(
     | 'Wav'
     | 'PhaseWarp'
     | 'EnoscScale'
-    | 'ParsedPattern'
-    | 'SpPattern'
-    | 'ArrangePattern'
-    | 'FastPattern'
-    | 'SlowPattern'
-    | 'StructPattern'
-    | 'BeatPattern'
-    | 'GlidePattern'
+    | 'Pattern'
     | 'ScaleSpec' {
     if (ref === 'Signal') {
         return 'Signal';
@@ -87,31 +80,6 @@ export function resolveRef(
     if (ref === 'EnoscScale') {
         return 'EnoscScale';
     }
-    if (ref === 'ParsedPatternPayload') {
-        return 'ParsedPattern';
-    }
-    if (ref === 'SpPatternPayload') {
-        return 'SpPattern';
-    }
-    if (ref === 'ArrangePatternPayload') {
-        return 'ArrangePattern';
-    }
-    if (ref === 'FastPatternPayload') {
-        return 'FastPattern';
-    }
-    if (ref === 'SlowPatternPayload') {
-        return 'SlowPattern';
-    }
-    if (ref === 'StructPatternPayload') {
-        return 'StructPattern';
-    }
-    if (ref === 'BeatPatternPayload') {
-        return 'BeatPattern';
-    }
-    if (ref === 'GlidePatternPayload') {
-        return 'GlidePattern';
-    }
-
     const defsPrefix = '#/$defs/';
     if (!ref.startsWith(defsPrefix)) {
         throw new Error(`Unsupported $ref: ${ref}`);
@@ -144,41 +112,10 @@ export function resolveRef(
     if (defName === 'ScaleSpec') {
         return 'ScaleSpec';
     }
-    // ParsedPatternPayload is recursive (MiniAST references itself via
-    // List/Sequence/...); the DSL exposes it as an opaque `ParsedPattern`
-    // named type, constructed by `$p(...)` and consumed by $cycle/$p.s.
-    if (defName === 'ParsedPatternPayload') {
-        return 'ParsedPattern';
-    }
-    // SpPatternPayload is the chained `$p.s(...).add(...)` shape; the DSL
-    // exposes it as the named `SpPattern` type rather than an inlined
-    // structural literal.
-    if (defName === 'SpPatternPayload') {
-        return 'SpPattern';
-    }
-    // ArrangePatternPayload is the `$p.arrange(...)` shape; it recurses
-    // (sections carry `SeqPatternSource`), so the DSL exposes it as the named
-    // `ArrangePattern` type to break the cycle, like ParsedPattern/SpPattern.
-    if (defName === 'ArrangePatternPayload') {
-        return 'ArrangePattern';
-    }
-    // The `.fast(...)` / `.slow(...)` / `.struct(...)` / `.beat(...)` /
-    // `.glide(...)` wrapper payloads recurse (the wrapped `pattern` is a `SeqPatternSource`), so the
-    // DSL exposes them as named types like the others above.
-    if (defName === 'FastPatternPayload') {
-        return 'FastPattern';
-    }
-    if (defName === 'SlowPatternPayload') {
-        return 'SlowPattern';
-    }
-    if (defName === 'StructPatternPayload') {
-        return 'StructPattern';
-    }
-    if (defName === 'BeatPatternPayload') {
-        return 'BeatPattern';
-    }
-    if (defName === 'GlidePatternPayload') {
-        return 'GlidePattern';
+    // The wire payload of a pattern, which recurses; the DSL exposes it as
+    // the `Pattern` type.
+    if (defName === 'SeqPatternSource') {
+        return 'Pattern';
     }
 
     const defs = rootSchema?.$defs;
@@ -208,30 +145,6 @@ export function resolveRef(
     }
     if (resolved?.title === 'EnoscScale') {
         return 'EnoscScale';
-    }
-    if (resolved?.title === 'ParsedPatternPayload') {
-        return 'ParsedPattern';
-    }
-    if (resolved?.title === 'SpPatternPayload') {
-        return 'SpPattern';
-    }
-    if (resolved?.title === 'ArrangePatternPayload') {
-        return 'ArrangePattern';
-    }
-    if (resolved?.title === 'FastPatternPayload') {
-        return 'FastPattern';
-    }
-    if (resolved?.title === 'SlowPatternPayload') {
-        return 'SlowPattern';
-    }
-    if (resolved?.title === 'StructPatternPayload') {
-        return 'StructPattern';
-    }
-    if (resolved?.title === 'BeatPatternPayload') {
-        return 'BeatPattern';
-    }
-    if (resolved?.title === 'GlidePatternPayload') {
-        return 'GlidePattern';
     }
     return resolved;
 }
@@ -415,29 +328,8 @@ export function schemaToTypeExpr(
         if (resolved === 'EnoscScale') {
             return 'EnoscScale';
         }
-        if (resolved === 'ParsedPattern') {
-            return 'ParsedPattern';
-        }
-        if (resolved === 'SpPattern') {
-            return 'SpPattern';
-        }
-        if (resolved === 'ArrangePattern') {
-            return 'ArrangePattern';
-        }
-        if (resolved === 'FastPattern') {
-            return 'FastPattern';
-        }
-        if (resolved === 'SlowPattern') {
-            return 'SlowPattern';
-        }
-        if (resolved === 'StructPattern') {
-            return 'StructPattern';
-        }
-        if (resolved === 'BeatPattern') {
-            return 'BeatPattern';
-        }
-        if (resolved === 'GlidePattern') {
-            return 'GlidePattern';
+        if (resolved === 'Pattern') {
+            return 'Pattern';
         }
         if (resolved === 'ScaleSpec') {
             return 'ScaleSpec';

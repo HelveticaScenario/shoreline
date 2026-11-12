@@ -111,7 +111,7 @@ const WAVESHAPER_DOCS: ModuleDocs = ModuleDocs {
             title: "Bumpy overtones",
             code: r#"
                 const shaper = $mi.waveshaper('g2', { shape: 4, fold: 3 })
-                shaper.o.overtones.out()
+                shaper._overtones.out()
             "#,
         },
     ],

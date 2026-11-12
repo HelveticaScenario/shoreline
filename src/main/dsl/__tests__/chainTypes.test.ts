@@ -46,7 +46,7 @@ test('chain modules and .wet type on outputs, collections and named outputs', ()
                 `$saw('c3').lpf('800hz', 2).wet(2.5).out()`,
                 `$c($sine('c3'), $sine('e3')).plate({ decay: 2 }).wet().out()`,
                 `$saw('c3').unstable.shape.fold('dual', 2).wet(1).out()`,
-                `$saw('c3').xover().o.low.lpf('200hz').wet(2).out()`,
+                `$saw('c3').xover()._low.lpf('200hz').wet(2).out()`,
                 `$saw('c3').xover().wet(2).out()`,
                 `$saw('c3').delay(0.25, { feedback: 2 }).wet(2).out()`,
                 `$saw($spread(0, 5, 3)).mixDown(2, { mode: 'average' }).out()`,
@@ -58,8 +58,29 @@ test('chain modules and .wet type on outputs, collections and named outputs', ()
 });
 
 test('a chained multi-output module keeps its outputs', () => {
-    expect(errors(`$clock.tr808.hiHat().o.open.out()`)).toEqual([]);
-    expect(errors(`$clock.tr808.hiHat().o.notThere`)).toHaveLength(1);
+    expect(errors(`$clock.tr808.hiHat()._open.out()`)).toEqual([]);
+    expect(errors(`$clock.tr808.hiHat()._notThere`)).toHaveLength(1);
+});
+
+test('a pattern types as the module that plays it', () => {
+    expect(
+        errors(
+            [
+                `const seq = $p('c3 e3 g3')`,
+                `$saw(seq).amp($perc(seq._trig)).lpf(seq.range(-1, 1, 'c4', 'c6')).out()`,
+                `seq.fast(2).glide(0.1).saw().out()`,
+                `seq[0].scope()`,
+                `$p.s('0 2 4', 'c(maj)').trans.squeeze('0 7').add(1).out()`,
+                `$p.arrange([2, seq], [1, seq.slow(2)]).mul(2).out()`,
+                `$cycle(seq.struct('x ~ x x')).out()`,
+            ].join('\n'),
+        ),
+    ).toEqual([]);
+    // A channel, a slice or the receiver `.out()` returns is the sequencer's
+    // signal, which has no pattern methods.
+    expect(errors(`$p('c3').scope().fast(2)`)).toHaveLength(1);
+    expect(errors(`$p('c3')[0].glide(0.1)`)).toHaveLength(1);
+    expect(errors(`$cycle($p('c3').out())`)).toHaveLength(1);
 });
 
 test('the generated lib names only types it declares', () => {

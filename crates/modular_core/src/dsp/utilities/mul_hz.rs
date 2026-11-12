@@ -47,7 +47,7 @@ const MUL_HZ_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Just-tuned fifths",
         code: r#"
-            const root = $p('c3 a2 f2 g2').c
+            const root = $p('c3 a2 f2 g2')
             $saw(root).out()
             $saw($mulHz(root, 1.5)).out()
         "#,

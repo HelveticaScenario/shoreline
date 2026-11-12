@@ -8,6 +8,7 @@
  * each call finds its function through the receiver's own builder.
  */
 
+import { outputSetOf } from './outputResolution';
 import type { ProcessedModuleSchema } from './paramsSchema';
 import { qualifiesForChain } from './paramsSchema';
 
@@ -45,20 +46,17 @@ export function drySourceOf(value: object): unknown {
 }
 
 /**
- * Record `dry` as the source of `result` and of each named output on its
- * `o`, so `.wet()` works on a root and on an output named explicitly.
+ * Record `dry` as the source of `result` and of each of its named outputs,
+ * so `.wet()` works on a root and on an output named explicitly.
  */
 function markWet(result: unknown, dry: unknown): void {
     if (typeof result !== 'object' || result === null) {
         return;
     }
     DRY.set(result, dry);
-    const named = (result as { o?: unknown }).o;
-    if (typeof named === 'object' && named !== null) {
-        for (const output of Object.values(named)) {
-            if (typeof output === 'object' && output !== null) {
-                DRY.set(output, dry);
-            }
+    for (const output of Object.values(outputSetOf(result)?.values ?? {})) {
+        if (typeof output === 'object' && output !== null) {
+            DRY.set(output, dry);
         }
     }
 }
