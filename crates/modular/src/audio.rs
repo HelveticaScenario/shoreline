@@ -2673,6 +2673,9 @@ where
                 // caught unwind. Compiles to nothing without `--features=alloc-detector`.
                 #[cfg(feature = "alloc-detector")]
                 let _alloc_scope = crate::alloc_detector::AudioThreadScope::enter();
+                // Outside `catch_unwind` too, so a caught unwind still restores
+                // the host's mode.
+                let _flush_denormals = crate::denormals::FlushDenormals::enter();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     use modular_core::types::{ROOT_CLOCK_ID, ROOT_ID};
                     profiling::scope!("audio_callback");
