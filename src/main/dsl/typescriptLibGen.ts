@@ -586,6 +586,8 @@ declare namespace $p {
  * The returned pattern is chainable with \`.trans(...)\`, which
  * transposes it by another scale-degree mini-notation string: the two
  * patterns' degrees are added, so negative degrees transpose down.
+ * \`.add(...)\` and \`.sub(...)\` are the collection's: they add to and
+ * subtract from the sequencer's output signal, in volts.
  * Bare \`.trans(x)\` defaults to \`.trans.in(x)\`; explicit
  * mode methods cover all seven Strudel alignments:
  *

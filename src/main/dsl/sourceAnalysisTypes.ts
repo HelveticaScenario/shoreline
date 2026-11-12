@@ -27,8 +27,11 @@ export {
 export interface CallSiteSpans {
     /** Spans for each positional argument, keyed by argument name */
     args: Map<string, SourceSpan>;
-    /** The module type being called (e.g., "seq", "sine") */
-    moduleType: string;
+    /**
+     * What the call builds: a module, whose factory sends the spans to the
+     * engine, or a pattern, whose builder keeps them with the pattern.
+     */
+    kind: 'module' | 'pattern';
 }
 
 /**

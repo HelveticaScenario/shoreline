@@ -2489,8 +2489,8 @@ mod tests {
         use crate::pattern_system::Fraction;
         use crate::pattern_system::mini::{collect_leaf_spans, parse_ast};
 
-        // Regression: the single-source `$p()` path must strip modifier spans
-        // so euclidean operand spans (the pulses/steps inside the parens)
+        // The single-source `$p()` path strips modifier spans so euclidean
+        // operand spans (the pulses/steps inside the parens)
         // report at pattern_idx 0. Otherwise `Seq::get_state`'s
         // `idx < num_sources` filter drops every span at pattern_idx >= 1 for a
         // single-source pattern, and the operands never highlight.

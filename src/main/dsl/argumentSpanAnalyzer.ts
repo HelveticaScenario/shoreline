@@ -38,15 +38,12 @@ import {
 } from './templateInterpolation';
 
 /**
- * Schemas by every name a call can reach them through: the full name, its
- * last segment (`kick` of `$tr808.kick`, as a `.kick(...)` method call
- * names it), and the camel-cased form of the full name.
+ * Schemas by the names a direct call reaches them through: the full name and
+ * its camel-cased form.
  */
 function buildSchemaMap(schemas: ModuleSchema[]): Map<string, ModuleSchema> {
     const map = new Map<string, ModuleSchema>();
     for (const schema of schemas) {
-        const parts = schema.name.split('.');
-        map.set(parts[parts.length - 1], schema);
         const camel = schema.name.replace(
             /[^a-zA-Z0-9]+(.)?/g,
             (_match, chr: string | undefined) => (chr ? chr.toUpperCase() : ''),
@@ -55,6 +52,29 @@ function buildSchemaMap(schemas: ModuleSchema[]): Map<string, ModuleSchema> {
         map.set(schema.name, schema);
     }
     return map;
+}
+
+/**
+ * The module a chain call names: `sig.lpf(...)` is `$lpf` and
+ * `sig.tr808.kick(...)` is `$tr808.kick`, the longest trailing path of the
+ * callee that names a module taking the receiver as its first argument.
+ */
+function chainedSchema(
+    callee: ts.Expression,
+    schemaMap: Map<string, ModuleSchema>,
+): ModuleSchema | undefined {
+    const names: string[] = [];
+    let found: ModuleSchema | undefined;
+    let node = callee;
+    while (ts.isPropertyAccessExpression(node)) {
+        names.unshift(node.name.text);
+        node = node.expression;
+        const schema = schemaMap.get('$' + names.join('.'));
+        if (schema?.positionalArgs?.length) {
+            found = schema;
+        }
+    }
+    return found;
 }
 
 /** The name a call is matched against schemas by: the identifier of `f()`,
@@ -143,7 +163,7 @@ export function analyzeArgumentSpans(
             }
             registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
                 args: argsMap,
-                moduleType: isPs ? '$p.s' : '$p',
+                kind: 'pattern',
             });
             return;
         }
@@ -157,7 +177,7 @@ export function analyzeArgumentSpans(
             }
             registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
                 args: argsMap,
-                moduleType: '$p.s.chain',
+                kind: 'pattern',
             });
             return;
         }
@@ -174,18 +194,22 @@ export function analyzeArgumentSpans(
             if (argsMap.size > 0) {
                 registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
                     args: argsMap,
-                    moduleType: `.${patternMethod}`,
+                    kind: 'pattern',
                 });
             }
             return;
         }
 
-        // A dotted callee names its module in full (`$tr808.kick`); a method
-        // on a value (`.kick(...)`) only by its last segment.
+        // A dotted callee names its module in full (`$tr808.kick`), a bare
+        // one by its identifier. Any other callee is a chain call, whose
+        // receiver is the module's first positional argument.
         const fullName = dottedName(call.expression);
-        const schema =
+        const direct =
             (fullName !== null ? schemaMap.get(fullName) : undefined) ??
-            (funcName ? schemaMap.get(funcName) : undefined);
+            (ts.isIdentifier(call.expression) && funcName
+                ? schemaMap.get(funcName)
+                : undefined);
+        const schema = direct ?? chainedSchema(call.expression, schemaMap);
         if (!schema) {
             return;
         }
@@ -193,7 +217,9 @@ export function analyzeArgumentSpans(
 
         // Positional arguments by their schema names; an array literal
         // records each element as `name.0`, `name.1`, ….
-        const positionalArgs = schema.positionalArgs || [];
+        const positionalArgs = (schema.positionalArgs || []).slice(
+            direct ? 0 : 1,
+        );
         for (let i = 0; i < positionalArgs.length && i < args.length; i++) {
             const { name } = positionalArgs[i];
             const arg = args[i];
@@ -231,7 +257,7 @@ export function analyzeArgumentSpans(
         if (argsMap.size > 0) {
             registry.set(callSiteKey(file, v8CallAnchor(call, file)), {
                 args: argsMap,
-                moduleType: schema.name,
+                kind: 'module',
             });
         }
     });

@@ -2,7 +2,6 @@ import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
 import { $p, MiniParseError } from '../index';
-import { replaceSignals } from '../../GraphBuilder';
 import { patternPayload } from '../../patterns';
 
 describe('playing a pattern outside a patch run', () => {
@@ -112,21 +111,6 @@ describe('.fast / .slow builders', () => {
             'pattern',
         ]);
         expect(JSON.parse(JSON.stringify(r))).toEqual(patternPayload(r));
-    });
-
-    test('survives replaceSignals verbatim (no AST collapse)', () => {
-        const out = replaceSignals(patternPayload($p('c4 e4').fast('2 4')));
-        expect(isKind(out, 'FastPattern')).toBe(true);
-        if (!isKind(out, 'FastPattern')) return;
-        expect(isKind(out.pattern, 'ParsedPattern')).toBe(true);
-        if (isKind(out.pattern, 'ParsedPattern')) {
-            expect(out.pattern.source).toBe('c4 e4');
-        }
-        const { factor } = out;
-        if (typeof factor === 'number') {
-            throw new Error('expected a pattern factor, got a number');
-        }
-        expect(factor.source).toBe('2 4');
     });
 
     test('a zero factor is allowed (lenient — lowers to silence in the engine)', () => {

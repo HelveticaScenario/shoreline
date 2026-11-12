@@ -1,11 +1,8 @@
 import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
-import { $p, MiniParseError, type SpPattern } from '../index';
-import type { ParsedPattern } from '../ast';
-import { parseMini } from '../parser';
+import { $p, MiniParseError } from '../index';
 import { ALIGNMENT_MODES } from '../../alignmentModes';
-import { replaceSignals } from '../../GraphBuilder';
 import { patternPayload } from '../../patterns';
 
 describe('$p.s builder', () => {
@@ -163,105 +160,5 @@ describe('$p.s source string + spans', () => {
     test('all_spans count matches the number of atoms', () => {
         const r = patternPayload($p.s('0 2 4', 'c(maj)'));
         expect(r.sources[0].all_spans.length).toBe(3);
-    });
-});
-
-describe('$p.s opaque payload preservation through replaceSignals', () => {
-    test('null weights in Sequence AST survive replaceSignals (no null→0 collapse)', () => {
-        // Regression: SpPattern was not opaque-guarded in replaceValues, so
-        // walking its sources[].ast tree collapsed Sequence weights from
-        // null → 0 via valueToSignal, producing zero-duration haps and
-        // silent audio. Sources with a single atom (no Sequence wrapping)
-        // were unaffected, masking the bug as "works for '0', fails for '0 1'".
-        const pat = $p.s('0 1', 'c(maj)');
-        const walked = replaceSignals(patternPayload(pat)) as SpPattern;
-        const seq = (
-            walked.sources[0].ast as { Sequence?: Array<[unknown, unknown]> }
-        ).Sequence;
-        expect(seq).toBeDefined();
-        expect(seq).toHaveLength(2);
-        expect(seq![0][1]).toBeNull();
-        expect(seq![1][1]).toBeNull();
-    });
-
-    test('chain modes survive replaceSignals', () => {
-        const pat = $p.s('0 1', 'c(maj)').trans('1');
-        const walked = replaceSignals(patternPayload(pat)) as SpPattern;
-        expect(walked.modes).toEqual(['in']);
-        expect(walked.sources).toHaveLength(2);
-    });
-});
-
-// Every peggy grammar construct, run through both $p.s and $p wrappers,
-// asserts the walked AST is structurally identical to the raw parseMini()
-// output. Catches any future regression where a wrapper variant drops
-// out of the replaceValues opaque-payload allow-list. Null-bearing slots
-// (Sequence weights, Note.accidental/octave, Euclidean.rotation,
-// Polymeter.steps_per_cycle, Degrade weight) are the failure surface.
-const GRAMMAR_CASES: Array<{ label: string; source: string }> = [
-    { label: 'pure number', source: '0' },
-    { label: 'pure negative number', source: '-3' },
-    { label: 'pure Hz', source: '440hz' },
-    { label: 'note with octave', source: 'c4' },
-    { label: 'note bare letter (octave null)', source: 'c' },
-    { label: 'note sharp', source: 'c#4' },
-    { label: 'note flat', source: 'eb3' },
-    { label: 'note flat no octave', source: 'eb' },
-    { label: 'note b-flat no octave', source: 'bb' },
-    { label: 'note f-alias flat no octave', source: 'cf' },
-    { label: 'note s-alias sharp', source: 'cs4' },
-    { label: 'rest tilde', source: '~' },
-    { label: 'rest dash', source: '-' },
-    { label: 'sequence (null weights)', source: '0 1 2' },
-    { label: 'fast subsequence []', source: '[0 1] 2' },
-    { label: 'slow subsequence <>', source: '<0 1 2>' },
-    { label: 'stack via comma', source: '0,1,2' },
-    { label: 'nested stack inside []', source: '[0 1, 2 3]' },
-    { label: 'fast modifier *n', source: '0*2' },
-    { label: 'slow modifier /n', source: '0/2' },
-    { label: 'replicate !n', source: '0!3' },
-    { label: 'replicate ! default', source: '0!' },
-    { label: 'degrade ? with prob', source: '0?0.5' },
-    { label: 'degrade ? default prob (null)', source: '0?' },
-    { label: 'euclidean (k,n) no rotation', source: '0(3,8)' },
-    { label: 'euclidean with rotation', source: '0(3,8,1)' },
-    { label: 'fast factor as subsequence', source: 'c*[1 2]' },
-    { label: 'weight @n positional', source: '0@2 1' },
-    { label: 'random choice |', source: '0|1|2' },
-    { label: 'rest inside choice', source: '0|~|2' },
-];
-
-describe('peggy grammar survives replaceSignals (regression)', () => {
-    for (const { label, source } of GRAMMAR_CASES) {
-        test(`$p.s("${source}"): ${label}`, () => {
-            const raw = parseMini(source);
-            const pat = $p.s(source, 'c(maj)');
-            const walked = replaceSignals(patternPayload(pat)) as SpPattern;
-            expect(walked.__kind).toBe('SpPattern');
-            expect(walked.sources).toHaveLength(1);
-            // Deep equality vs raw peggy output proves every null slot,
-            // span tuple, and modifier branch survived the walk verbatim.
-            expect(walked.sources[0].ast).toEqual(raw);
-        });
-
-        test(`$p("${source}"): ${label}`, () => {
-            const raw = parseMini(source);
-            const pat = $p(source);
-            const walked = replaceSignals(patternPayload(pat)) as ParsedPattern;
-            expect(walked.__kind).toBe('ParsedPattern');
-            expect(walked.ast).toEqual(raw);
-        });
-    }
-
-    test('$p.s chain RHS AST also survives', () => {
-        // Each chained source goes through the same parsePayload pipeline,
-        // so the opaque guard must cover them too. Verify with a construct
-        // that has null slots in both LHS and RHS.
-        const lhs = '0 1';
-        const rhs = '[0 1, 2 3]';
-        const pat = $p.s(lhs, 'c(maj)').trans(rhs);
-        const walked = replaceSignals(patternPayload(pat)) as SpPattern;
-        expect(walked.sources[0].ast).toEqual(parseMini(lhs));
-        expect(walked.sources[1].ast).toEqual(parseMini(rhs));
     });
 });

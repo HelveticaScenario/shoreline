@@ -64,6 +64,11 @@ describe('a pattern builds the graph of its $cycle', () => {
         [`const d = $deferred(); $saw(d).out(); d.set(SEQ)`],
         [`$pWarp($sine('c3'), $phase.mirror(SEQ)).out()`],
         [`$mix([SEQ, 'g4']).out()`],
+        [`$stereoMix($saw('c3'), { width: SEQ }).out()`],
+        [`$step(['c4', 'g4'], SEQ).out()`],
+        [`$sine('c3').outMono(1, SEQ)`],
+        [`$signal(1).range(SEQ, 5, -5, 5).out()`],
+        [`$quantizer($sine('c4'), SEQ).out()`],
     ])('%s', (body) => {
         for (const pattern of [
             `$p('c3 e3 [g3, b3]')`,
@@ -176,24 +181,81 @@ describe('a pattern where a signal or a pattern belongs', () => {
         patchOf(source);
         expect(cycles(exec(source).patch).length).toBe(1);
     });
+});
+
+describe('the payload a pattern sends the engine', () => {
+    /** `value` without the spans that follow the source text. */
+    const spanless = (value: unknown): unknown =>
+        JSON.parse(
+            JSON.stringify(value, (key, v: unknown) =>
+                SPAN_KEYS.has(key) ? undefined : v,
+            ),
+        );
 
     test.each([
-        '$sine($p("c4 e4")).out()',
-        '$sine([$p("c4"), "e4"]).out()',
-        '$sine($g1($p("c4 e4"))).out()',
-        '$stereoMix($saw("c3"), { width: $p("0 5") }).out()',
-        '$mix([$p("c4 e4"), "g4"]).out()',
-        '$step(["c4", "g4"], $p("1 0")).out()',
-        '$sine("c3").amplitude($p("1 2")).out()',
-        '$sine("c3").out({ gain: $p("3 4") })',
-        '$sine("c3").outMono(1, $p("0.5 1"))',
-        '$signal(1).range($p("0 1"), 5, -5, 5).out()',
-        '$c($sine("c3")).range(0, $p("2 3"), -5, 5).out()',
-        '$c($p("c4 e4")).out()',
-        '$quantizer($sine("c4"), $p("c4 e4 g4")).out()',
-        '$pWarp($sine("c3"), $phase.mirror($p("0 1"))).out()',
-    ])('a pattern is its $cycle where a signal belongs: %s', (source) => {
-        expect(cycles(exec(source).patch).length).toBe(1);
+        [`$p('c ~ [e, g]')`, () => $p('c ~ [e, g]')],
+        [
+            `$p.s('0 ~ 2', 'c(maj)').trans.squeeze('0 7')`,
+            () => $p.s('0 ~ 2', 'c(maj)').trans.squeeze('0 7'),
+        ],
+        [
+            `$p.arrange([2, $p('c ~')], [1, $p('e').fast('2 4')])`,
+            () => $p.arrange([2, $p('c ~')], [1, $p('e').fast('2 4')]),
+        ],
+        [
+            `$p('c ~ e').slow(2).struct('x ~ x').beat('0,3', 8).glide('0 0.1')`,
+            () =>
+                $p('c ~ e')
+                    .slow(2)
+                    .struct('x ~ x')
+                    .beat('0,3', 8)
+                    .glide('0 0.1'),
+        ],
+    ])('%s arrives as built, nulls and all', (source, build) => {
+        const built = spanless(patternPayload(build()));
+        expect(JSON.stringify(built)).toContain('null');
+        for (const use of [
+            `${source}.saw().out()`,
+            `$cycle(${source}).saw().out()`,
+            `${source}.cycle().saw().out()`,
+            `const d = $deferred(); $saw(d).out(); d.set(${source})`,
+        ]) {
+            const [cycle] = cycles(exec(use).patch);
+            expect(spanless(cycle.params.pattern), use).toEqual(built);
+        }
+    });
+});
+
+describe('the modules a pattern feeds', () => {
+    test('a chain call on a pattern keeps its own argument spans', () => {
+        const source = `$p('c*4').tr808.kick({ decay: 2 }).out()`;
+        const { patch } = exec(source);
+        const [kick] = patch.modules.filter(
+            (m) => m.moduleType === '$tr808.kick',
+        );
+        const { decay } = (
+            kick.params as {
+                __argument_spans: Record<
+                    string,
+                    { start: number; end: number }
+                >;
+            }
+        ).__argument_spans;
+        expect(source.slice(decay.start, decay.end)).toBe('2');
+    });
+
+    test('are attributed to their own call after a pattern fails to play', () => {
+        const { patch, sourceLocationMap } = exec(
+            `try { $sine($p.s('0', 'c(bogus)')) } catch {}\n\n$sine('c4').out()`,
+        );
+        const [sine] = patch.modules.filter((m) => m.moduleType === '$sine');
+        expect(sourceLocationMap.get(sine.id)?.line).toBe(3);
+    });
+
+    test('a pattern in the options position is refused', () => {
+        expect(() => exec(`$sine('c3', $p('0 1')).out()`)).toThrow(
+            /\$sine takes 1 positional argument; the one after is its options/,
+        );
     });
 });
 
@@ -232,6 +294,11 @@ describe('a pattern that is not played', () => {
             expect(handle[field], field).toBeUndefined();
             expect(field in handle, field).toBe(false);
         }
+    });
+
+    test('takes no properties of the script', () => {
+        expect(() => exec(`const p = $p('c e'); p.fast = 2`)).toThrow();
+        expect(() => exec(`const p = $p('c e'); p._gate = 2`)).toThrow();
     });
 
     test('has no keys of its own and gives its payload to no serializer', () => {

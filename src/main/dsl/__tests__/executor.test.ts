@@ -906,8 +906,8 @@ describe('sequencing', () => {
     });
 
     test('$p.s(...).trans(...) wire payload preserves chain RHS argument_spans[1]', () => {
-        // Regression: the chain RHS span must be captured by the analyzer
-        // and carried through to the SpPattern wire payload as
+        // The chain RHS span is captured by the analyzer and carried
+        // through to the SpPattern wire payload as
         // argument_spans[1], pointing at the literal '0 5' in the user
         // source so editor highlighting can follow it.
         const source =

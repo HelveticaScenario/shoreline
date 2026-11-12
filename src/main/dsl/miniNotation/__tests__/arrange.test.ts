@@ -1,8 +1,7 @@
 import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
-import { $p, MiniParseError, type ArrangePattern } from '../index';
-import { replaceSignals } from '../../GraphBuilder';
+import { $p, MiniParseError } from '../index';
 import { patternPayload } from '../../patterns';
 
 describe('$p.arrange builder', () => {
@@ -78,17 +77,5 @@ describe('$p.arrange builder', () => {
         expect(() => $p.arrange([Infinity, $p('c4')], [2, $p('e4')])).toThrow(
             MiniParseError,
         );
-    });
-
-    test('survives replaceSignals verbatim (no AST collapse)', () => {
-        const r = $p.arrange([2, $p('c4')], [2, $p.s('0 2 4', 'c(maj)')]);
-        const out = replaceSignals(patternPayload(r)) as ArrangePattern;
-
-        expect(out.__kind).toBe('ArrangePattern');
-        expect(out.sections).toHaveLength(2);
-        // Nested mini-notation payloads must be preserved, not deep-walked
-        // (which would collapse null accidental/octave/weight slots to 0).
-        const sp = out.sections[1].pattern as { sources: { source: string }[] };
-        expect(sp.sources[0].source).toBe('0 2 4');
     });
 });

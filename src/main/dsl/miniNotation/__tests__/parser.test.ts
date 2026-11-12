@@ -410,7 +410,7 @@ describe('whitespace around modifiers', () => {
         });
     });
 
-    test('reported regression: slowcat group divided by 4', () => {
+    test('a slowcat group divided by 4', () => {
         const src =
             '<[[1,-1,-4]@7 [[1,-1,-4] [1,-3,-4]@3]] [[1,-3,-4]@7 [[1,-3,-4] [1,-1,-4]@3]]> / 4';
         const r = patternPayload($p(src));
@@ -456,8 +456,8 @@ describe('random choice', () => {
     });
 
     test('| chooses between whole bracketed subsequences', () => {
-        // Regression: `|` must alternate whole subsequences, not bind to a
-        // single neighbouring atom. `[0,0,0]` / `[0,-7,0]` are comma-chords.
+        // `|` alternates whole subsequences; it does not bind to a single
+        // neighbouring atom. `[0,0,0]` / `[0,-7,0]` are comma-chords.
         const r = patternPayload($p('[0,0,0] | [0,-7,0]'));
         if (!('RandomChoice' in r.ast))
             return expect.fail('expected RandomChoice');

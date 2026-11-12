@@ -1080,8 +1080,8 @@ export function executePatchScript(
         }
         throw error;
     } finally {
-        // Clear the span registry after execution — spans are already baked into
-        // Module state via ARGUMENT_SPANS_KEY so the registry isn't needed anymore.
+        // The spans are baked into module state via ARGUMENT_SPANS_KEY, and
+        // patterns play only while the script runs.
         setActiveSpanRegistry(null);
         setActiveCycleFactory(null);
         // NOTE: Do NOT clear interpolation resolutions here. They are read

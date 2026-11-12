@@ -338,11 +338,8 @@ mod tests {
         assert!(!haps.is_empty());
     }
 
-    // M1 regression: in Squeeze mode `combine_squeeze` used to pass
-    // `(inner.context, outer.context)` to `ArenaHapContext::combine_in`,
-    // mis-attributing pattern_idx 0 to the right operand and pattern_idx 1
-    // to the left. Every other combinator (app_left/app_right/app_both/
-    // combine_reset) builds the context as `(left, right)`. After the fix,
+    // Squeeze mode builds the context as `(left, right)`, like every other
+    // combinator (app_left/app_right/app_both/combine_reset), so
     // the left chain operand's source span lands at pattern_idx 0
     // (HapContext::source_span) and the right operand's at pattern_idx 1
     // (HapContext::modifier_spans[0]).

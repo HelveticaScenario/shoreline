@@ -27,7 +27,7 @@ import { lookupArgumentSpan } from '../factories';
 import { Collection } from '../GraphBuilder';
 import {
     cycleOf,
-    isPattern,
+    isPatternPayload,
     makeCycle,
     type PAYLOAD,
     patternPayload,
@@ -44,7 +44,8 @@ export type { MiniAST, ParsedPattern } from './ast';
 export { MiniParseError } from './parser';
 
 /**
- * Parse a mini-notation string into a `ParsedPattern`.
+ * Parse a mini-notation string into a pattern whose payload is a
+ * `ParsedPattern`.
  *
  * Entry point for all mini-notation usage in the DSL: every mini-notation
  * literal flows through `$p()`. Examples:
@@ -104,10 +105,6 @@ const SP_KIND = 'SpPattern' as const;
 /**
  * A parsed mini-notation source: a `ParsedPattern` without its kind and
  * call-site span. Used as elements of `SpPattern.sources`.
- *
- * Mutable arrays (rather than readonly) so the shape lines up with the
- * factory's schema-generated param types. Treat as immutable by
- * convention.
  */
 export interface ParsedPatternPayload {
     ast: MiniAST;
@@ -125,10 +122,6 @@ export type Transpose = ((rhs: string) => ScalePattern) & {
  * deserializer recognises `__kind === 'SpPattern'` via the
  * `SeqPatternSource` untagged enum and lowers the chain to a
  * `Pattern<SeqValue>` at param ingestion time.
- *
- * Arrays are mutable (rather than readonly) so the shape lines up with
- * the schema-generated `$cycle.pattern` param type. Treat as immutable
- * by convention.
  */
 export interface SpPattern {
     __kind: typeof SP_KIND;
@@ -145,8 +138,9 @@ export type ScalePattern = Pattern<SpPattern> & {
 };
 
 /**
- * Parse a scale-degree mini-notation source against `scale`, returning
- * an `SpPattern`. Exposed to the DSL as `$p.s(source, scale)`. Chain via
+ * Parse a scale-degree mini-notation source against `scale` into a pattern
+ * whose payload is an `SpPattern`. Exposed to the DSL as
+ * `$p.s(source, scale)`. Chain via
  * `.trans(...)` (defaults to `.in` alignment) or any of the seven explicit
  * modes (`.trans.in`, `.trans.out`, `.trans.mix`, `.trans.squeeze`,
  * `.trans.squeezeout`, `.trans.reset`, `.trans.restart`). Each chained RHS
@@ -303,8 +297,8 @@ export interface ArrangePattern {
  * except a single trailing section may use `Infinity` to loop forever once
  * reached (later sections would never play and are rejected).
  *
- * Returns an `ArrangePattern`, itself usable as a section of another
- * `$p.arrange(...)` or as the argument to `$cycle(...)`.
+ * The result is a pattern like any other, so arrangements nest as sections
+ * of another `$p.arrange(...)`.
  */
 function $arrangeImpl(
     ...sections: ArrangeSectionArg[]
@@ -506,7 +500,7 @@ function collectPatternSpans(
     pattern: PatternPayload,
     context: string,
 ): SourceSpan[] {
-    if (!isPattern(pattern)) {
+    if (!isPatternPayload(pattern)) {
         throw new MiniParseError(
             `${context}: pattern must be a $p(...), $p.s(...), $p.arrange(...), ` +
                 `or .fast(...)/.slow(...)/.struct(...)/.beat(...)/.glide(...) value`,
@@ -675,7 +669,10 @@ function factorArgumentSpans(
     return [...innerSpans, factorSpan];
 }
 
-/** The pattern methods, which shadow a collection member of the same name. */
+/**
+ * The pattern methods. Each name is reserved, so no collection member or
+ * module takes it.
+ */
 export const PATTERN_METHODS = [
     'cycle',
     'fast',
@@ -766,6 +763,8 @@ function patternHandle<T extends PatternPayload, E extends object = object>(
             // Host code tells signals apart with `instanceof`, so a pattern
             // passes wherever a collection does.
             getPrototypeOf: () => Collection.prototype,
+            // A pattern takes no properties of the script's.
+            set: () => false,
             has: (target, prop) =>
                 Object.hasOwn(methods, prop) ||
                 isCycleMember(prop) ||

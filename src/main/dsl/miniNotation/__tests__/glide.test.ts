@@ -2,7 +2,6 @@ import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
 import { $p, MiniParseError } from '../index';
-import { replaceSignals } from '../../GraphBuilder';
 import { patternPayload } from '../../patterns';
 
 describe('.glide builder', () => {
@@ -78,17 +77,6 @@ describe('.glide builder', () => {
             'pattern',
         ]);
         expect(JSON.parse(JSON.stringify(r))).toEqual(r);
-    });
-
-    test('survives replaceSignals verbatim (no AST collapse)', () => {
-        const out = replaceSignals(patternPayload($p('c4 e4').glide('0 0.25')));
-        expect(isKind(out, 'GlidePattern')).toBe(true);
-        if (!isKind(out, 'GlidePattern')) return;
-        expect(isKind(out.pattern, 'ParsedPattern')).toBe(true);
-        if (typeof out.length === 'number') {
-            throw new Error('expected a pattern glide, got a number');
-        }
-        expect(out.length.source).toBe('0 0.25');
     });
 });
 

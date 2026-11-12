@@ -34,7 +34,7 @@ import {
     type OutputSet,
     outputSetOf,
 } from './outputResolution';
-import { isPattern } from './patterns';
+import { isPatternPayload } from './patterns';
 import { isPlainObject } from './plainObject';
 import {
     assertSignalGroupsTopLevelOnly,
@@ -2426,10 +2426,8 @@ export function replaceValues(input: unknown, replacer: Replacer): unknown {
         // `octave` and weight slots to 0 via valueToSignal, producing
         // zero-duration haps and silence. A SignalGroup wrapper is walked, so
         // its outputs become cables; expandSignalGroups later erases it.
-        if (!Array.isArray(replaced)) {
-            if (isPattern(replaced)) {
-                return replaced;
-            }
+        if (isPatternPayload(replaced)) {
+            return replaced;
         }
 
         if (Array.isArray(replaced)) {
@@ -2513,7 +2511,7 @@ export function replaceDeferredStrings(
         // A pattern payload holds no deferred-output strings and is returned
         // verbatim, as in replaceValues. A SignalGroup wrapper is walked: its
         // signals may carry deferred-output strings to resolve.
-        if (isPattern(input)) {
+        if (isPatternPayload(input)) {
             return input;
         }
 

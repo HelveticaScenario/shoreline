@@ -96,12 +96,12 @@ const SYNTH_SNARE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Backbeat",
-            code: "$mi.synthSnare('d3', { trigger: $p('~ c').c }).out()",
+            code: "$mi.synthSnare('d3', { trigger: $p('~ c') }).out()",
         },
         DocExample {
             title: "Tight, punchy hits",
             code: r#"
-                const trigger = $p('~ c ~ c ~ c c ~').c
+                const trigger = $p('~ c ~ c ~ c c ~')
                 const snare = $mi.synthSnare('e3', {
                   trigger,
                   attackFm: 4,

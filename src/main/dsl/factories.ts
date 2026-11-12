@@ -19,7 +19,7 @@ import './chainMethods';
 import { outputName } from './outputNames';
 import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
-import { isPattern, patternPayload } from './patterns';
+import { isPatternPayload, patternPayload } from './patterns';
 import { isSignalGroupLike } from './signalGroups';
 import { signalParamsOf } from './signalParams';
 import {
@@ -75,7 +75,7 @@ function patternArgumentSpans(
     paramName: string,
     value: unknown,
 ): ArgumentSpans {
-    if (!isPattern(value)) {
+    if (!isPatternPayload(value)) {
         return {};
     }
     const { argument_span: single, argument_spans: perSource } = value as {
@@ -94,44 +94,29 @@ function patternArgumentSpans(
     );
 }
 
-/** The spans the analyzer recorded for the call at `sourceLocation`. */
+/**
+ * The spans the analyzer recorded for the `kind` of call at `sourceLocation`.
+ * A pattern's `$cycle` runs at the call that built the pattern, so one call
+ * site can be asked for either kind.
+ */
 function callSiteSpans(
     sourceLocation: { line: number; column: number } | undefined,
-): CallSiteSpans | undefined {
+    kind: CallSiteSpans['kind'],
+): CallSiteSpans['args'] | undefined {
     if (!activeSpanRegistry || !sourceLocation) {
         return undefined;
     }
     const key: CallSiteKey = `${sourceLocation.line}:${sourceLocation.column}`;
-    return activeSpanRegistry.get(key);
+    const entry = activeSpanRegistry.get(key);
+    return entry?.kind === kind ? entry.args : undefined;
 }
 
-/**
- * The argument spans of the `moduleType` call at `sourceLocation`, as a plain
- * object for the engine. A pattern's `$cycle` runs at the call that built the
- * pattern, whose spans are that call's own and not the module's.
- */
-function captureArgumentSpans(
-    sourceLocation: { line: number; column: number } | undefined,
-    moduleType: string,
-): ArgumentSpans | undefined {
-    const entry = callSiteSpans(sourceLocation);
-    return entry?.moduleType === moduleType
-        ? Object.fromEntries(entry.args)
-        : undefined;
-}
-
-/**
- * Look up a single argument span by source location and arg name.
- *
- * Exported for `$p()` so it can embed its own source literal span into the
- * returned `ParsedPattern` — highlighting is then the $p function's own
- * responsibility rather than something each module factory must unwrap.
- */
+/** The span of argument `argName` of the pattern-building call at `sourceLocation`. */
 export function lookupArgumentSpan(
     sourceLocation: { line: number; column: number } | undefined,
     argName: string,
 ): SourceSpan | undefined {
-    return callSiteSpans(sourceLocation)?.args.get(argName);
+    return callSiteSpans(sourceLocation, 'pattern')?.get(argName);
 }
 
 /**
@@ -379,10 +364,7 @@ export class DSLContext {
 
         return (...args: any[]): ModuleReturn => {
             const sourceLocation = captureSourceLocation();
-            const argumentSpans = captureArgumentSpans(
-                sourceLocation,
-                schema.name,
-            );
+            const argumentSpans = callSiteSpans(sourceLocation, 'module');
             const positionalArgs = schema.positionalArgs || [];
             const params: Record<string, any> = {};
             let config: any = {};
@@ -400,6 +382,13 @@ export class DSLContext {
                 config = args[positionalArgs.length];
             }
 
+            if (config instanceof BaseCollection) {
+                throw new Error(
+                    `${schema.name} takes ${positionalArgs.length} positional ` +
+                        `argument${positionalArgs.length === 1 ? '' : 's'}; ` +
+                        'the one after is its options, not a signal',
+                );
+            }
             if (config) {
                 const { id: configId, ...restConfig } = config;
                 id = configId;
@@ -453,9 +442,9 @@ export class DSLContext {
 
             // A pattern carries the spans of its own source literals, so
             // highlighting follows it through a `const`.
-            const mergedArgumentSpans: ArgumentSpans = {
-                ...(argumentSpans ?? {}),
-            };
+            const mergedArgumentSpans: ArgumentSpans = Object.fromEntries(
+                argumentSpans ?? [],
+            );
             for (const [paramName, value] of Object.entries(params)) {
                 Object.assign(
                     mergedArgumentSpans,

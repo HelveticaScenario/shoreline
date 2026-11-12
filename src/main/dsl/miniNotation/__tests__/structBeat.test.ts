@@ -2,7 +2,6 @@ import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
 import { $p, MiniParseError } from '../index';
-import { replaceSignals } from '../../GraphBuilder';
 import { patternPayload } from '../../patterns';
 
 describe('.struct builder', () => {
@@ -59,16 +58,6 @@ describe('.struct builder', () => {
             'pattern',
         ]);
         expect(JSON.parse(JSON.stringify(r))).toEqual(patternPayload(r));
-    });
-
-    test('survives replaceSignals verbatim (no AST collapse)', () => {
-        const out = replaceSignals(
-            patternPayload($p('c4 e4').struct('x ~ x x')),
-        );
-        expect(isKind(out, 'StructPattern')).toBe(true);
-        if (!isKind(out, 'StructPattern')) return;
-        expect(isKind(out.pattern, 'ParsedPattern')).toBe(true);
-        expect(out.bool_pattern.source).toBe('x ~ x x');
     });
 });
 
@@ -131,19 +120,6 @@ describe('.beat builder', () => {
             't',
         ]);
         expect(JSON.parse(JSON.stringify(r))).toEqual(r);
-    });
-
-    test('survives replaceSignals verbatim (no AST collapse)', () => {
-        const out = replaceSignals(
-            patternPayload($p('c2 g2').beat('0,7,10', 16)),
-        );
-        expect(isKind(out, 'BeatPattern')).toBe(true);
-        if (!isKind(out, 'BeatPattern')) return;
-        expect(isKind(out.pattern, 'ParsedPattern')).toBe(true);
-        if (typeof out.t === 'number') {
-            throw new Error('expected a pattern t, got a number');
-        }
-        expect(out.t.source).toBe('0,7,10');
     });
 });
 

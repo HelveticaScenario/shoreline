@@ -31240,11 +31240,11 @@
       "examples": [
         {
           "title": "Backbeat",
-          "code": "$mi.snare('d3', { trigger: $p('~ c').c }).out()"
+          "code": "$mi.snare('d3', { trigger: $p('~ c') }).out()"
         },
         {
           "title": "Ringing, snappy roll",
-          "code": "const trigger = $p('~ c ~ [c c c c]').c\nconst snare = $mi.snare('a2', {\n  trigger,\n  tone: 4,\n  decay: 4,\n  snappy: 4,\n})\nsnare.out()"
+          "code": "const trigger = $p('~ c ~ [c c c c]')\nconst snare = $mi.snare('a2', {\n  trigger,\n  tone: 4,\n  decay: 4,\n  snappy: 4,\n})\nsnare.out()"
         }
       ]
     },
@@ -31500,11 +31500,11 @@
       "examples": [
         {
           "title": "Backbeat",
-          "code": "$mi.synthSnare('d3', { trigger: $p('~ c').c }).out()"
+          "code": "$mi.synthSnare('d3', { trigger: $p('~ c') }).out()"
         },
         {
           "title": "Tight, punchy hits",
-          "code": "const trigger = $p('~ c ~ c ~ c c ~').c\nconst snare = $mi.synthSnare('e3', {\n  trigger,\n  attackFm: 4,\n  decay: 1,\n  snappy: 3.5,\n})\nsnare.out()"
+          "code": "const trigger = $p('~ c ~ c ~ c c ~')\nconst snare = $mi.synthSnare('e3', {\n  trigger,\n  attackFm: 4,\n  decay: 1,\n  snappy: 3.5,\n})\nsnare.out()"
         }
       ]
     },

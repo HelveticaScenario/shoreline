@@ -47,13 +47,9 @@ export function patternPayload<T>(pattern: T): PayloadOf<T> {
     ) as PayloadOf<T>;
 }
 
-/** Whether `value` is a pattern: a script's handle or a wire payload. */
-export function isPattern(value: unknown): value is object {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        BUILT_AT.has(patternPayload(value))
-    );
+/** Whether `value` is the wire payload of a pattern. */
+export function isPatternPayload(value: unknown): boolean {
+    return typeof value === 'object' && value !== null && BUILT_AT.has(value);
 }
 
 type CycleFactory = (pattern: unknown, ...rest: unknown[]) => unknown;
@@ -97,7 +93,12 @@ export function cycleOf(pattern: object): unknown {
     return cycle;
 }
 
-/** `value` as a signal: a pattern is its `$cycle`, anything else itself. */
+/**
+ * `value` as a signal: a script's pattern is its `$cycle`, anything else
+ * itself.
+ */
 export function patternSignal(value: unknown): unknown {
-    return isPattern(value) ? cycleOf(value) : value;
+    return typeof value === 'object' && value !== null && PAYLOADS.has(value)
+        ? cycleOf(value)
+        : value;
 }

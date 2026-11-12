@@ -16,8 +16,8 @@ mod common;
 use common::from_graph;
 
 /// Helper — build a mini-notation payload shaped like what `$p(source)`
-/// would emit on the DSL side. `$cycle` no longer accepts bare strings; the
-/// wire shape is `{ ast, source, all_spans }`.
+/// would emit on the DSL side. `$cycle` takes a parsed payload, never a bare
+/// string; the wire shape is `{ ast, source, all_spans }`.
 fn mini_payload(source: &str) -> Value {
     let parsed = modular_core::dsp::seq::seq_value::ParsedPatternPayload::parse_for_test(source);
     serde_json::to_value(&parsed).expect("payload should serialize")
@@ -1549,10 +1549,9 @@ fn supersaw_voice_state_transfers_intact_across_a_voice_count_change() {
 
 #[test]
 fn cycle_ps_cv_holds_during_rest_after_state_transfer() {
-    // Regression (ported from the deleted `$iCycle` test, now lowered through
-    // `$cycle($p.s(...))`): after a patch update (state transfer), a
-    // scale-degree sequencer's CV output must HOLD the last active voltage
-    // during a rest instead of dropping to 0 V. The `Seq` runtime keeps
+    // After a patch update (state transfer), a scale-degree sequencer's CV
+    // output HOLDS the last active voltage during a rest; it does not drop
+    // to 0 V. The `Seq` runtime keeps
     // `last_cv` per channel and only overwrites it while a voice is active;
     // `transfer_state_from` swaps the whole `SeqState`, so the held voltage
     // carries across the rebuild.
@@ -1767,13 +1766,12 @@ fn seq_highlight_survives_state_transfer_from_single_to_multi_source() {
     // raw_begin/raw_end window, so it is not released and no fresh onset fires
     // mid-step. The OLD pattern packed 7 sub-haps into the left half, so the
     // voice latched on the trailing `5` carries a hap_index (>= 2) that is OUT
-    // OF RANGE in the new 2-hap multi-source storage — exactly the stale-index
-    // symptom. But the held note's geometry (whole_begin=0.5, whole_end=1.0)
-    // IS present in the new pattern: it's step 1 (`5 - 4 = 1`), now at a
-    // different index. The fix self-heals the highlight read by re-resolving
-    // the hap via geometry instead of trusting the stale index.
+    // OF RANGE in the new 2-hap multi-source storage. The held note's geometry
+    // (whole_begin=0.5, whole_end=1.0) IS present in the new pattern: it is
+    // step 1 (`5 + 4 = 9`), at a different index. The highlight read
+    // re-resolves the hap by that geometry, never by the transferred index.
     //
-    // Desired behaviour (this test asserts it): immediately after transfer +
+    // Immediately after transfer +
     // on_patch_update — with no ClearPatch / transport restart and a voice
     // still held — get_state yields NON-EMPTY pattern.0 AND pattern.1 spans
     // matching the step the voice is actually playing. No re-latch needed.
