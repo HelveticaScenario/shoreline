@@ -1,3 +1,0 @@
-kind: New
-body: 'Any module whose first input is a signal can be chained as a method, such as `$saw(''c3'').lpf(''800hz'').plate({ decay: 2 })`, and `.wet(amount)` after a chained module blends it with the dry signal.'
-time: 2026-11-12T03:26:33.906193-05:00
