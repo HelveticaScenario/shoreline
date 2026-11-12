@@ -20,6 +20,21 @@ pub fn tan_fast(f: f32) -> f32 {
     f * (std::f32::consts::PI + f2 * (A + B * f2))
 }
 
+/// `OnePole::tan<FREQUENCY_ACCURATE>`: `tan(π f)` for a frequency `f` in
+/// cycles per sample, accurate across the audio range; finite and positive up
+/// to f = 1/2.
+#[inline(always)]
+pub fn tan_accurate(f: f32) -> f32 {
+    const A: f32 = (3.333314036e-01f32 as f64 * PI * PI * PI) as f32;
+    const B: f32 = (1.333923995e-01f32 as f64 * PI * PI * PI * PI * PI) as f32;
+    const C: f32 = (5.33740603e-02f32 as f64 * PI * PI * PI * PI * PI * PI * PI) as f32;
+    const D: f32 = (2.900525e-03f32 as f64 * PI * PI * PI * PI * PI * PI * PI * PI * PI) as f32;
+    const E: f32 =
+        (9.5168091e-03f32 as f64 * PI * PI * PI * PI * PI * PI * PI * PI * PI * PI * PI) as f32;
+    let f2 = f * f;
+    f * (std::f32::consts::PI + f2 * (A + f2 * (B + f2 * (C + f2 * (D + f2 * E)))))
+}
+
 /// Topology-preserving one-pole filter.
 #[derive(Clone, Copy, Default)]
 pub struct OnePole {
@@ -78,14 +93,26 @@ impl Svf {
         self.process(x).0
     }
 
+    #[inline(always)]
+    pub fn high_pass(&mut self, x: f32) -> f32 {
+        self.process_all(x).0
+    }
+
     /// One sample: the band-pass and low-pass outputs.
     #[inline(always)]
     pub fn process(&mut self, x: f32) -> (f32, f32) {
+        let (_, bp, lp) = self.process_all(x);
+        (bp, lp)
+    }
+
+    /// One sample: the high-pass, band-pass and low-pass outputs.
+    #[inline(always)]
+    fn process_all(&mut self, x: f32) -> (f32, f32, f32) {
         let hp = (x - self.r * self.state_1 - self.g * self.state_1 - self.state_2) * self.h;
         let bp = self.g * hp + self.state_1;
         self.state_1 = self.g * hp + bp;
         let lp = self.g * bp + self.state_2;
         self.state_2 = self.g * bp + lp;
-        (bp, lp)
+        (hp, bp, lp)
     }
 }

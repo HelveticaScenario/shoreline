@@ -12,6 +12,7 @@ pub mod core;
 pub mod divide_down;
 mod drum;
 pub mod formant;
+pub mod hat;
 pub mod kick;
 pub mod modal;
 pub mod particles;
@@ -32,6 +33,8 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     chorus::Chorus::install_constructor(map);
     divide_down::DivideDown::install_constructor(map);
     formant::Formant::install_constructor(map);
+    hat::MiHiHat::install_constructor(map);
+    hat::MiRingHat::install_constructor(map);
     kick::MiKick::install_constructor(map);
     kick::MiSynthKick::install_constructor(map);
     modal::Modal::install_constructor(map);
@@ -57,6 +60,8 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     chorus::Chorus::install_params_deserializer(map);
     divide_down::DivideDown::install_params_deserializer(map);
     formant::Formant::install_params_deserializer(map);
+    hat::MiHiHat::install_params_deserializer(map);
+    hat::MiRingHat::install_params_deserializer(map);
     kick::MiKick::install_params_deserializer(map);
     kick::MiSynthKick::install_params_deserializer(map);
     modal::Modal::install_params_deserializer(map);
@@ -83,6 +88,8 @@ pub fn schemas() -> Vec<ModuleSchema> {
         chorus::Chorus::get_schema(),
         divide_down::DivideDown::get_schema(),
         formant::Formant::get_schema(),
+        hat::MiHiHat::get_schema(),
+        hat::MiRingHat::get_schema(),
         kick::MiKick::get_schema(),
         kick::MiSynthKick::get_schema(),
         modal::Modal::get_schema(),
