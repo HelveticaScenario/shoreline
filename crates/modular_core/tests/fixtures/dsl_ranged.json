@@ -189,9 +189,9 @@
             }
         },
         {
-            "id": "_round-1",
+            "id": "$ceil-1",
             "idIsExplicit": false,
-            "moduleType": "_round",
+            "moduleType": "$ceil",
             "params": {
                 "input": [
                     {
@@ -200,8 +200,7 @@
                         "port": "output",
                         "type": "cable"
                     }
-                ],
-                "mode": "ceil"
+                ]
             }
         },
         {
@@ -631,9 +630,9 @@
             }
         },
         {
-            "id": "_round-2",
+            "id": "$floor-1",
             "idIsExplicit": false,
-            "moduleType": "_round",
+            "moduleType": "$floor",
             "params": {
                 "input": [
                     {
@@ -642,8 +641,7 @@
                         "port": "output",
                         "type": "cable"
                     }
-                ],
-                "mode": "floor"
+                ]
             }
         },
         {
@@ -872,9 +870,9 @@
             }
         },
         {
-            "id": "_round-3",
+            "id": "$round-1",
             "idIsExplicit": false,
-            "moduleType": "_round",
+            "moduleType": "$round",
             "params": {
                 "input": [
                     {
@@ -883,8 +881,7 @@
                         "port": "output",
                         "type": "cable"
                     }
-                ],
-                "mode": "round"
+                ]
             }
         },
         {
@@ -1922,7 +1919,7 @@
             "outputs": [
                 {
                     "channel": 0,
-                    "module": "_round-1",
+                    "module": "$ceil-1",
                     "port": "output"
                 }
             ]
@@ -2042,7 +2039,7 @@
             "outputs": [
                 {
                     "channel": 0,
-                    "module": "_round-2",
+                    "module": "$floor-1",
                     "port": "output"
                 }
             ]
@@ -2097,7 +2094,7 @@
             "outputs": [
                 {
                     "channel": 0,
-                    "module": "_round-3",
+                    "module": "$round-1",
                     "port": "output"
                 }
             ]

@@ -1,125 +1,167 @@
-use deserr::Deserr;
-use schemars::JsonSchema;
+//! Rounding modules: `$round`, `$floor` and `$ceil` take a signal to whole
+//! volts, which on a pitch means whole octaves. Each is stamped by
+//! [`rounding_module!`] from its rounding function; the update and block
+//! paths here are shared by all three, and so is the rule for the output's
+//! bounds: rounding is monotonic, so the bounds are the input's rounded.
 
 use std::ops::Range;
 
-use crate::block_input;
+use crate::block_input::{self, InputScratch};
 use crate::dsp::utils::Sample;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 
-/// How `_round` rounds its input to a whole number.
-#[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
-#[serde(rename_all = "snake_case")]
-#[deserr(rename_all = lowercase)]
-pub enum RoundMode {
-    /// to the nearest whole number, halves away from zero
-    #[default]
-    Round,
-    /// down, towards negative infinity
-    Floor,
-    /// up, towards positive infinity
-    Ceil,
+/// How a module rounds to a whole number.
+trait Rounding {
+    fn apply<T: Sample>(x: T) -> T;
 }
 
-impl RoundMode {
-    #[inline(always)]
-    fn apply<T: Sample>(self, x: T) -> T {
-        match self {
-            Self::Round => x.round(),
-            Self::Floor => x.floor(),
-            Self::Ceil => x.ceil(),
+/// One sample of every channel, at full precision when `out` is f64.
+#[inline(always)]
+fn update<R: Rounding>(input: &PolySignal, out: &mut PolyOutput, channels: usize) {
+    for i in 0..channels {
+        if out.is_f64() {
+            out.set_f64(i, R::apply(input.get_value_f64(i)));
+        } else {
+            out.set(i, R::apply(input.get_value(i)));
+        }
+        if out.stores_bounds() {
+            out.set_bounds(i, input.get_bounds(i).map(R::apply));
         }
     }
 }
 
-#[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
-#[serde(rename_all = "camelCase")]
-#[deserr(rename_all = camelCase, deny_unknown_fields)]
-struct RoundParams {
-    #[input("signal to round", type = audio, bounds)]
-    input: PolySignal,
-    #[input("which way to round to a whole volt", default = "round")]
-    #[serde(default)]
-    #[deserr(default)]
-    mode: RoundMode,
+#[inline(always)]
+fn process_block<R: Rounding>(
+    input: &PolySignal,
+    out: &mut crate::block_port::BlockPort,
+    range: Range<usize>,
+    channels: usize,
+) -> Option<()> {
+    let mut scratch = InputScratch::new();
+    let samples = input.block_input(range.clone(), channels, &mut scratch)?;
+    out.fill_bounds_with(range.clone(), |ch| {
+        Some(input.block_bounds(range.clone(), ch)?.map(R::apply))
+    })?;
+    block_input::map(out, range, [samples], |[x]| R::apply(x));
+    Some(())
 }
 
-#[derive(Outputs, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-struct RoundOutputs {
-    #[output("output", "the signal in whole volts", type = cv, precision = inherit, bounds = input, default)]
-    sample: PolyOutput,
+/// Stamp a rounding module: one input, rounded by `|x| rounding` at either
+/// precision, and one output at the precision of its input.
+macro_rules! rounding_module {
+    (
+        $Module:ident,
+        name = $name:literal,
+        docs = $docs:path,
+        |$x:ident| $rounding:expr $(,)?
+    ) => {
+        paste::paste! {
+            #[params]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
+            #[serde(rename_all = "camelCase")]
+            #[deserr(rename_all = camelCase, deny_unknown_fields)]
+            struct [<$Module Params>] {
+                #[input("signal to round", type = audio, bounds)]
+                input: PolySignal,
+            }
+
+            #[derive(Outputs, schemars::JsonSchema)]
+            #[serde(rename_all = "camelCase")]
+            struct [<$Module Outputs>] {
+                #[output("output", "the signal in whole volts", type = cv, precision = inherit, bounds = input, default)]
+                sample: PolyOutput,
+            }
+
+            #[module(name = $name, docs = $docs, args(input), block)]
+            pub struct $Module {
+                outputs: [<$Module Outputs>],
+                params: [<$Module Params>],
+            }
+
+            struct [<$Module Rounding>];
+
+            impl Rounding for [<$Module Rounding>] {
+                #[inline(always)]
+                fn apply<T: Sample>($x: T) -> T {
+                    $rounding
+                }
+            }
+
+            impl $Module {
+                fn update(&mut self, _sample_rate: f32) {
+                    let channels = self.channel_count();
+                    update::<[<$Module Rounding>]>(
+                        &self.params.input,
+                        &mut self.outputs.sample,
+                        channels,
+                    );
+                }
+
+                fn process_block(
+                    &mut self,
+                    outputs: &mut [<$Module BlockOutputs>],
+                    range: Range<usize>,
+                    _sample_rate: f32,
+                ) -> Option<()> {
+                    let channels = self.channel_count();
+                    process_block::<[<$Module Rounding>]>(
+                        &self.params.input,
+                        &mut outputs.sample,
+                        range,
+                        channels,
+                    )
+                }
+            }
+
+            message_handlers!(impl $Module {});
+        }
+    };
 }
 
 const ROUND_DOCS: ModuleDocs = ModuleDocs {
     summary: "Round to whole volts",
-    description: "Rounds a signal to whole volts, which on a pitch means whole \
-                  octaves. Backs the `.round()`, `.floor()` and `.ceil()` signal \
-                  methods.",
+    description: "Rounds a signal to the nearest whole volt, halves away from zero. \
+                  On a pitch that is the nearest octave; divide first for finer steps.",
     categories: &[ModuleCategory::Math],
     sections: &[],
     examples: &[DocExample {
-        title: "Octave-stepping arpeggio",
-        code: "$sine($saw('0.5hz').range(-1, 2).round()).out()",
+        title: "Semitone steps",
+        code: r#"
+            $sine(
+              $sine('1hz').range(0, 3).round().div(12).add('c3'),
+            ).out()
+        "#,
     }],
 };
 
-#[module(name = "_round", docs = ROUND_DOCS, args(input), block)]
-pub struct Round {
-    outputs: RoundOutputs,
-    params: RoundParams,
-}
+rounding_module!(Round, name = "$round", docs = ROUND_DOCS, |x| x.round());
 
-impl Round {
-    fn update(&mut self, _sample_rate: f32) {
-        let mode = self.params.mode;
-        let input = &self.params.input;
-        let channels = self.channel_count();
-        let out = &mut self.outputs.sample;
-        for i in 0..channels {
-            if out.is_f64() {
-                out.set_f64(i, mode.apply(input.get_value_f64(i)));
-            } else {
-                out.set(i, mode.apply(input.get_value(i)));
-            }
-            if out.stores_bounds() {
-                out.set_bounds(i, input.get_bounds(i).map(|x| mode.apply(x)));
-            }
-        }
-    }
+const FLOOR_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Round down to whole volts",
+    description: "Rounds a signal down to a whole volt: on a pitch, the octave at \
+                  or below it.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Octaves up from C3",
+        code: "$sine($saw('0.5hz').range(0, 4).floor().add('c3')).out()",
+    }],
+};
 
-    fn process_block(
-        &mut self,
-        outputs: &mut RoundBlockOutputs,
-        range: Range<usize>,
-        _sample_rate: f32,
-    ) -> Option<()> {
-        let channels = self.channel_count();
-        let mode = self.params.mode;
-        let out = &mut outputs.sample;
-        let mut scratch = Default::default();
-        let inputs = self
-            .params
-            .block_inputs(range.clone(), channels, &mut scratch)?;
-        let input = &self.params.input;
-        out.fill_bounds_with(range.clone(), |ch| {
-            Some(
-                input
-                    .block_bounds(range.clone(), ch)?
-                    .map(|x| mode.apply(x)),
-            )
-        })?;
-        let inputs = [inputs.input];
-        match mode {
-            RoundMode::Round => block_input::map(out, range, inputs, |[x]| x.round()),
-            RoundMode::Floor => block_input::map(out, range, inputs, |[x]| x.floor()),
-            RoundMode::Ceil => block_input::map(out, range, inputs, |[x]| x.ceil()),
-        }
-        Some(())
-    }
-}
+rounding_module!(Floor, name = "$floor", docs = FLOOR_DOCS, |x| x.floor());
 
-message_handlers!(impl Round {});
+const CEIL_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Round up to whole volts",
+    description: "Rounds a signal up to a whole volt: on a pitch, the octave at or \
+                  above it.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Octaves down from C4",
+        code: "$sine($saw('0.5hz').range(-4, 0).ceil().add('c4')).out()",
+    }],
+};
+
+rounding_module!(Ceil, name = "$ceil", docs = CEIL_DOCS, |x| x.ceil());

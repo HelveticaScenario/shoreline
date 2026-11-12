@@ -22,9 +22,6 @@ const RESERVED_MEMBER_NAMES: &[&str] = &[
     "slice",
     "chunk",
     "erratic",
-    "round",
-    "floor",
-    "ceil",
     "scope",
     "out",
     "outMono",
@@ -32,7 +29,6 @@ const RESERVED_MEMBER_NAMES: &[&str] = &[
     "pipe",
     "pipeMix",
     "wet",
-    "rounded",
     "toString",
     // Collection / CollectionWithRange methods
     "range",

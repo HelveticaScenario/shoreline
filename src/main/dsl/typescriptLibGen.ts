@@ -788,30 +788,6 @@ class BaseCollection {
   chunk(size: number): this[];
 
   /**
-   * Round this signal to the nearest whole volt, halves away from zero. On a
-   * ranged signal the range rounds too.
-   * @returns The rounded {@link Collection} for chaining
-   * @example $sine($sine('1hz').range(0, 3).round().div(12).add('c3')).out()  // steps of a semitone
-   */
-  round(): Collection;
-
-  /**
-   * Round this signal down to a whole volt. On a ranged signal the range
-   * rounds too.
-   * @returns The rounded {@link Collection} for chaining
-   * @example $sine($saw('0.5hz').range(0, 4).floor().add('c3')).out()  // octaves up from C3
-   */
-  floor(): Collection;
-
-  /**
-   * Round this signal up to a whole volt. On a ranged signal the range
-   * rounds too.
-   * @returns The rounded {@link Collection} for chaining
-   * @example $sine($saw('0.5hz').range(-4, 0).ceil().add('c4')).out()  // octaves down from C4
-   */
-  ceil(): Collection;
-
-  /**
    * Apply a wandering random shift of up to ±\`amount\` V. Each channel
    * wanders independently.
    * @param amount Depth (0–5) as {@link Poly<Signal>}
@@ -1013,25 +989,6 @@ class CollectionWithRange extends BaseCollection {
    */
   override erratic(amount: Poly<Signal>, options?: RangedErraticOptions & { mode?: 'clamp' | 'blend' }): CollectionWithRange;
   override erratic(amount: Poly<Signal>, options: RangedErraticOptions & { mode: 'shift' }): Collection;
-
-  /**
-   * Round to the nearest whole volt, halves away from zero, keeping the range.
-   * @returns A {@link CollectionWithRange}
-   * @example $sine($sine('1hz').range(0, 7.5).round().range('c3', 'c4')).out()  // eight steps across an octave
-   */
-  override round(): CollectionWithRange;
-
-  /**
-   * Round down to a whole volt, keeping the range.
-   * @returns A {@link CollectionWithRange}
-   */
-  override floor(): CollectionWithRange;
-
-  /**
-   * Round up to a whole volt, keeping the range.
-   * @returns A {@link CollectionWithRange}
-   */
-  override ceil(): CollectionWithRange;
 }
 
 /**

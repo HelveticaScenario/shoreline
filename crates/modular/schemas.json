@@ -22316,18 +22316,18 @@
     "customBounds": false
   },
   {
-    "name": "_round",
+    "name": "$round",
     "docs": {
       "summary": "Round to whole volts",
-      "description": "Rounds a signal to whole volts, which on a pitch means whole octaves. Backs the `.round()`, `.floor()` and `.ceil()` signal methods.",
+      "description": "Rounds a signal to the nearest whole volt, halves away from zero. On a pitch that is the nearest octave; divide first for finer steps.",
       "categories": [
         "math"
       ],
       "sections": [],
       "examples": [
         {
-          "title": "Octave-stepping arpeggio",
-          "code": "$sine($saw('0.5hz').range(-1, 2).round()).out()"
+          "title": "Semitone steps",
+          "code": "$sine(\n  $sine('1hz').range(0, 3).round().div(12).add('c3'),\n).out()"
         }
       ]
     },
@@ -22339,11 +22339,6 @@
         "input": {
           "description": "signal to round",
           "$ref": "#/$defs/PolySignal"
-        },
-        "mode": {
-          "description": "which way to round to a whole volt",
-          "$ref": "#/$defs/RoundMode",
-          "default": "round"
         }
       },
       "required": [
@@ -22406,24 +22401,240 @@
               ]
             }
           ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the signal in whole volts",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "inherit",
+        "bounds": "input"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to round",
+        "paramType": "audio",
+        "carriesBounds": true,
+        "boundsNeedConstant": false
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      }
+    ],
+    "experimental": false,
+    "customBounds": false
+  },
+  {
+    "name": "$floor",
+    "docs": {
+      "summary": "Round down to whole volts",
+      "description": "Rounds a signal down to a whole volt: on a pitch, the octave at or below it.",
+      "categories": [
+        "math"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Octaves up from C3",
+          "code": "$sine($saw('0.5hz').range(0, 4).floor().add('c3')).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "FloorParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to round",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
         },
-        "RoundMode": {
-          "description": "How `_round` rounds its input to a whole number.",
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
           "oneOf": [
             {
-              "description": "to the nearest whole number, halves away from zero",
-              "type": "string",
-              "const": "round"
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the signal in whole volts",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "inherit",
+        "bounds": "input"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to round",
+        "paramType": "audio",
+        "carriesBounds": true,
+        "boundsNeedConstant": false
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      }
+    ],
+    "experimental": false,
+    "customBounds": false
+  },
+  {
+    "name": "$ceil",
+    "docs": {
+      "summary": "Round up to whole volts",
+      "description": "Rounds a signal up to a whole volt: on a pitch, the octave at or above it.",
+      "categories": [
+        "math"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Octaves down from C4",
+          "code": "$sine($saw('0.5hz').range(-4, 0).ceil().add('c4')).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "CeilParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to round",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
             },
             {
-              "description": "down, towards negative infinity",
-              "type": "string",
-              "const": "floor"
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
             },
             {
-              "description": "up, towards positive infinity",
-              "type": "string",
-              "const": "ceil"
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
             }
           ]
         }

@@ -1,6 +1,6 @@
-//! `$add`, `$sub`, `$mul`, `$div`, `$exp` and `_round` through every
-//! block-input resolution path and the per-sample `update` path, pinned to
-//! their formulas.
+//! `$add`, `$sub`, `$mul`, `$div`, `$exp`, `$round`, `$floor` and `$ceil` through
+//! every block-input resolution path and the per-sample `update` path, pinned
+//! to their formulas.
 
 mod block_common;
 
@@ -29,10 +29,10 @@ const OPS: [(&str, &str, BinaryOp); 5] = [
     }),
 ];
 
-const MODES: [(&str, UnaryOp); 3] = [
-    ("round", f32::round),
-    ("floor", f32::floor),
-    ("ceil", f32::ceil),
+const ROUNDINGS: [(&str, UnaryOp); 3] = [
+    ("$round", f32::round),
+    ("$floor", f32::floor),
+    ("$ceil", f32::ceil),
 ];
 
 fn params(operand: &str, input: Value, value: Value) -> Value {
@@ -137,11 +137,11 @@ fn a_negative_exponent_holds_at_zero() {
 }
 
 #[test]
-fn rounding_modes() {
-    for (mode, f) in MODES {
+fn roundings() {
+    for (module, f) in ROUNDINGS {
         check_module(
-            "_round",
-            json!({ "input": poly_cable("src", CHANNELS), "mode": mode }),
+            module,
+            json!({ "input": poly_cable("src", CHANNELS) }),
             |src, _| src.iter().map(|&x| f(x)).collect(),
         );
     }
@@ -155,11 +155,8 @@ fn paths_agree() {
             params(operand, poly_cable("src", CHANNELS), cable("lfo", 1)),
         );
     }
-    for (mode, _) in MODES {
-        check_paths_agree(
-            "_round",
-            json!({ "input": poly_cable("src", CHANNELS), "mode": mode }),
-        );
+    for (module, _) in ROUNDINGS {
+        check_paths_agree(module, json!({ "input": poly_cable("src", CHANNELS) }));
     }
 }
 
@@ -216,9 +213,9 @@ fn allocation_free() {
         );
         assert_eq!(allocations_while_rendering(module, params), 0);
     }
-    for (mode, _) in MODES {
-        let params = json!({ "input": poly_cable("src", CHANNELS), "mode": mode });
-        assert_eq!(allocations_while_rendering("_round", params), 0);
+    for (module, _) in ROUNDINGS {
+        let params = json!({ "input": poly_cable("src", CHANNELS) });
+        assert_eq!(allocations_while_rendering(module, params), 0);
     }
 }
 
@@ -285,9 +282,6 @@ fn a_swinging_divisor_leaves_the_quotient_unbounded() {
 
 #[test]
 fn rounded_bounds_round() {
-    let bounds = check_bounds_agree(
-        "_round",
-        json!({ "input": poly_cable("src", CHANNELS), "mode": "floor" }),
-    );
+    let bounds = check_bounds_agree("$floor", json!({ "input": poly_cable("src", CHANNELS) }));
     assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
 }

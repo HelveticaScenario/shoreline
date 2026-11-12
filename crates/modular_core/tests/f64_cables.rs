@@ -114,11 +114,7 @@ fn playhead_and_inheriting_modules_keep_f64_precision() {
             "$wrap",
             json!({ "input": cable("sub"), "min": 0.0, "max": 1.0 }),
         ),
-        (
-            "bar",
-            "_round",
-            json!({ "input": playhead(), "mode": "floor" }),
-        ),
+        ("bar", "$floor", json!({ "input": playhead() })),
         (
             "half",
             "$amp",

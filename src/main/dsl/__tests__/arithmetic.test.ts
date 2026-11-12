@@ -1,7 +1,7 @@
 /**
  * `.add()`, `.sub()`, `.mul()`, `.div()` and `.exp()` are the chain methods of
- * `$add`, `$sub`, `$mul`, `$div` and `$exp`; `.round()`, `.floor()` and
- * `.ceil()` build a hidden `_round`. On a ranged signal each keeps the range
+ * `$add`, `$sub`, `$mul`, `$div` and `$exp`, and `.round()`, `.floor()` and
+ * `.ceil()` of `$round`, `$floor` and `$ceil`. On a ranged signal each keeps the range
  * where the engine bounds its result.
  */
 
@@ -27,6 +27,12 @@ function modules(moduleType: string) {
 
 function sine(freq: string): Collection {
     return builder.getFactory('$sine')(freq) as Collection;
+}
+
+/** Call chain method `method`, which the builder installs at runtime. */
+function chain(receiver: unknown, method: string, ...args: unknown[]) {
+    const methods = receiver as Record<string, (...a: unknown[]) => unknown>;
+    return methods[method](...args);
 }
 
 function run(source: string) {
@@ -65,25 +71,16 @@ describe('arithmetic methods', () => {
     });
 
     test('an empty collection builds nothing', () => {
-        const types = run(`$c().add(1).mul(2).out()`).map((m) => m.moduleType);
+        const types = run(`$c().add(1).mul(2).round().out()`).map(
+            (m) => m.moduleType,
+        );
         expect(types).not.toContain('$add');
         expect(types).not.toContain('$mul');
-        expect(new CollectionWithRange().round().length).toBe(0);
-        expect(
-            builder.toPatch().modules.map((m) => m.moduleType),
-        ).not.toContain('_round');
+        expect(types).not.toContain('$round');
     });
 });
 
 describe('ranged operators', () => {
-    /** Call chain method `method`, which the builder installs at runtime. */
-    function chain(receiver: unknown, method: string, ...args: unknown[]) {
-        const methods = receiver as Record<
-            string,
-            (...a: unknown[]) => unknown
-        >;
-        return methods[method](...args);
-    }
     const lfo = () => sine('1hz').range(0, 2, -5, 5);
     const unranged = () => chain(builder.$c('c3'), 'lpf', 0);
 
@@ -130,50 +127,48 @@ describe('ranged operators', () => {
 });
 
 describe('rounding methods', () => {
-    test.each(['round', 'floor', 'ceil'] as const)(
+    test.each(['round', 'floor', 'ceil'])(
         '.%s() on an unranged signal stays unranged',
-        (mode) => {
-            const out = builder.$c('c3')[mode]();
+        (method) => {
+            const out = chain(builder.$c('c3'), method);
 
             expect(out).not.toBeInstanceOf(CollectionWithRange);
-            const [node] = modules('_round');
-            expect(node.params).toMatchObject({ mode });
+            expect(modules('$' + method)).toHaveLength(1);
         },
     );
 
-    test.each(['round', 'floor', 'ceil'] as const)(
-        '.%s() keeps a ranged signal ranged through one _round',
-        (mode) => {
-            const out = sine('1hz').range(-1.5, 3.5, -5, 5)[mode]();
+    test.each(['round', 'floor', 'ceil'])(
+        '.%s() keeps a ranged signal ranged',
+        (method) => {
+            const out = chain(sine('1hz').range(-1.5, 3.5, -5, 5), method);
 
             expect(out).toBeInstanceOf(CollectionWithRange);
-            const rounds = modules('_round');
-            expect(rounds).toHaveLength(1);
-            expect(rounds[0].params).toMatchObject({ mode });
+            expect(modules('$' + method)).toHaveLength(1);
         },
     );
 
     test('a ranged channel rounds ranged', () => {
-        const out = (sine('1hz') as unknown as CollectionWithRange)
-            .range(0.4, 7.6)[0]
-            .round();
+        const out = chain(sine('1hz').range(0.4, 7.6, -5, 5)[0], 'round');
 
         expect(out).toBeInstanceOf(CollectionWithRange);
     });
 
-    test('rounding a ranged collection rounds every channel at once', () => {
-        const out = (
-            builder.getFactory('$sine')([
-                '1hz',
-                '2hz',
-            ]) as unknown as CollectionWithRange
-        ).ceil();
+    test('rounding a collection rounds every channel at once', () => {
+        const out = chain(
+            builder.getFactory('$sine')(['1hz', '2hz']),
+            'ceil',
+        ) as CollectionWithRange;
 
         expect(out.length).toBe(2);
-        expect(modules('_round')).toHaveLength(1);
+        expect(modules('$ceil')).toHaveLength(1);
     });
 
-    test('_round is not a global', () => {
-        expect(() => run('$round(0).out()')).toThrow();
+    test('$round, $floor and $ceil are globals', () => {
+        const types = run(
+            '$round($sine("1hz")).add($floor(1.5)).add($ceil(0.5)).out()',
+        ).map((m) => m.moduleType);
+        expect(types).toEqual(
+            expect.arrayContaining(['$round', '$floor', '$ceil']),
+        );
     });
 });
