@@ -345,7 +345,7 @@ both_resolutions! {
         let channels = settings.len();
         let mut per_sample = make_channels(high_res, &settings);
         let mut block = make_channels(high_res, &settings);
-        let mut ports = MultimodeBlockOutputs::new(64, channels);
+        let mut ports = MultimodeBlockOutputs::new(64, channels, false);
         for n in 0..40 {
             let t = n as f32 * 0.37;
             for m in [&mut per_sample, &mut block] {

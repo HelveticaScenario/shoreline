@@ -30,13 +30,28 @@ pub const PORT_MAX_CHANNELS: usize = 64;
 pub struct PolyOutput {
     /// One voltage per active channel. Length is the channel count.
     voltages: Box<[f32]>,
+    /// One full-precision value per channel on an f64 output (see
+    /// [`make_f64`](Self::make_f64)); empty otherwise. `voltages` holds the
+    /// same values rounded to f32.
+    precise: Box<[f64]>,
 }
 
 impl Default for PolyOutput {
     fn default() -> Self {
         Self {
             voltages: Box::new([]), // Disconnected (0 channels)
+            precise: Box::new([]),
         }
+    }
+}
+
+/// `value`, or 0 when it is non-finite or too large for an f32 reader.
+#[inline]
+fn sanitize_f64(value: f64) -> f64 {
+    if (value as f32).is_finite() {
+        value
+    } else {
+        0.0
     }
 }
 
@@ -45,6 +60,7 @@ impl PolyOutput {
     pub fn mono(value: f32) -> Self {
         Self {
             voltages: vec![value].into_boxed_slice(),
+            precise: Box::new([]),
         }
     }
 
@@ -55,11 +71,58 @@ impl PolyOutput {
         self.voltages.get(channel).copied().unwrap_or(0.0)
     }
 
-    /// Set voltage for a specific channel
+    /// Set voltage for a specific channel. An f64 output is written with
+    /// [`set_f64`](Self::set_f64) instead.
     pub fn set(&mut self, channel: usize, value: f32) {
+        debug_assert!(
+            self.precise.is_empty(),
+            "f64 outputs are written with set_f64"
+        );
         if let Some(slot) = self.voltages.get_mut(channel) {
             *slot = sanitize(value);
         }
+    }
+
+    /// Set a channel at full precision on an f64 output; an f32 output keeps
+    /// its nearest f32.
+    pub fn set_f64(&mut self, channel: usize, value: f64) {
+        let value = sanitize_f64(value);
+        if let Some(slot) = self.voltages.get_mut(channel) {
+            *slot = value as f32;
+        }
+        if let Some(slot) = self.precise.get_mut(channel) {
+            *slot = value;
+        }
+    }
+
+    /// Like [`get_cycling`](Self::get_cycling), at full precision on an f64
+    /// output.
+    pub fn get_cycling_f64(&self, channel: usize) -> f64 {
+        let n = self.precise.len();
+        if n == 0 {
+            self.get_cycling(channel) as f64
+        } else {
+            self.precise[channel % n]
+        }
+    }
+
+    /// Like [`get`](Self::get), at full precision on an f64 output.
+    pub fn get_f64(&self, channel: usize) -> f64 {
+        match self.precise.get(channel) {
+            Some(&value) => value,
+            None => self.get(channel) as f64,
+        }
+    }
+
+    /// Make this an f64 output, holding a full-precision value per channel.
+    /// Allocates — **main thread only**, after [`set_channels`](Self::set_channels).
+    pub fn make_f64(&mut self) {
+        self.precise = vec![0.0; self.voltages.len()].into_boxed_slice();
+    }
+
+    /// Whether this output holds full-precision values (see [`make_f64`](Self::make_f64)).
+    pub fn is_f64(&self) -> bool {
+        !self.precise.is_empty()
     }
 
     /// Get voltage with modulo cycling: channel wraps around available channels.
@@ -83,6 +146,9 @@ impl PolyOutput {
         let channels = channels.min(PORT_MAX_CHANNELS);
         if self.voltages.len() != channels {
             self.voltages = vec![0.0; channels].into_boxed_slice();
+            if !self.precise.is_empty() {
+                self.precise = vec![0.0; channels].into_boxed_slice();
+            }
         }
     }
 
@@ -124,7 +190,10 @@ impl<'de> Deserialize<'de> for PolyOutput {
         for (i, &v) in de.voltages.iter().enumerate().take(channels) {
             voltages[i] = v;
         }
-        Ok(PolyOutput { voltages })
+        Ok(PolyOutput {
+            voltages,
+            precise: Box::new([]),
+        })
     }
 }
 
@@ -193,7 +262,7 @@ impl crate::types::Connect for PolySignal {
             signal.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
         for signal in self.channels.iter() {
             signal.collect_cables(sink);
         }
@@ -302,6 +371,11 @@ impl PolySignal {
     /// Get the f32 value at a channel with cycling
     pub fn get_value(&self, channel: usize) -> f32 {
         self.channels[channel % self.channels.len()].get_value()
+    }
+
+    /// Like [`get_value`](Self::get_value), at full precision from an f64 output.
+    pub fn get_value_f64(&self, channel: usize) -> f64 {
+        self.channels[channel % self.channels.len()].get_value_f64()
     }
 
     /// The [`GlideMark`] for the channel `get_value(channel)` reads.
@@ -521,7 +595,7 @@ impl MonoSignal {
         self.inner
             .channels
             .iter()
-            .map(|ch| ch.get_value() as f64)
+            .map(Signal::get_value_f64)
             .sum::<f64>()
     }
 }

@@ -4,6 +4,7 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use crate::block_input;
+use crate::dsp::utils::Sample;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
@@ -25,13 +26,13 @@ pub enum ArithmeticOp {
 /// `x` raised to `y`, with the sign of `x`, so a negative input mirrors its
 /// positive counterpart.
 #[inline(always)]
-fn signed_pow(x: f32, y: f32) -> f32 {
+fn signed_pow<T: Sample>(x: T, y: T) -> T {
     x.signum() * x.abs().powf(y)
 }
 
 impl ArithmeticOp {
     #[inline(always)]
-    fn apply(self, x: f32, y: f32) -> f32 {
+    fn apply<T: Sample>(self, x: T, y: T) -> T {
         match self {
             Self::Add => x + y,
             Self::Sub => x - y,
@@ -60,7 +61,7 @@ struct ArithmeticParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ArithmeticOutputs {
-    #[output("output", "the result", type = cv, default)]
+    #[output("output", "the result", type = cv, precision = inherit, default)]
     sample: PolyOutput,
 }
 
@@ -87,6 +88,16 @@ pub struct Arithmetic {
 impl Arithmetic {
     fn update(&mut self, _sample_rate: f32) {
         let op = self.params.op;
+        if self.outputs.sample.is_f64() {
+            for i in 0..self.channel_count() {
+                let value = op.apply(
+                    self.params.input.get_value_f64(i),
+                    self.params.operand.get_value_f64(i),
+                );
+                self.outputs.sample.set_f64(i, value);
+            }
+            return;
+        }
         for i in 0..self.channel_count() {
             let value = op.apply(
                 self.params.input.get_value(i),
@@ -138,7 +149,7 @@ pub enum RoundMode {
 
 impl RoundMode {
     #[inline(always)]
-    fn apply(self, x: f32) -> f32 {
+    fn apply<T: Sample>(self, x: T) -> T {
         match self {
             Self::Round => x.round(),
             Self::Floor => x.floor(),
@@ -163,7 +174,7 @@ struct RoundParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct RoundOutputs {
-    #[output("output", "the signal in whole volts", type = cv, default)]
+    #[output("output", "the signal in whole volts", type = cv, precision = inherit, default)]
     sample: PolyOutput,
 }
 
@@ -189,6 +200,13 @@ pub struct Round {
 impl Round {
     fn update(&mut self, _sample_rate: f32) {
         let mode = self.params.mode;
+        if self.outputs.sample.is_f64() {
+            for i in 0..self.channel_count() {
+                let value = mode.apply(self.params.input.get_value_f64(i));
+                self.outputs.sample.set_f64(i, value);
+            }
+            return;
+        }
         for i in 0..self.channel_count() {
             let value = mode.apply(self.params.input.get_value(i));
             self.outputs.sample.set(i, value);

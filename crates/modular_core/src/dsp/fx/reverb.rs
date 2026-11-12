@@ -550,6 +550,7 @@ mod tests {
         let deserialized = DeserializedParams {
             params: cached.params,
             channel_count: cached.channel_count,
+            f64_inputs: false,
         };
         constructors.get("$unstable.reverb").unwrap()(
             &"test-reverb".to_string(),

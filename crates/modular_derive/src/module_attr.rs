@@ -712,7 +712,7 @@ fn impl_module_macro_attr(
     // single call site to inline into.
     let process_loop = if attr_args.block {
         quote! {
-            let block = self.mode == crate::types::ProcessingMode::Block;
+            let block = self.mode == crate::types::ProcessingMode::Block && !self.f64_outputs;
             // SAFETY: Audio thread has exclusive access. See crate::types
             // module documentation. Each call's borrows end with the call.
             let process = |range: std::ops::Range<usize>| unsafe {
@@ -841,6 +841,9 @@ fn impl_module_macro_attr(
             /// first request; Sample-mode wrappers compute one sample per
             /// request (used for modules inside feedback cycles).
             mode: crate::types::ProcessingMode,
+            /// Whether the `precision = inherit` outputs are f64. Block inputs
+            /// resolve at f32, so such a module always runs `update`.
+            f64_outputs: bool,
             /// Reentrancy guard for `get_value_at`. Set by `ensure_processed_to`
             /// while it runs the inner update loop. When a cycle reads back
             /// into a module that is mid-computation, `get_value_at` returns
@@ -849,6 +852,35 @@ fn impl_module_macro_attr(
             /// delay.
             computing: std::cell::Cell<bool>,
         }
+        impl #struct_name {
+            /// The slot a read of `index` sees, rendered first: `index`
+            /// itself, or during a re-entrant read from a feedback cycle the
+            /// slot before it.
+            #[inline]
+            fn readable_slot(&self, index: usize) -> usize {
+                if self.computing.get() {
+                    return if index == 0 {
+                        self.block_size.saturating_sub(1)
+                    } else {
+                        index - 1
+                    };
+                }
+                let target = match self.mode {
+                    // Fill the block greedily, but never past the audio
+                    // callback's render ceiling: state that advances beyond
+                    // the emit boundary would be transferred "from the
+                    // future" by a mid-block patch swap.
+                    crate::types::ProcessingMode::Block => {
+                        self.block_size.min(crate::types::block_render_ceiling())
+                    }
+                    // Inclusive — process up through the requested slot.
+                    crate::types::ProcessingMode::Sample => index + 1,
+                };
+                crate::types::Sampleable::ensure_processed_to(self, target);
+                index
+            }
+        }
+
         impl crate::types::Sampleable for #struct_name {
             fn start_block(&self) {
                 self.index.set(0);
@@ -904,33 +936,21 @@ fn impl_module_macro_attr(
             }
 
             fn get_value_at(&self, port: &str, ch: usize, index: usize) -> f32 {
-                let port_idx = match <#block_outputs_ty>::port_index(port) {
-                    Some(i) => i,
-                    None => return 0.0,
+                let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
+                    return 0.0;
                 };
-                if self.computing.get() {
-                    let prev = if index == 0 {
-                        self.block_size.saturating_sub(1)
-                    } else {
-                        index - 1
-                    };
-                    let outputs = unsafe { &*self.block_outputs.get() };
-                    return outputs.get_at(port_idx, ch, prev);
-                }
-                let target = match self.mode {
-                    // Fill the block greedily, but never past the audio
-                    // callback's render ceiling: state that advances beyond
-                    // the emit boundary would be transferred "from the
-                    // future" by a mid-block patch swap.
-                    crate::types::ProcessingMode::Block => {
-                        self.block_size.min(crate::types::block_render_ceiling())
-                    }
-                    // Inclusive — process up through the requested slot.
-                    crate::types::ProcessingMode::Sample => index + 1,
-                };
-                self.ensure_processed_to(target);
+                let slot = self.readable_slot(index);
                 let outputs = unsafe { &*self.block_outputs.get() };
-                outputs.get_at(port_idx, ch, index)
+                outputs.get_at(port_idx, ch, slot)
+            }
+
+            fn get_value_at_f64(&self, port: &str, ch: usize, index: usize) -> f64 {
+                let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
+                    return 0.0;
+                };
+                let slot = self.readable_slot(index);
+                let outputs = unsafe { &*self.block_outputs.get() };
+                outputs.get_at_f64(port_idx, ch, slot)
             }
 
             fn port_view(&self, port: &str) -> Option<crate::types::PortView> {
@@ -939,13 +959,14 @@ fn impl_module_macro_attr(
                 }
                 let port_idx = <#block_outputs_ty>::port_index(port)?;
                 let outputs = unsafe { &*self.block_outputs.get() };
-                let (data, channels) = outputs.data_at(port_idx)?;
+                let (data, channels, lanes) = outputs.data_at(port_idx)?;
                 if channels == 0 {
                     return None;
                 }
                 Some(crate::types::PortView {
                     data,
                     channels,
+                    lanes,
                     processed: &self.index,
                 })
             }
@@ -1030,13 +1051,16 @@ fn impl_module_macro_attr(
                     // Without this swap the "second" module in a cycle would
                     // see zeros from the freshly-constructed wrapper and
                     // inject a one-sample discontinuity into the feedback loop.
-                    // Skipped on a channel-count change: the buffers differ in
-                    // width, and the fresh wrapper's buffer is the correct size.
+                    // Skipped on a channel-count or precision change: the
+                    // buffers differ in layout, and the fresh wrapper's buffer
+                    // is the correct one.
                     if same_channels {
                         unsafe {
                             let new_block_outputs = &mut *self.block_outputs.get();
                             let old_block_outputs = &mut *old_typed.block_outputs.get();
-                            std::mem::swap(new_block_outputs, old_block_outputs);
+                            if new_block_outputs.same_layout(old_block_outputs) {
+                                std::mem::swap(new_block_outputs, old_block_outputs);
+                            }
                         }
                     }
                 }
@@ -1063,6 +1087,7 @@ fn impl_module_macro_attr(
                 #(#module_field_inits),*
             };
             crate::types::OutputStruct::set_all_channels(&mut inner.outputs, deserialized.channel_count);
+            crate::types::OutputStruct::make_f64_outputs(&mut inner.outputs, deserialized.f64_inputs);
             // Fill `#[default_connection]` inputs here, on the main thread:
             // the audio-thread `connect` must stay allocation-free, so it only
             // resolves connections that are already present.
@@ -1073,10 +1098,11 @@ fn impl_module_macro_attr(
                 sample_rate,
                 module: std::cell::UnsafeCell::new(inner),
                 index: std::cell::Cell::new(0),
-                block_outputs: std::cell::UnsafeCell::new(<#block_outputs_ty>::new(_block_size, deserialized.channel_count)),
+                block_outputs: std::cell::UnsafeCell::new(<#block_outputs_ty>::new(_block_size, deserialized.channel_count, deserialized.f64_inputs)),
                 glide_generation: std::cell::Cell::new(0),
                 block_size: _block_size,
                 mode: _mode,
+                f64_outputs: deserialized.f64_inputs && <#block_outputs_ty>::INHERITS,
                 computing: std::cell::Cell::new(false),
             };
 

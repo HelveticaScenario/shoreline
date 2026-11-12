@@ -4,8 +4,8 @@ use schemars::JsonSchema;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
-    dsp::utils::wrap,
-    poly::{PolyOutput, PolySignal, PolySignalExt},
+    dsp::utils::{Sample, wrap},
+    poly::{PolyOutput, PolySignal},
 };
 
 #[params]
@@ -28,7 +28,7 @@ struct WrapParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WrapOutputs {
-    #[output("output", "the wrapped signal", type = cv, default)]
+    #[output("output", "the wrapped signal", type = cv, precision = inherit, default)]
     sample: PolyOutput,
 }
 
@@ -59,34 +59,50 @@ pub struct Wrap {
 }
 
 // Closed [lo, hi] variant — same as wrap(lo..hi) except val == hi returns hi.
-fn wrap_closed(val: f32, lo: f32, hi: f32) -> f32 {
+fn wrap_closed<T: Sample>(val: T, lo: T, hi: T) -> T {
     if val == hi { hi } else { wrap(lo..hi, val) }
 }
 
-fn wrap_octave(wrapped: f32, x: f32) -> f32 {
+fn wrap_octave<T: Sample>(wrapped: T, x: T) -> T {
     let f = x - x.floor();
-    let n = (wrapped - f).round() as i32;
-    f + n as f32
+    f + (wrapped - f).round()
+}
+
+/// `val` wrapped into the range between `a` and `b`, by whole octaves when
+/// `octave` is set.
+fn wrap_value<T: Sample>(val: T, a: T, b: T, octave: bool) -> T {
+    let (min, max) = if b < a { (b, a) } else { (a, b) };
+    if (max - min).abs() < T::EPSILON {
+        min
+    } else if octave {
+        wrap_octave(wrap_closed(val, min, max), val)
+    } else {
+        wrap_closed(val, min, max)
+    }
 }
 
 impl Wrap {
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
-
-        for i in 0..channels as usize {
-            let val = self.params.input.get_value(i);
-            let a = self.params.min.get_value(i);
-            let b = self.params.max.get_value(i);
-            let (min, max) = if b < a { (b, a) } else { (a, b) };
-
-            let output = if (max - min).abs() < f32::EPSILON {
-                min
-            } else if self.params.octave {
-                wrap_octave(wrap_closed(val, min, max), val)
-            } else {
-                wrap_closed(val, min, max)
-            };
-
+        let (params, octave) = (&self.params, self.params.octave);
+        if self.outputs.sample.is_f64() {
+            for i in 0..self.channel_count() {
+                let output = wrap_value(
+                    params.input.get_value_f64(i),
+                    params.min.get_value_f64(i),
+                    params.max.get_value_f64(i),
+                    octave,
+                );
+                self.outputs.sample.set_f64(i, output);
+            }
+            return;
+        }
+        for i in 0..self.channel_count() {
+            let output = wrap_value(
+                params.input.get_value(i),
+                params.min.get_value(i),
+                params.max.get_value(i),
+                octave,
+            );
             self.outputs.sample.set(i, output);
         }
     }
