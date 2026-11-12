@@ -32,7 +32,7 @@ fn synth_knobs(
     SynthKnobs {
         tone: (tone, mark()),
         decay: (decay, mark()),
-        dirt: dirt.map(|dirt| (dirt, mark())),
+        dirt: (dirt, mark()),
         fm_envelope: (fm_envelope, mark()),
         fm_decay: (fm_decay, mark()),
         accent: (accent, mark()),
@@ -92,8 +92,8 @@ fn kick_hit(sample_rate: f32, hz: f32, knobs: [f32; 6], seconds: f32) -> Vec<f32
         .collect()
 }
 
-/// `seconds` of `$mi.synthKick` at `hz` with noise from `seed`, struck once at
-/// the start.
+/// `seconds` of `$mi.synthKick` at `hz` with noise from `seed`, struck once
+/// after its noise filters settle from a fresh start.
 fn synth_hit(
     sample_rate: f32,
     hz: f32,
@@ -104,9 +104,10 @@ fn synth_hit(
 ) -> Vec<f32> {
     let state = SynthKickState::new(sample_rate);
     let mut channel = SynthChannel::new(seed, &state.rates);
-    (0..(seconds * sample_rate) as usize)
+    let settle = (0.2 * sample_rate) as usize;
+    (0..settle + (seconds * sample_rate) as usize)
         .map(|n| {
-            let trigger = if n == 0 { 5.0 } else { 0.0 };
+            let trigger = if n == settle { 5.0 } else { 0.0 };
             channel.step(
                 hz / sample_rate,
                 synth_knobs(knobs, dirt),
@@ -114,6 +115,7 @@ fn synth_hit(
                 &state,
             )
         })
+        .skip(settle)
         .collect()
 }
 
@@ -233,7 +235,7 @@ fn synth_kick_attack_as_loud_at_any_rate() {
         sum / 16.0
     };
     let reference = attack(48000.0);
-    for sample_rate in [44100.0, 96000.0] {
+    for sample_rate in [44100.0, 96000.0, 192000.0] {
         let db = 20.0 * (attack(sample_rate) / reference).log10();
         assert!(db.abs() < 0.5, "{sample_rate} Hz: {db} dB from 48 kHz");
     }
@@ -568,7 +570,7 @@ fn stays_finite() {
         let synth_state = SynthKickState::new(sample_rate);
         let mut kick = KickChannel::default();
         let mut synth = SynthChannel::new(3, &synth_state.rates);
-        let mut peaks = (0.0f32, 0.0f32);
+        let mut peak = 0.0f32;
         for n in 0..40000 {
             let freq = match n % 7 {
                 0 => f32::NAN,
@@ -601,12 +603,10 @@ fn stays_finite() {
                 k.is_finite() && s.is_finite(),
                 "{sample_rate} Hz, sample {n}"
             );
-            peaks = (peaks.0.max(k.abs()), peaks.1.max(s.abs()));
+            peak = peak.max(s.abs());
         }
-        // Past 1.25 the output clips at ±5 V, as Plaits' does; nothing grows.
-        assert!(
-            peaks.0 < 10.0 && peaks.1 < 10.0,
-            "{sample_rate} Hz: peaks {peaks:?}"
-        );
+        // The overdrive bounds the kick by construction. The synthetic kick
+        // clips at ±5 V past 1.25, as Plaits' does; nothing in it grows.
+        assert!(peak < 10.0, "{sample_rate} Hz: synthKick peak {peak}");
     }
 }

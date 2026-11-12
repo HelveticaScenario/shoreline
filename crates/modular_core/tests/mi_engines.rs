@@ -3,8 +3,9 @@
 //! its output gain): the engine's knobs map onto the module's params, and its
 //! `out` and `aux` reach the same level, spectrum and polarity once both have
 //! settled. String and modal draw the same grains as Plaits, from the seed
-//! the test pins. The drums are struck on a steady pulse as well as droning. The per-sample fixtures compare waveforms; this pins the
-//! knob mappings and output gains.
+//! the test pins. The drums are struck on a steady pulse as well as droning.
+//! The per-sample fixtures compare waveforms; this pins the knob mappings and
+//! output gains.
 
 use modular_core::Patch;
 use modular_core::dsp::get_params_deserializers;

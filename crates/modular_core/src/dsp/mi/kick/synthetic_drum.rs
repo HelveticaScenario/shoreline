@@ -128,9 +128,12 @@ struct AttackNoise {
 impl AttackNoise {
     #[inline(always)]
     fn render(&mut self, random: &mut Random, rates: &SyntheticRates) -> f32 {
-        one_pole(&mut self.lp, random.float(), rates.noise_lp);
+        // Only the noise's swing scales with the rate; its mean of 0.5 sets
+        // the start-up bump, which is the same at any rate.
+        let noise = 0.5 + (random.float() - 0.5) * rates.noise_gain;
+        one_pole(&mut self.lp, noise, rates.noise_lp);
         one_pole(&mut self.hp, self.lp, rates.noise_hp);
-        (self.lp - self.hp) * rates.noise_gain
+        self.lp - self.hp
     }
 }
 

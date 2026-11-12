@@ -161,12 +161,12 @@ impl SynthKickState {
     }
 }
 
-/// The knob inputs for a sample, in volts, with their glide marks; `dirt` is
-/// `None` while unpatched.
+/// The knob inputs for a sample, in volts, with their glide marks; `dirt`'s
+/// value is `None` while unpatched.
 pub(super) struct Knobs {
     pub tone: (f32, GlideMark),
     pub decay: (f32, GlideMark),
-    pub dirt: Option<(f32, GlideMark)>,
+    pub dirt: (Option<f32>, GlideMark),
     pub fm_envelope: (f32, GlideMark),
     pub fm_decay: (f32, GlideMark),
     pub accent: (f32, GlideMark),
@@ -223,10 +223,11 @@ impl Channel {
         let triggered = rises(&mut self.trigger, trigger);
         let sample_rate = state.sample_rate;
         let decay = self.decay.read(knobs.decay, sample_rate);
-        let dirtiness = match knobs.dirt {
-            Some(dirt) => self.dirt.read(dirt, sample_rate),
-            None => 0.4 - 0.25 * decay * decay,
-        };
+        // Unpatched, `dirt` follows the decay, and its glide tracks that so
+        // patching it glides from what is sounding.
+        let (dirt, mark) = knobs.dirt;
+        let dirt = dirt.unwrap_or(5.0 * (0.4 - 0.25 * decay * decay));
+        let dirtiness = self.dirt.read((dirt, mark), sample_rate);
         let drum_knobs = SyntheticKnobs {
             accent: self.accent.read(knobs.accent, sample_rate),
             tone: self.tone.read(knobs.tone, sample_rate),
@@ -272,10 +273,10 @@ impl MiSynthKick {
             let knobs = Knobs {
                 tone: knob(&p.tone, MiSynthKickParams::TONE_DEFAULT),
                 decay: knob(&p.decay, MiSynthKickParams::DECAY_DEFAULT),
-                dirt: p
-                    .dirt
-                    .as_ref()
-                    .map(|dirt| (dirt.get_value(ch), dirt.glide_mark(ch))),
+                dirt: (
+                    p.dirt.as_ref().map(|dirt| dirt.get_value(ch)),
+                    p.dirt.glide_mark(ch),
+                ),
                 fm_envelope: knob(&p.fm_envelope, MiSynthKickParams::FM_ENVELOPE_DEFAULT),
                 fm_decay: knob(&p.fm_decay, MiSynthKickParams::FM_DECAY_DEFAULT),
                 accent: knob(&p.accent, MiSynthKickParams::ACCENT_DEFAULT),

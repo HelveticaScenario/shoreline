@@ -6,10 +6,11 @@
 // output levels, which the per-sample fixtures leave to the ports. Each case
 // is a header (engine, MIDI note, harmonics, timbre, morph, trigger period in
 // samples or 0 when unpatched, sample count) then that many samples of `out`
-// and `aux` in volts (±5 V full scale, the sign Plaits' output stage gives). Each case starts stmlib's random generator from the seed the
-// modules derive for channel 0 when a test pins `TEST_SEED_BASE` to 1, so the
-// random engines draw the same values as the modules; string's cases keep
-// dispersion off, where only the sounding string draws.
+// and `aux` in volts (±5 V full scale, the sign Plaits' output stage gives).
+// Each case starts stmlib's random generator from the seed the modules derive
+// for channel 0 when a test pins `TEST_SEED_BASE` to 1, so the random engines
+// draw the same values as the modules; string's cases keep dispersion off,
+// where only the sounding string draws.
 // build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/bass_drum_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/particle_engine.cc plaits/dsp/engine/speech_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/swarm_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/engine2/six_op_engine.cc plaits/dsp/engine2/wave_terrain_engine.cc plaits/dsp/fm/algorithms.cc plaits/dsp/fm/dx_units.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc plaits/dsp/speech/lpc_speech_synth.cc plaits/dsp/speech/lpc_speech_synth_controller.cc plaits/dsp/speech/lpc_speech_synth_phonemes.cc plaits/dsp/speech/lpc_speech_synth_words.cc plaits/dsp/speech/naive_speech_synth.cc plaits/dsp/speech/sam_speech_synth.cc
 
 #include <algorithm>
