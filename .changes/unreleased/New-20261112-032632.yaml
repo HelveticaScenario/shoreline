@@ -1,3 +1,3 @@
 kind: New
-body: 'Patterns and multi-output modules plug straight into any input, which takes the output that fits it: with `const seq = $p(''c e g'')`, `$saw(seq).amp($perc(seq))` plays the notes into the pitch and the triggers into the envelope. The editor shows which output each input took; double-click a hint to write it into your code.'
+body: 'When a pattern or multi-output module is plugged into an input, the editor shows which of its outputs that input takes; double-click the hint to write it into your code.'
 time: 2026-11-12T03:26:32.759688-05:00
