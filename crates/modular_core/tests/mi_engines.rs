@@ -441,8 +441,8 @@ fn matches_plaits_engines() {
             let (level_db, near_db) = if snares { (0.25, 1.5) } else { (0.1, near_db) };
             assert_sounds_alike(&name, &actual, &expected, level_db, near_db, 3.0);
             // Particles draw Plaits' values in Plaits' order on its block
-            // timing, and the snare drums with no snares draw none, so they
-            // match the engine sample for sample, to the rounding of a pitch
+            // timing, and the snare drums with no snares mute their noise, so
+            // they match the engine sample for sample, to the rounding of a pitch
             // given in volts. The pulse wave striking the snare drums rises
             // a sample ahead of the engine's second strike, so they compare
             // up to it.

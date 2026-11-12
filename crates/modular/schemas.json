@@ -31552,7 +31552,7 @@
           ]
         },
         "attackFm": {
-          "description": "how far the pitch sweeps down onto the note at the start of each hit, from 5 times the pitch (5); more also lengthens the body and, below 6 kHz, roughens it",
+          "description": "how far the pitch sweeps down onto the note at the start of each hit, from 5 times the pitch (5); more also lengthens the body, and high settings roughen it on low and mid notes",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -31721,7 +31721,7 @@
       },
       {
         "name": "attackFm",
-        "description": "how far the pitch sweeps down onto the note at the start of each hit, from 5 times the pitch (5); more also lengthens the body and, below 6 kHz, roughens it",
+        "description": "how far the pitch sweeps down onto the note at the start of each hit, from 5 times the pitch (5); more also lengthens the body, and high settings roughen it on low and mid notes",
         "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,

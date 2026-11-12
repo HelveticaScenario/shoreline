@@ -270,6 +270,8 @@ int main(int argc, char** argv) {
         in[5] = 2.5f + 2.6f * sinf(t * 0.00037f + 3.0f);
         break;
       case 8:
+        // A short decay, so the synthetic drum's body falls through 0.03.
+        in[2] = 1.0f;
         in[3] = 1.0f;
         break;
     }

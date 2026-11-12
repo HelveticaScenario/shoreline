@@ -103,8 +103,8 @@ fn synth_snare_knobs_do_what_they_say() {
     let early = |x: &[f32]| crossings(window(x, SR, 0.0, 0.006));
     assert!(early(&swept) > early(&plain) + 2, "attackFm sweeps");
     assert!(tail(&swept) > tail(&plain) + 6.0, "attackFm lengthens");
-    // Below 6 kHz, the oscillators' resets intermodulate them: a component
-    // at the difference of their frequencies.
+    // On low notes at high settings, the oscillators' resets intermodulate
+    // them: a component at the difference of their frequencies.
     let drone = |hz: f32, attack_fm| {
         let state = SynthSnareState::new(SR);
         let mut channel = SynthChannel::new(1);
@@ -119,7 +119,8 @@ fn synth_snare_knobs_do_what_they_say() {
         rough > 10.0 * clean,
         "attackFm roughens: {rough} vs {clean}"
     );
-    assert_eq!(drone(7000.0, 0.0), drone(7000.0, 5.0));
+    assert_eq!(drone(5000.0, 0.0), drone(5000.0, 5.0));
+    assert_eq!(drone(1000.0, 0.0), drone(1000.0, 1.5));
 
     let (short, long) = (
         synth_with(hz, NO_SNARES, DECAY, 0.0),

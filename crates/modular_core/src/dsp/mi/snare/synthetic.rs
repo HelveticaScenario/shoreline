@@ -35,7 +35,7 @@ struct MiSynthSnareParams {
     #[deserr(default)]
     trigger: Option<PolySignal>,
     #[input(
-        "how far the pitch sweeps down onto the note at the start of each hit, from 5 times the pitch (5); more also lengthens the body and, below 6 kHz, roughens it",
+        "how far the pitch sweeps down onto the note at the start of each hit, from 5 times the pitch (5); more also lengthens the body, and high settings roughen it on low and mid notes",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
