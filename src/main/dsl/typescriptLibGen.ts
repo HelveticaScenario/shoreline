@@ -24,6 +24,7 @@ import {
     renderOutOptionsJsDocList,
     renderOutOptionsMembers,
 } from '../../shared/dsl/outOptions';
+import { EXPERIMENTAL_NOTICE } from '../../shared/dsl/experimental';
 import { ALIGNMENT_MODES } from './alignmentModes';
 import { GLIDE_CURVES, GLIDE_MODES, literalUnion } from './glideCurves';
 import {
@@ -2034,7 +2035,10 @@ function buildConfigArg(moduleSchema: Schema): {
  * a chain method, whose receiver is the first argument); `leadDocLines` are
  * prepended before the module's own documentation. The module's docs
  * (`renderDocContentJsDoc`) and every `@param` are always included, so the
- * factory and chain surfaces carry identical docs and cannot drift.
+ * factory and chain surfaces carry identical docs and cannot drift. An
+ * experimental module leads with `EXPERIMENTAL_NOTICE`, which signature help
+ * shows (it omits tags), and carries an `@experimental` tag, which marks its
+ * completion entries.
  */
 function buildSignature(
     moduleSchema: Schema,
@@ -2056,7 +2060,10 @@ function buildSignature(
     );
 
     const args: string[] = [];
-    const docLines: string[] = [...(opts.leadDocLines ?? [])];
+    const docLines: string[] = moduleSchema.experimental
+        ? [EXPERIMENTAL_NOTICE, '']
+        : [];
+    docLines.push(...(opts.leadDocLines ?? []));
     docLines.push(
         ...renderDocContentJsDoc(moduleSchema.docs, moduleSchema.name),
     );
@@ -2104,6 +2111,9 @@ function buildSignature(
         docLines.push(...paramDocs);
     } else {
         docLines.push(`@param config Configuration object`);
+    }
+    if (moduleSchema.experimental) {
+        docLines.push('@experimental');
     }
 
     const outputs = moduleSchema.outputs ?? [];

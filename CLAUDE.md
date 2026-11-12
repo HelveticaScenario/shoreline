@@ -153,6 +153,16 @@ A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crat
 
 Monaco shows the description, sections and first example; the Reference pane shows everything. `tests/module_docs.rs` checks the shape, and `generatedExampleValidity.test.ts` runs every example, and `referenceDocs.test.ts` checks each is formatted.
 
+### Experimental Modules
+
+`#[module(name = "$comp", docs = COMP_DOCS, args(input), experimental)]` marks a module experimental; the editor's hover, completion and signature help, and the Reference pane tell users its sound and params may still change, so its `ModuleDocs` never says so itself.
+
+- **Mark a module experimental** when any of these hold: its API (name, params, ranges, outputs) isn't settled; its sound hasn't been validated against a reference or by listening; a planned feature would change its param shape; it is one of several competing candidates.
+- **Not a reason:** failing the alloc audit or another engine rule. A module that breaks those never merges.
+- **Graduate** by deleting the flag (the name stays, so patches keep working) once param conventions are followed (0–5 knob ranges, V/Oct), docs and runnable examples exist, tests exist, the API has been stable for a while, and the user signs off explicitly.
+- Changes to an experimental module's API or sound are still breaking changes: changelog kind `Breaking`.
+- `yarn experimental:report` lists experimental modules and flags those unchanged for over 60 days as overdue; every release PR includes it.
+
 ### Reserved Member Names
 
 When adding methods to `BaseCollection`, `Collection`, `CollectionWithRange`, `DeferredCollection`, or patterns (`PATTERN_METHODS` in `src/main/dsl/miniNotation/index.ts`), add the method name to `RESERVED_MEMBER_NAMES` in `crates/reserved_member_names.rs`. This is the single source of truth shared by the Rust proc-macro and, via NAPI, the TypeScript tests that check the list against the classes.
