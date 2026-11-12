@@ -3,6 +3,7 @@
 
 use crate::dsp::{
     mi::{
+        accent::{Accent, plaits_volts},
         core::random::Random,
         drum::{Knob, rises},
     },
@@ -14,10 +15,14 @@ use super::hat_drum::{HatKnobs, HatRates, HiHat, Model};
 
 /// The knobs' defaults in volts, which each module's params declare.
 pub(super) const KNOB_DEFAULT: f32 = 2.5;
-pub(super) const ACCENT_DEFAULT: f32 = 4.0;
+pub(super) const ACCENT_DEFAULT: f32 = 0.0;
+
+/// The output level at full accent, which with Plaits' own response to
+/// accent makes a fully accented hit peak twice as high as an unaccented one.
+pub(super) const ACCENT_TRIM: f32 = 1.72;
 
 pub(super) struct HatState {
-    sample_rate: f32,
+    pub(super) sample_rate: f32,
     pub(super) inv_sample_rate: f32,
     rates: HatRates,
 }
@@ -55,6 +60,7 @@ pub(super) struct Channel<M: Model> {
     decay: Knob,
     noisiness: Knob,
     accent: Knob,
+    pub(super) accent_state: Accent,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// channel, so its noise stays continuous across patch updates.
     seeded: bool,
@@ -75,7 +81,8 @@ impl<M: Model> Channel<M> {
             tone: Knob::new(KNOB_DEFAULT),
             decay: Knob::new(KNOB_DEFAULT),
             noisiness: Knob::new(KNOB_DEFAULT),
-            accent: Knob::new(ACCENT_DEFAULT),
+            accent: Knob::new(plaits_volts(ACCENT_DEFAULT)),
+            accent_state: Accent::default(),
             seeded: false,
         }
     }

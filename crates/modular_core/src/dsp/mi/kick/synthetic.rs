@@ -19,7 +19,12 @@ use crate::{
 };
 
 use super::synthetic_drum::{SyntheticBassDrum, SyntheticKnobs, SyntheticRates};
+use crate::dsp::mi::accent::{Accent, plaits_volts};
 use crate::dsp::mi::drum::{Knob, OUTPUT_GAIN, pitch, rises};
+
+/// The output level at full accent, which with Plaits' own response to
+/// accent makes a fully accented hit peak twice as high as an unaccented one.
+const ACCENT_TRIM: f32 = 1.85;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
@@ -76,9 +81,9 @@ struct MiSynthKickParams {
     #[deserr(default)]
     fm_decay: Option<PolySignal>,
     #[input(
-        "how hard each hit is: louder, with a harder attack; unpatched trigger, scales the drone's level",
+        "how hard each hit lands, read at each strike: up to twice as loud at 5 V, with a harder attack; unpatched trigger, raises the drone's level",
         type = control,
-        default = 4.0,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -98,7 +103,7 @@ struct MiSynthKickParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MiSynthKickOutputs {
-    #[output("output", "the drum", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the drum; an unaccented hit peaks within ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
@@ -183,6 +188,7 @@ pub(super) struct Channel {
     fm_envelope: Knob,
     fm_decay: Knob,
     accent: Knob,
+    accent_state: Accent,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// channel, so its noise stays continuous across patch updates.
     seeded: bool,
@@ -205,7 +211,8 @@ impl Channel {
             dirt: Knob::new(MiSynthKickParams::DIRT_DEFAULT),
             fm_envelope: Knob::new(MiSynthKickParams::FM_ENVELOPE_DEFAULT),
             fm_decay: Knob::new(MiSynthKickParams::FM_DECAY_DEFAULT),
-            accent: Knob::new(MiSynthKickParams::ACCENT_DEFAULT),
+            accent: Knob::new(plaits_volts(MiSynthKickParams::ACCENT_DEFAULT)),
+            accent_state: Accent::default(),
             seeded: false,
         }
     }
@@ -270,6 +277,11 @@ impl MiSynthKick {
             let knob = |signal: &Option<PolySignal>, default| {
                 (signal.value_or(ch, default), signal.glide_mark(ch))
             };
+            let accent = knob(&p.accent, MiSynthKickParams::ACCENT_DEFAULT);
+            let mark = accent.1;
+            let accent = channel
+                .accent_state
+                .read(accent, trigger, state.sample_rate);
             let knobs = Knobs {
                 tone: knob(&p.tone, MiSynthKickParams::TONE_DEFAULT),
                 decay: knob(&p.decay, MiSynthKickParams::DECAY_DEFAULT),
@@ -279,12 +291,15 @@ impl MiSynthKick {
                 ),
                 fm_envelope: knob(&p.fm_envelope, MiSynthKickParams::FM_ENVELOPE_DEFAULT),
                 fm_decay: knob(&p.fm_decay, MiSynthKickParams::FM_DECAY_DEFAULT),
-                accent: knob(&p.accent, MiSynthKickParams::ACCENT_DEFAULT),
+                accent: (plaits_volts(accent), mark),
             };
             let out = channel.step(f0, knobs, trigger, state);
-            self.outputs
-                .sample
-                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0));
+            let out = channel.accent_state.apply(
+                (OUTPUT_GAIN * out).clamp(-5.0, 5.0),
+                ACCENT_TRIM,
+                state.sample_rate,
+            );
+            self.outputs.sample.set(ch, out);
         }
     }
 }
