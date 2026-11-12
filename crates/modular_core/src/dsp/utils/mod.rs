@@ -29,11 +29,42 @@ pub fn min_gate_samples(sample_rate: f32) -> u32 {
     (sample_rate * MIN_GATE_DURATION_SECS).round() as u32
 }
 
+/// Length of a trigger whose next trigger comes `gap_samples` later: the
+/// standard [`min_gate_samples`], cut to half the gap so the signal returns to
+/// rest between triggers, and never shorter than one sample.
+pub fn trigger_samples(sample_rate: f32, gap_samples: f32) -> u32 {
+    min_gate_samples(sample_rate)
+        .min((gap_samples * 0.5) as u32)
+        .max(1)
+}
+
 #[inline]
 pub fn changed(a: f32, b: f32) -> bool {
     // NaN is used as a sentinel for "never computed" in filter state,
     // so any NaN argument must be treated as a change.
     a.is_nan() || b.is_nan() || (a - b).abs() > 1e-6
+}
+
+/// `sin(2π · turns)` for `turns` in `[0, 1)`, accurate to about 1e-7 and
+/// cheaper than `f32::sin`.
+#[inline]
+pub fn sin_turns(turns: f32) -> f32 {
+    // Fold onto the quarter wave [0, 1/4], where the series converges fast.
+    let x = turns - 0.5;
+    let a = x.abs();
+    let a = a.min(0.5 - a);
+    let z = a * std::f32::consts::TAU;
+    let z2 = z * z;
+    let s = z
+        * (1.0
+            - z2 / 6.0
+                * (1.0
+                    - z2 / 20.0
+                        * (1.0
+                            - z2 / 42.0
+                                * (1.0 - z2 / 72.0 * (1.0 - z2 / 110.0 * (1.0 - z2 / 156.0))))));
+    // sin(2π · turns) = −sin(2π · x).
+    if x < 0.0 { s } else { -s }
 }
 
 /// Replace non-finite values (NaN, ±Inf) with 0.0 to prevent
@@ -118,6 +149,67 @@ impl CatmullRom {
         ((self.a * t + self.b) * t + self.c) * t + self.d
     }
 }
+
+/// A sample value: f32, or f64 for a module whose outputs are f64 (see
+/// `OutputPrecision::Inherit`). Math written over it runs at either precision
+/// from one source.
+pub trait Sample:
+    Copy
+    + PartialOrd
+    + std::ops::Add<Output = Self>
+    + std::ops::Sub<Output = Self>
+    + std::ops::Mul<Output = Self>
+    + std::ops::Div<Output = Self>
+    + std::ops::Rem<Output = Self>
+{
+    const EPSILON: Self;
+    fn from_f32(value: f32) -> Self;
+    fn floor(self) -> Self;
+    fn ceil(self) -> Self;
+    fn round(self) -> Self;
+    fn abs(self) -> Self;
+    fn signum(self) -> Self;
+    fn powf(self, exponent: Self) -> Self;
+}
+
+macro_rules! impl_sample {
+    ($t:ty) => {
+        impl Sample for $t {
+            const EPSILON: Self = <$t>::EPSILON;
+            #[inline(always)]
+            fn from_f32(value: f32) -> Self {
+                value as $t
+            }
+            #[inline(always)]
+            fn floor(self) -> Self {
+                <$t>::floor(self)
+            }
+            #[inline(always)]
+            fn ceil(self) -> Self {
+                <$t>::ceil(self)
+            }
+            #[inline(always)]
+            fn round(self) -> Self {
+                <$t>::round(self)
+            }
+            #[inline(always)]
+            fn abs(self) -> Self {
+                <$t>::abs(self)
+            }
+            #[inline(always)]
+            fn signum(self) -> Self {
+                <$t>::signum(self)
+            }
+            #[inline(always)]
+            fn powf(self, exponent: Self) -> Self {
+                <$t>::powf(self, exponent)
+            }
+        }
+    };
+}
+
+impl_sample!(f32);
+impl_sample!(f64);
 
 pub fn wrap<T>(range: std::ops::Range<T>, val: T) -> T
 where
@@ -385,6 +477,17 @@ pub fn voct_to_hz(voct: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sin_turns_matches_sin() {
+        let worst = (0..100_000)
+            .map(|i| {
+                let turns = i as f32 / 100_000.0;
+                (sin_turns(turns) as f64 - (turns as f64 * std::f64::consts::TAU).sin()).abs()
+            })
+            .fold(0.0, f64::max);
+        assert!(worst < 3e-7, "worst error {worst}");
+    }
 
     #[test]
     fn catmull_rom_hits_its_knots() {
@@ -1176,5 +1279,15 @@ mod tests {
     fn min_gate_samples_96khz() {
         let samples = min_gate_samples(96000.0);
         assert_eq!(samples, 32);
+    }
+
+    #[test]
+    fn trigger_samples_shrink_with_the_gap() {
+        assert_eq!(trigger_samples(48000.0, 48000.0), 16);
+        assert_eq!(trigger_samples(48000.0, 33.0), 16);
+        assert_eq!(trigger_samples(48000.0, 20.0), 10);
+        assert_eq!(trigger_samples(48000.0, 2.0), 1);
+        assert_eq!(trigger_samples(48000.0, 0.3), 1);
+        assert_eq!(trigger_samples(48000.0, f32::INFINITY), 16);
     }
 }

@@ -11,6 +11,8 @@ use serde::Serialize;
 use crate::dsp::utils::{
     GATE_HIGH_VOLTAGE, GATE_LOW_VOLTAGE, TempGate, TempGateState, min_gate_samples,
 };
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_CHANNELS, PolyOutput};
 use crate::types::{
     DeviceName, MidiChannelPressure, MidiControlChange, MidiNoteOff, MidiNoteOn, MidiPitchBend,
@@ -22,14 +24,14 @@ use crate::types::{
 #[serde(rename_all = "lowercase")]
 #[deserr(rename_all = lowercase)]
 pub enum PolyMode {
-    /// Round-robin through available voices
+    /// each new note takes the next voice in turn, so release tails ring on
     #[default]
     Rotate,
-    /// Reuse voice playing same note before rotating
+    /// a repeated note retriggers the voice already playing it, otherwise takes the next voice
     Reuse,
-    /// Always start from the first voice
+    /// each new note takes the lowest free voice
     Reset,
-    /// MPE mode: MIDI channel maps directly to output channel
+    /// MPE: each MIDI channel drives its own voice, with per-note bends and pressure
     Mpe,
 }
 
@@ -38,14 +40,14 @@ pub enum PolyMode {
 #[serde(rename_all = "lowercase")]
 #[deserr(rename_all = lowercase)]
 pub enum MonoMode {
-    /// Last note pressed wins
+    /// the newest note you play takes over
     #[default]
     Last,
-    /// First note pressed wins (ignores new notes)
+    /// the first held note keeps playing until you let go
     First,
-    /// Lowest pitch note wins
+    /// the lowest held note plays, for bass lines
     Lowest,
-    /// Highest pitch note wins
+    /// the highest held note plays, for leads
     Highest,
 }
 
@@ -66,34 +68,35 @@ struct VoiceState {
     mod_wheel: u8,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MidiCvParams {
-    /// MIDI device name to receive from (leave unset to receive from all devices)
+    #[input("MIDI device to listen to; every device when unset")]
     #[deserr(default)]
     device: Option<String>,
 
-    /// Number of polyphonic voices (1-64)
+    #[input("number of voices", range = (1, 64))]
     #[serde(default = "default_channels")]
     #[deserr(default = default_channels())]
     channels: usize,
 
-    /// MIDI channel to listen on (1–16, leave unset for omni/all channels)
+    #[input("MIDI channel to listen to; every channel when unset", range = (1, 16))]
     #[deserr(default)]
     channel: Option<u8>,
 
-    /// Polyphonic voice allocation mode
+    #[input("how new notes are given to voices")]
     #[serde(default)]
     #[deserr(default)]
     poly_mode: PolyMode,
 
-    /// Monophonic note priority (used when only one voice is active)
+    #[input("which held note plays when `channels` is 1")]
     #[serde(default)]
     #[deserr(default)]
     mono_mode: MonoMode,
 
-    /// Pitch bend range in semitones (0 = disabled, default 2)
+    #[input("how far the pitch wheel bends, in semitones; 0 turns bending off")]
     #[serde(default = "default_pitch_bend_range")]
     #[deserr(default = default_pitch_bend_range())]
     pitch_bend_range: u8,
@@ -110,67 +113,59 @@ fn default_pitch_bend_range() -> u8 {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MidiCvOutputs {
-    #[output(
-        "pitch",
-        "pitch CV in 1V/octave (0V = C4, includes pitch bend)",
-        default
-    )]
+    #[output("pitch", "pitch of the voice's note, including pitch bend", type = cv, default)]
     pitch: PolyOutput,
-    #[output("gate", "gate output (0V or 5V)", range = (0.0, 5.0))]
+    #[output("gate", "high while the voice's note is held", type = gate)]
     gate: PolyOutput,
-    #[output("velocity", "velocity (0-5V)", range = (0.0, 5.0))]
+    #[output("velocity", "how hard the note was struck", type = cv, range = (0.0, 5.0))]
     velocity: PolyOutput,
-    #[output("aftertouch", "channel pressure / aftertouch (0-5V)", range = (0.0, 5.0))]
+    #[output("aftertouch", "pressure on the held keys, from channel or polyphonic aftertouch", type = cv, range = (0.0, 5.0))]
     aftertouch: PolyOutput,
-    #[output("retrigger", "retrigger pulse (5V for 1ms on new note)", range = (0.0, 5.0))]
+    #[output("retrigger", "fires at the start of each new note, even when gate stays high", type = trig)]
     retrigger: PolyOutput,
-    #[output("pitchWheel", "pitch wheel position (-5V to +5V)", range = (-5.0, 5.0))]
+    #[output("pitchWheel", "pitch wheel position: 0 centred, ±5 at either end", type = cv, range = (-5.0, 5.0))]
     pitch_wheel: PolyOutput,
-    #[output("modWheel", "mod wheel (0-5V)", range = (0.0, 5.0))]
+    #[output("modWheel", "mod wheel (CC 1) position", type = cv, range = (0.0, 5.0))]
     mod_wheel: PolyOutput,
 }
 
-/// Converts MIDI note input into control voltages for driving synthesizer modules.
-/// Supports polyphonic voice allocation with up to 64 voices.
-///
-/// ## Outputs
-///
-/// | Output | Signal | Range |
-/// |---|---|---|
-/// | `pitch` | V/Oct pitch (0V = C4), includes pitch bend | — |
-/// | `gate` | High while a note is held | 0–5V |
-/// | `velocity` | Note-on velocity | 0–5V |
-/// | `aftertouch` | Channel or polyphonic aftertouch | 0–5V |
-/// | `retrigger` | 5V pulse for 1ms on each new note | 0–5V |
-/// | `pitchWheel` | Pitch bend wheel position | -5V–+5V |
-/// | `modWheel` | Mod wheel (CC 1) | 0–5V |
-///
-/// ## Polyphonic modes (`polyMode`)
-///
-/// - `"rotate"` — cycles through voices round-robin
-/// - `"reuse"` — reuses the voice that last played the same note
-/// - `"reset"` — always starts allocation from voice 1
-/// - `"mpe"` — one voice per MIDI channel (for MPE controllers)
-///
-/// ## Monophonic modes (`monoMode`, when `channels: 1`)
-///
-/// - `"last"` — most recently pressed note wins
-/// - `"first"` — first pressed note wins
-/// - `"lowest"` — lowest held note wins
-/// - `"highest"` — highest held note wins
-///
-/// ## Example
-///
-/// ```js
-/// // 4-voice polyphonic MIDI synth
-/// const midi = $midiCV({ channels: 4 });
-/// $sine(midi).amplitude($adsr(midi.gate,{attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5})).out();
-///
-/// // Mono lead with pitch bend
-/// const lead = $midiCV({ channels: 1, pitchBendRange: 12 });
-/// $saw(lead).amplitude($adsr(lead.gate,{attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5})).out();
-/// ```
-#[module(name = "$midiCV", channels_param = "channels", args())]
+const MIDI_CV_DOCS: ModuleDocs = ModuleDocs {
+    summary: "MIDI notes to pitch and gate",
+    description: "Turns notes from a MIDI keyboard or controller into pitch, gate, velocity and \
+                  expression voltages for playing a patch live. Set `channels` above 1 for a \
+                  polyphonic synth, one voice per channel, or leave it at 1 for a mono lead.",
+    categories: &[ModuleCategory::Midi],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Four-voice keyboard synth",
+            code: r#"
+                const midi = $midiCV({ channels: 4 })
+                $saw(midi)
+                  .lpf(midi._velocity.range('c4', 'c7'), 1)
+                  .amp($adsr(midi, { release: 0.4 }))
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Mono lead with a wide pitch bend",
+            code: r#"
+                const lead = $midiCV({ pitchBendRange: 12 })
+                $pulse(lead)
+                  .lpf(lead._modWheel.range('c4', 'c7'), 2)
+                  .amp($adsr(lead))
+                  .out()
+            "#,
+        },
+    ],
+};
+
+#[module(
+    name = "$midiCV",
+    docs = MIDI_CV_DOCS,
+    channels_param = "channels",
+    args()
+)]
 pub struct MidiCv {
     outputs: MidiCvOutputs,
     params: MidiCvParams,

@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields, LitStr, Token, Type, punctuated::Punctuated};
 
-use crate::utils::{extract_doc_comments, unwrap_attr};
+use crate::utils::unwrap_attr;
 
 /// Parsed module attribute data
 struct ModuleAttr {
@@ -15,6 +15,8 @@ struct ModuleAttr {
     /// Custom function to derive channel count from params struct.
     /// The function must have signature: fn(&ParamsStruct) -> Option<usize>
     channels_derive: Option<syn::Path>,
+    /// Path to the module's `crate::module_docs::ModuleDocs` const.
+    docs: syn::Path,
 }
 
 struct ArgAttr {
@@ -38,6 +40,7 @@ impl syn::parse::Parse for ArgAttr {
 /// ```text
 /// #[module(
 ///     name = "$sine",
+///     docs = SINE_DOCS,
 ///     channels = 2,
 ///     args(freq, engine),
 ///     stateful,
@@ -64,6 +67,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
         let mut channels_param_default: Option<u8> = None;
         let mut channels_derive: Option<syn::Path> = None;
         let mut args: Vec<ArgAttr> = Vec::new();
+        let mut docs: Option<syn::Path> = None;
         let mut stateful = false;
         let mut patch_update = false;
         let mut has_init = false;
@@ -112,6 +116,10 @@ impl syn::parse::Parse for ModuleAttrArgs {
                         Punctuated::parse_terminated(&content)?;
                     args = parsed.into_iter().collect();
                 }
+                "docs" => {
+                    input.parse::<Token![=]>()?;
+                    docs = Some(input.parse()?);
+                }
                 "stateful" => {
                     stateful = true;
                 }
@@ -135,7 +143,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
                         ident.span(),
                         format!(
                             "Unknown module attribute '{other}'. Expected one of: \
-                             name, channels, channels_param, \
+                             name, docs, channels, channels_param, \
                              channels_param_default, channels_derive, args, \
                              stateful, patch_update, has_init, has_prepare_resources, clock_sync, block"
                         ),
@@ -153,6 +161,15 @@ impl syn::parse::Parse for ModuleAttrArgs {
                 "missing `name` in #[module(...)]",
             )
         })?;
+        if let Some(message) = crate::outputs::module_name_error(&name.value()) {
+            return Err(syn::Error::new(name.span(), message));
+        }
+        let docs = docs.ok_or_else(|| {
+            syn::Error::new(
+                proc_macro2::Span::call_site(),
+                "missing `docs = …` in #[module(...)]: name the module's `ModuleDocs` const",
+            )
+        })?;
 
         Ok(ModuleAttrArgs {
             module: ModuleAttr {
@@ -161,6 +178,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
                 channels_param,
                 channels_param_default,
                 channels_derive,
+                docs,
             },
             args,
             stateful,
@@ -180,7 +198,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
 /// ```rust,ignore
 /// #[module(
 ///     name = "$sine",
-///     description = "A sine wave oscillator",
+///     docs = SINE_DOCS,                        // the module's ModuleDocs const
 ///     // Channel count configuration (at most one):
 ///     // channels = 2,                         // hardcoded
 ///     // channels_param = "channels",           // read from param field
@@ -265,17 +283,18 @@ fn impl_module_macro_attr(
     let name = &ast.ident;
     let module_name = &attr_args.module.name;
 
-    // Extract /// doc comments from the module struct for documentation (required)
-    let module_documentation = extract_doc_comments(&ast.attrs).ok_or_else(|| {
-        syn::Error::new(
-            name.span(),
-            format!(
-                "Module struct `{}` must have `///` doc comments for documentation",
-                name
-            ),
-        )
-    })?;
-    let module_documentation_token = quote! { #module_documentation.to_string() };
+    // The `docs` const is the module's only user-facing documentation.
+    if let Some(doc) = ast
+        .attrs
+        .iter()
+        .find(|a| a.path().is_ident("doc") && matches!(a.meta, syn::Meta::NameValue(_)))
+    {
+        return Err(syn::Error::new_spanned(
+            doc,
+            "module docs live in the `ModuleDocs` const named by `docs = …`, not `///`",
+        ));
+    }
+    let docs_path = &attr_args.module.docs;
 
     // Store channels info for channel_count generation
     let hardcoded_channels = attr_args.module.channels;
@@ -693,7 +712,7 @@ fn impl_module_macro_attr(
     // single call site to inline into.
     let process_loop = if attr_args.block {
         quote! {
-            let block = self.mode == crate::types::ProcessingMode::Block;
+            let block = self.mode == crate::types::ProcessingMode::Block && !self.f64_outputs;
             // SAFETY: Audio thread has exclusive access. See crate::types
             // module documentation. Each call's borrows end with the call.
             let process = |range: std::ops::Range<usize>| unsafe {
@@ -811,6 +830,10 @@ fn impl_module_macro_attr(
             /// Allocated once at construction; never resized on the audio
             /// thread.
             block_outputs: std::cell::UnsafeCell<#block_outputs_ty>,
+            /// Counts the patch swaps this module's lineage has gone through;
+            /// stamped into the params so a `SwapGlide` can tell a new swap
+            /// from the one it already handled.
+            glide_generation: std::cell::Cell<u64>,
             /// Block size pinned at construction. Mirrors the BlockPort length.
             block_size: usize,
             /// Block vs. Sample mode, assigned by graph_analysis cycle
@@ -818,6 +841,9 @@ fn impl_module_macro_attr(
             /// first request; Sample-mode wrappers compute one sample per
             /// request (used for modules inside feedback cycles).
             mode: crate::types::ProcessingMode,
+            /// Whether the `precision = inherit` outputs are f64. Block inputs
+            /// resolve at f32, so such a module always runs `update`.
+            f64_outputs: bool,
             /// Reentrancy guard for `get_value_at`. Set by `ensure_processed_to`
             /// while it runs the inner update loop. When a cycle reads back
             /// into a module that is mid-computation, `get_value_at` returns
@@ -826,6 +852,35 @@ fn impl_module_macro_attr(
             /// delay.
             computing: std::cell::Cell<bool>,
         }
+        impl #struct_name {
+            /// The slot a read of `index` sees, rendered first: `index`
+            /// itself, or during a re-entrant read from a feedback cycle the
+            /// slot before it.
+            #[inline]
+            fn readable_slot(&self, index: usize) -> usize {
+                if self.computing.get() {
+                    return if index == 0 {
+                        self.block_size.saturating_sub(1)
+                    } else {
+                        index - 1
+                    };
+                }
+                let target = match self.mode {
+                    // Fill the block greedily, but never past the audio
+                    // callback's render ceiling: state that advances beyond
+                    // the emit boundary would be transferred "from the
+                    // future" by a mid-block patch swap.
+                    crate::types::ProcessingMode::Block => {
+                        self.block_size.min(crate::types::block_render_ceiling())
+                    }
+                    // Inclusive — process up through the requested slot.
+                    crate::types::ProcessingMode::Sample => index + 1,
+                };
+                crate::types::Sampleable::ensure_processed_to(self, target);
+                index
+            }
+        }
+
         impl crate::types::Sampleable for #struct_name {
             fn start_block(&self) {
                 self.index.set(0);
@@ -881,33 +936,21 @@ fn impl_module_macro_attr(
             }
 
             fn get_value_at(&self, port: &str, ch: usize, index: usize) -> f32 {
-                let port_idx = match <#block_outputs_ty>::port_index(port) {
-                    Some(i) => i,
-                    None => return 0.0,
+                let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
+                    return 0.0;
                 };
-                if self.computing.get() {
-                    let prev = if index == 0 {
-                        self.block_size.saturating_sub(1)
-                    } else {
-                        index - 1
-                    };
-                    let outputs = unsafe { &*self.block_outputs.get() };
-                    return outputs.get_at(port_idx, ch, prev);
-                }
-                let target = match self.mode {
-                    // Fill the block greedily, but never past the audio
-                    // callback's render ceiling: state that advances beyond
-                    // the emit boundary would be transferred "from the
-                    // future" by a mid-block patch swap.
-                    crate::types::ProcessingMode::Block => {
-                        self.block_size.min(crate::types::block_render_ceiling())
-                    }
-                    // Inclusive — process up through the requested slot.
-                    crate::types::ProcessingMode::Sample => index + 1,
-                };
-                self.ensure_processed_to(target);
+                let slot = self.readable_slot(index);
                 let outputs = unsafe { &*self.block_outputs.get() };
-                outputs.get_at(port_idx, ch, index)
+                outputs.get_at(port_idx, ch, slot)
+            }
+
+            fn get_value_at_f64(&self, port: &str, ch: usize, index: usize) -> f64 {
+                let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
+                    return 0.0;
+                };
+                let slot = self.readable_slot(index);
+                let outputs = unsafe { &*self.block_outputs.get() };
+                outputs.get_at_f64(port_idx, ch, slot)
             }
 
             fn port_view(&self, port: &str) -> Option<crate::types::PortView> {
@@ -916,13 +959,14 @@ fn impl_module_macro_attr(
                 }
                 let port_idx = <#block_outputs_ty>::port_index(port)?;
                 let outputs = unsafe { &*self.block_outputs.get() };
-                let (data, channels) = outputs.data_at(port_idx)?;
+                let (data, channels, lanes) = outputs.data_at(port_idx)?;
                 if channels == 0 {
                     return None;
                 }
                 Some(crate::types::PortView {
                     data,
                     channels,
+                    lanes,
                     processed: &self.index,
                 })
             }
@@ -970,7 +1014,11 @@ fn impl_module_macro_attr(
                 crate::types::OutputStruct::get_buffer_output(&module.outputs, port)
             }
 
-            fn transfer_state_from(&self, old: &dyn crate::types::Sampleable) {
+            fn transfer_state_from(
+                &self,
+                old: &dyn crate::types::Sampleable,
+                ids: &dyn crate::types::PreviousIds,
+            ) {
                 if let Some(old_typed) = old.as_any().downcast_ref::<Self>() {
                     // Guard against self-aliasing: if old and new are the same box,
                     // creating two &mut refs to the same UnsafeCell contents is UB.
@@ -984,6 +1032,14 @@ fn impl_module_macro_attr(
                     // between modules of the same count.
                     let same_channels = new_inner._channel_count == old_inner._channel_count;
                     #transfer_state_body
+                    let generation = old_typed.glide_generation.get().wrapping_add(1);
+                    self.glide_generation.set(generation);
+                    crate::types::Connect::mark_glides(
+                        &mut new_inner.params,
+                        Some(&old_inner.params),
+                        generation,
+                        ids,
+                    );
                     // Transfer buffer data (no-op for modules without buffer outputs)
                     crate::types::OutputStruct::transfer_buffers_from(
                         &mut new_inner.outputs,
@@ -995,13 +1051,16 @@ fn impl_module_macro_attr(
                     // Without this swap the "second" module in a cycle would
                     // see zeros from the freshly-constructed wrapper and
                     // inject a one-sample discontinuity into the feedback loop.
-                    // Skipped on a channel-count change: the buffers differ in
-                    // width, and the fresh wrapper's buffer is the correct size.
+                    // Skipped on a channel-count or precision change: the
+                    // buffers differ in layout, and the fresh wrapper's buffer
+                    // is the correct one.
                     if same_channels {
                         unsafe {
                             let new_block_outputs = &mut *self.block_outputs.get();
                             let old_block_outputs = &mut *old_typed.block_outputs.get();
-                            std::mem::swap(new_block_outputs, old_block_outputs);
+                            if new_block_outputs.same_layout(old_block_outputs) {
+                                std::mem::swap(new_block_outputs, old_block_outputs);
+                            }
                         }
                     }
                 }
@@ -1028,6 +1087,7 @@ fn impl_module_macro_attr(
                 #(#module_field_inits),*
             };
             crate::types::OutputStruct::set_all_channels(&mut inner.outputs, deserialized.channel_count);
+            crate::types::OutputStruct::make_f64_outputs(&mut inner.outputs, deserialized.f64_inputs);
             // Fill `#[default_connection]` inputs here, on the main thread:
             // the audio-thread `connect` must stay allocation-free, so it only
             // resolves connections that are already present.
@@ -1038,9 +1098,11 @@ fn impl_module_macro_attr(
                 sample_rate,
                 module: std::cell::UnsafeCell::new(inner),
                 index: std::cell::Cell::new(0),
-                block_outputs: std::cell::UnsafeCell::new(<#block_outputs_ty>::new(_block_size, deserialized.channel_count)),
+                block_outputs: std::cell::UnsafeCell::new(<#block_outputs_ty>::new(_block_size, deserialized.channel_count, deserialized.f64_inputs)),
+                glide_generation: std::cell::Cell::new(0),
                 block_size: _block_size,
                 mode: _mode,
+                f64_outputs: deserialized.f64_inputs && <#block_outputs_ty>::INHERITS,
                 computing: std::cell::Cell::new(false),
             };
 
@@ -1073,7 +1135,7 @@ fn impl_module_macro_attr(
 
                 crate::types::ModuleSchema {
                     name: Self::MODULE_TYPE.to_string(),
-                    documentation: #module_documentation_token,
+                    docs: crate::module_docs::ModuleDocsSchema::from(&#docs_path),
                     params_schema: crate::types::SchemaContainer {
                         schema: params_schema,
                     },

@@ -2,24 +2,27 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::sanitize;
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Seconds the output takes to reach each new value. Longer than the interval
 /// between UI drag events, so consecutive ramps join into one continuous
 /// line.
 const RAMP_SECONDS: f32 = 0.03;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SmoothControlParams {
-    /// value the output ramps to
+    #[input("value the output ramps to")]
     value: f64,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SmoothControlOutputs {
-    #[output("output", "smoothed control value", default)]
+    #[output("output", "the value, ramping smoothly to each new setting", type = cv, default)]
     sample: f32,
 }
 
@@ -33,12 +36,30 @@ struct SmoothControlState {
     initialized: bool,
 }
 
-/// A UI-driven constant: the editor sets `value` through the single-module
-/// update path, and the output ramps linearly to it over [`RAMP_SECONDS`] so
-/// a drag's stepped values move without zipper noise. A freshly built control
-/// starts at its value; one that replaces another continues from the old
-/// output. Backs `$slider`, the out gain/pan faders, and the mute/solo gate.
-#[module(name = "_smoothControl", has_init, patch_update, args(value))]
+const SMOOTH_CONTROL_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Smoothed editor value",
+    description: "A constant the editor sets directly, ramping to each new value so \
+                  dragging a control never zippers. Backs `$slider`, the output gain \
+                  and pan faders, and mute and solo.",
+    categories: &[ModuleCategory::Utility],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Filter cutoff on a slider",
+        code: r#"
+            $saw('c2')
+              .lpf($slider('Cutoff', 2, 0, 5), 2)
+              .out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "_smoothControl",
+    docs = SMOOTH_CONTROL_DOCS,
+    has_init,
+    patch_update,
+    args(value)
+)]
 pub struct SmoothControl {
     outputs: SmoothControlOutputs,
     params: SmoothControlParams,

@@ -1,54 +1,112 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use std::ops::Range;
+
+use crate::block_input::{self, InputScratch};
 use crate::dsp::utils::{hz_to_voct, voct_to_hz};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::types::SwapGlide;
 
 /// Lower bound for the post-scale frequency, keeping `hz_to_voct` away from log2(≤0).
 const MIN_HZ: f32 = 1e-4;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MulHzParams {
-    /// V/Oct pitch signal to scale
-    #[signal(type = pitch)]
+    #[input("pitch to scale", type = pitch)]
     input: PolySignal,
-    /// frequency multiplier (1 = unity, 2 = octave up, 0.5 = octave down)
+    #[input(
+        "frequency ratio: 1 unchanged, 2 an octave up, 0.5 an octave down, 1.5 a just fifth up",
+        type = control,
+        default = 1.0,
+        range = (0.0, ..),
+        control_range = (0.0, 4.0),
+    )]
     factor: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MulHzOutputs {
-    #[output("output", "V/Oct pitch output", default)]
+    #[output("output", "the scaled pitch", type = cv, default)]
     sample: PolyOutput,
 }
 
-/// Multiplies a pitch's frequency by a factor.
-///
-/// The input V/Oct pitch is converted to Hz, multiplied by **factor**, then the
-/// result is converted back to V/Oct. A factor of 1.5 is a just perfect fifth.
-///
-/// ```js
-/// // up a just fifth
-/// $mulHz($saw('C4'), 1.5)
-/// ```
-#[module(name = "$mulHz", args(input, factor))]
+const MUL_HZ_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Multiply a pitch's frequency",
+    description: "Multiplies a pitch's frequency by a ratio, for pure just intervals \
+                  and harmonics that equal-tempered transposition misses. A ratio of \
+                  1.5 is a beatless fifth.",
+    categories: &[ModuleCategory::Pitch],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Just-tuned fifths",
+        code: r#"
+            const root = $p('c3 a2 f2 g2')
+            $saw(root).out()
+            $saw($mulHz(root, 1.5)).out()
+        "#,
+    }],
+};
+
+#[module(name = "$mulHz", docs = MUL_HZ_DOCS, args(input, factor), block)]
 pub struct MulHz {
     outputs: MulHzOutputs,
     params: MulHzParams,
+    channel_state: Box<[SwapGlide]>,
+}
+
+/// The V/Oct pitch `voct` with its frequency multiplied by `factor`.
+#[inline(always)]
+fn mul_hz(voct: f32, factor: f32) -> f32 {
+    hz_to_voct((voct_to_hz(voct) * factor).max(MIN_HZ))
 }
 
 impl MulHz {
-    fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
-
-        for i in 0..channels as usize {
-            let freq = voct_to_hz(self.params.input.get_value(i));
-            let result = (freq * self.params.factor.get_value(i)).max(MIN_HZ);
-            self.outputs.sample.set(i, hz_to_voct(result));
+    fn update(&mut self, sample_rate: f32) {
+        let factor = &self.params.factor;
+        for i in 0..self.channel_count() {
+            let factor_value = self.channel_state[i].follow(
+                factor.get_value(i),
+                factor.glide_mark(i),
+                sample_rate,
+            );
+            let value = mul_hz(self.params.input.get_value(i), factor_value);
+            self.outputs.sample.set(i, value);
         }
+    }
+
+    fn process_block(
+        &mut self,
+        outputs: &mut MulHzBlockOutputs,
+        range: Range<usize>,
+        _sample_rate: f32,
+    ) -> Option<()> {
+        let channels = self.channel_count();
+        let glides = &mut self.channel_state[..channels];
+        let factor = &self.params.factor;
+        if factor.glides_pending(glides) {
+            return None;
+        }
+        let (mut s0, mut s1) = (InputScratch::new(), InputScratch::new());
+        let input = self
+            .params
+            .input
+            .block_input(range.clone(), channels, &mut s0)?;
+        let factor_input = factor.block_input(range.clone(), channels, &mut s1)?;
+        factor.settle_glides(glides, factor_input.row(range.end - 1));
+        block_input::map(
+            &mut outputs.sample,
+            range,
+            [input, factor_input],
+            |[x, factor]| mul_hz(x, factor),
+        );
+        Some(())
     }
 }
 
@@ -70,6 +128,7 @@ mod tests {
             outputs,
             _channel_count: 1,
             _block_index: Default::default(),
+            channel_state: Box::new([SwapGlide::default()]),
         }
     }
 

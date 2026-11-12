@@ -1,3 +1,5 @@
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::utils::{TempGate, TempGateState, min_gate_samples},
     poly::{PolyOutput, PolySignal},
@@ -5,28 +7,43 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RisingEdgeDetectorParams {
-    /// signal to detect rising edges in
+    #[input("signal watched for any rise from one sample to the next", type = audio)]
     input: PolySignal,
 }
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FallingEdgeDetectorParams {
-    /// signal to detect falling edges in
+    #[input("signal watched for any fall from one sample to the next", type = audio)]
     input: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct EdgeDetectorOutputs {
+struct RisingEdgeDetectorOutputs {
     #[output(
         "output",
-        "edge detection pulse (5V when edge detected, 0V otherwise)",
+        "high while the input keeps rising, and for a trigger's length after",
+        type = gate,
+        default
+    )]
+    output: PolyOutput,
+}
+
+#[derive(Outputs, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct FallingEdgeDetectorOutputs {
+    #[output(
+        "output",
+        "high while the input keeps falling, and for a trigger's length after",
+        type = gate,
         default
     )]
     output: PolyOutput,
@@ -47,19 +64,27 @@ impl Default for EdgeChannelState {
     }
 }
 
-/// Detects rising edges in a signal and emits a short pulse.
-///
-/// Outputs 5 V for a single sample whenever the input increases.
-/// Useful for converting ramps, envelopes, or continuous signals into
-/// gate/trigger events.
-///
-/// ```js
-/// // trigger a percussion envelope on every rising edge of a slow oscillator
-/// $perc($rising($sine('4hz')))
-/// ```
-#[module(name = "$rising", args(input))]
+const RISING_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Trigger on a rising signal",
+    description: "Goes high whenever its input rises, so ramps, envelopes, LFOs and \
+                  melodies can trigger events. Each upward step of a stepped signal \
+                  gives one trigger.",
+    categories: &[ModuleCategory::Gate],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Only the upward steps sound",
+        code: r#"
+            const notes = $p('c3 e3 g3 e3 c4 g3')
+            $sine(notes)
+              .amp($perc($rising(notes), { decay: 0.3 }))
+              .out()
+        "#,
+    }],
+};
+
+#[module(name = "$rising", docs = RISING_DOCS, args(input))]
 pub struct RisingEdgeDetector {
-    outputs: EdgeDetectorOutputs,
+    outputs: RisingEdgeDetectorOutputs,
     params: RisingEdgeDetectorParams,
     channel_state: Box<[EdgeChannelState]>,
 }
@@ -87,19 +112,27 @@ impl RisingEdgeDetector {
 
 message_handlers!(impl RisingEdgeDetector {});
 
-/// Detects falling edges in a signal and emits a short pulse.
-///
-/// Outputs 5 V for a single sample whenever the input decreases.
-/// Useful for triggering events on the "off" transition of a gate or
-/// on the downward slope of an LFO.
-///
-/// ```js
-/// // trigger on every falling edge of a slow oscillator
-/// $perc($falling($sine('2hz')))
-/// ```
-#[module(name = "$falling", args(input))]
+const FALLING_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Trigger on a falling signal",
+    description: "Goes high whenever its input falls, so the downward side of a ramp, \
+                  LFO or melody can trigger events. Each downward step of a stepped \
+                  signal gives one trigger.",
+    categories: &[ModuleCategory::Gate],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Only the downward steps sound",
+        code: r#"
+            const notes = $p('c3 e3 g3 e3 c4 g3')
+            $sine(notes)
+              .amp($perc($falling(notes), { decay: 0.3 }))
+              .out()
+        "#,
+    }],
+};
+
+#[module(name = "$falling", docs = FALLING_DOCS, args(input))]
 pub struct FallingEdgeDetector {
-    outputs: EdgeDetectorOutputs,
+    outputs: FallingEdgeDetectorOutputs,
     params: FallingEdgeDetectorParams,
     channel_state: Box<[EdgeChannelState]>,
 }

@@ -47,9 +47,16 @@ export type ParamKind =
     | 'boolean'
     | 'unknown';
 
-export type SignalType = 'pitch' | 'frequency' | 'gate' | 'trig' | 'control';
+export type ParamType =
+    | 'audio'
+    | 'pitch'
+    | 'frequency'
+    | 'gate'
+    | 'trig'
+    | 'control';
 
-const SIGNAL_TYPES = new Set<string>([
+const PARAM_TYPES = new Set<string>([
+    'audio',
     'pitch',
     'frequency',
     'gate',
@@ -57,8 +64,8 @@ const SIGNAL_TYPES = new Set<string>([
     'control',
 ]);
 
-function isSignalType(s: string): s is SignalType {
-    return SIGNAL_TYPES.has(s);
+function isParamType(s: string): s is ParamType {
+    return PARAM_TYPES.has(s);
 }
 
 export interface ParamDescriptor {
@@ -67,10 +74,14 @@ export interface ParamDescriptor {
     description?: string;
     optional: boolean;
     enumValues?: string[];
-    signalType?: SignalType;
+    paramType?: ParamType;
     defaultValue?: number;
+    /** Usable range; either side may be open. */
     minValue?: number;
     maxValue?: number;
+    /** Slider span of a `control` param. */
+    controlMin?: number;
+    controlMax?: number;
     /**
      * True polyphonic signal input (PolySignal, required or optional).
      * Unlike `kind`, this also covers `Option<PolySignal>` params, which
@@ -91,6 +102,8 @@ export interface ParamDescriptor {
      * and takes no part in `$g` signal-group expansion.
      */
     isScaleSignalInput?: boolean;
+    /** A WAV file, written in the DSL as a `/`-rooted workspace path. */
+    isWavInput?: boolean;
 }
 
 export type ProcessedModuleSchema = ModuleSchema & {
@@ -527,6 +540,7 @@ export function processModuleSchema(
 
             const isMonoSignalInput = referencesDef(s, 'MonoSignal');
             const isScaleSignalInput = referencesDef(s, 'ScaleSignal');
+            const isWavInput = referencesDef(s, 'Wav');
             const isPolySignalInput =
                 !isMonoSignalInput &&
                 !isScaleSignalInput &&
@@ -542,12 +556,15 @@ export function processModuleSchema(
                 ...(isPolySignalInput && { isPolySignalInput }),
                 ...(isMonoSignalInput && { isMonoSignalInput }),
                 ...(isScaleSignalInput && { isScaleSignalInput }),
+                ...(isWavInput && { isWavInput }),
                 ...(signalMeta && {
+                    controlMax: signalMeta.controlMax,
+                    controlMin: signalMeta.controlMin,
                     defaultValue: signalMeta.defaultValue,
                     maxValue: signalMeta.maxValue,
                     minValue: signalMeta.minValue,
-                    signalType: isSignalType(signalMeta.signalType)
-                        ? signalMeta.signalType
+                    paramType: isParamType(signalMeta.paramType)
+                        ? signalMeta.paramType
                         : 'control',
                 }),
             };
@@ -573,18 +590,16 @@ export function processSchemas(
 }
 
 /**
- * Whether a module qualifies for the `.$.`/`.$m.` chainable namespaces.
+ * Whether a module is a chain method of collections.
  *
- * A module qualifies when its first positional argument is a `signal` or
- * `polySignal` — so a chained output can be injected as that argument — and it
- * produces at least one output. This is the single source of truth shared by
- * the runtime (GraphBuilder) and type generation (typescriptLibGen) so the two
- * can never drift.
+ * A module qualifies when its name starts with `$`, its first positional
+ * argument is a `signal` or `polySignal` — so the receiver can be that
+ * argument — and it has an output. The runtime (chainModules) and type
+ * generation (typescriptLibGen) share this predicate.
  */
-export function qualifiesForDollarChain(s: ProcessedModuleSchema): boolean {
-    // Modules named with a leading `_` are internal, and `$buffer` returns a
-    // buffer reference rather than a signal output.
-    if (s.name.startsWith('_') || s.name === '$buffer') {
+export function qualifiesForChain(s: ProcessedModuleSchema): boolean {
+    // `$buffer` returns a buffer reference rather than a signal output.
+    if (!s.name.startsWith('$') || s.name === '$buffer') {
         return false;
     }
     if (!s.outputs || s.outputs.length === 0) {
@@ -598,23 +613,19 @@ export function qualifiesForDollarChain(s: ProcessedModuleSchema): boolean {
     if (kind !== 'signal' && kind !== 'polySignal') {
         return false;
     }
-    // The method name must be a bare identifier — it is both a runtime proxy
-    // key and a generated TS interface member. Gating it here (rather than only
-    // in type generation) keeps the runtime and generated sets identical.
-    return isValidDollarMethodName(dollarMethodName(s.name));
+    // Every segment is a property name at run time and a member of a
+    // generated interface.
+    return s.name
+        .slice(1)
+        .split('.')
+        .every((segment) => /^[A-Za-z_][$A-Za-z0-9_]*$/.test(segment));
 }
 
 /**
- * Method name for a module in the `.$.` namespace: the last dotted segment of
- * its name, minus the leading `$` (e.g. `$lpf` → `lpf`). Used as the single
- * name derivation by both the runtime proxy and type generation.
+ * The chain method of a module: the last dotted segment of its name, without
+ * the leading `$` (`$lpf` → `lpf`, `$mi.chorus` → `chorus`).
  */
-export function dollarMethodName(name: string): string {
+export function chainMethodName(name: string): string {
     const base = name.split('.').pop() ?? name;
     return base.startsWith('$') ? base.slice(1) : base;
-}
-
-/** Whether `name` is a bare TS identifier — required of a `.$.` method name. */
-function isValidDollarMethodName(name: string): boolean {
-    return /^[$A-Za-z_][$A-Za-z0-9_]*$/.test(name);
 }

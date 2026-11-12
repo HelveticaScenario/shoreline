@@ -1,24 +1,25 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
-    dsp::utils::wrap,
-    poly::{PolyOutput, PolySignal, PolySignalExt},
+    dsp::utils::{Sample, wrap},
+    poly::{PolyOutput, PolySignal},
 };
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct WrapParams {
-    /// signal to wrap
+    #[input("signal to wrap", type = audio)]
     input: PolySignal,
-    /// lower bound of the wrap range
-    #[signal(default = 0.0)]
+    #[input("bottom of the range; swaps with max when above it", type = control, default = 0.0, control_range = (-5.0, 5.0))]
     min: PolySignal,
-    /// upper bound of the wrap range
-    #[signal(default = 5.0)]
+    #[input("top of the range", type = control, default = 5.0, control_range = (-5.0, 5.0))]
     max: PolySignal,
-    /// when true, shifts by whole integers to preserve the fractional part (pitch class in V/Oct)
+    #[input("shift by whole volts (octaves) instead, keeping the note and moving only its octave")]
     #[serde(default)]
     #[deserr(default)]
     octave: bool,
@@ -27,61 +28,81 @@ struct WrapParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WrapOutputs {
-    #[output("output", "wrapped signal output", default)]
+    #[output("output", "the wrapped signal", type = cv, precision = inherit, default)]
     sample: PolyOutput,
 }
 
-/// Folds a signal into a range by wrapping values that exceed the boundaries
-/// back from the opposite side — like a phase accumulator.
-///
-/// Both **min** and **max** accept polyphonic signals. If **max** < **min**
-/// the bounds are swapped automatically.
-///
-/// Set **octave** to `true` to shift by whole integers instead, preserving the
-/// fractional part (pitch class in V/Oct signals). Always exact when
-/// `max − min ≥ 1`; makes the closest-octave attempt otherwise.
-///
-/// ```js
-/// // wrap a saw into 0–5 V
-/// $wrap($saw('c3'), 0, 5)
-/// // keep pitch class, clamp to octave range 0–2 V
-/// $wrap($cycle($p('c2 c5 c3')), 0, 2, { octave: true })
-/// ```
-#[module(name = "$wrap", args(input, min, max))]
+const WRAP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Wrap a signal into a range",
+    description: "Wraps anything past one edge of a range back in from the other, the \
+                  way a phase wraps around. In octave mode it moves notes by whole \
+                  octaves instead, keeping a melody's notes but folding it into one \
+                  register.",
+    categories: &[ModuleCategory::Math],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Wide melody folded into one octave",
+        code: r#"
+            $sine(
+              $wrap($p('c2 g5 e3 b4 d6'), 'c4', 'c5', {
+                octave: true,
+              }),
+            ).out()
+        "#,
+    }],
+};
+
+#[module(name = "$wrap", docs = WRAP_DOCS, args(input, min, max))]
 pub struct Wrap {
     outputs: WrapOutputs,
     params: WrapParams,
 }
 
 // Closed [lo, hi] variant — same as wrap(lo..hi) except val == hi returns hi.
-fn wrap_closed(val: f32, lo: f32, hi: f32) -> f32 {
+fn wrap_closed<T: Sample>(val: T, lo: T, hi: T) -> T {
     if val == hi { hi } else { wrap(lo..hi, val) }
 }
 
-fn wrap_octave(wrapped: f32, x: f32) -> f32 {
+fn wrap_octave<T: Sample>(wrapped: T, x: T) -> T {
     let f = x - x.floor();
-    let n = (wrapped - f).round() as i32;
-    f + n as f32
+    f + (wrapped - f).round()
+}
+
+/// `val` wrapped into the range between `a` and `b`, by whole octaves when
+/// `octave` is set.
+fn wrap_value<T: Sample>(val: T, a: T, b: T, octave: bool) -> T {
+    let (min, max) = if b < a { (b, a) } else { (a, b) };
+    if (max - min).abs() < T::EPSILON {
+        min
+    } else if octave {
+        wrap_octave(wrap_closed(val, min, max), val)
+    } else {
+        wrap_closed(val, min, max)
+    }
 }
 
 impl Wrap {
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
-
-        for i in 0..channels as usize {
-            let val = self.params.input.get_value(i);
-            let a = self.params.min.get_value(i);
-            let b = self.params.max.get_value(i);
-            let (min, max) = if b < a { (b, a) } else { (a, b) };
-
-            let output = if (max - min).abs() < f32::EPSILON {
-                min
-            } else if self.params.octave {
-                wrap_octave(wrap_closed(val, min, max), val)
-            } else {
-                wrap_closed(val, min, max)
-            };
-
+        let (params, octave) = (&self.params, self.params.octave);
+        if self.outputs.sample.is_f64() {
+            for i in 0..self.channel_count() {
+                let output = wrap_value(
+                    params.input.get_value_f64(i),
+                    params.min.get_value_f64(i),
+                    params.max.get_value_f64(i),
+                    octave,
+                );
+                self.outputs.sample.set_f64(i, output);
+            }
+            return;
+        }
+        for i in 0..self.channel_count() {
+            let output = wrap_value(
+                params.input.get_value(i),
+                params.min.get_value(i),
+                params.max.get_value(i),
+                octave,
+            );
             self.outputs.sample.set(i, output);
         }
     }

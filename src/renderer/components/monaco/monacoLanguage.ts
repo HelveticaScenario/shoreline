@@ -1,6 +1,7 @@
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import { applyDslLibToMonaco } from './monacoHelpers';
 import { registerJsDocLinkProviders } from './jsDocLinkProviders';
+import { registerOutputResolutionHints } from './outputResolutionHints';
 import type { ModuleSchema } from '@modular/core';
 
 export interface MonacoSetupOptions {
@@ -81,8 +82,10 @@ export function setupMonacoJavascript(
     const languageConfiguration = configureJavascriptPairs(monaco);
     const { extraLib, extraLibModel } = applyDslLibToMonaco(monaco, libSource);
     const jsDocLinks = registerJsDocLinkProviders(monaco, options.schemas ?? []);
+    const outputHints = registerOutputResolutionHints(monaco);
 
     return () => {
+        outputHints.dispose();
         jsDocLinks.dispose();
         languageConfiguration.dispose();
         extraLib?.dispose();

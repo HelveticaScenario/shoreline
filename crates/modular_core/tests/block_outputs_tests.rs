@@ -17,15 +17,15 @@ use modular_core::poly::PolyOutput;
 
 #[derive(modular_derive::Outputs)]
 struct SimpleOutputs {
-    #[output("value", "A value", default)]
+    #[output("value", "A value", type = cv, default)]
     value: f32,
-    #[output("poly", "Poly out")]
+    #[output("poly", "Poly out", type = cv)]
     poly: PolyOutput,
 }
 
 #[test]
 fn block_outputs_struct_exists() {
-    let bo = SimpleBlockOutputs::new(4, 1);
+    let bo = SimpleBlockOutputs::new(4, 1, false);
     // Fresh buffer returns 0.0 at every index.
     assert_eq!(bo.get_at(0, 0, 0), 0.0);
     assert_eq!(bo.get_at(1, 2, 3), 0.0);
@@ -37,7 +37,7 @@ fn copy_from_inner_fills_block_outputs() {
         value: 2.5,
         poly: PolyOutput::mono(1.0),
     };
-    let mut bo = SimpleBlockOutputs::new(4, 1);
+    let mut bo = SimpleBlockOutputs::new(4, 1, false);
     bo.copy_from_inner(&inner, 2);
     let value_idx = SimpleBlockOutputs::port_index("value").unwrap();
     let poly_idx = SimpleBlockOutputs::port_index("poly").unwrap();
@@ -63,7 +63,7 @@ fn get_at_reads_correct_port() {
         value: 7.5,
         poly: PolyOutput::mono(3.5),
     };
-    let mut bo = SimpleBlockOutputs::new(4, 1);
+    let mut bo = SimpleBlockOutputs::new(4, 1, false);
     bo.copy_from_inner(&inner, 1);
     assert!((bo.get_at(0, 0, 1) - 7.5).abs() < 1e-6); // value
     assert!((bo.get_at(1, 0, 1) - 3.5).abs() < 1e-6); // poly
@@ -71,13 +71,13 @@ fn get_at_reads_correct_port() {
 
 #[test]
 fn get_at_out_of_range_returns_zero() {
-    let bo = SimpleBlockOutputs::new(4, 1);
+    let bo = SimpleBlockOutputs::new(4, 1, false);
     assert_eq!(bo.get_at(99, 0, 0), 0.0);
 }
 
 #[test]
 fn channels_at_reports_port_width() {
-    let bo = SimpleBlockOutputs::new(4, 3);
+    let bo = SimpleBlockOutputs::new(4, 3, false);
     let value_idx = SimpleBlockOutputs::port_index("value").unwrap();
     let poly_idx = SimpleBlockOutputs::port_index("poly").unwrap();
     // An f32 port is always mono; a poly port carries the module's channels.

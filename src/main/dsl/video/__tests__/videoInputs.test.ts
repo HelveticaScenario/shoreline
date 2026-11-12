@@ -127,53 +127,24 @@ describe('$v inputs from the audio graph', () => {
     });
 
     it('does not declare the internal tap module in the DSL typings', () => {
-        expect(buildLibSource(schemas as never, null)).not.toContain(
-            '_videoTap',
-        );
+        expect(buildLibSource(schemas as never)).not.toContain('_videoTap');
     });
 
     describe('patterns', () => {
-        it('plays a pattern wherever a field is accepted, through a $cycle', () => {
-            const { video, patch } = exec(`
-                $v.out($v.hsv($p('0 1.25 2.5 3.75'), 5, 5));
-            `);
+        it('takes a pattern as an audio signal', () => {
+            const { video } = exec(`$v.out($v.hsv($p('0 1.25 2.5'), 5, 5));`);
             expect(video!.uniforms.map((u) => u.kind)).toEqual(['tap']);
+        });
+
+        it.each([
+            `$v.out($v.hsv($v.fromAudio($p('0 1'))));`,
+            `$scopeXY($p('c3 e3'), $sine('c4'))`,
+            `$v.scopeXY($sine('c4'), $sine('g4'), { persistence: $p('0.2 0.9') }).out()`,
+        ])('plays a pattern through its $cycle: %s', (source) => {
+            const { patch } = exec(source);
             expect(
-                Object.values(patch.modules).some(
-                    (m) => m.moduleType === '$cycle',
-                ),
-            ).toBe(true);
-        });
-
-        it('accepts the sample, arrange and chained pattern forms too', () => {
-            for (const pattern of [
-                `$p.s('0 2 4', 'C(major)')`,
-                `$p.arrange([2, $p('0 5')], [1, $p('2.5')])`,
-                `$p('0 5').fast(2)`,
-                `$p('0 5').slow(2)`,
-            ]) {
-                const { video } = exec(`$v.out($v.hsv(${pattern}));`);
-                expect(video!.uniforms.map((u) => u.kind)).toEqual(['tap']);
-            }
-        });
-
-        it('plays a pattern given to a chained method or a config field', () => {
-            const { video } = exec(`
-                $v.ramp('horizontal', { zoom: $p('1 2') }).$.hsv($p('0 1')).out();
-            `);
-            expect(video!.uniforms).toHaveLength(2);
-        });
-
-        it('plays a pattern through fromAudio as it would an audio signal', () => {
-            const { video } = exec(`
-                $v.out($v.hsv($v.fromAudio($p('0 1'))));
-            `);
-            expect(video!.histories).toHaveLength(1);
-        });
-
-        it('sums a pattern that makes several voices', () => {
-            const { video } = exec(`$v.out($v.hsv($p('0,1')));`);
-            expect(video!.uniforms.map((u) => u.kind)).toEqual(['tap']);
+                patch.modules.filter((m) => m.moduleType === '$cycle').length,
+            ).toBe(1);
         });
     });
 

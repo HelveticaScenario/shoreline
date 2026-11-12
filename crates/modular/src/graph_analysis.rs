@@ -10,16 +10,19 @@
 //!   consumers that read it, so when a consumer runs its block the upstream
 //!   output buffers it reads are freshly written and hot in cache.
 //!
+//! [`f64_readers`] runs over the same cables, with their ports, to find the
+//! modules whose `precision = inherit` outputs carry f64 values.
+//!
 //! Cable extraction lives elsewhere — callers walk deserialized params via
 //! the [`modular_core::types::CollectCables`] trait and pass the resulting
 //! adjacency map here. Keeping graph_analysis ignorant of params shape means
 //! the cable schema lives in exactly one place: each type's own `CollectCables`
 //! impl.
 
-use modular_core::types::ProcessingMode;
+use modular_core::types::{CableSource, OutputPrecision, ProcessingMode};
 use petgraph::algo::tarjan_scc;
 use petgraph::graphmap::DiGraphMap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Result of analysing the cable adjacency graph: the per-module processing
 /// mode and a cache-efficient (producer-before-consumer) processing order.
@@ -77,6 +80,61 @@ pub fn analyze(adjacency: &HashMap<String, Vec<String>>) -> GraphAnalysis {
     }
 
     GraphAnalysis { modes, order }
+}
+
+/// The modules with a cable from an f64 output: an `F64` output, or an
+/// `Inherit` output of a module that is itself in the set. Their `Inherit`
+/// outputs are f64, so a chain of arithmetic on an f64 value stays f64.
+///
+/// `cables[consumer]` lists the outputs `consumer` reads, and
+/// `precision(module, port)` gives each output's declared precision. Membership
+/// only ever grows, so repeating the pass until nothing joins settles
+/// feedback cycles too.
+pub fn f64_readers(
+    cables: &HashMap<String, Vec<CableSource>>,
+    precision: impl Fn(&str, &str) -> OutputPrecision,
+) -> HashSet<String> {
+    let mut readers: HashSet<String> = HashSet::new();
+    loop {
+        let mut grew = false;
+        for (consumer, sources) in cables {
+            if readers.contains(consumer) {
+                continue;
+            }
+            let reads_f64 =
+                sources
+                    .iter()
+                    .any(|source| match precision(&source.module, &source.port) {
+                        OutputPrecision::F32 => false,
+                        OutputPrecision::F64 => true,
+                        OutputPrecision::Inherit => readers.contains(&source.module),
+                    });
+            if reads_f64 {
+                readers.insert(consumer.clone());
+                grew = true;
+            }
+        }
+        if !grew {
+            return readers;
+        }
+    }
+}
+
+/// [`f64_readers`] for a patch whose modules have the types in
+/// `module_types`, with each output's precision from the module schemas.
+pub fn f64_modules(
+    cables: &HashMap<String, Vec<CableSource>>,
+    module_types: &HashMap<&str, &str>,
+) -> HashSet<String> {
+    let precisions = modular_core::dsp::output_precisions();
+    f64_readers(cables, |module, port| {
+        module_types
+            .get(module)
+            .and_then(|module_type| precisions.get(*module_type))
+            .and_then(|ports| ports.get(port))
+            .copied()
+            .unwrap_or_default()
+    })
 }
 
 #[cfg(test)]
@@ -211,5 +269,90 @@ mod tests {
         assert!(pos(&order, "B") < pos(&order, "C"));
         let span = pos(&order, "A").abs_diff(pos(&order, "B"));
         assert_eq!(span, 1, "cycle members should be contiguous: {order:?}");
+    }
+
+    fn cables(edges: &[(&str, &[(&str, &str)])]) -> HashMap<String, Vec<CableSource>> {
+        edges
+            .iter()
+            .map(|(consumer, sources)| {
+                let sources = sources
+                    .iter()
+                    .map(|(module, port)| CableSource {
+                        module: module.to_string(),
+                        port: port.to_string(),
+                    })
+                    .collect();
+                (consumer.to_string(), sources)
+            })
+            .collect()
+    }
+
+    /// `clock.playhead` is f64; every `add*`/`loop` module's `output` inherits.
+    fn precision(module: &str, port: &str) -> OutputPrecision {
+        match (module, port) {
+            ("clock", "playhead") => OutputPrecision::F64,
+            (m, "output") if m.starts_with("add") || m.starts_with("loop") => {
+                OutputPrecision::Inherit
+            }
+            _ => OutputPrecision::F32,
+        }
+    }
+
+    fn readers(edges: &[(&str, &[(&str, &str)])]) -> Vec<String> {
+        let mut readers: Vec<String> = f64_readers(&cables(edges), precision).into_iter().collect();
+        readers.sort();
+        readers
+    }
+
+    #[test]
+    fn f64_flows_through_inheriting_modules_only() {
+        let found = readers(&[
+            ("clock", &[]),
+            ("add1", &[("clock", "playhead")]),
+            ("add2", &[("add1", "output"), ("lfo", "output")]),
+            ("seq", &[("add2", "output")]),
+            ("env", &[("clock", "barTrigger")]),
+            ("add3", &[("env", "output")]),
+            ("filter", &[("seq", "output")]),
+        ]);
+        assert_eq!(found, ["add1", "add2", "seq"]);
+    }
+
+    #[test]
+    fn f64_settles_around_a_feedback_cycle() {
+        // `add2` reads `loop1` before `loop1` is known to be f64.
+        let found = readers(&[
+            ("add2", &[("loop1", "output")]),
+            ("loop1", &[("add1", "output"), ("add2", "output")]),
+            ("add1", &[("clock", "playhead")]),
+        ]);
+        assert_eq!(found, ["add1", "add2", "loop1"]);
+    }
+
+    #[test]
+    fn f64_modules_follow_the_module_schemas() {
+        let module_types: HashMap<&str, &str> = [
+            ("clock", "_clock"),
+            ("sub", "_arithmetic"),
+            ("frac", "$wrap"),
+            ("bar", "_round"),
+            ("half", "$scaleAndShift"),
+            ("lfo", "$sine"),
+            ("mix", "_arithmetic"),
+        ]
+        .into_iter()
+        .collect();
+        let cables = cables(&[
+            ("clock", &[]),
+            ("sub", &[("clock", "playhead")]),
+            ("frac", &[("sub", "output")]),
+            ("bar", &[("frac", "output")]),
+            ("half", &[("bar", "output")]),
+            ("lfo", &[("half", "output")]),
+            ("mix", &[("lfo", "output"), ("clock", "beatTrigger")]),
+        ]);
+        let mut found: Vec<String> = f64_modules(&cables, &module_types).into_iter().collect();
+        found.sort();
+        assert_eq!(found, ["bar", "frac", "half", "lfo", "sub"]);
     }
 }

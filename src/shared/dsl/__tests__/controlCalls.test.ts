@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { ts } from 'ts-morph';
+import ts from 'typescript';
 
 import { findControlCalls } from '../controlCalls';
 

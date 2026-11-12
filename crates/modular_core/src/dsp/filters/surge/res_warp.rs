@@ -10,6 +10,8 @@ use schemars::JsonSchema;
 use super::cutoff_warp::{WarpPassband, warp_clamped_frequency};
 use super::fastmath::{fastcos, fastsin, fasttanh_clamped, softclip};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 
 /// Res-warp coefficient slots (Surge `nls_coeffs`).
 const NLS_A1: usize = 0;
@@ -24,10 +26,10 @@ const N_NLS_COEFF: usize = 5;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 pub enum ResWarpDrive {
-    /// Smooth tanh state saturation.
+    /// smooth, warm saturation
     #[default]
     Tanh,
-    /// Cubic soft clip.
+    /// firmer, brighter saturation
     SoftClip,
 }
 
@@ -154,26 +156,16 @@ impl Filter for ResWarp {
 
 /// Stamp one res-warp passband module.
 macro_rules! res_warp_module {
-    ($name:literal, $Struct:ident, $passband:expr, $output_doc:literal, $example:literal) => {
+    ($docs:path, $name:literal, $Struct:ident, $passband:expr, $output_doc:literal, $cutoff_doc:literal) => {
         filter_module! {
-            /// Surge XT's Resonance Warp filter — an RBJ biquad with saturators on the
-            /// state variables (a nonlinear-biquad design by Jatin Chowdhury), up to
-            /// four cascaded stages. Runs 2× oversampled.
-            ///
-            /// - **cutoff** — V/Oct (0 V = C4). Accepts modulation.
-            /// - **resonance** — 0–5 (biquad Q up to ~18).
-            /// - **drive** — `'tanh'` or `'softClip'`.
-            /// - **stages** — 1–4 cascaded sections.
-            ///
-            /// ```js
-            #[doc = $example]
-            /// ```
+            docs = $docs,
             name = $name, ident = $Struct, kernel = ResWarp,
             output_doc = $output_doc,
+            cutoff_doc = $cutoff_doc,
             params = {
-                /// state saturator: tanh or softClip (default tanh)
+                #[input("saturation inside the filter", default = "tanh")]
                 drive: ResWarpDrive,
-                /// number of cascaded filter stages, 1–4 (default 1)
+                #[input("number of cascaded filter stages", default = 1, range = (1, 4))]
                 stages: Option<usize>,
             },
             mode = |p| ResWarpMode {
@@ -184,40 +176,150 @@ macro_rules! res_warp_module {
     };
 }
 
+const RES_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Resonance Warp lowpass",
+    description: "A resonant lowpass with saturation inside the filter, so loud signals squash \
+                  and warp the resonant peak into a thick, rubbery tone, where `cutoffWarpLp` \
+                  growls as level pushes its cutoff around. More `stages` cut steeper.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Rubbery resonant bass",
+        code: r#"
+            const seq = $p('f1 [~ f2] ab1 [c2 eb2]')
+            $unstable.filter
+              .resWarpLp(
+                $saw(seq),
+                $perc(seq, { decay: 0.2 }).range('c3', 'c6'),
+                4,
+                { stages: 2 },
+              )
+              .out()
+        "#,
+    }],
+};
+
+const RES_WARP_HP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Resonance Warp highpass",
+    description: "A resonant highpass with saturation inside the filter: the peak thickens and \
+                  warps instead of whistling as it does in `cutoffWarpHp`.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Thick highpass sweep",
+        code: r#"
+            $unstable.filter
+              .resWarpHp(
+                $saw('c2'),
+                $sine('0.2hz').range('c3', 'c6'),
+                4,
+              )
+              .out()
+        "#,
+    }],
+};
+
+const RES_WARP_BP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Resonance Warp bandpass",
+    description: "A resonant bandpass with saturation inside the filter: a squashed, buzzing \
+                  band.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Buzzing band sweep",
+        code: r#"
+            $unstable.filter
+              .resWarpBp(
+                $saw('c2'),
+                $sine('0.5hz').range('c4', 'c6'),
+                4,
+              )
+              .out()
+        "#,
+    }],
+};
+
+const RES_WARP_NOTCH_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Resonance Warp notch",
+    description: "A notch with saturation inside the filter, its edges warping with level.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Warped notch sweep",
+        code: r#"
+            $unstable.filter
+              .resWarpNotch(
+                $saw('c2'),
+                $sine('0.2hz').range('c3', 'c6'),
+                3,
+              )
+              .out()
+        "#,
+    }],
+};
+
+const RES_WARP_AP_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Resonance Warp allpass",
+    description: "An allpass with saturation inside the filter, for a saturated phase smear; \
+                  stack `stages` to deepen it.",
+    categories: &[ModuleCategory::Filter],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Saturated phaser",
+        code: r#"
+            const saw = $saw('c2')
+            $mix([
+              saw,
+              $unstable.filter.resWarpAp(
+                saw,
+                $sine('0.2hz').range('c3', 'c6'),
+                3,
+                { stages: 3 },
+              ),
+            ]).out()
+        "#,
+    }],
+};
+
 res_warp_module!(
+    RES_WARP_LP_DOCS,
     "$unstable.filter.resWarpLp",
     ResWarpLpFilter,
     WarpPassband::Lp,
     "lowpass output",
-    "$unstable.filter.resWarpLp($saw('c2'), 'c4', 2, { drive: 'softClip', stages: 2 })"
+    "cutoff frequency"
 );
 res_warp_module!(
+    RES_WARP_HP_DOCS,
     "$unstable.filter.resWarpHp",
     ResWarpHpFilter,
     WarpPassband::Hp,
     "highpass output",
-    "$unstable.filter.resWarpHp($saw('c2'), 'c4', 2)"
+    "cutoff frequency"
 );
 res_warp_module!(
+    RES_WARP_BP_DOCS,
     "$unstable.filter.resWarpBp",
     ResWarpBpFilter,
     WarpPassband::Bp,
     "bandpass output",
-    "$unstable.filter.resWarpBp($saw('c2'), 'c4', 2)"
+    "centre frequency of the band"
 );
 res_warp_module!(
+    RES_WARP_NOTCH_DOCS,
     "$unstable.filter.resWarpNotch",
     ResWarpNotchFilter,
     WarpPassband::Notch,
     "notch output",
-    "$unstable.filter.resWarpNotch($saw('c2'), 'c4', 2)"
+    "centre frequency of the notch"
 );
 res_warp_module!(
+    RES_WARP_AP_DOCS,
     "$unstable.filter.resWarpAp",
     ResWarpApFilter,
     WarpPassband::Ap,
     "allpass output",
-    "$unstable.filter.resWarpAp($saw('c2'), 'c4', 2, { stages: 3 })"
+    "frequency the phase shift centres on"
 );
 
 #[cfg(test)]

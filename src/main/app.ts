@@ -43,7 +43,6 @@ import { AppliedPatchState } from './appliedPatchState';
 import { isBufferSwitch } from './bufferSwitch';
 import { createConfigStore, type AppConfig } from './appConfig';
 import { createFallbackWarningChannel } from './fallbackWarning';
-import { sendNavigateToSymbol } from './helpNavigation';
 import { bundledChangelog, fetchPublishedReleases } from './releaseNotesSource';
 import {
     isNewerVersion,
@@ -70,6 +69,7 @@ import {
 import { PERFORMANCE_WINDOW_NAME } from '../shared/video/performanceWindowName';
 import { serializeForIPC } from './serializeForIPC';
 import { resolveWorkspacePath } from './workspacePaths';
+import { assetKind } from '../shared/assetFiles';
 import { SyphonBridge, type SyphonStatus } from './syphon/SyphonBridge';
 import { syphonAction, type SyphonTarget } from './syphon/syphonTarget';
 import { requestCameraAccess, screenSource } from './liveSources';
@@ -81,8 +81,9 @@ import {
     trackPerformanceWindow,
 } from './performanceWindow';
 import { executePatchScript } from './dsl/executor';
+import { buildSignalSiteTables } from './dsl/signalSiteTables';
+import type { SignalSiteTables } from '../shared/dsl/signalSites';
 import { buildLibSource } from './dsl/typescriptLibGen';
-import type { WavsFolderNode } from './dsl/typescriptLibGen';
 import * as fs from 'fs';
 import * as net from 'net';
 import * as os from 'os';
@@ -104,7 +105,7 @@ process.setSourceMapsEnabled(true);
 //
 // This switch must be set before app `ready`, before we know whether the user
 // will ever enable Syphon, so it is necessarily global rather than gated on the
-// feature. The only residual cost is that a *fully covered* Operator window
+// feature. The only residual cost is that a *fully covered* Shoreline window
 // keeps compositing; the heavier background timer/rAF throttling IS gated on the
 // feature at runtime — see applySyphonRenderTuning().
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
@@ -208,15 +209,15 @@ function setupSyphonBridge(): void {
 function promptScreenRecordingPermission(): void {
     // In dev, macOS attributes Screen Recording to the *responsible process* —
     // the app that launched the `yarn start` process tree (your terminal or
-    // editor, e.g. Visual Studio Code), not "Operator"/"Electron". A packaged
-    // build run from Finder attributes it to Operator.app, which is the real
+    // editor, e.g. Visual Studio Code), not "Shoreline"/"Electron". A packaged
+    // build run from Finder attributes it to Shoreline.app, which is the real
     // behavior the dialog below describes.
     if (!app.isPackaged) {
         console.warn(
             '[syphon-bridge] Dev permission note: grant Screen Recording to the app ' +
                 'that launched `yarn start` (your terminal / VS Code), then fully quit ' +
-                'and reopen it. Granting "Operator"/"Electron"/"operator-syphon" will ' +
-                'not help in dev. Test the real Operator.app attribution via `yarn package`.',
+                'and reopen it. Granting "Shoreline"/"Electron"/"shoreline-syphon" will ' +
+                'not help in dev. Test the real Shoreline.app attribution via `yarn package`.',
         );
     }
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -225,7 +226,7 @@ function promptScreenRecordingPermission(): void {
             buttons: ['Open System Settings', 'Not Now'],
             defaultId: 0,
             detail:
-                'To publish the Operator window to Syphon, allow Operator under ' +
+                'To publish the Shoreline window to Syphon, allow Shoreline under ' +
                 'Privacy & Security → Screen & System Audio Recording, then enable ' +
                 '“Toggle Syphon Output” again.',
             message: 'Screen Recording permission needed',
@@ -242,7 +243,7 @@ function promptScreenRecordingPermission(): void {
 
 /**
  * Toggles Syphon publishing for the View-menu checkboxes and the
- * `operator.toggleSyphon` command, which share its failure dialog.
+ * `shoreline.toggleSyphon` command, which share its failure dialog.
  * `requested` names the window a checkbox stands for; the command names none
  * (see {@link syphonAction}).
  */
@@ -354,7 +355,7 @@ console.debug = createLogInterceptor('debug');
 // Update Service
 // ========================================================================
 
-const GITHUB_REPO = 'HelveticaScenario/operator';
+const GITHUB_REPO = 'HelveticaScenario/shoreline';
 const FULL_CHANGELOG_URL = `https://github.com/${GITHUB_REPO}/blob/master/CHANGELOG.md`;
 const UPDATE_FEED_URL = `https://update.electronjs.org/${GITHUB_REPO}`;
 
@@ -511,7 +512,7 @@ if (!app.isPackaged && !app.commandLine.hasSwitch('user-data-dir')) {
 // config, or unsaved buffers with an instance the user is running.
 if (BACKGROUND_LAUNCH && !app.commandLine.hasSwitch('user-data-dir')) {
     const profile = fs.mkdtempSync(
-        path.join(os.tmpdir(), 'operator-background-'),
+        path.join(os.tmpdir(), 'shoreline-background-'),
     );
     app.setPath('userData', profile);
     process.on('exit', () =>
@@ -679,105 +680,6 @@ function startConfigWatcher() {
     });
 }
 
-// WAV folder scanner and watcher
-let currentWavsFolderTree: WavsFolderNode | null = null;
-let wavsWatcher: fs.FSWatcher | null = null;
-
-function scanWavsFolder(workspaceRoot: string): WavsFolderNode | null {
-    const wavsDir = path.join(workspaceRoot, 'wavs');
-    if (!fs.existsSync(wavsDir)) {
-        return null;
-    }
-
-    function scanDir(dirPath: string): WavsFolderNode {
-        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-        const node: WavsFolderNode = {};
-
-        for (const entry of entries) {
-            if (entry.name.startsWith('.')) continue;
-
-            if (entry.isDirectory()) {
-                const child = scanDir(path.join(dirPath, entry.name));
-                if (Object.keys(child).length > 0) {
-                    node[entry.name] = child;
-                }
-            } else if (
-                entry.isFile() &&
-                entry.name.toLowerCase().endsWith('.wav')
-            ) {
-                // Strip .wav extension for the key
-                const name = entry.name.slice(0, -4);
-                node[name] = 'file';
-            }
-        }
-
-        return node;
-    }
-
-    return scanDir(wavsDir);
-}
-
-function startWavsWatcher(workspaceRoot: string) {
-    if (wavsWatcher) {
-        wavsWatcher.close();
-        wavsWatcher = null;
-    }
-
-    const wavsDir = path.join(workspaceRoot, 'wavs');
-    if (!fs.existsSync(wavsDir)) {
-        currentWavsFolderTree = null;
-        return;
-    }
-
-    currentWavsFolderTree = scanWavsFolder(workspaceRoot);
-
-    // Tell the Rust side where to find WAVs
-    synth.setWavWorkspace(workspaceRoot);
-
-    // Debounce watcher events — fs.watch fires multiple rapid events for a
-    // single rename/move operation.  Coalescing with a short delay avoids
-    // race conditions where we scan mid-rename (directory exists under old
-    // name, files already moved) and either throw ENOENT or capture a
-    // transient snapshot that masks the real change.
-    const DEBOUNCE_MS = 150;
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-    function handleWavsChange() {
-        let newTree: WavsFolderNode | null;
-        try {
-            newTree = scanWavsFolder(workspaceRoot);
-        } catch {
-            // Scan can fail if the directory is mid-rename — schedule a
-            // retry after the filesystem has settled.
-            setTimeout(handleWavsChange, DEBOUNCE_MS);
-            return;
-        }
-        const treeChanged =
-            JSON.stringify(newTree) !== JSON.stringify(currentWavsFolderTree);
-        if (treeChanged) {
-            currentWavsFolderTree = newTree;
-            cachedLibSource = null; // Invalidate cached lib source
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send(IPC_CHANNELS.WAVS_ON_CHANGE);
-            }
-        }
-    }
-
-    try {
-        wavsWatcher = fs.watch(
-            wavsDir,
-            { recursive: true },
-            (_eventType, _filename) => {
-                if (debounceTimer) clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(handleWavsChange, DEBOUNCE_MS);
-            },
-        );
-    } catch {
-        // Watcher may fail on some platforms — not critical
-        console.warn('Failed to watch wavs/ directory');
-    }
-}
-
 // Patch reconciliation state (reset when a different file/buffer is evaluated)
 const appliedPatch = new AppliedPatchState();
 
@@ -809,24 +711,60 @@ function validatePathInWorkspace(filePath: string): string | null {
     return resolveWorkspacePath(currentWorkspaceRoot, filePath);
 }
 
-/**
- * Check if a file should be included (JS/MJS patches or WAV samples)
- */
-function isJavaScriptFile(filename: string): boolean {
-    return filename.endsWith('.js') || filename.endsWith('.mjs');
+/** The explorer's file type for a patch or an asset a patch can load, or undefined for any other file. */
+function explorerFileType(filename: string): FileTreeEntry['fileType'] {
+    if (filename.endsWith('.js') || filename.endsWith('.mjs')) {
+        return 'js';
+    }
+    return assetKind(filename);
 }
 
-function isWavFile(filename: string): boolean {
-    return filename.toLowerCase().endsWith('.wav');
-}
-
-function isSupportedFile(filename: string): boolean {
-    return isJavaScriptFile(filename) || isWavFile(filename);
-}
+let workspaceWatcher: fs.FSWatcher | null = null;
 
 /**
- * Recursively build file tree for JavaScript files
+ * Tells the renderer when files in the workspace folder change, so its
+ * explorer stays current. A change arrives as a burst of events, which are
+ * coalesced into one notice; hidden files and `node_modules` are ignored, as
+ * the explorer does.
  */
+function watchWorkspace(root: string | null): void {
+    workspaceWatcher?.close();
+    workspaceWatcher = null;
+    if (!root) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+        workspaceWatcher = fs.watch(
+            root,
+            { recursive: true },
+            (_event, filename) => {
+                if (
+                    filename
+                        ?.split(/[\\/]/)
+                        .some((p) => p.startsWith('.') || p === 'node_modules')
+                ) {
+                    return;
+                }
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(() => {
+                    timer = null;
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send(
+                            IPC_CHANNELS.FS_TREE_ON_CHANGE,
+                        );
+                    }
+                }, 150);
+            },
+        );
+        workspaceWatcher.on('error', (error) => {
+            console.warn('Stopped watching the workspace folder:', error);
+            watchWorkspace(null);
+        });
+    } catch {
+        console.warn('Failed to watch the workspace folder');
+    }
+}
+
+/** The workspace's patches and loadable assets, folder by folder. */
 function buildFileTree(
     dirPath: string,
     relativePath: string = '',
@@ -860,9 +798,9 @@ function buildFileTree(
                         type: 'directory',
                     });
                 }
-            } else if (item.isFile() && isSupportedFile(item.name)) {
+            } else if (item.isFile() && explorerFileType(item.name)) {
                 entries.push({
-                    fileType: isWavFile(item.name) ? 'wav' : 'js',
+                    fileType: explorerFileType(item.name),
                     name: item.name,
                     path: itemRelativePath,
                     type: 'file',
@@ -910,7 +848,7 @@ function registerIPCHandler<T extends keyof typeof IPC_CHANNELS>(
 registerIPCHandler('GET_SCHEMAS', () => schemas);
 
 // Syphon window output (macOS): the action lives here, so the renderer's
-// operator.toggleSyphon command (palette/keymap) round-trips through IPC.
+// shoreline.toggleSyphon command (palette/keymap) round-trips through IPC.
 registerIPCHandler('SYPHON_TOGGLE', () => toggleSyphonPublish());
 registerIPCHandler('SYPHON_IS_SUPPORTED', () => SyphonBridge.supported);
 
@@ -918,9 +856,16 @@ registerIPCHandler('SYPHON_IS_SUPPORTED', () => SyphonBridge.supported);
 let cachedLibSource: string | null = null;
 registerIPCHandler('GET_DSL_LIB_SOURCE', () => {
     if (!cachedLibSource) {
-        cachedLibSource = buildLibSource(schemas, currentWavsFolderTree);
+        cachedLibSource = buildLibSource(schemas);
     }
     return cachedLibSource;
+});
+
+// The schemas are fixed for the life of the process, so the tables are too.
+let cachedSignalSiteTables: SignalSiteTables | null = null;
+registerIPCHandler('GET_SIGNAL_SITE_TABLES', () => {
+    cachedSignalSiteTables ??= buildSignalSiteTables(schemas);
+    return cachedSignalSiteTables;
 });
 
 /** Rebuilds of a patch update whose baseline went stale while it was prepared. */
@@ -1069,13 +1014,13 @@ registerIPCHandler(
                 eqPanels,
                 video,
                 videoPreviews,
+                outputResolutions,
             } = executePatchScript(source, schemas, {
                 inputChannels: synth.inputChannels(),
                 mediaExists: (relative) =>
                     mediaFileExists(currentWorkspaceRoot, relative),
                 sampleRate: synth.sampleRate(),
                 workspaceRoot: currentWorkspaceRoot,
-                wavsFolderTree: currentWavsFolderTree,
                 loadMediaAudio: inWavWorkspace((mediaPath) =>
                     synth.loadMediaAudio(mediaPath),
                 ),
@@ -1140,6 +1085,7 @@ registerIPCHandler(
                 errors: [],
                 interpolationResolutions: interpolationResolutionsRecord,
                 moduleIdRemap,
+                outputResolutions,
                 sliders,
                 sourceLocationMap: sourceLocationRecord,
                 success: true,
@@ -1537,9 +1483,7 @@ registerIPCHandler('FS_SELECT_WORKSPACE', async () => {
     const workspaceRoot = result.filePaths[0];
     currentWorkspaceRoot = workspaceRoot;
     console.log('Workspace selected:', workspaceRoot);
-
-    // Start watching wavs/ folder for the new workspace
-    startWavsWatcher(workspaceRoot);
+    watchWorkspace(workspaceRoot);
 
     // Save to config (load-merge-save to preserve other settings)
     configStore.update((config) => {
@@ -1880,61 +1824,6 @@ registerIPCHandler('SHOW_UNSAVED_CHANGES_DIALOG', async (fileName: string) => {
     return result.response; // Returns the button index: 0=Save, 1=Don't Save, 2=Cancel
 });
 
-let helpWindow: BrowserWindow | null = null;
-
-const createHelpWindow = () => {
-    if (helpWindow) {
-        if (!BACKGROUND_LAUNCH) helpWindow.focus();
-        return;
-    }
-
-    helpWindow = new BrowserWindow({
-        height: 1000,
-        show: !BACKGROUND_LAUNCH,
-        title: `${app.name} Help`,
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-        },
-        width: 1500,
-    });
-    if (BACKGROUND_LAUNCH) showInBackground(helpWindow);
-
-    // Load the index.html of the app with #help hash
-    if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-        void helpWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL + '#help');
-    } else {
-        void helpWindow.loadFile(
-            path.join(
-                __dirname,
-                `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
-            ),
-            { hash: 'help' },
-        );
-    }
-
-    helpWindow.on('closed', () => {
-        helpWindow = null;
-    });
-};
-
-registerIPCHandler('OPEN_HELP_WINDOW', async () => {
-    createHelpWindow();
-});
-
-registerIPCHandler(
-    'OPEN_HELP_FOR_SYMBOL',
-    async (symbolType: 'type' | 'module' | 'namespace', symbolName: string) => {
-        createHelpWindow();
-        if (helpWindow) {
-            sendNavigateToSymbol(
-                helpWindow.webContents,
-                symbolType,
-                symbolName,
-            );
-        }
-    },
-);
-
 // Config IPC handlers
 registerIPCHandler('CONFIG_GET_PATH', () => {
     configStore.ensureExists();
@@ -1963,17 +1852,17 @@ const KeybindingOverrideSchema = z.object({
     args: z.unknown().optional(),
 });
 
-const KEYBINDINGS_TEMPLATE = `// Operator keybindings — VS Code keybindings.json format.
+const KEYBINDINGS_TEMPLATE = `// Shoreline keybindings — VS Code keybindings.json format.
 //
 // "key" uses VS Code syntax: cmd / ctrl / alt / shift, and chords separated
-// by spaces (e.g. "cmd+k cmd+i"). "command" is an Operator command
-// (operator.*) or a Monaco editor command (editor.action.revealDefinition,
+// by spaces (e.g. "cmd+k cmd+i"). "command" is a Shoreline command
+// (shoreline.*) or a Monaco editor command (editor.action.revealDefinition,
 // cursorDown, ...). Prefix a command with "-" to remove a binding. Changes
 // take effect when you save this file.
 [
-    // { "key": "cmd+enter", "command": "operator.updatePatch" },
-    // { "key": "cmd+.", "command": "operator.stop" },
-    // { "key": "cmd+p", "command": "operator.showCommandPalette" },
+    // { "key": "cmd+enter", "command": "shoreline.updatePatch" },
+    // { "key": "cmd+.", "command": "shoreline.stop" },
+    // { "key": "cmd+p", "command": "shoreline.showCommandPalette" },
     // {
     //     "key": "f12",
     //     "command": "editor.action.revealDefinition",
@@ -2149,7 +2038,7 @@ const createWindow = (): void => {
                     backgroundColor: '#000000',
                     height: 720,
                     show: !BACKGROUND_LAUNCH,
-                    title: 'Operator Performance',
+                    title: 'Shoreline Performance',
                     width: 1280,
                 },
             };
@@ -2285,7 +2174,10 @@ const createMenu = (): void => {
                           },
                           { type: 'separator' },
                           {
-                              ...menuShortcut('operator.openSettings', 'Cmd+,'),
+                              ...menuShortcut(
+                                  'shoreline.openSettings',
+                                  'Cmd+,',
+                              ),
                               click: () => {
                                   if (mainWindow && !mainWindow.isDestroyed()) {
                                       mainWindow.webContents.send(
@@ -2312,7 +2204,7 @@ const createMenu = (): void => {
             label: 'File',
             submenu: [
                 {
-                    ...menuShortcut('operator.newFile', 'CmdOrCtrl+N'),
+                    ...menuShortcut('shoreline.newFile', 'CmdOrCtrl+N'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2323,7 +2215,7 @@ const createMenu = (): void => {
                     label: 'New File',
                 },
                 {
-                    ...menuShortcut('operator.openWorkspace', 'CmdOrCtrl+O'),
+                    ...menuShortcut('shoreline.openWorkspace', 'CmdOrCtrl+O'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2335,7 +2227,7 @@ const createMenu = (): void => {
                 },
                 { type: 'separator' },
                 {
-                    ...menuShortcut('operator.save', 'CmdOrCtrl+S'),
+                    ...menuShortcut('shoreline.save', 'CmdOrCtrl+S'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2346,7 +2238,7 @@ const createMenu = (): void => {
                     label: 'Save',
                 },
                 {
-                    ...menuShortcut('operator.closeBuffer', 'CmdOrCtrl+W'),
+                    ...menuShortcut('shoreline.closeBuffer', 'CmdOrCtrl+W'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2362,7 +2254,7 @@ const createMenu = (): void => {
                     : ([
                           {
                               ...menuShortcut(
-                                  'operator.openSettings',
+                                  'shoreline.openSettings',
                                   'Ctrl+,',
                               ),
                               click: () => {
@@ -2437,7 +2329,7 @@ const createMenu = (): void => {
                 },
                 {
                     ...menuShortcut(
-                        'operator.togglePerformanceWindow',
+                        'shoreline.togglePerformanceWindow',
                         isMac ? 'Ctrl+Shift+V' : 'Ctrl+Shift+Y',
                     ),
                     click: () =>
@@ -2454,15 +2346,15 @@ const createMenu = (): void => {
                     click: () => {
                         if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send(
-                                MENU_CHANNELS.TOGGLE_VU_METERS,
+                                MENU_CHANNELS.TOGGLE_MIXER,
                             );
                         }
                     },
                     ...menuShortcut(
-                        'operator.toggleVuMeters',
+                        'shoreline.toggleMixer',
                         'CmdOrCtrl+Shift+M',
                     ),
-                    label: 'Toggle VU Meters',
+                    label: 'Toggle Mixer',
                 },
                 // Publish the window as a Syphon source (macOS 14+ only; hidden
                 // elsewhere so the helper never crash-loops on an unsupported OS).
@@ -2472,7 +2364,7 @@ const createMenu = (): void => {
                           {
                               checked: syphonPublishing('editor'),
                               // Funnels through the same toggle as the
-                              // operator.toggleSyphon command (palette/keymap).
+                              // shoreline.toggleSyphon command (palette/keymap).
                               click: () => {
                                   toggleSyphonPublish('editor');
                               },
@@ -2498,7 +2390,7 @@ const createMenu = (): void => {
             label: 'Run',
             submenu: [
                 {
-                    ...menuShortcut('operator.updatePatch', 'Ctrl+Enter'),
+                    ...menuShortcut('shoreline.updatePatch', 'Ctrl+Enter'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2510,7 +2402,7 @@ const createMenu = (): void => {
                 },
                 {
                     ...menuShortcut(
-                        'operator.updatePatchNextBeat',
+                        'shoreline.updatePatchNextBeat',
                         'Ctrl+Shift+Enter',
                     ),
                     click: (_item, focusedWindow) => {
@@ -2525,7 +2417,7 @@ const createMenu = (): void => {
                     label: 'Update Patch (Next Beat)',
                 },
                 {
-                    ...menuShortcut('operator.stop', 'Ctrl+.'),
+                    ...menuShortcut('shoreline.stop', 'Ctrl+.'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2536,7 +2428,7 @@ const createMenu = (): void => {
                     label: 'Stop Sound',
                 },
                 {
-                    ...menuShortcut('operator.cancelQueuedUpdate', 'Ctrl+\\'),
+                    ...menuShortcut('shoreline.cancelQueuedUpdate', 'Ctrl+\\'),
                     click: (_item, focusedWindow) => {
                         if (focusedWindow) {
                             BrowserWindow.fromId(
@@ -2566,8 +2458,8 @@ const createMenu = (): void => {
         {
             role: 'windowMenu',
         },
-        // Help menu — Release Notes and Migrate are cross-platform; Check for
-        // Updates is already in the App menu on macOS, so only add it elsewhere.
+        // Check for Updates is already in the App menu on macOS, so only add
+        // it to Help elsewhere.
         {
             role: 'help',
             submenu: [
@@ -2586,41 +2478,6 @@ const createMenu = (): void => {
                         void shell.openExternal(FULL_CHANGELOG_URL);
                     },
                     label: 'Full Changelog on GitHub',
-                },
-                { type: 'separator' },
-                {
-                    click: (_item, focusedWindow) => {
-                        if (focusedWindow) {
-                            BrowserWindow.fromId(
-                                focusedWindow.id,
-                            )?.webContents.send(MENU_CHANNELS.MIGRATE_BUFFER);
-                        }
-                    },
-                    label: 'Migrate $cycle / $iCycle to $p / $p.s...',
-                },
-                {
-                    click: (_item, focusedWindow) => {
-                        if (focusedWindow) {
-                            BrowserWindow.fromId(
-                                focusedWindow.id,
-                            )?.webContents.send(
-                                MENU_CHANNELS.MIGRATE_WAVETABLE,
-                            );
-                        }
-                    },
-                    label: 'Migrate $wavetable to pitch-first order...',
-                },
-                {
-                    click: (_item, focusedWindow) => {
-                        if (focusedWindow) {
-                            BrowserWindow.fromId(
-                                focusedWindow.id,
-                            )?.webContents.send(
-                                MENU_CHANNELS.MIGRATE_CHEBY_BLOCK_DC,
-                            );
-                        }
-                    },
-                    label: 'Migrate $cheby to preserve pre-DC-blocker output...',
                 },
                 ...(!isMac
                     ? ([
@@ -2672,10 +2529,7 @@ app.on('ready', () => {
         }
     }
 
-    // Scan wavs/ folder if workspace is set
-    if (currentWorkspaceRoot) {
-        startWavsWatcher(currentWorkspaceRoot);
-    }
+    watchWorkspace(currentWorkspaceRoot);
 
     // Audio configuration is already restored during Synthesizer initialization
     // (the config is passed to the constructor)

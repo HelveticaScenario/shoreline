@@ -60,6 +60,7 @@ fn build_unconnected_patch(modules: Vec<(&str, &str, serde_json::Value)>) -> Pat
             DeserializedParams {
                 params: cached.params,
                 channel_count: cached.channel_count,
+                f64_inputs: false,
             },
             ProcessingMode::Block,
         ));

@@ -2,7 +2,7 @@
  * Shared JSON Schema → TypeScript type expression resolver.
  *
  * Used by both the main-process type generation (typescriptLibGen)
- * and the renderer help window to display human-readable param types.
+ * and the renderer Docs panel to display human-readable param types.
  */
 
 import type schemas from '@modular/core/schemas.json';
@@ -63,14 +63,10 @@ export function resolveRef(
     | 'Poly<Signal>'
     | 'Mono<Signal>'
     | 'Buffer'
-    | 'Table'
-    | 'ParsedPattern'
-    | 'SpPattern'
-    | 'ArrangePattern'
-    | 'FastPattern'
-    | 'SlowPattern'
-    | 'StructPattern'
-    | 'BeatPattern'
+    | 'Wav'
+    | 'PhaseWarp'
+    | 'EnoscScale'
+    | 'Pattern'
     | 'ScaleSpec' {
     if (ref === 'Signal') {
         return 'Signal';
@@ -78,31 +74,12 @@ export function resolveRef(
     if (ref === 'Buffer') {
         return 'Buffer';
     }
-    if (ref === 'Table') {
-        return 'Table';
+    if (ref === 'PhaseWarp') {
+        return 'PhaseWarp';
     }
-    if (ref === 'ParsedPatternPayload') {
-        return 'ParsedPattern';
+    if (ref === 'EnoscScale') {
+        return 'EnoscScale';
     }
-    if (ref === 'SpPatternPayload') {
-        return 'SpPattern';
-    }
-    if (ref === 'ArrangePatternPayload') {
-        return 'ArrangePattern';
-    }
-    if (ref === 'FastPatternPayload') {
-        return 'FastPattern';
-    }
-    if (ref === 'SlowPatternPayload') {
-        return 'SlowPattern';
-    }
-    if (ref === 'StructPatternPayload') {
-        return 'StructPattern';
-    }
-    if (ref === 'BeatPatternPayload') {
-        return 'BeatPattern';
-    }
-
     const defsPrefix = '#/$defs/';
     if (!ref.startsWith(defsPrefix)) {
         throw new Error(`Unsupported $ref: ${ref}`);
@@ -121,46 +98,24 @@ export function resolveRef(
     if (defName === 'Buffer') {
         return 'Buffer';
     }
-    if (defName === 'Table') {
-        return 'Table';
+    if (defName === 'Wav') {
+        return 'Wav';
+    }
+    if (defName === 'PhaseWarp') {
+        return 'PhaseWarp';
+    }
+    if (defName === 'EnoscScale') {
+        return 'EnoscScale';
     }
     // A scale/chord spec string ("C(major)", "C3[maj7]"); the DSL exposes it
     // as the named `ScaleSpec` template-literal type.
     if (defName === 'ScaleSpec') {
         return 'ScaleSpec';
     }
-    // ParsedPatternPayload is recursive (MiniAST references itself via
-    // List/Sequence/...); the DSL exposes it as an opaque `ParsedPattern`
-    // named type, constructed by `$p(...)` and consumed by $cycle/$p.s.
-    if (defName === 'ParsedPatternPayload') {
-        return 'ParsedPattern';
-    }
-    // SpPatternPayload is the chained `$p.s(...).add(...)` shape; the DSL
-    // exposes it as the named `SpPattern` type rather than an inlined
-    // structural literal.
-    if (defName === 'SpPatternPayload') {
-        return 'SpPattern';
-    }
-    // ArrangePatternPayload is the `$p.arrange(...)` shape; it recurses
-    // (sections carry `SeqPatternSource`), so the DSL exposes it as the named
-    // `ArrangePattern` type to break the cycle, like ParsedPattern/SpPattern.
-    if (defName === 'ArrangePatternPayload') {
-        return 'ArrangePattern';
-    }
-    // The `.fast(...)` / `.slow(...)` / `.struct(...)` / `.beat(...)` wrapper
-    // payloads recurse (the wrapped `pattern` is a `SeqPatternSource`), so the
-    // DSL exposes them as named types like the others above.
-    if (defName === 'FastPatternPayload') {
-        return 'FastPattern';
-    }
-    if (defName === 'SlowPatternPayload') {
-        return 'SlowPattern';
-    }
-    if (defName === 'StructPatternPayload') {
-        return 'StructPattern';
-    }
-    if (defName === 'BeatPatternPayload') {
-        return 'BeatPattern';
+    // The wire payload of a pattern, which recurses; the DSL exposes it as
+    // the `Pattern` type.
+    if (defName === 'SeqPatternSource') {
+        return 'Pattern';
     }
 
     const defs = rootSchema?.$defs;
@@ -185,29 +140,11 @@ export function resolveRef(
     if (resolved?.title === 'Buffer') {
         return 'Buffer';
     }
-    if (resolved?.title === 'Table') {
-        return 'Table';
+    if (resolved?.title === 'PhaseWarp') {
+        return 'PhaseWarp';
     }
-    if (resolved?.title === 'ParsedPatternPayload') {
-        return 'ParsedPattern';
-    }
-    if (resolved?.title === 'SpPatternPayload') {
-        return 'SpPattern';
-    }
-    if (resolved?.title === 'ArrangePatternPayload') {
-        return 'ArrangePattern';
-    }
-    if (resolved?.title === 'FastPatternPayload') {
-        return 'FastPattern';
-    }
-    if (resolved?.title === 'SlowPatternPayload') {
-        return 'SlowPattern';
-    }
-    if (resolved?.title === 'StructPatternPayload') {
-        return 'StructPattern';
-    }
-    if (resolved?.title === 'BeatPatternPayload') {
-        return 'BeatPattern';
+    if (resolved?.title === 'EnoscScale') {
+        return 'EnoscScale';
     }
     return resolved;
 }
@@ -382,29 +319,17 @@ export function schemaToTypeExpr(
         if (resolved === 'Buffer') {
             return 'BufferOutputRef';
         }
-        if (resolved === 'Table') {
-            return 'Table';
+        if (resolved === 'Wav') {
+            return 'string';
         }
-        if (resolved === 'ParsedPattern') {
-            return 'ParsedPattern';
+        if (resolved === 'PhaseWarp') {
+            return 'PhaseWarp';
         }
-        if (resolved === 'SpPattern') {
-            return 'SpPattern';
+        if (resolved === 'EnoscScale') {
+            return 'EnoscScale';
         }
-        if (resolved === 'ArrangePattern') {
-            return 'ArrangePattern';
-        }
-        if (resolved === 'FastPattern') {
-            return 'FastPattern';
-        }
-        if (resolved === 'SlowPattern') {
-            return 'SlowPattern';
-        }
-        if (resolved === 'StructPattern') {
-            return 'StructPattern';
-        }
-        if (resolved === 'BeatPattern') {
-            return 'BeatPattern';
+        if (resolved === 'Pattern') {
+            return 'Pattern';
         }
         if (resolved === 'ScaleSpec') {
             return 'ScaleSpec';

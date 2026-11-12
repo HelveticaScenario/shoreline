@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CodeStyle } from '../dsl/objectPropertyInsert';
+import type { CodeStyle } from '../dsl/listEdits';
 import { computeEqSourceEdit, type EqSourceOp } from './eqSourceEdit';
 import type { EqListTarget } from './eqSourceLocate';
 
@@ -18,11 +18,11 @@ const num = (text: string) => () => text;
 
 const shared = (count: number) => ({ count, list: null, listCount: 1 });
 
-/** The panel's anchor: the `$eq` callee, or the `eq` of a `.$.eq(` chain. */
+/** The panel's anchor: the `$eq` callee, or the `eq` of a `.eq(` chain. */
 const anchorOf = (source: string) =>
-    source.includes('.$.eq(')
-        ? source.lastIndexOf('eq(')
-        : source.lastIndexOf('$eq(');
+    source.includes('$eq(')
+        ? source.lastIndexOf('$eq(')
+        : source.lastIndexOf('eq(');
 
 function run(
     source: string,
@@ -200,13 +200,11 @@ describe('computeEqSourceEdit per-channel lists', () => {
 });
 
 describe('computeEqSourceEdit call forms', () => {
-    it('finds sections in the $ chain form', () => {
-        const src = `$saw('c2').$.eq({ sections: [{ freq: 0 }], ui: true })`;
+    it('finds sections in the chain form', () => {
+        const src = `$saw('c2').eq({ sections: [{ freq: 0 }], ui: true })`;
         expect(
             run(src, 1, { fields: { gain: num('2') }, index: 0, kind: 'set' }),
-        ).toBe(
-            `$saw('c2').$.eq({ sections: [{ freq: 0, gain: 2 }], ui: true })`,
-        );
+        ).toBe(`$saw('c2').eq({ sections: [{ freq: 0, gain: 2 }], ui: true })`);
     });
 
     it('needs the config holding ui', () => {

@@ -161,3 +161,21 @@ declare module 'monaco-editor/esm/vs/platform/commands/common/commands.js' {
     /** Service identifier; pass to a command handler's `accessor.get`. */
     export const ICommandService: { readonly __brand: 'ICommandService' };
 }
+
+declare module 'monaco-editor/esm/vs/common/initialize.js' {
+    export function initialize(
+        create: (ctx: unknown, createData: unknown) => object,
+    ): void;
+}
+
+declare module 'monaco-editor/esm/vs/language/typescript/tsWorker.js' {
+    export class TypeScriptWorker {
+        constructor(ctx: unknown, createData: unknown);
+        getLanguageService(): import('typescript').LanguageService;
+    }
+}
+
+declare module 'monaco-editor/esm/vs/language/typescript/lib/typescriptServices.js' {
+    /** The whole compiler API of the TypeScript Monaco bundles. */
+    export const typescript: typeof import('typescript');
+}

@@ -1,4 +1,4 @@
-//! Strudel-style alignment combiners for `$p.s` chain ops.
+//! Strudel-style alignment combiners for `$p.s(...).trans(...)`.
 //!
 //! Direct combiner functions that take a left pattern, a right pattern, and
 //! a binary value combiner, and produce a new pattern via one of the seven
@@ -338,11 +338,8 @@ mod tests {
         assert!(!haps.is_empty());
     }
 
-    // M1 regression: in Squeeze mode `combine_squeeze` used to pass
-    // `(inner.context, outer.context)` to `ArenaHapContext::combine_in`,
-    // mis-attributing pattern_idx 0 to the right operand and pattern_idx 1
-    // to the left. Every other combinator (app_left/app_right/app_both/
-    // combine_reset) builds the context as `(left, right)`. After the fix,
+    // Squeeze mode builds the context as `(left, right)`, like every other
+    // combinator (app_left/app_right/app_both/combine_reset), so
     // the left chain operand's source span lands at pattern_idx 0
     // (HapContext::source_span) and the right operand's at pattern_idx 1
     // (HapContext::modifier_spans[0]).
@@ -416,18 +413,17 @@ mod tests {
         }
     }
 
-    // Repro for "$p.s('0 1 2 3', 'c(maj)').sub('0 5')" — the renderer-side
-    // pattern that triggered the user's bug report. Mirrors the pipeline in
+    // `$p.s('0 1 2 3', 'c(maj)').trans('0 5')`. Mirrors the pipeline in
     // `SeqPatternParam::from_sp_payload`: parse each source into a
     // `Pattern<IntervalValue>`, `strip_modifier_spans` each one, then
-    // `combine_sp` with `In` + `sub_interval_values`. The right operand
+    // `combine_sp` with `In` + `add_interval_values`. The right operand
     // ("0 5") has the '5' leaf at source offsets [2, 3). After the fold,
     // that span should land at pattern_idx == 1 (modifier_spans[0]) in
     // every hap where the right pattern's value contributes — and across
     // the cycle, at least one such hap must exist.
     #[test]
-    fn test_sp_sub_right_leaf_lands_at_pattern_idx_1() {
-        use crate::dsp::seq::interval_value::{IntervalValue, sub_interval_values};
+    fn test_sp_trans_right_leaf_lands_at_pattern_idx_1() {
+        use crate::dsp::seq::interval_value::{IntervalValue, add_interval_values};
         use crate::pattern_system::mini;
 
         // 1+2. Lower mini-notation to Pattern<IntervalValue>.
@@ -438,15 +434,15 @@ mod tests {
         let left = left.strip_modifier_spans();
         let right = right.strip_modifier_spans();
 
-        // 4. Combine with In mode + sub.
+        // 4. Combine with In mode.
         let combined: Pattern<IntervalValue> =
-            combine_sp(&left, &right, SpAlignmentMode::In, sub_interval_values);
+            combine_sp(&left, &right, SpAlignmentMode::In, add_interval_values);
 
         // 5. Query 1 cycle.
         let haps = combined.query_arc(Fraction::from_integer(0), Fraction::from_integer(1));
         assert!(
             !haps.is_empty(),
-            "expected haps from sub combine over 1 cycle"
+            "expected haps from the combine over 1 cycle"
         );
 
         // 6. For each hap, walk the context tree and collect

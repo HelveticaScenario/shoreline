@@ -51,6 +51,7 @@ fn build(src_mode: ProcessingMode) -> Patch {
                     DeserializedParams {
                         params: cached.params,
                         channel_count: cached.channel_count,
+                        f64_inputs: false,
                     },
                     mode,
                 )

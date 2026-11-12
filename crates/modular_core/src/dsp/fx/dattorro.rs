@@ -9,8 +9,10 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::DcBlocker;
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
+use crate::module_category::ModuleCategory;
+use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
-use crate::types::Clickless;
+use crate::types::SwapGlide;
 
 // ─── Dattorro delay lengths (reference sample rate: 29761 Hz) ────────────────
 
@@ -74,35 +76,62 @@ fn scale_delay_f(ref_samples: f32, sample_rate: f32, size: f32) -> f32 {
 
 // ─── Params ──────────────────────────────────────────────────────────────────
 
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, SignalParams)]
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct DattorroParams {
-    /// audio input (even channels → left, odd channels → right; with an odd
-    /// channel count the last channel feeds both sides)
+    #[input(
+        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        type = audio,
+    )]
     input: PolySignal,
-    /// reverb decay time (-5 to 5, default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "how long the tail rings: -5 shortest, +5 almost endless",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     decay: Option<MonoSignal>,
-    /// high-frequency damping in the reverb tank (-5 to 5, default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "how fast the tail darkens: -5 bright, +5 muffled",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     damping: Option<MonoSignal>,
-    /// room size — scales all delay line lengths (-5 to 5, default 0)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "room size, from 0.25× (-5) to 2× (+5) the plate's delay lengths",
+        type = control,
+        default = 0.0,
+        range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     size: Option<MonoSignal>,
-    /// predelay time in seconds (0 to 0.5, default 0)
-    #[signal(default = 0.0, range = (0.0, 0.5))]
+    #[input(
+        "gap before the reverb starts, in seconds",
+        type = control,
+        default = 0.0,
+        range = (0.0, 0.5),
+    )]
     #[deserr(default)]
     predelay: Option<MonoSignal>,
-    /// input diffusion amount (0 to 5, default 3.5)
-    #[signal(default = 3.5, range = (0.0, 5.0))]
+    #[input(
+        "how quickly the onset smears into a wash: 0 distinct echoes, 5 smoothest",
+        type = control,
+        default = 3.5,
+        range = (0.0, 5.0),
+    )]
     #[deserr(default)]
     diffusion: Option<MonoSignal>,
-    /// external tank modulation signal (-5 to 5, default 0, not clamped)
-    #[signal(default = 0.0, range = (-5.0, 5.0))]
+    #[input(
+        "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.5 ms",
+        type = control,
+        default = 0.0,
+        control_range = (-5.0, 5.0),
+    )]
     #[deserr(default)]
     modulation: Option<MonoSignal>,
 }
@@ -112,7 +141,12 @@ struct DattorroParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct DattorroOutputs {
-    #[output("output", "stereo reverb output (ch0=left, ch1=right)", default)]
+    #[output(
+        "output",
+        "stereo reverb, fully wet, as left and right channels",
+        type = cv,
+        default
+    )]
     sample: PolyOutput,
 }
 
@@ -144,15 +178,13 @@ struct DattorroState {
     feedback_l: f32,
     feedback_r: f32,
 
-    // Parameter smoothing — prevents zipper noise when params change
-    // continuously, since these control delay lengths where
-    // discontinuities get amplified by the feedback loop.
-    smoothed_size: Clickless,
-    smoothed_predelay: Clickless,
-    // Decay diffusion allpass gains are inside the feedback loop, so
-    // abrupt changes create transients that recirculate.
-    smoothed_decay_diff_1: Clickless,
-    smoothed_decay_diff_2: Clickless,
+    // Patch-update glides. Size and predelay set delay lengths, whose jumps
+    // recirculate through the feedback loop.
+    smoothed_size: SwapGlide,
+    smoothed_predelay: SwapGlide,
+    // Decay diffusion allpass gains sit inside the feedback loop.
+    smoothed_decay_diff_1: SwapGlide,
+    smoothed_decay_diff_2: SwapGlide,
 
     // Output tap positions, scaled by sample rate only (NOT by size).
     // Taps are fixed positions into the delay lines, unaffected by the
@@ -174,18 +206,33 @@ struct DattorroState {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-/// Stereo plate reverb based on the Dattorro algorithm.
-///
-/// Implements Jon Dattorro's plate reverberator with input diffusion,
-/// a cross-coupled stereo tank, and multi-tap output. Even input
-/// channels are summed to the left input, odd channels to the right;
-/// with an odd channel count the last channel feeds both sides.
-/// Output is always 100% wet.
-///
-/// ```js
-/// $dattorro($saw('c3'), { decay: 3, damping: 1, size: 2 }).out()
-/// ```
-#[module(name = "$dattorro", channels = 2, has_init, args(input))]
+const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Classic plate reverb",
+    description: "The classic Dattorro plate: a bright, smooth stereo tail that suits vocals, \
+                  plucks and drums. Output is fully wet, so blend it with `.wet(mix)` or \
+                  send to it from a bus.",
+    categories: &[ModuleCategory::Effect],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Plucks in a big plate",
+        code: r#"
+            const notes = $p('c4 eb4 g4 bb4')
+            $sine(notes)
+              .amp($perc(notes, { decay: 0.2 }))
+              .dattorro({ decay: 3 })
+              .wet(2)
+              .out()
+        "#,
+    }],
+};
+
+#[module(
+    name = "$dattorro",
+    docs = DATTORRO_DOCS,
+    channels = 2,
+    has_init,
+    args(input)
+)]
 pub struct Dattorro {
     outputs: DattorroOutputs,
     state: DattorroState,
@@ -268,10 +315,9 @@ impl Dattorro {
 
         let size_v = self.params.size.value_or(0.0);
         let size_raw = map_range(size_v, -5.0, 5.0, 0.25, 2.0).clamp(0.25, 2.0);
-        // Smooth the size parameter to prevent zipper noise.  Abrupt
-        // changes to delay lengths inside the recirculating tank cause
-        // discontinuities that get amplified by feedback on every iteration.
-        self.state.smoothed_size.update(size_raw);
+        self.state
+            .smoothed_size
+            .update(size_raw, self.params.size.glide_mark(), sample_rate);
         let size = *self.state.smoothed_size;
 
         let predelay_secs = self
@@ -280,17 +326,29 @@ impl Dattorro {
             .value_or(0.0)
             .clamp(0.0, MAX_PREDELAY_SECS);
         let predelay_raw = predelay_secs * sample_rate;
-        self.state.smoothed_predelay.update(predelay_raw);
+        self.state.smoothed_predelay.update(
+            predelay_raw,
+            self.params.predelay.glide_mark(),
+            sample_rate,
+        );
         let predelay_samples = *self.state.smoothed_predelay;
 
         let diff_v = self.params.diffusion.value_or(3.5);
         let input_diff_coeff = map_range(diff_v, 0.0, 5.0, 0.0, 0.75).clamp(0.0, 0.75);
         let decay_diff_1_coeff = map_range(diff_v, 0.0, 5.0, 0.0, 0.70).clamp(0.0, 0.70);
-        self.state.smoothed_decay_diff_1.update(decay_diff_1_coeff);
+        self.state.smoothed_decay_diff_1.update(
+            decay_diff_1_coeff,
+            self.params.diffusion.glide_mark(),
+            sample_rate,
+        );
         let decay_diff_1_coeff = *self.state.smoothed_decay_diff_1;
 
         let decay_diff_2_coeff = map_range(diff_v, 0.0, 5.0, 0.0, 0.50).clamp(0.0, 0.50);
-        self.state.smoothed_decay_diff_2.update(decay_diff_2_coeff);
+        self.state.smoothed_decay_diff_2.update(
+            decay_diff_2_coeff,
+            self.params.diffusion.glide_mark(),
+            sample_rate,
+        );
         let decay_diff_2_coeff = *self.state.smoothed_decay_diff_2;
 
         // Modulation: convert voltage to delay excursion in samples.
@@ -451,6 +509,7 @@ mod tests {
         let deserialized = DeserializedParams {
             params: cached.params,
             channel_count: cached.channel_count,
+            f64_inputs: false,
         };
         constructors.get("$dattorro").unwrap()(
             &"test-dattorro".to_string(),

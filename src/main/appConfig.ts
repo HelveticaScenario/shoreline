@@ -48,8 +48,10 @@ export const AppConfigSchema = z.object({
     performanceLineNumbers: z.boolean().optional(),
     performanceScrollSpeed: z.number().min(0).max(1).optional(),
     performanceTheme: z.string().optional(),
-    vuPanelVisible: z.boolean().optional(),
-    vuPanelHeight: z.number().min(84).max(480).optional(),
+    sidebarSide: z.enum(['left', 'right']).optional(),
+    bottomPanel: z.enum(['mixer', 'docs']).optional(),
+    docsLocation: z.enum(['bottom', 'sidebar']).optional(),
+    bottomPanelHeight: z.number().min(84).optional(),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;

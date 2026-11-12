@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-"Operator" — a real-time modular synthesizer desktop app with a JavaScript DSL for live-coding audio patches. Electron + React frontend, Rust DSP engine exposed via N-API.
+"Shoreline" — a real-time modular synthesizer desktop app with a JavaScript DSL for live-coding audio patches. Electron + React frontend, Rust DSP engine exposed via N-API.
 
 ## Commands
 
@@ -104,7 +104,7 @@ init (construct, main thread) → transfer_state_from → connect → on_patch_u
 
 Examples: `supersaw` — `init` seeds phases + `inv_sample_rate` (sr-only); `on_patch_update` computes `voice_t`/`gain`/`voices` (param-derived). `sampler` — `rate_ratio` is in `on_patch_update` because `wav.sample_rate()` only resolves in `connect()`. Test harnesses that build a module directly must mirror this: call `init` then `on_patch_update` before driving `update`.
 
-**Block modules (`#[module(block)]`).** The module keeps its per-sample `update` and adds `fn process_block(&mut self, outputs: &mut XBlockOutputs, range: Range<usize>, sample_rate: f32) -> Option<()>`. The wrapper runs `process_block` in Block mode and `update` in Sample mode (feedback cycles). Put the per-sample math in one shared function (or a `ChannelState::step`) that both call, so the paths cannot drift; each block module's `tests/block_<module>.rs` checks its paths agree bit for bit and stay allocation-free, using the harness in `tests/block_common`. `process_block` resolves each input once per range and writes straight into the block buffers. `#[derive(BlockInputs)]` on the params struct generates `params.block_inputs(range, channels, &mut scratch)`, which resolves every `PolySignal` and `Option<PolySignal>` field at once; a disconnected optional input reads as its `#[signal(default)]`, which the derive also exposes as `Params::<FIELD>_DEFAULT` for `update`'s `value_or`, or as `None` with `#[block_input(optional)]` (an input whose absence changes behaviour, like `sync`). Inputs resolved at other channel counts use `PolySignal::block_input` and `block_input_or` directly — `block_input::map` for elementwise math. `process_block` must not read `self.outputs` or `current_block_index()`: the wrapper updates neither in Block mode. Return `None` (before writing anything) to fall back: the wrapper retries shorter sub-ranges, then `update` slot by slot. Pays off where per-sample input reads dominate (cheap modules like `$scaleAndShift`) or where per-channel work can be hoisted out of the slot loop for a constant input; not where the cost is per-sample memory reads, such as `$grains`. Measure with `cargo bench -p modular_core --bench patch_bench` and real patches before converting.
+**Block modules (`#[module(block)]`).** The module keeps its per-sample `update` and adds `fn process_block(&mut self, outputs: &mut XBlockOutputs, range: Range<usize>, sample_rate: f32) -> Option<()>`. The wrapper runs `process_block` in Block mode and `update` in Sample mode (feedback cycles). Put the per-sample math in one shared function (or a `ChannelState::step`) that both call, so the paths cannot drift; each block module's `tests/block_<module>.rs` checks its paths agree bit for bit and stay allocation-free, using the harness in `tests/block_common`. `process_block` resolves each input once per range and writes straight into the block buffers. `#[derive(BlockInputs)]` on the params struct generates `params.block_inputs(range, channels, &mut scratch)`, which resolves every `PolySignal` and `Option<PolySignal>` field at once; a disconnected optional input reads as its `#[input(default)]`, which `#[params]` also exposes as `Params::<FIELD>_DEFAULT` for `update`'s `value_or`, or as `None` with `#[block_input(optional)]` (an input whose absence changes behaviour, like `sync`). Inputs resolved at other channel counts use `PolySignal::block_input` and `block_input_or` directly — `block_input::map` for elementwise math. `process_block` must not read `self.outputs` or `current_block_index()`: the wrapper updates neither in Block mode. Return `None` (before writing anything) to fall back: the wrapper retries shorter sub-ranges, then `update` slot by slot. Pays off where per-sample input reads dominate (cheap modules like `$scaleAndShift`) or where per-channel work can be hoisted out of the slot loop for a constant input; not where the cost is per-sample memory reads, such as `$grains`. Measure with `cargo bench -p modular_core --bench patch_bench` and real patches before converting.
 
 ### Detecting audio-thread allocations (dev-only)
 
@@ -132,13 +132,32 @@ Use it to verify the "no heap allocation on the audio thread" rule above. Notes:
 ### Adding/Changing Module Params
 
 1. Update param structs + DSP in `crates/modular_core/src/dsp/**/*.rs`.
+   - Put `#[params]` above the params struct's `#[derive(...)]` and document every field with `#[input("description", …)]` (never `///`). Signal fields need `type` (`audio`, `control`, `pitch`, `frequency`, `gate`, `trig`). `range` is the usable range shown in the docs: values past it are clamped, rejected or do nothing more, and either side may be open (`(0.0, ..)`). `control_range` is a control's slider span, required when `range` is open. A default that depends on other params adds `default_doc`, the default in words (`"0 if decay is set, otherwise 5"`), which the docs show in place of the number. Outputs are documented only in `#[output("name", "description", type = …)]`, where `type` is `cv`, `gate` or `trig`.
+   - The docs list params and outputs in declaration order, so declare them in the order a musician reads them, positional params first in call order (`tests/input_metadata.rs` checks the positionals).
+   - Descriptions are short and musical. They don't restate what the editor already shows beside them: the range, the default or the V/Oct unit.
 2. Wire schema/validators in category modules (e.g., `oscillators/mod.rs` via `install_constructors` / `install_param_validators`).
 3. Rebuild N-API (`yarn build-native`) to refresh `crates/modular/index.d.ts`.
 4. Adjust DSL factories in `src/main/dsl/factories.ts` if needed.
 
-### Reserved Output Names
+A param whose edits would click (a gain, a cutoff, a mix amount) glides across patch updates: keep a `SwapGlide` in `state`/`channel_state` and feed it with `glide.update(value, param.glide_mark(ch), sample_rate)`. It glides only when that param's source changed in the swap, so live modulation and unchanged cables pass through untouched; no hook is needed. The per-sample check still costs a few operations per channel, which shows on modules that do little else (`$signal`, `$curve`): give those a block path that returns `None` while `param.glides_pending(glides)` and otherwise reads the param raw and calls `param.settle_glides`, and use `glide.follow` in `update` so both paths agree.
 
-When adding methods to `ModuleOutput`, `ModuleOutputWithRange`, `BaseCollection`, `Collection`, or `CollectionWithRange`, add the method name to `RESERVED_OUTPUT_NAMES` in `crates/reserved_output_names.rs`. This is the single source of truth shared by the Rust proc-macro and TypeScript DSL via NAPI.
+### Module Docs
+
+A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crates/modular_core/src/module_docs.rs`), named in `#[module(name = …, docs = NAME_DOCS)]`. A `///` on a `#[module]` struct is a compile error. It holds:
+
+- `summary`: 1–6 words;
+- `description`: 1–3 sentences of inline markdown, never explaining individual params, except to flag a param behaviour surprising enough to need a prominent note (`$adsr`'s sustain);
+- `categories`;
+- `sections`: titled body, `DocTable` and examples, only for real reference material such as a syntax guide;
+- `examples`: titled patches that run as written, formatted as the editor's Format Document prints them (Prettier with `DEFAULT_PRETTIER_OPTIONS`). A multi-line example is an indented raw string opening on its own line; the schema strips the indent.
+
+Monaco shows the description, sections and first example; the Reference pane shows everything. `tests/module_docs.rs` checks the shape, and `generatedExampleValidity.test.ts` runs every example, and `referenceDocs.test.ts` checks each is formatted.
+
+### Reserved Member Names
+
+When adding methods to `BaseCollection`, `Collection`, `CollectionWithRange`, `DeferredCollection`, or patterns (`PATTERN_METHODS` in `src/main/dsl/miniNotation/index.ts`), add the method name to `RESERVED_MEMBER_NAMES` in `crates/reserved_member_names.rs`. This is the single source of truth shared by the Rust proc-macro and, via NAPI, the TypeScript tests that check the list against the classes.
+
+The list limits module names. Every module whose first argument is a signal is a chain method of collections (`$lpf` as `sig.lpf(...)`, `$mi.chorus` as `sig.mi.chorus(...)`), so the first segment of a module's name after its `$` cannot be reserved: `#[module]` rejects `$gain` and `$gain.soft`. A pattern is the `$cycle` that plays it and has every collection member beside its own methods, so those names are reserved too; `$cycle` itself is exempt, as the module a pattern's `.cycle(...)` calls. A module's outputs sit behind an underscore (`seq._gate`), so an output may take any name. A module the DSL exposes starts with `$`, an internal one with `_`.
 
 ### Code Organization
 
