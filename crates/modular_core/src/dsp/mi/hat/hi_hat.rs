@@ -10,8 +10,9 @@ use crate::{
     poly::{PolyOutput, PolySignal, PolySignalExt},
 };
 
-use super::channel::{ACCENT_DEFAULT, Channel, HatState, KNOB_DEFAULT, Knobs, seed};
+use super::channel::{ACCENT_DEFAULT, ACCENT_TRIM, Channel, HatState, KNOB_DEFAULT, Knobs, seed};
 use super::hat_drum::SquareHat;
+use crate::dsp::mi::accent::plaits_volts;
 use crate::dsp::mi::drum::{OUTPUT_GAIN, pitch};
 
 #[params]
@@ -55,9 +56,9 @@ struct MiHiHatParams {
     #[deserr(default)]
     noisiness: Option<PolySignal>,
     #[input(
-        "how hard each hit is: louder; unpatched trigger, scales the hiss's level",
+        "how hard each hit lands, read at each strike: up to twice as loud at 5 V; unpatched trigger, raises the hiss's level",
         type = control,
-        default = 4.0,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -84,7 +85,7 @@ const _: () = assert!(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MiHiHatOutputs {
-    #[output("output", "the hat", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the hat; an unaccented hit peaks within ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
@@ -149,16 +150,20 @@ impl MiHiHat {
             let knob = |signal: &Option<PolySignal>, default| {
                 (signal.value_or(ch, default), signal.glide_mark(ch))
             };
+            let accent = knob(&p.accent, MiHiHatParams::ACCENT_DEFAULT);
             let knobs = Knobs {
                 tone: knob(&p.tone, MiHiHatParams::TONE_DEFAULT),
                 decay: knob(&p.decay, MiHiHatParams::DECAY_DEFAULT),
                 noisiness: knob(&p.noisiness, MiHiHatParams::NOISINESS_DEFAULT),
-                accent: knob(&p.accent, MiHiHatParams::ACCENT_DEFAULT),
+                accent: (plaits_volts(accent.0), accent.1),
             };
             let out = channel.step(f0, knobs, trigger, state);
+            let level = channel
+                .accent_level
+                .next(accent, trigger, ACCENT_TRIM, state.sample_rate);
             self.outputs
                 .sample
-                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0));
+                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0) * level);
         }
     }
 }

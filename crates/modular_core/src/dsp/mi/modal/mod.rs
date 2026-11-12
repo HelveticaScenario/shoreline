@@ -3,6 +3,7 @@ mod resonator;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use super::accent::{AccentLevel, plaits_volts};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
@@ -28,6 +29,9 @@ use resonator::{Resonator, svf_coefficients};
 /// Plaits' output gains for this engine, at ±5 V full scale; the output also
 /// passes Plaits' limiter.
 const OUTPUT_GAIN: f32 = -5.0;
+/// The output level at full accent, which with Plaits' own response to
+/// accent makes a fully accented strike peak twice as high as an unaccented one.
+const ACCENT_TRIM: f32 = 2.0;
 const EXCITER_GAIN: f32 = -0.8 * 5.0;
 
 /// Lowest excitation cutoff, in cycles per sample at 48 kHz: far below any
@@ -73,9 +77,9 @@ struct ModalParams {
     #[deserr(default)]
     decay: Option<PolySignal>,
     #[input(
-        "how hard each strike is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
+        "how hard each strike lands, read at each strike: up to twice as loud at 5 V, brighter and longer; unpatched trigger, raises the grains' level",
         type = control,
-        default = 4.0,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -98,7 +102,7 @@ struct ModalParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ModalOutputs {
-    #[output("body", "the ringing body", type = cv, default, range = (-5.0, 5.0))]
+    #[output("body", "the ringing body; unaccented, within ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output(
         "exciter",
@@ -226,6 +230,7 @@ struct Voice {
     brightness: SwapGlide,
     decay: SwapGlide,
     accent: SwapGlide,
+    accent_level: AccentLevel,
     /// The last finite knobs, which a NaN or infinite knob holds.
     held: [f32; 4],
     /// Whether `random` has its per-instance seed. Transfers with the voice,
@@ -247,11 +252,12 @@ impl Voice {
             brightness: SwapGlide::default(),
             decay: SwapGlide::default(),
             accent: SwapGlide::default(),
+            accent_level: AccentLevel::default(),
             held: [
                 ModalParams::STRUCTURE_DEFAULT,
                 ModalParams::BRIGHTNESS_DEFAULT,
                 ModalParams::DECAY_DEFAULT,
-                ModalParams::ACCENT_DEFAULT,
+                plaits_volts(ModalParams::ACCENT_DEFAULT),
             ],
         }
     }
@@ -359,10 +365,12 @@ impl Modal {
             // At a standstill the modes would freeze into a held level; a
             // 1 Hz floor lets them ring out, at a resonance too low to hear.
             let f0 = limit_frequency(f0.abs(), 0.5).max(self.state.inv_sample_rate);
-            let strike = p
-                .trigger
-                .as_ref()
-                .is_some_and(|t| voice.trigger.process(t.get_value(ch)));
+            let trigger = p.trigger.as_ref().map(|t| t.get_value(ch));
+            let strike = trigger.is_some_and(|volts| voice.trigger.process(volts));
+            let accent = (
+                p.accent.value_or(ch, ModalParams::ACCENT_DEFAULT),
+                p.accent.glide_mark(ch),
+            );
             let knobs = Knobs {
                 structure: (
                     p.structure.value_or(ch, ModalParams::STRUCTURE_DEFAULT),
@@ -376,18 +384,19 @@ impl Modal {
                     p.decay.value_or(ch, ModalParams::DECAY_DEFAULT),
                     p.decay.glide_mark(ch),
                 ),
-                accent: (
-                    p.accent.value_or(ch, ModalParams::ACCENT_DEFAULT),
-                    p.accent.glide_mark(ch),
-                ),
+                accent: (plaits_volts(accent.0), accent.1),
             };
             let input = p.input.value_or(ch, 0.0) * 0.2;
             let input = if input.is_finite() { input } else { 0.0 };
             let (body, exciter) = voice.step(f0, knobs, sustain, strike, input, &self.state);
+            let level =
+                voice
+                    .accent_level
+                    .next(accent, trigger, ACCENT_TRIM, self.state.sample_rate);
             // Plaits clips after its slow limiter.
             self.outputs
                 .sample
-                .set(ch, (OUTPUT_GAIN * body).clamp(-5.0, 5.0));
+                .set(ch, (OUTPUT_GAIN * body).clamp(-5.0, 5.0) * level);
             self.outputs
                 .exciter
                 .set(ch, (EXCITER_GAIN * exciter).clamp(-5.0, 5.0));

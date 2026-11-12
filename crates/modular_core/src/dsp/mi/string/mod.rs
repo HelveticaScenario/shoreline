@@ -3,6 +3,7 @@ mod model;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use super::accent::{AccentLevel, plaits_volts};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
@@ -29,6 +30,9 @@ use model::{StringModel, StringRates, g_at_rate};
 /// Plaits' output gains for this engine, at ±5 V full scale; the output also
 /// passes Plaits' limiter, and both clip at ±5 V as Plaits does.
 const OUTPUT_GAIN: f32 = -5.0;
+/// The output level at full accent, which with Plaits' own response to
+/// accent makes a fully accented pluck peak twice as high as an unaccented one.
+const ACCENT_TRIM: f32 = 1.8;
 const EXCITER_GAIN: f32 = -0.8 * 5.0;
 
 /// Strings per channel. A strike moves to the next, so earlier notes ring on.
@@ -75,9 +79,9 @@ struct MiStringParams {
     #[deserr(default)]
     decay: Option<PolySignal>,
     #[input(
-        "how hard each pluck is: louder, brighter and longer; unpatched trigger, how loud the grains are, silent at 0",
+        "how hard each pluck lands, read at each pluck: up to twice as loud at 5 V, brighter and longer; unpatched trigger, raises the grains' level",
         type = control,
-        default = 4.0,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -100,7 +104,7 @@ struct MiStringParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MiStringOutputs {
-    #[output("strings", "the ringing strings", type = cv, default, range = (-5.0, 5.0))]
+    #[output("strings", "the ringing strings; unaccented, within ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output(
         "exciter",
@@ -265,6 +269,7 @@ struct Voice {
     brightness: SwapGlide,
     decay: SwapGlide,
     accent: SwapGlide,
+    accent_level: AccentLevel,
     /// The last finite knobs, which a NaN or infinite knob holds.
     held: [f32; 4],
     /// Whether `random` has its per-instance seed. Transfers with the voice,
@@ -285,11 +290,12 @@ impl Default for Voice {
             brightness: SwapGlide::default(),
             decay: SwapGlide::default(),
             accent: SwapGlide::default(),
+            accent_level: AccentLevel::default(),
             held: [
                 MiStringParams::STRUCTURE_DEFAULT,
                 MiStringParams::BRIGHTNESS_DEFAULT,
                 MiStringParams::DECAY_DEFAULT,
-                MiStringParams::ACCENT_DEFAULT,
+                plaits_volts(MiStringParams::ACCENT_DEFAULT),
             ],
             seeded: false,
         }
@@ -397,10 +403,12 @@ impl MiString {
             ) * self.state.inv_sample_rate;
             // A 1 Hz floor keeps the string's length finite at a standstill.
             let f0 = limit_frequency(f0.abs(), 0.5).max(self.state.inv_sample_rate);
-            let pluck = p
-                .trigger
-                .as_ref()
-                .is_some_and(|t| voice.trigger.process(t.get_value(ch)));
+            let trigger = p.trigger.as_ref().map(|t| t.get_value(ch));
+            let pluck = trigger.is_some_and(|volts| voice.trigger.process(volts));
+            let accent = (
+                p.accent.value_or(ch, MiStringParams::ACCENT_DEFAULT),
+                p.accent.glide_mark(ch),
+            );
             let knobs = Knobs {
                 structure: (
                     p.structure.value_or(ch, MiStringParams::STRUCTURE_DEFAULT),
@@ -415,18 +423,19 @@ impl MiString {
                     p.decay.value_or(ch, MiStringParams::DECAY_DEFAULT),
                     p.decay.glide_mark(ch),
                 ),
-                accent: (
-                    p.accent.value_or(ch, MiStringParams::ACCENT_DEFAULT),
-                    p.accent.glide_mark(ch),
-                ),
+                accent: (plaits_volts(accent.0), accent.1),
             };
             let input = p.input.value_or(ch, 0.0) * 0.2;
             let input = if input.is_finite() { input } else { 0.0 };
             let (strings, exciter) = voice.step(f0, knobs, sustain, pluck, input, &self.state);
+            let level =
+                voice
+                    .accent_level
+                    .next(accent, trigger, ACCENT_TRIM, self.state.sample_rate);
             // Plaits clips after its slow limiter.
             self.outputs
                 .sample
-                .set(ch, (OUTPUT_GAIN * strings).clamp(-5.0, 5.0));
+                .set(ch, (OUTPUT_GAIN * strings).clamp(-5.0, 5.0) * level);
             self.outputs
                 .exciter
                 .set(ch, (EXCITER_GAIN * exciter).clamp(-5.0, 5.0));

@@ -19,7 +19,12 @@ use crate::{
 };
 
 use super::synthetic_drum::{SyntheticKnobs, SyntheticRates, SyntheticSnareDrum};
+use crate::dsp::mi::accent::{AccentLevel, plaits_volts};
 use crate::dsp::mi::drum::{Knob, OUTPUT_GAIN, pitch, rises};
+
+/// The output level at full accent, which with Plaits' own response to
+/// accent makes a fully accented hit peak twice as high as an unaccented one.
+const ACCENT_TRIM: f32 = 1.76;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
@@ -59,9 +64,9 @@ struct MiSynthSnareParams {
     #[deserr(default)]
     snappy: Option<PolySignal>,
     #[input(
-        "how hard each hit is: louder; unpatched trigger, scales the drone's level",
+        "how hard each hit lands, read at each strike: up to twice as loud at 5 V; unpatched trigger, raises the drone's level",
         type = control,
-        default = 4.0,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -81,7 +86,7 @@ struct MiSynthSnareParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MiSynthSnareOutputs {
-    #[output("output", "the drum", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the drum; an unaccented hit peaks within ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
@@ -161,6 +166,7 @@ pub(super) struct Channel {
     decay: Knob,
     snappy: Knob,
     accent: Knob,
+    accent_level: AccentLevel,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// channel, so its noise stays continuous across patch updates.
     seeded: bool,
@@ -181,7 +187,8 @@ impl Channel {
             attack_fm: Knob::new(MiSynthSnareParams::ATTACK_FM_DEFAULT),
             decay: Knob::new(MiSynthSnareParams::DECAY_DEFAULT),
             snappy: Knob::new(MiSynthSnareParams::SNAPPY_DEFAULT),
-            accent: Knob::new(MiSynthSnareParams::ACCENT_DEFAULT),
+            accent: Knob::new(plaits_volts(MiSynthSnareParams::ACCENT_DEFAULT)),
+            accent_level: AccentLevel::default(),
             seeded: false,
         }
     }
@@ -235,16 +242,20 @@ impl MiSynthSnare {
             let knob = |signal: &Option<PolySignal>, default| {
                 (signal.value_or(ch, default), signal.glide_mark(ch))
             };
+            let accent = knob(&p.accent, MiSynthSnareParams::ACCENT_DEFAULT);
             let knobs = Knobs {
                 attack_fm: knob(&p.attack_fm, MiSynthSnareParams::ATTACK_FM_DEFAULT),
                 decay: knob(&p.decay, MiSynthSnareParams::DECAY_DEFAULT),
                 snappy: knob(&p.snappy, MiSynthSnareParams::SNAPPY_DEFAULT),
-                accent: knob(&p.accent, MiSynthSnareParams::ACCENT_DEFAULT),
+                accent: (plaits_volts(accent.0), accent.1),
             };
             let out = channel.step(f0, knobs, trigger, state);
+            let level = channel
+                .accent_level
+                .next(accent, trigger, ACCENT_TRIM, state.sample_rate);
             self.outputs
                 .sample
-                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0));
+                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0) * level);
         }
     }
 }
