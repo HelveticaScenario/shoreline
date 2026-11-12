@@ -68,9 +68,13 @@ describe('arithmetic methods', () => {
     });
 
     test('an empty collection builds nothing', () => {
+        const types = run(`$c().add(1).mul(2).out()`).map((m) => m.moduleType);
+        expect(types).not.toContain('$add');
+        expect(types).not.toContain('$mul');
         expect(new CollectionWithRange().round().length).toBe(0);
-        const types = builder.toPatch().modules.map((m) => m.moduleType);
-        expect(types).not.toContain('_round');
+        expect(
+            builder.toPatch().modules.map((m) => m.moduleType),
+        ).not.toContain('_round');
     });
 });
 

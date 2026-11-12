@@ -5,6 +5,7 @@
 mod block_common;
 
 use block_common::*;
+use modular_core::types::{ProcessingMode, SameIds};
 use serde_json::{Value, json};
 
 #[global_allocator]
@@ -17,9 +18,15 @@ const OPS: [(&str, &str, BinaryOp); 5] = [
     ("$add", "offset", |x, y| x + y),
     ("$sub", "offset", |x, y| x - y),
     ("$mul", "factor", |x, y| x * y),
-    ("$div", "divisor", |x, y| x / y),
+    ("$div", "divisor", |x, y| {
+        x * if y == 0.0 { 0.0 } else { 1.0 / y }
+    }),
     ("$exp", "exponent", |x, y| {
-        x.signum() * x.abs().powf(y.max(0.0))
+        if x == 0.0 {
+            0.0
+        } else {
+            x.signum() * x.abs().powf(y.max(0.0))
+        }
     }),
 ];
 
@@ -94,6 +101,17 @@ fn division_by_zero_outputs_zero() {
 }
 
 #[test]
+fn zero_to_any_power_is_zero() {
+    for exponent in [0.0, 2.0] {
+        check_module(
+            "$exp",
+            params("exponent", json!([0.0, -0.0]), json!(exponent)),
+            |src, _| vec![0.0; src.len()],
+        );
+    }
+}
+
+#[test]
 fn a_negative_exponent_holds_at_zero() {
     check_module(
         "$exp",
@@ -138,6 +156,37 @@ fn swap_agrees_through_an_operand_glide() {
             params(operand, input.clone(), json!(1.5)),
             params(operand, input, json!([3.0, 0.5])),
         );
+    }
+}
+
+#[test]
+fn a_divisor_edited_across_zero_glides_through_silence() {
+    // From 2 to -2 the reciprocal glides from 0.5 to -0.5, so no sample is
+    // louder than either end.
+    let input = poly_cable("src", CHANNELS);
+    check_swap_agrees(
+        "$div",
+        params("divisor", input.clone(), json!(2.0)),
+        params("divisor", input.clone(), json!(-2.0)),
+    );
+    let dut = |divisor: f32| {
+        build(
+            ProcessingMode::Block,
+            ProcessingMode::Sample,
+            "$div",
+            params("divisor", input.clone(), json!(divisor)),
+        )
+    };
+    let old = dut(2.0);
+    render(&old, &[BLOCK_SIZE]);
+    let new = dut(-2.0);
+    for (id, module) in &new.sampleables {
+        module.transfer_state_from(old.sampleables[id].as_ref(), &SameIds);
+    }
+    new.connect_all();
+    let (out, src, _) = render(&new, &[BLOCK_SIZE]);
+    for (k, (&y, &x)) in out.iter().zip(&src).enumerate() {
+        assert!(y.abs() <= x.abs() * 0.5 + 1e-6, "sample {k}: {y} from {x}");
     }
 }
 

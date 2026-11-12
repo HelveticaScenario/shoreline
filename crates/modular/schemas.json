@@ -21129,7 +21129,7 @@
         "description": "signal or amount to divide by",
         "paramType": "control",
         "controlMin": 1.0,
-        "controlMax": 10.0
+        "controlMax": 16.0
       }
     ],
     "positionalArgs": [
@@ -21146,7 +21146,7 @@
     "name": "$exp",
     "docs": {
       "summary": "Raise to a power",
-      "description": "Raises a signal to a power, sample by sample, with negative values mirroring positive ones. An exponent below 0 holds at 0, so the output only ever rises as the input does. For a curve that keeps ±5 V at ±5 V, use `$curve`.",
+      "description": "Raises a signal to a power, sample by sample, with negative values mirroring positive ones, so the output only ever rises as the input does. For a curve that keeps ±5 V at ±5 V, use `$curve`.",
       "categories": [
         "math"
       ],
@@ -21168,7 +21168,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "exponent": {
-          "description": "power to raise to; below 0 holds at 0",
+          "description": "power to raise to",
           "$ref": "#/$defs/PolySignal"
         }
       },
@@ -21255,8 +21255,9 @@
       },
       {
         "name": "exponent",
-        "description": "power to raise to; below 0 holds at 0",
+        "description": "power to raise to",
         "paramType": "control",
+        "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 4.0
       }

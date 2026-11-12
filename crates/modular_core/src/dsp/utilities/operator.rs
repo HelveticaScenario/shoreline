@@ -13,6 +13,14 @@ use crate::types::SwapGlide;
 
 /// How a module combines its input with its operand.
 pub(super) trait Combine {
+    /// The operand as it glides and reaches [`apply`](Self::apply): a module
+    /// whose result moves too far for small steps of its operand glides a
+    /// steadier form of it.
+    #[inline(always)]
+    fn operand<T: Sample>(operand: T) -> T {
+        operand
+    }
+
     fn apply<T: Sample>(input: T, operand: T) -> T;
 }
 
@@ -32,9 +40,9 @@ pub(super) fn update<C: Combine>(
         for (i, glide) in glides[..channels].iter_mut().enumerate() {
             let mark = operand.glide_mark(i);
             let value = if glide.will_glide(mark) {
-                glide.follow(operand.get_value(i), mark, sample_rate) as f64
+                glide.follow(C::operand(operand.get_value(i)), mark, sample_rate) as f64
             } else {
-                let value = operand.get_value_f64(i);
+                let value = C::operand(operand.get_value_f64(i));
                 glide.settle(value as f32, mark);
                 value
             };
@@ -43,7 +51,11 @@ pub(super) fn update<C: Combine>(
         return;
     }
     for (i, glide) in glides[..channels].iter_mut().enumerate() {
-        let value = glide.follow(operand.get_value(i), operand.glide_mark(i), sample_rate);
+        let value = glide.follow(
+            C::operand(operand.get_value(i)),
+            operand.glide_mark(i),
+            sample_rate,
+        );
         out.set(i, C::apply(input.get_value(i), value));
     }
 }
@@ -65,15 +77,18 @@ pub(super) fn process_block<C: Combine>(
     let (mut s0, mut s1) = (InputScratch::new(), InputScratch::new());
     let x = input.block_input(range.clone(), channels, &mut s0)?;
     let y = operand.block_input(range.clone(), channels, &mut s1)?;
-    operand.settle_glides(glides, y.row(range.end - 1));
-    block_input::map(out, range, [x, y], |[x, y]| C::apply(x, y));
+    for (i, (glide, &last)) in glides.iter_mut().zip(y.row(range.end - 1)).enumerate() {
+        glide.settle(C::operand(last), operand.glide_mark(i));
+    }
+    block_input::map(out, range, [x, y], |[x, y]| C::apply(x, C::operand(y)));
     Some(())
 }
 
 /// Stamp an operator module: `input` and one operand (the two positional
 /// args), one output at the precision of its inputs, and `|x, y| combine`
-/// applied per sample at either precision. `combine` runs over a generic
-/// [`Sample`] `T`.
+/// applied per sample at either precision. An optional `glide = |y| form`
+/// sets [`Combine::operand`]. Both expressions run over a generic [`Sample`]
+/// `T`.
 macro_rules! operator_module {
     (
         $Module:ident,
@@ -82,8 +97,10 @@ macro_rules! operator_module {
         input = $input_doc:literal,
         operand = $operand:ident: $operand_doc:literal
             $(, default = $default:literal)?
+            $(, range = $range:tt)?
             , control_range = ($lo:literal, $hi:literal),
         output = $output_doc:literal,
+        $(glide = |$g:ident| $glide:expr,)?
         |$x:ident, $y:ident| $combine:expr $(,)?
     ) => {
         paste::paste! {
@@ -98,6 +115,7 @@ macro_rules! operator_module {
                     $operand_doc,
                     type = control,
                     $(default = $default,)?
+                    $(range = $range,)?
                     control_range = ($lo, $hi),
                 )]
                 $operand: crate::poly::PolySignal,
@@ -120,6 +138,13 @@ macro_rules! operator_module {
             struct [<$Module Combine>];
 
             impl crate::dsp::utilities::operator::Combine for [<$Module Combine>] {
+                $(
+                    #[inline(always)]
+                    fn operand<T: crate::dsp::utils::Sample>($g: T) -> T {
+                        $glide
+                    }
+                )?
+
                 #[inline(always)]
                 fn apply<T: crate::dsp::utils::Sample>($x: T, $y: T) -> T {
                     $combine

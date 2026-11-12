@@ -29,6 +29,7 @@ mod operator;
 pub mod percussion_envelope;
 pub mod quantizer;
 pub mod remap;
+pub mod round;
 pub mod sample_and_hold;
 pub mod scale;
 pub mod scale_names;
@@ -51,7 +52,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     arithmetic::Mul::install_constructor(map);
     arithmetic::Div::install_constructor(map);
     arithmetic::Exp::install_constructor(map);
-    arithmetic::Round::install_constructor(map);
+    round::Round::install_constructor(map);
     buffer::BufRead::install_constructor(map);
     buffer::BufferWrite::install_constructor(map);
     chord::Chord::install_constructor(map);
@@ -93,7 +94,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     arithmetic::Mul::install_params_deserializer(map);
     arithmetic::Div::install_params_deserializer(map);
     arithmetic::Exp::install_params_deserializer(map);
-    arithmetic::Round::install_params_deserializer(map);
+    round::Round::install_params_deserializer(map);
     buffer::BufRead::install_params_deserializer(map);
     buffer::BufferWrite::install_params_deserializer(map);
     chord::Chord::install_params_deserializer(map);
@@ -136,7 +137,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         arithmetic::Mul::get_schema(),
         arithmetic::Div::get_schema(),
         arithmetic::Exp::get_schema(),
-        arithmetic::Round::get_schema(),
+        round::Round::get_schema(),
         buffer::BufRead::get_schema(),
         buffer::BufferWrite::get_schema(),
         chord::Chord::get_schema(),
