@@ -1132,6 +1132,10 @@ pub struct AudioState {
     /// build the editor JSON in `get_module_states`. Single lock for `&self`
     /// mutation; the audio thread never touches it. See [`ModuleStateMetaCache`].
     module_state_meta: Mutex<ModuleStateMetaCache>,
+    /// Which outputs of each module of the last built patch have their bounds
+    /// read, as bits by port index; a module rebuilt on its own stores the
+    /// same.
+    bounds_masks: Mutex<HashMap<String, u64>>,
     /// The last successfully built editor-state JSON, served when a poll loses
     /// the `module_states` try_lock race with the audio thread — so contention
     /// reads as an unchanged poll, never as "all modules removed". Shared via
@@ -1187,6 +1191,7 @@ impl AudioState {
             audio_budget_meter: Arc::new(AudioBudgetMeter::default()),
             module_states: Arc::new(Mutex::new(HashMap::new())),
             module_state_meta: Mutex::new(ModuleStateMetaCache::default()),
+            bounds_masks: Mutex::new(HashMap::new()),
             module_states_snapshot: Mutex::new(Arc::new(HashMap::new())),
             midi_manager,
             transport_meter: Arc::new(TransportMeter::default()),
@@ -1195,6 +1200,11 @@ impl AudioState {
             module_profile_collection: modular_core::profiling::new_collection(),
             module_profiling_enable_count: Arc::new(AtomicU32::new(0)),
         }
+    }
+
+    /// The outputs of module `id` whose bounds are read in the last built patch.
+    pub fn bounds_mask(&self, id: &str) -> u64 {
+        self.bounds_masks.lock().get(id).copied().unwrap_or(0)
     }
 
     /// True if the audio callback has caught a panic and is now emitting silence.
@@ -1635,6 +1645,7 @@ impl AudioState {
             .new_patch
             .insert_modules(to_construct, sample_rate, self.block_size)
             .map_err(napi::Error::from_reason)?;
+        *self.bounds_masks.lock() = std::mem::take(&mut update.new_patch.bounds_masks);
         block_ids.sort();
         sample_ids.sort();
         println!(
@@ -5109,6 +5120,60 @@ mod tests {
             Arc::new(MidiInputManager::new()),
             1,
         )
+    }
+
+    #[test]
+    fn a_built_patch_keeps_which_outputs_store_bounds() {
+        // A module rebuilt on its own (`set_module_param`) takes its storage
+        // from here, so its bounds keep reaching the modules that read them.
+        let state = create_test_audio_state();
+        let cable = |module: &str| serde_json::json!({ "type": "cable", "module": module, "port": "output", "channel": 0 });
+        let module = |id: &str, module_type: &str, params| modular_core::types::ModuleSpec {
+            id: id.into(),
+            module_type: module_type.into(),
+            id_is_explicit: None,
+            skip_state_transfer: None,
+            params,
+        };
+        let graph = PatchGraph {
+            modules: vec![
+                module("saw", "$saw", serde_json::json!({ "freq": 0.0 })),
+                module(
+                    "read",
+                    "$add",
+                    serde_json::json!({ "input": cable("saw"), "offset": 1.0 }),
+                ),
+                module(
+                    "unread",
+                    "$add",
+                    serde_json::json!({ "input": cable("saw"), "offset": 1.0 }),
+                ),
+                module(
+                    "reader",
+                    "$remap",
+                    serde_json::json!({ "input": cable("read"), "outMin": 0.0, "outMax": 1.0 }),
+                ),
+            ],
+            module_id_remaps: None,
+            scopes: vec![],
+            vu_meters: vec![],
+        };
+        let errors = state.handle_set_patch(PatchSubmission {
+            graph,
+            sample_rate: 44_100.0,
+            trigger: QueuedTrigger::Immediate,
+            update_id: 1,
+            wav_data: HashMap::new(),
+            transport_meta: None,
+            reset_clock: false,
+        });
+        assert!(
+            errors.is_empty(),
+            "{:?}",
+            errors.iter().map(|e| &e.message).collect::<Vec<_>>()
+        );
+        assert_eq!(state.bounds_mask("read"), 1);
+        assert_eq!(state.bounds_mask("unread"), 0);
     }
 
     #[test]

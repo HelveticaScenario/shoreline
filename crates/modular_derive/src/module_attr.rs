@@ -905,6 +905,7 @@ fn impl_module_macro_attr(
                         &mut module.outputs,
                         self.block_size,
                     );
+                    (*self.block_outputs.get()).start_bounds_block();
                 }
             }
 
@@ -932,6 +933,11 @@ fn impl_module_macro_attr(
                 // sample count without a compiler diagnostic.
                 let start_index = self.index.get();
                 #process_loop
+                debug_assert!(
+                    unsafe { (*self.block_outputs.get()).bounds_written(self.index.get()) },
+                    "{} rendered samples without their bounds",
+                    self.id
+                );
                 self.computing.set(false);
                 if _prof_active {
                     crate::profiling::pop_frame((target - start_index) as u32);
@@ -980,6 +986,63 @@ fn impl_module_macro_attr(
                     lanes,
                     processed: &self.index,
                 })
+            }
+
+            fn get_bounds_at(&self, port: &str, ch: usize, index: usize) -> crate::bounds::Bounds {
+                let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
+                    return crate::bounds::Bounds::UNBOUNDED;
+                };
+                let slot = self.readable_slot(index);
+                let outputs = unsafe { &*self.block_outputs.get() };
+                outputs.get_bounds_at(port_idx, ch, slot)
+            }
+
+            fn port_bounds(&self, port: &str) -> crate::bounds::PortBounds {
+                let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
+                    return crate::bounds::PortBounds::Unbounded;
+                };
+                let outputs = unsafe { &*self.block_outputs.get() };
+                outputs.port_bounds(
+                    port_idx,
+                    &self.index,
+                    self.mode != crate::types::ProcessingMode::Block,
+                )
+            }
+
+            fn port_index(&self, port: &str) -> Option<usize> {
+                <#block_outputs_ty>::port_index(port)
+            }
+
+            fn bounded_outputs(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> u64 {
+                // SAFETY: main thread, before the module is shipped to the
+                // audio thread; nothing else holds the inner module.
+                let module = unsafe { &*self.module.get() };
+                <#block_outputs_ty>::bounded_mask(crate::types::BoundsInputs::inputs_bounded(
+                    &module.params,
+                    is_bounded,
+                ))
+            }
+
+            fn bounds_sources(&self, demanded: u64) -> Vec<crate::types::CableSource> {
+                // SAFETY: as `bounded_outputs`.
+                let params = unsafe { &(*self.module.get()).params };
+                let mut sources = Vec::new();
+                let mut read = crate::types::BoundsInputs::bounds_read(params);
+                if demanded & <#block_outputs_ty>::INPUT_BOUNDED_PORTS != 0 {
+                    read.extend(crate::types::BoundsInputs::bounds_inputs(params));
+                }
+                for signal in read {
+                    crate::types::Connect::collect_cables(signal, &mut sources);
+                }
+                sources
+            }
+
+            fn make_bounded(&self, mask: u64) {
+                // SAFETY: as `bounded_outputs`.
+                unsafe {
+                    crate::types::OutputStruct::make_bounded(&mut (*self.module.get()).outputs, mask);
+                    (*self.block_outputs.get()).make_bounded(mask);
+                }
             }
 
             fn port_channels(&self, port: &str) -> usize {

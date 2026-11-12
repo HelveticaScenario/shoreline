@@ -221,3 +221,73 @@ fn allocation_free() {
         assert_eq!(allocations_while_rendering("_round", params), 0);
     }
 }
+
+#[test]
+fn bounds_map_through_a_fixed_operand() {
+    let expected = [
+        ("$add", Bounds::new(-3.0, 7.0)),
+        ("$sub", Bounds::new(-7.0, 3.0)),
+        ("$mul", Bounds::new(-10.0, 10.0)),
+        ("$div", Bounds::new(-2.5, 2.5)),
+        ("$exp", Bounds::new(-25.0, 25.0)),
+    ];
+    for ((module, operand, _), (name, bounds)) in OPS.into_iter().zip(expected) {
+        assert_eq!(module, name);
+        let rendered = check_bounds_agree(
+            module,
+            params(operand, poly_cable("src", CHANNELS), json!(2.0)),
+        );
+        assert!(
+            rendered.iter().all(|&b| b == bounds),
+            "{module}: {:?}",
+            rendered[0]
+        );
+    }
+}
+
+#[test]
+fn bounds_span_a_swinging_operand() {
+    for (module, operand, _) in OPS.into_iter().filter(|(module, ..)| *module != "$div") {
+        check_bounds_agree(
+            module,
+            params(
+                operand,
+                poly_cable("src", CHANNELS),
+                poly_cable("lfo", CHANNELS),
+            ),
+        );
+    }
+}
+
+#[test]
+fn a_swinging_divisor_leaves_the_quotient_unbounded() {
+    let patch = build(
+        ProcessingMode::Block,
+        ProcessingMode::Block,
+        "$div",
+        params(
+            "divisor",
+            poly_cable("src", CHANNELS),
+            poly_cable("lfo", CHANNELS),
+        ),
+    );
+    assert!(
+        render_bounds(&patch, &[BLOCK_SIZE])
+            .iter()
+            .all(|b| !b.is_bounded())
+    );
+    let by_zero = check_bounds_agree(
+        "$div",
+        params("divisor", poly_cable("src", CHANNELS), json!(0.0)),
+    );
+    assert!(by_zero.iter().all(|&b| b == Bounds::point(0.0)));
+}
+
+#[test]
+fn rounded_bounds_round() {
+    let bounds = check_bounds_agree(
+        "_round",
+        json!({ "input": poly_cable("src", CHANNELS), "mode": "floor" }),
+    );
+    assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
+}

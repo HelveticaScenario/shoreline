@@ -164,3 +164,12 @@ fn allocation_free() {
         assert_eq!(allocations_while_rendering("_crossfade", params), 0);
     }
 }
+
+#[test]
+fn bounds_span_both_legs() {
+    let bounds = check_bounds_agree(
+        "_crossfade",
+        json!({ "dry": poly_cable("src", CHANNELS), "wet": 8.0, "mix": poly_cable("lfo", CHANNELS) }),
+    );
+    assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 8.0)));
+}

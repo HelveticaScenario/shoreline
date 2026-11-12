@@ -6,7 +6,7 @@
 
 use crate::dsp::core::audio_in::AudioIn;
 use crate::types::{
-    Message, MessageTag, ROOT_ID, ROOT_OUTPUT_PORT, Sampleable, SampleableMap, WavData,
+    CableSource, Message, MessageTag, ROOT_ID, ROOT_OUTPUT_PORT, Sampleable, SampleableMap, WavData,
 };
 
 use std::collections::HashMap;
@@ -17,6 +17,11 @@ pub struct Patch {
     pub sampleables: SampleableMap,
     pub wav_data: HashMap<String, Arc<WavData>>,
     message_listeners: HashMap<MessageTag, Vec<String>>,
+    /// The outputs whose bounds are read, as bits by port index per module,
+    /// from the last [`insert_modules`](Self::insert_modules); those whose
+    /// module computes them store them. Main thread only: a module rebuilt on
+    /// its own takes its storage from here.
+    pub bounds_masks: HashMap<String, u64>,
 }
 
 impl Default for Patch {
@@ -39,6 +44,7 @@ impl Patch {
             sampleables,
             wav_data: HashMap::new(),
             message_listeners: HashMap::new(),
+            bounds_masks: HashMap::new(),
         };
         patch.rebuild_message_listeners();
         patch
@@ -119,7 +125,79 @@ impl Patch {
                 .map_err(|e| format!("Failed to create module {}: {}", id, e))?;
             self.sampleables.insert(id, module);
         }
+        self.settle_bounds();
         Ok(())
+    }
+
+    /// Settle which outputs carry bounds and give them their storage.
+    ///
+    /// An output is bounded when its range or params bound it, or when every
+    /// input its bounds come from is bounded; growing the set until nothing
+    /// joins takes the least such set, so a feedback cycle that only feeds
+    /// itself never becomes bounded. A bounded output stores its bounds only
+    /// when something reads them: a module that reads an input's bounds for
+    /// itself, or a read output whose bounds come from it. The read
+    /// outputs, as bits by port index, are left in
+    /// [`bounds_masks`](Self::bounds_masks).
+    ///
+    /// Main thread, once the modules are constructed and before
+    /// [`connect_all`](Self::connect_all): it replaces the storage cables
+    /// point into.
+    fn settle_bounds(&mut self) {
+        let index = |module: &str, port: &str| {
+            self.sampleables
+                .get(module)
+                .and_then(|producer| producer.port_index(port))
+        };
+        let mut bounded: HashMap<&str, u64> = HashMap::new();
+        loop {
+            let mut grew = false;
+            for (id, module) in &self.sampleables {
+                let mask = module.bounded_outputs(&|producer, port| {
+                    index(producer, port).is_some_and(|i| {
+                        bounded
+                            .get(producer)
+                            .is_some_and(|mask| mask & (1 << i) != 0)
+                    })
+                });
+                let entry = bounded.entry(id.as_str()).or_default();
+                if mask & !*entry != 0 {
+                    *entry |= mask;
+                    grew = true;
+                }
+            }
+            if !grew {
+                break;
+            }
+        }
+        let mut stored: HashMap<String, u64> = HashMap::new();
+        let mut queue: Vec<CableSource> = self
+            .sampleables
+            .values()
+            .flat_map(|module| module.bounds_sources(0))
+            .collect();
+        while let Some(source) = queue.pop() {
+            let Some(i) = index(&source.module, &source.port) else {
+                continue;
+            };
+            let bit = 1u64 << i;
+            if bounded
+                .get(source.module.as_str())
+                .is_none_or(|mask| mask & bit == 0)
+            {
+                continue;
+            }
+            let entry = stored.entry(source.module.clone()).or_default();
+            if *entry & bit != 0 {
+                continue;
+            }
+            *entry |= bit;
+            queue.extend(self.sampleables[&source.module].bounds_sources(bit));
+        }
+        for (id, module) in &self.sampleables {
+            module.make_bounded(stored.get(id).copied().unwrap_or(0));
+        }
+        self.bounds_masks = stored;
     }
 
     /// Resolve every module's cable pointers, then notify each that the patch is

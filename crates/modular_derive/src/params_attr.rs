@@ -101,6 +101,9 @@ struct InputAttr {
     default_doc: Option<LitStr>,
     range: Option<Bounds>,
     control_range: Option<Bounds>,
+    /// `bounds`: the module's `bounds = input` outputs are bounded only
+    /// when this input is.
+    carries_bounds: bool,
 }
 
 fn parse_number(input: ParseStream) -> syn::Result<Number> {
@@ -179,6 +182,7 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
             default_doc: None,
             range: None,
             control_range: None,
+            carries_bounds: false,
         };
         while !input.is_empty() {
             input.parse::<Token![,]>()?;
@@ -186,6 +190,13 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
                 break;
             }
             let key = Ident::parse_any(input)?;
+            if key == "bounds" {
+                if parsed.carries_bounds {
+                    return Err(syn::Error::new(key.span(), "duplicate `bounds`"));
+                }
+                parsed.carries_bounds = true;
+                continue;
+            }
             input.parse::<Token![=]>()?;
             let duplicate = || syn::Error::new(key.span(), format!("duplicate `{key}`"));
             match key.to_string().as_str() {
@@ -229,7 +240,7 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
                     return Err(syn::Error::new(
                         key.span(),
                         format!(
-                            "unknown `#[input]` key `{other}`; expected type, default, default_doc, range or control_range"
+                            "unknown `#[input]` key `{other}`; expected type, default, default_doc, range, control_range or bounds"
                         ),
                     ));
                 }
@@ -438,13 +449,52 @@ pub fn params_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 }
 
-fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
-    if !attr.is_empty() {
-        return Err(syn::Error::new(
-            attr.span(),
-            "`#[params]` takes no arguments",
-        ));
+/// `#[params(…)]` options: `bounded_when = path` replaces the test that the
+/// tagged inputs are bounded, and `reads_bounds = path` names the inputs whose
+/// bounds the module reads for itself; each path is a function of the params.
+#[derive(Default)]
+struct ParamsOptions {
+    bounded_when: Option<syn::Path>,
+    reads_bounds: Option<syn::Path>,
+}
+
+fn parse_params_options(attr: TokenStream2) -> syn::Result<ParamsOptions> {
+    let mut options = ParamsOptions::default();
+    if attr.is_empty() {
+        return Ok(options);
     }
+    let parser = |input: ParseStream| -> syn::Result<()> {
+        loop {
+            let key = Ident::parse_any(input)?;
+            input.parse::<Token![=]>()?;
+            let path: syn::Path = input.parse()?;
+            let slot = match key.to_string().as_str() {
+                "bounded_when" => &mut options.bounded_when,
+                "reads_bounds" => &mut options.reads_bounds,
+                other => {
+                    return Err(syn::Error::new(
+                        key.span(),
+                        format!(
+                            "unknown `#[params]` option `{other}`; expected bounded_when or reads_bounds"
+                        ),
+                    ));
+                }
+            };
+            if slot.replace(path).is_some() {
+                return Err(syn::Error::new(key.span(), format!("duplicate `{key}`")));
+            }
+            if input.is_empty() {
+                return Ok(());
+            }
+            input.parse::<Token![,]>()?;
+        }
+    };
+    syn::parse::Parser::parse2(parser, attr)?;
+    Ok(options)
+}
+
+fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
+    let options = parse_params_options(attr)?;
     let mut ast: ItemStruct = syn::parse2(item)?;
     if !ast.attrs.iter().any(|a| a.path().is_ident("derive")) {
         return Err(syn::Error::new(
@@ -463,6 +513,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
 
     let mut schemas = Vec::new();
     let mut defaults = Vec::new();
+    let mut bounds_checks = Vec::new();
     for field in fields.named.iter_mut() {
         let ident = field.ident.clone().expect("named field");
         let position = field.attrs.iter().position(|a| a.path().is_ident("input"));
@@ -493,6 +544,22 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         }
         let parsed = parse_input_attr(&input_attr)?;
         validate(&parsed, field)?;
+        if parsed.carries_bounds {
+            if is_poly_signal_type(&field.ty) {
+                bounds_checks.push(quote! { inputs.push(&self.#ident); });
+            } else if is_option_poly_signal_type(&field.ty) {
+                bounds_checks.push(quote! {
+                    if let Some(signal) = &self.#ident {
+                        inputs.push(signal);
+                    }
+                });
+            } else {
+                return Err(syn::Error::new(
+                    field.ty.span(),
+                    "`bounds` applies to `PolySignal` and `Option<PolySignal>` inputs",
+                ));
+            }
+        }
 
         let description = &parsed.description;
         field
@@ -588,12 +655,41 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         }
     }
 
+    let inputs_bounded = options.bounded_when.map(|test| {
+        quote! {
+            fn inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
+                #test(self, is_bounded)
+            }
+        }
+    });
+    let bounds_read = options.reads_bounds.map(|read| {
+        quote! {
+            fn bounds_read(&self) -> Vec<&crate::poly::PolySignal> {
+                #read(self)
+            }
+        }
+    });
+    let bounds_impl = quote! {
+        impl crate::types::BoundsInputs for #name {
+            fn bounds_inputs(&self) -> Vec<&crate::poly::PolySignal> {
+                #[allow(unused_mut)]
+                let mut inputs = Vec::new();
+                #(#bounds_checks)*
+                inputs
+            }
+            #inputs_bounded
+            #bounds_read
+        }
+    };
+
     Ok(quote! {
         #ast
 
         impl #name {
             #(#defaults)*
         }
+
+        #bounds_impl
 
         impl crate::types::SignalParamMeta for #name {
             // Defaults are written as the number the docs show, which may be a

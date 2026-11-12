@@ -83,3 +83,16 @@ fn allocation_free() {
         assert_eq!(allocations_while_rendering("$gain", params), 0);
     }
 }
+
+#[test]
+fn bounds_follow_the_taper() {
+    let bounds = check_bounds_agree(
+        "$gain",
+        json!({ "input": poly_cable("src", CHANNELS), "level": 2.5 }),
+    );
+    assert!(bounds.iter().all(|&b| b == Bounds::new(-0.625, 0.625)));
+    check_bounds_agree(
+        "$gain",
+        json!({ "input": poly_cable("src", CHANNELS), "level": poly_cable("lfo", CHANNELS) }),
+    );
+}

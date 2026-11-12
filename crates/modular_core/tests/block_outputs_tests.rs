@@ -9,6 +9,9 @@ mod types {
 mod block_port {
     pub use modular_core::block_port::*;
 }
+mod bounds {
+    pub use modular_core::bounds::*;
+}
 mod poly {
     pub use modular_core::poly::*;
 }

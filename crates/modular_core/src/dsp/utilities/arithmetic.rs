@@ -102,7 +102,13 @@ operator_module!(
         },
         |input, reciprocal| input * reciprocal
     ),
-    |input, divisor| input / divisor,
+    // Only a fixed divisor bounds the quotient: one that swings through 0
+    // reaches every value.
+    operand_bounded = |divisor| divisor.is_constant(),
+    |input, divisor| {
+        let zero = T::from_f32(0.0);
+        if divisor == zero { zero } else { input / divisor }
+    },
 );
 
 const EXP_DOCS: ModuleDocs = ModuleDocs {

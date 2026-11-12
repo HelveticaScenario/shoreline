@@ -51,3 +51,27 @@ fn allocation_free() {
         0
     );
 }
+
+#[test]
+fn bounds_clamp_with_the_signal() {
+    let input = poly_cable("src", CHANNELS);
+    let cases = [
+        (
+            json!({ "input": input, "min": -1.0, "max": 2.0 }),
+            Bounds::new(-1.0, 2.0),
+        ),
+        (json!({ "input": input, "min": 0.0 }), Bounds::new(0.0, 5.0)),
+    ];
+    for (params, expected) in cases {
+        let bounds = check_bounds_agree("$clamp", params.clone());
+        assert!(
+            bounds.iter().all(|&b| b == expected),
+            "{params}: {:?}",
+            bounds[0]
+        );
+    }
+    check_bounds_agree(
+        "$clamp",
+        json!({ "input": input, "min": poly_cable("lfo", CHANNELS), "max": 4.0 }),
+    );
+}

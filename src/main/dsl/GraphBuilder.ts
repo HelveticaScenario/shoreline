@@ -700,7 +700,10 @@ function erratic(
     const factory = builder.getFactory('_erratic');
     const options = { trigger, speed, bias, sparse };
     if (!range) {
-        return factory(input, amount, options) as Collection;
+        return factory(input, amount, {
+            ...options,
+            mode: 'shift',
+        }) as Collection;
     }
     return (
         factory(input, amount, {

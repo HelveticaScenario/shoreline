@@ -457,6 +457,20 @@ export interface WavTimeSignature {
   num: number
   den: number
 }
+/**
+ * How an output's bounds arise, named in `#[output(bounds = …)]` or implied
+ * by its `range`. Whether a `Params` or `Input` output is bounded in a given
+ * patch is settled when the patch is built.
+ */
+export type BoundsKind = /** Never bounded. */
+'unbounded'|
+/** Always within the output's declared range. */
+'fixed'|
+/** Bounded by the module's own params. */
+'params'|
+/** Bounded when every input the module tags with `bounds` is. */
+'input';
+
 export interface DocExampleSchema {
   title: string
   code: string
@@ -605,6 +619,8 @@ export interface OutputSchema {
   channels?: number
   /** An `OutputPrecision` value. */
   precision: string
+  /** A `BoundsKind` value. */
+  bounds: string
 }
 
 /**

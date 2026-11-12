@@ -28,6 +28,7 @@ use std::mem::MaybeUninit;
 use std::ops::Range;
 
 use crate::BlockPort;
+use crate::bounds::Bounds;
 use crate::dsp::utils::sanitize;
 use crate::poly::{PORT_MAX_CHANNELS, PolySignal};
 use crate::types::Signal;
@@ -384,5 +385,68 @@ pub fn map<const N: usize>(
             // SAFETY: every source has length `len` and `k < len`.
             *value = sanitize(f(sources.map(|source| unsafe { *source.get_unchecked(k) })));
         }
+    }
+}
+
+/// Write `out`'s bounds for every slot of `range` from each slot's `values`:
+/// `rule(ch, values)` per channel. When every value holds still one row fills
+/// the range; otherwise each slot is computed. A rule gives `None` only for
+/// bounds that move within the range, so a `None` on the first slot writes
+/// nothing and returns `None`, letting the block path decline. Call it before
+/// writing the samples.
+pub fn map_bounds<const N: usize>(
+    out: &mut BlockPort,
+    range: Range<usize>,
+    values: [BlockInput<'_>; N],
+    rule: impl Fn(usize, [f32; N]) -> Option<Bounds>,
+) -> Option<()> {
+    if !out.has_bounds() || range.is_empty() {
+        return Some(());
+    }
+    let first: [&[f32]; N] = std::array::from_fn(|j| values[j].row(range.start));
+    if values.iter().all(|value| value.is_constant()) {
+        return out.fill_bounds_with(range, |ch| rule(ch, first.map(|row| row[ch])));
+    }
+    let channels = out.channels();
+    if (0..channels).any(|ch| rule(ch, first.map(|row| row[ch])).is_none()) {
+        return None;
+    }
+    let start = range.start;
+    let bounds = out.bounds_slots_mut(range.clone());
+    for i in range {
+        let rows: [&[f32]; N] = std::array::from_fn(|j| values[j].row(i));
+        let slot = &mut bounds[(i - start) * channels..(i - start + 1) * channels];
+        for (ch, b) in slot.iter_mut().enumerate() {
+            *b = rule(ch, rows.map(|row| row[ch])).unwrap_or(Bounds::UNBOUNDED);
+        }
+    }
+    Some(())
+}
+
+/// A [`BlockInput`] that holds `value(ch)` on each of `channels` channels for
+/// every slot of `range`, built in `scratch`: a value a module derives once per
+/// range, read like any other input.
+pub fn constant_row<'a>(
+    range: Range<usize>,
+    channels: usize,
+    scratch: &'a mut InputScratch,
+    value: impl Fn(usize) -> f32,
+) -> BlockInput<'a> {
+    assert!(
+        channels <= PORT_MAX_CHANNELS,
+        "more channels than a port holds"
+    );
+    let row = scratch.as_mut_ptr();
+    for ch in 0..channels {
+        // SAFETY: `channels <= PORT_MAX_CHANNELS <= SCRATCH_LEN`.
+        unsafe { row.add(ch).write(value(ch)) };
+    }
+    BlockInput {
+        data: row,
+        first: range.start,
+        end: range.end,
+        stride: 0,
+        channels,
+        _rows: PhantomData,
     }
 }

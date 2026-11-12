@@ -90,11 +90,11 @@ describe('.erratic()', () => {
         });
     });
 
-    test('unranged signal passes sparse but not mode', () => {
+    test('unranged signal passes sparse and always shifts', () => {
         builder.$c('c3').erratic(1, { sparse: true, mode: 'blend' } as object);
         const params = erraticParams();
         expect(params.sparse).toBe(true);
-        expect(params.mode).toBeUndefined();
+        expect(params.mode).toBe('shift');
     });
 
     test('_erratic is not a global', () => {

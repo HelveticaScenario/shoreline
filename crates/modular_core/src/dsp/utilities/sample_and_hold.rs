@@ -1,3 +1,4 @@
+use crate::bounds::Bounds;
 use crate::dsp::utils::{SchmittState, SchmittTrigger};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
@@ -10,7 +11,7 @@ use schemars::JsonSchema;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SampleAndHoldParams {
-    #[input("signal to sample", type = audio)]
+    #[input("signal to sample", type = audio, bounds)]
     input: PolySignal,
     #[input("rising edge captures the current input value", type = trig)]
     trigger: PolySignal,
@@ -19,7 +20,7 @@ struct SampleAndHoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SampleAndHoldOutputs {
-    #[output("output", "the voltage captured at the last trigger", type = cv, default)]
+    #[output("output", "the voltage captured at the last trigger", type = cv, bounds = input, default)]
     sample: PolyOutput,
 }
 
@@ -27,6 +28,8 @@ struct SampleAndHoldOutputs {
 struct SampleAndHoldChannelState {
     trigger: SchmittTrigger,
     held_value: f32,
+    /// The input's bounds when `held_value` was captured.
+    held_bounds: Bounds,
 }
 
 const SAH_DOCS: ModuleDocs = ModuleDocs {
@@ -84,16 +87,14 @@ impl SampleAndHold {
             let input = self.params.input.get_value(ch);
             let trigger = self.params.trigger.get_value(ch);
 
-            if state.trigger.state == SchmittState::Uninitialized {
+            let uninitialized = state.trigger.state == SchmittState::Uninitialized;
+            if state.trigger.process(trigger) || uninitialized {
                 state.held_value = input;
-            }
-
-            // Make sure to initialize the held value on the first update
-            if state.trigger.process(trigger) {
-                state.held_value = input;
+                state.held_bounds = self.params.input.get_bounds(ch);
             }
 
             self.outputs.sample.set(ch, state.held_value);
+            self.outputs.sample.set_bounds(ch, state.held_bounds);
         }
     }
 }
@@ -105,7 +106,7 @@ message_handlers!(impl SampleAndHold {});
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct TrackAndHoldParams {
-    #[input("signal to track", type = audio)]
+    #[input("signal to track", type = audio, bounds)]
     input: PolySignal,
     #[input(
         "output follows the input while low and holds its last value while high",
@@ -117,16 +118,29 @@ struct TrackAndHoldParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct TrackAndHoldOutputs {
-    #[output("output", "the tracked or held voltage", type = cv, default)]
+    #[output("output", "the tracked or held voltage", type = cv, bounds = input, default)]
     sample: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct TrackAndHoldChannelState {
     gate: SchmittTrigger,
     /// The output voltage, kept here rather than read back from the output port
     /// so it survives the patch update that reconstructs the module's outputs.
     held_value: f32,
+    /// The input's bounds when `held_value` was taken.
+    held_bounds: Bounds,
+}
+
+/// A gate high from the start holds 0 V until it first falls.
+impl Default for TrackAndHoldChannelState {
+    fn default() -> Self {
+        Self {
+            gate: SchmittTrigger::default(),
+            held_value: 0.0,
+            held_bounds: Bounds::point(0.0),
+        }
+    }
 }
 
 const TAH_DOCS: ModuleDocs = ModuleDocs {
@@ -165,9 +179,11 @@ impl TrackAndHold {
             state.gate.process(gate);
             if state.gate.state() != SchmittState::High {
                 state.held_value = input;
+                state.held_bounds = self.params.input.get_bounds(ch);
             }
 
             self.outputs.sample.set(ch, state.held_value);
+            self.outputs.sample.set_bounds(ch, state.held_bounds);
         }
     }
 }

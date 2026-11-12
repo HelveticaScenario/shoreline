@@ -12,6 +12,7 @@ use std::cell::Cell;
 use std::sync::Arc;
 
 use modular_core::Patch;
+pub use modular_core::bounds::Bounds;
 use modular_core::dsp::{get_params_deserializers, schema};
 use modular_core::params::DeserializedParams;
 use modular_core::types::{ProcessingMode, SameIds, SampleBuffer, WavData};
@@ -42,7 +43,9 @@ pub fn poly_cable(module: &str, channels: usize) -> Value {
 }
 
 /// `src` (a `CHANNELS`-wide saw) and `lfo` (a `CHANNELS`-wide sine) feed
-/// `dut`, a `module_type` with `params`. The wav `table` holds [`wavetable`].
+/// `dut`, a `module_type` with `params`, and `reader` maps `dut` from its own
+/// range, so `dut` stores its bounds when it has any. The wav `table` holds
+/// [`wavetable`].
 pub fn build(
     src_mode: ProcessingMode,
     dut_mode: ProcessingMode,
@@ -52,10 +55,21 @@ pub fn build(
     let deserializers = get_params_deserializers();
     let freqs: Vec<f32> = (0..CHANNELS).map(|ch| ch as f32 * 0.3).collect();
     let lfo_freqs: Vec<f32> = (0..CHANNELS).map(|ch| ch as f32 * 0.2 - 3.0).collect();
+    let dut_port = default_port(module_type);
     let modules = [
         ("src", "$saw", json!({ "freq": freqs }), src_mode),
         ("lfo", "$sine", json!({ "freq": lfo_freqs }), src_mode),
         ("dut", module_type, params, dut_mode),
+        (
+            "reader",
+            "$remap",
+            json!({
+                "input": { "type": "cable", "module": "dut", "port": dut_port, "channel": 0 },
+                "outMin": 0.0,
+                "outMax": 1.0,
+            }),
+            ProcessingMode::Block,
+        ),
     ];
     let mut patch = Patch::new();
     patch
@@ -119,8 +133,18 @@ fn render_block(patch: &Patch, steps: &[usize]) {
 /// Render `BLOCKS` blocks through `steps`. Returns `(dut, src, lfo)` samples,
 /// slot major then channel.
 pub fn render(patch: &Patch, steps: &[usize]) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    let dut_port = default_port(patch.sampleables["dut"].get_module_type());
-    let mut out = (Vec::new(), Vec::new(), Vec::new());
+    let (dut, src, lfo, _) = render_with_bounds(patch, steps);
+    (dut, src, lfo)
+}
+
+/// [`render`], with `dut`'s bounds beside its samples.
+pub fn render_with_bounds(
+    patch: &Patch,
+    steps: &[usize],
+) -> (Vec<f32>, Vec<f32>, Vec<f32>, Vec<Bounds>) {
+    let dut = &patch.sampleables["dut"];
+    let dut_port = default_port(dut.get_module_type());
+    let mut out = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     for _ in 0..BLOCKS {
         render_block(patch, steps);
         for index in 0..BLOCK_SIZE {
@@ -130,6 +154,7 @@ pub fn render(patch: &Patch, steps: &[usize]) -> (Vec<f32>, Vec<f32>, Vec<f32>) 
                 out.0.push(read("dut", &dut_port));
                 out.1.push(read("src", "output"));
                 out.2.push(read("lfo", "output"));
+                out.3.push(dut.get_bounds_at(&dut_port, ch, index));
             }
         }
     }
@@ -207,20 +232,60 @@ pub fn check_paths_agree(module_type: &str, params: Value) {
     }
 }
 
+/// `dut`'s bounds over `BLOCKS` blocks rendered through `steps`, slot major
+/// then channel, read as [`render`] reads values.
+pub fn render_bounds(patch: &Patch, steps: &[usize]) -> Vec<Bounds> {
+    render_with_bounds(patch, steps).3
+}
+
+/// `dut`'s bounds under each processing mode and step pattern match the
+/// per-sample `update` path's, and are bounded. Returns them.
+pub fn check_bounds_agree(module_type: &str, params: Value) -> Vec<Bounds> {
+    let reference = build(
+        ProcessingMode::Block,
+        ProcessingMode::Sample,
+        module_type,
+        params.clone(),
+    );
+    let expected = render_bounds(&reference, &[BLOCK_SIZE]);
+    assert!(
+        expected.iter().all(|b| b.is_bounded()),
+        "{module_type} {params} is unbounded"
+    );
+    let modes = [
+        (ProcessingMode::Block, ProcessingMode::Block),
+        (ProcessingMode::Sample, ProcessingMode::Block),
+    ];
+    for (src_mode, dut_mode) in modes {
+        for steps in STEP_PATTERNS {
+            let patch = build(src_mode, dut_mode, module_type, params.clone());
+            assert_eq!(
+                render_bounds(&patch, steps),
+                expected,
+                "{module_type} {params}: src {src_mode:?}, steps {steps:?}"
+            );
+        }
+    }
+    expected
+}
+
 /// `dut` swapped from `before` to `after` params after `BLOCKS` blocks, as the
 /// audio thread swaps patches, then rendered on: the block path matches the
-/// per-sample path before, through and after any glide the swap starts.
+/// per-sample path, samples and bounds, before, through and after any glide
+/// the swap starts.
 pub fn check_swap_agrees(module_type: &str, before: Value, after: Value) {
     let run = |dut_mode: ProcessingMode, steps: &[usize]| {
         let old = build(ProcessingMode::Block, dut_mode, module_type, before.clone());
-        let (mut out, _, _) = render(&old, steps);
+        let (mut out, _, _, mut bounds) = render_with_bounds(&old, steps);
         let new = build(ProcessingMode::Block, dut_mode, module_type, after.clone());
         for (id, module) in &new.sampleables {
             module.transfer_state_from(old.sampleables[id].as_ref(), &SameIds);
         }
         new.connect_all();
-        out.extend(render(&new, steps).0);
-        out
+        let (after_out, _, _, after_bounds) = render_with_bounds(&new, steps);
+        out.extend(after_out);
+        bounds.extend(after_bounds);
+        (out, bounds)
     };
     let expected = run(ProcessingMode::Sample, &[BLOCK_SIZE]);
     for steps in STEP_PATTERNS {

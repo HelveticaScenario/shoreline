@@ -14,9 +14,9 @@ use crate::types::SwapGlide;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CrossfadeParams {
-    #[input("signal heard at a mix of 0", type = audio)]
+    #[input("signal heard at a mix of 0", type = audio, bounds)]
     dry: PolySignal,
-    #[input("signal heard at a mix of 5", type = audio)]
+    #[input("signal heard at a mix of 5", type = audio, bounds)]
     wet: PolySignal,
     #[input(
         "balance from dry to wet",
@@ -30,7 +30,7 @@ struct CrossfadeParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CrossfadeOutputs {
-    #[output("output", "the blend of dry and wet", type = cv, default)]
+    #[output("output", "the blend of dry and wet", type = cv, bounds = input, default)]
     sample: PolyOutput,
 }
 
@@ -83,6 +83,10 @@ impl Crossfade {
                 t.clamp(0.0, 1.0),
             );
             self.outputs.sample.set(i, value);
+            if self.outputs.sample.is_bounded() {
+                let (dry, wet) = (self.params.dry.get_bounds(i), self.params.wet.get_bounds(i));
+                self.outputs.sample.set_bounds(i, dry.hull(wet));
+            }
         }
     }
 
@@ -112,6 +116,11 @@ impl Crossfade {
             .wet
             .block_input(range.clone(), channels, &mut s1)?;
         let amount = mix.block_input(range.clone(), channels, &mut s2)?;
+        let (dry_signal, wet_signal) = (&self.params.dry, &self.params.wet);
+        outputs.sample.fill_bounds_with(range.clone(), |ch| {
+            let dry = dry_signal.block_bounds(range.clone(), ch)?;
+            Some(dry.hull(wet_signal.block_bounds(range.clone(), ch)?))
+        })?;
         for (i, (glide, &last)) in glides.iter_mut().zip(amount.row(range.end - 1)).enumerate() {
             glide.settle(position(last), mix.glide_mark(i));
         }

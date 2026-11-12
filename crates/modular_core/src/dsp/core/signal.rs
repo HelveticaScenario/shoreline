@@ -14,14 +14,14 @@ use crate::types::SwapGlide;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SignalParams {
-    #[input("the signal or value to pass on", type = audio)]
+    #[input("the signal or value to pass on", type = audio, bounds)]
     value: PolySignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SignalOutputs {
-    #[output("output", "the input, unchanged", type = cv, default)]
+    #[output("output", "the input, unchanged", type = cv, bounds = input, default)]
     sample: PolyOutput,
 }
 
@@ -52,10 +52,18 @@ pub struct Signal {
 impl Signal {
     fn update(&mut self, sample_rate: f32) {
         let value = &self.params.value;
-        for i in 0..self.channel_count() {
-            let v =
-                self.channel_state[i].follow(value.get_value(i), value.glide_mark(i), sample_rate);
-            self.outputs.sample.set(i, v);
+        let channels = self.channel_count();
+        let out = &mut self.outputs.sample;
+        for i in 0..channels {
+            let input = value.get_value(i);
+            let v = self.channel_state[i].follow(input, value.glide_mark(i), sample_rate);
+            out.set(i, v);
+            if out.is_bounded() {
+                // Mid-glide the output is the input offset by what remains
+                // of the glide; the bounds carry the same offset.
+                let offset = v - input;
+                out.set_bounds(i, value.get_bounds(i).map(|x| x + offset));
+            }
         }
     }
 
@@ -73,6 +81,9 @@ impl Signal {
         }
         let mut scratch = InputScratch::new();
         let input = value.block_input(range.clone(), channels, &mut scratch)?;
+        outputs
+            .sample
+            .fill_bounds_with(range.clone(), |ch| value.block_bounds(range.clone(), ch))?;
         value.settle_glides(glides, input.row(range.end - 1));
         block_input::map(&mut outputs.sample, range, [input], |[x]| x);
         Some(())
