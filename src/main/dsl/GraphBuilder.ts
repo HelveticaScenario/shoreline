@@ -1391,7 +1391,13 @@ export class GraphBuilder implements ChainHost {
             source: PolySignal,
             range: ControlRange,
         ): ModuleOutput => {
-            const first = firstChannel(source);
+            // Every deferred is set by now, so a deferred source is judged by
+            // the output it was set to.
+            const channel = firstChannel(source);
+            const first =
+                channel instanceof DeferredModuleOutput
+                    ? (channel.resolve() ?? channel)
+                    : channel;
             if (
                 first instanceof ModuleOutput &&
                 this.rangedPorts.has(`${first.moduleId}:${first.portName}`)

@@ -706,6 +706,19 @@ describe('$outLane', () => {
         });
     });
 
+    test('a deferred ranged gain lends .level its range', () => {
+        const patch = execPatch(`
+            const gain = $deferred()
+            $saw('c2').out({ label: 'bass', gain })
+            $signal($outLane('bass').level.range(-1, 1), { id: 'level' })
+            gain.set($sine('1hz').range(1, 4))
+        `);
+        const [cable] = remapParams(patch, 'level').input as {
+            module: string;
+        }[];
+        expect(moduleById(patch, cable.module).moduleType).toBe('$remap');
+    });
+
     test('a lane control can feed its own lane', () => {
         const patch = execPatch(`
             const bass = $outLane('bass')

@@ -62,6 +62,10 @@ function buildFixture() {
         erraticBlend: chain(lfo(), 'erratic', 2),
         erraticClamp: chain(flipped(), 'erratic', 2, { mode: 'clamp' }),
         clampOverConstant: factory('$clamp')(3, { max: 10, min: 0 }),
+        clampCableLimits: factory('$clamp')(unranged(), {
+            max: (factory('$sine')('7hz') as Collection).range(2, 3, -5, 5),
+            min: (factory('$sine')('5hz') as Collection).range(-3, -2, -5, 5),
+        }),
         polyErratic: chain(
             (factory('$sine')(['1hz', '3hz']) as Collection).range(0, 2, -5, 5),
             'erratic',
