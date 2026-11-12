@@ -372,12 +372,6 @@ describe('chaining methods', () => {
         expect(findModules(patch, '$amp').length).toBeGreaterThan(0);
     });
 
-    test('.shift() creates a $shift module', () => {
-        const patch = execPatch('$sine("C4").shift(2.5).out()');
-        expect(findModules(patch, '$sine').length).toBe(1);
-        expect(findModules(patch, '$shift').length).toBeGreaterThan(0);
-    });
-
     test('.gain() creates a $gain module', () => {
         const patch = execPatch('$sine("C4").gain(2.5).out()');
         expect(findModules(patch, '$sine').length).toBe(1);
@@ -387,8 +381,8 @@ describe('chaining methods', () => {
     test('.exp() raises to a plain power', () => {
         const patch = execPatch('$sine("C4").exp(2).out()');
         expect(findModules(patch, '$sine').length).toBe(1);
-        const [pow] = findModules(patch, '_arithmetic');
-        expect(pow.params).toMatchObject({ operand: 2, op: 'pow' });
+        const [pow] = findModules(patch, '$exp');
+        expect(pow.params).toMatchObject({ exponent: 2 });
     });
 
     test('.scope() adds a scope entry', () => {
@@ -470,7 +464,7 @@ describe('modulation routing', () => {
     test('LFO modulating oscillator pitch', () => {
         const source = `
             const lfo = $sine($hz(2))
-            $sine(lfo.amp(1).shift(0)).out()
+            $sine(lfo.amp(1).add(0)).out()
         `;
         const patch = execPatch(source);
         // Two sine modules: one as LFO, one as audio oscillator

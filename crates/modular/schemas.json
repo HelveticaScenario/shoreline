@@ -20627,43 +20627,38 @@
     "experimental": false
   },
   {
-    "name": "_arithmetic",
+    "name": "$add",
     "docs": {
-      "summary": "Signal arithmetic",
-      "description": "Adds, subtracts, multiplies, divides or raises one signal to the power of another, sample by sample; dividing by zero gives 0 V. Backs the `.add()`, `.sub()`, `.mul()`, `.div()` and `.exp()` signal methods.",
+      "summary": "Add",
+      "description": "Adds another signal, or a fixed amount, to a signal, sample by sample.",
       "categories": [
         "math"
       ],
       "sections": [],
       "examples": [
         {
-          "title": "Tremolo by multiplying",
-          "code": "$saw('c3').mul($sine('5hz').range(0, 1)).out()"
+          "title": "Vibrato around a note",
+          "code": "$sine($signal('a3').add($sine('5hz').amp(0.1))).out()"
         }
       ]
     },
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "title": "ArithmeticParams",
+      "title": "AddParams",
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal on the left of the operation",
+          "description": "signal to add to",
           "$ref": "#/$defs/PolySignal"
         },
-        "operand": {
-          "description": "signal or amount on the right of the operation",
+        "offset": {
+          "description": "signal or amount added",
           "$ref": "#/$defs/PolySignal"
-        },
-        "op": {
-          "description": "operation applied as `input op operand`",
-          "$ref": "#/$defs/ArithmeticOp",
-          "default": "add"
         }
       },
       "required": [
         "input",
-        "operand"
+        "offset"
       ],
       "$defs": {
         "PolySignal": {
@@ -20722,32 +20717,13 @@
               ]
             }
           ]
-        },
-        "ArithmeticOp": {
-          "description": "Operation `_arithmetic` applies between its input and operand.",
-          "oneOf": [
-            {
-              "type": "string",
-              "enum": [
-                "add",
-                "sub",
-                "mul",
-                "div"
-              ]
-            },
-            {
-              "description": "`input` raised to `operand`, mirrored for negative inputs",
-              "type": "string",
-              "const": "pow"
-            }
-          ]
         }
       }
     },
     "outputs": [
       {
         "name": "output",
-        "description": "the result",
+        "description": "the sum",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -20758,12 +20734,12 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal on the left of the operation",
+        "description": "signal to add to",
         "paramType": "audio"
       },
       {
-        "name": "operand",
-        "description": "signal or amount on the right of the operation",
+        "name": "offset",
+        "description": "signal or amount added",
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0
@@ -20774,7 +20750,524 @@
         "name": "input"
       },
       {
-        "name": "operand"
+        "name": "offset"
+      }
+    ],
+    "experimental": false
+  },
+  {
+    "name": "$sub",
+    "docs": {
+      "summary": "Subtract",
+      "description": "Subtracts another signal, or a fixed amount, from a signal, sample by sample.",
+      "categories": [
+        "math"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "An octave down",
+          "code": "$saw($signal('c3').sub(1)).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SubParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to subtract from",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "offset": {
+          "description": "signal or amount subtracted",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input",
+        "offset"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the difference",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "inherit"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to subtract from",
+        "paramType": "audio"
+      },
+      {
+        "name": "offset",
+        "description": "signal or amount subtracted",
+        "paramType": "control",
+        "controlMin": -5.0,
+        "controlMax": 5.0
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "offset"
+      }
+    ],
+    "experimental": false
+  },
+  {
+    "name": "$mul",
+    "docs": {
+      "summary": "Multiply",
+      "description": "Multiplies a signal by another signal, or a fixed amount, sample by sample: 2 doubles it. To change a level with a 0–5 V signal such as `$adsr`, use `$amp` or `$gain`.",
+      "categories": [
+        "math"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Ring modulation",
+          "code": "$sine('c3').mul($sine('c4')).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MulParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to multiply",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "factor": {
+          "description": "signal or amount to multiply by; negative inverts",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input",
+        "factor"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the product",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "inherit"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to multiply",
+        "paramType": "audio"
+      },
+      {
+        "name": "factor",
+        "description": "signal or amount to multiply by; negative inverts",
+        "paramType": "control",
+        "controlMin": -2.0,
+        "controlMax": 2.0
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "factor"
+      }
+    ],
+    "experimental": false
+  },
+  {
+    "name": "$div",
+    "docs": {
+      "summary": "Divide",
+      "description": "Divides a signal by another signal, or a fixed amount, sample by sample. Dividing by 0 gives 0 V.",
+      "categories": [
+        "math"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "An LFO at half depth",
+          "code": "$saw('c2').lpf($sine('0.5hz').div(2).add('c4')).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "DivParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to divide",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "divisor": {
+          "description": "signal or amount to divide by",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input",
+        "divisor"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the quotient",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "inherit"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to divide",
+        "paramType": "audio"
+      },
+      {
+        "name": "divisor",
+        "description": "signal or amount to divide by",
+        "paramType": "control",
+        "controlMin": 1.0,
+        "controlMax": 16.0
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "divisor"
+      }
+    ],
+    "experimental": false
+  },
+  {
+    "name": "$exp",
+    "docs": {
+      "summary": "Raise to a power",
+      "description": "Raises a signal to a power, sample by sample, with negative values mirroring positive ones, so the output only ever rises as the input does. For a curve that keeps ±5 V at ±5 V, use `$curve`.",
+      "categories": [
+        "math"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "A fade-in that starts slow",
+          "code": "$sine('c3').mul($saw('0.5hz').range(0, 1).exp(3)).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "ExpParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to raise",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "exponent": {
+          "description": "power to raise to",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input",
+        "exponent"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the signal raised to the power",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "inherit"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to raise",
+        "paramType": "audio"
+      },
+      {
+        "name": "exponent",
+        "description": "power to raise to",
+        "paramType": "control",
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 4.0
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "exponent"
       }
     ],
     "experimental": false
@@ -24934,136 +25427,6 @@
       },
       {
         "name": "level"
-      }
-    ],
-    "experimental": false
-  },
-  {
-    "name": "$shift",
-    "docs": {
-      "summary": "DC offset",
-      "description": "Adds an offset to a signal, sample by sample, gliding when the offset is edited.",
-      "categories": [
-        "math"
-      ],
-      "sections": [],
-      "examples": [
-        {
-          "title": "LFO raised to sit above 0 V",
-          "code": "$saw('c2').lpf($sine('0.5hz').shift(2), 2).out()"
-        }
-      ]
-    },
-    "paramsSchema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "title": "ShiftParams",
-      "type": "object",
-      "properties": {
-        "input": {
-          "description": "signal to offset",
-          "$ref": "#/$defs/PolySignal"
-        },
-        "offset": {
-          "description": "offset added to the signal, in volts",
-          "$ref": "#/$defs/PolySignal"
-        }
-      },
-      "required": [
-        "input",
-        "offset"
-      ],
-      "$defs": {
-        "PolySignal": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Signal"
-            },
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Signal"
-              }
-            }
-          ]
-        },
-        "Signal": {
-          "anyOf": [
-            {
-              "type": "number",
-              "format": "double"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/$defs/SignalTaggedSchema"
-            }
-          ]
-        },
-        "SignalTaggedSchema": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "module": {
-                  "type": "string"
-                },
-                "port": {
-                  "type": "string"
-                },
-                "channel": {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0,
-                  "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
-                }
-              },
-              "required": [
-                "type",
-                "module",
-                "port"
-              ]
-            }
-          ]
-        }
-      }
-    },
-    "outputs": [
-      {
-        "name": "output",
-        "description": "the offset signal",
-        "outputType": "cv",
-        "polyphonic": true,
-        "default": true,
-        "precision": "inherit"
-      }
-    ],
-    "bufferOutputs": [],
-    "signalParams": [
-      {
-        "name": "input",
-        "description": "signal to offset",
-        "paramType": "audio"
-      },
-      {
-        "name": "offset",
-        "description": "offset added to the signal, in volts",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "controlMin": -5.0,
-        "controlMax": 5.0
-      }
-    ],
-    "positionalArgs": [
-      {
-        "name": "input"
-      },
-      {
-        "name": "offset"
       }
     ],
     "experimental": false

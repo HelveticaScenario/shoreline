@@ -332,9 +332,9 @@ describe('a pattern as a collection', () => {
             `$sine($p.s('0 2', 'c(maj)').add(1).sub('c3')).out()`,
         );
         expect(cycles(patch)[0].params.pattern).toMatchObject({ modes: [] });
-        expect(
-            patch.modules.filter((m) => m.moduleType === '_arithmetic'),
-        ).toHaveLength(2);
+        expect(patch.modules.map((m) => m.moduleType)).toEqual(
+            expect.arrayContaining(['$add', '$sub']),
+        );
     });
 
     test('an error in the sequencer points at the call that built the pattern', () => {

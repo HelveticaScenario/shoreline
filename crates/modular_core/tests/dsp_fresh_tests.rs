@@ -296,10 +296,23 @@ fn amp_scales_with_five_as_unity() {
 }
 
 #[test]
-fn shift_adds_its_offset() {
-    let shift = make_module("$shift", "shift-1", json!({ "input": 1.0, "offset": 2.0 }));
-    let sample = settle_and_read(shift.as_ref(), 500);
-    assert!(approx_eq(sample, 3.0, 1e-6), "expected 3.0, got {sample}");
+fn arithmetic_combines_input_and_operand() {
+    for (module_type, operand, value, expected) in [
+        ("$add", "offset", 2.0, 5.0),
+        ("$sub", "offset", 2.0, 1.0),
+        ("$mul", "factor", -2.0, -6.0),
+        ("$div", "divisor", 2.0, 1.5),
+        ("$div", "divisor", 0.0, 0.0),
+        ("$exp", "exponent", 2.0, 9.0),
+        ("$exp", "exponent", -1.0, 1.0),
+    ] {
+        let module = make_module(module_type, "op-1", json!({ "input": 3.0, operand: value }));
+        let sample = settle_and_read(module.as_ref(), 500);
+        assert!(
+            approx_eq(sample, expected, 1e-6),
+            "{module_type} 3 by {value}: expected {expected}, got {sample}"
+        );
+    }
 }
 
 #[test]
@@ -408,7 +421,10 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$xover" => json!({ "input": 0.0, "lowMidFreq": 0.0, "midHighFreq": 0.0 }),
         "$comp" => json!({ "input": 0.0, "threshold": 0.0 }),
         "_erratic" => json!({ "input": 0.0, "amount": 1.0 }),
-        "_arithmetic" => json!({ "input": 0.0, "operand": 0.0 }),
+        "$add" | "$sub" => json!({ "input": 0.0, "offset": 0.0 }),
+        "$mul" => json!({ "input": 0.0, "factor": 1.0 }),
+        "$div" => json!({ "input": 0.0, "divisor": 1.0 }),
+        "$exp" => json!({ "input": 0.0, "exponent": 1.0 }),
         "_round" | "_hz" => json!({ "input": 0.0 }),
         "$wrap" | "$clamp" => json!({ "input": 0.0, "min": -5.0, "max": 5.0 }),
         "$addHz" => json!({ "input": 0.0, "offset": 0.0 }),
@@ -424,7 +440,6 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$spread" => json!({ "min": -1.0, "max": 1.0, "count": 3 }),
         "$signal" => json!({ "value": 0.0 }),
         "$amp" => json!({ "input": 0.0, "factor": 5.0 }),
-        "$shift" => json!({ "input": 0.0, "offset": 0.0 }),
         "$gain" => json!({ "input": 0.0, "level": 5.0 }),
         "_crossfade" => json!({ "dry": 0.0, "wet": 0.0, "mix": 2.5 }),
         "$chord" => json!({ "chord": "C[maj]" }),
@@ -682,10 +697,10 @@ fn from_graph_rejects_unknown_module_type() {
 
 #[test]
 fn from_graph_params_are_applied() {
-    // `$shift` with a constant input: 2.0 + 1.0 → output ≈ 3.0
+    // `$add` with a constant input: 2.0 + 1.0 → output ≈ 3.0
     let graph = make_graph(vec![(
         "sas1",
-        "$shift",
+        "$add",
         json!({ "input": 2.0, "offset": 1.0 }),
     )]);
     let patch = from_graph(&graph, SAMPLE_RATE, TEST_BLOCK_SIZE, &HashMap::new())
@@ -1099,7 +1114,7 @@ fn delay_reads_do_not_depend_on_block_size() {
         ),
         (
             "time",
-            "$shift",
+            "$add",
             json!({ "input": cable("depth"), "offset": 0.0123456 }),
         ),
         (
@@ -1298,7 +1313,7 @@ fn transfer_state_from_preserves_wrapper_outputs_for_feedback_cycles() {
     // get_poly_sample(). If those are zeros instead of the previous frame's
     // values, a one-sample discontinuity is injected into the feedback loop.
     //
-    // Setup: a `$shift` and an `$amp` wired in a feedback cycle:
+    // Setup: an `$add` and an `$amp` wired in a feedback cycle:
     //   A = B + 1.0, B = A * 0.5, which settles at A = 2.0, B = 1.0.
     // After running for several frames, we transfer state to new modules
     // and check that running one frame doesn't inject a zero discontinuity:
@@ -1308,7 +1323,7 @@ fn transfer_state_from_preserves_wrapper_outputs_for_feedback_cycles() {
     let graph = make_graph(vec![
         (
             "a",
-            "$shift",
+            "$add",
             json!({
                 "input": { "type": "cable", "module": "b", "port": "output", "channel": 0 },
                 "offset": 1.0

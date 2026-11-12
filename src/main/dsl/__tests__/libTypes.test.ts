@@ -65,7 +65,7 @@ describe('generated DSL lib', () => {
         const patchErrors = diagnostics(`
                 const [a, b] = $saw(['c3', 'e3']);
                 a.amp(2).out();
-                b[0][0].shift(1).out();
+                b[0][0].add(1).out();
                 for (const voice of $sine(['c3', 'g3'])) voice.scope();
                 $saw([a, b[0]]).out();
                 $r($sine('1hz'), $sine('2hz')[0]).range(0, 1);
@@ -80,5 +80,21 @@ describe('generated DSL lib', () => {
                 for (const voice of seq) voice._gate.scope();
             `).filter((d) => d.startsWith(PATCH_FILE));
         expect(patchErrors).toEqual([]);
+    });
+
+    test('arithmetic chains off collections, ranged collections and patterns', () => {
+        const patchErrors = diagnostics(`
+                $sine('c3').add(1).sub(0.5).mul(2).div(4).exp(2).out();
+                $sine('1hz').range(0, 1).mul($p('1 2')).out();
+                $p('0 2 4').add(1).out();
+            `).filter((d) => d.startsWith(PATCH_FILE));
+        expect(patchErrors).toEqual([]);
+    });
+
+    test('an arithmetic method needs its operand', () => {
+        const patchErrors = diagnostics(`$sine('c3').add().out();`).filter(
+            (d) => d.startsWith(PATCH_FILE),
+        );
+        expect(patchErrors).toHaveLength(1);
     });
 });

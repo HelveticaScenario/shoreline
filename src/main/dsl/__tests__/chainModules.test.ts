@@ -278,8 +278,8 @@ describe('.wet', () => {
         expect(normalize(viaWet)).toEqual(normalize(viaPipeMix));
     });
 
-    test('fades .amp(), .shift() and .gain() like any chained module', () => {
-        for (const method of ['amp', 'shift', 'gain']) {
+    test('fades operator modules like any chained module', () => {
+        for (const method of ['amp', 'gain', 'add', 'mul']) {
             const viaWet = execPatch(
                 `$saw(0).lpf("100hz").${method}(2).wet(2).out()`,
             );
@@ -293,7 +293,7 @@ describe('.wet', () => {
     test('throws on a signal that was not chained', () => {
         expect(() => execPatch('$saw(0).wet(2).out()')).toThrow(/\.wet\(\)/);
         expect(() =>
-            execPatch('$saw(0).lpf("100hz").add(2).wet(2).out()'),
+            execPatch('$saw(0).lpf("100hz").round().wet(2).out()'),
         ).toThrow(/\.wet\(\)/);
     });
 });

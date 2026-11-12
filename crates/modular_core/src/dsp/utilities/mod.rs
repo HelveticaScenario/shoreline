@@ -18,7 +18,6 @@ pub mod curve;
 pub mod delay;
 pub mod erratic;
 pub mod gain;
-mod glided_operand;
 pub mod hold;
 pub mod hz;
 pub mod lag;
@@ -26,14 +25,15 @@ pub mod logic;
 pub mod math;
 pub mod motion_follower;
 pub mod mul_hz;
+mod operator;
 pub mod percussion_envelope;
 pub mod quantizer;
 pub mod remap;
+pub mod round;
 pub mod sample_and_hold;
 pub mod scale;
 pub mod scale_names;
 pub mod scan;
-pub mod shift;
 pub mod smooth_control;
 pub mod spread;
 pub mod unison;
@@ -47,8 +47,12 @@ pub use scale::{FixedRoot, ScaleSpec};
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     add_hz::AddHz::install_constructor(map);
     adsr::Adsr::install_constructor(map);
-    arithmetic::Arithmetic::install_constructor(map);
-    arithmetic::Round::install_constructor(map);
+    arithmetic::Add::install_constructor(map);
+    arithmetic::Sub::install_constructor(map);
+    arithmetic::Mul::install_constructor(map);
+    arithmetic::Div::install_constructor(map);
+    arithmetic::Exp::install_constructor(map);
+    round::Round::install_constructor(map);
     buffer::BufRead::install_constructor(map);
     buffer::BufferWrite::install_constructor(map);
     chord::Chord::install_constructor(map);
@@ -75,7 +79,6 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     amp::Amp::install_constructor(map);
     crossfade::Crossfade::install_constructor(map);
     gain::Gain::install_constructor(map);
-    shift::Shift::install_constructor(map);
     smooth_control::SmoothControl::install_constructor(map);
     spread::Spread::install_constructor(map);
     unison::Unison::install_constructor(map);
@@ -86,8 +89,12 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
 pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer>) {
     add_hz::AddHz::install_params_deserializer(map);
     adsr::Adsr::install_params_deserializer(map);
-    arithmetic::Arithmetic::install_params_deserializer(map);
-    arithmetic::Round::install_params_deserializer(map);
+    arithmetic::Add::install_params_deserializer(map);
+    arithmetic::Sub::install_params_deserializer(map);
+    arithmetic::Mul::install_params_deserializer(map);
+    arithmetic::Div::install_params_deserializer(map);
+    arithmetic::Exp::install_params_deserializer(map);
+    round::Round::install_params_deserializer(map);
     buffer::BufRead::install_params_deserializer(map);
     buffer::BufferWrite::install_params_deserializer(map);
     chord::Chord::install_params_deserializer(map);
@@ -114,7 +121,6 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     amp::Amp::install_params_deserializer(map);
     crossfade::Crossfade::install_params_deserializer(map);
     gain::Gain::install_params_deserializer(map);
-    shift::Shift::install_params_deserializer(map);
     smooth_control::SmoothControl::install_params_deserializer(map);
     spread::Spread::install_params_deserializer(map);
     unison::Unison::install_params_deserializer(map);
@@ -126,8 +132,12 @@ pub fn schemas() -> Vec<ModuleSchema> {
     vec![
         add_hz::AddHz::get_schema(),
         adsr::Adsr::get_schema(),
-        arithmetic::Arithmetic::get_schema(),
-        arithmetic::Round::get_schema(),
+        arithmetic::Add::get_schema(),
+        arithmetic::Sub::get_schema(),
+        arithmetic::Mul::get_schema(),
+        arithmetic::Div::get_schema(),
+        arithmetic::Exp::get_schema(),
+        round::Round::get_schema(),
         buffer::BufRead::get_schema(),
         buffer::BufferWrite::get_schema(),
         chord::Chord::get_schema(),
@@ -154,7 +164,6 @@ pub fn schemas() -> Vec<ModuleSchema> {
         amp::Amp::get_schema(),
         crossfade::Crossfade::get_schema(),
         gain::Gain::get_schema(),
-        shift::Shift::get_schema(),
         smooth_control::SmoothControl::get_schema(),
         spread::Spread::get_schema(),
         unison::Unison::get_schema(),

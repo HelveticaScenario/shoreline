@@ -75,7 +75,6 @@ export const API_CONTROLS: Record<
 > = {
     audio: {
         $setOutputGain: { gain: { spec: { ...LEVEL, defaultValue: 2.5 } } },
-        exp: { exponent: { label: 'exp', module: '$curve', param: 'exp' } },
         out: {
             gain: { spec: LEVEL },
             pan: { spec: closedControl(-5, 5, 0) },

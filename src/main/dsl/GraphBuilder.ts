@@ -426,53 +426,6 @@ export class BaseCollection<T extends ModuleOutput> {
         return chunks;
     }
 
-    /**
-     * Raise all outputs to the power `exponent`, sample by sample; negative
-     * values mirror positive ones.
-     */
-    exp(exponent: PolySignal): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        return arithmetic(this.items[0].builder, this.items, exponent, 'pow');
-    }
-
-    /** Add `operand` to all outputs, sample by sample. */
-    add(operand: PolySignal): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        return arithmetic(this.items[0].builder, this.items, operand, 'add');
-    }
-
-    /** Subtract `operand` from all outputs, sample by sample. */
-    sub(operand: PolySignal): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        return arithmetic(this.items[0].builder, this.items, operand, 'sub');
-    }
-
-    /**
-     * Multiply all outputs by `operand`, sample by sample (2 = double).
-     * To change amplitude with a 0–5 V signal such as `$adsr`, see
-     * `.amp()` and `.gain()`.
-     */
-    mul(operand: PolySignal): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        return arithmetic(this.items[0].builder, this.items, operand, 'mul');
-    }
-
-    /** Divide all outputs by `operand`, sample by sample; dividing by 0 gives 0. */
-    div(operand: PolySignal): Collection {
-        if (this.items.length === 0) {
-            return new Collection();
-        }
-        return arithmetic(this.items[0].builder, this.items, operand, 'div');
-    }
-
     /** Round all outputs to the nearest whole volt, halves away from zero. */
     round(): Collection {
         if (this.items.length === 0) {
@@ -682,27 +635,7 @@ function sliceRoot(
     markRoot(sliced, { outputs: set.outputs, values });
 }
 
-type ArithmeticOp = 'add' | 'sub' | 'mul' | 'div' | 'pow';
 type RoundMode = 'round' | 'floor' | 'ceil';
-
-/** `input op operand`, sample by sample, through an `_arithmetic` module. */
-function arithmetic(
-    builder: GraphBuilder,
-    input: ModuleOutput | ModuleOutput[],
-    operand: PolySignal,
-    op: ArithmeticOp,
-): Collection {
-    if (operand === undefined) {
-        throw new Error(
-            op === 'pow'
-                ? '.exp() needs an exponent'
-                : `.${op}() needs an operand`,
-        );
-    }
-    return builder.getFactory('_arithmetic')(input, operand, {
-        op,
-    }) as Collection;
-}
 
 /** `x` rounded to a whole number as `_round` rounds it in `mode`. */
 function roundNumber(x: number, mode: RoundMode): number {

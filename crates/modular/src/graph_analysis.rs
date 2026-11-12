@@ -333,12 +333,12 @@ mod tests {
     fn f64_modules_follow_the_module_schemas() {
         let module_types: HashMap<&str, &str> = [
             ("clock", "_clock"),
-            ("sub", "_arithmetic"),
+            ("sub", "$sub"),
             ("frac", "$wrap"),
             ("bar", "_round"),
             ("half", "$amp"),
             ("lfo", "$sine"),
-            ("mix", "_arithmetic"),
+            ("mix", "$add"),
         ]
         .into_iter()
         .collect();

@@ -1,37 +1,7 @@
-use deserr::Deserr;
-use schemars::JsonSchema;
-
-use std::ops::Range;
-
-use super::glided_operand::{self, Combine};
-use crate::dsp::utils::{Sample, audio_taper};
+use super::operator::operator_module;
+use crate::dsp::utils::audio_taper;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{PolyOutput, PolySignal};
-use crate::types::SwapGlide;
-
-#[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
-#[serde(rename_all = "camelCase")]
-#[deserr(rename_all = camelCase, deny_unknown_fields)]
-struct GainParams {
-    #[input("signal to turn up or down", type = audio)]
-    input: PolySignal,
-    #[input(
-        "perceptual level: 5 unity, 0 silence, each halving about -18 dB",
-        type = control,
-        default = 5.0,
-        control_range = (0.0, 5.0),
-    )]
-    level: PolySignal,
-}
-
-#[derive(Outputs, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-struct GainOutputs {
-    #[output("output", "the scaled signal", type = cv, precision = inherit, default)]
-    sample: PolyOutput,
-}
 
 const GAIN_DOCS: ModuleDocs = ModuleDocs {
     summary: "Perceptual gain",
@@ -46,52 +16,14 @@ const GAIN_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$gain", docs = GAIN_DOCS, args(input, level), block)]
-pub struct Gain {
-    outputs: GainOutputs,
-    params: GainParams,
-    channel_state: Box<[SwapGlide]>,
-}
-
-/// Multiplies by [`audio_taper`] of the level.
-struct AudioTaper;
-
-impl Combine for AudioTaper {
-    #[inline(always)]
-    fn apply<T: Sample>(input: T, level: T) -> T {
-        input * audio_taper(level)
-    }
-}
-
-impl Gain {
-    fn update(&mut self, sample_rate: f32) {
-        let channels = self.channel_count();
-        glided_operand::update::<AudioTaper>(
-            &self.params.input,
-            &self.params.level,
-            &mut self.channel_state,
-            &mut self.outputs.sample,
-            channels,
-            sample_rate,
-        );
-    }
-
-    fn process_block(
-        &mut self,
-        outputs: &mut GainBlockOutputs,
-        range: Range<usize>,
-        _sample_rate: f32,
-    ) -> Option<()> {
-        let channels = self.channel_count();
-        glided_operand::process_block::<AudioTaper>(
-            &self.params.input,
-            &self.params.level,
-            &mut self.channel_state,
-            &mut outputs.sample,
-            range,
-            channels,
-        )
-    }
-}
-
-message_handlers!(impl Gain {});
+operator_module!(
+    Gain,
+    name = "$gain",
+    docs = GAIN_DOCS,
+    input = "signal to turn up or down",
+    operand = level: "perceptual level: 5 unity, 0 silence, each halving about -18 dB",
+        default = 5.0,
+        control_range = (0.0, 5.0),
+    output = "the scaled signal",
+    |input, level| input * audio_taper(level),
+);
