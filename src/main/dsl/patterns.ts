@@ -1,14 +1,20 @@
+/**
+ * Patterns as the DSL runtime handles them. A patch script holds a handle
+ * that answers as the `$cycle` playing the pattern; the engine takes the wire
+ * payload behind it.
+ */
+
 import {
     captureSourceLocation,
     withSourceLocation,
 } from './captureSourceLocation';
 
 /**
- * Wire-shape discriminators of every pattern value: `$p(...)`,
+ * Wire-shape discriminators of every pattern payload: `$p(...)`,
  * `$p.s(...)`, `$p.arrange(...)` and the `.fast`/`.slow`/`.struct`/`.beat`/
  * `.glide` chains built from them.
  */
-export const PATTERN_KINDS: ReadonlySet<string> = new Set([
+const PATTERN_KINDS: ReadonlySet<string> = new Set([
     'ParsedPattern',
     'SpPattern',
     'ArrangePattern',

@@ -34,7 +34,7 @@ import {
     type OutputSet,
     outputSetOf,
 } from './outputResolution';
-import { isPatternValue } from './patternKinds';
+import { isPatternValue } from './patterns';
 import { isPlainObject } from './plainObject';
 import {
     assertSignalGroupsTopLevelOnly,

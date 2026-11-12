@@ -1,4 +1,3 @@
-use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
@@ -10,7 +9,7 @@ use crate::utils::unwrap_attr;
 
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../reserved_output_names.rs"
+    "/../reserved_member_names.rs"
 ));
 
 /// Why `name` cannot name a module, if it cannot. A module the DSL exposes
@@ -28,9 +27,9 @@ pub(crate) fn module_name_error(name: &str) -> Option<String> {
         ));
     };
     let head = path.split('.').next().unwrap_or(path);
-    RESERVED_OUTPUT_NAMES.contains(&head).then(|| {
+    RESERVED_MEMBER_NAMES.contains(&head).then(|| {
         format!(
-            "Module name '{name}' is reserved: `.{head}` is a built-in member of outputs, collections or patterns. Reserved names are: {RESERVED_OUTPUT_NAMES:?}"
+            "Module name '{name}' is reserved: `.{head}` is a built-in member of outputs, collections or patterns. Reserved names are: {RESERVED_MEMBER_NAMES:?}"
         )
     })
 }
@@ -171,30 +170,6 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
         fn parse(input: ParseStream) -> SynResult<Self> {
             // Parse first string literal (name)
             let name: LitStr = input.parse()?;
-            let name_value = name.value();
-
-            // Build expanded reserved names including snake_case variants
-            let reserved_with_snake: Vec<String> = RESERVED_OUTPUT_NAMES
-                .iter()
-                .flat_map(|&name| {
-                    let snake = name.to_case(Case::Snake);
-                    if snake == name {
-                        vec![name.to_string()]
-                    } else {
-                        vec![name.to_string(), snake]
-                    }
-                })
-                .collect();
-
-            if reserved_with_snake.iter().any(|r| r == &name_value) {
-                return Err(syn::Error::new(
-                    name.span(),
-                    format!(
-                        "Output name '{}' is reserved. Reserved names are: {:?}",
-                        name_value, reserved_with_snake
-                    ),
-                ));
-            }
 
             input.parse::<Token![,]>()?;
 
@@ -257,7 +232,10 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
             let Some(output_type) = output_type else {
                 return Err(syn::Error::new(
                     name.span(),
-                    format!("output '{name_value}' needs a `type` (cv, gate or trig)"),
+                    format!(
+                        "output '{}' needs a `type` (cv, gate or trig)",
+                        name.value()
+                    ),
                 ));
             };
             let range = match output_type {

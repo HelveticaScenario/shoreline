@@ -213,7 +213,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'A module with several outputs, such as a sequencer with a pitch, a gate and a trigger, can be used without naming one. ' +
             'Each input takes the output that suits it: a trigger input takes the trigger, a gate input the gate, and everything else the main output. ' +
             'The editor shows the output it picked beside the value; double-click that hint to write it into the code. ' +
-            'Each output is also there by name behind an underscore, as in `seq._gate`; naming one yourself always uses that output, whatever the input.',
+            'Each output is also there by name behind an underscore, as in `seq._gate`; naming one yourself always uses that output, whatever the input. ' +
+            'A pattern from `$p` is such a module too: it is the sequencer that plays it.',
         examples: [
             "const seq = $p('c e g a')\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope",
             "const seq = $p('c3 ~ g3 ~')\n$sine(seq).amp(seq.adsr()).out()   // the gate opens the envelope",

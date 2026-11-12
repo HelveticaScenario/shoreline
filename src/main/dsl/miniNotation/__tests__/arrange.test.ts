@@ -1,13 +1,9 @@
+import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
-import {
-    $p,
-    MiniParseError,
-    isArrangePattern,
-    type ArrangePattern,
-} from '../index';
+import { $p, MiniParseError, type ArrangePattern } from '../index';
 import { replaceSignals } from '../../GraphBuilder';
-import { patternPayload } from '../../patternKinds';
+import { patternPayload } from '../../patterns';
 
 describe('$p.arrange builder', () => {
     test('builds an ArrangePattern wire object from [cycles, pattern] tuples', () => {
@@ -15,7 +11,7 @@ describe('$p.arrange builder', () => {
             $p.arrange([2, $p('c4 e4')], [4, $p.s('0 2 4', 'c(major)')]),
         );
 
-        expect(isArrangePattern(r)).toBe(true);
+        expect(isKind(r, 'ArrangePattern')).toBe(true);
         expect(r.__kind).toBe('ArrangePattern');
         expect(r.sections).toHaveLength(2);
 

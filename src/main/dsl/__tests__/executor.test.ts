@@ -7,6 +7,7 @@
  * No Electron, no audio hardware needed — runs in plain Node.js via Vitest.
  */
 
+import { isKind } from '../miniNotation/__tests__/kinds';
 import { describe, expect, test } from 'vitest';
 import type { ModuleSchema, PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
@@ -14,13 +15,6 @@ import { assertControlsPlaced } from '../controlPlacement';
 import { type DSLExecutionResult, executePatchScript } from '../executor';
 import { FIRST_LINE_COLUMN_OFFSET } from '../../../shared/dsl/spanTypes';
 import { enoscScalePresets } from '../../../shared/dsl/enoscScales';
-import {
-    isBeatPattern,
-    isGlidePattern,
-    isFastPattern,
-    isParsedPattern,
-    isStructPattern,
-} from '../miniNotation/index';
 
 const DEFAULT_EXECUTION_OPTIONS = {
     sampleRate: 48_000,
@@ -624,7 +618,7 @@ describe('sequencing', () => {
         expect(findModules(patch, '$cycle').length).toBe(1);
         expect(findModules(patch, '$cycle')[0].params.pattern).toMatchObject({
             __kind: 'SpPattern',
-            ops: [],
+            modes: [],
         });
     });
 
@@ -773,10 +767,10 @@ describe('sequencing', () => {
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
-        expect(isFastPattern(pattern)).toBe(true);
-        if (!isFastPattern(pattern)) return;
-        expect(isParsedPattern(pattern.pattern)).toBe(true);
-        if (isParsedPattern(pattern.pattern)) {
+        expect(isKind(pattern, 'FastPattern')).toBe(true);
+        if (!isKind(pattern, 'FastPattern')) return;
+        expect(isKind(pattern.pattern, 'ParsedPattern')).toBe(true);
+        if (isKind(pattern.pattern, 'ParsedPattern')) {
             expect(pattern.pattern.source).toBe('c4 e4');
         }
         // A number factor is a raw constant on the wire.
@@ -796,8 +790,8 @@ describe('sequencing', () => {
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
-        expect(isFastPattern(pattern)).toBe(true);
-        if (!isFastPattern(pattern)) return;
+        expect(isKind(pattern, 'FastPattern')).toBe(true);
+        if (!isKind(pattern, 'FastPattern')) return;
         const { factor } = pattern;
         if (typeof factor === 'number') {
             throw new Error('expected a pattern factor, got a number');
@@ -823,8 +817,8 @@ describe('sequencing', () => {
         // carried as a raw number and only the wrapped pattern contributes a span.
         const patch = execPatch('$cycle($p("c4 e4").fast(2)).out()');
         const pattern = findModules(patch, '$cycle')[0].params.pattern;
-        expect(isFastPattern(pattern)).toBe(true);
-        if (!isFastPattern(pattern)) return;
+        expect(isKind(pattern, 'FastPattern')).toBe(true);
+        if (!isKind(pattern, 'FastPattern')) return;
         expect(pattern.factor).toBe(2);
         expect(pattern.argument_spans.length).toBe(1);
     });
@@ -873,9 +867,9 @@ describe('sequencing', () => {
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
-        expect(isStructPattern(pattern)).toBe(true);
-        if (!isStructPattern(pattern)) return;
-        expect(isParsedPattern(pattern.pattern)).toBe(true);
+        expect(isKind(pattern, 'StructPattern')).toBe(true);
+        if (!isKind(pattern, 'StructPattern')) return;
+        expect(isKind(pattern.pattern, 'ParsedPattern')).toBe(true);
         expect(pattern.bool_pattern.source).toBe('x ~ x x');
     });
 
@@ -890,8 +884,8 @@ describe('sequencing', () => {
             'seq.out()';
         const patch = execPatch(source);
         const pattern = findModules(patch, '$cycle')[0].params.pattern;
-        expect(isStructPattern(pattern)).toBe(true);
-        if (!isStructPattern(pattern)) return;
+        expect(isKind(pattern, 'StructPattern')).toBe(true);
+        if (!isKind(pattern, 'StructPattern')) return;
         expect(pattern.argument_spans.length).toBe(2);
         const boolSpan = pattern.argument_spans[1];
         expect(boolSpan).not.toEqual({ start: 0, end: 0 });
@@ -909,9 +903,9 @@ describe('sequencing', () => {
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
-        expect(isBeatPattern(pattern)).toBe(true);
-        if (!isBeatPattern(pattern)) return;
-        expect(isParsedPattern(pattern.pattern)).toBe(true);
+        expect(isKind(pattern, 'BeatPattern')).toBe(true);
+        if (!isKind(pattern, 'BeatPattern')) return;
+        expect(isKind(pattern.pattern, 'ParsedPattern')).toBe(true);
         if (typeof pattern.t === 'number') {
             throw new Error('expected a pattern t, got a number');
         }
@@ -927,8 +921,8 @@ describe('sequencing', () => {
             'seq.out()';
         const patch = execPatch(source);
         const pattern = findModules(patch, '$cycle')[0].params.pattern;
-        expect(isBeatPattern(pattern)).toBe(true);
-        if (!isBeatPattern(pattern)) return;
+        expect(isKind(pattern, 'BeatPattern')).toBe(true);
+        if (!isKind(pattern, 'BeatPattern')) return;
         // Spans flatten as [inner, t, div] — matching the Rust per_source order.
         expect(pattern.argument_spans.length).toBe(3);
         const tSpan = pattern.argument_spans[1];
@@ -946,8 +940,8 @@ describe('sequencing', () => {
             'seq.out()';
         const patch = execPatch(source);
         const pattern = findModules(patch, '$cycle')[0].params.pattern;
-        expect(isGlidePattern(pattern)).toBe(true);
-        if (!isGlidePattern(pattern)) return;
+        expect(isKind(pattern, 'GlidePattern')).toBe(true);
+        if (!isKind(pattern, 'GlidePattern')) return;
         // Spans flatten as [inner, glide] — matching the Rust per_source order.
         expect(pattern.argument_spans.length).toBe(2);
         const innerSpan = pattern.argument_spans[0];
@@ -1035,13 +1029,13 @@ describe('sequencing', () => {
         const pattern = cycles[0].params.pattern as {
             __kind: string;
             sources: Array<{ source: string }>;
-            ops: Array<{ mode: string }>;
+            modes: string[];
             argument_spans: Array<{ start: number; end: number }>;
         };
         expect(pattern.__kind).toBe('SpPattern');
         expect(pattern.sources.length).toBe(2);
         expect(pattern.sources[1].source).toBe('0 5');
-        expect(pattern.ops).toEqual([{ mode: 'in' }]);
+        expect(pattern.modes).toEqual(['in']);
 
         // argument_spans must be parallel to sources: one per source.
         expect(pattern.argument_spans.length).toBe(2);
@@ -1067,12 +1061,9 @@ describe('sequencing', () => {
     });
 
     test('$p.s chain on a const-bound pattern captures RHS argument_spans', () => {
-        // Regression: chain ops (.add/.sub/...) applied to a pattern stored
-        // in a const variable must still resolve their chain root back to
-        // `$p.s(...)` so the analyzer registers the RHS literal span. Before
-        // the fix only inline `$p.s(...).trans(...)` chains were tracked; a
-        // `const p = $p.s(...)` followed by `p.trans('0 5')` fell back to the
-        // {0,0} sentinel and produced no editor highlight.
+        // A `.trans` link on a pattern stored in a const resolves its chain
+        // root back to `$p.s(...)`, so the analyzer registers the RHS literal
+        // span and the editor highlights it.
         const source =
             "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
             "const p2 = p1.trans('0,2')\n" +

@@ -1,14 +1,9 @@
+import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
-import {
-    $p,
-    MiniParseError,
-    isFastPattern,
-    isParsedPattern,
-    isSlowPattern,
-} from '../index';
+import { $p, MiniParseError } from '../index';
 import { replaceSignals } from '../../GraphBuilder';
-import { patternPayload } from '../../patternKinds';
+import { patternPayload } from '../../patterns';
 
 describe('playing a pattern outside a patch run', () => {
     test('a collection member and .cycle() say a pattern is played only while a patch runs', () => {
@@ -26,7 +21,7 @@ describe('.fast / .slow builders', () => {
     test('$p(...).fast(n) builds a FastPattern wrapping the inner pattern', () => {
         const r = patternPayload($p('c4 e4').fast(2));
 
-        expect(isFastPattern(r)).toBe(true);
+        expect(isKind(r, 'FastPattern')).toBe(true);
         expect(r.__kind).toBe('FastPattern');
         expect(r.pattern.__kind).toBe('ParsedPattern');
         // A numeric factor is a raw constant, not a parsed pattern.
@@ -35,7 +30,7 @@ describe('.fast / .slow builders', () => {
 
     test('$p(...).slow(n) builds a SlowPattern', () => {
         const r = patternPayload($p('c4 e4').slow(2));
-        expect(isSlowPattern(r)).toBe(true);
+        expect(isKind(r, 'SlowPattern')).toBe(true);
         expect(r.__kind).toBe('SlowPattern');
         expect(r.pattern.__kind).toBe('ParsedPattern');
         expect(r.factor).toBe(2);
@@ -54,8 +49,8 @@ describe('.fast / .slow builders', () => {
     test('.fast / .slow chain and nest', () => {
         const r = patternPayload($p('c4 e4').fast(3).slow(3));
         expect(r.__kind).toBe('SlowPattern');
-        expect(isFastPattern(r.pattern)).toBe(true);
-        if (isFastPattern(r.pattern)) {
+        expect(isKind(r.pattern, 'FastPattern')).toBe(true);
+        if (isKind(r.pattern, 'FastPattern')) {
             expect(r.pattern.pattern.__kind).toBe('ParsedPattern');
         }
     });
@@ -127,10 +122,10 @@ describe('.fast / .slow builders', () => {
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {
         const out = replaceSignals(patternPayload($p('c4 e4').fast('2 4')));
-        expect(isFastPattern(out)).toBe(true);
-        if (!isFastPattern(out)) return;
-        expect(isParsedPattern(out.pattern)).toBe(true);
-        if (isParsedPattern(out.pattern)) {
+        expect(isKind(out, 'FastPattern')).toBe(true);
+        if (!isKind(out, 'FastPattern')) return;
+        expect(isKind(out.pattern, 'ParsedPattern')).toBe(true);
+        if (isKind(out.pattern, 'ParsedPattern')) {
             expect(out.pattern.source).toBe('c4 e4');
         }
         const { factor } = out;

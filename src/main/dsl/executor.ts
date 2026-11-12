@@ -46,7 +46,7 @@ import { assertControlsPlaced } from './controlPlacement';
 import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
 import { $p } from './miniNotation';
 import { DELAY_SITE } from './signalSiteTables';
-import { setActiveCycleFactory } from './patternKinds';
+import { setActiveCycleFactory } from './patterns';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
 import type {

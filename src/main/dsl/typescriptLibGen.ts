@@ -31,7 +31,7 @@ import {
     withMeta,
 } from '../../shared/dsl/paramRange';
 import { chooseOutput } from '../../shared/dsl/outputResolutionRule';
-import { sanitizeOutputName } from './outputNames';
+import { outputName } from './outputNames';
 import { renderDocContentJsDoc } from '../../shared/dsl/referenceDocs';
 
 const BASE_LIB_SOURCE = `
@@ -369,14 +369,15 @@ type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : neve
 type PatternModule = { [K in keyof CycleOutputs]: CycleOutputs[K] };
 
 /**
- * A parsed mini-notation pattern, returned by \`$p(source)\`. It is also the
- * \`$cycle\` sequencer that plays it: use it wherever a module goes, read
- * its outputs (\`_gate\`, \`_trig\`) and chain any collection method.
- * Every such use of one pattern shares one sequencer. Chain \`.fast\`/
- * \`.slow\`/\`.struct\`/\`.beat\`/\`.glide\` for a new pattern, or pass it to
- * \`$cycle\` or \`.cycle(...)\` to play it with other settings.
+ * A mini-notation pattern, as \`$p\`, \`$p.s\`, \`$p.arrange\` and the
+ * pattern methods return it. A pattern is the \`$cycle\` sequencer that
+ * plays it: use it wherever a module goes, read its outputs (\`_gate\`,
+ * \`_trig\`) and chain any collection method. Every such use of one pattern
+ * shares one sequencer. \`.fast\`, \`.slow\`, \`.struct\`, \`.beat\` and
+ * \`.glide\` each give a new pattern; \`$cycle(pattern, …)\` and
+ * \`.cycle(…)\` play it through a sequencer of its own with other settings.
  */
-interface ParsedPattern extends PatternModule {
+interface Pattern extends PatternModule {
   /**
    * Speed this pattern up by \`factor\`, mirroring Strudel's \`fast\`. The factor
    * is a constant (\`2\`) or a mini-notation number pattern (\`"2 4"\` → ×2 for
@@ -384,13 +385,13 @@ interface ParsedPattern extends PatternModule {
    * (\`fast(0)\` or negative) is silence. Chains and nests with the other
    * pattern builders.
    */
-  fast(factor: number | string): FastPattern;
+  fast(factor: number | string): Pattern;
   /**
    * Slow this pattern down by \`factor\` — the time-inverse of \`fast\`.
    * \`slow(n)\` equals \`fast(1 / n)\`. The factor may be a constant or a
    * mini-notation number pattern.
    */
-  slow(factor: number | string): SlowPattern;
+  slow(factor: number | string): Pattern;
   /**
    * Impose a rhythmic structure on this pattern, mirroring Strudel's
    * \`struct\`: event timing comes from the boolean pattern, and this
@@ -409,7 +410,7 @@ interface ParsedPattern extends PatternModule {
    * $p("c4 e4").struct("x ~ x x").saw().out()
    * \`\`\`
    */
-  struct(boolPattern: string): StructPattern;
+  struct(boolPattern: string): Pattern;
   /**
    * Place this pattern's value at chosen beats of a divided cycle,
    * mirroring Strudel's \`beat\`. \`t\` lists beat indices — a comma stack
@@ -425,7 +426,7 @@ interface ParsedPattern extends PatternModule {
    * $p("c2").beat("0,7,10", 16).saw().out()
    * \`\`\`
    */
-  beat(t: number | string, div: number | string): BeatPattern;
+  beat(t: number | string, div: number | string): Pattern;
   /**
    * Give each note a glide (portamento) of \`g\` cycles. \`$cycle\` ramps
    * its CV from the previous pitch, starting \`g\` cycles before the
@@ -443,23 +444,23 @@ interface ParsedPattern extends PatternModule {
    * $sine($p("c3 g3").glide(0.25, 'expo', 'out')).out()
    * \`\`\`
    */
-  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
+  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): Pattern;
   /**
-   * Shorthand for \`$cycle(pattern, ...rest)\`: plays this pattern with a
-   * \`$cycle\` sequencer. Accepts the same arguments as \`$cycle\` after its
+   * Shorthand for \`$cycle(pattern, ...rest)\`: plays this pattern through
+   * a \`$cycle\` of its own, with the arguments \`$cycle\` takes after its
    * \`pattern\`.
    *
    * \`\`\`js
-   * $p("c4 e4 g4").cycle().out()
+   * $p("c4 e4 g4").cycle({ ribbon: [0, 2] }).saw().out()
    * \`\`\`
    */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
 }
 
 /**
- * Parse a mini-notation source string into a \`ParsedPattern\` suitable
- * for \`$cycle\`. Every mini-notation literal in the DSL flows through
- * \`$p()\` — \`$cycle\` accepts a \`ParsedPattern\`, not a raw string.
+ * Parse a mini-notation source string into a {@link Pattern}. Every
+ * mini-notation literal in the DSL flows through \`$p()\` — \`$cycle\`
+ * accepts a pattern, not a raw string.
  *
  * \`\`\`js
  * $p("c4 e4 g4").saw().out()               // basic sequence
@@ -509,13 +510,13 @@ interface ParsedPattern extends PatternModule {
  *
  * @param source mini-notation source string
  */
-declare function $p(source: string): ParsedPattern;
+declare function $p(source: string): Pattern;
 
 declare namespace $p {
 /**
  * Parse a scale-degree mini-notation source and resolve each integer
  * degree to its V/Oct voltage against \`scale\`, returning a
- * \`ParsedPattern\` suitable for \`$cycle\`. Invoked as \`$p.s(source, scale)\`.
+ * {@link ScalePattern}. Invoked as \`$p.s(source, scale)\`.
  *
  * Atoms are **0-indexed scale degrees** rather than absolute pitches:
  * \`0\` is the scale's root, \`1\` is the second scale tone, \`2\` the third,
@@ -581,7 +582,7 @@ declare namespace $p {
  *
  * ### Chaining
  *
- * The returned \`SpPattern\` is chainable with \`.trans(...)\`, which
+ * The returned pattern is chainable with \`.trans(...)\`, which
  * transposes it by another scale-degree mini-notation string: the two
  * patterns' degrees are added, so negative degrees transpose down.
  * Bare \`.trans(x)\` defaults to \`.trans.in(x)\`; explicit
@@ -606,7 +607,7 @@ declare namespace $p {
  * @param source integer scale-degree mini-notation source
  * @param scale scale string, e.g. "c(major)", "D#3(min)", "a(just)"
  */
-function s(source: string, scale: string): SpPattern;
+function s(source: string, scale: string): ScalePattern;
 
 /**
  * Arrange patterns over multiple cycles, mirroring Strudel's \`arrange\`.
@@ -636,18 +637,18 @@ function s(source: string, scale: string): SpPattern;
  * ).saw().out()
  * \`\`\`
  *
- * The result is an \`ArrangePattern\`, itself usable as a section of another
- * \`$p.arrange(...)\` (arrangements nest) or as a \`$cycle\` argument.
+ * The result is a pattern like any other, so arrangements nest as sections
+ * of another \`$p.arrange(...)\`.
  *
  * @param sections \`[cycles, pattern]\` tuples, in play order
  */
 function arrange(
-  ...sections: [number, ParsedPattern | SpPattern | ArrangePattern | FastPattern | SlowPattern | StructPattern | BeatPattern | GlidePattern][]
-): ArrangePattern;
+  ...sections: [number, Pattern][]
+): Pattern;
 }
 
 /**
- * One Strudel-style alignment for a \`$p.s\` chain op.
+ * One Strudel-style alignment for \`.trans\`.
  */
 type SpAlignmentMode =
   | 'in'
@@ -659,142 +660,20 @@ type SpAlignmentMode =
   | 'restart';
 
 /**
- * Callable + method-bag behind \`.trans\` on an \`SpPattern\`.
- * Bare invocation aliases the \`.in\` method.
+ * \`.trans\` on a {@link ScalePattern}: callable, with a method for each
+ * alignment. Called bare, it is \`.in\`.
  */
-type SpCombineBuilder = ((rhs: string) => SpPattern) & {
-  readonly [M in SpAlignmentMode]: (rhs: string) => SpPattern;
+type Transpose = ((rhs: string) => ScalePattern) & {
+  readonly [M in SpAlignmentMode]: (rhs: string) => ScalePattern;
 };
 
 /**
- * Chainable scale-degree pattern returned by \`$p.s()\`. Pass directly to
- * \`$cycle\`'s \`pattern\` param, or chain \`.trans\`/\`.fast\`/\`.slow\`/
- * \`.struct\`/\`.beat\`/\`.glide\`; each returns a fresh pattern.
+ * A scale-degree pattern, returned by \`$p.s()\`: a {@link Pattern} that
+ * \`.trans\` also transposes.
  */
-interface SpPattern extends PatternModule {
+interface ScalePattern extends Pattern {
   /** Transpose by a scale-degree pattern. See \`$p.s\`. */
-  trans: SpCombineBuilder;
-  /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
-  fast(factor: number | string): FastPattern;
-  /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
-  slow(factor: number | string): SlowPattern;
-  /** Impose a boolean rhythmic structure. See \`$p(...).struct\`. */
-  struct(boolPattern: string): StructPattern;
-  /** Place this pattern at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
-  beat(t: number | string, div: number | string): BeatPattern;
-  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
-  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
-  /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
-  cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-}
-
-/**
- * An arrangement returned by \`$p.arrange(...)\`. Pass directly to \`$cycle\`'s
- * \`pattern\` param, or nest it as a section of another \`$p.arrange(...)\`.
- * A \`cycles\` of \`'Infinity'\` (only the last section) loops forever.
- */
-interface ArrangePattern extends PatternModule {
-  /** Speed this arrangement up by \`factor\`. See \`$p(...).fast\`. */
-  fast(factor: number | string): FastPattern;
-  /** Slow this arrangement down by \`factor\`. See \`$p(...).slow\`. */
-  slow(factor: number | string): SlowPattern;
-  /** Impose a boolean rhythmic structure. See \`$p(...).struct\`. */
-  struct(boolPattern: string): StructPattern;
-  /** Place this arrangement at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
-  beat(t: number | string, div: number | string): BeatPattern;
-  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
-  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
-  /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
-  cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-}
-
-/**
- * A sped-up pattern returned by \`pattern.fast(factor)\` (Strudel's \`fast\`).
- * Pass directly to \`$cycle\`'s \`pattern\` param, nest it as an \`$p.arrange(...)\`
- * section, or chain further pattern methods.
- */
-interface FastPattern extends PatternModule {
-  /** Speed this pattern up further by \`factor\`. See \`$p(...).fast\`. */
-  fast(factor: number | string): FastPattern;
-  /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
-  slow(factor: number | string): SlowPattern;
-  /** Impose a boolean rhythmic structure. See \`$p(...).struct\`. */
-  struct(boolPattern: string): StructPattern;
-  /** Place this pattern at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
-  beat(t: number | string, div: number | string): BeatPattern;
-  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
-  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
-  /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
-  cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-}
-
-/**
- * A slowed-down pattern returned by \`pattern.slow(factor)\` (Strudel's \`slow\`).
- * The time-inverse of \`FastPattern\`; same composition rules.
- */
-interface SlowPattern extends PatternModule {
-  /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
-  fast(factor: number | string): FastPattern;
-  /** Slow this pattern down further by \`factor\`. See \`$p(...).slow\`. */
-  slow(factor: number | string): SlowPattern;
-  /** Impose a boolean rhythmic structure. See \`$p(...).struct\`. */
-  struct(boolPattern: string): StructPattern;
-  /** Place this pattern at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
-  beat(t: number | string, div: number | string): BeatPattern;
-  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
-  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
-  /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
-  cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-}
-
-/**
- * A structured pattern returned by \`pattern.struct(boolPattern)\` (Strudel's
- * \`struct\`): timing from the boolean pattern, values sampled from the source.
- * Pass directly to \`$cycle\`'s \`pattern\` param, nest it as an
- * \`$p.arrange(...)\` section, or chain further pattern methods.
- *
- * \`\`\`js
- * $p("c4 e4").struct("x ~ <x ~>").saw().out()
- * \`\`\`
- */
-interface StructPattern extends PatternModule {
-  /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
-  fast(factor: number | string): FastPattern;
-  /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
-  slow(factor: number | string): SlowPattern;
-  /** Impose another boolean rhythmic structure. See \`$p(...).struct\`. */
-  struct(boolPattern: string): StructPattern;
-  /** Place this pattern at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
-  beat(t: number | string, div: number | string): BeatPattern;
-  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
-  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
-  /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
-  cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-}
-
-/**
- * A beat-grid pattern returned by \`pattern.beat(t, div)\` (Strudel's \`beat\`):
- * the source value plays at beat \`t\` of a \`div\`-beat cycle, silence
- * elsewhere. Pass directly to \`$cycle\`'s \`pattern\` param, nest it as an
- * \`$p.arrange(...)\` section, or chain further pattern methods.
- *
- * \`\`\`js
- * $p("c2 g2").beat("0,7,10", 16).saw().out()
- * \`\`\`
- */
-interface BeatPattern extends PatternModule {
-  /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
-  fast(factor: number | string): FastPattern;
-  /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
-  slow(factor: number | string): SlowPattern;
-  /** Impose a boolean rhythmic structure. See \`$p(...).struct\`. */
-  struct(boolPattern: string): StructPattern;
-  /** Place this pattern at other beats. See \`$p(...).beat\`. */
-  beat(t: number | string, div: number | string): BeatPattern;
-  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
-  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
-  /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
-  cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  trans: Transpose;
 }
 
 /** Shape of a glide ramp. See \`$p(...).glide\`. */
@@ -802,27 +681,6 @@ type GlideCurve = ${literalUnion(GLIDE_CURVES)};
 
 /** Which end of a glide ramp its curve eases. See \`$p(...).glide\`. */
 type GlideMode = ${literalUnion(GLIDE_MODES)};
-
-/**
- * A gliding pattern returned by \`pattern.glide(g, curve, mode)\`: \`$cycle\` ramps into
- * each note over \`g\` cycles. Pass directly to \`$cycle\`'s \`pattern\`
- * param, nest it as an \`$p.arrange(...)\` section, or chain further pattern
- * methods.
- */
-interface GlidePattern extends PatternModule {
-  /** Speed this pattern up by \`factor\`. See \`$p(...).fast\`. */
-  fast(factor: number | string): FastPattern;
-  /** Slow this pattern down by \`factor\`. See \`$p(...).slow\`. */
-  slow(factor: number | string): SlowPattern;
-  /** Impose a boolean rhythmic structure. See \`$p(...).struct\`. */
-  struct(boolPattern: string): StructPattern;
-  /** Place this pattern at beats \`t\` of a \`div\`-beat cycle. See \`$p(...).beat\`. */
-  beat(t: number | string, div: number | string): BeatPattern;
-  /** Glide into each note over \`g\` cycles. See \`$p(...).glide\`. */
-  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): GlidePattern;
-  /** Play this pattern with \`$cycle\`. See \`$p(...).cycle\`. */
-  cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
-}
 
 /**
  * What \`$wavMeta\` reads from a WAV file. Times are in seconds.
@@ -1979,6 +1837,9 @@ function getOutputType(output: {
     return hasRange ? 'CollectionWithRange' : 'Collection';
 }
 
+/** The lib types of a pattern, each a root of `$cycle`'s outputs. */
+export const PATTERN_TYPES = ['Pattern', 'ScalePattern'] as const;
+
 /**
  * The multi-output interface of `moduleSchema` as the type checker names it:
  * qualified by the namespaces the module is declared in. `_clock` is declared
@@ -2036,7 +1897,7 @@ function generateMultiOutputInterface(
         `${indent} * Used directly, it stands for the output that fits the input it`,
     );
     lines.push(
-        `${indent} * is plugged into (\`_${sanitizeOutputName(defaultOutput.name)}\` unless another fits better); an output named`,
+        `${indent} * is plugged into (\`_${outputName(defaultOutput.name)}\` unless another fits better); an output named`,
     );
     lines.push(`${indent} * itself is always that output.`);
     lines.push(`${indent} */`);
@@ -2046,13 +1907,13 @@ function generateMultiOutputInterface(
 
     for (const output of outputs) {
         const outputType = getOutputType(output);
-        const safeName = sanitizeOutputName(output.name);
+        const name = outputName(output.name);
 
         const doc = withMeta(output.description, formatOutputMeta(output));
         if (doc) {
             lines.push(`${indent}  /** ${doc} */`);
         }
-        lines.push(`${indent}  readonly _${safeName}: ${outputType};`);
+        lines.push(`${indent}  readonly _${name}: ${outputType};`);
     }
 
     lines.push(`${indent}}`);

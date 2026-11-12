@@ -1,16 +1,15 @@
 /**
  * Public entry point for the TypeScript mini-notation implementation.
  *
- * `$p(source)` parses a mini-notation string into a serializable
- * `ParsedPattern`. `$p.s(source, scale)` returns an `SpPattern` chainable
- * with `.trans(...)` and seven alignment modes (`.trans.in`, `.trans.out`,
- * `.trans.mix`, `.trans.squeeze`, `.trans.squeezeout`, `.trans.reset`,
- * `.trans.restart`). Both are consumed by `$cycle`'s `pattern` param: the
- * Rust side dispatches on the wire shape (`SeqPatternSource::Single | Sp`)
- * and lowers either to a runtime `Pattern<SeqValue>`.
+ * `$p(source)`, `$p.s(source, scale)`, `$p.arrange(...)` and the pattern
+ * methods each build a pattern: a wire payload (`ParsedPattern`, `SpPattern`,
+ * …) that `$cycle`'s `pattern` param takes, where the Rust side dispatches
+ * on its `__kind` (`SeqPatternSource`) and lowers it to a runtime
+ * `Pattern<SeqValue>`.
  *
- * A pattern is also the `$cycle` that plays it: every collection member and
- * `$cycle` output reads through one shared `$cycle`, made on first use.
+ * What a patch script holds is a handle on that payload. The handle is the
+ * `$cycle` that plays the pattern: every collection member and `$cycle`
+ * output reads through one shared `$cycle`, made on first use.
  */
 
 import type {
@@ -27,11 +26,12 @@ import { lookupArgumentSpan } from '../factories';
 import { Collection, CollectionWithRange } from '../GraphBuilder';
 import {
     cycleOf,
+    isPatternValue,
     makeCycle,
     type PAYLOAD,
     patternPayload,
     registerPattern,
-} from '../patternKinds';
+} from '../patterns';
 import {
     GLIDE_CURVES,
     GLIDE_MODES,
@@ -45,19 +45,17 @@ export { MiniParseError } from './parser';
 /**
  * Parse a mini-notation string into a `ParsedPattern`.
  *
- * Entry point for all mini-notation usage in the DSL: `$cycle` accepts
- * a `ParsedPattern`, so every mini-notation literal flows through
- * `$p()`. Examples:
+ * Entry point for all mini-notation usage in the DSL: every mini-notation
+ * literal flows through `$p()`. Examples:
  *
  * ```js
- * $cycle($p("c4 e4 g4"))
+ * $saw($p("c4 e4 g4")).out()
  * const bass = $p("c2 [c2 g2] c2 e2");
- * $cycle(bass)
+ * $cycle(bass, { ribbon: [0, 2] })
  * ```
  *
- * The returned object is JSON-serializable and structurally compatible
- * with the Rust `{ ast, source, all_spans }` shape expected during
- * patch-graph deserialization. It also embeds an `argument_span`
+ * The payload matches the Rust `{ ast, source, all_spans }` shape expected
+ * during patch-graph deserialization. It also embeds an `argument_span`
  * captured from the call site so that editor highlighting follows the
  * pattern through `const` indirections.
  *
@@ -97,22 +95,9 @@ export const $p: typeof $pImpl & {
     arrange: typeof $arrangeImpl;
 } = Object.assign($pImpl, { s: $spImpl, arrange: $arrangeImpl });
 
-function hasKind(value: unknown, kind: string): boolean {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        (patternPayload(value) as { __kind?: unknown }).__kind === kind
-    );
-}
-
-/** Type guard for runtime `ParsedPattern` checks. */
-export function isParsedPattern(value: unknown): value is ParsedPattern {
-    return hasKind(value, 'ParsedPattern');
-}
-
 // ─── $p.s chainable + alignment ─────────────────────────────────────────
 
-/** Strudel-style alignment modes for `$p.s` chain ops. */
+/** Strudel-style alignment modes for `.trans`. */
 export type SpAlignmentMode =
     | 'in'
     | 'out'
@@ -132,11 +117,6 @@ const ALIGNMENT_MODES: ReadonlyArray<SpAlignmentMode> = [
     'restart',
 ];
 
-/** Wire shape of one `.trans` link, carried in `SpPattern.ops`. */
-export interface SpOp {
-    mode: SpAlignmentMode;
-}
-
 /** Discriminator string the Rust side matches against. */
 const SP_KIND = 'SpPattern' as const;
 
@@ -155,8 +135,8 @@ export interface ParsedPatternPayload {
 }
 
 /** `.trans`: callable, with a method for each alignment mode. */
-export type SpCombineBuilder = ((rhs: string) => SpPatternHandle) & {
-    [M in SpAlignmentMode]: (rhs: string) => SpPatternHandle;
+export type Transpose = ((rhs: string) => ScalePattern) & {
+    [M in SpAlignmentMode]: (rhs: string) => ScalePattern;
 };
 
 /**
@@ -173,13 +153,14 @@ export interface SpPattern {
     __kind: typeof SP_KIND;
     sources: Array<ParsedPatternPayload>;
     scale: string;
-    ops: Array<SpOp>;
+    /** The alignment of each `.trans` link: `modes[i]` adds `sources[i + 1]`. */
+    modes: Array<SpAlignmentMode>;
     argument_spans: Array<SourceSpan>;
 }
 
 /** What `$p.s` and `.trans` return: a pattern that can be transposed. */
-export type SpPatternHandle = Pattern<SpPattern> & {
-    readonly trans: SpCombineBuilder;
+export type ScalePattern = Pattern<SpPattern> & {
+    readonly trans: Transpose;
 };
 
 /**
@@ -205,7 +186,7 @@ export type SpPatternHandle = Pattern<SpPattern> & {
  * brackets (`"c[maj7]"`, `"a3[m9 inv1]"`) whose degrees step through the
  * chord tones.
  */
-function $spImpl(source: string, scale: string): SpPatternHandle {
+function $spImpl(source: string, scale: string): ScalePattern {
     if (typeof source !== 'string') {
         throw new MiniParseError(
             `$p.s() expects a string source, got ${typeof source}`,
@@ -227,11 +208,6 @@ function $spImpl(source: string, scale: string): SpPatternHandle {
     );
 }
 
-/** Type guard for runtime `SpPattern` checks. */
-export function isSpPattern(value: unknown): value is SpPattern {
-    return hasKind(value, SP_KIND);
-}
-
 function parsePayload(source: string): ParsedPatternPayload {
     const ast = parseMini(source);
     const all_spans = collectLeafSpans(ast);
@@ -241,14 +217,14 @@ function parsePayload(source: string): ParsedPatternPayload {
 function buildSpPattern(
     sources: ParsedPatternPayload[],
     scale: string,
-    ops: SpOp[],
+    modes: SpAlignmentMode[],
     argument_spans: SourceSpan[],
-): SpPatternHandle {
+): ScalePattern {
     const payload: SpPattern = {
         __kind: SP_KIND,
         sources,
         scale,
-        ops,
+        modes,
         argument_spans,
     };
     return patternHandle(payload, {
@@ -258,8 +234,8 @@ function buildSpPattern(
     });
 }
 
-function makeCombineBuilder(pat: SpPattern): SpCombineBuilder {
-    const apply = (mode: SpAlignmentMode, rhs: string): SpPatternHandle => {
+function makeCombineBuilder(pat: SpPattern): Transpose {
+    const apply = (mode: SpAlignmentMode, rhs: string): ScalePattern => {
         if (typeof rhs !== 'string') {
             throw new MiniParseError(
                 `$p.s().trans.${mode}() expects a string RHS, got ${typeof rhs}`,
@@ -274,13 +250,13 @@ function makeCombineBuilder(pat: SpPattern): SpCombineBuilder {
         return buildSpPattern(
             [...pat.sources, payload],
             pat.scale,
-            [...pat.ops, { mode }],
+            [...pat.modes, mode],
             [...pat.argument_spans, argSpan],
         );
     };
 
     // Bare invocation defaults to `.in` (strudel's default alignment).
-    const builder = ((rhs: string) => apply('in', rhs)) as SpCombineBuilder;
+    const builder = ((rhs: string) => apply('in', rhs)) as Transpose;
     for (const mode of ALIGNMENT_MODES) {
         Object.defineProperty(builder, mode, {
             value: (rhs: string) => apply(mode, rhs),
@@ -333,11 +309,6 @@ export interface ArrangePattern {
     __kind: typeof ARRANGE_KIND;
     sections: Array<ArrangeSectionWire>;
     argument_spans: Array<SourceSpan>;
-}
-
-/** Type guard for runtime `ArrangePattern` checks. */
-export function isArrangePattern(value: unknown): value is ArrangePattern {
-    return hasKind(value, ARRANGE_KIND);
 }
 
 /**
@@ -422,6 +393,13 @@ const BEAT_KIND = 'BeatPattern' as const;
 const GLIDE_KIND = 'GlidePattern' as const;
 
 /**
+ * What a patch script holds for a pattern whose wire payload is `T`: the
+ * pattern methods, with the payload itself out of reach.
+ */
+export type Pattern<T extends SectionPattern = SectionPattern> =
+    PatternMethods & { readonly [PAYLOAD]: T };
+
+/**
  * The `.fast(...)` / `.slow(...)` / `.struct(...)` / `.beat(...)` /
  * `.glide(...)` methods of every pattern, mirroring Strudel.
  *
@@ -449,16 +427,11 @@ const GLIDE_KIND = 'GlidePattern' as const;
  * the ramp.
  *
  * `.cycle(...rest)`: shorthand for `$cycle(pattern, ...rest)`, forwarding
- * every argument after the pattern to the `$cycle` factory.
+ * every argument after the pattern to the `$cycle` factory. The `$cycle` it
+ * makes is its own, apart from the one the pattern plays through as a
+ * module.
  */
-/**
- * What a patch script holds for a pattern whose wire payload is `T`: the
- * pattern methods, with the payload itself out of reach.
- */
-export type Pattern<T extends SectionPattern = SectionPattern> =
-    TimeModifiable & { readonly [PAYLOAD]: T };
-
-export interface TimeModifiable {
+export interface PatternMethods {
     cycle(...rest: unknown[]): unknown;
     fast(factor: number | string): Pattern<FastPattern>;
     slow(factor: number | string): Pattern<SlowPattern>;
@@ -498,16 +471,6 @@ export interface SlowPattern {
     /** See {@link FastPattern.factor}. */
     factor: number | ParsedPatternPayload;
     argument_spans: Array<SourceSpan>;
-}
-
-/** Type guard for runtime `FastPattern` checks. */
-export function isFastPattern(value: unknown): value is FastPattern {
-    return hasKind(value, FAST_KIND);
-}
-
-/** Type guard for runtime `SlowPattern` checks. */
-export function isSlowPattern(value: unknown): value is SlowPattern {
-    return hasKind(value, SLOW_KIND);
 }
 
 /**
@@ -553,21 +516,6 @@ export interface GlidePattern {
     argument_spans: Array<SourceSpan>;
 }
 
-/** Type guard for runtime `StructPattern` checks. */
-export function isStructPattern(value: unknown): value is StructPattern {
-    return hasKind(value, STRUCT_KIND);
-}
-
-/** Type guard for runtime `BeatPattern` checks. */
-export function isBeatPattern(value: unknown): value is BeatPattern {
-    return hasKind(value, BEAT_KIND);
-}
-
-/** Type guard for runtime `GlidePattern` checks. */
-export function isGlidePattern(value: unknown): value is GlidePattern {
-    return hasKind(value, GLIDE_KIND);
-}
-
 /**
  * Collect a pattern's flat per-source argument spans in the same order the Rust
  * side flattens `per_source`. Shared by `$p.arrange` (per section) and the
@@ -577,24 +525,15 @@ function collectPatternSpans(
     pattern: SectionPattern,
     context: string,
 ): SourceSpan[] {
-    if (isParsedPattern(pattern)) {
-        return [pattern.argument_span ?? { start: 0, end: 0 }];
+    if (!isPatternValue(pattern)) {
+        throw new MiniParseError(
+            `${context}: pattern must be a $p(...), $p.s(...), $p.arrange(...), ` +
+                `or .fast(...)/.slow(...)/.struct(...)/.beat(...)/.glide(...) value`,
+        );
     }
-    if (
-        isSpPattern(pattern) ||
-        isArrangePattern(pattern) ||
-        isFastPattern(pattern) ||
-        isSlowPattern(pattern) ||
-        isStructPattern(pattern) ||
-        isBeatPattern(pattern) ||
-        isGlidePattern(pattern)
-    ) {
-        return [...pattern.argument_spans];
-    }
-    throw new MiniParseError(
-        `${context}: pattern must be a $p(...), $p.s(...), $p.arrange(...), ` +
-            `or .fast(...)/.slow(...)/.struct(...)/.beat(...)/.glide(...) value`,
-    );
+    return 'argument_spans' in pattern
+        ? [...pattern.argument_spans]
+        : [pattern.argument_span ?? { start: 0, end: 0 }];
 }
 
 /**

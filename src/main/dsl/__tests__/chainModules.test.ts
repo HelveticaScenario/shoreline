@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, test } from 'vitest';
-import { getReservedOutputNames, type PatchGraph } from '@modular/core';
+import { getReservedMemberNames, type PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { DSLContext } from '../factories';
 import {
@@ -166,7 +166,7 @@ describe('chain modules', () => {
 // ─── reserved names ──────────────────────────────────────────────────────────
 
 describe('reserved names', () => {
-    const reserved = new Set(getReservedOutputNames());
+    const reserved = new Set(getReservedMemberNames());
 
     test('no module name starts with a reserved word', () => {
         for (const { name } of schemas) {

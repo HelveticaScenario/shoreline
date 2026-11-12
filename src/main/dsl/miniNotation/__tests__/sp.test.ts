@@ -1,16 +1,16 @@
+import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
 import {
     $p,
     MiniParseError,
-    isSpPattern,
     type SpAlignmentMode,
     type SpPattern,
 } from '../index';
 import type { ParsedPattern } from '../ast';
 import { parseMini } from '../parser';
 import { replaceSignals } from '../../GraphBuilder';
-import { patternPayload } from '../../patternKinds';
+import { patternPayload } from '../../patterns';
 
 const MODES: SpAlignmentMode[] = [
     'in',
@@ -25,10 +25,10 @@ const MODES: SpAlignmentMode[] = [
 describe('$p.s builder', () => {
     test('returns an SpPattern wrapper with the wire-shape discriminator', () => {
         const r = patternPayload($p.s('0 2 4', 'c(major)'));
-        expect(isSpPattern(r)).toBe(true);
+        expect(isKind(r, 'SpPattern')).toBe(true);
         expect(r.__kind).toBe('SpPattern');
         expect(r.scale).toBe('c(major)');
-        expect(r.ops).toEqual([]);
+        expect(r.modes).toEqual([]);
         expect(r.sources.length).toBe(1);
         expect(r.sources[0].source).toBe('0 2 4');
     });
@@ -75,8 +75,8 @@ describe('$p.s chain methods', () => {
     test('.trans(rhs) appends source + op with default mode "in"', () => {
         const r = patternPayload($p.s('0 2 4', 'c(maj)').trans('0 2'));
         expect(r.sources.length).toBe(2);
-        expect(r.ops.length).toBe(1);
-        expect(r.ops[0]).toEqual({ mode: 'in' });
+        expect(r.modes.length).toBe(1);
+        expect(r.modes[0]).toEqual('in');
         expect(r.sources[1].source).toBe('0 2');
         expect(r.argument_spans.length).toBe(2);
     });
@@ -84,7 +84,7 @@ describe('$p.s chain methods', () => {
     test('bare .trans(x) is deep-equal to .trans.in(x)', () => {
         const a = patternPayload($p.s('0 2 4', 'c(maj)').trans('0 2'));
         const b = patternPayload($p.s('0 2 4', 'c(maj)').trans.in('0 2'));
-        expect(a.ops).toEqual(b.ops);
+        expect(a.modes).toEqual(b.modes);
         expect(a.sources[1].source).toBe(b.sources[1].source);
     });
 
@@ -92,7 +92,7 @@ describe('$p.s chain methods', () => {
         const base = $p.s('0 1 2', 'c(maj)');
         for (const mode of MODES) {
             const r = patternPayload(base.trans[mode]('0'));
-            expect(r.ops[0]).toEqual({ mode });
+            expect(r.modes[0]).toBe(mode);
         }
     });
 
@@ -101,16 +101,16 @@ describe('$p.s chain methods', () => {
             $p.s('0 2 4', 'c(maj)').trans('0 2').trans.squeeze('1'),
         );
         expect(r.sources.length).toBe(3);
-        expect(r.ops.length).toBe(2);
-        expect(r.ops[0]).toEqual({ mode: 'in' });
-        expect(r.ops[1]).toEqual({ mode: 'squeeze' });
+        expect(r.modes.length).toBe(2);
+        expect(r.modes[0]).toEqual('in');
+        expect(r.modes[1]).toEqual('squeeze');
     });
 
     test('chain is immutable — original SpPattern unchanged', () => {
         const base = $p.s('0', 'c(maj)');
         const chained = patternPayload(base.trans('1'));
         expect(patternPayload(base).sources.length).toBe(1);
-        expect(patternPayload(base).ops.length).toBe(0);
+        expect(patternPayload(base).modes.length).toBe(0);
         expect(chained.sources.length).toBe(2);
     });
 
@@ -127,7 +127,7 @@ describe('$p.s JSON serialization', () => {
         const json = JSON.parse(JSON.stringify(r));
         expect(json.__kind).toBe('SpPattern');
         expect(json.scale).toBe('c(maj)');
-        expect(json.ops).toEqual([{ mode: 'in' }]);
+        expect(json.modes).toEqual(['in']);
         expect(json.sources.length).toBe(2);
         expect(json.argument_spans.length).toBe(2);
         // The pattern methods are not part of the wire shape.
@@ -201,10 +201,10 @@ describe('$p.s opaque payload preservation through replaceSignals', () => {
         expect(seq![1][1]).toBeNull();
     });
 
-    test('chain ops survive replaceSignals', () => {
+    test('chain modes survive replaceSignals', () => {
         const pat = $p.s('0 1', 'c(maj)').trans('1');
         const walked = replaceSignals(patternPayload(pat)) as SpPattern;
-        expect(walked.ops).toEqual([{ mode: 'in' }]);
+        expect(walked.modes).toEqual(['in']);
         expect(walked.sources).toHaveLength(2);
     });
 });

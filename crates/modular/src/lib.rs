@@ -53,14 +53,14 @@ use std::time::SystemTime;
 
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../reserved_output_names.rs"
+    "/../reserved_member_names.rs"
 ));
 
-/// Returns the list of reserved output names that cannot be used as module output port names.
-/// These are names that conflict with built-in properties/methods on Collection, CollectionWithRange, etc.
+/// The member names of collections and patterns, which the first segment of a
+/// module's name cannot take.
 #[napi]
-pub fn get_reserved_output_names() -> Vec<String> {
-    RESERVED_OUTPUT_NAMES
+pub fn get_reserved_member_names() -> Vec<String> {
+    RESERVED_MEMBER_NAMES
         .iter()
         .map(|s| s.to_string())
         .collect()

@@ -6,9 +6,11 @@ import type {
 import { CHAIN_METHODS } from './chainMethods';
 import { resolvableOutputs } from './outputResolution';
 import { processModuleSchema, qualifiesForChain } from './paramsSchema';
-import { PATTERN_KINDS } from './patternKinds';
 import { signalParamsOf } from './signalParams';
-import { qualifiedMultiOutputInterfaceName } from './typescriptLibGen';
+import {
+    PATTERN_TYPES,
+    qualifiedMultiOutputInterfaceName,
+} from './typescriptLibGen';
 
 /** `$delay(input, time, { feedback })`: a helper called like a module. */
 export const DELAY_SITE: ModuleSiteInfo = {
@@ -45,11 +47,10 @@ export function buildSignalSiteTables(
             tables.roots[qualifiedMultiOutputInterfaceName(schema)] =
                 resolvableOutputs(schema);
         }
-        // A pattern is the root of its `$cycle`; its lib type is named for
-        // its kind.
+        // A pattern is the root of its `$cycle`.
         if (schema.name === '$cycle') {
-            for (const kind of PATTERN_KINDS) {
-                tables.roots[kind] = resolvableOutputs(schema);
+            for (const type of PATTERN_TYPES) {
+                tables.roots[type] = resolvableOutputs(schema);
             }
         }
     }

@@ -8,7 +8,7 @@ import type { PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { executePatchScript } from '../executor';
 import { $p } from '../miniNotation';
-import { patternPayload } from '../patternKinds';
+import { patternPayload } from '../patterns';
 import { serializeForIPC } from '../../serializeForIPC';
 
 const OPTIONS = { sampleRate: 48_000, workspaceRoot: '/workspace' } as const;
@@ -125,7 +125,7 @@ describe('a pattern that is not played', () => {
         [$p('c e'), ['__kind', 'ast', 'source', 'all_spans']],
         [
             $p.s('0 2', 'c(maj)').trans('1'),
-            ['__kind', 'sources', 'scale', 'ops', 'argument_spans'],
+            ['__kind', 'sources', 'scale', 'modes', 'argument_spans'],
         ],
         [$p.arrange([1, $p('c')]), ['__kind', 'sections']],
         [$p('c e').fast(2), ['__kind', 'pattern', 'factor']],
@@ -177,7 +177,7 @@ describe('a pattern as a collection', () => {
         const { patch } = exec(
             `$sine($p.s('0 2', 'c(maj)').add(1).sub('c3')).out()`,
         );
-        expect(cycles(patch)[0].params.pattern).toMatchObject({ ops: [] });
+        expect(cycles(patch)[0].params.pattern).toMatchObject({ modes: [] });
         expect(
             patch.modules.filter((m) => m.moduleType === '_arithmetic'),
         ).toHaveLength(2);

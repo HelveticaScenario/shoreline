@@ -1,21 +1,15 @@
+import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
-import {
-    $p,
-    MiniParseError,
-    isBeatPattern,
-    isFastPattern,
-    isGlidePattern,
-    isParsedPattern,
-} from '../index';
+import { $p, MiniParseError } from '../index';
 import { replaceSignals } from '../../GraphBuilder';
-import { patternPayload } from '../../patternKinds';
+import { patternPayload } from '../../patterns';
 
 describe('.glide builder', () => {
     test('$p(...).glide(g) builds a GlidePattern wrapping the inner pattern', () => {
         const r = patternPayload($p('c4 e4 g4').glide(0.25));
 
-        expect(isGlidePattern(r)).toBe(true);
+        expect(isKind(r, 'GlidePattern')).toBe(true);
         expect(r.__kind).toBe('GlidePattern');
         expect(r.pattern.__kind).toBe('ParsedPattern');
         // A numeric glide is a raw constant, not a parsed pattern.
@@ -96,9 +90,9 @@ describe('.glide builder', () => {
 
     test('survives replaceSignals verbatim (no AST collapse)', () => {
         const out = replaceSignals(patternPayload($p('c4 e4').glide('0 0.25')));
-        expect(isGlidePattern(out)).toBe(true);
-        if (!isGlidePattern(out)) return;
-        expect(isParsedPattern(out.pattern)).toBe(true);
+        expect(isKind(out, 'GlidePattern')).toBe(true);
+        if (!isKind(out, 'GlidePattern')) return;
+        expect(isKind(out.pattern, 'ParsedPattern')).toBe(true);
         if (typeof out.length === 'number') {
             throw new Error('expected a pattern glide, got a number');
         }
@@ -109,15 +103,15 @@ describe('.glide builder', () => {
 describe('.glide composition', () => {
     test('chains with .fast/.beat in any order', () => {
         const r = patternPayload($p('c4 e4').fast(2).glide(0.1).beat('0,2', 4));
-        expect(isBeatPattern(r)).toBe(true);
-        expect(isGlidePattern(r.pattern)).toBe(true);
-        if (isGlidePattern(r.pattern)) {
-            expect(isFastPattern(r.pattern.pattern)).toBe(true);
+        expect(isKind(r, 'BeatPattern')).toBe(true);
+        expect(isKind(r.pattern, 'GlidePattern')).toBe(true);
+        if (isKind(r.pattern, 'GlidePattern')) {
+            expect(isKind(r.pattern.pattern, 'FastPattern')).toBe(true);
         }
 
         const r2 = patternPayload($p('c4').glide('0 0.1').fast(2));
         expect(r2.__kind).toBe('FastPattern');
-        expect(isGlidePattern(r2.pattern)).toBe(true);
+        expect(isKind(r2.pattern, 'GlidePattern')).toBe(true);
         // Inner pattern span + glide span carry through the outer wrapper.
         expect(r2.argument_spans).toHaveLength(2);
     });

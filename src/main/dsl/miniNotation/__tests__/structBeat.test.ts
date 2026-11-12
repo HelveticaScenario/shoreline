@@ -1,21 +1,15 @@
+import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
-import {
-    $p,
-    MiniParseError,
-    isBeatPattern,
-    isFastPattern,
-    isParsedPattern,
-    isStructPattern,
-} from '../index';
+import { $p, MiniParseError } from '../index';
 import { replaceSignals } from '../../GraphBuilder';
-import { patternPayload } from '../../patternKinds';
+import { patternPayload } from '../../patterns';
 
 describe('.struct builder', () => {
     test('$p(...).struct(s) builds a StructPattern wrapping the inner pattern', () => {
         const r = patternPayload($p('c4 e4').struct('x ~ x x'));
 
-        expect(isStructPattern(r)).toBe(true);
+        expect(isKind(r, 'StructPattern')).toBe(true);
         expect(r.__kind).toBe('StructPattern');
         expect(r.pattern.__kind).toBe('ParsedPattern');
         expect(r.bool_pattern.source).toBe('x ~ x x');
@@ -76,9 +70,9 @@ describe('.struct builder', () => {
         const out = replaceSignals(
             patternPayload($p('c4 e4').struct('x ~ x x')),
         );
-        expect(isStructPattern(out)).toBe(true);
-        if (!isStructPattern(out)) return;
-        expect(isParsedPattern(out.pattern)).toBe(true);
+        expect(isKind(out, 'StructPattern')).toBe(true);
+        if (!isKind(out, 'StructPattern')) return;
+        expect(isKind(out.pattern, 'ParsedPattern')).toBe(true);
         expect(out.bool_pattern.source).toBe('x ~ x x');
     });
 });
@@ -87,7 +81,7 @@ describe('.beat builder', () => {
     test('$p(...).beat(t, div) builds a BeatPattern wrapping the inner pattern', () => {
         const r = patternPayload($p('c2').beat('0,7,10', 16));
 
-        expect(isBeatPattern(r)).toBe(true);
+        expect(isKind(r, 'BeatPattern')).toBe(true);
         expect(r.__kind).toBe('BeatPattern');
         expect(r.pattern.__kind).toBe('ParsedPattern');
         if (typeof r.t === 'number') {
@@ -150,9 +144,9 @@ describe('.beat builder', () => {
         const out = replaceSignals(
             patternPayload($p('c2 g2').beat('0,7,10', 16)),
         );
-        expect(isBeatPattern(out)).toBe(true);
-        if (!isBeatPattern(out)) return;
-        expect(isParsedPattern(out.pattern)).toBe(true);
+        expect(isKind(out, 'BeatPattern')).toBe(true);
+        if (!isKind(out, 'BeatPattern')) return;
+        expect(isKind(out.pattern, 'ParsedPattern')).toBe(true);
         if (typeof out.t === 'number') {
             throw new Error('expected a pattern t, got a number');
         }
@@ -166,14 +160,14 @@ describe('.struct / .beat composition', () => {
             $p('c4 e4').fast(2).struct('x ~ x x').beat('0,2', 4),
         );
         expect(r.__kind).toBe('BeatPattern');
-        expect(isStructPattern(r.pattern)).toBe(true);
-        if (isStructPattern(r.pattern)) {
-            expect(isFastPattern(r.pattern.pattern)).toBe(true);
+        expect(isKind(r.pattern, 'StructPattern')).toBe(true);
+        if (isKind(r.pattern, 'StructPattern')) {
+            expect(isKind(r.pattern.pattern, 'FastPattern')).toBe(true);
         }
 
         const r2 = patternPayload($p('c4').struct('x ~').fast(2));
         expect(r2.__kind).toBe('FastPattern');
-        expect(isStructPattern(r2.pattern)).toBe(true);
+        expect(isKind(r2.pattern, 'StructPattern')).toBe(true);
     });
 
     test('work on $p.s and $p.arrange patterns', () => {

@@ -1,7 +1,8 @@
-import { patternPayload } from '../../patternKinds';
+import { patternPayload } from '../../patterns';
+import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
-import { $p, MiniParseError, isParsedPattern } from '../index';
+import { $p, MiniParseError } from '../index';
 import type { MiniAST } from '../ast';
 
 function firstPureAtom(ast: MiniAST): MiniAST {
@@ -23,7 +24,7 @@ function firstPureAtom(ast: MiniAST): MiniAST {
 describe('$p', () => {
     test('returns a ParsedPattern wrapper', () => {
         const r = patternPayload($p('0'));
-        expect(isParsedPattern(r)).toBe(true);
+        expect(isKind(r, 'ParsedPattern')).toBe(true);
         expect(r.__kind).toBe('ParsedPattern');
         expect(r.source).toBe('0');
         expect(Array.isArray(r.ast)).toBe(false);

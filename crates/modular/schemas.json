@@ -27325,7 +27325,7 @@
           ]
         },
         "SpPatternPayload": {
-          "description": "JSON payload shape delivered for chained `$p.s(...).trans(...)` patterns.\nFirst entry of `sources` is the left pattern; subsequent entries are\nchained RHS patterns combined via the parallel `ops` slot.",
+          "description": "JSON payload shape delivered for chained `$p.s(...).trans(...)` patterns.\nFirst entry of `sources` is the left pattern; subsequent entries are\nchained RHS patterns combined via the parallel `modes` slot.",
           "type": "object",
           "properties": {
             "__kind": {
@@ -27341,10 +27341,11 @@
             "scale": {
               "type": "string"
             },
-            "ops": {
+            "modes": {
+              "description": "The alignment each `.trans` link adds its degrees with: `modes[i]`\ncombines `sources[i + 1]` into the pattern so far.",
               "type": "array",
               "items": {
-                "$ref": "#/$defs/SpOp"
+                "$ref": "#/$defs/SpAlignmentMode"
               }
             },
             "argument_spans": {
@@ -27360,7 +27361,7 @@
             "__kind",
             "sources",
             "scale",
-            "ops"
+            "modes"
           ]
         },
         "SpKindTag": {
@@ -27370,20 +27371,8 @@
             "SpPattern"
           ]
         },
-        "SpOp": {
-          "description": "One `.trans` link in an `$p.s` payload: the alignment mode its degrees\nare added with. Paired positionally with `sources[i+1]` for\n`i = 0..ops.len()`.",
-          "type": "object",
-          "properties": {
-            "mode": {
-              "$ref": "#/$defs/SpAlignmentMode"
-            }
-          },
-          "required": [
-            "mode"
-          ]
-        },
         "SpAlignmentMode": {
-          "description": "Strudel-style alignment mode for chained `$p.s` ops. Wire form uses\nlowercase strings (`\"in\"`, `\"out\"`, `\"mix\"`, `\"squeeze\"`,\n`\"squeezeout\"`, `\"reset\"`, `\"restart\"`) to match the TS builder.\nMirrors [`crate::pattern_system::sp_combine::SpAlignmentMode`].",
+          "description": "Strudel-style alignment mode of a `.trans` link. Wire form uses\nlowercase strings (`\"in\"`, `\"out\"`, `\"mix\"`, `\"squeeze\"`,\n`\"squeezeout\"`, `\"reset\"`, `\"restart\"`) to match the TS builder.\nMirrors [`crate::pattern_system::sp_combine::SpAlignmentMode`].",
           "type": "string",
           "enum": [
             "in",

@@ -15,10 +15,10 @@ import {
     type OutputClass,
 } from '../../shared/dsl/outputResolutionRule';
 import './chainMethods';
-import { sanitizeOutputName } from './outputNames';
+import { outputName } from './outputNames';
 import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
-import { patternPayload } from './patternKinds';
+import { isPatternValue, patternPayload } from './patterns';
 import { isSignalGroupLike } from './signalGroups';
 import { signalParamsOf } from './signalParams';
 import {
@@ -65,72 +65,31 @@ function isWavRef(value: unknown): boolean {
 }
 
 /**
- * Structural check for a `ParsedPattern` — kept here (rather than imported
- * from `miniNotation/`) to avoid a circular dependency between factories and
- * the mini-notation helper module that imports `lookupArgumentSpan` below.
+ * The editor spans of the sources of a pattern in param `paramName`, under
+ * the keys the engine reports its highlights by: the param's name for a
+ * `$p(...)`, and `<param>.<i>` for source `i` of any other pattern, whose
+ * flat `argument_spans` follow the engine's per-source order.
  */
-function isParsedPatternLike(
+function patternArgumentSpans(
+    paramName: string,
     value: unknown,
-): value is { argument_span?: SourceSpan } {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        '__kind' in value &&
-        value.__kind === 'ParsedPattern'
-    );
-}
-
-/**
- * Structural check for a chained `SpPattern` (returned by
- * `$p.s().trans(...)`). Each chained source has a parallel `argument_spans[i]`
- * entry used to map runtime per-source highlights back to editor literals.
- */
-function isSpPatternLike(
-    value: unknown,
-): value is { argument_spans?: ReadonlyArray<SourceSpan> } {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        '__kind' in value &&
-        value.__kind === 'SpPattern'
-    );
-}
-
-/**
- * Structural check for an `ArrangePattern` (returned by `$p.arrange(...)`).
- * Like `SpPattern`, it carries a flat `argument_spans[i]` list — one per source
- * across all sections, in order — used to map runtime per-source highlights
- * back to editor literals.
- */
-function isArrangePatternLike(
-    value: unknown,
-): value is { argument_spans?: ReadonlyArray<SourceSpan> } {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        '__kind' in value &&
-        value.__kind === 'ArrangePattern'
-    );
-}
-
-/**
- * Structural check for a `.fast(...)` / `.slow(...)` / `.struct(...)` /
- * `.beat(...)` / `.glide(...)` wrapper. Like `SpPattern` and `ArrangePattern`, it carries a
- * flat `argument_spans[i]` list — the wrapped pattern's per-source spans —
- * used to map runtime per-source highlights back to editor literals.
- */
-function isPatternWrapperLike(
-    value: unknown,
-): value is { argument_spans?: ReadonlyArray<SourceSpan> } {
-    if (typeof value !== 'object' || value === null || !('__kind' in value)) {
-        return false;
+): ArgumentSpans {
+    if (!isPatternValue(value)) {
+        return {};
     }
-    return (
-        value.__kind === 'FastPattern' ||
-        value.__kind === 'SlowPattern' ||
-        value.__kind === 'StructPattern' ||
-        value.__kind === 'BeatPattern' ||
-        value.__kind === 'GlidePattern'
+    const { argument_span: single, argument_spans: perSource } = value as {
+        argument_span?: SourceSpan;
+        argument_spans?: readonly SourceSpan[];
+    };
+    if (!perSource) {
+        return single ? { [paramName]: single } : {};
+    }
+    return Object.fromEntries(
+        perSource.flatMap((span, i) =>
+            span.start !== 0 || span.end !== 0
+                ? [[`${paramName}.${i}`, span]]
+                : [],
+        ),
     );
 }
 
@@ -480,9 +439,7 @@ export class DSLContext {
             // itself, where anywhere else it reads as its `$cycle`.
             for (const [name, value] of Object.entries(params)) {
                 if (!signalParamNames.has(name)) {
-                    params[name] = Array.isArray(value)
-                        ? value.map(patternPayload)
-                        : patternPayload(value);
+                    params[name] = patternPayload(value);
                 }
             }
 
@@ -504,45 +461,16 @@ export class DSLContext {
                 }
             }
 
-            // Merge argument_span fields carried by any ParsedPattern params
-            // ($p() embeds its own source-literal span so highlighting stays
-            // attached through const indirections — `const p = $p(...); $cycle(p)`
-            // works without the static analyzer having to reason about $p).
-            //
-            // $p.s(...).trans(...) chains arrive as SpPattern objects whose
-            // `argument_spans[i]` lines up with `sources[i]`. Emit those
-            // as `<paramName>.0`, `<paramName>.1`, ... matching the multi-
-            // source `pattern.<i>` keys the Rust side puts on `param_spans`.
+            // A pattern carries the spans of its own source literals, so
+            // highlighting follows it through a `const`.
             const mergedArgumentSpans: ArgumentSpans = {
                 ...(argumentSpans ?? {}),
             };
             for (const [paramName, value] of Object.entries(params)) {
-                if (
-                    isSpPatternLike(value) ||
-                    isArrangePatternLike(value) ||
-                    isPatternWrapperLike(value)
-                ) {
-                    // Both carry a flat `argument_spans[i]` list lining up with
-                    // the Rust per-source order; emit `<paramName>.<i>` keys.
-                    const argSpans = value.argument_spans;
-                    if (argSpans && argSpans.length > 0) {
-                        argSpans.forEach((span, j) => {
-                            if (span && (span.start !== 0 || span.end !== 0)) {
-                                mergedArgumentSpans[`${paramName}.${j}`] = span;
-                            }
-                        });
-                    }
-                } else if (isParsedPatternLike(value) && value.argument_span) {
-                    mergedArgumentSpans[paramName] = value.argument_span;
-                } else if (Array.isArray(value)) {
-                    for (let j = 0; j < value.length; j++) {
-                        const elem = value[j];
-                        if (isParsedPatternLike(elem) && elem.argument_span) {
-                            mergedArgumentSpans[`${paramName}.${j}`] =
-                                elem.argument_span;
-                        }
-                    }
-                }
+                Object.assign(
+                    mergedArgumentSpans,
+                    patternArgumentSpans(paramName, value),
+                );
             }
 
             // Attach argument spans to params if available
@@ -591,7 +519,7 @@ export class DSLContext {
             let root: Collection | CollectionWithRange;
             const cvOutput = chooseOutput(rootOutputs, 'cv');
             for (const output of outputs) {
-                const name = sanitizeOutputName(output.name);
+                const name = outputName(output.name);
                 named[name] = node._output(output.name);
                 if (name === cvOutput) {
                     root = node._output(output.name);

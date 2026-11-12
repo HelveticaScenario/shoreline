@@ -14,8 +14,8 @@ import {
     type ResolvableOutput,
 } from '../../shared/dsl/outputResolutionRule';
 import { captureSourceLocation } from './captureSourceLocation';
-import { sanitizeOutputName } from './outputNames';
-import { patternSignal } from './patternKinds';
+import { outputName } from './outputNames';
+import { patternSignal } from './patterns';
 import { isSignalGroupLike } from './signalGroups';
 
 const OUTPUT_SET = Symbol('outputSet');
@@ -30,7 +30,7 @@ export interface OutputSet {
 export function resolvableOutputs(schema: ModuleSchema): ResolvableOutput[] {
     return (schema.outputs ?? []).map((o) => ({
         default: o.default,
-        name: sanitizeOutputName(o.name),
+        name: outputName(o.name),
         outputType: o.outputType,
     }));
 }
@@ -49,12 +49,16 @@ export function markRoot(root: object, set: OutputSet): void {
     }
 }
 
-/** The outputs a multi-output module's root stands for, if `value` is one. */
+/**
+ * The outputs a multi-output module's root stands for, if `value` is one. A
+ * pattern is the root of its `$cycle`.
+ */
 export function outputSetOf(value: unknown): OutputSet | undefined {
-    if (typeof value !== 'object' || value === null) {
+    const root = patternSignal(value);
+    if (typeof root !== 'object' || root === null) {
         return undefined;
     }
-    return (value as { [OUTPUT_SET]?: OutputSet })[OUTPUT_SET];
+    return (root as { [OUTPUT_SET]?: OutputSet })[OUTPUT_SET];
 }
 
 /**
@@ -72,17 +76,15 @@ export class OutputResolver {
     private inCall = false;
 
     /**
-     * The output `value` contributes to an input of class `inputClass`. A
-     * pattern is the root of its `$cycle`; anything but a root passes
-     * through.
+     * The output `value` contributes to an input of class `inputClass`;
+     * anything but a root passes through.
      */
     resolve(
-        signal: unknown,
+        value: unknown,
         inputClass: OutputClass,
         site: CallSite | undefined,
         slot: string,
     ): unknown {
-        const value = patternSignal(signal);
         const set = outputSetOf(value);
         if (!set) {
             return value;
@@ -114,7 +116,7 @@ export class OutputResolver {
                 ? value.map((element, i) => [elementSlot(slot, i), element])
                 : [[slot, value]];
             for (const [s, v] of values) {
-                const set = outputSetOf(patternSignal(v));
+                const set = outputSetOf(v);
                 if (set) {
                     roots.push([s, set, inputClass]);
                 }

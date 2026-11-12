@@ -1711,19 +1711,15 @@ fn tah_holds_voltage_across_state_transfer() {
 // ─── Seq stale cached_hap survives transfer_state_from (highlight pin) ────────
 
 /// Build the `$p.s(...)` chained payload wire shape that the TS `$p.s` helper
-/// emits: `{ __kind: "SpPattern", sources, scale, ops, argument_spans }`.
+/// emits: `{ __kind: "SpPattern", sources, scale, modes, argument_spans }`.
 /// Each source is a `ParsedPatternPayload` (`{ ast, source, all_spans }`).
 fn sp_payload(sources: &[&str], scale: &str, modes: Vec<&str>) -> Value {
     let srcs: Vec<Value> = sources.iter().map(|s| mini_payload(s)).collect();
-    let ops_json: Vec<Value> = modes
-        .into_iter()
-        .map(|mode| json!({ "mode": mode }))
-        .collect();
     json!({
         "__kind": "SpPattern",
         "sources": srcs,
         "scale": scale,
-        "ops": ops_json,
+        "modes": modes,
         "argument_spans": [],
     })
 }
