@@ -273,7 +273,7 @@ const COMP_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$comp", docs = COMP_DOCS, args(input))]
+#[module(name = "$comp", docs = COMP_DOCS, args(input), experimental)]
 pub struct Compressor {
     outputs: CompressorOutputs,
     channel_state: Box<[ChannelState]>,

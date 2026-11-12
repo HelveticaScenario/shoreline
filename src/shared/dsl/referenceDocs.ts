@@ -68,6 +68,8 @@ export interface ReferenceEntry {
     params: ParamDoc[];
     outputs?: OutputDoc[];
     docs: DocContent;
+    /** The module's sound and params may still change between releases. */
+    experimental?: boolean;
 }
 
 function moduleSignature(module: Schema): string {
@@ -125,6 +127,7 @@ export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
     });
     return {
         docs: module.docs,
+        experimental: module.experimental,
         kind: 'module',
         name: module.name,
         outputs: module.outputs.map((o) => ({

@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    A module's named outputs now start with an underscore: `seq.trig` is `seq._trig` and `$clock.beatTrigger` is `$clock._beatTrigger`.
+
+    ```js
+    // before
+    $tr808.kick($cycle($p('c*4')).trig).out()
+    // after
+    $tr808.kick($cycle($p('c*4'))._trig).out()
+    ```
+time: 2026-11-12T03:26:18.912211-05:00
