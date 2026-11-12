@@ -10,6 +10,7 @@ import {
     deriveChannelCountChecked,
 } from './factories';
 import type {
+    AnyCollection,
     BufferOutputRef,
     GrooveTemplate,
     Signal,
@@ -25,8 +26,8 @@ import {
     DeferredModuleOutput,
     DeferredCollection,
     Bus,
-    ModuleOutput,
     cycleToChannels,
+    withCarried,
     replaceSignals,
     PORT_MAX_CHANNELS,
 } from './GraphBuilder';
@@ -43,9 +44,9 @@ import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { createControls } from './controls';
 import { assertControlsPlaced } from './controlPlacement';
 import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
-import { $p, setActiveCycleFactory } from './miniNotation';
+import { $p } from './miniNotation';
 import { DELAY_SITE } from './signalSiteTables';
-import { refusePattern } from './patternKinds';
+import { setActiveCycleFactory } from './patterns';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
 import type {
@@ -55,6 +56,7 @@ import type {
 import { compileVideoGraph } from './video/wgslCompiler';
 import { VIDEO_DOCS } from '../../shared/dsl/videoDocs';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
+import { assetPath } from './assetPath';
 
 // Augment Array.prototype with pipe() for TypeScript
 declare global {
@@ -89,9 +91,12 @@ export interface DSLExecutionResult {
     outputResolutions: OutputResolutionRecord[];
 }
 
-export interface WavsFolderNode {
-    [name: string]: WavsFolderNode | 'file';
-}
+/** The bands of a `$xover`. */
+type XoverBands = Collection & {
+    _low: Collection;
+    _mid: Collection;
+    _high: Collection;
+};
 
 /** What the engine reports about a decoded WAV or media audio track. */
 interface LoadedWav {
@@ -113,16 +118,24 @@ interface LoadedWav {
 }
 
 /** The `wav` parameter value that refers to decoded audio held by the engine. */
-function wavRef(path: string, info: LoadedWav) {
+function wavRef(info: LoadedWav) {
     return {
         type: 'wav_ref' as const,
-        path,
+        path: info.path,
+        channels: info.channels,
+        mtime: info.mtime,
+    };
+}
+
+/** What `$wavMeta` reports about a file. */
+function wavMeta(info: LoadedWav) {
+    return {
+        path: info.path,
         channels: info.channels,
         sampleRate: info.sampleRate,
         frameCount: info.frameCount,
         duration: info.duration,
         bitDepth: info.bitDepth,
-        mtime: info.mtime,
         ...(info.pitch != null && { pitch: info.pitch }),
         ...(info.playback != null && { playback: info.playback }),
         ...(info.bpm != null && { bpm: info.bpm }),
@@ -159,7 +172,7 @@ export interface DSLExecutionOptions {
     /** Whether a workspace-relative path names an existing file, for media errors. */
     mediaExists?: (path: string) => boolean;
     workspaceRoot?: string | null;
-    wavsFolderTree?: WavsFolderNode | null;
+    /** Decodes a WAV file named by a `/`-rooted workspace path. */
     loadWav?: (path: string) => LoadedWav;
     /**
      * Decodes the audio track of a workspace media file, or returns null when
@@ -253,7 +266,7 @@ export function executePatchScript(
         }
         builder.setTempo(tempo);
     };
-    const $setOutputGain = (gain: Signal) => {
+    const $setOutputGain = (gain: PolySignal) => {
         builder.setOutputGain(gain);
     };
 
@@ -341,15 +354,13 @@ export function executePatchScript(
         new Bus(builder, cb);
 
     const $setEndOfChainCb = (
-        cb: (
-            mixed: Collection,
-        ) => ModuleOutput | Collection | CollectionWithRange,
+        cb: (mixed: Collection) => Collection | CollectionWithRange,
     ) => {
         builder.setEndOfChainCb(cb);
     };
 
     const $buffer = (
-        input: ModuleOutput | Collection | number,
+        input: Signal | AnyCollection,
         lengthSeconds: number,
         config?: { id?: string },
     ): BufferOutputRef => {
@@ -450,7 +461,7 @@ export function executePatchScript(
          * written to the buffer — e.g. a filter or saturator that colours every
          * recirculation of the delay.
          */
-        feedbackCb?: (mixed: Collection) => Collection | ModuleOutput;
+        feedbackCb?: (mixed: Collection) => Collection;
         /**
          * Maximum delay time in seconds — sizes the underlying buffer and
          * caps how long `time` can be (default 5).
@@ -479,10 +490,10 @@ export function executePatchScript(
      *
      * Returns the wet `$delayRead` output with the captured `buffer` attached
      * as a property for additional taps. Mix the dry signal back yourself
-     * (`$mix([input, $delay(input, time)])`) or use `.$m.delay(mix, time)`.
+     * (`$mix([input, $delay(input, time)])`) or use `.delay(time).wet(mix)`.
      */
     const $delay = (
-        input: Collection | ModuleOutput,
+        input: Collection,
         time: PolySignal,
         opts?: DelayOptions,
     ): Collection & { buffer: BufferOutputRef } => {
@@ -532,20 +543,15 @@ export function executePatchScript(
                     : mixed;
                 const buf = $buffer(buffered, maxTime);
                 const delayed = $delayRead(buf, time) as Collection;
-                def.set(delayed.amp(feedback as unknown as Signal));
-                return Object.assign(delayed, { buffer: buf });
+                def.set(delayed.amp(feedback));
+                return withCarried(delayed, { buffer: buf });
             },
         );
     };
 
-    // Expose `$delay` on the `.$` / `.$m` chainable namespaces. It is DSL
-    // sugar rather than a module schema, so it is registered explicitly here
-    // instead of being discovered via `qualifiesForDollarChain`.
-    builder.registerDollarMethod('delay', (self, ...args) =>
-        $delay(
-            self as Collection | ModuleOutput,
-            ...(args as [PolySignal, DelayOptions?]),
-        ),
+    // `$delay` is a DSL helper, not a module, so it is made a chain method here.
+    builder.registerChainMethod('delay', (self, ...args) =>
+        $delay(self as Collection, ...(args as [PolySignal, DelayOptions?])),
     );
 
     interface OttConfig {
@@ -628,34 +634,26 @@ export function executePatchScript(
         const midHighFreq = config.midHighFreq ?? hz(2500);
         const xoverConf = { lowMidFreq, midHighFreq };
 
-        const bands = $xover(input, xoverConf) as Collection & {
-            low: Collection;
-            mid: Collection;
-            high: Collection;
-        };
+        const bands = $xover(input, xoverConf) as XoverBands;
 
         // Split the side-chain through an identical crossover so each band's
         // compressor keys off the matching frequency range of the sidechain.
         const scBands =
             config.sidechain !== undefined
-                ? ($xover(config.sidechain, xoverConf) as Collection & {
-                      low: Collection;
-                      mid: Collection;
-                      high: Collection;
-                  })
+                ? ($xover(config.sidechain, xoverConf) as XoverBands)
                 : null;
 
-        const lowComp = $comp(bands.low, {
+        const lowComp = $comp(bands._low, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.low }),
+            ...(scBands !== null && { sidechain: scBands._low }),
         });
-        const midComp = $comp(bands.mid, {
+        const midComp = $comp(bands._mid, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.mid }),
+            ...(scBands !== null && { sidechain: scBands._mid }),
         });
-        const highComp = $comp(bands.high, {
+        const highComp = $comp(bands._high, {
             ...compConf,
-            ...(scBands !== null && { sidechain: scBands.high }),
+            ...(scBands !== null && { sidechain: scBands._high }),
         });
 
         // Per-band trim — $scaleAndShift convention: scale=5 → unity gain.
@@ -672,7 +670,7 @@ export function executePatchScript(
         const dryWeight = $scaleAndShift(depth, -5, 5);
 
         return $mix([
-            $scaleAndShift(input, dryWeight as Signal, 0),
+            $scaleAndShift(input, dryWeight, 0),
             $scaleAndShift(wet, depth, 0),
         ]) as Collection;
     };
@@ -693,7 +691,7 @@ export function executePatchScript(
      */
     const $cross = (
         count: number,
-        playhead: Signal,
+        playhead: PolySignal,
         range: [number, number] = [0, 5],
         interpolationType?: string,
     ): Collection => {
@@ -758,9 +756,9 @@ export function executePatchScript(
             }
             const info = timedWavLoad(() => options.loadMediaAudio!(path));
             if (info === null) {
-                throw new Error(`$v.video(...).audio: "${path}" has no audio`);
+                throw new Error(`$v.video(...).audio: "/${path}" has no audio`);
             }
-            return _mediaAudio(wavRef(info.path, info), playback) as Collection;
+            return _mediaAudio(wavRef(info), playback) as Collection;
         },
         mediaExists: options.mediaExists,
         sourceLocation: captureSourceLocation,
@@ -772,11 +770,6 @@ export function executePatchScript(
         ...args: Parameters<VideoGraphBuilder['scopeXY']>
     ): VideoOutput => videoBuilder.out(videoBuilder.scopeXY(...args));
 
-    /**
-     * Load WAV samples from the wavs/ folder.
-     * Returns a proxy tree matching the folder structure; leaf nodes trigger
-     * loadWav() and return `{ type: 'wav_ref', path, channels }` objects.
-     */
     // Wall-clock time this run spends inside synchronous loadWav host calls.
     // The vm timeout below measures total wall-clock time of the run, so this
     // distinguishes a patch stuck in a loop from one legitimately spending
@@ -802,112 +795,18 @@ export function executePatchScript(
         }
     };
 
-    const $wavs = (): unknown => {
-        const tree = options.wavsFolderTree;
-        if (!tree) {
-            return new Proxy(
-                {},
-                {
-                    get(_target, prop) {
-                        throw new Error(
-                            `$wavs().${String(prop)}: no wavs/ folder found in workspace`,
-                        );
-                    },
-                },
-            );
+    /** Decodes the file at a `/`-rooted workspace path, or an error naming `fn`. */
+    const loadWavFile = (fn: string, path: unknown): LoadedWav => {
+        const rooted = assetPath(fn, path, 'wav');
+        if (!options.loadWav) {
+            throw new Error(`${fn}: WAV loading is not available`);
         }
-
-        // Memoize the lexicographically-sorted list of direct file basenames
-        // per folder node, so numeric-index resolution sorts at most once
-        // per node regardless of how many `$wavs()[i]` calls happen.
-        const sortedFilesCache = new WeakMap<WavsFolderNode, string[]>();
-        function sortedFileList(node: WavsFolderNode): string[] {
-            const cached = sortedFilesCache.get(node);
-            if (cached) return cached;
-            const files = Object.entries(node)
-                .filter(([, v]) => v === 'file')
-                .map(([k]) => k)
-                .sort((a, b) => a.localeCompare(b));
-            sortedFilesCache.set(node, files);
-            return files;
-        }
-
-        function makeProxy(node: WavsFolderNode, pathParts: string[]): unknown {
-            // Resolve a known file leaf (basename `fileName` exists in `node`
-            // as a `'file'`) into a `WavHandle`. Single source of truth
-            // shared by named-key access and numeric-index access.
-            function loadFile(fileName: string): unknown {
-                const relPath = [...pathParts, fileName].join('/');
-                if (!options.loadWav) {
-                    throw new Error('$wavs(): loadWav function not provided');
-                }
-                return wavRef(
-                    relPath,
-                    timedWavLoad(() => options.loadWav!(relPath)),
-                );
-            }
-
-            return new Proxy(
-                {},
-                {
-                    get(_target, prop) {
-                        if (typeof prop !== 'string') return undefined;
-
-                        // Numeric index access wraps modulo the file count of
-                        // this folder. Only direct files participate
-                        // (subfolders excluded — they get their own index).
-                        if (/^-?(0|[1-9][0-9]*)$/.test(prop)) {
-                            const files = sortedFileList(node);
-                            if (files.length === 0) {
-                                const fullPath = [
-                                    ...pathParts,
-                                    `[${prop}]`,
-                                ].join('/');
-                                throw new Error(
-                                    `$wavs(): "${fullPath}" — no wav files in this folder to index into`,
-                                );
-                            }
-                            const i = parseInt(prop, 10);
-                            const wrapped =
-                                ((i % files.length) + files.length) %
-                                files.length;
-                            return loadFile(files[wrapped]);
-                        }
-
-                        const child = node[prop];
-                        if (child === undefined) {
-                            const fullPath = [...pathParts, prop].join('/');
-                            throw new Error(
-                                `$wavs(): "${fullPath}" not found. Available: ${Object.keys(node).join(', ') || '(empty)'}`,
-                            );
-                        }
-
-                        if (child === 'file') {
-                            return loadFile(prop);
-                        }
-
-                        // Directory node — return nested proxy
-                        return makeProxy(child, [...pathParts, prop]);
-                    },
-                    ownKeys() {
-                        return Object.keys(node);
-                    },
-                    getOwnPropertyDescriptor(_target, prop) {
-                        if (typeof prop === 'string' && prop in node) {
-                            return {
-                                configurable: true,
-                                enumerable: true,
-                                writable: false,
-                            };
-                        }
-                        return undefined;
-                    },
-                },
-            );
-        }
-
-        return makeProxy(tree, []);
+        return timedWavLoad(() => options.loadWav!(rooted));
     };
+    context.setWavResolver((module, path) => wavRef(loadWavFile(module, path)));
+
+    /** The format, tempo, loops and cue points of a WAV file. */
+    const $wavMeta = (path: string) => wavMeta(loadWavFile('$wavMeta', path));
 
     /**
      * $phase.* DSL helpers produce phase-warp descriptors for modules that
@@ -944,7 +843,6 @@ export function executePatchScript(
 
     const warpHelper =
         (type: string, field: string) => (value: unknown, next?: unknown) => {
-            refusePattern(value, `$phase.${type}: ${field}`);
             const t = wrapWarp({ type, [field]: replaceSignals(value) });
             return next !== undefined
                 ? wrapWarp({ type: 'pipe', first: t, second: next })
@@ -1009,10 +907,9 @@ export function executePatchScript(
         // Helper functions with $ prefix
         $hz,
         $note: note,
-        // Mini-notation parser — wraps a string in a ParsedPattern that
-        // $cycle consumes as a positional argument. Carries
-        // $p.s(source, scale) for scale-degree patterns (integer degrees
-        // resolved through a scale string into voltage atoms for $cycle).
+        // Mini-notation patterns: $p(source), $p.s(source, scale) for scale
+        // degrees and $p.arrange(...) for sections. Each is the $cycle that
+        // plays it.
         $p,
         // Phase-warp descriptors for $wavetable, $enosc and $pWarp
         $phase,
@@ -1055,8 +952,7 @@ export function executePatchScript(
         $delay,
         $ott,
         $cross,
-        // WAV sample loading
-        $wavs,
+        $wavMeta,
         // Built-in modules
         $clock,
         $input: rootInput,
@@ -1184,8 +1080,8 @@ export function executePatchScript(
         }
         throw error;
     } finally {
-        // Clear the span registry after execution — spans are already baked into
-        // Module state via ARGUMENT_SPANS_KEY so the registry isn't needed anymore.
+        // The spans are baked into module state via ARGUMENT_SPANS_KEY, and
+        // patterns play only while the script runs.
         setActiveSpanRegistry(null);
         setActiveCycleFactory(null);
         // NOTE: Do NOT clear interpolation resolutions here. They are read

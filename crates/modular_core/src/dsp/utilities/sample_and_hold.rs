@@ -44,7 +44,7 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
                   $quantizer(
                     $sah(
                       $noise('white').range('c3', 'c5'),
-                      $clock.beatTrigger,
+                      $clock._beatTrigger,
                     ),
                     'C(major)',
                   ),
@@ -55,10 +55,10 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
             title: "Stepped random filter",
             code: r#"
                 $saw('c2')
-                  .$.lpf(
+                  .lpf(
                     $sah(
                       $noise('white').range('c4', 'c7'),
-                      $clock.beatTrigger,
+                      $clock._beatTrigger,
                     ),
                     3,
                   )

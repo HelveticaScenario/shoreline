@@ -21,9 +21,9 @@ import './DocsPanel.css';
 type Page = 'types' | 'globals' | 'reference' | 'video';
 
 const PAGES: { id: Page; label: string }[] = [
+    { id: 'reference', label: 'Reference' },
     { id: 'types', label: 'Types' },
     { id: 'globals', label: 'Globals' },
-    { id: 'reference', label: 'Reference' },
     { id: 'video', label: 'Video' },
 ];
 
@@ -135,8 +135,9 @@ const TypeCard: React.FC<TypeCardProps> = ({
 );
 
 export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
-    const [activePage, setActivePage] = useState<Page>('types');
+    const [activePage, setActivePage] = useState<Page>('reference');
     const [searchQuery, setSearchQuery] = useState('');
+    const [category, setCategory] = useState<string | null>(null);
     const [schemas, setSchemas] = useState<Schemas>();
     // A fresh object per reveal, so revealing the same type again scrolls back to it.
     const [revealedType, setRevealedType] = useState<{
@@ -174,6 +175,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
         } else if (symbolType === 'module' || symbolType === 'namespace') {
             setActivePage('reference');
             setSearchQuery(name);
+            setCategory(null);
         }
     }, [target]);
 
@@ -205,7 +207,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
         }
         const element = document.getElementById(`type-${revealedType.name}`);
         if (element) {
-            // Scroll the docs pane alone; the app containers around the sidebar must not move.
+            // Scroll the docs pane alone; the app containers around it must not move.
             const offset =
                 element.getBoundingClientRect().top -
                 container.getBoundingClientRect().top;
@@ -319,7 +321,8 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
                         modules={schemas ?? NO_MODULES}
                         searchQuery={searchQuery}
                         onSearchQueryChange={setSearchQuery}
-                        scrollRef={contentRef}
+                        category={category}
+                        onCategoryChange={setCategory}
                         onTypeClick={handleTypeClick}
                     />
                 );
@@ -340,7 +343,14 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
                     </button>
                 ))}
             </nav>
-            <div ref={contentRef} className="docs-content">
+            <div
+                ref={contentRef}
+                className={
+                    activePage === 'reference'
+                        ? 'docs-content docs-content-split'
+                        : 'docs-content'
+                }
+            >
                 {renderContent()}
             </div>
         </div>

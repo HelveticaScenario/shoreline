@@ -43,6 +43,15 @@ import { AppliedPatchState } from './appliedPatchState';
 import { isBufferSwitch } from './bufferSwitch';
 import { createConfigStore, type AppConfig } from './appConfig';
 import { createFallbackWarningChannel } from './fallbackWarning';
+import { bundledChangelog, fetchPublishedReleases } from './releaseNotesSource';
+import {
+    isNewerVersion,
+    mergeReleaseNotes,
+    releasesInRange,
+    updateHasBreakingChanges,
+    whatsNewSince,
+    type ReleaseNotes,
+} from '../shared/releaseNotes';
 import {
     handleMediaProtocol,
     mediaFileExists,
@@ -60,6 +69,7 @@ import {
 import { PERFORMANCE_WINDOW_NAME } from '../shared/video/performanceWindowName';
 import { serializeForIPC } from './serializeForIPC';
 import { resolveWorkspacePath } from './workspacePaths';
+import { assetKind } from '../shared/assetFiles';
 import { SyphonBridge, type SyphonStatus } from './syphon/SyphonBridge';
 import { syphonAction, type SyphonTarget } from './syphon/syphonTarget';
 import { requestCameraAccess, screenSource } from './liveSources';
@@ -74,7 +84,6 @@ import { executePatchScript } from './dsl/executor';
 import { buildSignalSiteTables } from './dsl/signalSiteTables';
 import type { SignalSiteTables } from '../shared/dsl/signalSites';
 import { buildLibSource } from './dsl/typescriptLibGen';
-import type { WavsFolderNode } from './dsl/typescriptLibGen';
 import * as fs from 'fs';
 import * as net from 'net';
 import * as os from 'os';
@@ -347,8 +356,8 @@ console.debug = createLogInterceptor('debug');
 // ========================================================================
 
 const GITHUB_REPO = 'HelveticaScenario/shoreline';
+const FULL_CHANGELOG_URL = `https://github.com/${GITHUB_REPO}/blob/master/CHANGELOG.md`;
 const UPDATE_FEED_URL = `https://update.electronjs.org/${GITHUB_REPO}`;
-const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
 /** True on platforms where autoUpdater (Squirrel) is supported */
 const supportsAutoUpdater =
@@ -367,58 +376,45 @@ function sendUpdateEvent(channel: string, ...args: unknown[]) {
 }
 
 /**
- * Fetches the latest release from GitHub API and pushes UPDATE_AVAILABLE
- * to the renderer if a newer version is available and not skipped.
- * Does NOT trigger any download.
+ * Fetches the published releases from the GitHub API and pushes
+ * UPDATE_AVAILABLE to the renderer if a newer version is available and not
+ * skipped, with the notes of every release between the running version and
+ * the latest. Does NOT trigger any download.
  */
 async function checkForUpdateAvailability(): Promise<void> {
     try {
-        const response = await fetch(GITHUB_API_URL, {
-            headers: { 'User-Agent': GITHUB_REPO },
-        });
-        if (!response.ok) {
-            console.warn('[update] GitHub API returned', response.status);
+        const releases = await fetchPublishedReleases(GITHUB_REPO);
+        const latest = releases?.[0];
+        if (!latest) {
             return;
         }
-        const ReleaseSchema = z.object({
-            html_url: z.string(),
-            tag_name: z.string(),
-        });
-        const parsed = ReleaseSchema.safeParse(await response.json());
-        if (!parsed.success) {
-            console.warn('[update] Unexpected GitHub API response shape');
-            return;
-        }
-        const latestVersion = parsed.data.tag_name.replace(/^v/, '');
+        const latestVersion = latest.notes.version;
         const currentVersion = app.getVersion();
-        if (latestVersion === currentVersion) {
+        if (!isNewerVersion(latestVersion, currentVersion)) {
             return;
         }
 
-        // Compare semver — only notify if latest is strictly newer
-        const [lMaj, lMin, lPat] = latestVersion.split('.').map(Number);
-        const [cMaj, cMin, cPat] = currentVersion.split('.').map(Number);
-        // NaN from non-numeric components (e.g. pre-release tags like "1.0.0-beta.1")
-        // Causes all comparisons to be false — pre-releases are silently ignored.
-        const isNewer =
-            lMaj > cMaj ||
-            (lMaj === cMaj && lMin > cMin) ||
-            (lMaj === cMaj && lMin === cMin && lPat > cPat);
-
-        if (!isNewer) {
-            return;
-        }
-
-        // Check if this version was skipped
         const config = configStore.load();
         if (config.skippedUpdateVersion === latestVersion) {
             return;
         }
 
-        latestReleaseUrl = parsed.data.html_url;
+        latestReleaseUrl = latest.url;
 
+        const releaseNotes = releasesInRange(
+            releases.map((release) => release.notes),
+            currentVersion,
+            latestVersion,
+        );
         const info: UpdateAvailableInfo = {
-            releaseUrl: parsed.data.html_url,
+            currentVersion,
+            hasBreakingChanges: updateHasBreakingChanges(
+                releaseNotes,
+                currentVersion,
+                latestVersion,
+            ),
+            releaseNotes,
+            releaseUrl: latest.url,
             supportsInAppUpdate: supportsAutoUpdater,
             version: latestVersion,
         };
@@ -563,6 +559,10 @@ try {
 
 const configStore = createConfigStore(CONFIG_FILE);
 
+// Every release writes the config file at startup, so its absence here means
+// this is the app's first launch on this machine.
+const isFreshInstall = !fs.existsSync(CONFIG_FILE);
+
 // Load saved config to pass to synthesizer. MODULAR_AUDIO_OUTPUT_DEVICE and
 // MODULAR_AUDIO_INPUT_DEVICE override the saved devices, so agents and tests
 // can keep their audio off the user's speakers and microphone.
@@ -684,105 +684,6 @@ function startConfigWatcher() {
     });
 }
 
-// WAV folder scanner and watcher
-let currentWavsFolderTree: WavsFolderNode | null = null;
-let wavsWatcher: fs.FSWatcher | null = null;
-
-function scanWavsFolder(workspaceRoot: string): WavsFolderNode | null {
-    const wavsDir = path.join(workspaceRoot, 'wavs');
-    if (!fs.existsSync(wavsDir)) {
-        return null;
-    }
-
-    function scanDir(dirPath: string): WavsFolderNode {
-        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-        const node: WavsFolderNode = {};
-
-        for (const entry of entries) {
-            if (entry.name.startsWith('.')) continue;
-
-            if (entry.isDirectory()) {
-                const child = scanDir(path.join(dirPath, entry.name));
-                if (Object.keys(child).length > 0) {
-                    node[entry.name] = child;
-                }
-            } else if (
-                entry.isFile() &&
-                entry.name.toLowerCase().endsWith('.wav')
-            ) {
-                // Strip .wav extension for the key
-                const name = entry.name.slice(0, -4);
-                node[name] = 'file';
-            }
-        }
-
-        return node;
-    }
-
-    return scanDir(wavsDir);
-}
-
-function startWavsWatcher(workspaceRoot: string) {
-    if (wavsWatcher) {
-        wavsWatcher.close();
-        wavsWatcher = null;
-    }
-
-    const wavsDir = path.join(workspaceRoot, 'wavs');
-    if (!fs.existsSync(wavsDir)) {
-        currentWavsFolderTree = null;
-        return;
-    }
-
-    currentWavsFolderTree = scanWavsFolder(workspaceRoot);
-
-    // Tell the Rust side where to find WAVs
-    synth.setWavWorkspace(workspaceRoot);
-
-    // Debounce watcher events — fs.watch fires multiple rapid events for a
-    // single rename/move operation.  Coalescing with a short delay avoids
-    // race conditions where we scan mid-rename (directory exists under old
-    // name, files already moved) and either throw ENOENT or capture a
-    // transient snapshot that masks the real change.
-    const DEBOUNCE_MS = 150;
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-    function handleWavsChange() {
-        let newTree: WavsFolderNode | null;
-        try {
-            newTree = scanWavsFolder(workspaceRoot);
-        } catch {
-            // Scan can fail if the directory is mid-rename — schedule a
-            // retry after the filesystem has settled.
-            setTimeout(handleWavsChange, DEBOUNCE_MS);
-            return;
-        }
-        const treeChanged =
-            JSON.stringify(newTree) !== JSON.stringify(currentWavsFolderTree);
-        if (treeChanged) {
-            currentWavsFolderTree = newTree;
-            cachedLibSource = null; // Invalidate cached lib source
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send(IPC_CHANNELS.WAVS_ON_CHANGE);
-            }
-        }
-    }
-
-    try {
-        wavsWatcher = fs.watch(
-            wavsDir,
-            { recursive: true },
-            (_eventType, _filename) => {
-                if (debounceTimer) clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(handleWavsChange, DEBOUNCE_MS);
-            },
-        );
-    } catch {
-        // Watcher may fail on some platforms — not critical
-        console.warn('Failed to watch wavs/ directory');
-    }
-}
-
 // Patch reconciliation state (reset when a different file/buffer is evaluated)
 const appliedPatch = new AppliedPatchState();
 
@@ -814,24 +715,60 @@ function validatePathInWorkspace(filePath: string): string | null {
     return resolveWorkspacePath(currentWorkspaceRoot, filePath);
 }
 
-/**
- * Check if a file should be included (JS/MJS patches or WAV samples)
- */
-function isJavaScriptFile(filename: string): boolean {
-    return filename.endsWith('.js') || filename.endsWith('.mjs');
+/** The explorer's file type for a patch or an asset a patch can load, or undefined for any other file. */
+function explorerFileType(filename: string): FileTreeEntry['fileType'] {
+    if (filename.endsWith('.js') || filename.endsWith('.mjs')) {
+        return 'js';
+    }
+    return assetKind(filename);
 }
 
-function isWavFile(filename: string): boolean {
-    return filename.toLowerCase().endsWith('.wav');
-}
-
-function isSupportedFile(filename: string): boolean {
-    return isJavaScriptFile(filename) || isWavFile(filename);
-}
+let workspaceWatcher: fs.FSWatcher | null = null;
 
 /**
- * Recursively build file tree for JavaScript files
+ * Tells the renderer when files in the workspace folder change, so its
+ * explorer stays current. A change arrives as a burst of events, which are
+ * coalesced into one notice; hidden files and `node_modules` are ignored, as
+ * the explorer does.
  */
+function watchWorkspace(root: string | null): void {
+    workspaceWatcher?.close();
+    workspaceWatcher = null;
+    if (!root) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+        workspaceWatcher = fs.watch(
+            root,
+            { recursive: true },
+            (_event, filename) => {
+                if (
+                    filename
+                        ?.split(/[\\/]/)
+                        .some((p) => p.startsWith('.') || p === 'node_modules')
+                ) {
+                    return;
+                }
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(() => {
+                    timer = null;
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send(
+                            IPC_CHANNELS.FS_TREE_ON_CHANGE,
+                        );
+                    }
+                }, 150);
+            },
+        );
+        workspaceWatcher.on('error', (error) => {
+            console.warn('Stopped watching the workspace folder:', error);
+            watchWorkspace(null);
+        });
+    } catch {
+        console.warn('Failed to watch the workspace folder');
+    }
+}
+
+/** The workspace's patches and loadable assets, folder by folder. */
 function buildFileTree(
     dirPath: string,
     relativePath: string = '',
@@ -865,9 +802,9 @@ function buildFileTree(
                         type: 'directory',
                     });
                 }
-            } else if (item.isFile() && isSupportedFile(item.name)) {
+            } else if (item.isFile() && explorerFileType(item.name)) {
                 entries.push({
-                    fileType: isWavFile(item.name) ? 'wav' : 'js',
+                    fileType: explorerFileType(item.name),
                     name: item.name,
                     path: itemRelativePath,
                     type: 'file',
@@ -923,7 +860,7 @@ registerIPCHandler('SYPHON_IS_SUPPORTED', () => SyphonBridge.supported);
 let cachedLibSource: string | null = null;
 registerIPCHandler('GET_DSL_LIB_SOURCE', () => {
     if (!cachedLibSource) {
-        cachedLibSource = buildLibSource(schemas, currentWavsFolderTree);
+        cachedLibSource = buildLibSource(schemas);
     }
     return cachedLibSource;
 });
@@ -1088,7 +1025,6 @@ registerIPCHandler(
                     mediaFileExists(currentWorkspaceRoot, relative),
                 sampleRate: synth.sampleRate(),
                 workspaceRoot: currentWorkspaceRoot,
-                wavsFolderTree: currentWavsFolderTree,
                 loadMediaAudio: inWavWorkspace((mediaPath) =>
                     synth.loadMediaAudio(mediaPath),
                 ),
@@ -1551,9 +1487,7 @@ registerIPCHandler('FS_SELECT_WORKSPACE', async () => {
     const workspaceRoot = result.filePaths[0];
     currentWorkspaceRoot = workspaceRoot;
     console.log('Workspace selected:', workspaceRoot);
-
-    // Start watching wavs/ folder for the new workspace
-    startWavsWatcher(workspaceRoot);
+    watchWorkspace(workspaceRoot);
 
     // Save to config (load-merge-save to preserve other settings)
     configStore.update((config) => {
@@ -2022,6 +1956,39 @@ ipcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, () => {
     autoUpdater.checkForUpdates();
 });
 
+registerIPCHandler('RELEASE_NOTES_WHATS_NEW', () => {
+    const currentVersion = app.getVersion();
+    const { lastSeenVersion } = configStore.load();
+    if (lastSeenVersion === currentVersion) {
+        return { currentVersion, releaseNotes: [] };
+    }
+    const releaseNotes = whatsNewSince(
+        bundledChangelog(),
+        lastSeenVersion,
+        currentVersion,
+        isFreshInstall,
+    );
+    configStore.update((config) => {
+        config.lastSeenVersion = currentVersion;
+    });
+    return { currentVersion, releaseNotes };
+});
+
+registerIPCHandler('RELEASE_NOTES_GET_ALL', async () => {
+    let published: ReleaseNotes[] = [];
+    try {
+        const releases = await fetchPublishedReleases(GITHUB_REPO);
+        published = releases?.map((release) => release.notes) ?? [];
+    } catch (err) {
+        console.warn('[release-notes] Fetching releases failed:', err);
+    }
+    return {
+        currentVersion: app.getVersion(),
+        fullChangelogUrl: FULL_CHANGELOG_URL,
+        releaseNotes: mergeReleaseNotes(published, bundledChangelog()),
+    };
+});
+
 ipcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, () => {
     if (!supportsAutoUpdater) {
         return;
@@ -2384,15 +2351,15 @@ const createMenu = (): void => {
                     click: () => {
                         if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send(
-                                MENU_CHANNELS.TOGGLE_VU_METERS,
+                                MENU_CHANNELS.TOGGLE_MIXER,
                             );
                         }
                     },
                     ...menuShortcut(
-                        'shoreline.toggleVuMeters',
+                        'shoreline.toggleMixer',
                         'CmdOrCtrl+Shift+M',
                     ),
-                    label: 'Toggle VU Meters',
+                    label: 'Toggle Mixer',
                 },
                 // Publish the window as a Syphon source (macOS 14+ only; hidden
                 // elsewhere so the helper never crash-loops on an unsupported OS).
@@ -2500,16 +2467,35 @@ const createMenu = (): void => {
         // it to Help elsewhere.
         {
             role: 'help',
-            submenu: isMac
-                ? []
-                : [
-                      {
-                          click: async () => {
-                              await checkForUpdateAvailability();
+            submenu: [
+                {
+                    click: () => {
+                        if (mainWindow && !mainWindow.isDestroyed()) {
+                            mainWindow.webContents.send(
+                                MENU_CHANNELS.SHOW_RELEASE_NOTES,
+                            );
+                        }
+                    },
+                    label: 'Release Notes',
+                },
+                {
+                    click: () => {
+                        void shell.openExternal(FULL_CHANGELOG_URL);
+                    },
+                    label: 'Full Changelog on GitHub',
+                },
+                ...(!isMac
+                    ? ([
+                          { type: 'separator' },
+                          {
+                              click: async () => {
+                                  await checkForUpdateAvailability();
+                              },
+                              label: 'Check for Updates...',
                           },
-                          label: 'Check for Updates...',
-                      },
-                  ],
+                      ] satisfies Electron.MenuItemConstructorOptions[])
+                    : []),
+            ],
         },
     ];
 
@@ -2548,10 +2534,7 @@ app.on('ready', () => {
         }
     }
 
-    // Scan wavs/ folder if workspace is set
-    if (currentWorkspaceRoot) {
-        startWavsWatcher(currentWorkspaceRoot);
-    }
+    watchWorkspace(currentWorkspaceRoot);
 
     // Audio configuration is already restored during Synthesizer initialization
     // (the config is passed to the constructor)

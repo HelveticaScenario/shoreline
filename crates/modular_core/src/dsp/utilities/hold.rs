@@ -54,7 +54,7 @@ const HOLD_DOCS: ModuleDocs = ModuleDocs {
         code: r#"
             $saw('c3')
               .amp(
-                $adsr($hold($clock.beatTrigger, 0.15), {
+                $adsr($hold($clock._beatTrigger, 0.15), {
                   release: 0.2,
                 }),
               )

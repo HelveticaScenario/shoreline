@@ -63,6 +63,7 @@ impl BenchPatch {
                         DeserializedParams {
                             params: cached.params,
                             channel_count: cached.channel_count,
+                            f64_inputs: false,
                         },
                         mode,
                     )
@@ -581,7 +582,7 @@ fn erratic_chain(channels: usize, modulated: bool) -> BenchPatch {
         };
         let mut params = json!({
             "input": poly_cable(&prev, "output", channels),
-            "amount": 0.5, "speed": 2.5, "bias": 1.0, "clamp": true,
+            "amount": 0.5, "speed": 2.5, "bias": 1.0,
         });
         if modulated {
             params["speed"] = poly_cable("lfo", "output", channels);

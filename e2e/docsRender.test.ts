@@ -1,7 +1,7 @@
 /**
  * Renders every module's docs in the real editor and Reference pane and
  * checks the rendered text: no raw markdown, no `undefined`/`NaN`, every
- * declared range shown, and no horizontal overflow at any sidebar width.
+ * declared range shown, and no horizontal overflow at any panel width.
  *
  * Set DOCS_RENDER_SHOTS=<dir> to also save a screenshot of every hover,
  * completion detail, signature help and Reference card.
@@ -14,9 +14,8 @@ import schemas from '../crates/modular/schemas.json';
 import { test, expect, openUntitledBuffer } from './fixtures';
 import { formatOutputMeta, paramMeta } from '../src/shared/dsl/paramRange';
 import {
-    dollarMethodName,
     processSchemas,
-    qualifiesForDollarChain,
+    qualifiesForChain,
 } from '../src/main/dsl/paramsSchema';
 
 type Schema = (typeof schemas)[number];
@@ -27,7 +26,7 @@ const MODULES = schemas.filter(
 );
 const CHAINABLE = new Set(
     processSchemas(schemas as never)
-        .filter(qualifiesForDollarChain)
+        .filter(qualifiesForChain)
         .map((s) => s.name),
 );
 
@@ -44,12 +43,9 @@ const LEAKS: [string, RegExp][] = [
     ['object', /\[object /],
 ];
 
-/** The chain path after `.$.`, e.g. `unstable.filter.lp` for `$unstable.filter.lp`. */
+/** The chain path after `.`, e.g. `unstable.filter.lp` for `$unstable.filter.lp`. */
 function chainPath(name: string): string {
-    const parts = name.split('.');
-    parts[0] = parts[0].replace(/^\$/, '');
-    parts[parts.length - 1] = dollarMethodName(parts[parts.length - 1]);
-    return parts.join('.');
+    return name.replace(/^\$/, '');
 }
 
 function leaks(text: string): string[] {
@@ -212,25 +208,23 @@ test.describe('docs render', () => {
             }
             await window.keyboard.press('Escape');
 
-            // Hover on the `.$.` and `.$m.` chain forms.
+            // Hover on the chain form.
             if (CHAINABLE.has(name)) {
-                for (const via of ['$', '$m']) {
-                    const code = `$saw('c3').${via}.${chainPath(name)}()`;
-                    await setCode(window, code, code.length - 2);
-                    await triggerUntilVisible(
-                        window,
-                        'editor.action.showHover',
-                        HOVER,
-                    );
-                    const text = await captureWidget(
-                        window,
-                        HOVER,
-                        'Chain through',
-                        shotPath(`hover${via}`, shotName),
-                    );
-                    check(`${name} .${via}. hover`, text);
-                    await window.keyboard.press('Escape');
-                }
+                const code = `$saw('c3').${chainPath(name)}()`;
+                await setCode(window, code, code.length - 2);
+                await triggerUntilVisible(
+                    window,
+                    'editor.action.showHover',
+                    HOVER,
+                );
+                const text = await captureWidget(
+                    window,
+                    HOVER,
+                    'Chain through',
+                    shotPath('hoverChain', shotName),
+                );
+                check(`${name} chain hover`, text);
+                await window.keyboard.press('Escape');
             }
 
             // Completion details.
@@ -290,22 +284,41 @@ test.describe('docs render', () => {
         expect(failures, failures.join('\n')).toEqual([]);
     });
 
-    for (const [label, width] of [
-        ['min', 160],
-        ['default', null],
-        ['wide', 900],
+    // At the bottom the docs share the editor column, so a wider sidebar
+    // narrows them; in the sidebar they take its width.
+    for (const { label, docsLocation, sidebarWidth, wide } of [
+        {
+            label: 'wide',
+            docsLocation: 'bottom',
+            sidebarWidth: 160,
+            wide: true,
+        },
+        {
+            label: 'narrow',
+            docsLocation: 'bottom',
+            sidebarWidth: 1320,
+            wide: false,
+        },
+        {
+            label: 'sidebar',
+            docsLocation: 'sidebar',
+            sidebarWidth: 160,
+            wide: false,
+        },
     ] as const) {
         test(`reference cards at ${label} width`, async ({ window }) => {
-            await window.evaluate((width) => {
-                if (width === null) {
-                    localStorage.removeItem('modular_sidebar_width');
-                } else {
+            await window.evaluate(
+                async ({ location, width }) => {
+                    await window.electronAPI.config.write({
+                        docsLocation: location,
+                    });
                     localStorage.setItem(
                         'modular_sidebar_width',
                         String(width),
                     );
-                }
-            }, width);
+                },
+                { location: docsLocation, width: sidebarWidth },
+            );
             await window.setViewportSize({ height: 1000, width: 1600 });
             await window.reload();
             await window.waitForLoadState('networkidle');
@@ -401,7 +414,7 @@ test.describe('docs render', () => {
                         .locator('table.doc-table thead')
                         .first()
                         .isVisible();
-                    if (headerShown !== (label === 'wide')) {
+                    if (headerShown !== wide) {
                         failures.push(
                             `${module.name}: table ${headerShown ? 'not stacked' : 'stacked'} at ${label} width`,
                         );

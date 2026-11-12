@@ -59,6 +59,7 @@ pub fn deserialize_params(
             return Ok(DeserializedParams {
                 params: cached.params.clone(),
                 channel_count: cached.channel_count,
+                f64_inputs: false,
             });
         }
     }
@@ -83,5 +84,6 @@ pub fn deserialize_params(
     Ok(DeserializedParams {
         params: cached.params,
         channel_count: cached.channel_count,
+        f64_inputs: false,
     })
 }

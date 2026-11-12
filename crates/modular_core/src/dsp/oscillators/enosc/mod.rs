@@ -183,7 +183,7 @@ pub fn enosc_derive_channel_count(params: &EnoscParams) -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct EnoscOutputs {
-    #[output("output", "mix of every voice", type = cv, default, range = (-5.0, 5.0))]
+    #[output("all", "mix of every voice", type = cv, default, range = (-5.0, 5.0))]
     output: PolyOutput,
     #[output("odd", "mix of voices 1, 3, 5, …", type = cv, range = (-5.0, 5.0))]
     odd: PolyOutput,
@@ -302,8 +302,8 @@ const ENOSC_DOCS: ModuleDocs = ModuleDocs {
                   phase: $phase.pulsar(2),
                   fold: 1,
                 })
-                e.odd.out({ pan: -5 })
-                e.even.out({ pan: 5 })
+                e._odd.out({ pan: -5 })
+                e._even.out({ pan: 5 })
             "#,
         },
     ],

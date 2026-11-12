@@ -274,7 +274,7 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 $wavetable(
                   $chord('C3[m9]'),
-                  $wavs().tables.pad,
+                  '/wavs/tables/pad.wav',
                   $sine('0.1hz').range(0, 5),
                 ).out()
             "#,
@@ -282,9 +282,9 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Plucked table sweep",
             code: r#"
-                const seq = $p('c3 eb3 g3 bb3').c
+                const seq = $p('c3 eb3 g3 bb3')
                 const env = $perc(seq, { decay: 0.5 })
-                $wavetable(seq, $wavs().tables.pad, env.range(0, 4))
+                $wavetable(seq, '/wavs/tables/pad.wav', env.range(0, 4))
                   .amp(env)
                   .out()
             "#,

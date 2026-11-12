@@ -17,24 +17,13 @@ import { describe, expect, test } from 'vitest';
 import { validatePatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
-import {
-    type DSLExecutionOptions,
-    type WavsFolderNode,
-    executePatchScript,
-} from '../executor';
+import { type DSLExecutionOptions, executePatchScript } from '../executor';
 
 // ─── Execution environment ──────────────────────────────────────────────────
 //
-// A stub wavs folder so examples that read samples via `$wavs()` can build a
-// graph without real audio files on disk. Covers every wav path referenced by
-// the examples (`pad`, `strings`, `kick`, `tables/pad`).
-
-const STUB_WAVS_TREE: WavsFolderNode = {
-    pad: 'file',
-    strings: 'file',
-    kick: 'file',
-    tables: { pad: 'file' },
-};
+// A stub WAV loader so examples that play samples can build a graph without
+// real audio files on disk. Every path loads as the same two-second stereo
+// file.
 
 const stubLoadWav: NonNullable<DSLExecutionOptions['loadWav']> = (path) => ({
     channels: 2,
@@ -56,7 +45,6 @@ const EXECUTION_OPTIONS: DSLExecutionOptions = {
     loadMediaAudio: stubLoadMediaAudio,
     sampleRate: 48_000,
     workspaceRoot: '/workspace',
-    wavsFolderTree: STUB_WAVS_TREE,
     loadWav: stubLoadWav,
 };
 

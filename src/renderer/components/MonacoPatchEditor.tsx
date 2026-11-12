@@ -24,9 +24,14 @@ import {
 } from './monaco/videoPreviewViewZones';
 import { startModuleStatePolling } from './monaco/moduleStateTracking';
 import { registerMidiCompletionProvider } from './monaco/midiCompletionProvider';
+import {
+    installWorkspacePathDrop,
+    registerWorkspacePathCompletionProvider,
+} from './monaco/workspacePathCompletion';
 import { trackCodeBacking } from './monaco/codeBacking';
 import { createModelValueSync } from './monaco/modelValueSync';
 import { registerControlQuickFixProvider } from './monaco/controlQuickFixProvider';
+import { registerRefactorProvider } from './monaco/refactorProvider';
 import { apiIndexFor } from '../dsl/apiSignatures';
 import { registerKeybindingsCompletionProvider } from './monaco/keybindingsCompletion';
 import { registerKeybindingsDiagnostics } from './monaco/keybindingsDiagnostics';
@@ -94,17 +99,6 @@ export function MonacoPatchEditor({
     useEffect(() => {
         electronAPI.getDslLibSource().then(setLibSource).catch(console.error);
         electronAPI.getSchemas().then(setSchemas).catch(console.error);
-    }, []);
-
-    // Re-fetch DSL lib source when wavs folder changes so Monaco picks up new $wavs() types
-    useEffect(() => {
-        const unsubscribe = electronAPI.onWavsChange(() => {
-            electronAPI
-                .getDslLibSource()
-                .then(setLibSource)
-                .catch(console.error);
-        });
-        return unsubscribe;
     }, []);
 
     const monaco = useCustomMonaco();
@@ -456,6 +450,27 @@ export function MonacoPatchEditor({
         return () => midiProvider.dispose();
     }, [monaco]);
 
+    useEffect(() => {
+        if (!monaco) {
+            return;
+        }
+        const provider = registerWorkspacePathCompletionProvider(monaco, () =>
+            electronAPI.filesystem.listFiles(),
+        );
+        return () => provider.dispose();
+    }, [monaco]);
+
+    const singleQuote = prettierConfig.singleQuote ?? true;
+    useEffect(() => {
+        if (!editor) {
+            return;
+        }
+        const drop = installWorkspacePathDrop(editor, () =>
+            singleQuote ? "'" : '"',
+        );
+        return () => drop.dispose();
+    }, [editor, singleQuote]);
+
     // Quick fix: turn an API param into a control call chosen from its
     // metadata.
     useEffect(() => {
@@ -470,6 +485,15 @@ export function MonacoPatchEditor({
         );
         return () => provider.dispose();
     }, [monaco, schemas, libSource, prettierConfig]);
+
+    useEffect(() => {
+        if (!monaco) {
+            return;
+        }
+        const formatOptions = resolvePrettierOptions(prettierConfig);
+        const provider = registerRefactorProvider(monaco, () => formatOptions);
+        return () => provider.dispose();
+    }, [monaco, prettierConfig]);
 
     // Autocomplete command ids and `when` context keys in the keybindings.json
     // buffer, and flag unsupported `when` operators as warnings. Both scope

@@ -287,6 +287,11 @@ pub trait Sampleable: MessageHandler + Send {
     /// (wrapping at the block boundary) when called re-entrantly during the
     /// wrapper's own update loop — preserving the 1-sample feedback delay.
     fn get_value_at(&self, port: &str, ch: usize, index: usize) -> f32;
+    /// Like [`get_value_at`](Self::get_value_at), at full precision from an
+    /// f64 port.
+    fn get_value_at_f64(&self, port: &str, ch: usize, index: usize) -> f64 {
+        self.get_value_at(port, ch, index) as f64
+    }
     /// Direct read access to port `port`'s block buffer, for cables to keep
     /// as a [`CableView`]. `None` for an unknown port, a zero-width port, or a
     /// module whose reads must always go through
@@ -553,12 +558,12 @@ pub trait Connect {
     /// thread during patch apply, so it must not allocate.
     fn connect(&mut self, patch: &Patch);
 
-    /// Walk this value and push every producer module ID it references
+    /// Walk this value and push every producer output it references
     /// (cables, buffer sources, signals inside phase warps) into `sink`.
     ///
-    /// Used by graph_analysis to build SCC adjacency before module
-    /// construction.
-    fn collect_cables(&self, sink: &mut Vec<String>);
+    /// Used before module construction to build the SCC adjacency and to work
+    /// out which modules read f64 outputs.
+    fn collect_cables(&self, sink: &mut Vec<CableSource>);
 
     /// Walk this value and inject `ptr` as the back-pointer that every
     /// `Signal::Cable` reads at sample-time to know which sample slot of
@@ -604,7 +609,7 @@ macro_rules! impl_connect_noop {
         $(impl Connect for $t {
             fn apply_default_connections(&mut self) {}
             fn connect(&mut self, _patch: &Patch) {}
-            fn collect_cables(&self, _sink: &mut Vec<String>) {}
+            fn collect_cables(&self, _sink: &mut Vec<CableSource>) {}
             fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {}
             fn mark_glides(&mut self, _old: Option<&Self>, _generation: u64, _ids: &dyn PreviousIds) {}
         })*
@@ -630,7 +635,7 @@ impl<T: Connect> Connect for Vec<T> {
             item.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         for item in self {
             item.collect_cables(sink);
         }
@@ -658,7 +663,7 @@ impl<T: Connect> Connect for Option<T> {
             inner.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         if let Some(inner) = self {
             inner.collect_cables(sink);
         }
@@ -682,7 +687,7 @@ impl<T: Connect> Connect for Box<T> {
     fn connect(&mut self, patch: &Patch) {
         (**self).connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         (**self).collect_cables(sink);
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
@@ -704,7 +709,7 @@ impl<T: Connect, const N: usize> Connect for [T; N] {
             item.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         for item in self {
             item.collect_cables(sink);
         }
@@ -732,7 +737,7 @@ impl<V: Connect> Connect for std::collections::HashMap<String, V> {
             v.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         for v in self.values() {
             v.collect_cables(sink);
         }
@@ -760,7 +765,7 @@ impl<V: Connect> Connect for std::collections::BTreeMap<String, V> {
             v.connect(patch);
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         for v in self.values() {
             v.collect_cables(sink);
         }
@@ -785,7 +790,7 @@ impl<T1: Connect> Connect for (T1,) {
     fn connect(&mut self, patch: &Patch) {
         self.0.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
@@ -805,7 +810,7 @@ impl<T1: Connect, T2: Connect> Connect for (T1, T2) {
         self.0.connect(patch);
         self.1.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
         self.1.collect_cables(sink);
     }
@@ -830,7 +835,7 @@ impl<T1: Connect, T2: Connect, T3: Connect> Connect for (T1, T2, T3) {
         self.1.connect(patch);
         self.2.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
         self.1.collect_cables(sink);
         self.2.collect_cables(sink);
@@ -860,7 +865,7 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect> Connect for (T1, T2, T3
         self.2.connect(patch);
         self.3.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
         self.1.collect_cables(sink);
         self.2.collect_cables(sink);
@@ -897,7 +902,7 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect, T5: Connect> Connect
         self.3.connect(patch);
         self.4.connect(patch);
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
         self.1.collect_cables(sink);
         self.2.collect_cables(sink);
@@ -1333,7 +1338,7 @@ impl Connect for Wav {
             self.cached_data = None;
         }
     }
-    fn collect_cables(&self, _sink: &mut Vec<String>) {
+    fn collect_cables(&self, _sink: &mut Vec<CableSource>) {
         // Wav references a file path, not a module — no graph edge.
     }
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {
@@ -1926,9 +1931,12 @@ impl Connect for Buffer {
         self.cached_source_ptr = None;
         self.cached_buffer = None;
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         // `source_module` is a producer dependency, equivalent to a cable.
-        sink.push(self.source_module.clone());
+        sink.push(CableSource {
+            module: self.source_module.clone(),
+            port: self.source_port.clone(),
+        });
     }
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {
         // Buffer reads `BufferData` directly via cached pointer, not via a
@@ -1959,6 +1967,14 @@ impl PartialEq for Buffer {
                 _ => false,
             }
     }
+}
+
+/// The module output an input reads from, as reported by
+/// [`Connect::collect_cables`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CableSource {
+    pub module: String,
+    pub port: String,
 }
 
 /// A single-channel signal value.
@@ -2004,6 +2020,9 @@ pub struct PortView {
     pub data: *const f32,
     /// The port's channel width (`>= 1`).
     pub channels: usize,
+    /// f32 values per channel: 2 for an f64 port (see
+    /// [`BlockPort`](crate::block_port::BlockPort)), otherwise 1.
+    pub lanes: usize,
     /// The producing wrapper's per-block cursor: slots below it are computed.
     pub processed: *const std::cell::Cell<usize>,
 }
@@ -2019,6 +2038,8 @@ pub struct CableView {
     data: *const f32,
     stride: usize,
     offset: usize,
+    /// Whether the value at `offset` is followed by its f64 remainder.
+    f64: bool,
     processed: *const std::cell::Cell<usize>,
 }
 
@@ -2026,9 +2047,28 @@ impl CableView {
     fn new(port: PortView, channel: usize) -> Self {
         Self {
             data: port.data,
-            stride: port.channels,
-            offset: channel % port.channels,
+            stride: port.channels * port.lanes,
+            offset: (channel % port.channels) * port.lanes,
+            f64: port.lanes == 2,
             processed: port.processed,
+        }
+    }
+
+    /// Like [`read`](Self::read), at full precision from an f64 port.
+    #[inline]
+    fn read_f64(&self, index: usize) -> Option<f64> {
+        // SAFETY: as `read`; an f64 port's remainder sits inside the same row.
+        unsafe {
+            if index < (*self.processed).get() {
+                let at = self.data.add(index * self.stride + self.offset);
+                Some(if self.f64 {
+                    crate::block_port::join_f64(*at, *at.add(1))
+                } else {
+                    *at as f64
+                })
+            } else {
+                None
+            }
         }
     }
 
@@ -2066,8 +2106,8 @@ pub struct PolyCableView {
 unsafe impl Send for PolyCableView {}
 
 impl PolyCableView {
-    /// `None` unless every signal is a viewed cable onto the same port, signal
-    /// `i` reading the port channel just after signal `i - 1`'s.
+    /// `None` unless every signal is a viewed cable onto the same f32 port,
+    /// signal `i` reading the port channel just after signal `i - 1`'s.
     pub(crate) fn resolve(signals: &[Signal]) -> Option<Self> {
         let mut port: Option<(CableView, SampleablePtr)> = None;
         for (i, signal) in signals.iter().enumerate() {
@@ -2079,6 +2119,9 @@ impl PolyCableView {
             else {
                 return None;
             };
+            if view.f64 {
+                return None;
+            }
             match port {
                 None => port = Some((*view, *source)),
                 Some((first, _)) if first.data == view.data && view.offset == first.offset + i => {}
@@ -2385,6 +2428,35 @@ impl Signal {
             },
         }
     }
+
+    /// Like [`get_value`](Self::get_value), at full precision when the cable
+    /// comes from an f64 port.
+    pub fn get_value_f64(&self) -> f64 {
+        match self {
+            Signal::Volts(v) => *v as f64,
+            Signal::Cable {
+                resolved,
+                port,
+                channel,
+                index_ptr,
+                view,
+                ..
+            } => match resolved {
+                Some(ptr) => {
+                    let index = if index_ptr.is_null() {
+                        0
+                    } else {
+                        unsafe { (*(*index_ptr)).get() }
+                    };
+                    if let Some(value) = view.and_then(|v| v.read_f64(index)) {
+                        return value;
+                    }
+                    unsafe { ptr.as_ref() }.get_value_at_f64(port, *channel, index)
+                }
+                None => 0.0,
+            },
+        }
+    }
 }
 
 /// Extension trait for normalling pattern on optional signals.
@@ -2441,9 +2513,12 @@ impl Connect for Signal {
                 .map(|port_view| CableView::new(port_view, *channel));
         }
     }
-    fn collect_cables(&self, sink: &mut Vec<String>) {
-        if let Signal::Cable { module, .. } = self {
-            sink.push(module.clone());
+    fn collect_cables(&self, sink: &mut Vec<CableSource>) {
+        if let Signal::Cable { module, port, .. } = self {
+            sink.push(CableSource {
+                module: module.clone(),
+                port: port.clone(),
+            });
         }
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
@@ -2622,6 +2697,21 @@ pub enum OutputType {
     Trig,
 }
 
+/// The precision of an output's values, named in `#[output(precision = …)]`.
+/// `F64` is for a value such as a song position, which keeps growing past
+/// where f32 can resolve a single sample. `Inherit` is f64 when any of the
+/// module's cables comes from an f64 output, so arithmetic on an f64 value
+/// keeps its precision.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[napi(string_enum = "lowercase")]
+pub enum OutputPrecision {
+    #[default]
+    F32,
+    F64,
+    Inherit,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[napi(object)]
@@ -2647,11 +2737,19 @@ pub struct OutputSchema {
     /// module's derived channel count.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channels: Option<u32>,
+    /// An `OutputPrecision` value.
+    #[serde(default)]
+    #[napi(ts_type = "string")]
+    pub precision: OutputPrecision,
 }
 
 pub trait OutputStruct: Default + Send + 'static {
     /// Set the channel count on all PolyOutput fields.
     fn set_all_channels(&mut self, channels: usize);
+    /// Make the f64 outputs full precision: every `F64` output, and the
+    /// `Inherit` ones when `inherit` is set. Allocates — main thread only,
+    /// after [`set_all_channels`](Self::set_all_channels).
+    fn make_f64_outputs(&mut self, _inherit: bool) {}
     fn schemas() -> Vec<OutputSchema>
     where
         Self: Sized;

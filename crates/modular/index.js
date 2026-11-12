@@ -575,16 +575,17 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { Synthesizer, cpuSupportsBuild, deriveChannelCount, getReservedOutputNames, MAX_VIDEO_TAPS, QueuedTrigger, validatePatchGraph, VIDEO_HISTORY_LEN, ModuleCategory, OutputType, ParamType, ScopeMode, ScopeSplit } = nativeBinding
+const { Synthesizer, cpuSupportsBuild, deriveChannelCount, getReservedMemberNames, MAX_VIDEO_TAPS, QueuedTrigger, validatePatchGraph, VIDEO_HISTORY_LEN, ModuleCategory, OutputPrecision, OutputType, ParamType, ScopeMode, ScopeSplit } = nativeBinding
 export { Synthesizer }
 export { cpuSupportsBuild }
 export { deriveChannelCount }
-export { getReservedOutputNames }
+export { getReservedMemberNames }
 export { MAX_VIDEO_TAPS }
 export { QueuedTrigger }
 export { validatePatchGraph }
 export { VIDEO_HISTORY_LEN }
 export { ModuleCategory }
+export { OutputPrecision }
 export { OutputType }
 export { ParamType }
 export { ScopeMode }

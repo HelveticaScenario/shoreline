@@ -144,6 +144,7 @@ A param whose edits would click (a gain, a cutoff, a mix amount) glides across p
 ### Module Docs
 
 A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crates/modular_core/src/module_docs.rs`), named in `#[module(name = …, docs = NAME_DOCS)]`. A `///` on a `#[module]` struct is a compile error. It holds:
+
 - `summary`: 1–6 words;
 - `description`: 1–3 sentences of inline markdown, never explaining individual params, except to flag a param behaviour surprising enough to need a prominent note (`$adsr`'s sustain);
 - `categories`;
@@ -152,9 +153,11 @@ A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crat
 
 Monaco shows the description, sections and first example; the Reference pane shows everything. `tests/module_docs.rs` checks the shape, and `generatedExampleValidity.test.ts` runs every example, and `referenceDocs.test.ts` checks each is formatted.
 
-### Reserved Output Names
+### Reserved Member Names
 
-When adding methods to `ModuleOutput`, `ModuleOutputWithRange`, `BaseCollection`, `Collection`, or `CollectionWithRange`, add the method name to `RESERVED_OUTPUT_NAMES` in `crates/reserved_output_names.rs`. This is the single source of truth shared by the Rust proc-macro and TypeScript DSL via NAPI.
+When adding methods to `BaseCollection`, `Collection`, `CollectionWithRange`, `DeferredCollection`, or patterns (`PATTERN_METHODS` in `src/main/dsl/miniNotation/index.ts`), add the method name to `RESERVED_MEMBER_NAMES` in `crates/reserved_member_names.rs`. This is the single source of truth shared by the Rust proc-macro and, via NAPI, the TypeScript tests that check the list against the classes.
+
+The list limits module names. Every module whose first argument is a signal is a chain method of collections (`$lpf` as `sig.lpf(...)`, `$mi.chorus` as `sig.mi.chorus(...)`), so the first segment of a module's name after its `$` cannot be reserved: `#[module]` rejects `$gain` and `$gain.soft`. A pattern is the `$cycle` that plays it and has every collection member beside its own methods, so those names are reserved too; `$cycle` itself is exempt, as the module a pattern's `.cycle(...)` calls. A module's outputs sit behind an underscore (`seq._gate`), so an output may take any name. A module the DSL exposes starts with `$`, an internal one with `_`.
 
 ### Code Organization
 
@@ -178,6 +181,21 @@ Within that invariant, comment well:
 - **Leave nothing dead.** No commented-out code; no unowned `TODO`/`FIXME`.
 
 Models to emulate: `crates/modular_core/src/types.rs` (safety invariants), `src/main/bufferSwitch.ts` (boundary semantics).
+
+### Changelog
+
+Every PR that changes something a user can notice adds a release-note entry: `yarn changelog:new -k <Kind> -b "<text>"`, which writes `.changes/unreleased/*.yaml`. CI fails a PR that changes `src/` or `crates/` without one unless it is labelled `no-changelog` (refactors, internal tooling, test-only work). Users read these in the app before deciding to update, so write for musicians, not developers:
+
+- **Kinds:** `Breaking` (an existing patch can sound or behave differently, or stop running — includes any change to an experimental module's API or sound), `New`, `Improved`, `Fixed`. `Breaking` bumps the minor version (pre-1.0); the rest bump the patch.
+- **Say what the user can now do or what changes in their patch.** Name modules and params as they appear in the DSL (`$comp`, `attack`). No internals: no crate, file, struct, thread, or refactor names.
+- **One entry per change, one or two sentences.** Several entries in one PR are fine when it ships several user-visible changes.
+- **Every `Breaking` entry shows the migration**: a short before/after code block of a patch.
+
+Entries are reviewed in the PR diff; the release PR collects them.
+
+### Releasing
+
+Nothing is committed to master except through a PR. On every push to master, the Release PR workflow runs `scripts/release/prepare.mjs` and keeps a `Release vX.Y.Z` PR (branch `release/next`) up to date: it batches the pending entries into `.changes/vX.Y.Z.md`, regenerates `CHANGELOG.md`, and sets `package.json`'s version. Merging that PR ships the release: `release.yml` creates a draft GitHub release whose notes are that version's entries, builds every platform into it, and publishes it once all uploads succeed. To force a specific version (e.g. `v1.0.0`), commit `.changes/release-as` containing it; the next prepare consumes it.
 
 ## Tooling
 

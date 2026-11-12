@@ -5,9 +5,12 @@ import type {
 } from '../../shared/dsl/signalSites';
 import { CHAIN_METHODS } from './chainMethods';
 import { resolvableOutputs } from './outputResolution';
-import { processModuleSchema, qualifiesForDollarChain } from './paramsSchema';
+import { processModuleSchema, qualifiesForChain } from './paramsSchema';
 import { signalParamsOf } from './signalParams';
-import { qualifiedMultiOutputInterfaceName } from './typescriptLibGen';
+import {
+    PATTERN_TYPES,
+    qualifiedMultiOutputInterfaceName,
+} from './typescriptLibGen';
 
 /** `$delay(input, time, { feedback })`: a helper called like a module. */
 export const DELAY_SITE: ModuleSiteInfo = {
@@ -33,7 +36,7 @@ export function buildSignalSiteTables(
         const processed = processModuleSchema(schema);
         const { flat, nested } = signalParamsOf(schema, processed);
         tables.modules[schema.name] = {
-            chainable: qualifiesForDollarChain(processed),
+            chainable: qualifiesForChain(processed),
             inputs: Object.fromEntries([
                 ...flat.map((p) => [p.name, p.inputClass] as const),
                 ...nested.map((p) => [p.name, 'cv'] as const),
@@ -43,6 +46,12 @@ export function buildSignalSiteTables(
         if ((schema.outputs ?? []).length > 1) {
             tables.roots[qualifiedMultiOutputInterfaceName(schema)] =
                 resolvableOutputs(schema);
+        }
+        // A pattern is the root of its `$cycle`.
+        if (schema.name === '$cycle') {
+            for (const type of PATTERN_TYPES) {
+                tables.roots[type] = resolvableOutputs(schema);
+            }
         }
     }
     return tables;

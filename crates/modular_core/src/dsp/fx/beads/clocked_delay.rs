@@ -35,7 +35,7 @@ struct ClockedDelayParams {
     input: PolySignal,
     /// Transport playhead in bars, setting the tempo and the phase of the
     /// repeats' windows.
-    #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
+    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(skip)]
     #[schemars(skip)]
     playhead: Option<MonoSignal>,
@@ -240,7 +240,7 @@ const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
             title: "Dotted-eighth echoes",
             code: r#"
                 const pluck = $saw('c3').amp(
-                  $perc($clock.beatTrigger, { decay: 0.1 }),
+                  $perc($clock._beatTrigger, { decay: 0.1 }),
                 )
                 $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()
             "#,
@@ -248,8 +248,8 @@ const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Sliced sixteenth repeats",
             code: r#"
-                const pluck = $saw($p('c3 eb3 g3 bb3').c).amp(
-                  $perc($clock.beatTrigger, { decay: 0.3 }),
+                const pluck = $saw($p('c3 eb3 g3 bb3')).amp(
+                  $perc($clock._beatTrigger, { decay: 0.3 }),
                 )
                 $clockedDelay(pluck, {
                   bars: 1 / 16,

@@ -69,8 +69,8 @@ const CY808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Crash on the one",
         code: r#"
-            $tr808.kick($p('c*4').c).out()
-            $tr808.cymbal($clock.barTrigger, { decay: 4 }).out()
+            $tr808.kick($p('c*4')).out()
+            $tr808.cymbal($clock._barTrigger, { decay: 4 }).out()
         "#,
     }],
 };

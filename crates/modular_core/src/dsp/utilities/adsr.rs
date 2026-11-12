@@ -132,7 +132,7 @@ struct AdsrParams {
     curve: Option<PolySignal>,
     #[input(
         "rising edge restarts the attack from the current level, without a jump; follows the gate when not patched",
-        type = gate,
+        type = trig,
     )]
     #[deserr(default)]
     retrigger: Option<PolySignal>,
@@ -198,9 +198,9 @@ const ADSR_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Plucky filter envelope",
             code: r#"
-                const notes = $p('c3 eb3 g3 bb3').c
+                const notes = $p('c3 eb3 g3 bb3')
                 $saw(notes)
-                  .$.lpf($adsr(notes, { decay: 0.2 }).range('c4', 'c7'), 2)
+                  .lpf($adsr(notes, { decay: 0.2 }).range('c4', 'c7'), 2)
                   .out()
             "#,
         },

@@ -8,19 +8,14 @@ describe('$v chaining', () => {
         expect(
             [...VIDEO_CHAIN_METHODS, ...VIDEO_DIRECT_METHODS].sort(),
         ).toEqual(VIDEO_CHAIN.map((m) => m.name).sort());
-        expect(
-            VIDEO_CHAIN.filter((m) => m.direct)
-                .map((m) => m.name)
-                .sort(),
-        ).toEqual([...VIDEO_DIRECT_METHODS].sort());
     });
 
     describe('chaining', () => {
         const wgslOf = (source: string) => exec(source).video!.wgsl;
 
-        it('compiles a .$ chain to the same shader as nested calls', () => {
+        it('compiles a chain to the same shader as nested calls', () => {
             const chained = wgslOf(`
-                $v.osc(8).$.kaleid(6).$.hsv(0.9).out();
+                $v.osc(8).kaleid(6).hsv(0.9).out();
             `);
             const nested = wgslOf(`
                 $v.out($v.hsv($v.kaleid($v.osc(8), 6), 0.9));
@@ -30,7 +25,7 @@ describe('$v chaining', () => {
 
         it('treats rotate, scale and scroll as shorthand for warp', () => {
             const shorthand = wgslOf(`
-                $v.ramp().$.rotate(0.1).$.scale(2).$.scroll(0.2, 0.3).$.hsv().out();
+                $v.ramp().rotate(0.1).scale(2).scroll(0.2, 0.3).hsv().out();
             `);
             const long = wgslOf(`
                 $v.out($v.hsv($v.warp($v.warp($v.warp($v.ramp(), { rotate: 0.1 }), { zoom: 2 }), { shiftX: 0.2, shiftY: 0.3 })));
@@ -40,24 +35,15 @@ describe('$v chaining', () => {
 
         it('chains through operations on whole signals', () => {
             const wgsl = wgslOf(`
-                $v.noise().$.hsv().$.mult($v.ramp('vertical')).$.invert().out();
+                $v.noise().hsv().mult($v.ramp('vertical')).invert().out();
             `);
             expect(wgsl).toMatch(/let v\d: vec4f = video_mult\(v\d, v\d\);/);
             expect(wgsl).toMatch(/video_invert\(v\d, 1\.0\)/);
         });
 
-        it('keeps the chain methods off the signal itself', () => {
-            const { patch } = exec(`
-                const signal = $v.ramp();
-                $sine(signal.rotate === undefined ? 100 : 200).out();
-            `);
-            const sine = patch.modules.find((m) => m.moduleType === '$sine');
-            expect(JSON.stringify(sine?.params)).toContain('100');
-        });
-
         it('returns nothing for a name that is not a chain function', () => {
             const { patch } = exec(`
-                $sine($v.ramp().$.nope === undefined ? 100 : 200).out();
+                $sine($v.ramp().nope === undefined ? 100 : 200).out();
             `);
             const sine = patch.modules.find((m) => m.moduleType === '$sine');
             expect(JSON.stringify(sine?.params)).toContain('100');
@@ -67,25 +53,25 @@ describe('$v chaining', () => {
             const { video, videoPreviews } = exec(`
                 const wave = $v.osc(4).preview({ view: 'waveform' });
                 wave.toCV({ size: 0.1 });
-                wave.$.hsv().out();
+                wave.hsv().out();
             `);
             expect(videoPreviews.map((p) => p.view)).toEqual(['waveform']);
             expect(video!.cvSamples).toHaveLength(1);
         });
 
         it('reports errors with the $v function that failed', () => {
-            expect(() => exec(`$v.ramp().$.kaleid('six');`)).toThrow(
+            expect(() => exec(`$v.ramp().kaleid('six');`)).toThrow(
                 /\$v\.kaleid: sides must be a number, a video signal or an audio signal/,
             );
-            expect(() => exec(`$v.ramp().$.hue('slow');`)).toThrow(
+            expect(() => exec(`$v.ramp().hue('slow');`)).toThrow(
                 /\$v\.hue: amount must be a number, a video signal or an audio signal/,
             );
         });
 
-        describe('.$m', () => {
-            it('crossfades the signal against the result with a leading mix', () => {
+        describe('.wet', () => {
+            it('crossfades the signal against the result', () => {
                 const mixed = wgslOf(`
-                    $v.hsv($v.ramp()).$m.hue(0.3, 0.25).out();
+                    $v.hsv($v.ramp()).hue(0.25).wet(0.3).out();
                 `);
                 const long = wgslOf(`
                     const c = $v.hsv($v.ramp());
@@ -94,21 +80,35 @@ describe('$v chaining', () => {
                 expect(mixed).toBe(long);
             });
 
-            it('takes only the mix for a function with no other arguments', () => {
-                const mixed = wgslOf(`$v.hsv($v.ramp()).$m.invert(0.5).out();`);
+            it('follows a function called with no arguments', () => {
+                const mixed = wgslOf(
+                    `$v.hsv($v.ramp()).invert().wet(0.5).out();`,
+                );
                 expect(mixed).toMatch(/mix\(v\d, v\d, clamp\(0\.5/);
             });
 
             it('mixes a gray result with a gray signal', () => {
                 const wgsl = wgslOf(`
-                    $v.osc(4).$m.fold(0.5, 2).$.hsv().out();
+                    $v.osc(4).fold(2).wet(0.5).hsv().out();
                 `);
                 expect(wgsl).toMatch(/let v\d: vec4f = mix\(v\d, v\d, /);
             });
 
+            it('defaults to half way', () => {
+                expect(wgslOf(`$v.osc(4).fold(2).wet().out();`)).toBe(
+                    wgslOf(`$v.osc(4).fold(2).wet(0.5).out();`),
+                );
+            });
+
+            it('refuses a signal that was not chained', () => {
+                expect(() => exec(`$v.osc(4).wet(0.5).out();`)).toThrow(
+                    /wet: follows a chained function/,
+                );
+            });
+
             it('accepts a signal as the mix', () => {
                 const { video } = exec(`
-                    $v.hsv($v.ramp()).$m.invert($slider('Amount', 0.5, 0, 1)).out();
+                    $v.hsv($v.ramp()).invert().wet($slider('Amount', 0.5, 0, 1)).out();
                 `);
                 expect(video!.uniforms).toHaveLength(1);
             });
@@ -117,7 +117,7 @@ describe('$v chaining', () => {
         describe('.pipe', () => {
             it('calls a function with the signal', () => {
                 const piped = wgslOf(`
-                    $v.hsv($v.ramp()).pipe((c) => c.$.kaleid(5).$.hue(0.3)).out();
+                    $v.hsv($v.ramp()).pipe((c) => c.kaleid(5).hue(0.3)).out();
                 `);
                 const long = wgslOf(`
                     $v.out($v.hue($v.kaleid($v.hsv($v.ramp()), 5), 0.3));
@@ -128,10 +128,10 @@ describe('$v chaining', () => {
             it('calls a function once per array element and returns the results', () => {
                 const { video } = exec(`
                     const layers = $v.hsv($v.ramp()).pipe(
-                        (c, sides) => c.$.kaleid(sides),
+                        (c, sides) => c.kaleid(sides),
                         [3, 5, 7],
                     );
-                    $v.out(layers.reduce((sum, layer) => sum.$.add(layer.$.mult(0.3))));
+                    $v.out(layers.reduce((sum, layer) => sum.add(layer.mult(0.3))));
                 `);
                 expect(
                     video!.wgsl.match(/video_kaleid\(uv, [357]\.0, 0\.0\)/g),
@@ -151,7 +151,7 @@ describe('$v chaining', () => {
         describe('.pipeMix', () => {
             it('crossfades the signal against the function result, half way by default', () => {
                 const mixed = wgslOf(`
-                    $v.hsv($v.ramp()).pipeMix((c) => c.$.invert()).out();
+                    $v.hsv($v.ramp()).pipeMix((c) => c.invert()).out();
                 `);
                 const long = wgslOf(`
                     const c = $v.hsv($v.ramp());
@@ -162,7 +162,7 @@ describe('$v chaining', () => {
 
             it('takes the mix as a signal', () => {
                 const { video } = exec(`
-                    $v.hsv($v.ramp()).pipeMix((c) => c.$.invert(), $v.time.$.osc(0.2)).out();
+                    $v.hsv($v.ramp()).pipeMix((c) => c.invert(), $v.time.osc(0.2)).out();
                 `);
                 expect(video!.wgsl).toContain('mix(');
             });
@@ -180,19 +180,21 @@ describe('$v chaining', () => {
 
         it('chains osc to the same shader as the nested call', () => {
             expect(
-                wgslOf(`$v.ramp().$.osc(8, 0.5, 0, { shape: 'saw' }).out();`),
+                wgslOf(`$v.ramp().osc(8, 0.5, 0, { shape: 'saw' }).out();`),
             ).toBe(wgslOf(`$v.out($v.osc(8, 0.5, 0, { shape: 'saw' }));`));
         });
 
-        it('mixes an osc into the signal with $m', () => {
-            expect(() => exec(`$v.ramp().$m.osc(2.5, 8).out();`)).not.toThrow();
+        it('mixes an osc into the signal with wet', () => {
+            expect(() =>
+                exec(`$v.ramp().osc(8).wet(0.5).out();`),
+            ).not.toThrow();
         });
 
         it('returns the signal from out, so the chain can go on', () => {
-            const once = wgslOf(`$v.ramp().$.hsv().out();`);
+            const once = wgslOf(`$v.ramp().hsv().out();`);
             const twice = wgslOf(`
-                const c = $v.ramp().$.hsv().out();
-                c.$.invert();
+                const c = $v.ramp().hsv().out();
+                c.invert();
             `);
             expect(twice).toBe(once);
         });
@@ -200,7 +202,7 @@ describe('$v chaining', () => {
         it('returns the input from $v.out and keeps the last call as the picture', () => {
             const { video } = exec(`
                 const a = $v.out($v.solid(5, 0, 0));
-                $v.out(a.$.invert());
+                $v.out(a.invert());
             `);
             expect(video!.wgsl).toContain('1.0 - ');
         });
@@ -220,26 +222,25 @@ describe('$v chaining', () => {
 
     describe('tint', () => {
         it('colors a mask with a fixed hue, using the field as brightness', () => {
-            const tinted = exec(`$v.ramp().$.tint(0.3, 0.8).out();`).video!
-                .wgsl;
+            const tinted = exec(`$v.ramp().tint(0.3, 0.8).out();`).video!.wgsl;
             const long = exec(`$v.out($v.hsv(0.3, 0.8, $v.ramp()));`).video!
                 .wgsl;
             expect(tinted).toBe(long);
         });
 
         it('differs from hsv, which uses the field as the hue', () => {
-            const tinted = exec(`$v.ramp().$.tint(0.3).out();`).video!.wgsl;
-            const hued = exec(`$v.ramp().$.hsv(0.3).out();`).video!.wgsl;
+            const tinted = exec(`$v.ramp().tint(0.3).out();`).video!.wgsl;
+            const hued = exec(`$v.ramp().hsv(0.3).out();`).video!.wgsl;
             expect(tinted).not.toBe(hued);
         });
 
         it('defaults to a red of full saturation', () => {
-            const tinted = exec(`$v.ramp().$.tint().out();`).video!.wgsl;
+            const tinted = exec(`$v.ramp().tint().out();`).video!.wgsl;
             expect(tinted).toContain('hsv_to_rgb(0.0, 1.0, video_luma(v0))');
         });
 
         it('colors a color by its brightness', () => {
-            expect(() => exec(`$v.hsv(0.2).$.tint(0.1).out();`)).not.toThrow();
+            expect(() => exec(`$v.hsv(0.2).tint(0.1).out();`)).not.toThrow();
         });
     });
 
@@ -260,7 +261,7 @@ describe('$v chaining', () => {
 
         it('takes the alpha and the brightness through $v.channel', () => {
             expect(
-                wgslOf(`$v.out($v.channel($v.image('a.png'), 'a'));`),
+                wgslOf(`$v.out($v.channel($v.image('/a.png'), 'a'));`),
             ).toMatch(/vec4f\(vec3f\(v\d\.a\), 1\.0\)/);
             expect(wgslOf(`$v.out($v.channel($v.hsv(0.3)));`)).toMatch(
                 /vec4f\(vec3f\(video_luma\(v\d\)\), 1\.0\)/,
@@ -268,7 +269,7 @@ describe('$v chaining', () => {
         });
 
         it('remaps the channels of a signal and keeps its alpha', () => {
-            const wgsl = wgslOf(`$v.hsv($v.ramp()).$.swiz('gbr').out();`);
+            const wgsl = wgslOf(`$v.hsv($v.ramp()).swiz('gbr').out();`);
             expect(wgsl).toContain('return vec4f(c.gbr, c.a);');
             expect(wgsl).toMatch(/video_swizzle_gbr\(v\d\)/);
             expect(

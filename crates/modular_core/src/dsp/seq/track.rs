@@ -16,7 +16,7 @@ struct TrackParams {
     #[input("[value, position] pairs, positions from 0 to 1 in ascending order")]
     keyframes: Vec<(PolySignal, f32)>,
     #[input("position along the keyframes", type = control, range = (0.0, 1.0))]
-    #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
+    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
     #[input("curve shape between neighbouring keyframes")]
@@ -64,7 +64,7 @@ const TRACK_DOCS: ModuleDocs = ModuleDocs {
               ],
               { interpolationType: 'cubicIn' },
             )
-            $saw('c2').$.lpf(cutoff, 3).out()
+            $saw('c2').lpf(cutoff, 3).out()
         "#,
     }],
 };

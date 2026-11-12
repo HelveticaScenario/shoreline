@@ -64,7 +64,7 @@ const P_SAW_DOCS: ModuleDocs = ModuleDocs {
                 { freq: 'c2' },
               ),
             )
-              .$.lpf('c6')
+              .lpf('c6')
               .out()
         "#,
     }],

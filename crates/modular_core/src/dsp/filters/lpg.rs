@@ -138,15 +138,15 @@ const LPG_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Plucked melody",
             code: r#"
-                const seq = $p('c4 eb4 g4 [bb4 c5]').c
-                $saw(seq).$.lpg(seq, { color: 1.5, decay: 2 }).out()
+                const seq = $p('c4 eb4 g4 [bb4 c5]')
+                $saw(seq).lpg(seq, { color: 1.5, decay: 2 }).out()
             "#,
         },
         DocExample {
             title: "Woody knock on every beat",
             code: r#"
                 $saw('c3')
-                  .$.lpg($clock.beatTrigger, { color: 0.5, decay: 1 })
+                  .lpg($clock._beatTrigger, { color: 0.5, decay: 1 })
                   .out()
             "#,
         },

@@ -14,7 +14,7 @@ use mi_plaits_dsp::voice::{Modulations, Patch, Voice};
 use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
-use crate::module_docs::{DocExample, ModuleDocs};
+use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
 use crate::{
     dsp::utils::{SchmittTrigger, voct_to_midi},
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -229,7 +229,7 @@ struct PlaitsParams {
     lpg_decay: Option<PolySignal>,
 
     #[input(
-        "blend at `output` between the engine's `main` sound at 0 and its `aux` variant at 5",
+        "blend at `blend` between the engine's `main` sound at 0 and its `aux` variant at 5",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -241,7 +241,7 @@ struct PlaitsParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct PlaitsOutputs {
-    #[output("output", "main and aux blended by `mix`", type = cv, default, range = (-5.0, 5.0))]
+    #[output("blend", "main and aux blended by `mix`", type = cv, default, range = (-5.0, 5.0))]
     mix: PolyOutput,
 
     #[output("main", "the engine's main output", type = cv, range = (-5.0, 5.0))]
@@ -298,21 +298,82 @@ impl Default for PlaitsChannelState {
 }
 
 const MACRO_DOCS: ModuleDocs = ModuleDocs {
-    summary: "Macro oscillator (Plaits)",
-    description: "Mutable Instruments Plaits: 24 engines, from analog and FM to \
-                  chords, speech, strings and drums, each played with the same \
-                  three knobs, `harmonics`, `timbre` and `morph`. Triggers \
-                  strike its built-in envelope and lowpass gate; with no \
-                  trigger it drones. The [Plaits \
+    summary: "Macro oscillator (Plaits), deprecated",
+    description: "**Deprecated:** each engine has its own module, listed under \
+                  Replacements, and `$macro` will be removed. Mutable \
+                  Instruments Plaits: 24 engines, each played with the same \
+                  three knobs, `harmonics`, `timbre` and `morph`, which \
+                  triggers strike through a built-in envelope and lowpass \
+                  gate. The [Plaits \
                   manual](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/) \
                   describes what the knobs do on each engine.",
     categories: &[ModuleCategory::Oscillator, ModuleCategory::Drum],
-    sections: &[],
+    sections: &[DocSection {
+        title: "Replacements",
+        body: "The replacements have no built-in lowpass gate or trigger \
+               envelope: where `$macro` gated the sound, patch `$lpg` after \
+               them, and send `$perc` or `$adsr` to any param for the sweeps \
+               `timbreAmt`, `morphAmt` and `fmAmt` gave. The strings, drums \
+               and `$mi.sixOp` shape their own notes and take `accent` in \
+               place of `level`.",
+        table: Some(DocTable {
+            columns: &["Engine", "Use"],
+            rows: &[
+                &[
+                    "`'vaVcf'`",
+                    "`$saw` or `$pulse`, with a `$pulse` an octave down, into `$lpf` or `$multimode`",
+                ],
+                &["`'phaseDistortion'`", "`$mi.phaseDistortion`"],
+                &["`'sixOpA'`, `'sixOpB'`, `'sixOpC'`", "`$mi.sixOp`"],
+                &["`'waveTerrain'`", "`$mi.waveTerrain`"],
+                &[
+                    "`'stringMachine'`",
+                    "`$chord` into `$mi.divideDown`, then `$lpf` and `$mi.chorus`",
+                ],
+                &[
+                    "`'chiptune'`",
+                    "`$pulse` playing `$chord`, or an arpeggio from `$cycle`",
+                ],
+                &[
+                    "`'virtualAnalog'`",
+                    "`$saw` and `$pulse`, detuned, with `sync`",
+                ],
+                &["`'waveshaping'`", "`$mi.waveshaper`"],
+                &["`'twoOpFm'`", "`$mi.twoOp`"],
+                &["`'granularFormant'`", "`$mi.formant` and `$mi.zOsc`"],
+                &["`'additive'`", "`$mi.additive`"],
+                &[
+                    "`'wavetable'`",
+                    "`$wavetable`, with a wavetable WAV of your own",
+                ],
+                &[
+                    "`'chords'`",
+                    "`$chord`, with `inversion` and `level`, into `$mi.divideDown`",
+                ],
+                &[
+                    "`'speech'`",
+                    "`$mi.formantVowel`, `$mi.samVowel`, `$mi.lpcVowel` and `$mi.speak`",
+                ],
+                &["`'swarm'`", "`$mi.swarm`"],
+                &[
+                    "`'filteredNoise'`",
+                    "`$noise`, clocked by `rate`, into `$bpf` or `$multimode`",
+                ],
+                &["`'particleNoise'`", "`$mi.particles`"],
+                &["`'inharmonicString'`", "`$mi.string`"],
+                &["`'modalResonator'`", "`$mi.modal`"],
+                &["`'bassDrum'`", "`$mi.kick` and `$mi.synthKick`"],
+                &["`'snareDrum'`", "`$mi.snare` and `$mi.synthSnare`"],
+                &["`'hiHat'`", "`$mi.hiHat` and `$mi.ringHat`"],
+            ],
+        }),
+        examples: &[],
+    }],
     examples: &[
         DocExample {
             title: "Struck modal melody",
             code: r#"
-                const seq = $p('c4 g4 eb4 <bb4 f4>').c
+                const seq = $p('c4 g4 eb4 <bb4 f4>')
                 $macro(seq, 'modalResonator', {
                   trigger: seq,
                   timbre: 1,
@@ -324,7 +385,7 @@ const MACRO_DOCS: ModuleDocs = ModuleDocs {
             title: "Chord stabs",
             code: r#"
                 $macro('c3', 'chords', {
-                  trigger: $clock.beatTrigger,
+                  trigger: $clock._beatTrigger,
                   harmonics: 1,
                 }).out()
             "#,

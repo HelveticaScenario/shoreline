@@ -10,19 +10,19 @@ type ChainCall = (
     ...args: unknown[]
 ) => unknown;
 
-/** Chainable methods of `.$` and `.$m`, each with the signal as its first argument. */
-type ChainProxy = Record<string, (...args: unknown[]) => unknown>;
+/** The signal each chained signal was made from, which `.wet()` fades against. */
+const DRY = new WeakMap<object, VideoOutput>();
 
 /**
  * A video signal: an RGBA color at every pixel, from a node, a constant, or
  * the time.
  *
- * It chains the way an audio signal does. `.$` is a namespace of the `$v`
- * functions that take a signal first, with the signal supplied for you, so
- * `x.$.rotate(0.1)` is `$v.warp(x, { rotate: 0.1 })`. `.$m` is the same with a
- * leading `mix` argument that crossfades the signal against the result (0 is
- * the signal, 1 the result). `.pipe` and `.pipeMix` apply a function of your
- * own. `out`, `preview`, `toCV` and `write` end a chain and are direct methods.
+ * It chains the way an audio signal does: the `$v` functions that take a
+ * signal first are its methods, with the signal supplied for you, so
+ * `x.rotate(0.1)` is `$v.warp(x, { rotate: 0.1 })`. `.wet(mix)` after one
+ * crossfades the signal it was called on against the result (0 is the signal,
+ * 1 the result). `.pipe` and `.pipeMix` apply a function of your own. `out`,
+ * `preview`, `toCV` and `write` end a chain.
  */
 export class VideoOutput {
     constructor(
@@ -51,14 +51,18 @@ export class VideoOutput {
         return this.ops.channel(this, 'a');
     }
 
-    /** The `$v` functions that take a signal first, applied to this signal. */
-    get $(): ChainProxy {
-        return this.chain(false);
-    }
-
-    /** Like {@link $}, with a leading `mix` that crossfades this signal against the result. */
-    get $m(): ChainProxy {
-        return this.chain(true);
+    /**
+     * Crossfades the signal this one was chained from against it: 0 is that
+     * signal, 1 this one.
+     */
+    wet(mix: unknown = 0.5): unknown {
+        const dry = DRY.get(this);
+        if (dry === undefined) {
+            throw new Error(
+                'wet: follows a chained function, as in x.kaleid(6).wet(0.5)',
+            );
+        }
+        return this.ops.mix(dry, this, mix);
     }
 
     /**
@@ -83,25 +87,9 @@ export class VideoOutput {
         }
         return this.ops.mix(this, fn(this), mix);
     }
-
-    private chain(withMix: boolean): ChainProxy {
-        const { ops } = this;
-        return new Proxy({} as ChainProxy, {
-            get: (_target, prop) => {
-                const call =
-                    typeof prop === 'string' ? PROCESSING[prop] : undefined;
-                if (call === undefined) return undefined;
-                if (!withMix) {
-                    return (...args: unknown[]) => call(ops, this, ...args);
-                }
-                return (mix: unknown, ...args: unknown[]) =>
-                    ops.mix(this, call(ops, this, ...args), mix);
-            },
-        });
-    }
 }
 
-/** `$v` functions offered on `.$` and `.$m` under their own names, with the signal first. */
+/** `$v` functions that are methods of a signal under their own names, with the signal first. */
 const FORWARDED = [
     'add',
     'blend',
@@ -165,7 +153,7 @@ const forward = (names: string[]): Record<string, ChainCall> =>
         ]),
     );
 
-/** Functions of `.$` and `.$m`: each returns a new signal from this one. */
+/** Chain methods: each returns a new signal from this one. */
 const PROCESSING: Record<string, ChainCall> = {
     ...forward(FORWARDED),
     osc: (o, s, freq, phase, offset, config) =>
@@ -192,8 +180,24 @@ for (const [name, call] of Object.entries(DIRECT)) {
     });
 }
 
-/** The names of the functions `.$` and `.$m` offer. */
+for (const [name, call] of Object.entries(PROCESSING)) {
+    Object.defineProperty(VideoOutput.prototype, name, {
+        configurable: true,
+        value(this: VideoOutput, ...args: unknown[]) {
+            const result = call(this.ops, this, ...args);
+            if (typeof result === 'object' && result !== null) {
+                DRY.set(result, this);
+            }
+            return result;
+        },
+    });
+}
+
+/** The names of the chain methods, which `.wet()` can follow. */
 export const VIDEO_CHAIN_METHODS: readonly string[] = Object.keys(PROCESSING);
 
-/** The names of the direct methods that end or tap a chain. */
-export const VIDEO_DIRECT_METHODS: readonly string[] = Object.keys(DIRECT);
+/** The names of the methods that end, tap or fade a chain. */
+export const VIDEO_DIRECT_METHODS: readonly string[] = [
+    ...Object.keys(DIRECT),
+    'wet',
+];

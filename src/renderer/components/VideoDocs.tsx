@@ -63,11 +63,8 @@ export const VideoDocs: React.FC = () => (
             <ul>
                 {VIDEO_CHAIN.map((method) => (
                     <li key={method.name}>
-                        <strong>
-                            {method.direct ? '.' : '.$.'}
-                            {method.name}
-                        </strong>{' '}
-                        &mdash; {method.description}
+                        <strong>.{method.name}</strong> &mdash;{' '}
+                        {method.description}
                         {method.params && method.params.length > 0 && (
                             <ParamList params={method.params} />
                         )}

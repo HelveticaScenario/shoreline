@@ -673,10 +673,10 @@ fn each_hat_sounds_on_its_own_output() {
 }
 
 #[test]
-fn the_output_is_both_hats() {
+fn both_sums_the_hats() {
     let params = json!({ "closed": 5.0, "open": 5.0, "cut": -5.0 });
     let (both, closed, open) = (
-        render_hat(params.clone(), "output", 0.2),
+        render_hat(params.clone(), "both", 0.2),
         render_hat(params.clone(), "closed", 0.2),
         render_hat(params, "open", 0.2),
     );
@@ -791,7 +791,7 @@ fn a_closed_hit_lets_go_of_later_open_hits() {
 #[test]
 fn hats_settle_to_silence() {
     for (hat, _) in HATS {
-        let x = render_hat(one_hat(hat, json!({ "decay": 5.0 })), "output", 2.0);
+        let x = render_hat(one_hat(hat, json!({ "decay": 5.0 })), "both", 2.0);
         assert!(x[(1.9 * SR) as usize..].iter().all(|&v| v == 0.0), "{hat}");
     }
 }
@@ -906,7 +906,11 @@ fn cp_and_ma_match_across_sample_rates() {
 fn channels_added_by_a_patch_update_get_their_own_noise() {
     let toms = TOMS.map(|(voice, _)| voice);
     for voice in [SD, CP, MA, CY, HH, CB].into_iter().chain(toms) {
-        let trigger = if voice == HH { "closed" } else { "trigger" };
+        let (trigger, port) = if voice == HH {
+            ("closed", "both")
+        } else {
+            ("trigger", "output")
+        };
         let old = make(voice, json!({ trigger: 5.0 }), SR);
         old.on_patch_update();
         for _ in 0..480 {
@@ -920,8 +924,8 @@ fn channels_added_by_a_patch_update_get_their_own_noise() {
         for _ in 0..(0.2 * SR) as usize {
             new.start_block();
             new.ensure_processed();
-            a.push(new.get_value_at("output", 1, 0));
-            b.push(new.get_value_at("output", 2, 0));
+            a.push(new.get_value_at(port, 1, 0));
+            b.push(new.get_value_at(port, 2, 0));
         }
         assert!(peak(&a) > 0.1, "{voice}");
         let diff: Vec<f32> = a.iter().zip(&b).map(|(x, y)| x - y).collect();
@@ -985,7 +989,7 @@ fn voices_are_silent_until_struck() {
         assert_silent_until_struck(voice, json!({ "trigger": 0.0 }), &["output"]);
     }
     let hats = json!({ "closed": 0.0, "open": 0.0 });
-    assert_silent_until_struck(HH, hats, &["output", "closed", "open"]);
+    assert_silent_until_struck(HH, hats, &["both", "closed", "open"]);
 }
 
 #[test]

@@ -150,6 +150,67 @@ impl CatmullRom {
     }
 }
 
+/// A sample value: f32, or f64 for a module whose outputs are f64 (see
+/// `OutputPrecision::Inherit`). Math written over it runs at either precision
+/// from one source.
+pub trait Sample:
+    Copy
+    + PartialOrd
+    + std::ops::Add<Output = Self>
+    + std::ops::Sub<Output = Self>
+    + std::ops::Mul<Output = Self>
+    + std::ops::Div<Output = Self>
+    + std::ops::Rem<Output = Self>
+{
+    const EPSILON: Self;
+    fn from_f32(value: f32) -> Self;
+    fn floor(self) -> Self;
+    fn ceil(self) -> Self;
+    fn round(self) -> Self;
+    fn abs(self) -> Self;
+    fn signum(self) -> Self;
+    fn powf(self, exponent: Self) -> Self;
+}
+
+macro_rules! impl_sample {
+    ($t:ty) => {
+        impl Sample for $t {
+            const EPSILON: Self = <$t>::EPSILON;
+            #[inline(always)]
+            fn from_f32(value: f32) -> Self {
+                value as $t
+            }
+            #[inline(always)]
+            fn floor(self) -> Self {
+                <$t>::floor(self)
+            }
+            #[inline(always)]
+            fn ceil(self) -> Self {
+                <$t>::ceil(self)
+            }
+            #[inline(always)]
+            fn round(self) -> Self {
+                <$t>::round(self)
+            }
+            #[inline(always)]
+            fn abs(self) -> Self {
+                <$t>::abs(self)
+            }
+            #[inline(always)]
+            fn signum(self) -> Self {
+                <$t>::signum(self)
+            }
+            #[inline(always)]
+            fn powf(self, exponent: Self) -> Self {
+                <$t>::powf(self, exponent)
+            }
+        }
+    };
+}
+
+impl_sample!(f32);
+impl_sample!(f64);
+
 pub fn wrap<T>(range: std::ops::Range<T>, val: T) -> T
 where
     T: std::ops::Sub<Output = T>

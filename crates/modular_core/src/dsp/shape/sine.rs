@@ -31,7 +31,7 @@ const SINE_SHAPE_DOCS: ModuleDocs = ModuleDocs {
         title: "Sweeping sine harmonics",
         code: r#"
             $sine('c3')
-              .$.unstable.shape.sine($sine('0.2hz').range(0, 4))
+              .unstable.shape.sine($sine('0.2hz').range(0, 4))
               .out()
         "#,
     }],

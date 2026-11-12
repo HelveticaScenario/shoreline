@@ -64,7 +64,10 @@ export declare class Synthesizer {
    */
   setModuleProfilingSampleRate(rate: number): void
   updatePatch(patch: PatchGraph, trigger?: QueuedTrigger | undefined | null, resetClock?: boolean | undefined | null): PatchUpdateResult
-  /** Load a WAV file into the cache, returning metadata about the loaded sample. */
+  /**
+   * Load a WAV file into the cache, returning metadata about the loaded
+   * sample. `path` starts with `/`, the workspace root.
+   */
   loadWav(path: string): WavLoadInfo
   /**
    * Decode the audio track of a workspace media file into the cache. `None`
@@ -270,10 +273,10 @@ export interface DeviceCacheSnapshot {
 }
 
 /**
- * Returns the list of reserved output names that cannot be used as module output port names.
- * These are names that conflict with built-in properties/methods on ModuleOutput, Collection, etc.
+ * The member names of collections and patterns, which the first segment of a
+ * module's name cannot take.
  */
-export declare function getReservedOutputNames(): Array<string>
+export declare function getReservedMemberNames(): Array<string>
 
 /** Per-host device info for the cache snapshot */
 export interface HostDeviceInfo {
@@ -570,6 +573,17 @@ export interface ModuleSpec {
   params: any
 }
 
+/**
+ * The precision of an output's values, named in `#[output(precision = …)]`.
+ * `F64` is for a value such as a song position, which keeps growing past
+ * where f32 can resolve a single sample. `Inherit` is f64 when any of the
+ * module's cables comes from an f64 output, so arithmetic on an f64 value
+ * keeps its precision.
+ */
+export type OutputPrecision =  'f32'|
+'f64'|
+'inherit';
+
 export interface OutputSchema {
   name: string
   description: string
@@ -588,6 +602,8 @@ export interface OutputSchema {
    * module's derived channel count.
    */
   channels?: number
+  /** An `OutputPrecision` value. */
+  precision: string
 }
 
 /**

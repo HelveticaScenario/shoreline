@@ -17,6 +17,8 @@ import {
 } from './components/SaveConflict';
 import type { UpdateNotificationState } from './components/UpdateNotification';
 import { UpdateNotification } from './components/UpdateNotification';
+import { ReleaseNotesDialog } from './components/ReleaseNotesDialog';
+import type { ReleaseNotes } from '../shared/releaseNotes';
 import { CommandPalette } from './components/CommandPalette';
 import './App.css';
 import { editor } from 'monaco-editor';
@@ -27,7 +29,11 @@ import { ControlPanel } from './components/ControlPanel';
 import electronAPI from './electronAPI';
 import type { ValidationError } from '@modular/core';
 import type { QueuedTrigger, ScopeStats } from '@modular/core';
-import type { FileTreeEntry, UpdateAvailableInfo } from '../shared/ipcTypes';
+import type {
+    ChangelogInfo,
+    FileTreeEntry,
+    UpdateAvailableInfo,
+} from '../shared/ipcTypes';
 import type { SliderDefinition } from '../shared/dsl/sliderTypes';
 import type { ButtonDefinition } from '../shared/dsl/buttonTypes';
 import type { VuMeterDef, VuMeterGhost } from '../shared/dsl/vuMeterTypes';
@@ -60,11 +66,11 @@ import {
     computeOutOptionEdit,
     computeSetOutputGainEdit,
 } from './dsl/outSourceEdit';
-import {
-    VU_PANEL_MAX_HEIGHT,
-    VU_PANEL_MIN_HEIGHT,
-    VuMeterPanel,
-} from './components/VuMeterPanel';
+import { VuMeterPanel } from './components/VuMeterPanel';
+import { BottomBar } from './components/BottomBar';
+import { BottomPanel } from './components/BottomPanel';
+import { useBottomPanel } from './hooks/useBottomPanel';
+import { useEditableConfig } from './hooks/useEditableConfig';
 import type { VuBallistics } from './app/vuMeter';
 import {
     drawVuMeter,
@@ -102,6 +108,11 @@ import {
     useTransportLinkEnabled,
 } from './app/transportStore';
 import { useTheme } from './themes/ThemeContext';
+
+type ReleaseNotesView =
+    | { kind: 'update' }
+    | { kind: 'whatsNew'; currentVersion: string; releases: ReleaseNotes[] }
+    | { kind: 'changelog'; info: ChangelogInfo };
 
 function App() {
     const {
@@ -196,8 +207,14 @@ function App() {
     const [sliderDefs, setSliderDefs] = useState<SliderDefinition[]>([]);
     const [buttonDefs, setButtonDefs] = useState<ButtonDefinition[]>([]);
     const [vuOutputs, setVuOutputs] = useState<VuMeterDef[]>([]);
-    const [isVuPanelVisible, setIsVuPanelVisible] = useState(false);
-    const [vuPanelHeight, setVuPanelHeight] = useState(150);
+    const [appConfig, changeAppConfig, appConfigLoaded] =
+        useEditableConfig(true);
+    const bottomPanel = useBottomPanel(
+        appConfig,
+        changeAppConfig,
+        appConfigLoaded,
+    );
+    const showBottomPanel = bottomPanel.show;
     /** Code-side control values diverging from the running audio after
      *  Ctrl/Cmd (code-only) panel edits, keyed by meter key. Cleared when a
      *  patch update applies. */
@@ -214,6 +231,8 @@ function App() {
     });
     // Store the version currently being offered so we can reference it later
     const pendingUpdateVersion = useRef('');
+    const [releaseNotesView, setReleaseNotesView] =
+        useState<ReleaseNotesView | null>(null);
 
     const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
     // Mirror of editorRef as state so children that need to react when the
@@ -620,10 +639,10 @@ function App() {
     useEffect(() => {
         vuOutputsRef.current = vuOutputs;
     }, [vuOutputs]);
-    const isVuPanelVisibleRef = useRef(false);
+    const isMixerVisibleRef = useRef(false);
     useEffect(() => {
-        isVuPanelVisibleRef.current = isVuPanelVisible;
-    }, [isVuPanelVisible]);
+        isMixerVisibleRef.current = bottomPanel.tab === 'mixer';
+    }, [bottomPanel.tab]);
 
     /** Set or clear (`value` undefined) one ghost property for a meter. The
      *  ref updates synchronously so a redraw in the same tick sees it. */
@@ -949,26 +968,6 @@ function App() {
         [handleVuToggle],
     );
 
-    // Restore panel visibility and height from the app config once on mount.
-    useEffect(() => {
-        electronAPI.config
-            .read()
-            .then((config) => {
-                setIsVuPanelVisible(config.vuPanelVisible ?? false);
-                if (config.vuPanelHeight !== undefined) {
-                    setVuPanelHeight(
-                        Math.min(
-                            VU_PANEL_MAX_HEIGHT,
-                            Math.max(VU_PANEL_MIN_HEIGHT, config.vuPanelHeight),
-                        ),
-                    );
-                }
-            })
-            .catch((err) => {
-                console.error('Failed to read config:', err);
-            });
-    }, []);
-
     // Load workspace and file tree on mount
     useEffect(() => {
         electronAPI.filesystem
@@ -984,13 +983,10 @@ function App() {
             });
     }, [refreshFileTree]);
 
-    // Refresh file tree when wavs/ folder changes
-    useEffect(() => {
-        const unsubscribe = electronAPI.onWavsChange(() => {
-            void refreshFileTree();
-        });
-        return unsubscribe;
-    }, [refreshFileTree]);
+    useEffect(
+        () => electronAPI.filesystem.onTreeChange(() => void refreshFileTree()),
+        [refreshFileTree],
+    );
 
     const selectWorkspaceFolder = useCallback(async () => {
         // Check for dirty file-backed buffers before switching
@@ -1129,6 +1125,9 @@ function App() {
             (info: UpdateAvailableInfo) => {
                 pendingUpdateVersion.current = info.version;
                 setUpdateState({
+                    currentVersion: info.currentVersion,
+                    hasBreakingChanges: info.hasBreakingChanges,
+                    releaseNotes: info.releaseNotes,
                     releaseUrl: info.releaseUrl,
                     status: 'available',
                     supportsInAppUpdate: info.supportsInAppUpdate,
@@ -1162,6 +1161,39 @@ function App() {
             unsubDownloaded();
             unsubError();
         };
+    }, []);
+
+    // The main process records the running version as seen on the first call,
+    // so the result is applied even if this effect is torn down meanwhile.
+    useEffect(() => {
+        electronAPI.releaseNotes
+            .whatsNew()
+            .then((info) => {
+                if (info.releaseNotes.length > 0) {
+                    setReleaseNotesView({
+                        currentVersion: info.currentVersion,
+                        kind: 'whatsNew',
+                        releases: info.releaseNotes,
+                    });
+                }
+            })
+            .catch((err) => {
+                console.warn("[release-notes] What's new failed:", err);
+            });
+        return electronAPI.releaseNotes.onMenuShow(() => {
+            electronAPI.releaseNotes
+                .getAll()
+                .then((info) => {
+                    setReleaseNotesView({ info, kind: 'changelog' });
+                })
+                .catch((err) => {
+                    console.warn('[release-notes] Changelog failed:', err);
+                });
+        });
+    }, []);
+
+    const closeReleaseNotes = useCallback(() => {
+        setReleaseNotesView(null);
     }, []);
 
     const handleUpdateDownload = useCallback(() => {
@@ -1500,10 +1532,6 @@ function App() {
         }
     }, []);
 
-    const handleVuPanelHeightCommit = useCallback((height: number) => {
-        void electronAPI.config.write({ vuPanelHeight: height });
-    }, []);
-
     const patchCodeRef = useRef(patchCode);
     useEffect(() => {
         patchCodeRef.current = patchCode;
@@ -1551,7 +1579,7 @@ function App() {
                 electronAPI.synthesizer.getScopes(),
                 electronAPI.synthesizer.getTransportState(),
                 // Hidden panel costs zero IPC.
-                isVuPanelVisibleRef.current
+                isMixerVisibleRef.current
                     ? electronAPI.synthesizer.getVuMeters()
                     : Promise.resolve([]),
             ])
@@ -1634,7 +1662,7 @@ function App() {
                     // drain block, not silence — keep the previous frame on
                     // screen instead of blinking the bars to the floor.
                     if (
-                        isVuPanelVisibleRef.current &&
+                        isMixerVisibleRef.current &&
                         vuCanvasMapRef.current.size > 0 &&
                         vuFrames.length > 0
                     ) {
@@ -2199,8 +2227,8 @@ function App() {
             openEngineHealth: () => setIsEngineHealthOpen(true),
             openModuleProfile: () => setIsModuleProfileOpen(true),
             setEditorValue: (code: string) => editorRef.current?.setValue(code),
-            setVuPanelVisible: (visible: boolean) =>
-                setIsVuPanelVisible(visible),
+            setMixerVisible: (visible: boolean) =>
+                showBottomPanel(visible ? 'mixer' : null),
             toggleVuMute: (key: string, codeOnly = false) =>
                 handleVuToggle(key, 'mute', codeOnly),
             toggleVuSolo: (key: string, codeOnly = false) =>
@@ -2209,7 +2237,7 @@ function App() {
         return () => {
             delete window.__TEST_API__;
         };
-    }, [eqController, handleVuToggle]);
+    }, [eqController, handleVuToggle, showBottomPanel]);
 
     const handleStopRef = useRef(() => {});
     useEffect(() => {
@@ -2375,18 +2403,6 @@ function App() {
             },
         );
         registerCommand(
-            'shoreline.toggleVuMeters',
-            () => {
-                setIsVuPanelVisible((visible) => {
-                    void electronAPI.config.write({
-                        vuPanelVisible: !visible,
-                    });
-                    return !visible;
-                });
-            },
-            { label: 'Toggle VU Meters', category: 'View' },
-        );
-        registerCommand(
             'shoreline.togglePerformanceWindow',
             () => {
                 performanceOutput.toggle();
@@ -2410,7 +2426,6 @@ function App() {
         return () => {
             unregisterCommand('shoreline.togglePerformanceWindow');
             unregisterCommand('shoreline.togglePerformanceCode');
-            unregisterCommand('shoreline.toggleVuMeters');
             unregisterCommand('shoreline.updatePatch');
             unregisterCommand('shoreline.updatePatchNextBeat');
             unregisterCommand('shoreline.stop');
@@ -2489,8 +2504,8 @@ function App() {
             }
         });
 
-        const cleanupToggleVuMeters = electronAPI.onMenuToggleVuMeters(() => {
-            executeCommand('shoreline.toggleVuMeters');
+        const cleanupToggleMixer = electronAPI.onMenuToggleMixer(() => {
+            executeCommand('shoreline.toggleMixer');
         });
         const cleanupTogglePerformanceWindow =
             electronAPI.onMenuTogglePerformanceWindow(() => {
@@ -2521,7 +2536,7 @@ function App() {
             cleanupOpenWorkspace();
             cleanupCloseBuffer();
             cleanupToggleRecording();
-            cleanupToggleVuMeters();
+            cleanupToggleMixer();
             cleanupTogglePerformanceWindow();
             cleanupOpenSettings();
             cleanupOpenEngineHealth();
@@ -2645,41 +2660,74 @@ function App() {
             />
 
             <main className="app-main">
-                {!workspaceRoot ? (
-                    <div className="empty-state">
-                        <button
-                            className="open-folder-button"
-                            onClick={selectWorkspaceFolder}
-                        >
-                            Open Folder
-                        </button>
-                    </div>
-                ) : (
-                    <div className="editor-panel">
-                        <VideoBackdrop
-                            codeBackdropOpacity={codeBackdropOpacity}
-                            performanceScale={performanceScale}
-                        />
-                        <PatchEditor
-                            value={patchCode}
-                            runningBufferId={runningBufferId}
-                            currentFile={activeBufferId}
-                            openFiles={openBufferIds}
-                            onChange={handlePatchChange}
-                            editorRef={editorRef}
-                            onEditorChange={setPaletteEditor}
-                            scopeViews={scopeViews}
-                            videoPreviewDecorations={videoPreviews.decorations}
-                            videoPreviewZones={videoPreviews.zones}
-                            // oxlint-disable-next-line react-hooks-js/refs -- intentional: live Monaco decoration collection mutated outside React
-                            scopeDecorations={scopeDecorationsRef.current}
-                            onRegisterScopeCanvas={registerScopeCanvas}
-                            onUnregisterScopeCanvas={unregisterScopeCanvas}
-                        />
-                        <PerformancePreview />
-                    </div>
-                )}
+                <div className="app-workspace">
+                    {!workspaceRoot ? (
+                        <div className="empty-state">
+                            <button
+                                className="open-folder-button"
+                                onClick={selectWorkspaceFolder}
+                            >
+                                Open Folder
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="editor-panel">
+                            <VideoBackdrop
+                                codeBackdropOpacity={codeBackdropOpacity}
+                                performanceScale={performanceScale}
+                            />
+                            <PatchEditor
+                                value={patchCode}
+                                runningBufferId={runningBufferId}
+                                currentFile={activeBufferId}
+                                openFiles={openBufferIds}
+                                onChange={handlePatchChange}
+                                editorRef={editorRef}
+                                onEditorChange={setPaletteEditor}
+                                scopeViews={scopeViews}
+                                videoPreviewDecorations={
+                                    videoPreviews.decorations
+                                }
+                                videoPreviewZones={videoPreviews.zones}
+                                // oxlint-disable-next-line react-hooks-js/refs -- intentional: live Monaco decoration collection mutated outside React
+                                scopeDecorations={scopeDecorationsRef.current}
+                                onRegisterScopeCanvas={registerScopeCanvas}
+                                onUnregisterScopeCanvas={unregisterScopeCanvas}
+                            />
+                            <PerformancePreview />
+                        </div>
+                    )}
+                    <BottomPanel
+                        state={bottomPanel}
+                        mixer={
+                            <VuMeterPanel
+                                outputs={vuOutputs}
+                                onToggleMute={handleVuToggleMute}
+                                onToggleSolo={handleVuToggleSolo}
+                                ghosts={vuGhosts}
+                                onPanChange={handleVuPanChange}
+                                onPanCommit={handleVuPanCommit}
+                                onGainChange={handleVuGainChange}
+                                onGainCommit={handleVuGainCommit}
+                                onGainReset={handleVuGainReset}
+                                onGainRevert={handleVuGainRevert}
+                                onPeakReset={handleVuPeakReset}
+                                onCanvasResized={handleVuCanvasResized}
+                                registerCanvas={registerVuCanvas}
+                                unregisterCanvas={unregisterVuCanvas}
+                                registerReadout={registerVuReadout}
+                                unregisterReadout={unregisterVuReadout}
+                                registerPanPointer={registerVuPanPointer}
+                                unregisterPanPointer={unregisterVuPanPointer}
+                            />
+                        }
+                    />
+                </div>
                 <Sidebar
+                    docs={bottomPanel.docs}
+                    config={appConfig}
+                    onConfigChange={changeAppConfig}
+                    configLoaded={appConfigLoaded}
                     explorerContent={
                         <FileExplorer
                             workspaceRoot={workspaceRoot}
@@ -2717,31 +2765,11 @@ function App() {
                     }
                 />
             </main>
-            {isVuPanelVisible && workspaceRoot && (
-                <VuMeterPanel
-                    outputs={vuOutputs}
-                    height={vuPanelHeight}
-                    onHeightChange={setVuPanelHeight}
-                    onHeightCommit={handleVuPanelHeightCommit}
-                    onToggleMute={handleVuToggleMute}
-                    onToggleSolo={handleVuToggleSolo}
-                    ghosts={vuGhosts}
-                    onPanChange={handleVuPanChange}
-                    onPanCommit={handleVuPanCommit}
-                    onGainChange={handleVuGainChange}
-                    onGainCommit={handleVuGainCommit}
-                    onGainReset={handleVuGainReset}
-                    onGainRevert={handleVuGainRevert}
-                    onPeakReset={handleVuPeakReset}
-                    onCanvasResized={handleVuCanvasResized}
-                    registerCanvas={registerVuCanvas}
-                    unregisterCanvas={unregisterVuCanvas}
-                    registerReadout={registerVuReadout}
-                    unregisterReadout={unregisterVuReadout}
-                    registerPanPointer={registerVuPanPointer}
-                    unregisterPanPointer={unregisterVuPanPointer}
-                />
-            )}
+            <BottomBar
+                tab={bottomPanel.tab}
+                onToggle={bottomPanel.toggle}
+                docsLocation={bottomPanel.docs.location}
+            />
             {saveConflict && (
                 <SaveConflictNotification
                     filePath={saveConflict.filePath}
@@ -2776,7 +2804,59 @@ function App() {
                 onInstall={handleUpdateInstall}
                 onSkip={handleUpdateSkip}
                 onDismiss={handleUpdateDismiss}
+                onShowReleaseNotes={() =>
+                    setReleaseNotesView({ kind: 'update' })
+                }
             />
+            {releaseNotesView?.kind === 'update' &&
+                updateState.status === 'available' && (
+                    <ReleaseNotesDialog
+                        title={`Version ${updateState.version} is available`}
+                        summary={`You have version ${updateState.currentVersion}. Here is everything that changed since then.`}
+                        releases={updateState.releaseNotes}
+                        actions={[
+                            {
+                                label: updateState.supportsInAppUpdate
+                                    ? 'Download & Install'
+                                    : 'View Release',
+                                onClick: () => {
+                                    closeReleaseNotes();
+                                    handleUpdateDownload();
+                                },
+                                primary: true,
+                            },
+                            {
+                                label: 'Skip This Version',
+                                onClick: () => {
+                                    closeReleaseNotes();
+                                    handleUpdateSkip();
+                                },
+                            },
+                            { label: 'Not Now', onClick: closeReleaseNotes },
+                        ]}
+                        onClose={closeReleaseNotes}
+                    />
+                )}
+            {releaseNotesView?.kind === 'whatsNew' && (
+                <ReleaseNotesDialog
+                    title={`What's new in version ${releaseNotesView.currentVersion}`}
+                    releases={releaseNotesView.releases}
+                    onClose={closeReleaseNotes}
+                />
+            )}
+            {releaseNotesView?.kind === 'changelog' && (
+                <ReleaseNotesDialog
+                    title="Release Notes"
+                    releases={releaseNotesView.info.releaseNotes}
+                    liftBreaking={false}
+                    installedVersion={releaseNotesView.info.currentVersion}
+                    link={{
+                        href: releaseNotesView.info.fullChangelogUrl,
+                        label: 'Full changelog on GitHub',
+                    }}
+                    onClose={closeReleaseNotes}
+                />
+            )}
         </div>
     );
 }

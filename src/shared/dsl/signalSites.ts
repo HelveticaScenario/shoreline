@@ -28,7 +28,7 @@ export interface ModuleSiteInfo {
     positional: string[];
     /** Input class of every signal-taking param. */
     inputs: Record<string, OutputClass>;
-    /** Whether the module is a method of the `.$.` namespace. */
+    /** Whether the module is a chain method of collections. */
     chainable: boolean;
 }
 
@@ -63,7 +63,7 @@ export interface SignalSite {
     /** The output the value stands for, or null when only a run can tell. */
     output: string | null;
     /**
-     * Whether writing `.output` straight after the value names that output:
+     * Whether writing `._<name>` straight after the value names that output:
      * true of a name, a member or a call that is one root, not an array.
      */
     insertable: boolean;
@@ -99,9 +99,6 @@ export function siteOfRecord(
 
 /** The helpers that tag a param value into a cartesian signal group. */
 const SIGNAL_GROUP_HELPERS = new Set(['$g1', '$g2', '$g3']);
-
-/** Methods of a root that return a plain collection of its `cv` output. */
-const COLLECTION_BUILDERS = new Set(['slice', 'chunk']);
 
 /**
  * `undefined`: not a root. `null`: may be one, unknown until run. Otherwise
@@ -202,9 +199,10 @@ export function collectSignalSites(
         }
     };
 
-    /** Whether `.name` can be written straight after `value`. */
+    /** Whether `.name` can be written straight after `value`; a shorthand `{ key }` cannot take one. */
     const takesMember = (value: TS.Expression): boolean =>
-        ts.isIdentifier(value) ||
+        (ts.isIdentifier(value) &&
+            !ts.isShorthandPropertyAssignment(value.parent)) ||
         ts.isPropertyAccessExpression(value) ||
         ts.isElementAccessExpression(value) ||
         ts.isCallExpression(value) ||
@@ -236,13 +234,6 @@ export function collectSignalSites(
             value.arguments.length === 1
         ) {
             emitValue(call, slot, value.arguments[0], inputClass);
-            return;
-        }
-        if (
-            ts.isCallExpression(value) &&
-            ts.isPropertyAccessExpression(value.expression) &&
-            COLLECTION_BUILDERS.has(value.expression.name.text)
-        ) {
             return;
         }
         const type = checker.getTypeAtLocation(value);
@@ -320,37 +311,39 @@ export function collectSignalSites(
         return undefined;
     };
 
-    /** The receiver and method path of `receiver.$.a.b`, if `callee` is one. */
-    const dollarCall = (
-        callee: TS.PropertyAccessExpression,
-    ):
-        | { receiver: TS.Expression; path: string; withMix: boolean }
-        | undefined => {
-        const names: string[] = [];
-        let node: TS.Expression = callee;
-        while (ts.isPropertyAccessExpression(node)) {
-            const name = node.name.text;
-            if (name === '$' || name === '$m') {
-                return names.length > 0
-                    ? {
-                          path: names.join('.'),
-                          receiver: node.expression,
-                          withMix: name === '$m',
-                      }
-                    : undefined;
-            }
-            names.unshift(name);
-            node = node.expression;
-        }
-        return undefined;
-    };
-
     /** Whether `type` is an output or collection: it has their methods. */
     const isOutput = (type: TS.Type): boolean =>
         checker.getPropertyOfType(type, 'outMono') !== undefined;
 
     const receivesSignals = (type: TS.Type): boolean =>
         isUnknown(type) || isOutput(type);
+
+    /**
+     * The receiver and chain module of `receiver.a.b`, if `callee` is a
+     * chain call: the longest trailing path that names a chainable module on
+     * a receiver that reads signals.
+     */
+    const chainCall = (
+        callee: TS.PropertyAccessExpression,
+    ): { receiver: TS.Expression; module: ModuleSiteInfo } | undefined => {
+        const names: string[] = [];
+        let found:
+            | { receiver: TS.Expression; module: ModuleSiteInfo }
+            | undefined;
+        let node: TS.Expression = callee;
+        while (ts.isPropertyAccessExpression(node)) {
+            names.unshift(node.name.text);
+            node = node.expression;
+            const module = own(tables.modules, `$${names.join('.')}`);
+            if (
+                module?.chainable &&
+                receivesSignals(checker.getTypeAtLocation(node))
+            ) {
+                found = { module, receiver: node };
+            }
+        }
+        return found;
+    };
 
     const visitCall = (node: TS.CallExpression): void => {
         const callee = node.expression;
@@ -367,23 +360,16 @@ export function collectSignalSites(
             return;
         }
         const site = position(callee.name);
-        const dollar = dollarCall(callee);
-        const chained = dollar
-            ? own(tables.modules, `$${dollar.path}`)
-            : undefined;
-        if (dollar && chained?.chainable) {
-            const receiverName = chained.positional[0];
+        const chain = chainCall(callee);
+        if (chain) {
+            const receiverName = chain.module.positional[0];
             emitValue(
                 site,
                 receiverName,
-                dollar.receiver,
-                chained.inputs[receiverName] ?? 'cv',
+                chain.receiver,
+                chain.module.inputs[receiverName] ?? 'cv',
             );
-            const args = [...node.arguments];
-            if (dollar.withMix && args.length > 0) {
-                emitValue(site, MIX_SLOT, args.shift()!, 'cv');
-            }
-            emitModuleArgs(site, chained, args, 1);
+            emitModuleArgs(site, chain.module, node.arguments, 1);
             return;
         }
         if (
@@ -417,26 +403,9 @@ export function collectSignalSites(
         }
     };
 
-    /** An element read off a root is a channel of its `cv` output. */
-    const visitIndex = (node: TS.ElementAccessExpression): void => {
-        const type = checker.getTypeAtLocation(node.expression);
-        const outputs = outputsOf(type);
-        if (outputs) {
-            emit(
-                position(node.argumentExpression),
-                RECEIVER_SLOT,
-                node.expression,
-                chooseOutput(outputs, 'cv'),
-                takesMember(node.expression),
-            );
-        }
-    };
-
     const visit = (node: TS.Node): void => {
         if (ts.isCallExpression(node)) {
             visitCall(node);
-        } else if (ts.isElementAccessExpression(node)) {
-            visitIndex(node);
         }
         ts.forEachChild(node, visit);
     };

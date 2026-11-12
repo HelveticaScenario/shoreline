@@ -1,7 +1,7 @@
 /**
  * Contextual outputs. The value a multi-output module's factory returns is a
  * root: it stands for whichever of the module's outputs fits the input it is
- * plugged into. A named output (`seq.trig`) is never a root, so naming one is
+ * plugged into. A named output (`seq._trig`) is never a root, so naming one is
  * always explicit.
  */
 
@@ -14,22 +14,23 @@ import {
     type ResolvableOutput,
 } from '../../shared/dsl/outputResolutionRule';
 import { captureSourceLocation } from './captureSourceLocation';
-import { sanitizeOutputName } from './outputNames';
+import { outputName } from './outputNames';
+import { patternSignal } from './patterns';
 import { isSignalGroupLike } from './signalGroups';
 
 const OUTPUT_SET = Symbol('outputSet');
 
-/** A module's outputs, keyed by the property names they have on the root. */
-interface OutputSet {
+/** A module's outputs by name; the root has each as `_<name>`. */
+export interface OutputSet {
     outputs: readonly ResolvableOutput[];
     values: Readonly<Record<string, unknown>>;
 }
 
-/** The outputs of `schema` under the property names they have on a root. */
+/** The outputs of `schema` under their names on a root. */
 export function resolvableOutputs(schema: ModuleSchema): ResolvableOutput[] {
     return (schema.outputs ?? []).map((o) => ({
         default: o.default,
-        name: sanitizeOutputName(o.name),
+        name: outputName(o.name),
         outputType: o.outputType,
     }));
 }
@@ -37,16 +38,27 @@ export function resolvableOutputs(schema: ModuleSchema): ResolvableOutput[] {
 /** A call's position in the patch source, as `captureSourceLocation` reads it. */
 export type CallSite = { line: number; column: number };
 
-/** Tag `root` as standing for every output in `set`. */
+/**
+ * Tag `root` as standing for every output in `set`, and give it each output
+ * by name behind an underscore (`seq._trig`).
+ */
 export function markRoot(root: object, set: OutputSet): void {
     Object.defineProperty(root, OUTPUT_SET, { value: set });
+    for (const [name, value] of Object.entries(set.values)) {
+        Object.defineProperty(root, `_${name}`, { value });
+    }
 }
 
-function outputSetOf(value: unknown): OutputSet | undefined {
-    if (typeof value !== 'object' || value === null) {
+/**
+ * The outputs a multi-output module's root stands for, if `value` is one. A
+ * pattern is the root of its `$cycle`.
+ */
+export function outputSetOf(value: unknown): OutputSet | undefined {
+    const root = patternSignal(value);
+    if (typeof root !== 'object' || root === null) {
         return undefined;
     }
-    return (value as { [OUTPUT_SET]?: OutputSet })[OUTPUT_SET];
+    return (root as { [OUTPUT_SET]?: OutputSet })[OUTPUT_SET];
 }
 
 /**

@@ -7,6 +7,7 @@
  * No Electron, no audio hardware needed — runs in plain Node.js via Vitest.
  */
 
+import { isKind } from '../miniNotation/__tests__/kinds';
 import { describe, expect, test } from 'vitest';
 import type { ModuleSchema, PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
@@ -14,13 +15,6 @@ import { assertControlsPlaced } from '../controlPlacement';
 import { type DSLExecutionResult, executePatchScript } from '../executor';
 import { FIRST_LINE_COLUMN_OFFSET } from '../../../shared/dsl/spanTypes';
 import { enoscScalePresets } from '../../../shared/dsl/enoscScales';
-import {
-    isBeatPattern,
-    isGlidePattern,
-    isFastPattern,
-    isParsedPattern,
-    isStructPattern,
-} from '../miniNotation/index';
 
 const DEFAULT_EXECUTION_OPTIONS = {
     sampleRate: 48_000,
@@ -250,14 +244,14 @@ describe('filters', () => {
 describe('envelopes', () => {
     test('$adsr with gate input and config', () => {
         const patch = execPatch(
-            '$adsr($clock.beatTrigger, { attack: 0.1, decay: 0.2, sustain: 3, release: 0.5 }).out()',
+            '$adsr($clock._beatTrigger, { attack: 0.1, decay: 0.2, sustain: 3, release: 0.5 }).out()',
         );
         expect(findModules(patch, '$adsr').length).toBe(1);
     });
 
     test('$perc with trigger', () => {
         const patch = execPatch(
-            '$perc($clock.beatTrigger, { decay: 0.3 }).out()',
+            '$perc($clock._beatTrigger, { decay: 0.3 }).out()',
         );
         expect(findModules(patch, '$perc').length).toBe(1);
     });
@@ -280,7 +274,7 @@ describe('polyphony', () => {
     test('an output with fixed channels keeps them on a wider module', () => {
         const patch = execPatch(`
             const cloud = $granular(0, 0, { freq: ['c4', 'e4', 'g4'] })
-            $sine(cloud.voices).out()
+            $sine(cloud._voices).out()
             $saw(cloud).out()
         `);
         const perVoice = findModules(patch, '$sine')[0].params.freq;
@@ -288,8 +282,8 @@ describe('polyphony', () => {
         expect(perVoice).toHaveLength(3);
         expect(stereo).toHaveLength(2);
         expect(stereo.map((s: { port: string }) => s.port)).toEqual([
-            'output',
-            'output',
+            'stereo',
+            'stereo',
         ]);
     });
 });
@@ -487,7 +481,7 @@ describe('modulation routing', () => {
     test('subtractive synth voice (osc → env → filter)', () => {
         const source = `
             const osc = $saw("C3")
-            const env = $adsr($clock.beatTrigger, { attack: 0.01, decay: 0.3, sustain: 2, release: 0.5 })
+            const env = $adsr($clock._beatTrigger, { attack: 0.01, decay: 0.3, sustain: 2, release: 0.5 })
             $lpf(osc, env.range("C3", "C6")).out()
         `;
         const patch = execPatch(source);
@@ -541,73 +535,26 @@ describe('sequencing', () => {
         ).toEqual({ start: 3, end: 10 });
     });
 
-    test('.c is .cycle(), made once per pattern', () => {
+    test('a channel of a sequence feeds each input its fitting output', () => {
         const patch = execPatch(`
-            const seq = $p("c4 e4");
-            $sine(seq.c).amp($perc(seq.c.trig)).out();
+            const seq = $p('[c4,e4] [g4,b4]');
+            $sine(seq[1]).amp($perc(seq[1])).out();
         `);
         const [cycle] = findModules(patch, '$cycle');
         const [sine] = findModules(patch, '$sine');
-        expect(findModules(patch, '$cycle').length).toBe(1);
+        const [perc] = findModules(patch, '$perc');
         expect(sine.params.freq).toMatchObject([
-            { module: cycle.id, port: 'cv', type: 'cable' },
+            { channel: 1, module: cycle.id, port: 'cv' },
+        ]);
+        expect(perc.params.trigger).toMatchObject([
+            { channel: 1, module: cycle.id, port: 'trig' },
         ]);
     });
 
-    test.each([
-        '$p("c4 e4")',
-        '$p.s("0 2 4", "C(major)")',
-        '$p.arrange([2, $p("c4")], [1, $p("e4")])',
-        '$p("c4").fast(2)',
-        '$p("c4").slow(2)',
-        '$p("c4").struct("x ~")',
-        '$p("c4").beat("0,7", 16)',
-        '$p("c4 e4").glide(0.25)',
-    ])('%s has .c', (pattern) => {
-        const patch = execPatch(`const p = ${pattern}; $sine(p.c).out(); p.c`);
-        expect(findModules(patch, '$cycle').length).toBe(1);
-    });
-
-    test('.cycle() and separately built patterns make their own $cycle', () => {
-        const patch = execPatch(`
-            const p = $p("c4 e4");
-            $sine(p.c).out();
-            $sine(p.cycle()).out();
-            $sine(p.fast(2).c).out();
-            $sine(p.fast(2).c).out();
-        `);
-        expect(findModules(patch, '$cycle').length).toBe(4);
-    });
-
-    test('.c is made again for each run of a pattern kept between runs', () => {
-        const source = '$p.kept ??= $p("c4 e4"); $sine($p.kept.c).out()';
-        execPatch(source);
-        expect(findModules(execPatch(source), '$cycle').length).toBe(1);
-    });
-
     test('an array in a signal param spreads the collections inside it', () => {
-        const patch = execPatch('$sine([$p("c4, g4").c, "e4"]).out()');
+        const patch = execPatch('$sine([$p("c4, g4"), "e4"]).out()');
         const [sine] = findModules(patch, '$sine');
         expect(sine.params.freq).toHaveLength(3);
-    });
-
-    test.each([
-        '$sine($p("c4 e4")).out()',
-        '$sine([$p("c4"), "e4"]).out()',
-        '$sine($g1($p("c4 e4"))).out()',
-        '$stereoMix($saw("c3"), { width: $p("0 5") }).out()',
-        '$mix([$p("c4 e4"), "g4"]).out()',
-        '$step(["c4", "g4"], $p("1 0")).out()',
-        '$sine("c3").amplitude($p("1 2")).out()',
-        '$sine("c3").out({ gain: $p("3 4") })',
-        '$sine("c3").outMono(1, $p("0.5 1"))',
-        '$signal(1).range($p("0 1"), 5, -5, 5).out()',
-        '$c($sine("c3")).range(0, $p("2 3")).out()',
-        '$c($p("c4 e4")).out()',
-        '$quantizer($sine("c4"), $p("c4 e4 g4")).out()',
-        '$pWarp($sine("c3"), $phase.mirror($p("0 1"))).out()',
-    ])('a pattern is not a signal: %s', (source) => {
-        expect(() => execPatch(source)).toThrow(/is a pattern, not a signal/);
     });
 
     test('MIDI-number and scale-interval signal strings are rejected', () => {
@@ -615,8 +562,8 @@ describe('sequencing', () => {
         expect(() => execPatch('$sine("4s(C:major)").out()')).toThrow();
     });
 
-    test('$c lifts single values to $signal and takes a played pattern', () => {
-        const patch = execPatch('$c($p("c4 e4").c, "c4", 440).out()');
+    test('$c lifts single values to $signal and takes a pattern', () => {
+        const patch = execPatch('$c($p("c4 e4"), "c4", 440).out()');
         expect(findModules(patch, '$cycle').length).toBe(1);
         const lifted = findModules(patch, '$signal').filter(
             (m) => m.params.value === 'c4' || m.params.value === 440,
@@ -647,7 +594,7 @@ describe('sequencing', () => {
         expect(findModules(single, '$cycle').length).toBe(1);
         // Chained .add folds a second source additively.
         const chained = execPatch(
-            '$cycle($p.s("0 2 4", "C(major)").add("0 3")).out()',
+            '$cycle($p.s("0 2 4", "C(major)").trans("0 3")).out()',
         );
         expect(findModules(chained, '$cycle').length).toBe(1);
     });
@@ -713,10 +660,10 @@ describe('sequencing', () => {
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
-        expect(isFastPattern(pattern)).toBe(true);
-        if (!isFastPattern(pattern)) return;
-        expect(isParsedPattern(pattern.pattern)).toBe(true);
-        if (isParsedPattern(pattern.pattern)) {
+        expect(isKind(pattern, 'FastPattern')).toBe(true);
+        if (!isKind(pattern, 'FastPattern')) return;
+        expect(isKind(pattern.pattern, 'ParsedPattern')).toBe(true);
+        if (isKind(pattern.pattern, 'ParsedPattern')) {
             expect(pattern.pattern.source).toBe('c4 e4');
         }
         // A number factor is a raw constant on the wire.
@@ -736,8 +683,8 @@ describe('sequencing', () => {
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
-        expect(isFastPattern(pattern)).toBe(true);
-        if (!isFastPattern(pattern)) return;
+        expect(isKind(pattern, 'FastPattern')).toBe(true);
+        if (!isKind(pattern, 'FastPattern')) return;
         const { factor } = pattern;
         if (typeof factor === 'number') {
             throw new Error('expected a pattern factor, got a number');
@@ -763,8 +710,8 @@ describe('sequencing', () => {
         // carried as a raw number and only the wrapped pattern contributes a span.
         const patch = execPatch('$cycle($p("c4 e4").fast(2)).out()');
         const pattern = findModules(patch, '$cycle')[0].params.pattern;
-        expect(isFastPattern(pattern)).toBe(true);
-        if (!isFastPattern(pattern)) return;
+        expect(isKind(pattern, 'FastPattern')).toBe(true);
+        if (!isKind(pattern, 'FastPattern')) return;
         expect(pattern.factor).toBe(2);
         expect(pattern.argument_spans.length).toBe(1);
     });
@@ -813,9 +760,9 @@ describe('sequencing', () => {
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
-        expect(isStructPattern(pattern)).toBe(true);
-        if (!isStructPattern(pattern)) return;
-        expect(isParsedPattern(pattern.pattern)).toBe(true);
+        expect(isKind(pattern, 'StructPattern')).toBe(true);
+        if (!isKind(pattern, 'StructPattern')) return;
+        expect(isKind(pattern.pattern, 'ParsedPattern')).toBe(true);
         expect(pattern.bool_pattern.source).toBe('x ~ x x');
     });
 
@@ -830,8 +777,8 @@ describe('sequencing', () => {
             'seq.out()';
         const patch = execPatch(source);
         const pattern = findModules(patch, '$cycle')[0].params.pattern;
-        expect(isStructPattern(pattern)).toBe(true);
-        if (!isStructPattern(pattern)) return;
+        expect(isKind(pattern, 'StructPattern')).toBe(true);
+        if (!isKind(pattern, 'StructPattern')) return;
         expect(pattern.argument_spans.length).toBe(2);
         const boolSpan = pattern.argument_spans[1];
         expect(boolSpan).not.toEqual({ start: 0, end: 0 });
@@ -849,9 +796,9 @@ describe('sequencing', () => {
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
-        expect(isBeatPattern(pattern)).toBe(true);
-        if (!isBeatPattern(pattern)) return;
-        expect(isParsedPattern(pattern.pattern)).toBe(true);
+        expect(isKind(pattern, 'BeatPattern')).toBe(true);
+        if (!isKind(pattern, 'BeatPattern')) return;
+        expect(isKind(pattern.pattern, 'ParsedPattern')).toBe(true);
         if (typeof pattern.t === 'number') {
             throw new Error('expected a pattern t, got a number');
         }
@@ -867,8 +814,8 @@ describe('sequencing', () => {
             'seq.out()';
         const patch = execPatch(source);
         const pattern = findModules(patch, '$cycle')[0].params.pattern;
-        expect(isBeatPattern(pattern)).toBe(true);
-        if (!isBeatPattern(pattern)) return;
+        expect(isKind(pattern, 'BeatPattern')).toBe(true);
+        if (!isKind(pattern, 'BeatPattern')) return;
         // Spans flatten as [inner, t, div] — matching the Rust per_source order.
         expect(pattern.argument_spans.length).toBe(3);
         const tSpan = pattern.argument_spans[1];
@@ -886,8 +833,8 @@ describe('sequencing', () => {
             'seq.out()';
         const patch = execPatch(source);
         const pattern = findModules(patch, '$cycle')[0].params.pattern;
-        expect(isGlidePattern(pattern)).toBe(true);
-        if (!isGlidePattern(pattern)) return;
+        expect(isKind(pattern, 'GlidePattern')).toBe(true);
+        if (!isKind(pattern, 'GlidePattern')) return;
         // Spans flatten as [inner, glide] — matching the Rust per_source order.
         expect(pattern.argument_spans.length).toBe(2);
         const innerSpan = pattern.argument_spans[0];
@@ -958,13 +905,13 @@ describe('sequencing', () => {
         expect(findModules(patch, '$cycle').length).toBe(1);
     });
 
-    test('$p.s(...).sub(...) wire payload preserves chain RHS argument_spans[1]', () => {
-        // Regression: the chain RHS span must be captured by the analyzer
-        // and carried through to the SpPattern wire payload as
+    test('$p.s(...).trans(...) wire payload preserves chain RHS argument_spans[1]', () => {
+        // The chain RHS span is captured by the analyzer and carried
+        // through to the SpPattern wire payload as
         // argument_spans[1], pointing at the literal '0 5' in the user
         // source so editor highlighting can follow it.
         const source =
-            "const pat = $p.s('0 1 2 3', 'c(maj)').sub('0 5')\n" +
+            "const pat = $p.s('0 1 2 3', 'c(maj)').trans('0 5')\n" +
             'const seq = $cycle(pat)\n' +
             'seq.out()';
         const patch = execPatch(source);
@@ -975,13 +922,13 @@ describe('sequencing', () => {
         const pattern = cycles[0].params.pattern as {
             __kind: string;
             sources: Array<{ source: string }>;
-            ops: Array<{ op: string; mode: string }>;
+            modes: string[];
             argument_spans: Array<{ start: number; end: number }>;
         };
         expect(pattern.__kind).toBe('SpPattern');
         expect(pattern.sources.length).toBe(2);
         expect(pattern.sources[1].source).toBe('0 5');
-        expect(pattern.ops).toEqual([{ op: 'sub', mode: 'in' }]);
+        expect(pattern.modes).toEqual(['in']);
 
         // argument_spans must be parallel to sources: one per source.
         expect(pattern.argument_spans.length).toBe(2);
@@ -1007,15 +954,12 @@ describe('sequencing', () => {
     });
 
     test('$p.s chain on a const-bound pattern captures RHS argument_spans', () => {
-        // Regression: chain ops (.add/.sub/...) applied to a pattern stored
-        // in a const variable must still resolve their chain root back to
-        // `$p.s(...)` so the analyzer registers the RHS literal span. Before
-        // the fix only inline `$p.s(...).add(...)` chains were tracked; a
-        // `const p = $p.s(...)` followed by `p.add('0 5')` fell back to the
-        // {0,0} sentinel and produced no editor highlight.
+        // A `.trans` link on a pattern stored in a const resolves its chain
+        // root back to `$p.s(...)`, so the analyzer registers the RHS literal
+        // span and the editor highlights it.
         const source =
             "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
-            "const p2 = p1.add('0,2')\n" +
+            "const p2 = p1.trans('0,2')\n" +
             'const seq = $cycle(p2)\n' +
             'seq.out()';
         const patch = execPatch(source);
@@ -1040,12 +984,12 @@ describe('sequencing', () => {
     });
 
     test('$p.s nested chain on a const-bound pattern captures every RHS span', () => {
-        // Multi-link chain (`.sub(...).add.squeeze(...)`) rooted at a const
+        // Multi-link chain (`.trans(...).trans.squeeze(...)`) rooted at a const
         // pattern, applied inline inside `$cycle`. Every chained RHS literal
         // must get a real span, not the {0,0} fallback.
         const source =
             "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
-            "const seq = $cycle(p1.sub('7').add.squeeze('{0 1 2 3}%2'))\n" +
+            "const seq = $cycle(p1.trans('7').trans.squeeze('{0 1 2 3}%2'))\n" +
             'seq.out()';
         const patch = execPatch(source);
         const cycles = findModules(patch, '$cycle');
@@ -1081,8 +1025,8 @@ describe('sequencing', () => {
         // p2 derives from p1, p3 chains off p2.
         const source =
             "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
-            "const p2 = p1.add('0,2')\n" +
-            "const p3 = p2.sub('1')\n" +
+            "const p2 = p1.trans('0,2')\n" +
+            "const p3 = p2.trans('1')\n" +
             'const seq = $cycle(p3)\n' +
             'seq.out()';
         const patch = execPatch(source);
@@ -1109,7 +1053,7 @@ describe('sequencing', () => {
         // brackets the right literal.
         const source =
             "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
-            "const seq = $cycle(p1.sub('7').add.squeeze('{0 1 2 3}%2'))\n" +
+            "const seq = $cycle(p1.trans('7').trans.squeeze('{0 1 2 3}%2'))\n" +
             'seq.out()';
         const patch = execPatch(source);
         const cycle = findModules(patch, '$cycle')[0];
@@ -1180,14 +1124,14 @@ describe('utilities', () => {
 
     test('$sah (sample and hold)', () => {
         const patch = execPatch(
-            '$sah($noise("white"), $clock.beatTrigger).out()',
+            '$sah($noise("white"), $clock._beatTrigger).out()',
         );
         expect(findModules(patch, '$sah').length).toBe(1);
     });
 
     test('$slew', () => {
         const patch = execPatch(
-            '$slew($clock.beatTrigger, { rise: 0.01, fall: 0.01 }).out()',
+            '$slew($clock._beatTrigger, { rise: 0.01, fall: 0.01 }).out()',
         );
         expect(findModules(patch, '$slew').length).toBe(1);
     });
@@ -1208,14 +1152,14 @@ describe('utilities', () => {
         }>;
         expect(scale).toHaveLength(4);
         expect(
-            scale.every((c) => c.module === chord.id && c.port === 'output'),
+            scale.every((c) => c.module === chord.id && c.port === 'pitch'),
         ).toBe(true);
     });
 
     test('$quantizer takes a signal scale and a gate', () => {
         const patch = execPatch(
             'const midi = $midiCV({ channels: 4 })\n' +
-                '$quantizer($sine("1hz"), midi, { gate: midi.gate }).out()',
+                '$quantizer($sine("1hz"), midi, { gate: midi._gate }).out()',
         );
         expect(findModules(patch, '$chord').length).toBe(0);
         const [midi] = findModules(patch, '$midiCV');
@@ -1257,7 +1201,7 @@ describe('utilities', () => {
     });
 
     test('$clockDivider', () => {
-        const patch = execPatch('$clockDivider($clock.beatTrigger, 4).out()');
+        const patch = execPatch('$clockDivider($clock._beatTrigger, 4).out()');
         expect(findModules(patch, '$clockDivider').length).toBe(1);
     });
 
@@ -1729,9 +1673,9 @@ describe('buttons', () => {
         ).toThrow('already used by a button');
     });
 
-    test('$btn chains through .$.hold for fixed-length triggers', () => {
+    test('$btn chains through .hold for fixed-length triggers', () => {
         const result = exec(
-            '$sine("c4").amplitude($adsr($btn("hit").$.hold(0.2))).out()',
+            '$sine("c4").amplitude($adsr($btn("hit").hold(0.2))).out()',
         );
         const holds = findModules(result.patch, '$hold');
         expect(holds.length).toBe(1);
@@ -1813,14 +1757,14 @@ describe('built-in modules', () => {
     test('$clock is available and has outputs', () => {
         // Use $clock outputs as trigger input to an envelope
         const patch = execPatch(
-            '$adsr($clock.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
+            '$adsr($clock._beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
         );
         expect(patch.modules.find((m) => m.id === 'ROOT_CLOCK')).toBeDefined();
     });
 
-    test('$clock.beatTrigger can modulate another module', () => {
+    test('$clock._beatTrigger can modulate another module', () => {
         const patch = execPatch(
-            '$adsr($clock.beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
+            '$adsr($clock._beatTrigger, { attack: 0.01, decay: 0.1, sustain: 3, release: 0.2 }).out()',
         );
         expect(patch.modules.find((m) => m.id === 'ROOT_CLOCK')).toBeDefined();
         expect(findModules(patch, '$adsr').length).toBe(1);
@@ -1870,7 +1814,7 @@ describe('fx modules', () => {
 
     test('$enosc', () => {
         const patch = execPatch(
-            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" }).odd.out()',
+            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" })._odd.out()',
         );
         const [enosc] = findModules(patch, '$enosc');
         expect(enosc.params.scale).toEqual({ type: 'minor' });
@@ -2021,7 +1965,7 @@ describe('complex patches', () => {
         const source = `
             const seq = $cycle($p("c3 e3 g3 b3"))
             const osc = $saw(seq)
-            const env = $adsr($clock.beatTrigger, { attack: 0.01, decay: 0.2, sustain: 2, release: 0.3 })
+            const env = $adsr($clock._beatTrigger, { attack: 0.01, decay: 0.2, sustain: 2, release: 0.3 })
             $lpf(osc, env.range("C3", "C6")).out()
         `;
         const patch = execPatch(source);
@@ -2096,7 +2040,7 @@ describe('script execution environment', () => {
             }
         };
         expect(() =>
-            executePatchScript('$wavs().kick', schemas, {
+            executePatchScript("$wavMeta('/wavs/kick.wav')", schemas, {
                 ...DEFAULT_EXECUTION_OPTIONS,
                 loadWav: (path: string) => {
                     spinFor(10_000);
@@ -2112,7 +2056,6 @@ describe('script execution environment', () => {
                         sampleRate: 48_000,
                     };
                 },
-                wavsFolderTree: { kick: 'file' },
             }),
         ).toThrow(/loading WAV files — loaded files stay cached/);
     }, 15_000);
@@ -2362,7 +2305,7 @@ describe('$delay', () => {
 
     test('feedbackCb processes the mix before it is written to the buffer', () => {
         const patch = execPatch(
-            '$delay($sine("C4"), 0.25, { feedbackCb: (m) => m.$.lpf("800hz") }).out()',
+            '$delay($sine("C4"), 0.25, { feedbackCb: (m) => m.lpf("800hz") }).out()',
         );
         const lpf = findModules(patch, '$lpf');
         expect(lpf.length).toBe(1);
@@ -2375,18 +2318,18 @@ describe('$delay', () => {
         expect(bufSrc).toBe(lpf[0].id);
     });
 
-    test('.$.delay is equivalent to $delay(self, ...)', () => {
+    test('.delay is equivalent to $delay(self, ...)', () => {
         const types = (p: PatchGraph) =>
             p.modules.map((m) => m.moduleType).sort();
         const direct = execPatch('$delay($sine("C4"), 0.25).out()');
-        const chained = execPatch('$sine("C4").$.delay(0.25).out()');
+        const chained = execPatch('$sine("C4").delay(0.25).out()');
         expect(types(chained)).toEqual(types(direct));
     });
 
-    test('.$m.delay crossfades the dry signal against the wet delay', () => {
-        const patch = execPatch('$sine("C4").$m.delay(2.5, 0.25).out()');
+    test('.delay(...).wet crossfades the dry signal against the wet delay', () => {
+        const patch = execPatch('$sine("C4").delay(0.25).wet(2.5).out()');
         expect(findModules(patch, '$delayRead').length).toBe(1);
-        // crossfadeMix remaps the dry leg — absent from the plain `.$.` form
+        // crossfadeMix remaps the dry leg — absent from the plain `.` form
         expect(findModules(patch, '$remap').length).toBeGreaterThanOrEqual(1);
     });
 
@@ -2397,6 +2340,18 @@ describe('$delay', () => {
         expect(findModules(patch, '$buffer').length).toBe(1);
         // one read in the feedback loop, one for the external tap
         expect(findModules(patch, '$delayRead').length).toBe(2);
+    });
+
+    test('slices and channels of a delay keep its buffer', () => {
+        const patch = execPatch(
+            'const d = $delay($sine(["C4", "E4"]), 0.25)\n$delayRead(d[1].buffer, 0.5).out()\n$delayRead(d.slice(0, 1).buffer, 0.75).out()',
+        );
+        const [buffer] = findModules(patch, '$buffer');
+        const reads = findModules(patch, '$delayRead');
+        expect(reads).toHaveLength(3);
+        for (const read of reads) {
+            expect(read.params.buffer).toMatchObject({ module: buffer.id });
+        }
     });
 
     test('sizes the feedback path to the widest polysignal param', () => {
@@ -2436,19 +2391,18 @@ describe('$delay', () => {
     });
 });
 
-// ─── $wavs / $sampler ────────────────────────────────────────────────────────
+// ─── WAV paths / $sampler / $wavMeta ─────────────────────────────────────────
 
-describe('$wavs() and $sampler', () => {
-    const wavsFolderTree = { kick: 'file', tables: { boom: 'file' } } as const;
+describe('WAV paths and $wavMeta', () => {
     const loadWav = (path: string) => ({
-        channels: path === 'kick' ? 1 : 2,
+        channels: path === '/wavs/kick.wav' ? 1 : 2,
         frameCount: 1000,
         path,
         sampleRate: 44100,
         duration: 1000 / 44100,
         bitDepth: 16,
-        pitch: path === 'kick' ? 0.0 : null,
-        playback: path === 'kick' ? 'one-shot' : null,
+        pitch: path === '/wavs/kick.wav' ? 0.0 : null,
+        playback: path === '/wavs/kick.wav' ? 'one-shot' : null,
         bpm: null,
         beats: null,
         timeSignature: null,
@@ -2460,335 +2414,147 @@ describe('$wavs() and $sampler', () => {
     function execWithWavs(source: string) {
         return executePatchScript(source, schemas, {
             ...DEFAULT_EXECUTION_OPTIONS,
-            wavsFolderTree: wavsFolderTree as any,
             loadWav,
         });
     }
 
-    test('$wavs() returns wav_ref for known files', () => {
-        const result = execWithWavs('$sampler($wavs().kick, 5).out()');
+    test("a wav path becomes a wav_ref carrying the file's channels", () => {
+        const result = execWithWavs("$sampler('/wavs/kick.wav', 5).out()");
         const sampler = findModules(result.patch, '$sampler');
         expect(sampler.length).toBe(1);
-        expect(sampler[0].params.wav).toMatchObject({
+        expect(sampler[0].params.wav).toEqual({
             type: 'wav_ref',
-            path: 'kick',
+            path: '/wavs/kick.wav',
             channels: 1,
-            sampleRate: 44100,
-            frameCount: 1000,
-            bitDepth: 16,
-            pitch: 0.0,
-            playback: 'one-shot',
-        });
-        expect(sampler[0].params.wav.loops).toEqual([]);
-        expect(sampler[0].params.wav.cuePoints).toEqual([]);
-    });
-
-    test('$wavs() traverses nested directories', () => {
-        const result = execWithWavs('$sampler($wavs().tables.boom, 5).out()');
-        const sampler = findModules(result.patch, '$sampler');
-        expect(sampler.length).toBe(1);
-        expect(sampler[0].params.wav).toMatchObject({
-            type: 'wav_ref',
-            path: 'tables/boom',
-            channels: 2,
-            sampleRate: 44100,
+            mtime: 1_700_000_000_000,
         });
     });
 
-    test('$wavs() throws for missing files', () => {
-        expect(() => execWithWavs('$wavs().snare')).toThrow(/not found/);
-    });
-
-    test('$wavs() numeric index returns lex-sorted file', () => {
-        // Tree adds two top-level files alongside `kick` so the lex order is
-        // deterministic: a, kick, z (subfolder `tables` excluded from index).
-        const tree = {
-            a: 'file',
-            kick: 'file',
-            z: 'file',
-            tables: { boom: 'file' },
-        } as const;
-        const run = (src: string) =>
-            executePatchScript(src, schemas, {
-                ...DEFAULT_EXECUTION_OPTIONS,
-                wavsFolderTree: tree as any,
-                loadWav,
-            });
-        const r0 = run('$sampler($wavs()[0], 5).out()');
-        expect(findModules(r0.patch, '$sampler')[0].params.wav.path).toBe('a');
-        const r1 = run('$sampler($wavs()[1], 5).out()');
-        expect(findModules(r1.patch, '$sampler')[0].params.wav.path).toBe(
-            'kick',
+    test('a wav path in the config object is loaded too', () => {
+        const result = execWithWavs(
+            "$sampler(undefined, 5, { wav: '/samples/loop.wav' }).out()",
         );
-        const r2 = run('$sampler($wavs()[2], 5).out()');
-        expect(findModules(r2.patch, '$sampler')[0].params.wav.path).toBe('z');
+        expect(
+            findModules(result.patch, '$sampler')[0].params.wav,
+        ).toMatchObject({ path: '/samples/loop.wav', channels: 2 });
     });
 
-    test('$wavs() numeric index wraps modulo file count', () => {
-        const tree = { a: 'file', b: 'file', c: 'file' } as const;
-        const run = (src: string) =>
-            executePatchScript(src, schemas, {
-                ...DEFAULT_EXECUTION_OPTIONS,
-                wavsFolderTree: tree as any,
-                loadWav,
-            });
-        // 3 files: positive wrap
-        expect(
-            findModules(
-                run('$sampler($wavs()[3], 5).out()').patch,
-                '$sampler',
-            )[0].params.wav.path,
-        ).toBe('a');
-        expect(
-            findModules(
-                run('$sampler($wavs()[4], 5).out()').patch,
-                '$sampler',
-            )[0].params.wav.path,
-        ).toBe('b');
-        expect(
-            findModules(
-                run('$sampler($wavs()[5], 5).out()').patch,
-                '$sampler',
-            )[0].params.wav.path,
-        ).toBe('c');
-        // negative wrap
-        expect(
-            findModules(
-                run('$sampler($wavs()[-1], 5).out()').patch,
-                '$sampler',
-            )[0].params.wav.path,
-        ).toBe('c');
-        expect(
-            findModules(
-                run('$sampler($wavs()[-2], 5).out()').patch,
-                '$sampler',
-            )[0].params.wav.path,
-        ).toBe('b');
-        expect(
-            findModules(
-                run('$sampler($wavs()[-3], 5).out()').patch,
-                '$sampler',
-            )[0].params.wav.path,
-        ).toBe('a');
-        expect(
-            findModules(
-                run('$sampler($wavs()[-4], 5).out()').patch,
-                '$sampler',
-            )[0].params.wav.path,
-        ).toBe('c');
+    test.each([
+        ['a path without a leading slash', "'wavs/kick.wav'"],
+        ['a number', '3'],
+        ['a missing wav', 'undefined'],
+    ])('%s is refused, naming the module', (_label, arg) => {
+        expect(() => execWithWavs(`$sampler(${arg}, 5).out()`)).toThrow(
+            /\$sampler: a file is a path starting with "\/"/,
+        );
     });
 
-    test('$wavs() numeric index works on subfolders', () => {
-        const tree = {
-            kick: 'file',
-            drums: { hat: 'file', snare: 'file' },
-        } as const;
-        const run = (src: string) =>
-            executePatchScript(src, schemas, {
-                ...DEFAULT_EXECUTION_OPTIONS,
-                wavsFolderTree: tree as any,
-                loadWav,
-            });
-        expect(
-            findModules(
-                run('$sampler($wavs().drums[0], 5).out()').patch,
-                '$sampler',
-            )[0].params.wav.path,
-        ).toBe('drums/hat');
-        expect(
-            findModules(
-                run('$sampler($wavs().drums[1], 5).out()').patch,
-                '$sampler',
-            )[0].params.wav.path,
-        ).toBe('drums/snare');
-        expect(
-            findModules(
-                run('$sampler($wavs().drums[2], 5).out()').patch,
-                '$sampler',
-            )[0].params.wav.path,
-        ).toBe('drums/hat');
-    });
-
-    test('$wavs() numeric index throws on folder with no direct files', () => {
-        // `parent` has only a subfolder, no direct files — numeric index has
-        // nothing to wrap into and must throw.
-        const tree = { parent: { sub: { kick: 'file' } } } as const;
-        const run = () =>
-            executePatchScript('$wavs().parent[0]', schemas, {
-                ...DEFAULT_EXECUTION_OPTIONS,
-                wavsFolderTree: tree as any,
-                loadWav,
-            });
-        expect(run).toThrow(/no wav files/);
-    });
-
-    test('$wavs() throws when no wavs/ folder', () => {
+    test('a load failure reaches the patch error', () => {
         expect(() =>
-            executePatchScript('$wavs().kick', schemas, {
-                ...DEFAULT_EXECUTION_OPTIONS,
-                wavsFolderTree: null,
-            }),
-        ).toThrow(/no wavs\/ folder/);
+            executePatchScript(
+                "$sampler('/wavs/snare.wav', 5).out()",
+                schemas,
+                {
+                    ...DEFAULT_EXECUTION_OPTIONS,
+                    loadWav: (path: string) => {
+                        throw new Error(
+                            `no file ${path} in the workspace folder`,
+                        );
+                    },
+                },
+            ),
+        ).toThrow(/no file \/wavs\/snare.wav in the workspace folder/);
     });
 
     test('$sampler with speed param produces correct patch', () => {
         const result = execWithWavs(
-            '$sampler($wavs().kick, $pulse("4hz"), { speed: 0.5 }).out()',
+            '$sampler("/wavs/kick.wav", $pulse("4hz"), { speed: 0.5 }).out()',
         );
         const sampler = findModules(result.patch, '$sampler');
         expect(sampler.length).toBe(1);
         expect(sampler[0].params.wav).toMatchObject({
             type: 'wav_ref',
-            path: 'kick',
+            path: '/wavs/kick.wav',
             channels: 1,
         });
-        // speed param should be present
         expect(sampler[0].params.speed).toBe(0.5);
     });
 
     test('$sampler with stereo wav sets correct channel count', () => {
         const result = execWithWavs(
-            '$sampler($wavs().tables.boom, $pulse("2hz")).out()',
+            '$sampler("/wavs/tables/boom.wav", $pulse("2hz")).scope().out()',
         );
-        const sampler = findModules(result.patch, '$sampler');
-        expect(sampler.length).toBe(1);
-        // tables/boom is a 2-channel file
-        expect(sampler[0].params.wav.channels).toBe(2);
+        expect(
+            findModules(result.patch, '$sampler')[0].params.wav.channels,
+        ).toBe(2);
+        expect(result.patch.scopes[0].channels.length).toBe(2);
     });
 
     test('$sampler chained with amplitude and scope', () => {
         const result = execWithWavs(
-            '$sampler($wavs().kick, $pulse("4hz")).amplitude(0.5).scope().out()',
+            '$sampler("/wavs/kick.wav", $pulse("4hz")).amplitude(0.5).scope().out()',
         );
         const sampler = findModules(result.patch, '$sampler');
         expect(sampler.length).toBe(1);
         expect(result.patch.scopes.length).toBeGreaterThan(0);
     });
 
-    test('$wavs() loadWav is called during execution', () => {
-        const calls: string[] = [];
-        const trackingLoadWav = (path: string) => {
-            calls.push(path);
-            return {
-                channels: 1,
-                frameCount: 500,
-                path,
-                sampleRate: 44100,
-                duration: 500 / 44100,
-                bitDepth: 16,
-                pitch: null,
-                playback: null,
-                bpm: null,
-                beats: null,
-                timeSignature: null,
-                loops: [],
-                cuePoints: [],
-                mtime: 1_700_000_000_000,
-            };
-        };
-        executePatchScript('$sampler($wavs().kick, 5).out()', schemas, {
-            ...DEFAULT_EXECUTION_OPTIONS,
-            wavsFolderTree: wavsFolderTree as any,
-            loadWav: trackingLoadWav,
-        });
-        expect(calls).toContain('kick');
-    });
-
-    test('$wavs() root is enumerable with Object.keys()', () => {
-        // Use Object.keys() to discover available wavs and access by dynamic key
-        // wavsFolderTree = { kick: 'file', tables: { boom: 'file' } }
-        const result = execWithWavs(
-            `
-            const w = $wavs();
-            const keys = Object.keys(w);
-            // keys should include both 'kick' (file) and 'tables' (dir)
-            if (keys.length !== 2) throw new Error('expected 2 keys, got ' + keys.length);
-            if (!keys.includes('kick')) throw new Error('missing kick');
-            if (!keys.includes('tables')) throw new Error('missing tables');
-            // Access a file by dynamic key
-            $sampler(w.kick, 5).out();
-            `,
-        );
-        const samplers = findModules(result.patch, '$sampler');
-        expect(samplers.length).toBe(1);
-        expect(samplers[0].params.wav.path).toBe('kick');
-    });
-
-    test('$wavs() nested directories are enumerable', () => {
-        // Enumerate keys of a subdirectory
-        const result = execWithWavs(
-            `
-            const t = $wavs().tables;
-            const keys = Object.keys(t);
-            for (const k of keys) {
-                $sampler(t[k], 5).out();
-            }
-            `,
-        );
-        const samplers = findModules(result.patch, '$sampler');
-        expect(samplers.length).toBe(1);
-        expect(samplers[0].params.wav.path).toBe('tables/boom');
-    });
-
-    test('$wavs() exposes metadata with loops and cue points', () => {
-        const metadataLoadWav = (path: string) => ({
-            channels: 1,
-            frameCount: 44100,
-            path,
-            sampleRate: 44100,
-            duration: 1.0,
-            bitDepth: 24,
-            pitch: 0.75,
-            playback: 'loop' as const,
-            bpm: 120.0,
-            beats: 4,
-            timeSignature: { num: 4, den: 4 },
-            loops: [
-                { loopType: 'forward', start: 0.0, end: 0.5 },
-                { loopType: 'pingpong', start: 0.25, end: 0.75 },
-            ],
-            cuePoints: [
-                { position: 0.0, label: 'Start' },
-                { position: 0.5, label: 'Middle' },
-            ],
-            mtime: 1_700_000_000_000,
-        });
-
+    test('$wavMeta returns every field of the file', () => {
         const result = executePatchScript(
-            '$sampler($wavs().kick, 5).out()',
+            `const m = $wavMeta('/wavs/loop.wav')
+            if (JSON.stringify(m) !== ${JSON.stringify(
+                JSON.stringify({
+                    path: '/wavs/loop.wav',
+                    channels: 1,
+                    sampleRate: 44100,
+                    frameCount: 44100,
+                    duration: 1,
+                    bitDepth: 24,
+                    pitch: 0.75,
+                    playback: 'loop',
+                    bpm: 120,
+                    beats: 4,
+                    timeSignature: { num: 4, den: 4 },
+                    loops: [{ type: 'forward', start: 0, end: 0.5 }],
+                    cuePoints: [{ position: 0.5, label: 'Middle' }],
+                }),
+            )}) throw new Error('unexpected meta: ' + JSON.stringify(m))
+            $sine(0).out()`,
             schemas,
             {
                 ...DEFAULT_EXECUTION_OPTIONS,
-                wavsFolderTree: wavsFolderTree as any,
-                loadWav: metadataLoadWav,
+                loadWav: (path: string) => ({
+                    channels: 1,
+                    frameCount: 44100,
+                    path,
+                    sampleRate: 44100,
+                    duration: 1.0,
+                    bitDepth: 24,
+                    pitch: 0.75,
+                    playback: 'loop',
+                    bpm: 120.0,
+                    beats: 4,
+                    timeSignature: { num: 4, den: 4 },
+                    loops: [{ loopType: 'forward', start: 0.0, end: 0.5 }],
+                    cuePoints: [{ position: 0.5, label: 'Middle' }],
+                    mtime: 1_700_000_000_000,
+                }),
             },
         );
-        const sampler = findModules(result.patch, '$sampler');
-        const wav = sampler[0].params.wav;
+        expect(findModules(result.patch, '$sine').length).toBe(1);
+        expect(findModules(result.patch, '$sampler').length).toBe(0);
+    });
 
-        expect(wav.sampleRate).toBe(44100);
-        expect(wav.duration).toBe(1.0);
-        expect(wav.bitDepth).toBe(24);
-        expect(wav.pitch).toBe(0.75);
-        expect(wav.playback).toBe('loop');
-        expect(wav.bpm).toBe(120.0);
-        expect(wav.beats).toBe(4);
-        expect(wav.timeSignature).toEqual({ num: 4, den: 4 });
-        expect(wav.loops).toEqual([
-            { type: 'forward', start: 0.0, end: 0.5 },
-            { type: 'pingpong', start: 0.25, end: 0.75 },
-        ]);
-        expect(wav.cuePoints).toEqual([
-            { position: 0.0, label: 'Start' },
-            { position: 0.5, label: 'Middle' },
-        ]);
+    test('$wavMeta refuses a path without a leading slash', () => {
+        expect(() => execWithWavs("$wavMeta('kick.wav')")).toThrow(
+            /\$wavMeta: a file is a path starting with "\/"/,
+        );
     });
 });
 
 // ─── $phase DSL helpers ──────────────────────────────────────────────────────
 
 describe('$phase helpers', () => {
-    const wavsFolderTree = { wt: 'file' } as const;
     const loadWav = (path: string) => ({
         channels: 1,
         frameCount: 2048,
@@ -2809,14 +2575,13 @@ describe('$phase helpers', () => {
     function execWithWavs(source: string) {
         return executePatchScript(source, schemas, {
             ...DEFAULT_EXECUTION_OPTIONS,
-            wavsFolderTree: wavsFolderTree as any,
             loadWav,
         });
     }
 
     test('$phase.mirror serializes a numeric amount', () => {
         const patch = execWithWavs(
-            '$wavetable(0, $wavs().wt, 0, { phase: $phase.mirror(0.5) }).out()',
+            '$wavetable(0, "/wavs/wt.wav", 0, { phase: $phase.mirror(0.5) }).out()',
         ).patch;
         const wt = findModules(patch, '$wavetable');
         expect(wt.length).toBe(1);
@@ -2825,7 +2590,7 @@ describe('$phase helpers', () => {
 
     test('$phase.bend serializes a ModuleOutput as a cable reference', () => {
         const patch = execWithWavs(
-            'const lfo = $sine(0)\n$wavetable(0, $wavs().wt, 0, { phase: $phase.bend(lfo) }).out()',
+            'const lfo = $sine(0)\n$wavetable(0, "/wavs/wt.wav", 0, { phase: $phase.bend(lfo) }).out()',
         ).patch;
         const wt = findModules(patch, '$wavetable');
         expect(wt.length).toBe(1);
@@ -2845,12 +2610,12 @@ describe('$phase helpers', () => {
 
     test('$phase variants use camelCase tags matching Rust deserializer', () => {
         const patch = execWithWavs(
-            `const a = $wavetable(0, $wavs().wt, 0, { phase: $phase.sync(1) }).out()
-             const b = $wavetable(0, $wavs().wt, 0, { phase: $phase.fold(0.2) }).out()
-             const c = $wavetable(0, $wavs().wt, 0, { phase: $phase.pwm(0.5) }).out()
-             const d = $wavetable(0, $wavs().wt, 0, { phase: $phase.pulsar(1) }).out()
-             const e = $wavetable(0, $wavs().wt, 0, { phase: $phase.crush(2) }).out()
-             const f = $wavetable(0, $wavs().wt, 0, { phase: $phase.feedback(3) }).out()`,
+            `const a = $wavetable(0, '/wavs/wt.wav', 0, { phase: $phase.sync(1) }).out()
+             const b = $wavetable(0, '/wavs/wt.wav', 0, { phase: $phase.fold(0.2) }).out()
+             const c = $wavetable(0, '/wavs/wt.wav', 0, { phase: $phase.pwm(0.5) }).out()
+             const d = $wavetable(0, '/wavs/wt.wav', 0, { phase: $phase.pulsar(1) }).out()
+             const e = $wavetable(0, '/wavs/wt.wav', 0, { phase: $phase.crush(2) }).out()
+             const f = $wavetable(0, '/wavs/wt.wav', 0, { phase: $phase.feedback(3) }).out()`,
         ).patch;
         const warps = findModules(patch, '$wavetable').map(
             (m) => m.params.phase,
@@ -2869,7 +2634,7 @@ describe('$phase helpers', () => {
 
     test('optional second param composes two warps into a pipe descriptor', () => {
         const patch = execWithWavs(
-            `$wavetable(0, $wavs().wt, 0, {
+            `$wavetable(0, '/wavs/wt.wav', 0, {
                 phase: $phase.mirror(0.5, $phase.bend(0.3))
             }).out()`,
         ).patch;
@@ -2884,7 +2649,7 @@ describe('$phase helpers', () => {
 
     test('second param chains left-to-right: mirror -> bend -> fold', () => {
         const patch = execWithWavs(
-            `$wavetable(0, $wavs().wt, 0, {
+            `$wavetable(0, '/wavs/wt.wav', 0, {
                 phase: $phase.mirror(0.5, $phase.bend(0.3, $phase.fold(0.2)))
             }).out()`,
         ).patch;
@@ -2902,7 +2667,7 @@ describe('$phase helpers', () => {
 
     test('.pipe passes the warp to the closure and returns the result', () => {
         const patch = execWithWavs(
-            `$wavetable(0, $wavs().wt, 0, {
+            `$wavetable(0, '/wavs/wt.wav', 0, {
                 phase: $phase.mirror(0.5).pipe(t => t)
             }).out()`,
         ).patch;
@@ -2912,7 +2677,7 @@ describe('$phase helpers', () => {
 
     test('.pipe closure can build a pipe descriptor', () => {
         const patch = execWithWavs(
-            `$wavetable(0, $wavs().wt, 0, {
+            `$wavetable(0, '/wavs/wt.wav', 0, {
                 phase: $phase.mirror(0.5).pipe(t => $phase.bend(0.3, t))
             }).out()`,
         ).patch;
@@ -2926,11 +2691,13 @@ describe('$phase helpers', () => {
     });
 });
 
-// ─── $mixDown / .mix() fold-down ───────────────────────────────────────────────
+// ─── $mixDown fold-down ────────────────────────────────────────────────────────
 
-describe('$mixDown and Collection.mix()', () => {
-    test('.mix(2) on a 3-voice spread builds one $mixDown folding 3→2', () => {
-        const patch = execPatch('$saw($spread(0, 5, 3)).mix(2).scope().out()');
+describe('$mixDown', () => {
+    test('.mixDown(2) on a 3-voice spread builds one $mixDown folding 3→2', () => {
+        const patch = execPatch(
+            '$saw($spread(0, 5, 3)).mixDown(2).scope().out()',
+        );
         const mixDowns = findModules(patch, '$mixDown');
         expect(mixDowns.length).toBe(1);
         expect(mixDowns[0].params.channels).toBe(2);
@@ -2941,7 +2708,7 @@ describe('$mixDown and Collection.mix()', () => {
         expect(patch.scopes[0].channels.length).toBe(2);
     });
 
-    test('$mixDown(src, 2) factory form matches the .mix() shorthand', () => {
+    test('$mixDown(src, 2) factory form matches the chain form', () => {
         const patch = execPatch(
             '$mixDown($saw($spread(0, 5, 3)), 2).scope().out()',
         );
@@ -2949,21 +2716,23 @@ describe('$mixDown and Collection.mix()', () => {
         expect(patch.scopes[0].channels.length).toBe(2);
     });
 
-    test('.mix() defaults to mono', () => {
-        const patch = execPatch('$saw($spread(0, 5, 3)).mix().scope().out()');
+    test('.mixDown() defaults to mono', () => {
+        const patch = execPatch(
+            '$saw($spread(0, 5, 3)).mixDown().scope().out()',
+        );
         expect(findModules(patch, '$mixDown').length).toBe(1);
         expect(patch.scopes[0].channels.length).toBe(1);
     });
 
-    test('.mix(2, "average") rides mode through the config object', () => {
+    test('.mixDown(2, { mode }) sets how channels combine', () => {
         const patch = execPatch(
-            '$saw($spread(0, 5, 3)).mix(2, "average").scope().out()',
+            '$saw($spread(0, 5, 3)).mixDown(2, { mode: "average" }).scope().out()',
         );
         expect(findModules(patch, '$mixDown')[0].params.mode).toBe('average');
     });
 
-    test('ModuleOutput.mix(2) pans a single channel to stereo center', () => {
-        const patch = execPatch('$saw("c4").mix(2).scope().out()');
+    test('.mixDown(2) pans a single channel to stereo center', () => {
+        const patch = execPatch('$saw("c4").mixDown(2).scope().out()');
         expect(findModules(patch, '$mixDown').length).toBe(1);
         expect(patch.scopes[0].channels.length).toBe(2);
     });

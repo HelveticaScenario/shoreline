@@ -245,9 +245,9 @@ const COMP_DOCS: ModuleDocs = ModuleDocs {
             title: "Pad pumping to the beat",
             code: r#"
                 $saw($chord('C3[m9]'))
-                  .$.lpf('c5')
-                  .$.comp({
-                    sidechain: $perc($clock.beatTrigger, { decay: 0.2 }),
+                  .lpf('c5')
+                  .comp({
+                    sidechain: $perc($clock._beatTrigger, { decay: 0.2 }),
                     threshold: 1,
                     ratio: 8,
                     attack: 0.005,
@@ -264,9 +264,9 @@ const COMP_DOCS: ModuleDocs = ModuleDocs {
                   midHighFreq: '2000hz',
                 })
                 $mix([
-                  $comp(bands.low, { threshold: 2.5, ratio: 4 }),
-                  $comp(bands.mid, { threshold: 3, ratio: 3 }),
-                  $comp(bands.high, { threshold: 2, ratio: 6 }),
+                  $comp(bands._low, { threshold: 2.5, ratio: 4 }),
+                  $comp(bands._mid, { threshold: 3, ratio: 3 }),
+                  $comp(bands._high, { threshold: 2, ratio: 6 }),
                 ]).out()
             "#,
         },

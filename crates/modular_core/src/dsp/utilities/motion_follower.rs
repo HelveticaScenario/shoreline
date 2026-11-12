@@ -69,7 +69,7 @@ struct MotionFollowerParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MotionFollowerOutputs {
-    #[output("output", "movement level in either direction, 0 V at rest", type = cv, default, range = (0.0, 5.0))]
+    #[output("both", "movement level in either direction, 0 V at rest", type = cv, default, range = (0.0, 5.0))]
     sample: PolyOutput,
     #[output("pos", "movement level from rising input only", type = cv, range = (0.0, 5.0))]
     pos: PolyOutput,
@@ -124,7 +124,7 @@ const MOTION_FOLLOWER_DOCS: ModuleDocs = ModuleDocs {
     summary: "Movement to level",
     description: "Turns controller movement into a level, like bowing a string: moving \
                   the input either way swells the output, and holding it still lets it \
-                  fade. `.pos` and `.neg` follow only rising or only falling movement, \
+                  fade. `._pos` and `._neg` follow only rising or only falling movement, \
                   so pushing and pulling a control can steer different things.",
     categories: &[ModuleCategory::Envelope],
     sections: &[],
@@ -132,7 +132,7 @@ const MOTION_FOLLOWER_DOCS: ModuleDocs = ModuleDocs {
         title: "A swinging LFO bows the filter open",
         code: r#"
             $saw('c3')
-              .$.lpf(
+              .lpf(
                 $motionFollower($sine('0.5hz'), { release: 0.5 }).range(
                   'c3',
                   'c7',

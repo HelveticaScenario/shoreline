@@ -32,6 +32,7 @@ pub fn make(module_type: &str, params: Value, sample_rate: f32) -> Box<dyn Sampl
         DeserializedParams {
             params: cached.params,
             channel_count: cached.channel_count,
+            f64_inputs: false,
         },
         1,
         ProcessingMode::Block,
@@ -98,6 +99,7 @@ pub fn render_clocks(
                     DeserializedParams {
                         params: cached.params,
                         channel_count: cached.channel_count,
+                        f64_inputs: false,
                     },
                     ProcessingMode::Block,
                 )

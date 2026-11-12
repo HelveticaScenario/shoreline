@@ -97,7 +97,7 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MultimodeOutputs {
-    #[output("output", "response selected by mode", type = cv, default, range = (-10.0, 10.0))]
+    #[output("morph", "response selected by mode", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output("lp", "lowpass, the output at mode 0", type = cv, range = (-10.0, 10.0))]
     lp: PolyOutput,
@@ -120,7 +120,7 @@ const MULTIMODE_DOCS: ModuleDocs = ModuleDocs {
             title: "Resonant sweep morphing from lowpass to highpass",
             code: r#"
                 $saw('c2')
-                  .$.multimode(
+                  .multimode(
                     $sine('0.1hz').range(-1, 2),
                     3.8,
                     $sine('0.07hz').range(0, 5),
@@ -132,7 +132,7 @@ const MULTIMODE_DOCS: ModuleDocs = ModuleDocs {
             title: "Wavefolded sine",
             code: r#"
                 $sine('c3')
-                  .$.multimode('c6', 1, 0, { drive: 3, fold: 3 })
+                  .multimode('c6', 1, 0, { drive: 3, fold: 3 })
                   .out()
             "#,
         },

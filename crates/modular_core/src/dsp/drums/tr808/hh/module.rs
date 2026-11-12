@@ -72,7 +72,7 @@ struct Hh808Params {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Hh808Outputs {
-    #[output("output", "both hats; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
+    #[output("both", "both hats; an unaccented hit peaks near ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output("closed", "the closed hat alone", type = cv, range = (-10.0, 10.0))]
     closed: PolyOutput,
@@ -90,9 +90,9 @@ const HH808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Hats with open offbeats",
         code: r#"
-            $tr808.kick($p('c*4').c).out()
-            const open = $p('~ c ~ c ~ c ~ c').c
-            $tr808.hiHat($p('c ~ c ~ c ~ c ~').c, { open }).out()
+            $tr808.kick($p('c*4')).out()
+            const open = $p('~ c ~ c ~ c ~ c')
+            $tr808.hiHat($p('c ~ c ~ c ~ c ~'), { open }).out()
         "#,
     }],
 };

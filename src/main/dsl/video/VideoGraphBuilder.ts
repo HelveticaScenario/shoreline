@@ -1,4 +1,3 @@
-import { refusePattern } from '../patternKinds';
 import {
     MAX_SCOPE_TRACES,
     MAX_VIDEO_TAPS,
@@ -18,9 +17,9 @@ import {
 } from '../../../shared/video/videoGraph';
 import {
     BaseCollection,
-    type Collection,
+    Collection,
     type CollectionWithRange,
-    ModuleOutput,
+    type ModuleOutput,
 } from '../GraphBuilder';
 import { VideoOutput, type VideoOps } from './VideoOutput';
 import { colorMethods } from './videoColor';
@@ -74,12 +73,6 @@ export interface VideoGraphBuilder
         ReturnType<typeof sourceMethods>,
         ReturnType<typeof warpMethods> {}
 
-/** A one-channel collection as its output, so it shares a tap or control with it. */
-const single = (signal: AudioSignal): AudioSignal =>
-    signal instanceof BaseCollection && signal.length === 1
-        ? signal[0]
-        : signal;
-
 export class VideoGraphBuilder implements VideoCore {
     private nodes: VideoNode[] = [];
     private outputId: string | null = null;
@@ -127,18 +120,18 @@ export class VideoGraphBuilder implements VideoCore {
         name: string,
         signal: AudioSignal,
     ): VideoValue {
-        const output = single(signal);
+        const output = signal.length === 1 ? signal.items[0] : undefined;
         const control =
-            output instanceof ModuleOutput
+            output !== undefined
                 ? this.host.controlValue(output.moduleId)
                 : undefined;
-        if (output instanceof ModuleOutput && control !== undefined) {
+        if (output !== undefined && control !== undefined) {
             return this.uniformSlot(
                 (u) => u.kind === 'control' && u.moduleId === output.moduleId,
                 { kind: 'control', moduleId: output.moduleId, value: control },
             );
         }
-        const tap = this.tapFor(fn, name, output);
+        const tap = this.tapFor(fn, name, signal);
         return this.uniformSlot((u) => u.kind === 'tap' && u.tap === tap, {
             kind: 'tap',
             tap,
@@ -164,10 +157,10 @@ export class VideoGraphBuilder implements VideoCore {
 
     /** The engine tap carrying `signal`, summed to one channel, adding it on first use. */
     private tapFor(fn: string, name: string, signal: AudioSignal): number {
-        if (signal instanceof BaseCollection && signal.length === 0) {
+        if (signal.length === 0) {
             throw new Error(`${fn}: ${name} has no channels`);
         }
-        const key = [...(signal instanceof BaseCollection ? signal : [signal])]
+        const key = signal.items
             .map((o) => `${o.moduleId}\0${o.portName}\0${o.channel}`)
             .join('\n');
         const known = this.tapIndexes.get(key);
@@ -183,7 +176,6 @@ export class VideoGraphBuilder implements VideoCore {
     }
 
     value(fn: string, name: string, v: unknown): VideoValue {
-        refusePattern(v, `${fn}: ${name}`);
         if (typeof v === 'number') {
             // The shader holds constants as f32, whose range ends near 3.4e38.
             if (!Number.isFinite(Math.fround(v))) {
@@ -194,7 +186,7 @@ export class VideoGraphBuilder implements VideoCore {
             return { kind: 'const', value: v };
         }
         if (v instanceof VideoOutput) return v.value;
-        if (v instanceof ModuleOutput || v instanceof BaseCollection) {
+        if (v instanceof BaseCollection) {
             return this.bindSignal(fn, name, v);
         }
         throw new Error(
@@ -225,17 +217,11 @@ export class VideoGraphBuilder implements VideoCore {
      * oldest at 0 and newest at 1, in volts.
      */
     fromAudio = (
-        signal: ModuleOutput | BaseCollection<ModuleOutput>,
+        signal: AudioSignal,
         position: VideoSource = this.ramp('horizontal'),
         config?: VideoAudioConfig,
     ): VideoOutput => {
-        refusePattern(signal, '$v.fromAudio: signal');
-        if (
-            !(
-                signal instanceof ModuleOutput ||
-                signal instanceof BaseCollection
-            )
-        ) {
+        if (!(signal instanceof BaseCollection)) {
             throw new Error(
                 `$v.fromAudio: signal must be an audio signal, got ${describe(signal)}`,
             );
@@ -251,7 +237,7 @@ export class VideoGraphBuilder implements VideoCore {
             );
         }
         const trigger = config?.trigger ?? true;
-        const tap = this.tapFor('$v.fromAudio', 'signal', single(signal));
+        const tap = this.tapFor('$v.fromAudio', 'signal', signal);
         const row = this.historyRow({ samples, tap, trigger });
         return this.addNode(
             'audioHistory',
@@ -316,7 +302,7 @@ export class VideoGraphBuilder implements VideoCore {
         const row = (signal: ModuleOutput, axis: string) =>
             this.historyRow({
                 samples,
-                tap: this.tapFor(fn, axis, signal),
+                tap: this.tapFor(fn, axis, new Collection(signal)),
                 trigger: false,
             });
         const traces = Array.from({ length: traceCount }, (_, i) => ({
@@ -374,17 +360,15 @@ export class VideoGraphBuilder implements VideoCore {
         if (Array.isArray(value)) {
             return value.flatMap((v: unknown) => this.channelsOf(fn, name, v));
         }
-        refusePattern(value, `${fn}: ${name}`);
         const signal =
             typeof value === 'number' || typeof value === 'string'
                 ? this.host.constantSignal(value)
                 : value;
-        if (signal instanceof ModuleOutput) return [signal];
         if (signal instanceof BaseCollection) {
             if (signal.length === 0) {
                 throw new Error(`${fn}: ${name} has no channels`);
             }
-            return [...signal];
+            return signal.items;
         }
         throw new Error(
             `${fn}: ${name} must be an audio signal, a number or an array of them, got ${describe(value)}`,

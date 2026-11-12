@@ -35,7 +35,7 @@ struct Jup6fParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct Jup6fOutputs {
-    #[output("output", "4-pole (24 dB/oct) lowpass", type = cv, default, range = (-5.0, 5.0))]
+    #[output("lp24", "4-pole (24 dB/oct) lowpass", type = cv, default, range = (-5.0, 5.0))]
     lp24: PolyOutput,
     #[output("lp12", "2-pole (12 dB/oct) lowpass", type = cv, range = (-5.0, 5.0))]
     lp12: PolyOutput,
@@ -73,19 +73,19 @@ const JUP6F_DOCS: ModuleDocs = ModuleDocs {
             title: "Breathing analog pad",
             code: r#"
                 $saw($chord('C3[maj9]'))
-                  .$.jup6f($sine('0.1hz').range('c4', 'c7'), 2.5)
+                  .jup6f($sine('0.1hz').range('c4', 'c7'), 2.5)
                   .out()
             "#,
         },
         DocExample {
             title: "Squelchy bandpass bass",
             code: r#"
-                const seq = $p('c2 [c2 c3] eb2 [g1 bb1]').c
+                const seq = $p('c2 [c2 c3] eb2 [g1 bb1]')
                 $jup6f(
                   $saw(seq),
                   $perc(seq, { decay: 0.15 }).range('c3', 'c6'),
                   4,
-                ).bp.out()
+                )._bp.out()
             "#,
         },
     ],

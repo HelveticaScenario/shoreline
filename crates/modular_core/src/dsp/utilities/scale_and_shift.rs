@@ -4,6 +4,7 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use crate::block_input;
+use crate::dsp::utils::Sample;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
@@ -32,7 +33,7 @@ struct ScaleAndShiftParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ScaleAndShiftOutputs {
-    #[output("output", "the scaled and shifted signal", type = cv, default)]
+    #[output("output", "the scaled and shifted signal", type = cv, precision = inherit, default)]
     sample: PolyOutput,
 }
 
@@ -46,7 +47,7 @@ const SCALE_AND_SHIFT_DOCS: ModuleDocs = ModuleDocs {
         title: "Filter wobble set by depth and centre",
         code: r#"
             $saw('c2')
-              .$.lpf($scaleAndShift($sine('0.5hz'), 1.5, 1), 2)
+              .lpf($scaleAndShift($sine('0.5hz'), 1.5, 1), 2)
               .out()
         "#,
     }],
@@ -72,13 +73,17 @@ struct ChannelState {
 
 /// `input` scaled (5 V is unity gain) and then offset.
 #[inline(always)]
-fn scale_and_shift(input: f32, scale: f32, shift: f32) -> f32 {
-    input * (scale / 5.0) + shift
+fn scale_and_shift<T: Sample>(input: T, scale: T, shift: T) -> T {
+    input * (scale / T::from_f32(5.0)) + shift
 }
 
 impl ScaleAndShift {
     /// Outside a glide, reads each param raw, exactly as `process_block` does.
     fn update(&mut self, sample_rate: f32) {
+        if self.outputs.sample.is_f64() {
+            self.update_f64(sample_rate);
+            return;
+        }
         for i in 0..self.channel_count() {
             let state = &mut self.channel_state[i];
             let scale = glided(
@@ -97,6 +102,30 @@ impl ScaleAndShift {
             );
             let value = scale_and_shift(self.params.input.get_value(i), scale, shift);
             self.outputs.sample.set(i, value);
+        }
+    }
+
+    /// `update` for an f64 output: a param outside a glide is read at full
+    /// precision, since it may be an f64 cable itself.
+    fn update_f64(&mut self, sample_rate: f32) {
+        for i in 0..self.channel_count() {
+            let state = &mut self.channel_state[i];
+            let scale = glided_f64(
+                &mut state.scale,
+                &self.params.scale,
+                ScaleAndShiftParams::SCALE_DEFAULT,
+                i,
+                sample_rate,
+            );
+            let shift = glided_f64(
+                &mut state.shift,
+                &self.params.shift,
+                ScaleAndShiftParams::SHIFT_DEFAULT,
+                i,
+                sample_rate,
+            );
+            let value = scale_and_shift(self.params.input.get_value_f64(i), scale, shift);
+            self.outputs.sample.set_f64(i, value);
         }
     }
 
@@ -153,6 +182,27 @@ fn glided(
         param.glide_mark(ch),
         sample_rate,
     )
+}
+
+/// Like [`glided`], but outside a glide the raw value is read at full
+/// precision.
+#[inline(always)]
+fn glided_f64(
+    glide: &mut SwapGlide,
+    param: &Option<PolySignal>,
+    default: f32,
+    ch: usize,
+    sample_rate: f32,
+) -> f64 {
+    let mark = param.glide_mark(ch);
+    if glide.will_glide(mark) {
+        return glide.follow(param.value_or(ch, default), mark, sample_rate) as f64;
+    }
+    let value = param
+        .as_ref()
+        .map_or(default as f64, |param| param.get_value_f64(ch));
+    glide.settle(value as f32, mark);
+    value
 }
 
 message_handlers!(impl ScaleAndShift {});

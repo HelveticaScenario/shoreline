@@ -8,7 +8,7 @@ describe('$v media sources', () => {
         const wgslOf = (source: string) => exec(source).video!.wgsl;
 
         it('samples a workspace image at the coordinate being drawn', () => {
-            const { video } = exec(`$v.out($v.image('pictures/photo.png'));`);
+            const { video } = exec(`$v.out($v.image('/pictures/photo.png'));`);
             expect(video!.sources).toEqual([
                 { kind: 'image', path: 'pictures/photo.png' },
             ]);
@@ -23,9 +23,9 @@ describe('$v media sources', () => {
 
         it('shares a binding between uses of one file and numbers different files', () => {
             const { video } = exec(`
-                const a = $v.image('a.png');
-                const b = $v.video('b.mp4', { fit: 'contain' });
-                $v.out($v.mix(a, b, 0.5).$.add($v.image('a.png', { fit: 'stretch' })));
+                const a = $v.image('/a.png');
+                const b = $v.video('/b.mp4', { fit: 'contain' });
+                $v.out($v.mix(a, b, 0.5).add($v.image('/a.png', { fit: 'stretch' })));
             `);
             expect(video!.sources).toEqual([
                 { kind: 'image', path: 'a.png' },
@@ -37,7 +37,7 @@ describe('$v media sources', () => {
 
         it('gives a video its speed and loop points', () => {
             const { video } = exec(`
-                $v.video('a.mp4', { speed: 0.5, loop: [1, 2.5] }).out();
+                $v.video('/a.mp4', { speed: 0.5, loop: [1, 2.5] }).out();
             `);
             expect(video!.sources).toEqual([
                 {
@@ -52,13 +52,13 @@ describe('$v media sources', () => {
 
         it('leaves out settings that are the defaults', () => {
             const { video } = exec(`
-                $v.video('a.mp4', { speed: 1, loop: [0] }).out();
+                $v.video('/a.mp4', { speed: 1, loop: [0] }).out();
             `);
             expect(video!.sources).toEqual([{ kind: 'video', path: 'a.mp4' }]);
         });
 
         it('loops from a start to the end of the file', () => {
-            const { video } = exec(`$v.video('a.mp4', { loop: [2] }).out();`);
+            const { video } = exec(`$v.video('/a.mp4', { loop: [2] }).out();`);
             expect(video!.sources).toEqual([
                 { kind: 'video', loopStart: 2, path: 'a.mp4' },
             ]);
@@ -66,11 +66,11 @@ describe('$v media sources', () => {
 
         it('plays one file twice when the settings differ', () => {
             const { video } = exec(`
-                $v.mix($v.video('a.mp4'), $v.video('a.mp4', { speed: 2 }), 0.5).out();
+                $v.mix($v.video('/a.mp4'), $v.video('/a.mp4', { speed: 2 }), 0.5).out();
             `);
             expect(video!.sources).toHaveLength(2);
             const same = exec(`
-                $v.mix($v.video('a.mp4', { speed: 2 }), $v.video('a.mp4', { speed: 2 }), 0.5).out();
+                $v.mix($v.video('/a.mp4', { speed: 2 }), $v.video('/a.mp4', { speed: 2 }), 0.5).out();
             `);
             expect(same.video!.sources).toHaveLength(1);
         });
@@ -78,7 +78,7 @@ describe('$v media sources', () => {
         it('rejects a speed or loop it cannot play', () => {
             for (const speed of ['-1', '17', "'fast'", 'NaN']) {
                 expect(() =>
-                    exec(`$v.video('a.mp4', { speed: ${speed} });`),
+                    exec(`$v.video('/a.mp4', { speed: ${speed} });`),
                 ).toThrow(/\$v\.video: speed must be a number from 0 to 16/);
             }
             for (const loop of [
@@ -91,7 +91,7 @@ describe('$v media sources', () => {
                 "['a']",
             ]) {
                 expect(() =>
-                    exec(`$v.video('a.mp4', { loop: ${loop} });`),
+                    exec(`$v.video('/a.mp4', { loop: ${loop} });`),
                 ).toThrow(
                     /\$v\.video: loop must be \[start\] or \[start, end\]/,
                 );
@@ -99,7 +99,7 @@ describe('$v media sources', () => {
         });
 
         it('rejects speed and loop on an image', () => {
-            expect(() => exec(`$v.image('a.png', { speed: 2 });`)).toThrow(
+            expect(() => exec(`$v.image('/a.png', { speed: 2 });`)).toThrow(
                 /\$v\.image: speed and loop apply only to video/,
             );
         });
@@ -108,7 +108,7 @@ describe('$v media sources', () => {
             const { video } = exec(`
                 const trail = $v.buffer();
                 const wave = $v.fromAudio($sine('110hz'));
-                $v.image('a.png').$.add(trail.read().$.mult(0.9)).write(trail).$.mult($v.hsv(wave)).out();
+                $v.image('/a.png').add(trail.read().mult(0.9)).write(trail).mult($v.hsv(wave)).out();
             `);
             expect(video!.wgsl).toContain('var fb_0: texture_2d<f32>');
             expect(video!.wgsl).toContain(
@@ -118,7 +118,7 @@ describe('$v media sources', () => {
         });
 
         it('moves with the warps like any other pattern', () => {
-            const wgsl = wgslOf(`$v.image('a.png').$.kaleid(6).out();`);
+            const wgsl = wgslOf(`$v.image('/a.png').kaleid(6).out();`);
             expect(wgsl).toMatch(
                 /fn node0\(uv: vec2f\) -> vec4f \{\n    return video_source\(src_0/,
             );
@@ -132,21 +132,29 @@ describe('$v media sources', () => {
 
         it('rejects a bad path, extension or fit', () => {
             expect(() => exec(`$v.image(3);`)).toThrow(
-                /\$v\.image: path must be a string/,
+                /\$v\.image: a file is a path starting with "\/" \(the workspace folder\), like '\/pictures\/photo\.png', got 3/,
             );
-            expect(() => exec(`$v.image('/etc/photo.png');`)).toThrow(
-                /path must stay inside the workspace folder/,
+            expect(() => exec(`$v.image('pictures/photo.png');`)).toThrow(
+                /\$v\.image: a file is a path starting with "\/"/,
             );
-            expect(() => exec(`$v.image('../photo.png');`)).toThrow(
-                /path must stay inside the workspace folder/,
+            for (const path of [
+                '/../photo.png',
+                '//photo.png',
+                '/./photo.png',
+                '/pictures//photo.png',
+                '/pictures\\\\photo.png',
+            ]) {
+                expect(() => exec(`$v.image('${path}');`)).toThrow(
+                    /path must stay inside the workspace folder, with a plain name between each "\/"/,
+                );
+            }
+            expect(() => exec(`$v.image('/notes.txt');`)).toThrow(
+                /"\/notes\.txt" must be one of \.png/,
             );
-            expect(() => exec(`$v.image('notes.txt');`)).toThrow(
-                /"notes\.txt" must be one of \.png/,
+            expect(() => exec(`$v.video('/clip.png');`)).toThrow(
+                /\$v\.video: "\/clip\.png" must be one of \.mp4/,
             );
-            expect(() => exec(`$v.video('clip.png');`)).toThrow(
-                /\$v\.video: "clip\.png" must be one of \.mp4/,
-            );
-            expect(() => exec(`$v.image('a.png', { fit: 'zoom' });`)).toThrow(
+            expect(() => exec(`$v.image('/a.png', { fit: 'zoom' });`)).toThrow(
                 /\$v\.image: fit must be one of cover, contain, stretch/,
             );
         });
@@ -154,7 +162,7 @@ describe('$v media sources', () => {
         it('names a file the workspace does not have', () => {
             expect(() =>
                 executePatchScript(
-                    `$v.image('missing.png');`,
+                    `$v.image('/missing.png');`,
                     schemas as never,
                     {
                         mediaExists: () => false,
@@ -163,7 +171,7 @@ describe('$v media sources', () => {
                     },
                 ),
             ).toThrow(
-                /\$v\.image: no file "missing\.png" in the workspace folder/,
+                /\$v\.image: no file "\/missing\.png" in the workspace folder/,
             );
         });
     });
@@ -184,7 +192,7 @@ describe('$v media sources', () => {
 
         it('plays the sound of a video as an audio signal', () => {
             const modules = audioModule(
-                `$v.video('clips/loop.mp4').audio.out();`,
+                `$v.video('/clips/loop.mp4').audio.out();`,
             );
             expect(modules).toHaveLength(1);
             expect(modules[0].params.wav).toMatchObject({
@@ -196,14 +204,14 @@ describe('$v media sources', () => {
 
         it('keeps the audio on what out returns', () => {
             const modules = audioModule(
-                `$v.video('clips/loop.mp4', { loop: [1], fit: 'contain' }).out().audio.out();`,
+                `$v.video('/clips/loop.mp4', { loop: [1], fit: 'contain' }).out().audio.out();`,
             );
             expect(modules).toHaveLength(1);
         });
 
         it('makes one player however often the audio is read', () => {
             const modules = audioModule(`
-                const clip = $v.video('clips/loop.mp4');
+                const clip = $v.video('/clips/loop.mp4');
                 clip.audio.out();
                 clip.audio.out();
             `);
@@ -212,13 +220,13 @@ describe('$v media sources', () => {
 
         it('makes no player for a video whose audio is not read', () => {
             expect(
-                audioModule(`$v.video('clips/loop.mp4').out();`),
+                audioModule(`$v.video('/clips/loop.mp4').out();`),
             ).toHaveLength(0);
         });
 
         it('plays at the speed and between the loop points of the video', () => {
             const [player] = audioModule(
-                `$v.video('clips/loop.mp4', { speed: 0.5, loop: [1, 2.5] }).audio.out();`,
+                `$v.video('/clips/loop.mp4', { speed: 0.5, loop: [1, 2.5] }).audio.out();`,
             );
             expect(player.params).toMatchObject({
                 loopEnd: 2.5,
@@ -229,7 +237,7 @@ describe('$v media sources', () => {
 
         it('plays the whole track at normal speed by default', () => {
             const [player] = audioModule(
-                `$v.video('clips/loop.mp4').audio.out();`,
+                `$v.video('/clips/loop.mp4').audio.out();`,
             );
             expect(player.params).toMatchObject({ loopStart: 0, speed: 1 });
             expect(player.params).not.toHaveProperty('loopEnd');
@@ -237,22 +245,22 @@ describe('$v media sources', () => {
 
         it('says so when a video has no sound', () => {
             expect(() =>
-                exec(`$v.video('clips/silent.mp4').audio.out();`),
+                exec(`$v.video('/clips/silent.mp4').audio.out();`),
             ).toThrow(
-                /\$v\.video\(\.\.\.\)\.audio: "clips\/silent\.mp4" has no audio/,
+                /\$v\.video\(\.\.\.\)\.audio: "\/clips\/silent\.mp4" has no audio/,
             );
         });
 
         it('leaves a video without sound alone while its audio is unread', () => {
             expect(() =>
-                exec(`$v.video('clips/silent.mp4').out();`),
+                exec(`$v.video('/clips/silent.mp4').out();`),
             ).not.toThrow();
         });
 
         it('gives only a video file an audio property', () => {
             const { video } = exec(`
                 const camera = $v.camera();
-                const image = $v.image('pictures/a.png');
+                const image = $v.image('/pictures/a.png');
                 if (camera.audio !== undefined || image.audio !== undefined) {
                     throw new Error('has audio');
                 }
@@ -263,8 +271,8 @@ describe('$v media sources', () => {
 
         it('keeps the audio after a chain is taken from the video, not on the chain', () => {
             const { video } = exec(`
-                const clip = $v.video('clips/loop.mp4');
-                if (clip.$.invert().audio !== undefined) throw new Error('chained audio');
+                const clip = $v.video('/clips/loop.mp4');
+                if (clip.invert().audio !== undefined) throw new Error('chained audio');
                 $v.out(clip);
             `);
             expect(video).not.toBeNull();
@@ -350,7 +358,7 @@ describe('$v media sources', () => {
         });
 
         it('still keeps files inside the workspace', () => {
-            expect(() => exec(`$v.video('../a.mp4');`)).toThrow(
+            expect(() => exec(`$v.video('/clips/../../a.mp4');`)).toThrow(
                 /must stay inside the workspace folder/,
             );
         });

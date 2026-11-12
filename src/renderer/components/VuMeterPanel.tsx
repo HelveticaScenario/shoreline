@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+} from 'react';
 import type { VuMeterDef, VuMeterGhost } from '../../shared/dsl/vuMeterTypes';
 import { METER_PAD_CSS, meterNormToDb } from '../app/vuMeter';
 import './VuMeterPanel.css';
@@ -15,8 +21,6 @@ function isCodeOnly(e: React.MouseEvent | React.PointerEvent): boolean {
 
 const MS_BUTTON_HINT = '⌃/⌘-click: edit code only';
 
-export const VU_PANEL_MIN_HEIGHT = 84;
-export const VU_PANEL_MAX_HEIGHT = 480;
 /** Strip height at which the pan knob appears. */
 const PAN_MIN_HEIGHT = 150;
 /** Strip height at which the peak-readout pill appears. */
@@ -26,11 +30,6 @@ const PAN_PER_PIXEL = 0.1;
 
 interface VuMeterPanelProps {
     outputs: VuMeterDef[];
-    /** Panel height in px; the drag handle on the top edge changes it. */
-    height: number;
-    onHeightChange: (height: number) => void;
-    /** Called once at drag end with the final height, for persistence. */
-    onHeightCommit: (height: number) => void;
     onToggleMute: (key: string, codeOnly: boolean) => void;
     onToggleSolo: (key: string, codeOnly: boolean) => void;
     /** Code-side values diverging from the audio, keyed by meter key. */
@@ -520,9 +519,6 @@ function VuMeter({
 
 export function VuMeterPanel({
     outputs,
-    height,
-    onHeightChange,
-    onHeightCommit,
     onToggleMute,
     onToggleSolo,
     ghosts,
@@ -544,49 +540,25 @@ export function VuMeterPanel({
     const channelOutputs = outputs.filter((o) => !o.main);
     const mainOutput = outputs.find((o) => o.main) ?? null;
     const anySolo = channelOutputs.some((o) => o.solo);
-    const dragState = useRef<{ startY: number; startHeight: number } | null>(
-        null,
-    );
-    const heightRef = useRef(height);
-    useEffect(() => {
-        heightRef.current = height;
-    }, [height]);
-
-    const handleDragStart = useCallback(
-        (e: React.PointerEvent<HTMLDivElement>) => {
-            e.preventDefault();
-            dragState.current = {
-                startHeight: heightRef.current,
-                startY: e.clientY,
-            };
-            const onMove = (move: PointerEvent) => {
-                const drag = dragState.current;
-                if (!drag) {
-                    return;
-                }
-                // The panel is docked at the bottom, so dragging up grows it.
-                const next = Math.min(
-                    VU_PANEL_MAX_HEIGHT,
-                    Math.max(
-                        VU_PANEL_MIN_HEIGHT,
-                        drag.startHeight + (drag.startY - move.clientY),
-                    ),
-                );
-                onHeightChange(next);
-            };
-            const onUp = () => {
-                dragState.current = null;
-                window.removeEventListener('pointermove', onMove);
-                window.removeEventListener('pointerup', onUp);
-                window.removeEventListener('pointercancel', onUp);
-                onHeightCommit(heightRef.current);
-            };
-            window.addEventListener('pointermove', onMove);
-            window.addEventListener('pointerup', onUp);
-            window.addEventListener('pointercancel', onUp);
-        },
-        [onHeightChange, onHeightCommit],
-    );
+    const panelRef = useRef<HTMLDivElement>(null);
+    // A resize re-renders the strips only when it crosses a threshold.
+    const [showPan, setShowPan] = useState(false);
+    const [showReadout, setShowReadout] = useState(false);
+    // Measured before the first paint, so the strips open with their knobs.
+    useLayoutEffect(() => {
+        const panel = panelRef.current;
+        if (!panel) return;
+        const fit = (height: number) => {
+            setShowPan(height >= PAN_MIN_HEIGHT);
+            setShowReadout(height >= READOUT_MIN_HEIGHT);
+        };
+        fit(panel.getBoundingClientRect().height);
+        const observer = new ResizeObserver(([entry]) =>
+            fit(entry.borderBoxSize[0].blockSize),
+        );
+        observer.observe(panel);
+        return () => observer.disconnect();
+    }, []);
 
     const meterProps = {
         onCanvasResized,
@@ -602,20 +574,15 @@ export function VuMeterPanel({
         registerCanvas,
         registerPanPointer,
         registerReadout,
-        showPan: height >= PAN_MIN_HEIGHT,
-        showReadout: height >= READOUT_MIN_HEIGHT,
+        showPan,
+        showReadout,
         unregisterCanvas,
         unregisterPanPointer,
         unregisterReadout,
     };
 
     return (
-        <div className="vu-meter-panel" style={{ height }}>
-            <div
-                className="vu-panel-resize-handle"
-                title="Drag to resize"
-                onPointerDown={handleDragStart}
-            />
+        <div ref={panelRef} className="vu-meter-panel">
             <div className="vu-meter-scroll">
                 {channelOutputs.length === 0 ? (
                     <div className="vu-meter-empty">

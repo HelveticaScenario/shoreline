@@ -31,7 +31,7 @@ struct GrooveParams {
         range = (0.0, ..),
         control_range = (0.0, 1.0),
     )]
-    #[default_connection(module = RootClock, port = "playhead", channels = [0, 1])]
+    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(default)]
     playhead: Option<MonoSignal>,
 }
@@ -119,9 +119,9 @@ const GROOVE_DOCS: ModuleDocs = ModuleDocs {
             })
             const seq = $cycle($p('c4 e4 g4 c5 g4 e4 c4 g3'), {
               groove: g,
-              velocity: g.velocity,
+              velocity: g._velocity,
             })
-            $sine(seq).amp($adsr(seq)).amp(seq.velocity).out()
+            $sine(seq).amp($adsr(seq)).amp(seq._velocity).out()
         "#,
     }],
 };

@@ -96,7 +96,7 @@ const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
             title: "Trance chord",
             code: r#"
                 $supersaw($chord('A2[m]'), { voices: 7, detune: 0.3 })
-                  .$.lpf('c6', 1)
+                  .lpf('c6', 1)
                   .out()
             "#,
         },
@@ -104,7 +104,7 @@ const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
             title: "Wide lead sweep",
             code: r#"
                 $supersaw('a3', { detune: 0.3 })
-                  .$.lpf($sine('0.1hz').range('c5', 'c7'))
+                  .lpf($sine('0.1hz').range('c5', 'c7'))
                   .out()
             "#,
         },

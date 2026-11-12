@@ -91,7 +91,7 @@ struct MiParticlesParams {
 #[serde(rename_all = "camelCase")]
 struct MiParticlesOutputs {
     #[output(
-        "output",
+        "filtered",
         "the particles ringing through their filters",
         type = cv,
         default,

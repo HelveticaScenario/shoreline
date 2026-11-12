@@ -98,7 +98,7 @@ struct ModalParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ModalOutputs {
-    #[output("output", "the ringing body", type = cv, default, range = (-5.0, 5.0))]
+    #[output("body", "the ringing body", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
     #[output(
         "exciter",
@@ -121,7 +121,7 @@ const MODAL_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Marimba melody",
             code: r#"
-                const seq = $p('c3 e3 g3 <a3 b3>').c
+                const seq = $p('c3 e3 g3 <a3 b3>')
                 $mi.modal(seq, { trigger: seq, structure: 1.4 }).out()
             "#,
         },
