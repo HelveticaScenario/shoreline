@@ -110,6 +110,46 @@ impl ValuePrecision {
     }
 }
 
+/// How an output's bounds arise: `bounds = params | input`, or `Fixed` from
+/// its `range`.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum BoundsDecl {
+    Unbounded,
+    Fixed(f64, f64),
+    Params,
+    Input,
+}
+
+impl BoundsDecl {
+    fn parse(ident: &Ident) -> syn::Result<Self> {
+        Ok(match ident.to_string().as_str() {
+            "params" => Self::Params,
+            "input" => Self::Input,
+            other => {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    format!("unknown bounds `{other}`; expected params or input"),
+                ));
+            }
+        })
+    }
+
+    /// Whether the module writes these bounds beside its values.
+    fn is_computed(self) -> bool {
+        matches!(self, Self::Params | Self::Input)
+    }
+
+    /// The matching `crate::types::BoundsKind` variant.
+    fn variant(self) -> TokenStream2 {
+        match self {
+            Self::Unbounded => quote! { crate::types::BoundsKind::Unbounded },
+            Self::Fixed(..) => quote! { crate::types::BoundsKind::Fixed },
+            Self::Params => quote! { crate::types::BoundsKind::Params },
+            Self::Input => quote! { crate::types::BoundsKind::Input },
+        }
+    }
+}
+
 /// Parsed output attribute data
 struct OutputAttr {
     name: LitStr,
@@ -119,6 +159,7 @@ struct OutputAttr {
     range: Option<(f64, f64)>,
     channels: Option<u32>,
     value_precision: ValuePrecision,
+    bounds: BoundsDecl,
 }
 
 /// Precision type for output fields
@@ -140,6 +181,7 @@ struct OutputField {
     /// Fixed channel count of a `PolyOutput`, independent of the module's.
     channels: Option<u32>,
     value_precision: ValuePrecision,
+    bounds: BoundsDecl,
 }
 
 /// Parse output attribute tokens into OutputAttr
@@ -149,9 +191,11 @@ struct OutputField {
 /// - #[output("name", "description", type = cv, range = (-1.0, 1.0))]
 /// - #[output("name", "description", type = cv, channels = 2)]
 /// - #[output("name", "description", type = cv, precision = f64)]
+/// - #[output("name", "description", type = cv, bounds = input)]
 ///
 /// `type` is required. Gate and trig outputs emit 0–5 V, so they take no
-/// `range`.
+/// `range` and are bounded by it. An output with a `range` is bounded by it;
+/// `bounds` declares an output the module bounds itself.
 fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
     use syn::Result as SynResult;
     use syn::parse::{Parse, ParseStream};
@@ -164,6 +208,7 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
         range: Option<(f64, f64)>,
         channels: Option<u32>,
         value_precision: ValuePrecision,
+        bounds: BoundsDecl,
     }
 
     impl Parse for OutputAttrParser {
@@ -181,6 +226,7 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
             let mut range: Option<(f64, f64)> = None;
             let mut channels: Option<u32> = None;
             let mut value_precision = ValuePrecision::F32;
+            let mut bounds: Option<(BoundsDecl, Span)> = None;
             while input.peek(Token![,]) {
                 input.parse::<Token![,]>()?;
 
@@ -217,11 +263,15 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                     } else if ident == "precision" {
                         input.parse::<Token![=]>()?;
                         value_precision = ValuePrecision::parse(&Ident::parse_any(input)?)?;
+                    } else if ident == "bounds" {
+                        input.parse::<Token![=]>()?;
+                        let kind = Ident::parse_any(input)?;
+                        bounds = Some((BoundsDecl::parse(&kind)?, kind.span()));
                     } else {
                         return Err(syn::Error::new(
                             ident.span(),
                             format!(
-                                "Unknown output attribute '{}'. Expected 'type', 'default', 'range', 'channels' or 'precision'",
+                                "Unknown output attribute '{}'. Expected 'type', 'default', 'range', 'channels', 'precision' or 'bounds'",
                                 ident
                             ),
                         ));
@@ -250,6 +300,17 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                     Some((0.0, 5.0))
                 }
             };
+            let bounds = match (bounds, range) {
+                (Some((_, span)), Some(_)) => {
+                    return Err(syn::Error::new(
+                        span,
+                        "an output with a range is bounded by it; it takes no `bounds`",
+                    ));
+                }
+                (Some((kind, _)), None) => kind,
+                (None, Some((min, max))) => BoundsDecl::Fixed(min, max),
+                (None, None) => BoundsDecl::Unbounded,
+            };
 
             Ok(OutputAttrParser {
                 name,
@@ -259,6 +320,7 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                 range,
                 channels,
                 value_precision,
+                bounds,
             })
         }
     }
@@ -273,6 +335,7 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
         range: parsed.range,
         channels: parsed.channels,
         value_precision: parsed.value_precision,
+        bounds: parsed.bounds,
     })
 }
 
@@ -357,6 +420,15 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                         .to_compile_error()
                         .into();
                     }
+                    if output_attr.bounds.is_computed() && precision != OutputPrecision::PolySignal
+                    {
+                        return syn::Error::new(
+                            f.span(),
+                            "`bounds` applies only to PolyOutput fields",
+                        )
+                        .to_compile_error()
+                        .into();
+                    }
                     if output_attr.value_precision != ValuePrecision::F32
                         && precision != OutputPrecision::PolySignal
                     {
@@ -378,6 +450,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                         range: output_attr.range,
                         channels: output_attr.channels,
                         value_precision: output_attr.value_precision,
+                        bounds: output_attr.bounds,
                     });
                 }
                 out
@@ -397,6 +470,13 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 .into();
         }
     };
+
+    // Bounds masks give each output one bit of a `u64`.
+    if outputs.len() > 64 {
+        return syn::Error::new(Span::call_site(), "a module has at most 64 outputs")
+            .to_compile_error()
+            .into();
+    }
 
     // Check for duplicate output names
     {
@@ -485,6 +565,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 None => quote! { None },
             };
             let precision = o.value_precision.variant();
+            let bounds = o.bounds.variant();
             quote! {
                 crate::types::OutputSchema {
                     name: #output_name.to_string(),
@@ -496,6 +577,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                     max_value: #max_value,
                     channels: #channels,
                     precision: #precision,
+                    bounds: #bounds,
                 }
             }
         })
@@ -530,6 +612,24 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
             }
         })
         .collect();
+    let make_bounded_stmts: Vec<_> = outputs
+        .iter()
+        .enumerate()
+        .filter(|(_, o)| o.bounds.is_computed())
+        .map(|(i, o)| {
+            let field_name = &o.field_name;
+            quote! {
+                if mask & (1u64 << #i) != 0 {
+                    self.#field_name.make_bounded();
+                }
+            }
+        })
+        .collect();
+    let mask_param = if make_bounded_stmts.is_empty() {
+        quote! { _mask }
+    } else {
+        quote! { mask }
+    };
     let uses_inherit = outputs
         .iter()
         .any(|o| o.value_precision == ValuePrecision::Inherit);
@@ -555,6 +655,10 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
 
             fn make_f64_outputs(&mut self, #inherit_param: bool) {
                 #(#make_f64_stmts)*
+            }
+
+            fn make_bounded(&mut self, #mask_param: u64) {
+                #(#make_bounded_stmts)*
             }
 
             fn schemas() -> Vec<crate::types::OutputSchema> {
@@ -590,9 +694,9 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .iter()
         .map(|o| {
             let field_name = &o.field_name;
-            match o.precision {
+            let port = match o.precision {
                 OutputPrecision::F32 => {
-                    quote! { #field_name: crate::block_port::BlockPort::new(block_size, 1) }
+                    quote! { crate::block_port::BlockPort::new(block_size, 1) }
                 }
                 OutputPrecision::PolySignal => {
                     let width = match o.channels {
@@ -604,12 +708,12 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                     };
                     match o.value_precision {
                         ValuePrecision::F32 => quote! {
-                            #field_name: crate::block_port::BlockPort::new(block_size, #width)
+                            crate::block_port::BlockPort::new(block_size, #width)
                         },
                         precision => {
                             let is_f64 = precision.is_f64(&inherit);
                             quote! {
-                                #field_name: if #is_f64 {
+                                if #is_f64 {
                                     crate::block_port::BlockPort::new_f64(block_size, #width)
                                 } else {
                                     crate::block_port::BlockPort::new(block_size, #width)
@@ -617,6 +721,20 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                             }
                         }
                     }
+                }
+            };
+            quote! { #field_name: #port }
+        })
+        .collect();
+    let block_make_bounded_stmts: Vec<_> = outputs
+        .iter()
+        .enumerate()
+        .filter(|(_, o)| o.bounds.is_computed())
+        .map(|(i, o)| {
+            let field_name = &o.field_name;
+            quote! {
+                if mask & (1u64 << #i) != 0 {
+                    self.#field_name.make_bounded();
                 }
             }
         })
@@ -659,12 +777,75 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
 
     let same_layout_terms: Vec<_> = outputs
         .iter()
-        .filter(|o| o.value_precision == ValuePrecision::Inherit)
+        .filter(|o| o.value_precision == ValuePrecision::Inherit || o.bounds.is_computed())
         .map(|o| {
             let field_name = &o.field_name;
-            quote! { && self.#field_name.lanes() == other.#field_name.lanes() }
+            quote! {
+                && self.#field_name.lanes() == other.#field_name.lanes()
+                && self.#field_name.has_bounds() == other.#field_name.has_bounds()
+            }
         })
         .collect();
+
+    let get_bounds_at_arms: Vec<_> = outputs
+        .iter()
+        .enumerate()
+        .map(|(i, o)| {
+            let field_name = &o.field_name;
+            match o.bounds {
+                BoundsDecl::Unbounded => quote! { #i => crate::bounds::Bounds::UNBOUNDED, },
+                BoundsDecl::Fixed(min, max) => {
+                    let (min, max) = (min as f32, max as f32);
+                    quote! { #i => crate::bounds::Bounds::new(#min, #max), }
+                }
+                BoundsDecl::Params | BoundsDecl::Input => {
+                    quote! { #i => self.#field_name.bounds_at(index, ch), }
+                }
+            }
+        })
+        .collect();
+
+    let port_bounds_arms: Vec<_> = outputs
+        .iter()
+        .enumerate()
+        .map(|(i, o)| {
+            let field_name = &o.field_name;
+            match o.bounds {
+                BoundsDecl::Unbounded => {
+                    quote! { #i => crate::bounds::PortBounds::Unbounded, }
+                }
+                BoundsDecl::Fixed(min, max) => {
+                    let (min, max) = (min as f32, max as f32);
+                    quote! { #i => crate::bounds::PortBounds::Fixed(crate::bounds::Bounds::new(#min, #max)), }
+                }
+                BoundsDecl::Params | BoundsDecl::Input => quote! {
+                    #i => match self.#field_name.bounds_store() {
+                        Some(_) if self.#field_name.channels() == 0 => {
+                            crate::bounds::PortBounds::Unbounded
+                        }
+                        Some(store) if live => crate::bounds::PortBounds::Live { store, processed },
+                        Some(store) => crate::bounds::PortBounds::Stored { store, processed },
+                        None => crate::bounds::PortBounds::Unbounded,
+                    }
+                },
+            }
+        })
+        .collect();
+
+    let bounded_mask_terms: Vec<_> = outputs
+        .iter()
+        .enumerate()
+        .map(|(i, o)| match o.bounds {
+            BoundsDecl::Unbounded => quote! {},
+            BoundsDecl::Fixed(..) | BoundsDecl::Params => quote! { | (1u64 << #i) },
+            BoundsDecl::Input => quote! { | if inputs_bounded { 1u64 << #i } else { 0 } },
+        })
+        .collect();
+    let inputs_bounded_param = if outputs.iter().any(|o| o.bounds == BoundsDecl::Input) {
+        quote! { inputs_bounded }
+    } else {
+        quote! { _inputs_bounded }
+    };
 
     let channels_at_arms: Vec<_> = outputs
         .iter()
@@ -732,6 +913,46 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         })
         .collect();
 
+    let copy_bounds_stmts: Vec<_> = outputs
+        .iter()
+        .filter(|o| o.bounds.is_computed())
+        .map(|o| {
+            let field_name = &o.field_name;
+            quote! {
+                if self.#field_name.has_bounds() {
+                    self.#field_name.set_bounds_row(slot, inner.#field_name.bounds());
+                }
+            }
+        })
+        .collect();
+
+    let bounds_written_terms: Vec<_> = outputs
+        .iter()
+        .filter(|o| o.bounds.is_computed())
+        .map(|o| {
+            let field_name = &o.field_name;
+            quote! { && self.#field_name.bounds_written(end) }
+        })
+        .collect();
+
+    let port_names: Vec<_> = outputs.iter().map(|o| &o.output_name).collect();
+
+    let input_bounded_terms: Vec<_> = outputs
+        .iter()
+        .enumerate()
+        .filter(|(_, o)| o.bounds == BoundsDecl::Input)
+        .map(|(i, _)| quote! { | (1u64 << #i) })
+        .collect();
+
+    let start_bounds_stmts: Vec<_> = outputs
+        .iter()
+        .filter(|o| o.bounds.is_computed())
+        .map(|o| {
+            let field_name = &o.field_name;
+            quote! { self.#field_name.start_bounds_block(); }
+        })
+        .collect();
+
     let block_generated = quote! {
         /// Generated block-output buffer for #name.
         /// One `BlockPort` per output port; indexed `data[sample_index][channel]`.
@@ -742,6 +963,12 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         impl #block_outputs_name {
             /// Whether any port has `precision = inherit`.
             pub const INHERITS: bool = #uses_inherit;
+
+            /// The output port names, by port index.
+            pub const PORT_NAMES: &'static [&'static str] = &[#(#port_names),*];
+
+            /// The `bounds = input` ports, as bits by port index.
+            pub const INPUT_BOUNDED_PORTS: u64 = 0u64 #(#input_bounded_terms)*;
 
             /// Allocate all ports for the given block size and channel count.
             /// Call only on the main thread. f32 ports are mono; PolyOutput
@@ -821,9 +1048,59 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 }
             }
 
-            /// Copy the inner module's scalar outputs into this block buffer at `slot`.
+            /// Copy the inner module's scalar outputs, and the bounds of its
+            /// bounded ones, into this block buffer at `slot`.
             pub fn copy_from_inner(&mut self, inner: &#name, slot: usize) {
                 #(#copy_inner_stmts)*
+                #(#copy_bounds_stmts)*
+            }
+
+            /// Whether every bounded port has its bounds written below `end`
+            /// (see [`BlockPort::bounds_written`](crate::block_port::BlockPort::bounds_written)).
+            pub fn bounds_written(&self, end: usize) -> bool {
+                true #(#bounds_written_terms)*
+            }
+
+            /// Begin a block on every bounded port (see
+            /// [`BlockPort::start_bounds_block`](crate::block_port::BlockPort::start_bounds_block)).
+            pub fn start_bounds_block(&mut self) {
+                #(#start_bounds_stmts)*
+            }
+
+            /// Give the bounded ports in `mask` (bits by port index) their
+            /// bounds storage. Call only on the main thread.
+            pub fn make_bounded(&mut self, #mask_param: u64) {
+                #(#block_make_bounded_stmts)*
+            }
+
+            /// The bounds of a port at `(index, ch)`, by index from
+            /// [`port_index`](Self::port_index).
+            #[inline]
+            pub fn get_bounds_at(&self, port_idx: usize, ch: usize, index: usize) -> crate::bounds::Bounds {
+                match port_idx {
+                    #(#get_bounds_at_arms)*
+                    _ => crate::bounds::Bounds::UNBOUNDED,
+                }
+            }
+
+            /// How a cable reads a port's bounds: in place below `processed`,
+            /// or through the wrapper when `live` (a Sample-mode module).
+            pub fn port_bounds(
+                &self,
+                port_idx: usize,
+                processed: *const std::cell::Cell<usize>,
+                live: bool,
+            ) -> crate::bounds::PortBounds {
+                match port_idx {
+                    #(#port_bounds_arms)*
+                    _ => crate::bounds::PortBounds::Unbounded,
+                }
+            }
+
+            /// The ports bounded in a patch where the module's tagged inputs
+            /// are bounded or not, as bits by port index.
+            pub fn bounded_mask(#inputs_bounded_param: bool) -> u64 {
+                0u64 #(#bounded_mask_terms)*
             }
 
         }
@@ -864,5 +1141,40 @@ mod tests {
         assert!(err(r#""output", "the mix", type = audio"#).contains("unknown output type"));
         assert!(err(r#""output", "the mix", type = cv, type = gate"#).contains("duplicate"));
         assert!(err(r#""gate", "held", type = gate, range = (0.0, 5.0)"#).contains("no range"));
+    }
+
+    #[test]
+    fn reads_how_an_output_is_bounded() {
+        assert_eq!(
+            parse(r#""out", "x", type = cv"#).unwrap().bounds,
+            BoundsDecl::Unbounded
+        );
+        assert_eq!(
+            parse(r#""out", "x", type = cv, range = (-1.0, 1.0)"#)
+                .unwrap()
+                .bounds,
+            BoundsDecl::Fixed(-1.0, 1.0)
+        );
+        assert_eq!(
+            parse(r#""gate", "x", type = gate"#).unwrap().bounds,
+            BoundsDecl::Fixed(0.0, 5.0)
+        );
+        assert_eq!(
+            parse(r#""out", "x", type = cv, bounds = input"#)
+                .unwrap()
+                .bounds,
+            BoundsDecl::Input
+        );
+        assert_eq!(
+            parse(r#""out", "x", type = cv, bounds = params"#)
+                .unwrap()
+                .bounds,
+            BoundsDecl::Params
+        );
+        assert!(err(r#""out", "x", type = cv, bounds = sorted"#).contains("unknown bounds"));
+        assert!(
+            err(r#""out", "x", type = cv, range = (0.0, 1.0), bounds = input"#)
+                .contains("takes no `bounds`")
+        );
     }
 }

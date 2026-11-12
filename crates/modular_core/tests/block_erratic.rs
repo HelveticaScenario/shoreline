@@ -6,6 +6,7 @@
 mod block_common;
 
 use block_common::*;
+use modular_core::types::ProcessingMode;
 use serde_json::json;
 
 #[global_allocator]
@@ -59,4 +60,52 @@ fn allocation_free() {
     ] {
         assert_eq!(allocations_while_rendering("_erratic", params), 0);
     }
+}
+
+#[test]
+fn bounds_are_the_range_unless_shifting() {
+    let input = poly_cable("src", CHANNELS);
+    for mode in ["blend", "clamp"] {
+        let bounds = check_bounds_agree(
+            "_erratic",
+            json!({ "input": input, "amount": 3.0, "min": 3.0, "max": -1.0, "mode": mode }),
+        );
+        assert!(
+            bounds.iter().all(|&b| b == Bounds::new(-1.0, 3.0)),
+            "{mode}"
+        );
+    }
+    let patch = build(
+        ProcessingMode::Block,
+        ProcessingMode::Block,
+        "_erratic",
+        json!({ "input": input, "amount": 3.0, "mode": "shift" }),
+    );
+    assert!(
+        render_bounds(&patch, &[BLOCK_SIZE])
+            .iter()
+            .all(|b| !b.is_bounded())
+    );
+}
+
+#[test]
+fn an_unset_mode_blends_within_a_ranged_input() {
+    // The saw swings over ±5, so an unset mode blends within it.
+    let bounds = check_bounds_agree(
+        "_erratic",
+        json!({ "input": poly_cable("src", CHANNELS), "amount": 3.0 }),
+    );
+    assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
+    // A fixed voltage has no range, so an unset mode shifts.
+    let patch = build(
+        ProcessingMode::Block,
+        ProcessingMode::Block,
+        "_erratic",
+        json!({ "input": 1.0, "amount": 3.0 }),
+    );
+    assert!(
+        render_bounds(&patch, &[BLOCK_SIZE])
+            .iter()
+            .all(|b| !b.is_bounded())
+    );
 }

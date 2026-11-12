@@ -38,3 +38,11 @@ fn allocation_free() {
         0
     );
 }
+
+#[test]
+fn bounds_pass_through() {
+    let bounds = check_bounds_agree("$signal", json!({ "value": poly_cable("src", CHANNELS) }));
+    assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
+    let bounds = check_bounds_agree("$signal", json!({ "value": 3.0 }));
+    assert!(bounds.iter().all(|&b| b == Bounds::point(3.0)));
+}

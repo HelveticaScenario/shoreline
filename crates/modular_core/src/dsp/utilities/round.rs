@@ -39,7 +39,7 @@ impl RoundMode {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RoundParams {
-    #[input("signal to round", type = audio)]
+    #[input("signal to round", type = audio, bounds)]
     input: PolySignal,
     #[input("which way to round to a whole volt", default = "round")]
     #[serde(default)]
@@ -50,7 +50,7 @@ struct RoundParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct RoundOutputs {
-    #[output("output", "the signal in whole volts", type = cv, precision = inherit, default)]
+    #[output("output", "the signal in whole volts", type = cv, precision = inherit, bounds = input, default)]
     sample: PolyOutput,
 }
 
@@ -76,16 +76,18 @@ pub struct Round {
 impl Round {
     fn update(&mut self, _sample_rate: f32) {
         let mode = self.params.mode;
-        if self.outputs.sample.is_f64() {
-            for i in 0..self.channel_count() {
-                let value = mode.apply(self.params.input.get_value_f64(i));
-                self.outputs.sample.set_f64(i, value);
+        let input = &self.params.input;
+        let channels = self.channel_count();
+        let out = &mut self.outputs.sample;
+        for i in 0..channels {
+            if out.is_f64() {
+                out.set_f64(i, mode.apply(input.get_value_f64(i)));
+            } else {
+                out.set(i, mode.apply(input.get_value(i)));
             }
-            return;
-        }
-        for i in 0..self.channel_count() {
-            let value = mode.apply(self.params.input.get_value(i));
-            self.outputs.sample.set(i, value);
+            if out.stores_bounds() {
+                out.set_bounds(i, input.get_bounds(i).map(|x| mode.apply(x)));
+            }
         }
     }
 
@@ -95,13 +97,23 @@ impl Round {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
+        let channels = self.channel_count();
+        let mode = self.params.mode;
+        let out = &mut outputs.sample;
         let mut scratch = Default::default();
         let inputs = self
             .params
-            .block_inputs(range.clone(), self.channel_count(), &mut scratch)?;
-        let out = &mut outputs.sample;
+            .block_inputs(range.clone(), channels, &mut scratch)?;
+        let input = &self.params.input;
+        out.fill_bounds_with(range.clone(), |ch| {
+            Some(
+                input
+                    .block_bounds(range.clone(), ch)?
+                    .map(|x| mode.apply(x)),
+            )
+        })?;
         let inputs = [inputs.input];
-        match self.params.mode {
+        match mode {
             RoundMode::Round => block_input::map(out, range, inputs, |[x]| x.round()),
             RoundMode::Floor => block_input::map(out, range, inputs, |[x]| x.floor()),
             RoundMode::Ceil => block_input::map(out, range, inputs, |[x]| x.ceil()),

@@ -69,15 +69,12 @@ describe('.erratic()', () => {
         ]);
     });
 
-    test('unranged signal stays unranged and passes no range', () => {
+    test('unranged signal stays unranged', () => {
         const out = builder.$c('c3').erratic(1, { bias: 2 });
 
         expect(out).toBeInstanceOf(Collection);
         expect(out.items[0]).not.toBeInstanceOf(ModuleOutputWithRange);
-        const params = erraticParams();
-        expect(params.bias).toBe(2);
-        expect(params.min).toBeUndefined();
-        expect(params.max).toBeUndefined();
+        expect(erraticParams().bias).toBe(2);
     });
 
     test('mode and sparse pass through on a ranged signal', () => {
@@ -90,11 +87,14 @@ describe('.erratic()', () => {
         });
     });
 
-    test('unranged signal passes sparse but not mode', () => {
+    test('unranged signal passes sparse and shifts across a nominal ±5 V', () => {
         builder.$c('c3').erratic(1, { sparse: true, mode: 'blend' } as object);
-        const params = erraticParams();
-        expect(params.sparse).toBe(true);
-        expect(params.mode).toBeUndefined();
+        expect(erraticParams()).toMatchObject({
+            sparse: true,
+            mode: 'shift',
+            min: -5,
+            max: 5,
+        });
     });
 
     test('_erratic is not a global', () => {

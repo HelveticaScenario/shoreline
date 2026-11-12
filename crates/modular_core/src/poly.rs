@@ -7,6 +7,7 @@
 //! - `PolySignal`: A fixed-capacity input buffer containing Signal values (for polyphonic module inputs)
 
 use crate::{
+    bounds::Bounds,
     dsp::utils::sanitize,
     types::{GlideMark, PolyCableView, PreviousIds, Signal, SwapGlide},
 };
@@ -34,6 +35,9 @@ pub struct PolyOutput {
     /// [`make_f64`](Self::make_f64)); empty otherwise. `voltages` holds the
     /// same values rounded to f32.
     precise: Box<[f64]>,
+    /// One [`Bounds`] per channel on a bounded output (see
+    /// [`make_bounded`](Self::make_bounded)); empty otherwise.
+    bounds: Box<[Bounds]>,
 }
 
 impl Default for PolyOutput {
@@ -41,6 +45,7 @@ impl Default for PolyOutput {
         Self {
             voltages: Box::new([]), // Disconnected (0 channels)
             precise: Box::new([]),
+            bounds: Box::new([]),
         }
     }
 }
@@ -61,6 +66,7 @@ impl PolyOutput {
         Self {
             voltages: vec![value].into_boxed_slice(),
             precise: Box::new([]),
+            bounds: Box::new([]),
         }
     }
 
@@ -125,6 +131,34 @@ impl PolyOutput {
         !self.precise.is_empty()
     }
 
+    /// Make this a bounded output, holding a [`Bounds`] per channel beside
+    /// each value. Allocates — **main thread only**, after
+    /// [`set_channels`](Self::set_channels).
+    pub fn make_bounded(&mut self) {
+        self.bounds = vec![Bounds::UNBOUNDED; self.voltages.len()].into_boxed_slice();
+    }
+
+    /// Whether this output stores bounds (see [`make_bounded`](Self::make_bounded)).
+    /// A module computes its bounds only when it does.
+    #[inline]
+    pub fn stores_bounds(&self) -> bool {
+        !self.bounds.is_empty()
+    }
+
+    /// Set a channel's bounds; ignored on an output that carries none.
+    #[inline]
+    pub fn set_bounds(&mut self, channel: usize, bounds: Bounds) {
+        if let Some(slot) = self.bounds.get_mut(channel) {
+            *slot = bounds;
+        }
+    }
+
+    /// Every channel's bounds; empty on an output that carries none.
+    #[inline]
+    pub fn bounds(&self) -> &[Bounds] {
+        &self.bounds
+    }
+
     /// Get voltage with modulo cycling: channel wraps around available channels.
     /// This is consistent with Vec::cycle_get for non-signal params.
     /// A mono signal cycles to all channels, a 2-ch signal alternates, etc.
@@ -148,6 +182,9 @@ impl PolyOutput {
             self.voltages = vec![0.0; channels].into_boxed_slice();
             if !self.precise.is_empty() {
                 self.precise = vec![0.0; channels].into_boxed_slice();
+            }
+            if !self.bounds.is_empty() {
+                self.bounds = vec![Bounds::UNBOUNDED; channels].into_boxed_slice();
             }
         }
     }
@@ -193,6 +230,7 @@ impl<'de> Deserialize<'de> for PolyOutput {
         Ok(PolyOutput {
             voltages,
             precise: Box::new([]),
+            bounds: Box::new([]),
         })
     }
 }
@@ -376,6 +414,37 @@ impl PolySignal {
     /// Like [`get_value`](Self::get_value), at full precision from an f64 output.
     pub fn get_value_f64(&self, channel: usize) -> f64 {
         self.channels[channel % self.channels.len()].get_value_f64()
+    }
+
+    /// The bounds of the value [`get_value`](Self::get_value) reads at the
+    /// same slot.
+    #[inline]
+    pub fn get_bounds(&self, channel: usize) -> Bounds {
+        self.channels[channel % self.channels.len()].get_bounds()
+    }
+
+    /// Channel `ch`'s bounds when they hold still over `range`, rendering a
+    /// cable's producer through it; `None` when they move, so a block path
+    /// declines and the slots run `update`, which reads them one by one.
+    #[inline]
+    pub fn block_bounds(&self, range: std::ops::Range<usize>, ch: usize) -> Option<Bounds> {
+        let len = self.channels.len();
+        self.channels[if ch < len { ch } else { ch % len }].uniform_bounds(range)
+    }
+
+    /// Whether this input is bounded in a patch whose bounded outputs
+    /// `is_bounded(module, port)` names: every channel a constant or a cable
+    /// from a bounded output. Main thread, while the patch is analysed.
+    pub fn statically_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
+        self.channels.iter().all(|signal| match signal {
+            Signal::Volts(_) => true,
+            Signal::Cable { module, port, .. } => is_bounded(module, port),
+        })
+    }
+
+    /// Whether every channel is a fixed voltage.
+    pub fn is_constant(&self) -> bool {
+        !self.volts.is_empty()
     }
 
     /// The [`GlideMark`] for the channel `get_value(channel)` reads.

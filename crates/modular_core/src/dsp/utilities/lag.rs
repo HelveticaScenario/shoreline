@@ -12,7 +12,7 @@ use schemars::JsonSchema;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct LagProcessorParams {
-    #[input("signal to smooth", type = audio)]
+    #[input("signal to smooth", type = audio, bounds)]
     input: PolySignal,
     #[input(
         "seconds the output takes to climb 1 V; follows fall when not patched",
@@ -36,7 +36,7 @@ struct LagProcessorParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct LagProcessorOutputs {
-    #[output("output", "the smoothed signal", type = cv, default)]
+    #[output("output", "the smoothed signal", type = cv, bounds = input, default)]
     sample: PolyOutput,
 }
 
@@ -94,6 +94,12 @@ impl LagProcessor {
         for ch in 0..num_channels {
             let state = &mut self.channel_state[ch];
             let input = self.params.input.get_value(ch);
+            // A slewed signal never leaves the span its input swings over.
+            if self.outputs.sample.stores_bounds() {
+                self.outputs
+                    .sample
+                    .set_bounds(ch, self.params.input.get_bounds(ch));
+            }
             if !state.initialized {
                 state.current_value = sanitize(input);
                 state.initialized = true;

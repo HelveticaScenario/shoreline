@@ -139,7 +139,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "y",
@@ -149,7 +150,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "z",
@@ -159,7 +161,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -354,7 +357,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "tilt",
@@ -364,7 +368,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "roll",
@@ -374,7 +379,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -518,7 +524,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -676,7 +683,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -831,7 +839,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -984,7 +993,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -1133,7 +1143,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f64"
+        "precision": "f64",
+        "bounds": "unbounded"
       },
       {
         "name": "barTrigger",
@@ -1143,7 +1154,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "beatTrigger",
@@ -1153,7 +1165,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "ramp",
@@ -1163,7 +1176,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "ppqTrigger",
@@ -1173,7 +1187,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "beatInBar",
@@ -1181,7 +1196,8 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": false,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "tempo",
@@ -1189,7 +1205,8 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": false,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "barLength",
@@ -1197,7 +1214,8 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": false,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "grooveOffset",
@@ -1205,7 +1223,8 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": false,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "grooveVelocity",
@@ -1215,7 +1234,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "grooveTrigger",
@@ -1225,7 +1245,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -1400,7 +1421,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -1606,7 +1628,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -1790,7 +1813,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -1965,7 +1989,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -2143,7 +2168,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -2291,7 +2317,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -2433,7 +2460,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -2602,7 +2630,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -2802,7 +2831,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "closed",
@@ -2812,7 +2842,8 @@
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "open",
@@ -2822,7 +2853,8 @@
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -3016,7 +3048,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -3201,7 +3234,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -3386,7 +3420,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -3571,7 +3606,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -3756,7 +3792,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -3941,7 +3978,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -4148,7 +4186,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -4364,7 +4403,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -4532,7 +4572,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -4674,7 +4715,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -4843,7 +4885,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -5028,7 +5071,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -5213,7 +5257,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -5478,7 +5523,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -5713,7 +5759,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "low",
@@ -5721,7 +5768,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": false,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "mid",
@@ -5729,7 +5777,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": false,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "high",
@@ -5737,7 +5786,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": false,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -5887,7 +5937,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -6044,7 +6095,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -6256,7 +6308,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -6481,7 +6534,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -6618,7 +6672,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -6789,7 +6844,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -6969,7 +7025,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -7193,7 +7250,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -7447,7 +7505,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -7640,7 +7699,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -7856,7 +7916,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -8171,7 +8232,8 @@
         "minValue": -5.0,
         "maxValue": 5.0,
         "channels": 2,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "voices",
@@ -8181,7 +8243,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -8546,7 +8609,8 @@
         "minValue": -5.0,
         "maxValue": 5.0,
         "channels": 2,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "voices",
@@ -8556,7 +8620,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -8774,7 +8839,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -9054,7 +9120,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -9316,7 +9383,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -9530,7 +9598,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -9760,7 +9829,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -9917,7 +9987,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -10047,7 +10118,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -10198,7 +10270,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -10450,7 +10523,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -10935,7 +11009,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "main",
@@ -10945,7 +11020,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "aux",
@@ -10955,7 +11031,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -11258,7 +11335,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -12029,7 +12107,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "odd",
@@ -12039,7 +12118,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "even",
@@ -12049,7 +12129,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "low",
@@ -12059,7 +12140,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "high",
@@ -12069,7 +12151,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "root",
@@ -12079,7 +12162,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "other",
@@ -12089,7 +12173,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -12573,7 +12658,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -12743,7 +12829,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -12934,7 +13021,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -13107,7 +13195,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -13262,7 +13351,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -13419,7 +13509,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "lp12",
@@ -13429,7 +13520,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "bp",
@@ -13439,7 +13531,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "hp",
@@ -13449,7 +13542,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -13634,7 +13728,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -13851,7 +13946,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "lp",
@@ -13861,7 +13957,8 @@
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "bp",
@@ -13871,7 +13968,8 @@
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "hp",
@@ -13881,7 +13979,8 @@
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -14187,7 +14286,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -14364,7 +14464,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -14563,7 +14664,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -14772,7 +14874,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -14966,7 +15069,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -15120,7 +15224,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -15304,7 +15409,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -15488,7 +15594,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -15672,7 +15779,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -15861,7 +15969,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -16050,7 +16159,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -16224,7 +16334,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -16398,7 +16509,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -16572,7 +16684,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -16746,7 +16859,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -16935,7 +17049,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -17174,7 +17289,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -17364,7 +17480,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -17554,7 +17671,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -17744,7 +17862,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -17934,7 +18053,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -18124,7 +18244,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -18309,7 +18430,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -18494,7 +18616,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -18679,7 +18802,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -18864,7 +18988,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -19049,7 +19174,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -19244,7 +19370,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -19438,7 +19565,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -19592,7 +19720,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -19786,7 +19915,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -20108,7 +20238,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 1.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -20235,7 +20366,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 1.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -20354,7 +20486,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -20555,7 +20688,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -20727,7 +20861,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "inherit"
+        "precision": "inherit",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -20856,7 +20991,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "inherit"
+        "precision": "inherit",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -20985,7 +21121,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "inherit"
+        "precision": "inherit",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -21114,7 +21251,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "inherit"
+        "precision": "inherit",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -21243,7 +21381,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "inherit"
+        "precision": "inherit",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -21393,7 +21532,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "inherit"
+        "precision": "inherit",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -21538,7 +21678,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -21661,7 +21802,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [
@@ -21878,7 +22020,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "level",
@@ -21888,7 +22031,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -22031,7 +22175,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -22180,7 +22325,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -22316,7 +22462,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "tails",
@@ -22326,7 +22473,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -22479,7 +22627,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -22625,7 +22774,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -22787,7 +22937,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -22898,9 +23049,15 @@
           ]
         },
         "mode": {
-          "description": "how the random value moves the input",
-          "$ref": "#/$defs/ErraticMode",
-          "default": "shift"
+          "description": "how the random value moves the input; unset, blend when the input has a range and shift when not",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ErraticMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "sparse": {
           "description": "draw a random depth per value: low amounts mostly stay near the input with rare big jumps, high amounts mostly jump",
@@ -22999,7 +23156,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -23047,6 +23205,7 @@
         "description": "bottom of the input's range",
         "paramType": "control",
         "defaultValue": -5.0,
+        "defaultDoc": "the bottom of the input's range when it has one, otherwise -5",
         "controlMin": -5.0,
         "controlMax": 5.0
       },
@@ -23055,6 +23214,7 @@
         "description": "top of the input's range",
         "paramType": "control",
         "defaultValue": 5.0,
+        "defaultDoc": "the top of the input's range when it has one, otherwise 5",
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -23178,7 +23338,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -23330,7 +23491,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -23463,7 +23625,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -23579,7 +23742,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -23752,7 +23916,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -23933,7 +24098,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "pos",
@@ -23943,7 +24109,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "neg",
@@ -23953,7 +24120,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -24116,7 +24284,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -24242,7 +24411,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -24298,19 +24468,31 @@
         },
         "inMin": {
           "description": "input value that maps to outMin",
-          "$ref": "#/$defs/PolySignal"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "inMax": {
           "description": "input value that maps to outMax",
-          "$ref": "#/$defs/PolySignal"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
         "input",
         "outMin",
-        "outMax",
-        "inMin",
-        "inMax"
+        "outMax"
       ],
       "$defs": {
         "PolySignal": {
@@ -24379,7 +24561,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "params"
       }
     ],
     "bufferOutputs": [],
@@ -24410,6 +24593,7 @@
         "description": "input value that maps to outMin",
         "paramType": "control",
         "defaultValue": -5.0,
+        "defaultDoc": "the start of the input's range when it has one, otherwise -5",
         "controlMin": -5.0,
         "controlMax": 5.0
       },
@@ -24418,6 +24602,7 @@
         "description": "input value that maps to outMax",
         "paramType": "control",
         "defaultValue": 5.0,
+        "defaultDoc": "the end of the input's range when it has one, otherwise 5",
         "controlMin": -5.0,
         "controlMax": 5.0
       }
@@ -24546,7 +24731,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -24673,7 +24859,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -24812,7 +24999,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -24985,7 +25173,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "trig",
@@ -24995,7 +25184,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -25127,7 +25317,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "inherit"
+        "precision": "inherit",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -25262,7 +25453,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -25402,7 +25594,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "inherit"
+        "precision": "inherit",
+        "bounds": "input"
       }
     ],
     "bufferOutputs": [],
@@ -25469,7 +25662,8 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -25605,7 +25799,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -25766,7 +25961,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -25903,7 +26099,8 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -26035,7 +26232,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "inherit"
+        "precision": "inherit",
+        "bounds": "params"
       }
     ],
     "bufferOutputs": [],
@@ -28443,7 +28641,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "gate",
@@ -28453,7 +28652,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "trig",
@@ -28463,7 +28663,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "velocity",
@@ -28473,7 +28674,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -28679,7 +28881,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -28833,7 +29036,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -29080,7 +29284,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "sd",
@@ -29090,7 +29295,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "hh",
@@ -29100,7 +29306,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "bdAccent",
@@ -29110,7 +29317,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "sdAccent",
@@ -29120,7 +29328,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "hhAccent",
@@ -29130,7 +29339,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -29428,7 +29638,8 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "velocity",
@@ -29438,7 +29649,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "trigger",
@@ -29448,7 +29660,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -29598,7 +29811,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       },
       {
         "name": "gate",
@@ -29608,7 +29822,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "velocity",
@@ -29618,7 +29833,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "aftertouch",
@@ -29628,7 +29844,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "retrigger",
@@ -29638,7 +29855,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "pitchWheel",
@@ -29648,7 +29866,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "modWheel",
@@ -29658,7 +29877,8 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -29738,7 +29958,8 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -29937,7 +30158,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -30125,7 +30347,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -30313,7 +30536,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -30513,7 +30737,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -30755,7 +30980,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -31016,7 +31242,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -31299,7 +31526,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -31602,7 +31830,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -31895,7 +32124,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "exciter",
@@ -31905,7 +32135,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -32161,7 +32392,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "raw",
@@ -32171,7 +32403,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -32405,7 +32638,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -32662,7 +32896,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -32933,7 +33168,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -33194,7 +33430,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -33477,7 +33714,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "excitation",
@@ -33487,7 +33725,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -33779,7 +34018,8 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "exciter",
@@ -33789,7 +34029,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -34044,7 +34285,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "sine",
@@ -34054,7 +34296,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -34283,7 +34526,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "subOctave",
@@ -34293,7 +34537,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -34513,7 +34758,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "excitation",
@@ -34523,7 +34769,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -34738,7 +34985,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "excitation",
@@ -34748,7 +34996,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -34963,7 +35212,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "excitation",
@@ -34973,7 +35223,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -35192,7 +35443,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "pm",
@@ -35202,7 +35454,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -35426,7 +35679,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       },
       {
         "name": "overtones",
@@ -35436,7 +35690,8 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -35656,7 +35911,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -35941,7 +36197,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -36091,7 +36348,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -36314,7 +36572,8 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -36487,7 +36746,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -36695,7 +36955,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -36868,7 +37129,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -37051,7 +37313,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -37229,7 +37492,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -37437,7 +37701,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -37580,7 +37845,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
@@ -37720,7 +37986,8 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32"
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],

@@ -1,6 +1,7 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::bounds::Bounds;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
@@ -28,7 +29,7 @@ struct WrapParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WrapOutputs {
-    #[output("output", "the wrapped signal", type = cv, precision = inherit, default)]
+    #[output("output", "the wrapped signal", type = cv, precision = inherit, bounds = params, default)]
     sample: PolyOutput,
 }
 
@@ -81,9 +82,27 @@ fn wrap_value<T: Sample>(val: T, a: T, b: T, octave: bool) -> T {
     }
 }
 
+/// The span a wrapped signal stays in: the range, rising, or in octave mode
+/// half a volt past either end, where a note keeps its pitch class.
+fn wrapped_bounds(a: f32, b: f32, octave: bool) -> Bounds {
+    let span = Bounds::new(a, b).sorted();
+    if octave {
+        Bounds::new(span.start - 0.5, span.end + 0.5)
+    } else {
+        span
+    }
+}
+
 impl Wrap {
     fn update(&mut self, _sample_rate: f32) {
         let (params, octave) = (&self.params, self.params.octave);
+        if self.outputs.sample.stores_bounds() {
+            for i in 0..self.channel_count() {
+                let bounds =
+                    wrapped_bounds(params.min.get_value(i), params.max.get_value(i), octave);
+                self.outputs.sample.set_bounds(i, bounds);
+            }
+        }
         if self.outputs.sample.is_f64() {
             for i in 0..self.channel_count() {
                 let output = wrap_value(

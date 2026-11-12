@@ -3,6 +3,8 @@ use schemars::JsonSchema;
 
 use std::ops::Range;
 
+use crate::block_input::{self, InputScratch};
+use crate::bounds::Bounds;
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{CatmullRom, SchmittState, SchmittTrigger};
 use crate::module_category::ModuleCategory;
@@ -42,12 +44,11 @@ fn speed_to_increment(speed: f32, sample_rate: f32) -> f32 {
 }
 
 /// How the random value moves the input.
-#[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
+#[derive(Clone, Copy, Debug, Deserr, JsonSchema, PartialEq, Eq, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 enum ErraticMode {
     /// add a random offset
-    #[default]
     Shift,
     /// add a random offset, then clamp to [min, max]
     Clamp,
@@ -55,12 +56,16 @@ enum ErraticMode {
     Blend,
 }
 
-#[params]
+#[params(
+    bounded_when = erratic_bounded,
+    reads_bounds = erratic_reads_bounds,
+    settles = erratic_settle
+)]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ErraticParams {
-    #[input("signal to vary", type = audio)]
+    #[input("signal to vary", type = audio, bounds)]
     input: PolySignal,
     #[input(
         "how far the variation reaches: at 5, shift moves up to half the range either way and blend jumps all the way to the random value; blend stops deepening past 5",
@@ -89,28 +94,59 @@ struct ErraticParams {
     )]
     #[deserr(default)]
     bias: Option<PolySignal>,
-    #[input("bottom of the input's range", type = control, default = -5.0, control_range = (-5.0, 5.0))]
+    #[input(
+        "bottom of the input's range",
+        type = control,
+        default = -5.0,
+        default_doc = "the bottom of the input's range when it has one, otherwise -5",
+        control_range = (-5.0, 5.0),
+    )]
+    #[block_input(optional)]
     #[deserr(default)]
     min: Option<PolySignal>,
-    #[input("top of the input's range", type = control, default = 5.0, control_range = (-5.0, 5.0))]
+    #[input(
+        "top of the input's range",
+        type = control,
+        default = 5.0,
+        default_doc = "the top of the input's range when it has one, otherwise 5",
+        control_range = (-5.0, 5.0),
+    )]
+    #[block_input(optional)]
     #[deserr(default)]
     max: Option<PolySignal>,
-    #[input("how the random value moves the input", default = "shift")]
+    #[input(
+        "how the random value moves the input; unset, blend when the input has a range and shift when not"
+    )]
     #[serde(default)]
     #[deserr(default)]
-    mode: ErraticMode,
+    mode: Option<ErraticMode>,
     #[input(
         "draw a random depth per value: low amounts mostly stay near the input with rare big jumps, high amounts mostly jump"
     )]
     #[serde(default)]
     #[deserr(default)]
     sparse: bool,
+    /// The mode an unset `mode` settles on when the patch is built.
+    #[serde(skip)]
+    #[deserr(skip)]
+    #[schemars(skip)]
+    settled_mode: Option<ErraticMode>,
+}
+
+impl ErraticParams {
+    /// The mode in use: as set, or as settled for this patch.
+    #[inline(always)]
+    fn mode(&self) -> ErraticMode {
+        self.mode
+            .or(self.settled_mode)
+            .unwrap_or(ErraticMode::Shift)
+    }
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ErraticOutputs {
-    #[output("output", "the varied signal", type = cv, default)]
+    #[output("output", "the varied signal", type = cv, bounds = input, default)]
     sample: PolyOutput,
 }
 
@@ -137,6 +173,55 @@ struct ErraticChannelState {
     held: (f32, f32),
 }
 
+/// The mode an unset `mode` takes: blend when the input has a range (a
+/// bounded input that is not a fixed voltage), and shift when not.
+fn unset_mode(p: &ErraticParams, is_bounded: &dyn Fn(&str, &str) -> bool) -> ErraticMode {
+    if p.input.statically_bounded(is_bounded) && !p.input.is_constant() {
+        ErraticMode::Blend
+    } else {
+        ErraticMode::Shift
+    }
+}
+
+/// Clamped and blended variation stays within the range; a shift can carry
+/// the input anywhere.
+fn erratic_bounded(p: &ErraticParams, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
+    p.mode.unwrap_or_else(|| unset_mode(p, is_bounded)) != ErraticMode::Shift
+}
+
+fn erratic_settle(p: &mut ErraticParams, is_bounded: &dyn Fn(&str, &str) -> bool) {
+    p.settled_mode = Some(p.mode.unwrap_or_else(|| unset_mode(p, is_bounded)));
+}
+
+/// An unset `min` or `max` follows the input's range.
+fn erratic_reads_bounds(p: &ErraticParams) -> Vec<&PolySignal> {
+    if p.min.is_none() || p.max.is_none() {
+        vec![&p.input]
+    } else {
+        Vec::new()
+    }
+}
+
+/// The range an unset `min` and `max` read: the input's, or ±5 for an input
+/// without one.
+#[inline(always)]
+fn input_range(input: Bounds) -> (f32, f32) {
+    if input.swings() {
+        (input.start, input.end)
+    } else {
+        (ErraticParams::MIN_DEFAULT, ErraticParams::MAX_DEFAULT)
+    }
+}
+
+/// The bounds of a channel's output: its range, unless it shifts.
+#[inline(always)]
+fn output_bounds(min: f32, max: f32, mode: ErraticMode) -> Bounds {
+    match mode {
+        ErraticMode::Shift => Bounds::UNBOUNDED,
+        ErraticMode::Clamp | ErraticMode::Blend => Bounds::new(min, max).sorted(),
+    }
+}
+
 /// One channel's inputs for one sample.
 struct ChannelInputs {
     input: f32,
@@ -147,6 +232,7 @@ struct ChannelInputs {
     bias: f32,
     min: f32,
     max: f32,
+    mode: ErraticMode,
 }
 
 impl ErraticChannelState {
@@ -214,7 +300,7 @@ impl ErraticChannelState {
         };
         let bias = f.bias.clamp(-5.0, 5.0) / 5.0;
 
-        let out = match p.mode {
+        let out = match f.mode {
             ErraticMode::Shift | ErraticMode::Clamp => {
                 let half = depth * 5.0 * (hi_bound - lo_bound) / NOMINAL_WIDTH;
                 let lo = -half * (1.0 - bias.max(0.0));
@@ -230,7 +316,7 @@ impl ErraticChannelState {
                 f.input + (target - f.input) * depth.min(1.0)
             }
         };
-        match p.mode {
+        match f.mode {
             ErraticMode::Shift => out,
             ErraticMode::Clamp | ErraticMode::Blend => out.clamp(lo_bound, hi_bound),
         }
@@ -275,18 +361,31 @@ pub struct Erratic {
 impl Erratic {
     fn update(&mut self, sample_rate: f32) {
         let p = &self.params;
+        let mode = p.mode();
+        let reads_bounds = p.min.is_none() || p.max.is_none();
         for ch in 0..self.channel_count() {
+            let (lo, hi) = if reads_bounds {
+                input_range(p.input.get_bounds(ch))
+            } else {
+                (0.0, 0.0)
+            };
+            let min = p.min.as_ref().map_or(lo, |min| min.get_value(ch));
+            let max = p.max.as_ref().map_or(hi, |max| max.get_value(ch));
             let frame = ChannelInputs {
                 input: p.input.get_value(ch),
                 amount: p.amount.get_value(ch),
                 trigger: p.trigger.as_ref().map(|trigger| trigger.get_value(ch)),
                 speed: p.speed.value_or(ch, ErraticParams::SPEED_DEFAULT),
                 bias: p.bias.value_or(ch, ErraticParams::BIAS_DEFAULT),
-                min: p.min.value_or(ch, ErraticParams::MIN_DEFAULT),
-                max: p.max.value_or(ch, ErraticParams::MAX_DEFAULT),
+                min,
+                max,
+                mode,
             };
             let value = self.channel_state[ch].step(frame, p, sample_rate);
             self.outputs.sample.set(ch, value);
+            self.outputs
+                .sample
+                .set_bounds(ch, output_bounds(min, max, mode));
         }
     }
 
@@ -298,17 +397,44 @@ impl Erratic {
     ) -> Option<()> {
         let channels = self.channel_count();
         let mut scratch = Default::default();
-        let inputs = self
-            .params
-            .block_inputs(range.clone(), channels, &mut scratch)?;
+        let p = &self.params;
+        let mode = p.mode();
+        let inputs = p.block_inputs(range.clone(), channels, &mut scratch)?;
+        // An unset range reads the input's, which holds still over the
+        // range or sends the slots to `update`.
+        let reads_bounds = p.min.is_none() || p.max.is_none();
+        if reads_bounds && (0..channels).any(|ch| p.input.block_bounds(range.clone(), ch).is_none())
+        {
+            return None;
+        }
+        let unset = |ch: usize| {
+            input_range(
+                p.input
+                    .block_bounds(range.clone(), ch)
+                    .unwrap_or(Bounds::UNBOUNDED),
+            )
+        };
+        let (mut s_min, mut s_max) = (InputScratch::new(), InputScratch::new());
+        let min = inputs.min.unwrap_or_else(|| {
+            block_input::constant_row(range.clone(), channels, &mut s_min, |ch| unset(ch).0)
+        });
+        let max = inputs.max.unwrap_or_else(|| {
+            block_input::constant_row(range.clone(), channels, &mut s_max, |ch| unset(ch).1)
+        });
+        block_input::map_bounds(
+            &mut outputs.sample,
+            range.clone(),
+            [min, max],
+            |_, [min, max]| Some(output_bounds(min, max, mode)),
+        )?;
         for i in range {
             let [input, amount, speed, bias, min, max] = [
                 &inputs.input,
                 &inputs.amount,
                 &inputs.speed,
                 &inputs.bias,
-                &inputs.min,
-                &inputs.max,
+                &min,
+                &max,
             ]
             .map(|input| input.row(i));
             let trigger = inputs.trigger.as_ref().map(|input| input.row(i));
@@ -321,8 +447,9 @@ impl Erratic {
                     bias: bias[ch],
                     min: min[ch],
                     max: max[ch],
+                    mode,
                 };
-                *value = self.channel_state[ch].step(frame, &self.params, sample_rate);
+                *value = self.channel_state[ch].step(frame, p, sample_rate);
             }
         }
         Some(())
@@ -367,8 +494,9 @@ mod tests {
             bias: Some(volts(bias)),
             min: None,
             max: None,
-            mode: ErraticMode::Shift,
+            mode: Some(ErraticMode::Shift),
             sparse: false,
+            settled_mode: None,
         }
     }
 
@@ -473,7 +601,7 @@ mod tests {
         let mut p = params(4.5, 5.0, 5.0, 5.0);
         p.min = Some(volts(0.0));
         p.max = Some(volts(5.0));
-        p.mode = ErraticMode::Clamp;
+        p.mode = Some(ErraticMode::Clamp);
         let mut m = make(p);
         let (lo, hi) = bounds(&run(&mut m, 1024));
         assert!(lo >= 4.5 && hi <= 5.0, "{lo}..{hi}");
@@ -516,7 +644,7 @@ mod tests {
         for (trigger, mode, sparse) in cases {
             let mut p = p.clone();
             p.trigger = trigger.then(|| volts(0.0));
-            p.mode = mode;
+            p.mode = Some(mode);
             p.sparse = sparse;
             let mut sample = make(p.clone());
             let mut block = make(p);
@@ -621,7 +749,7 @@ mod tests {
     #[test]
     fn blend_pulls_toward_a_uniform_point_in_range() {
         let mut p = params(4.0, 5.0, 5.0, 0.0);
-        p.mode = ErraticMode::Blend;
+        p.mode = Some(ErraticMode::Blend);
         p.min = Some(volts(0.0));
         p.max = Some(volts(5.0));
         let xs = run(&mut make(p.clone()), 100_000);
@@ -642,7 +770,7 @@ mod tests {
     #[test]
     fn blend_bias_targets_one_side_of_the_input() {
         let mut p = params(1.0, 5.0, 5.0, 5.0);
-        p.mode = ErraticMode::Blend;
+        p.mode = Some(ErraticMode::Blend);
         let (lo, hi) = bounds(&run(&mut make(p.clone()), 10_000));
         assert!((1.0..1.1).contains(&lo) && hi > 4.9, "{lo}..{hi}");
 
@@ -656,7 +784,7 @@ mod tests {
     #[test]
     fn sparse_draws_full_depth_for_a_share_of_points() {
         let mut p = params(0.0, 5.0, 5.0, 5.0);
-        p.mode = ErraticMode::Blend;
+        p.mode = Some(ErraticMode::Blend);
         p.min = Some(volts(0.0));
         p.max = Some(volts(1.0));
         p.sparse = true;

@@ -72,6 +72,7 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
             max_value: None,
             channels: None,
             precision: crate::types::OutputPrecision::F32,
+            bounds: crate::types::BoundsKind::Unbounded,
         }]
     }
 
@@ -171,6 +172,40 @@ impl BufferWriteBlockOutputs {
         for ch in 0..self.sample.channels() {
             self.sample.set(slot, ch, inner.sample.get_cycling(ch));
         }
+    }
+
+    pub fn make_bounded(&mut self, _mask: u64) {}
+
+    pub fn start_bounds_block(&mut self) {}
+
+    pub fn bounds_written(&self, _end: usize) -> bool {
+        true
+    }
+
+    pub fn get_bounds_at(
+        &self,
+        _port_idx: usize,
+        _ch: usize,
+        _index: usize,
+    ) -> crate::bounds::Bounds {
+        crate::bounds::Bounds::UNBOUNDED
+    }
+
+    pub fn port_bounds(
+        &self,
+        _port_idx: usize,
+        _processed: *const std::cell::Cell<usize>,
+        _live: bool,
+    ) -> crate::bounds::PortBounds {
+        crate::bounds::PortBounds::Unbounded
+    }
+
+    pub const INPUT_BOUNDED_PORTS: u64 = 0;
+
+    pub const PORT_NAMES: &'static [&'static str] = &["output"];
+
+    pub fn bounded_mask(_inputs_bounded: bool) -> u64 {
+        0
     }
 }
 

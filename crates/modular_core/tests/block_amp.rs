@@ -168,3 +168,22 @@ fn allocation_free() {
         assert_eq!(allocations_while_rendering("$amp", params), 0);
     }
 }
+
+#[test]
+fn bounds_scale_with_the_factor() {
+    let input = poly_cable("src", CHANNELS);
+    let cases = [
+        (json!(2.5), Bounds::new(-2.5, 2.5)),
+        // A negative factor swaps the swing, as it inverts the signal.
+        (json!(-5.0), Bounds::new(5.0, -5.0)),
+        (poly_cable("lfo", CHANNELS), Bounds::new(-5.0, 5.0)),
+    ];
+    for (factor, expected) in cases {
+        let bounds = check_bounds_agree("$amp", json!({ "input": input, "factor": factor }));
+        assert!(
+            bounds.iter().all(|&b| b == expected),
+            "{factor}: {:?}",
+            bounds[0]
+        );
+    }
+}

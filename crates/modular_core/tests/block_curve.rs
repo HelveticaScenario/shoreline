@@ -30,3 +30,16 @@ fn allocation_free() {
         assert_eq!(allocations_while_rendering("$curve", params), 0);
     }
 }
+
+#[test]
+fn bounds_bend_with_the_signal() {
+    let bounds = check_bounds_agree(
+        "$curve",
+        json!({ "input": poly_cable("src", CHANNELS), "exp": 2.0 }),
+    );
+    assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
+    check_bounds_agree(
+        "$curve",
+        json!({ "input": poly_cable("src", CHANNELS), "exp": poly_cable("lfo", CHANNELS) }),
+    );
+}

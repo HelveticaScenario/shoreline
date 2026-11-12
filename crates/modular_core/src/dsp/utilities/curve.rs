@@ -14,7 +14,7 @@ use crate::types::SwapGlide;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CurveParams {
-    #[input("signal to bend", type = audio)]
+    #[input("signal to bend", type = audio, bounds)]
     input: PolySignal,
     #[input(
         "power the signal is raised to: 0 jumps straight to ±5 V, 1 leaves it unchanged, above 1 pulls the middle toward 0",
@@ -22,6 +22,7 @@ struct CurveParams {
         default = 1.0,
         range = (0.0, ..),
         control_range = (0.0, 10.0),
+        bounds,
     )]
     exp: PolySignal,
 }
@@ -29,7 +30,7 @@ struct CurveParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct CurveOutputs {
-    #[output("output", "the bent signal", type = cv, default)]
+    #[output("output", "the bent signal", type = cv, bounds = input, default)]
     sample: PolyOutput,
 }
 
@@ -74,11 +75,22 @@ fn curve(x: f32, exp: f32) -> f32 {
 impl Curve {
     fn update(&mut self, sample_rate: f32) {
         let exp = &self.params.exp;
-        for i in 0..self.channel_count() {
-            let exp_value =
-                self.channel_state[i].follow(exp.get_value(i), exp.glide_mark(i), sample_rate);
-            let value = curve(self.params.input.get_value(i), exp_value);
-            self.outputs.sample.set(i, value);
+        let channels = self.channel_count();
+        let out = &mut self.outputs.sample;
+        for i in 0..channels {
+            let glide = &mut self.channel_state[i];
+            let exp_value = glide.follow(exp.get_value(i), exp.glide_mark(i), sample_rate);
+            let input = &self.params.input;
+            out.set(i, curve(input.get_value(i), exp_value));
+            if out.stores_bounds() {
+                let input = input.get_bounds(i);
+                let bounds = if glide.gliding() {
+                    input.map(|x| curve(x, exp_value))
+                } else {
+                    input.combine(exp.get_bounds(i), curve)
+                };
+                out.set_bounds(i, bounds);
+            }
         }
     }
 
@@ -100,6 +112,11 @@ impl Curve {
             .input
             .block_input(range.clone(), channels, &mut s0)?;
         let exp_input = exp.block_input(range.clone(), channels, &mut s1)?;
+        let signal = &self.params.input;
+        outputs.sample.fill_bounds_with(range.clone(), |ch| {
+            let input = signal.block_bounds(range.clone(), ch)?;
+            Some(input.combine(exp.block_bounds(range.clone(), ch)?, curve))
+        })?;
         exp.settle_glides(glides, exp_input.row(range.end - 1));
         block_input::map(
             &mut outputs.sample,

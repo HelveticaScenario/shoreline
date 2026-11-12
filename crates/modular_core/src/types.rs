@@ -99,6 +99,7 @@ impl WellKnownModule {
             channel,
             index_ptr: std::ptr::null(),
             view: None,
+            bounds: crate::bounds::PortBounds::Unbounded,
         }
     }
 
@@ -300,6 +301,45 @@ pub trait Sampleable: MessageHandler + Send {
     fn port_view(&self, _port: &str) -> Option<PortView> {
         None
     }
+    /// The bounds of port `port`, channel `ch`, at slot `index`, read like
+    /// [`get_value_at`](Self::get_value_at) so they always belong to the
+    /// value read there, the feedback delay included.
+    fn get_bounds_at(&self, _port: &str, _ch: usize, _index: usize) -> crate::bounds::Bounds {
+        crate::bounds::Bounds::UNBOUNDED
+    }
+    /// How a cable reads port `port`'s bounds, as [`port_view`](Self::port_view)
+    /// gives its values.
+    fn port_bounds(&self, _port: &str) -> crate::bounds::PortBounds {
+        crate::bounds::PortBounds::Unbounded
+    }
+    /// Port `port`'s index, the bit for it in [`bounded_outputs`](Self::bounded_outputs).
+    fn port_index(&self, _port: &str) -> Option<usize> {
+        None
+    }
+    /// The output port names, by port index.
+    fn port_names(&self) -> &'static [&'static str] {
+        &[]
+    }
+    /// Let the params fix their choices from which outputs in the patch are
+    /// bounded (see [`BoundsInputs::settle`]). Main thread, before the module
+    /// is shipped to the audio thread.
+    fn settle_params(&self, _is_bounded: &dyn Fn(&str, &str) -> bool) {}
+    /// The outputs of this module that carry bounds in a patch whose bounded
+    /// outputs `is_bounded(module, port)` names, as bits by port index.
+    /// Main thread, before the module is shipped to the audio thread.
+    fn bounded_outputs(&self, _is_bounded: &dyn Fn(&str, &str) -> bool) -> u64 {
+        0
+    }
+    /// The outputs whose bounds this module reads, given the outputs of its
+    /// own whose bounds are read (`demanded`, bits by port index): the inputs
+    /// it reads bounds from for itself, and those its demanded outputs'
+    /// bounds come from. Main thread, while the patch is analysed.
+    fn bounds_sources(&self, _demanded: u64) -> Vec<CableSource> {
+        Vec::new()
+    }
+    /// Give the outputs in `mask` their bounds storage. Main thread only:
+    /// allocates, before the module is connected.
+    fn make_bounded(&self, _mask: u64) {}
     /// Read like [`get_value_at`](Self::get_value_at), but treat channels at or
     /// above the port's width as silence rather than cycling back over the
     /// lower ones. For consumers whose channels are physical rather than
@@ -2007,6 +2047,8 @@ pub enum Signal {
         /// `connect()` alongside `resolved`. `None` when the upstream offers
         /// no view; reads then always go through `get_value_at`.
         view: Option<CableView>,
+        /// How to read the upstream port's bounds, resolved with `view`.
+        bounds: crate::bounds::PortBounds,
     },
 }
 
@@ -2170,6 +2212,7 @@ impl Signal {
             channel,
             index_ptr: std::ptr::null(),
             view: None,
+            bounds: crate::bounds::PortBounds::Unbounded,
         }
     }
 }
@@ -2227,6 +2270,7 @@ impl<'de> Deserialize<'de> for Signal {
                     channel,
                     index_ptr: std::ptr::null(),
                     view: None,
+                    bounds: crate::bounds::PortBounds::Unbounded,
                 },
             }),
         }
@@ -2327,6 +2371,7 @@ impl<E: DeserializeError> deserr::Deserr<E> for Signal {
                             channel,
                             index_ptr: std::ptr::null(),
                             view: None,
+                            bounds: crate::bounds::PortBounds::Unbounded,
                         })
                     }
                     Some(other) => Err(deserr::take_cf_content(E::error::<V>(
@@ -2457,6 +2502,85 @@ impl Signal {
     }
 }
 
+impl Signal {
+    /// The bounds of the value [`get_value`](Self::get_value) reads, at the
+    /// same slot: a constant holds still, and a cable reads its producer's.
+    pub fn get_bounds(&self) -> crate::bounds::Bounds {
+        use crate::bounds::{Bounds, PortBounds};
+        match self {
+            Signal::Volts(v) => Bounds::point(*v),
+            Signal::Cable {
+                resolved,
+                port,
+                channel,
+                index_ptr,
+                bounds,
+                ..
+            } => {
+                let Some(ptr) = resolved else {
+                    return Bounds::point(0.0);
+                };
+                let index = if index_ptr.is_null() {
+                    0
+                } else {
+                    unsafe { (*(*index_ptr)).get() }
+                };
+                match *bounds {
+                    PortBounds::Unbounded => Bounds::UNBOUNDED,
+                    PortBounds::Fixed(fixed) => fixed,
+                    // SAFETY: as `CableView::read`: `index < processed <=
+                    // block_size` keeps the read inside the producer's buffer.
+                    PortBounds::Stored { store, processed }
+                        if index < unsafe { (*processed).get() } =>
+                    unsafe { (*store).at(index, *channel) },
+                    PortBounds::Stored { .. } | PortBounds::Live { .. } => {
+                        unsafe { ptr.as_ref() }.get_bounds_at(port, *channel, index)
+                    }
+                }
+            }
+        }
+    }
+
+    /// This signal's bounds when they hold still over `range`, rendering a
+    /// cable's producer through it; `None` when they move. Read by Block-mode
+    /// modules only, which a feedback cycle never re-enters.
+    pub(crate) fn uniform_bounds(
+        &self,
+        range: std::ops::Range<usize>,
+    ) -> Option<crate::bounds::Bounds> {
+        use crate::bounds::{Bounds, PortBounds};
+        match self {
+            Signal::Volts(v) => Some(Bounds::point(*v)),
+            Signal::Cable {
+                resolved,
+                channel,
+                bounds,
+                ..
+            } => {
+                let Some(ptr) = resolved else {
+                    return Some(Bounds::point(0.0));
+                };
+                match *bounds {
+                    PortBounds::Unbounded => Some(Bounds::UNBOUNDED),
+                    PortBounds::Fixed(fixed) => Some(fixed),
+                    // SAFETY: as `PolyCableView::rendered_to`, then reads below
+                    // `processed`, inside the producer's buffer.
+                    PortBounds::Stored { store, processed }
+                    | PortBounds::Live { store, processed } => unsafe {
+                        if (*processed).get() < range.end {
+                            ptr.as_ref().ensure_processed_to(range.end);
+                        }
+                        if (*processed).get() < range.end || range.is_empty() {
+                            return None;
+                        }
+                        (*store).uniform(range, *channel)
+                    },
+                }
+            }
+        }
+    }
+}
+
 /// Extension trait for normalling pattern on optional signals.
 pub trait SignalExt {
     /// Returns the signal's value, or `default` if None.
@@ -2501,6 +2625,7 @@ impl Connect for Signal {
             port,
             channel,
             view,
+            bounds,
             ..
         } = self
         {
@@ -2509,6 +2634,9 @@ impl Connect for Signal {
             *view = upstream
                 .and_then(|sampleable| sampleable.port_view(port))
                 .map(|port_view| CableView::new(port_view, *channel));
+            *bounds = upstream.map_or(crate::bounds::PortBounds::Unbounded, |sampleable| {
+                sampleable.port_bounds(port)
+            });
         }
     }
     fn collect_cables(&self, sink: &mut Vec<CableSource>) {
@@ -2739,6 +2867,57 @@ pub struct OutputSchema {
     #[serde(default)]
     #[napi(ts_type = "string")]
     pub precision: OutputPrecision,
+    /// A `BoundsKind` value.
+    #[serde(default)]
+    #[napi(ts_type = "string")]
+    pub bounds: BoundsKind,
+}
+
+/// How an output's bounds arise, named in `#[output(bounds = …)]` or implied
+/// by its `range`. Whether a `Params` or `Input` output is bounded in a given
+/// patch is settled when the patch is built.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[napi(string_enum = "lowercase")]
+pub enum BoundsKind {
+    /// Never bounded.
+    #[default]
+    Unbounded,
+    /// Always within the output's declared range.
+    Fixed,
+    /// Bounded by the module's own params.
+    Params,
+    /// Bounded when every input the module tags with `bounds` is.
+    Input,
+}
+
+/// How a module's params take part in bounds, for the patch analysis on the
+/// main thread. `#[params]` derives it: the inputs tagged
+/// `#[input(…, bounds)]` are those its `bounds = input` outputs' bounds come
+/// from, and `#[params(bounded_when = …, reads_bounds = …)]` supply the other
+/// two methods.
+pub trait BoundsInputs {
+    /// The connected inputs the `bounds = input` outputs' bounds come from.
+    fn bounds_inputs(&self) -> Vec<&crate::poly::PolySignal>;
+
+    /// Whether the `bounds = input` outputs are bounded, given which outputs
+    /// in the patch are: by default, when every input in
+    /// [`bounds_inputs`](Self::bounds_inputs) is.
+    fn inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
+        self.bounds_inputs()
+            .iter()
+            .all(|input| input.statically_bounded(is_bounded))
+    }
+
+    /// The inputs whose bounds the module reads for itself, beyond deriving
+    /// its own: an unset input range that follows the input's.
+    fn bounds_read(&self) -> Vec<&crate::poly::PolySignal> {
+        Vec::new()
+    }
+
+    /// Fix, once per patch, any choice the module makes from whether its
+    /// inputs are bounded, so it never changes while the patch plays.
+    fn settle(&mut self, _is_bounded: &dyn Fn(&str, &str) -> bool) {}
 }
 
 pub trait OutputStruct: Default + Send + 'static {
@@ -2748,6 +2927,10 @@ pub trait OutputStruct: Default + Send + 'static {
     /// `Inherit` ones when `inherit` is set. Allocates — main thread only,
     /// after [`set_all_channels`](Self::set_all_channels).
     fn make_f64_outputs(&mut self, _inherit: bool) {}
+    /// Give the bounded outputs in `mask` (bits by port index) their bounds.
+    /// Allocates — main thread only, after
+    /// [`set_all_channels`](Self::set_all_channels).
+    fn make_bounded(&mut self, _mask: u64) {}
     fn schemas() -> Vec<OutputSchema>
     where
         Self: Sized;

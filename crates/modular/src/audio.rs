@@ -1132,6 +1132,10 @@ pub struct AudioState {
     /// build the editor JSON in `get_module_states`. Single lock for `&self`
     /// mutation; the audio thread never touches it. See [`ModuleStateMetaCache`].
     module_state_meta: Mutex<ModuleStateMetaCache>,
+    /// Which outputs are bounded and read in each built patch not yet
+    /// superseded, by update id and whether it applies at once, so a module
+    /// rebuilt on its own settles as the patch it lands in did.
+    patch_bounds: Mutex<Vec<(u64, bool, modular_core::patch::PatchBounds)>>,
     /// The last successfully built editor-state JSON, served when a poll loses
     /// the `module_states` try_lock race with the audio thread — so contention
     /// reads as an unchanged poll, never as "all modules removed". Shared via
@@ -1187,6 +1191,7 @@ impl AudioState {
             audio_budget_meter: Arc::new(AudioBudgetMeter::default()),
             module_states: Arc::new(Mutex::new(HashMap::new())),
             module_state_meta: Mutex::new(ModuleStateMetaCache::default()),
+            patch_bounds: Mutex::new(Vec::new()),
             module_states_snapshot: Mutex::new(Arc::new(HashMap::new())),
             midi_manager,
             transport_meter: Arc::new(TransportMeter::default()),
@@ -1194,6 +1199,23 @@ impl AudioState {
             block_size,
             module_profile_collection: modular_core::profiling::new_collection(),
             module_profiling_enable_count: Arc::new(AtomicU32::new(0)),
+        }
+    }
+
+    /// Settle `module`, rebuilt on its own as `id`, as the patch it lands in
+    /// settled its predecessor, dropping older patches. The command queue
+    /// delivers it after every update sent before it, so it lands in the
+    /// newest update that applies at once, or else in the last applied one;
+    /// one waiting for a bar or beat has not taken over yet.
+    pub fn settle_rebuilt(&self, id: &str, module: &dyn modular_core::types::Sampleable) {
+        let applied = self.transport_meter.read_applied_update_id();
+        let mut patches = self.patch_bounds.lock();
+        let lands_in = patches
+            .iter()
+            .rposition(|(update_id, immediate, _)| *immediate || *update_id <= applied);
+        if let Some(lands_in) = lands_in {
+            patches.drain(..lands_in);
+            patches[0].2.settle_rebuilt(id, module);
         }
     }
 
@@ -1635,6 +1657,11 @@ impl AudioState {
             .new_patch
             .insert_modules(to_construct, sample_rate, self.block_size)
             .map_err(napi::Error::from_reason)?;
+        self.patch_bounds.lock().push((
+            update.update_id,
+            matches!(trigger, QueuedTrigger::Immediate),
+            std::mem::take(&mut update.new_patch.bounds),
+        ));
         block_ids.sort();
         sample_ids.sort();
         println!(
@@ -5109,6 +5136,126 @@ mod tests {
             Arc::new(MidiInputManager::new()),
             1,
         )
+    }
+
+    #[test]
+    fn a_module_rebuilt_on_its_own_keeps_its_bounds() {
+        // A module rebuilt on its own (`set_module_param`) takes its storage
+        // from here, so its bounds keep reaching the modules that read them.
+        let state = create_test_audio_state();
+        let cable = |module: &str| serde_json::json!({ "type": "cable", "module": module, "port": "output", "channel": 0 });
+        let module = |id: &str, module_type: &str, params| modular_core::types::ModuleSpec {
+            id: id.into(),
+            module_type: module_type.into(),
+            id_is_explicit: None,
+            skip_state_transfer: None,
+            params,
+        };
+        let graph_modules = vec![
+            module("saw", "$saw", serde_json::json!({ "freq": 0.0 })),
+            module(
+                "read",
+                "$add",
+                serde_json::json!({ "input": cable("saw"), "offset": 1.0 }),
+            ),
+            module(
+                "unread",
+                "$add",
+                serde_json::json!({ "input": cable("saw"), "offset": 1.0 }),
+            ),
+            module(
+                "reader",
+                "$remap",
+                serde_json::json!({ "input": cable("read"), "outMin": 0.0, "outMax": 1.0 }),
+            ),
+        ];
+        let graph = PatchGraph {
+            modules: graph_modules.clone(),
+            module_id_remaps: None,
+            scopes: vec![],
+            vu_meters: vec![],
+        };
+        let errors = state.handle_set_patch(PatchSubmission {
+            graph,
+            sample_rate: 44_100.0,
+            trigger: QueuedTrigger::Immediate,
+            update_id: 1,
+            wav_data: HashMap::new(),
+            transport_meta: None,
+            reset_clock: false,
+        });
+        assert!(
+            errors.is_empty(),
+            "{:?}",
+            errors.iter().map(|e| &e.message).collect::<Vec<_>>()
+        );
+        // Rebuilt for a slider move, `read` still stores its bounds; `unread`
+        // never did.
+        state.transport_meter.write_applied_update_id(1);
+        let rebuilt = |id: &str| {
+            let deserialized = crate::params_cache::deserialize_params(
+                "$add",
+                serde_json::json!({ "input": cable("saw"), "offset": 2.0 }),
+                false,
+            )
+            .unwrap();
+            let constructors = modular_core::dsp::get_constructors();
+            let module = constructors["$add"](
+                id,
+                44_100.0,
+                deserialized,
+                1,
+                modular_core::types::ProcessingMode::Block,
+            )
+            .unwrap();
+            state.settle_rebuilt(id, module.as_ref());
+            module.ensure_processed_to(1);
+            module.get_bounds_at("output", 0, 0)
+        };
+        assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::point(2.0));
+        assert_eq!(rebuilt("unread"), modular_core::bounds::Bounds::UNBOUNDED);
+
+        // A newer patch waiting for the next bar changes nothing: the rebuilt
+        // module lands in the patch that is playing.
+        let mut unread = graph_modules.clone();
+        unread.retain(|module| module.id != "reader");
+        let errors = state.handle_set_patch(PatchSubmission {
+            graph: PatchGraph {
+                modules: unread,
+                module_id_remaps: None,
+                scopes: vec![],
+                vu_meters: vec![],
+            },
+            sample_rate: 44_100.0,
+            trigger: QueuedTrigger::NextBar,
+            update_id: 2,
+            wav_data: HashMap::new(),
+            transport_meta: None,
+            reset_clock: false,
+        });
+        assert!(errors.is_empty());
+        assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::point(2.0));
+        state.transport_meter.write_applied_update_id(2);
+        assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::UNBOUNDED);
+
+        // One that applies at once is where the rebuilt module lands, even
+        // before the audio thread reports it applied.
+        let errors = state.handle_set_patch(PatchSubmission {
+            graph: PatchGraph {
+                modules: graph_modules,
+                module_id_remaps: None,
+                scopes: vec![],
+                vu_meters: vec![],
+            },
+            sample_rate: 44_100.0,
+            trigger: QueuedTrigger::Immediate,
+            update_id: 3,
+            wav_data: HashMap::new(),
+            transport_meta: None,
+            reset_clock: false,
+        });
+        assert!(errors.is_empty());
+        assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::point(2.0));
     }
 
     #[test]

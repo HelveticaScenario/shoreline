@@ -20,6 +20,9 @@ pub fn join_f64(hi: f32, lo: f32) -> f64 {
     hi as f64 + lo as f64
 }
 
+use crate::bounds::Bounds;
+use crate::poly::PORT_MAX_CHANNELS;
+
 /// A pre-allocated buffer holding `block_size` samples, each with `channels`
 /// channels. The channel count is the producing port's width: 1 for a mono
 /// (f32) output, the module's channel count for a polyphonic output.
@@ -31,6 +34,9 @@ pub fn join_f64(hi: f32, lo: f32) -> f64 {
 /// Reads cycle (`ch % channels`) so a consumer with more channels than the
 /// producer still sees the producer's value broadcast/wrapped across its
 /// channels — preserving the mono→poly broadcast semantics.
+///
+/// A bounded port also stores one [`Bounds`] per channel per slot, laid out
+/// like f32 samples and written with them.
 pub struct BlockPort {
     /// Flat `block_size * channels * lanes` values. Length never changes after
     /// construction.
@@ -42,6 +48,110 @@ pub struct BlockPort {
     lanes: usize,
     /// Number of sample slots (the internal block size).
     block_size: usize,
+    /// The bounds of a bounded port.
+    bounds: Option<Box<BoundsStore>>,
+}
+
+/// A bounded port's bounds: a row per slot, `channels` to a row. Bounds
+/// rarely move within a block, so the slots from 0 while they hold one row
+/// are kept as that row and a count, and only written out once a different
+/// row arrives.
+pub struct BoundsStore {
+    slots: Box<[Bounds]>,
+    /// Slots `0..run` hold `row` and are not written to `slots`.
+    run: usize,
+    row: Box<[Bounds]>,
+    /// One past the last slot written this block.
+    #[cfg(debug_assertions)]
+    written: usize,
+}
+
+/// `ch % channels`, skipping the division in the usual case of a channel the
+/// port has.
+#[inline(always)]
+fn cycle(ch: usize, channels: usize) -> usize {
+    if ch < channels { ch } else { ch % channels }
+}
+
+impl BoundsStore {
+    #[inline]
+    fn channels(&self) -> usize {
+        self.row.len()
+    }
+
+    /// The bounds at slot `index`, channel `ch` (cycling).
+    #[inline]
+    pub fn at(&self, index: usize, ch: usize) -> Bounds {
+        let ch = cycle(ch, self.channels());
+        if index < self.run {
+            self.row[ch]
+        } else {
+            self.slots[index * self.channels() + ch]
+        }
+    }
+
+    /// Channel `ch`'s bounds when they hold one value over every slot of
+    /// `range`.
+    #[inline]
+    pub fn uniform(&self, range: std::ops::Range<usize>, ch: usize) -> Option<Bounds> {
+        if range.end <= self.run {
+            return Some(self.row[cycle(ch, self.channels())]);
+        }
+        let first = self.at(range.start, ch);
+        range
+            .skip(1)
+            .all(|slot| self.at(slot, ch) == first)
+            .then_some(first)
+    }
+
+    /// Write `row` to every slot of `range`, extending the run when it
+    /// continues it.
+    #[inline]
+    fn write(&mut self, range: std::ops::Range<usize>, row: &[Bounds]) {
+        #[cfg(debug_assertions)]
+        {
+            self.written = self.written.max(range.end);
+        }
+        if range.start == self.run && (self.run == 0 || *self.row == *row) {
+            if self.run == 0 {
+                self.row.copy_from_slice(row);
+            }
+            self.run = range.end;
+            return;
+        }
+        self.settle();
+        let channels = self.channels();
+        for slot in
+            self.slots[range.start * channels..range.end * channels].chunks_exact_mut(channels)
+        {
+            slot.copy_from_slice(row);
+        }
+    }
+
+    /// Write the run out to its slots.
+    #[inline]
+    fn settle(&mut self) {
+        let channels = self.channels();
+        for slot in self.slots[..self.run * channels].chunks_exact_mut(channels) {
+            slot.copy_from_slice(&self.row);
+        }
+        self.run = 0;
+    }
+
+    #[inline]
+    fn start_block(&mut self) {
+        let channels = self.channels();
+        let block_size = self.slots.len() / channels;
+        if self.run == block_size {
+            let last = (block_size - 1) * channels;
+            self.slots[last..last + channels].copy_from_slice(&self.row);
+        }
+        self.run = 0;
+        #[cfg(debug_assertions)]
+        {
+            self.written = 0;
+        }
+    }
 }
 
 impl BlockPort {
@@ -64,6 +174,141 @@ impl BlockPort {
             channels,
             lanes,
             block_size,
+            bounds: None,
+        }
+    }
+
+    /// Give this port bounds storage, every slot holding 0 V's bounds until
+    /// written, as the samples hold 0 V. Main thread only, like
+    /// [`new`](Self::new); a zero-channel port stores none.
+    pub fn make_bounded(&mut self) {
+        if self.channels == 0 {
+            return;
+        }
+        let zero = Bounds::point(0.0);
+        self.bounds = Some(Box::new(BoundsStore {
+            slots: vec![zero; self.block_size * self.channels].into_boxed_slice(),
+            run: 0,
+            row: vec![zero; self.channels].into_boxed_slice(),
+            #[cfg(debug_assertions)]
+            written: 0,
+        }));
+    }
+
+    /// Whether every slot below `end` has had its bounds written this block;
+    /// checked in debug builds after a module renders, and always true
+    /// otherwise.
+    #[inline]
+    pub fn bounds_written(&self, end: usize) -> bool {
+        #[cfg(debug_assertions)]
+        if let Some(store) = &self.bounds {
+            return store.written >= end;
+        }
+        let _ = end;
+        true
+    }
+
+    /// Whether this port stores bounds.
+    #[inline]
+    pub fn has_bounds(&self) -> bool {
+        self.bounds.is_some()
+    }
+
+    /// The bounds storage, for cables that read it directly; `None` on a port
+    /// without bounds. It lives on the heap, so the pointer outlives moves of
+    /// the port.
+    #[inline]
+    pub fn bounds_store(&self) -> Option<*const BoundsStore> {
+        self.bounds
+            .as_deref()
+            .map(|store| store as *const BoundsStore)
+    }
+
+    /// The bounds at `(index, ch)`, cycling channels like [`get`](Self::get);
+    /// [`Bounds::UNBOUNDED`] on a port without bounds or out of range.
+    #[inline]
+    pub fn bounds_at(&self, index: usize, ch: usize) -> Bounds {
+        match &self.bounds {
+            Some(store) if index < self.block_size && self.channels > 0 => store.at(index, ch),
+            _ => Bounds::UNBOUNDED,
+        }
+    }
+
+    /// Write slot `index`'s bounds from `row`, cycled across this port's
+    /// channels; ignored on a port without bounds, out of range or for an
+    /// empty row.
+    #[inline]
+    pub fn set_bounds_row(&mut self, index: usize, row: &[Bounds]) {
+        let channels = self.channels.min(PORT_MAX_CHANNELS);
+        let Some(store) = &mut self.bounds else {
+            return;
+        };
+        if index >= self.block_size || row.is_empty() {
+            return;
+        }
+        if row.len() == channels {
+            store.write(index..index + 1, row);
+            return;
+        }
+        let mut cycled = [const { std::mem::MaybeUninit::uninit() }; PORT_MAX_CHANNELS];
+        for (ch, bounds) in cycled[..channels].iter_mut().enumerate() {
+            bounds.write(row[ch % row.len()]);
+        }
+        // SAFETY: the first `channels` entries were just written.
+        let cycled =
+            unsafe { std::slice::from_raw_parts(cycled.as_ptr() as *const Bounds, channels) };
+        store.write(index..index + 1, cycled);
+    }
+
+    /// Write one row to every slot of `range`: `rule(ch)` for each of this
+    /// port's channels. When any channel's rule gives `None`, writes nothing
+    /// and returns `None`, so a block path can decline. A port without bounds
+    /// skips the rule.
+    #[inline]
+    pub fn fill_bounds_with(
+        &mut self,
+        range: std::ops::Range<usize>,
+        rule: impl Fn(usize) -> Option<Bounds>,
+    ) -> Option<()> {
+        let channels = self.channels.min(PORT_MAX_CHANNELS);
+        let Some(store) = &mut self.bounds else {
+            return Some(());
+        };
+        let mut row = [const { std::mem::MaybeUninit::uninit() }; PORT_MAX_CHANNELS];
+        for (ch, bounds) in row[..channels].iter_mut().enumerate() {
+            bounds.write(rule(ch)?);
+        }
+        // SAFETY: the first `channels` entries were just written.
+        let row = unsafe { std::slice::from_raw_parts(row.as_ptr() as *const Bounds, channels) };
+        store.write(range, row);
+        Some(())
+    }
+
+    /// The bounds of slots `range`, flattened like
+    /// [`slots_mut`](Self::slots_mut), for a writer whose bounds change from
+    /// slot to slot; empty on a port without bounds.
+    #[inline]
+    pub fn bounds_slots_mut(&mut self, range: std::ops::Range<usize>) -> &mut [Bounds] {
+        let channels = self.channels;
+        match &mut self.bounds {
+            Some(store) => {
+                store.settle();
+                #[cfg(debug_assertions)]
+                {
+                    store.written = store.written.max(range.end);
+                }
+                &mut store.slots[range.start * channels..range.end * channels]
+            }
+            None => &mut [],
+        }
+    }
+
+    /// Begin a block: the stored bounds start afresh, the previous block's
+    /// last slot kept for a feedback cycle's delayed read of it.
+    #[inline]
+    pub fn start_bounds_block(&mut self) {
+        if let Some(store) = &mut self.bounds {
+            store.start_block();
         }
     }
 
