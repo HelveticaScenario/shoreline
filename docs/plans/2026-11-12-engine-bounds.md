@@ -59,7 +59,7 @@ Each rule is declared once and both paths call it.
 
 ## Consumers and the DSL
 
-- `$remap`'s `inMin`/`inMax` are optional; unset, they read the input's bounds in order, and an input without a range (unbounded, or holding one value) reads as `(-5, 5)`.
+- `$remap`'s `inMin`/`inMax` are optional; unset, they read the input's bounds in order, and an input without a range (unbounded, or holding one value) reads as `(-5, 5)`. Setting an unset limit glides from the range in use; unsetting one takes the input's range at once.
 - `_erratic`'s `min`/`max` unset read the input's range (±5 for an input without one), and its `mode` unset is settled when the patch is built (`#[params(settles = …)]`): `blend` when its input is bounded and not a fixed voltage, `shift` otherwise, so it never switches while the patch plays. The DSL's `.erratic()` on a signal it does not know is ranged asks for `shift` across a nominal ±5.
 - `.range(outMin, outMax, inMin?, inMax?)`: on a ranged collection the input range may be left out and comes from the engine; on any other it is required (a type error without it).
 - `_round` becomes `$round`, `$floor`, `$ceil` and `_erratic` becomes `$erratic`, as ordinary chain modules; the `CollectionWithRange` overrides, `roundBound` and the DSL's bound values go.

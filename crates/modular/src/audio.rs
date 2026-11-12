@@ -1133,9 +1133,9 @@ pub struct AudioState {
     /// mutation; the audio thread never touches it. See [`ModuleStateMetaCache`].
     module_state_meta: Mutex<ModuleStateMetaCache>,
     /// Which outputs are bounded and read in each built patch not yet
-    /// superseded, by update id, so a module rebuilt on its own settles as
-    /// the live patch did.
-    patch_bounds: Mutex<Vec<(u64, modular_core::patch::PatchBounds)>>,
+    /// superseded, by update id and whether it applies at once, so a module
+    /// rebuilt on its own settles as the patch it lands in did.
+    patch_bounds: Mutex<Vec<(u64, bool, modular_core::patch::PatchBounds)>>,
     /// The last successfully built editor-state JSON, served when a poll loses
     /// the `module_states` try_lock race with the audio thread — so contention
     /// reads as an unchanged poll, never as "all modules removed". Shared via
@@ -1202,17 +1202,20 @@ impl AudioState {
         }
     }
 
-    /// Settle `module`, rebuilt on its own as `id`, as the live patch settled
-    /// its predecessor: the last applied update's, dropping older ones.
+    /// Settle `module`, rebuilt on its own as `id`, as the patch it lands in
+    /// settled its predecessor, dropping older patches. The command queue
+    /// delivers it after every update sent before it, so it lands in the
+    /// newest update that applies at once, or else in the last applied one;
+    /// one waiting for a bar or beat has not taken over yet.
     pub fn settle_rebuilt(&self, id: &str, module: &dyn modular_core::types::Sampleable) {
         let applied = self.transport_meter.read_applied_update_id();
         let mut patches = self.patch_bounds.lock();
-        let live = patches
+        let lands_in = patches
             .iter()
-            .rposition(|(update_id, _)| *update_id <= applied);
-        if let Some(live) = live {
-            patches.drain(..live);
-            patches[0].1.settle_rebuilt(id, module);
+            .rposition(|(update_id, immediate, _)| *immediate || *update_id <= applied);
+        if let Some(lands_in) = lands_in {
+            patches.drain(..lands_in);
+            patches[0].2.settle_rebuilt(id, module);
         }
     }
 
@@ -1656,6 +1659,7 @@ impl AudioState {
             .map_err(napi::Error::from_reason)?;
         self.patch_bounds.lock().push((
             update.update_id,
+            matches!(trigger, QueuedTrigger::Immediate),
             std::mem::take(&mut update.new_patch.bounds),
         ));
         block_ids.sort();
@@ -5211,8 +5215,8 @@ mod tests {
         assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::point(2.0));
         assert_eq!(rebuilt("unread"), modular_core::bounds::Bounds::UNBOUNDED);
 
-        // A newer patch that is built but not yet applied changes nothing:
-        // the rebuilt module follows the patch that is playing.
+        // A newer patch waiting for the next bar changes nothing: the rebuilt
+        // module lands in the patch that is playing.
         let mut unread = graph_modules.clone();
         unread.retain(|module| module.id != "reader");
         let errors = state.handle_set_patch(PatchSubmission {
@@ -5233,6 +5237,25 @@ mod tests {
         assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::point(2.0));
         state.transport_meter.write_applied_update_id(2);
         assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::UNBOUNDED);
+
+        // One that applies at once is where the rebuilt module lands, even
+        // before the audio thread reports it applied.
+        let errors = state.handle_set_patch(PatchSubmission {
+            graph: PatchGraph {
+                modules: graph_modules,
+                module_id_remaps: None,
+                scopes: vec![],
+                vu_meters: vec![],
+            },
+            sample_rate: 44_100.0,
+            trigger: QueuedTrigger::Immediate,
+            update_id: 3,
+            wav_data: HashMap::new(),
+            transport_meta: None,
+            reset_clock: false,
+        });
+        assert!(errors.is_empty());
+        assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::point(2.0));
     }
 
     #[test]
