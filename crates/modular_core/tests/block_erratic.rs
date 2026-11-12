@@ -87,3 +87,25 @@ fn bounds_are_the_range_unless_shifting() {
             .all(|b| !b.is_bounded())
     );
 }
+
+#[test]
+fn an_unset_mode_blends_within_a_ranged_input() {
+    // The saw swings over ±5, so an unset mode blends within it.
+    let bounds = check_bounds_agree(
+        "_erratic",
+        json!({ "input": poly_cable("src", CHANNELS), "amount": 3.0 }),
+    );
+    assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
+    // A fixed voltage has no range, so an unset mode shifts.
+    let patch = build(
+        ProcessingMode::Block,
+        ProcessingMode::Block,
+        "_erratic",
+        json!({ "input": 1.0, "amount": 3.0 }),
+    );
+    assert!(
+        render_bounds(&patch, &[BLOCK_SIZE])
+            .iter()
+            .all(|b| !b.is_bounded())
+    );
+}

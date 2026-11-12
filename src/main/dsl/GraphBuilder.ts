@@ -688,7 +688,8 @@ function round(
 /**
  * Apply an `_erratic` random variation to `input`. With a `range`, the variation
  * scales to the range's width, `mode` applies (clamping by default), and the
- * result carries the range; without one, it is an unclamped shift scaled to ±5 V.
+ * result carries the range; without one, it is an unclamped shift scaled to a
+ * nominal ±5 V.
  */
 function erratic(
     builder: GraphBuilder,
@@ -703,6 +704,8 @@ function erratic(
         return factory(input, amount, {
             ...options,
             mode: 'shift',
+            min: -5,
+            max: 5,
         }) as Collection;
     }
     return (

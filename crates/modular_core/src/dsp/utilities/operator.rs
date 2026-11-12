@@ -82,7 +82,7 @@ pub(super) fn update<C: Combine>(
                 C::apply(x, y)
             };
             out.set_f64(i, value);
-            if out.is_bounded() {
+            if out.stores_bounds() {
                 let b = bounds::<C>(input.get_bounds(i), operand.get_bounds(i), glided);
                 out.set_bounds(i, b);
             }
@@ -98,7 +98,7 @@ pub(super) fn update<C: Combine>(
             None => C::apply(x, y),
         };
         out.set(i, value);
-        if out.is_bounded() {
+        if out.stores_bounds() {
             out.set_bounds(
                 i,
                 bounds::<C>(input.get_bounds(i), operand.get_bounds(i), glided),

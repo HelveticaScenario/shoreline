@@ -935,6 +935,8 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         })
         .collect();
 
+    let port_names: Vec<_> = outputs.iter().map(|o| &o.output_name).collect();
+
     let input_bounded_terms: Vec<_> = outputs
         .iter()
         .enumerate()
@@ -961,6 +963,9 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         impl #block_outputs_name {
             /// Whether any port has `precision = inherit`.
             pub const INHERITS: bool = #uses_inherit;
+
+            /// The output port names, by port index.
+            pub const PORT_NAMES: &'static [&'static str] = &[#(#port_names),*];
 
             /// The `bounds = input` ports, as bits by port index.
             pub const INPUT_BOUNDED_PORTS: u64 = 0u64 #(#input_bounded_terms)*;

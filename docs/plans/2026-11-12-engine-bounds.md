@@ -55,12 +55,12 @@ Each rule is declared once and both paths call it.
 - **Params.** `$remap`: `(outMin, outMax)`. This is a declaration, not a hull: a four-argument remap of an input that leaves its stated range leaves this one too, as it always has. `$wrap`: `(min, max)` sorted.
 - **Pass-through.** `$signal` is `input` kind over its value: `point(v)` for a constant, its cable's bounds otherwise.
 - **Two inputs.** `_crossfade`: the sorted hull of dry and wet.
-- **`$erratic`.** Its `min`/`max` default to its input's bounds. In `blend` and `clamp` its output bounds are `(min, max)` sorted; in `shift` it is unbounded. `mode` unset is `blend` when the input is bounded and `shift` when not, settled with the static pass, so it never switches mid-patch.
+- **`$erratic`.** In `blend` and `clamp` its output bounds are `(min, max)` sorted; in `shift` it is unbounded.
 
 ## Consumers and the DSL
 
 - `$remap`'s `inMin`/`inMax` are optional; unset, they read the input's bounds in order, and an input without a range (unbounded, or holding one value) reads as `(-5, 5)`.
-- `_erratic`'s `min`/`max` unset read the input's range, and its `mode` unset is `blend` when the input has a range and `shift` when not. The DSL's `.erratic()` on a signal it does not know is ranged asks for `shift`.
+- `_erratic`'s `min`/`max` unset read the input's range (±5 for an input without one), and its `mode` unset is settled when the patch is built (`#[params(settles = …)]`): `blend` when its input is bounded and not a fixed voltage, `shift` otherwise, so it never switches while the patch plays. The DSL's `.erratic()` on a signal it does not know is ranged asks for `shift` across a nominal ±5.
 - `.range(outMin, outMax, inMin?, inMax?)`: on a ranged collection the input range may be left out and comes from the engine; on any other it is required (a type error without it).
 - `_round` becomes `$round`, `$floor`, `$ceil` and `_erratic` becomes `$erratic`, as ordinary chain modules; the `CollectionWithRange` overrides, `roundBound` and the DSL's bound values go.
 - A module's result is ranged when its outputs are bounded by the rule above. The schema carries each output's kind and its tagged inputs; where boundedness depends on a value the types cannot see (`$erratic`'s `mode`, `$clamp`'s `min`/`max`, `$div`'s divisor), the generated typings return the unranged type and the run-time flag still applies.

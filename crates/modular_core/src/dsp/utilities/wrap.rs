@@ -96,7 +96,7 @@ fn wrapped_bounds(a: f32, b: f32, octave: bool) -> Bounds {
 impl Wrap {
     fn update(&mut self, _sample_rate: f32) {
         let (params, octave) = (&self.params, self.params.octave);
-        if self.outputs.sample.is_bounded() {
+        if self.outputs.sample.stores_bounds() {
             for i in 0..self.channel_count() {
                 let bounds =
                     wrapped_bounds(params.min.get_value(i), params.max.get_value(i), octave);

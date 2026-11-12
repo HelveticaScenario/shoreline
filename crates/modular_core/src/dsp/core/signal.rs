@@ -58,7 +58,7 @@ impl Signal {
             let input = value.get_value(i);
             let v = self.channel_state[i].follow(input, value.glide_mark(i), sample_rate);
             out.set(i, v);
-            if out.is_bounded() {
+            if out.stores_bounds() {
                 // Mid-glide the output is the input offset by what remains
                 // of the glide; the bounds carry the same offset.
                 let offset = v - input;

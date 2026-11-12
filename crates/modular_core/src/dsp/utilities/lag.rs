@@ -95,7 +95,7 @@ impl LagProcessor {
             let state = &mut self.channel_state[ch];
             let input = self.params.input.get_value(ch);
             // A slewed signal never leaves the span its input swings over.
-            if self.outputs.sample.is_bounded() {
+            if self.outputs.sample.stores_bounds() {
                 self.outputs
                     .sample
                     .set_bounds(ch, self.params.input.get_bounds(ch));

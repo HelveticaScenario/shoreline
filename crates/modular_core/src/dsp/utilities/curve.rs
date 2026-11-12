@@ -82,7 +82,7 @@ impl Curve {
             let exp_value = glide.follow(exp.get_value(i), exp.glide_mark(i), sample_rate);
             let input = &self.params.input;
             out.set(i, curve(input.get_value(i), exp_value));
-            if out.is_bounded() {
+            if out.stores_bounds() {
                 let input = input.get_bounds(i);
                 let bounds = if glide.gliding() {
                     input.map(|x| curve(x, exp_value))

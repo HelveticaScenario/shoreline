@@ -1013,6 +1013,16 @@ fn impl_module_macro_attr(
                 <#block_outputs_ty>::port_index(port)
             }
 
+            fn port_names(&self) -> &'static [&'static str] {
+                <#block_outputs_ty>::PORT_NAMES
+            }
+
+            fn settle_params(&self, is_bounded: &dyn Fn(&str, &str) -> bool) {
+                // SAFETY: as `bounded_outputs`.
+                let params = unsafe { &mut (*self.module.get()).params };
+                crate::types::BoundsInputs::settle(params, is_bounded);
+            }
+
             fn bounded_outputs(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> u64 {
                 // SAFETY: main thread, before the module is shipped to the
                 // audio thread; nothing else holds the inner module.

@@ -83,7 +83,7 @@ impl Crossfade {
                 t.clamp(0.0, 1.0),
             );
             self.outputs.sample.set(i, value);
-            if self.outputs.sample.is_bounded() {
+            if self.outputs.sample.stores_bounds() {
                 let (dry, wet) = (self.params.dry.get_bounds(i), self.params.wet.get_bounds(i));
                 self.outputs.sample.set_bounds(i, dry.hull(wet));
             }

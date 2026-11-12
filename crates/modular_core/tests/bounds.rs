@@ -547,7 +547,7 @@ fn only_outputs_whose_bounds_are_read_store_them() {
     render_block(&patch, &["reader", "unread", "read", "saw"], &[BLOCK_SIZE]);
     assert_eq!(read(&patch, "read", 3).1, Bounds::new(-3.0, 7.0));
     assert_eq!(read(&patch, "unread", 3).1, Bounds::UNBOUNDED);
-    assert_eq!(patch.bounds_masks.get("unread"), None);
+    assert_eq!(patch.bounds.read.get("unread"), None);
     // The reader maps from -3..7 onto 0..1: the saw at -5 reads 0.
     let (saw, _) = read(&patch, "saw", 3);
     let (mapped, _) = read(&patch, "reader", 3);

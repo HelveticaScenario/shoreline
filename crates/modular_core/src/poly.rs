@@ -138,10 +138,10 @@ impl PolyOutput {
         self.bounds = vec![Bounds::UNBOUNDED; self.voltages.len()].into_boxed_slice();
     }
 
-    /// Whether this output carries bounds (see [`make_bounded`](Self::make_bounded)).
+    /// Whether this output stores bounds (see [`make_bounded`](Self::make_bounded)).
     /// A module computes its bounds only when it does.
     #[inline]
-    pub fn is_bounded(&self) -> bool {
+    pub fn stores_bounds(&self) -> bool {
         !self.bounds.is_empty()
     }
 

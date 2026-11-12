@@ -85,7 +85,7 @@ impl Round {
             } else {
                 out.set(i, mode.apply(input.get_value(i)));
             }
-            if out.is_bounded() {
+            if out.stores_bounds() {
                 out.set_bounds(i, input.get_bounds(i).map(|x| mode.apply(x)));
             }
         }

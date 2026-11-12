@@ -124,13 +124,18 @@ impl Remap {
             } else {
                 (0.0, 0.0)
             };
+            // An unset limit is recorded as its glide's value, so setting
+            // it later glides from the range that was in use.
             let in_min = match &p.in_min {
                 Some(in_min) => {
                     state
                         .in_min
                         .follow(in_min.get_value(i), in_min.glide_mark(i), sample_rate)
                 }
-                None => unset.0,
+                None => {
+                    state.in_min.settle(unset.0, p.input.glide_mark(i));
+                    unset.0
+                }
             };
             let in_max = match &p.in_max {
                 Some(in_max) => {
@@ -138,7 +143,10 @@ impl Remap {
                         .in_max
                         .follow(in_max.get_value(i), in_max.glide_mark(i), sample_rate)
                 }
-                None => unset.1,
+                None => {
+                    state.in_max.settle(unset.1, p.input.glide_mark(i));
+                    unset.1
+                }
             };
             let out_min =
                 state
@@ -220,12 +228,10 @@ impl Remap {
             |[x, in_min, in_max, out_min, out_max]| map_range(x, in_min, in_max, out_min, out_max),
         );
         for (i, cs) in self.channel_state[..channels].iter_mut().enumerate() {
-            if let Some(signal) = &p.in_min {
-                cs.in_min.settle(in_min.row(last)[i], signal.glide_mark(i));
-            }
-            if let Some(signal) = &p.in_max {
-                cs.in_max.settle(in_max.row(last)[i], signal.glide_mark(i));
-            }
+            let mark =
+                |signal: &Option<PolySignal>| signal.as_ref().unwrap_or(&p.input).glide_mark(i);
+            cs.in_min.settle(in_min.row(last)[i], mark(&p.in_min));
+            cs.in_max.settle(in_max.row(last)[i], mark(&p.in_max));
             cs.out_min
                 .settle(inputs.out_min.row(last)[i], p.out_min.glide_mark(i));
             cs.out_max

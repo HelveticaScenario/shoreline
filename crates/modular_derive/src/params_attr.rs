@@ -450,12 +450,14 @@ pub fn params_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 /// `#[params(…)]` options: `bounded_when = path` replaces the test that the
-/// tagged inputs are bounded, and `reads_bounds = path` names the inputs whose
-/// bounds the module reads for itself; each path is a function of the params.
+/// tagged inputs are bounded, `reads_bounds = path` names the inputs whose
+/// bounds the module reads for itself, and `settles = path` fixes choices made
+/// from which inputs are bounded; each path is a function of the params.
 #[derive(Default)]
 struct ParamsOptions {
     bounded_when: Option<syn::Path>,
     reads_bounds: Option<syn::Path>,
+    settles: Option<syn::Path>,
 }
 
 fn parse_params_options(attr: TokenStream2) -> syn::Result<ParamsOptions> {
@@ -471,11 +473,12 @@ fn parse_params_options(attr: TokenStream2) -> syn::Result<ParamsOptions> {
             let slot = match key.to_string().as_str() {
                 "bounded_when" => &mut options.bounded_when,
                 "reads_bounds" => &mut options.reads_bounds,
+                "settles" => &mut options.settles,
                 other => {
                     return Err(syn::Error::new(
                         key.span(),
                         format!(
-                            "unknown `#[params]` option `{other}`; expected bounded_when or reads_bounds"
+                            "unknown `#[params]` option `{other}`; expected bounded_when, reads_bounds or settles"
                         ),
                     ));
                 }
@@ -669,6 +672,13 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             }
         }
     });
+    let settle = options.settles.map(|settle| {
+        quote! {
+            fn settle(&mut self, is_bounded: &dyn Fn(&str, &str) -> bool) {
+                #settle(self, is_bounded)
+            }
+        }
+    });
     let bounds_impl = quote! {
         impl crate::types::BoundsInputs for #name {
             fn bounds_inputs(&self) -> Vec<&crate::poly::PolySignal> {
@@ -679,6 +689,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             }
             #inputs_bounded
             #bounds_read
+            #settle
         }
     };
 

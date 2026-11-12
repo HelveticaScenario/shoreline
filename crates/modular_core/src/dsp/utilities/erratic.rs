@@ -3,6 +3,7 @@ use schemars::JsonSchema;
 
 use std::ops::Range;
 
+use crate::block_input::{self, InputScratch};
 use crate::bounds::Bounds;
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{CatmullRom, SchmittState, SchmittTrigger};
@@ -55,7 +56,11 @@ enum ErraticMode {
     Blend,
 }
 
-#[params(bounded_when = erratic_bounded, reads_bounds = erratic_reads_bounds)]
+#[params(
+    bounded_when = erratic_bounded,
+    reads_bounds = erratic_reads_bounds,
+    settles = erratic_settle
+)]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
@@ -121,6 +126,21 @@ struct ErraticParams {
     #[serde(default)]
     #[deserr(default)]
     sparse: bool,
+    /// The mode an unset `mode` settles on when the patch is built.
+    #[serde(skip)]
+    #[deserr(skip)]
+    #[schemars(skip)]
+    settled_mode: Option<ErraticMode>,
+}
+
+impl ErraticParams {
+    /// The mode in use: as set, or as settled for this patch.
+    #[inline(always)]
+    fn mode(&self) -> ErraticMode {
+        self.mode
+            .or(self.settled_mode)
+            .unwrap_or(ErraticMode::Shift)
+    }
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -153,42 +173,44 @@ struct ErraticChannelState {
     held: (f32, f32),
 }
 
-/// Clamped and blended variation stays within the range; a shift can carry
-/// the input anywhere, so an unset mode is bounded exactly when it blends.
-fn erratic_bounded(p: &ErraticParams, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
-    match p.mode {
-        Some(mode) => mode != ErraticMode::Shift,
-        None => p.input.statically_bounded(is_bounded) && !p.input.is_constant(),
-    }
-}
-
-/// An unset range or mode follows the input's bounds.
-fn erratic_reads_bounds(p: &ErraticParams) -> Vec<&PolySignal> {
-    let unset = p.mode.is_none() || p.min.is_none() || p.max.is_none();
-    if unset { vec![&p.input] } else { Vec::new() }
-}
-
-/// A channel's range and mode at one sample: `min`/`max` as set, or else
-/// the input's range, or else ±5; `mode` as set, or else blend when the
-/// input has a range and shift when not.
-#[inline(always)]
-fn range_and_mode(
-    p: &ErraticParams,
-    input: Bounds,
-    min: Option<f32>,
-    max: Option<f32>,
-) -> (f32, f32, ErraticMode) {
-    let (lo, hi) = if input.swings() {
-        (input.start, input.end)
-    } else {
-        (ErraticParams::MIN_DEFAULT, ErraticParams::MAX_DEFAULT)
-    };
-    let mode = p.mode.unwrap_or(if input.swings() {
+/// The mode an unset `mode` takes: blend when the input has a range (a
+/// bounded input that is not a fixed voltage), and shift when not.
+fn unset_mode(p: &ErraticParams, is_bounded: &dyn Fn(&str, &str) -> bool) -> ErraticMode {
+    if p.input.statically_bounded(is_bounded) && !p.input.is_constant() {
         ErraticMode::Blend
     } else {
         ErraticMode::Shift
-    });
-    (min.unwrap_or(lo), max.unwrap_or(hi), mode)
+    }
+}
+
+/// Clamped and blended variation stays within the range; a shift can carry
+/// the input anywhere.
+fn erratic_bounded(p: &ErraticParams, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
+    p.mode.unwrap_or_else(|| unset_mode(p, is_bounded)) != ErraticMode::Shift
+}
+
+fn erratic_settle(p: &mut ErraticParams, is_bounded: &dyn Fn(&str, &str) -> bool) {
+    p.settled_mode = Some(p.mode.unwrap_or_else(|| unset_mode(p, is_bounded)));
+}
+
+/// An unset `min` or `max` follows the input's range.
+fn erratic_reads_bounds(p: &ErraticParams) -> Vec<&PolySignal> {
+    if p.min.is_none() || p.max.is_none() {
+        vec![&p.input]
+    } else {
+        Vec::new()
+    }
+}
+
+/// The range an unset `min` and `max` read: the input's, or ±5 for an input
+/// without one.
+#[inline(always)]
+fn input_range(input: Bounds) -> (f32, f32) {
+    if input.swings() {
+        (input.start, input.end)
+    } else {
+        (ErraticParams::MIN_DEFAULT, ErraticParams::MAX_DEFAULT)
+    }
 }
 
 /// The bounds of a channel's output: its range, unless it shifts.
@@ -339,19 +361,16 @@ pub struct Erratic {
 impl Erratic {
     fn update(&mut self, sample_rate: f32) {
         let p = &self.params;
-        let reads_bounds = p.mode.is_none() || p.min.is_none() || p.max.is_none();
+        let mode = p.mode();
+        let reads_bounds = p.min.is_none() || p.max.is_none();
         for ch in 0..self.channel_count() {
-            let input_bounds = if reads_bounds {
-                p.input.get_bounds(ch)
+            let (lo, hi) = if reads_bounds {
+                input_range(p.input.get_bounds(ch))
             } else {
-                Bounds::UNBOUNDED
+                (0.0, 0.0)
             };
-            let (min, max, mode) = range_and_mode(
-                p,
-                input_bounds,
-                p.min.as_ref().map(|min| min.get_value(ch)),
-                p.max.as_ref().map(|max| max.get_value(ch)),
-            );
+            let min = p.min.as_ref().map_or(lo, |min| min.get_value(ch));
+            let max = p.max.as_ref().map_or(hi, |max| max.get_value(ch));
             let frame = ChannelInputs {
                 input: p.input.get_value(ch),
                 amount: p.amount.get_value(ch),
@@ -379,61 +398,58 @@ impl Erratic {
         let channels = self.channel_count();
         let mut scratch = Default::default();
         let p = &self.params;
+        let mode = p.mode();
         let inputs = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        // The input's bounds hold still over the range, or the slots run
-        // `update`, which reads them one by one.
-        let reads_bounds = p.mode.is_none() || p.min.is_none() || p.max.is_none();
-        let input_bounds = |ch: usize| {
-            if reads_bounds {
-                p.input.block_bounds(range.clone(), ch)
-            } else {
-                Some(Bounds::UNBOUNDED)
-            }
-        };
-        if (0..channels).any(|ch| input_bounds(ch).is_none()) {
+        // An unset range reads the input's, which holds still over the
+        // range or sends the slots to `update`.
+        let reads_bounds = p.min.is_none() || p.max.is_none();
+        if reads_bounds && (0..channels).any(|ch| p.input.block_bounds(range.clone(), ch).is_none())
+        {
             return None;
         }
-        let start = range.start;
-        for i in range.clone() {
-            let [input, amount, speed, bias] =
-                [&inputs.input, &inputs.amount, &inputs.speed, &inputs.bias]
-                    .map(|input| input.row(i));
-            let [min, max, trigger] = [&inputs.min, &inputs.max, &inputs.trigger]
-                .map(|input| input.as_ref().map(|input| input.row(i)));
+        let unset = |ch: usize| {
+            input_range(
+                p.input
+                    .block_bounds(range.clone(), ch)
+                    .unwrap_or(Bounds::UNBOUNDED),
+            )
+        };
+        let (mut s_min, mut s_max) = (InputScratch::new(), InputScratch::new());
+        let min = inputs.min.unwrap_or_else(|| {
+            block_input::constant_row(range.clone(), channels, &mut s_min, |ch| unset(ch).0)
+        });
+        let max = inputs.max.unwrap_or_else(|| {
+            block_input::constant_row(range.clone(), channels, &mut s_max, |ch| unset(ch).1)
+        });
+        block_input::map_bounds(
+            &mut outputs.sample,
+            range.clone(),
+            [min, max],
+            |_, [min, max]| Some(output_bounds(min, max, mode)),
+        )?;
+        for i in range {
+            let [input, amount, speed, bias, min, max] = [
+                &inputs.input,
+                &inputs.amount,
+                &inputs.speed,
+                &inputs.bias,
+                &min,
+                &max,
+            ]
+            .map(|input| input.row(i));
+            let trigger = inputs.trigger.as_ref().map(|input| input.row(i));
             for (ch, value) in outputs.sample.slot_mut(i).iter_mut().enumerate() {
-                let (min, max, mode) = range_and_mode(
-                    p,
-                    input_bounds(ch).unwrap_or(Bounds::UNBOUNDED),
-                    min.map(|row| row[ch]),
-                    max.map(|row| row[ch]),
-                );
                 let frame = ChannelInputs {
                     input: input[ch],
                     amount: amount[ch],
                     trigger: trigger.map(|row| row[ch]),
                     speed: speed[ch],
                     bias: bias[ch],
-                    min,
-                    max,
+                    min: min[ch],
+                    max: max[ch],
                     mode,
                 };
                 *value = self.channel_state[ch].step(frame, p, sample_rate);
-            }
-        }
-        if outputs.sample.has_bounds() {
-            let bounds = outputs.sample.bounds_slots_mut(range.clone());
-            for i in range.clone() {
-                let [min, max] = [&inputs.min, &inputs.max]
-                    .map(|input| input.as_ref().map(|input| input.row(i)));
-                for ch in 0..channels {
-                    let (min, max, mode) = range_and_mode(
-                        p,
-                        input_bounds(ch).unwrap_or(Bounds::UNBOUNDED),
-                        min.map(|row| row[ch]),
-                        max.map(|row| row[ch]),
-                    );
-                    bounds[(i - start) * channels + ch] = output_bounds(min, max, mode);
-                }
             }
         }
         Some(())
@@ -480,6 +496,7 @@ mod tests {
             max: None,
             mode: Some(ErraticMode::Shift),
             sparse: false,
+            settled_mode: None,
         }
     }
 

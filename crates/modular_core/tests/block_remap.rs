@@ -75,3 +75,13 @@ fn bounds_are_the_output_range_in_order() {
     );
     assert!(bounds.windows(CHANNELS + 1).any(|w| w[0] != w[CHANNELS]));
 }
+
+#[test]
+fn setting_an_unset_input_range_glides_from_the_one_in_use() {
+    let input = poly_cable("src", CHANNELS);
+    check_swap_agrees(
+        "$remap",
+        json!({ "input": input, "outMin": 0.0, "outMax": 1.0 }),
+        json!({ "input": input, "outMin": 0.0, "outMax": 1.0, "inMin": -2.0, "inMax": 2.0 }),
+    );
+}

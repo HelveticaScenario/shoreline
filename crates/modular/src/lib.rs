@@ -1427,7 +1427,7 @@ impl Synthesizer {
         .map_err(|e| {
             napi::Error::from_reason(format!("Failed to create module {}: {}", module_id, e))
         })?;
-        module.make_bounded(self.state.bounds_mask(&module_id));
+        self.state.settle_rebuilt(&module_id, module.as_ref());
 
         self.state.send_command(GraphCommand::SingleModuleUpdate {
             module_id: module_id.clone(),

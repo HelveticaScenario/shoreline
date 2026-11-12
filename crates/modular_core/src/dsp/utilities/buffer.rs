@@ -202,6 +202,8 @@ impl BufferWriteBlockOutputs {
 
     pub const INPUT_BOUNDED_PORTS: u64 = 0;
 
+    pub const PORT_NAMES: &'static [&'static str] = &["output"];
+
     pub fn bounded_mask(_inputs_bounded: bool) -> u64 {
         0
     }

@@ -94,7 +94,14 @@ impl SampleAndHold {
             }
 
             self.outputs.sample.set(ch, state.held_value);
-            self.outputs.sample.set_bounds(ch, state.held_bounds);
+            // A hold taken before this output stored bounds has none; it
+            // reads its input's until it next takes one.
+            let bounds = if state.held_bounds.is_bounded() {
+                state.held_bounds
+            } else {
+                self.params.input.get_bounds(ch)
+            };
+            self.outputs.sample.set_bounds(ch, bounds);
         }
     }
 }
@@ -183,7 +190,14 @@ impl TrackAndHold {
             }
 
             self.outputs.sample.set(ch, state.held_value);
-            self.outputs.sample.set_bounds(ch, state.held_bounds);
+            // A hold taken before this output stored bounds has none; it
+            // reads its input's until it next takes one.
+            let bounds = if state.held_bounds.is_bounded() {
+                state.held_bounds
+            } else {
+                self.params.input.get_bounds(ch)
+            };
+            self.outputs.sample.set_bounds(ch, bounds);
         }
     }
 }

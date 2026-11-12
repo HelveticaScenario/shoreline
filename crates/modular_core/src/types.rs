@@ -316,6 +316,14 @@ pub trait Sampleable: MessageHandler + Send {
     fn port_index(&self, _port: &str) -> Option<usize> {
         None
     }
+    /// The output port names, by port index.
+    fn port_names(&self) -> &'static [&'static str] {
+        &[]
+    }
+    /// Let the params fix their choices from which outputs in the patch are
+    /// bounded (see [`BoundsInputs::settle`]). Main thread, before the module
+    /// is shipped to the audio thread.
+    fn settle_params(&self, _is_bounded: &dyn Fn(&str, &str) -> bool) {}
     /// The outputs of this module that carry bounds in a patch whose bounded
     /// outputs `is_bounded(module, port)` names, as bits by port index.
     /// Main thread, before the module is shipped to the audio thread.
@@ -2534,8 +2542,8 @@ impl Signal {
     }
 
     /// This signal's bounds when they hold still over `range`, rendering a
-    /// cable's producer through it; `None` when they move, or when the
-    /// producer is a Sample-mode module whose reads must go slot by slot.
+    /// cable's producer through it; `None` when they move. Read by Block-mode
+    /// modules only, which a feedback cycle never re-enters.
     pub(crate) fn uniform_bounds(
         &self,
         range: std::ops::Range<usize>,
@@ -2906,6 +2914,10 @@ pub trait BoundsInputs {
     fn bounds_read(&self) -> Vec<&crate::poly::PolySignal> {
         Vec::new()
     }
+
+    /// Fix, once per patch, any choice the module makes from whether its
+    /// inputs are bounded, so it never changes while the patch plays.
+    fn settle(&mut self, _is_bounded: &dyn Fn(&str, &str) -> bool) {}
 }
 
 pub trait OutputStruct: Default + Send + 'static {
