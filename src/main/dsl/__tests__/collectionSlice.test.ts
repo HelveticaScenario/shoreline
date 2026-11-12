@@ -56,7 +56,7 @@ describe('BaseCollection.slice', () => {
     });
 
     test('preserves CollectionWithRange', () => {
-        const outs = makeOutputs(3).map((o) => o.ranged());
+        const outs = makeOutputs(3);
         const sliced = new CollectionWithRange(...outs).slice(1);
         expect(sliced).toBeInstanceOf(CollectionWithRange);
         expect(sliced.items).toEqual(outs.slice(1));
@@ -146,7 +146,7 @@ describe('BaseCollection indexing and iteration', () => {
     });
 
     test('a ranged channel stays ranged', () => {
-        const outs = makeOutputs(2).map((o) => o.ranged());
+        const outs = makeOutputs(2);
         const ranged = new CollectionWithRange(...outs);
         expect(ranged[1]).toBeInstanceOf(CollectionWithRange);
         expect(ranged[1].items).toEqual([outs[1]]);
@@ -197,9 +197,7 @@ describe('BaseCollection.chunk', () => {
     });
 
     test('preserves CollectionWithRange', () => {
-        const ranged = new CollectionWithRange(
-            ...makeOutputs(4).map((o) => o.ranged()),
-        );
+        const ranged = new CollectionWithRange(...makeOutputs(4));
         for (const c of ranged.chunk(3)) {
             expect(c).toBeInstanceOf(CollectionWithRange);
         }

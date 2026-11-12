@@ -2801,6 +2801,10 @@ pub struct SignalParamSchema {
     /// this input (`#[input(…, bounds)]`).
     #[serde(default)]
     pub carries_bounds: bool,
+    /// Whether those outputs are bounded only while this input holds a
+    /// constant (`#[input(…, bounds = constant)]`).
+    #[serde(default)]
+    pub bounds_need_constant: bool,
 }
 
 /// The kind of voltage a signal input reads, named in `#[input(type = …)]`.
@@ -2878,8 +2882,8 @@ pub struct OutputSchema {
 }
 
 /// How an output's bounds arise, named in `#[output(bounds = …)]` or implied
-/// by its `range`. Whether a `Params` or `Input` output is bounded in a given
-/// patch is settled when the patch is built.
+/// by its `range`. Whether an `Input` output is bounded in a given patch is
+/// settled when the patch is built.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[napi(string_enum = "lowercase")]
@@ -2891,7 +2895,8 @@ pub enum BoundsKind {
     Fixed,
     /// Bounded by the module's own params.
     Params,
-    /// Bounded when every input the module tags with `bounds` is.
+    /// Bounded by the inputs the module tags with `bounds`, or by a range
+    /// its params declare; see [`BoundsInputs::inputs_bounded`].
     Input,
 }
 
@@ -2913,13 +2918,27 @@ pub trait BoundsInputs {
     /// The connected inputs the `bounds = input` outputs' bounds come from.
     fn bounds_inputs(&self) -> Vec<&crate::poly::PolySignal>;
 
+    /// Whether every input tagged `bounds = constant` holds a constant.
+    fn constants_hold(&self) -> bool {
+        true
+    }
+
+    /// The tagged inputs' test: every input in
+    /// [`bounds_inputs`](Self::bounds_inputs) is bounded, and every one that
+    /// must hold a constant does.
+    fn tagged_inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
+        self.constants_hold()
+            && self
+                .bounds_inputs()
+                .iter()
+                .all(|input| input.statically_bounded(is_bounded))
+    }
+
     /// Whether the `bounds = input` outputs are bounded, given which outputs
-    /// in the patch are: by default, when every input in
-    /// [`bounds_inputs`](Self::bounds_inputs) is.
+    /// in the patch are: by default, the
+    /// [tagged inputs' test](Self::tagged_inputs_bounded).
     fn inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
-        self.bounds_inputs()
-            .iter()
-            .all(|input| input.statically_bounded(is_bounded))
+        self.tagged_inputs_bounded(is_bounded)
     }
 
     /// The inputs whose bounds the module reads for itself, beyond deriving

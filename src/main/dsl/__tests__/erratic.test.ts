@@ -12,7 +12,6 @@ import {
     Collection,
     CollectionWithRange,
     type GraphBuilder,
-    ModuleOutputWithRange,
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
 
@@ -50,7 +49,6 @@ describe('.erratic()', () => {
             .erratic(5, { mode: 'shift' });
 
         expect(out).toBeInstanceOf(Collection);
-        expect(out.items[0]).not.toBeInstanceOf(ModuleOutputWithRange);
         expect(erraticParams()).toMatchObject({ mode: 'shift' });
     });
 
@@ -67,7 +65,6 @@ describe('.erratic()', () => {
         const out = builder.$c('c3').erratic(1, { bias: 2 });
 
         expect(out).toBeInstanceOf(Collection);
-        expect(out.items[0]).not.toBeInstanceOf(ModuleOutputWithRange);
         expect(erraticParams().bias).toBe(2);
     });
 

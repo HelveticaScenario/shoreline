@@ -4,6 +4,7 @@ import {
     voltsToHz,
     voltsToNoteName,
 } from '../../shared/dsl/sliderUnits';
+import { controlParams } from '../../shared/dsl/controlRanges';
 import type { SliderUnit } from '../../shared/dsl/sliderUnits';
 import { extractControls, isIncomplete } from '../dsl/extractControls';
 import type { SourceRange } from '../dsl/extractControls';
@@ -122,11 +123,11 @@ export function applySliderChange(
     });
 
     if (moduleId !== null) {
-        setModuleParam(moduleId, '_smoothControl', {
-            max: slider.max,
-            min: slider.min,
-            value: written,
-        });
+        setModuleParam(
+            moduleId,
+            '_smoothControl',
+            controlParams(slider, written),
+        );
     }
     return written;
 }

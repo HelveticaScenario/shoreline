@@ -1,5 +1,7 @@
 import type {
+    BoundsKind,
     ModuleSchema,
+    OutputSchema,
     ModuleSpec,
     PatchGraph,
     Scope,
@@ -70,17 +72,6 @@ export interface ScopeConfig {
     triggerWaitToRender?: boolean;
     range?: [number, number];
     split?: ScopeSplit;
-}
-
-// Extended OutputSchema interface that includes optional range
-export interface OutputSchemaWithRange {
-    name: string;
-    description: string;
-    polyphonic?: boolean;
-    /** How the output's bounds arise: `unbounded`, `fixed`, `params` or `input`. */
-    bounds?: string;
-    /** Fixed channel count; absent outputs follow the module's channel count. */
-    channels?: number;
 }
 
 const ResolvedModuleOutput = z.object({
@@ -637,20 +628,30 @@ function sliceRoot(
 
 type RoundMode = 'round' | 'floor' | 'ceil';
 
-/** The same channels, marked as ranged: the engine knows their bounds. */
+/**
+ * The same channels as a ranged collection, for an output the engine bounds
+ * by a rule the schema cannot state (`_erratic` short of a shift) or one
+ * whose source is set later (an `$outLane` control).
+ */
 export function asRanged(
     collection: BaseCollection<ModuleOutput>,
 ): CollectionWithRange {
-    return new CollectionWithRange(...collection.items.map((o) => o.ranged()));
+    for (const { builder, moduleId, portName } of collection.items) {
+        builder.markRanged(moduleId, portName);
+    }
+    return new CollectionWithRange(...collection.items);
 }
 
-/** `input` rounded to whole volts through a `_round` module. */
+/**
+ * `input` rounded to whole volts through a `_round` module, ranged when
+ * `input` is.
+ */
 function round(
     builder: GraphBuilder,
     input: ModuleOutput | ModuleOutput[],
     mode: RoundMode,
-): Collection {
-    return builder.getFactory('_round')(input, { mode }) as Collection;
+): Collection | CollectionWithRange {
+    return builder.getFactory('_round')(input, { mode });
 }
 
 /**
@@ -668,21 +669,13 @@ function remapRange(
     if (items.length === 0) {
         return new CollectionWithRange();
     }
-    const factory = items[0].builder.getFactory('$remap');
-    const inRange = {
-        ...(inMin !== undefined && { inMin }),
-        ...(inMax !== undefined && { inMax }),
-    };
-    return asRanged(
-        factory(
-            items,
-            outMin,
-            outMax,
-            undefined,
-            undefined,
-            inRange,
-        ) as Collection,
-    );
+    return items[0].builder.getFactory('$remap')(
+        items,
+        outMin,
+        outMax,
+        inMin,
+        inMax,
+    ) as CollectionWithRange;
 }
 
 /**
@@ -707,7 +700,7 @@ export class Collection extends BaseCollection<ModuleOutput> {
  * A collection whose range the engine knows: `.range(outMin, outMax)` maps
  * from it, and the methods below keep it.
  */
-export class CollectionWithRange extends BaseCollection<ModuleOutputWithRange> {
+export class CollectionWithRange extends BaseCollection<ModuleOutput> {
     /**
      * Remap outputs onto `outMin`…`outMax`, from their known range or from
      * `inMin`…`inMax` when given.
@@ -760,15 +753,17 @@ export class CollectionWithRange extends BaseCollection<ModuleOutputWithRange> {
         if (this.items.length === 0) {
             return new CollectionWithRange();
         }
-        return asRanged(round(this.items[0].builder, this.items, mode));
+        return round(
+            this.items[0].builder,
+            this.items,
+            mode,
+        ) as CollectionWithRange;
     }
 }
 
-/**
- * Create a CollectionWithRange from ModuleOutputWithRange instances
- */
+/** The channels of every ranged collection given, as one ranged collection. */
 export const $r = (
-    ...args: OrArray<BaseCollection<ModuleOutputWithRange>>[]
+    ...args: OrArray<CollectionWithRange>[]
 ): CollectionWithRange =>
     new CollectionWithRange(
         ...args.flat().flatMap((arg) => {
@@ -975,15 +970,21 @@ export class GraphBuilder implements ChainHost {
 
     /**
      * Whether module `moduleId` declares its range through its own params
-     * (`$signal`'s `min` and `max`), whatever its input.
+     * (`$signal`'s `min` and `max`), whatever its input: both set, and apart
+     * when both are numbers.
      */
     declaresRange(moduleId: string): boolean {
         const module = this.modules.get(moduleId);
         const declared =
             module && this.schemaByName.get(module.moduleType)?.declaredRange;
+        if (!declared) {
+            return false;
+        }
+        const [min, max] = declared.map((name) => module.params[name]);
         return (
-            !!declared &&
-            declared.every((name) => typeof module.params[name] === 'number')
+            min !== undefined &&
+            max !== undefined &&
+            !(typeof min === 'number' && min === max)
         );
     }
 
@@ -1516,7 +1517,7 @@ export class GraphBuilder implements ChainHost {
                 first instanceof ModuleOutput &&
                 this.declaresRange(first.moduleId)
             ) {
-                return first.ranged();
+                return first;
             }
             return (signalFactory(first, { ...range }) as Collection).items[0];
         };
@@ -1714,6 +1715,7 @@ export class GraphBuilder implements ChainHost {
      */
     reset(): void {
         this.modules.clear();
+        this.rangedPorts.clear();
         this.scopes = [];
         this.eqPanels = [];
         this.counters.clear();
@@ -2026,8 +2028,8 @@ export class ModuleNode {
      * It errs towards unranged, so a ranged output is always bounded in the
      * engine.
      */
-    private isRanged(output: OutputSchemaWithRange): boolean {
-        switch (output.bounds) {
+    private isRanged(output: OutputSchema): boolean {
+        switch (output.bounds as BoundsKind) {
             case 'fixed':
             case 'params':
                 return true;
@@ -2041,10 +2043,19 @@ export class ModuleNode {
                 // A constant holds still: it carries the range along but has
                 // none to give.
                 const params = this.builder.getModule(this.id)?.params ?? {};
-                const kinds = this.schema.signalParams
+                const tagged = this.schema.signalParams
                     .filter((param) => param.carriesBounds)
-                    .map((param) => this.builder.rangeOf(params[param.name]));
-                return !kinds.includes('unranged') && kinds.includes('ranged');
+                    .map((param) => ({
+                        kind: this.builder.rangeOf(params[param.name]),
+                        needsConstant: param.boundsNeedConstant,
+                    }));
+                return (
+                    tagged.every(({ kind, needsConstant }) =>
+                        needsConstant
+                            ? kind === 'constant'
+                            : kind !== 'unranged',
+                    ) && tagged.some(({ kind }) => kind === 'ranged')
+                );
             }
             default:
                 return false;
@@ -2058,7 +2069,7 @@ export class ModuleNode {
     _output(portName: string): Collection | CollectionWithRange {
         const outputSchema = this.schema.outputs.find(
             (o) => o.name === portName,
-        ) as OutputSchemaWithRange | undefined;
+        );
         if (!outputSchema) {
             throw new Error(
                 `Module ${this.moduleType} does not have output: ${portName}`,
@@ -2068,27 +2079,15 @@ export class ModuleNode {
         const channels = outputSchema.polyphonic
             ? (outputSchema.channels ?? this.channelCount)
             : 1;
+        const items = Array.from(
+            { length: channels },
+            (_, i) => new ModuleOutput(this.builder, this.id, portName, i),
+        );
         if (this.isRanged(outputSchema)) {
             this.builder.markRanged(this.id, portName);
-            return new CollectionWithRange(
-                ...Array.from(
-                    { length: channels },
-                    (_, i) =>
-                        new ModuleOutputWithRange(
-                            this.builder,
-                            this.id,
-                            portName,
-                            i,
-                        ),
-                ),
-            );
+            return new CollectionWithRange(...items);
         }
-        return new Collection(
-            ...Array.from(
-                { length: channels },
-                (_, i) => new ModuleOutput(this.builder, this.id, portName, i),
-            ),
-        );
+        return new Collection(...items);
     }
 }
 
@@ -2114,26 +2113,8 @@ export class ModuleOutput {
         this.channel = channel;
     }
 
-    /** This channel, marked as one whose range the engine knows. */
-    ranged(): ModuleOutputWithRange {
-        this.builder.markRanged(this.moduleId, this.portName);
-        return new ModuleOutputWithRange(
-            this.builder,
-            this.moduleId,
-            this.portName,
-            this.channel,
-        );
-    }
-
     toString(): string {
         return `module(${this.moduleId}:${this.portName}:${this.channel})`;
-    }
-}
-
-/** A {@link ModuleOutput} channel whose range the engine knows. */
-export class ModuleOutputWithRange extends ModuleOutput {
-    ranged(): ModuleOutputWithRange {
-        return this;
     }
 }
 

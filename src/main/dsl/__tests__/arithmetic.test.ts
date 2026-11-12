@@ -1,9 +1,8 @@
 /**
  * `.add()`, `.sub()`, `.mul()`, `.div()` and `.exp()` are the chain methods of
  * `$add`, `$sub`, `$mul`, `$div` and `$exp`; `.round()`, `.floor()` and
- * `.ceil()` build a hidden `_round`. On a ranged signal the rounding methods
- * round the range too: number bounds in JS, signal bounds through their own
- * `_round`.
+ * `.ceil()` build a hidden `_round`. On a ranged signal each keeps the range
+ * where the engine bounds its result.
  */
 
 import { beforeEach, describe, expect, test } from 'vitest';
@@ -13,7 +12,6 @@ import {
     Collection,
     CollectionWithRange,
     type GraphBuilder,
-    ModuleOutputWithRange,
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
 
@@ -77,13 +75,67 @@ describe('arithmetic methods', () => {
     });
 });
 
+describe('ranged operators', () => {
+    /** Call chain method `method`, which the builder installs at runtime. */
+    function chain(receiver: unknown, method: string, ...args: unknown[]) {
+        const methods = receiver as Record<
+            string,
+            (...a: unknown[]) => unknown
+        >;
+        return methods[method](...args);
+    }
+    const lfo = () => sine('1hz').range(0, 2, -5, 5);
+    const unranged = () => chain(builder.$c('c3'), 'lpf', 0);
+
+    test.each(['add', 'sub', 'mul', 'exp', 'amp', 'gain'])(
+        '.%s() of a ranged signal and a constant stays ranged',
+        (method) => {
+            expect(chain(lfo(), method, 2)).toBeInstanceOf(CollectionWithRange);
+        },
+    );
+
+    test('two ranged operands stay ranged', () => {
+        expect(chain(lfo(), 'add', lfo())).toBeInstanceOf(CollectionWithRange);
+    });
+
+    test('an unranged operand gives up the range', () => {
+        expect(chain(lfo(), 'add', unranged())).not.toBeInstanceOf(
+            CollectionWithRange,
+        );
+    });
+
+    test('.div() stays ranged only for a constant divisor', () => {
+        expect(chain(lfo(), 'div', 2)).toBeInstanceOf(CollectionWithRange);
+        expect(chain(lfo(), 'div', lfo())).not.toBeInstanceOf(
+            CollectionWithRange,
+        );
+    });
+
+    test('a constant has no range to give', () => {
+        expect(chain(builder.$c(3), 'add', 1)).not.toBeInstanceOf(
+            CollectionWithRange,
+        );
+    });
+
+    test('$clamp is ranged by both limits, whatever its input', () => {
+        const clamp = builder.getFactory('$clamp');
+        expect(clamp(unranged(), { max: 1, min: 0 })).toBeInstanceOf(
+            CollectionWithRange,
+        );
+        expect(clamp(unranged(), { min: 0 })).not.toBeInstanceOf(
+            CollectionWithRange,
+        );
+        expect(clamp(lfo(), { min: 0 })).toBeInstanceOf(CollectionWithRange);
+    });
+});
+
 describe('rounding methods', () => {
     test.each(['round', 'floor', 'ceil'] as const)(
         '.%s() on an unranged signal stays unranged',
         (mode) => {
             const out = builder.$c('c3')[mode]();
 
-            expect(out.items[0]).not.toBeInstanceOf(ModuleOutputWithRange);
+            expect(out).not.toBeInstanceOf(CollectionWithRange);
             const [node] = modules('_round');
             expect(node.params).toMatchObject({ mode });
         },

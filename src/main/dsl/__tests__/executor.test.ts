@@ -307,7 +307,7 @@ describe('collections', () => {
         expect(findModules(patch, '$saw').length).toBe(1);
     });
 
-    test('$c with noise (ModuleOutputWithRange, no spread needed)', () => {
+    test('$c with noise (ranged channels, no spread needed)', () => {
         const patch = execPatch('$c($noise("white"), $noise("pink")).out()');
         expect(findModules(patch, '$noise').length).toBe(2);
     });
@@ -435,9 +435,8 @@ describe('chaining methods', () => {
         expect(patch.scopes[0].channels[0].channel).toBe(1);
     });
 
-    test('ModuleOutputWithRange.range() remaps', () => {
+    test('a ranged channel .range() remaps', () => {
         const patch = execPatch('$sine("C4")[0].range("C3", "C5").out()');
-        // Range() on a ModuleOutputWithRange creates a remap module
         expect(findModules(patch, '$sine').length).toBe(1);
         expect(findModules(patch, '$remap').length).toBeGreaterThan(0);
     });

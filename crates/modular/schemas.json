@@ -175,7 +175,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "rho",
@@ -185,7 +186,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "beta",
@@ -195,7 +197,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "rate",
@@ -205,7 +208,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [],
@@ -394,7 +398,8 @@
         "name": "freq",
         "description": "rate of the main swell, e.g. `'0.1hz'`",
         "paramType": "frequency",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "steepness",
@@ -405,7 +410,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "chop",
@@ -416,7 +422,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "spread",
@@ -427,7 +434,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -442,7 +450,7 @@
     "name": "$signal",
     "docs": {
       "summary": "Pass-through signal",
-      "description": "Passes its input on unchanged, giving a value or cable a module of its own: a named point in the patch to tap, scope or reuse. A constant set here glides to its new value when the patch updates instead of jumping. `min` and `max` give a constant a range for `.range()` to map from.",
+      "description": "Passes its input on unchanged, giving a value or cable a module of its own: a named point in the patch to tap, scope or reuse. A constant set here glides to its new value when the patch updates instead of jumping.",
       "categories": [
         "utility"
       ],
@@ -562,7 +570,8 @@
         "name": "value",
         "description": "the signal or value to pass on",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -730,7 +739,8 @@
         "defaultValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -885,7 +895,8 @@
         "name": "input",
         "description": "the polyphonic signal to fold down",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -1041,7 +1052,8 @@
         "name": "input",
         "description": "the signal to place in the stereo field",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "pan",
@@ -1051,7 +1063,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "width",
@@ -1062,7 +1075,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -1474,7 +1488,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -1485,7 +1500,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -1496,7 +1512,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -1507,14 +1524,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈49.5 Hz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": -2.4035,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -1687,7 +1706,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -1698,7 +1718,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -1709,7 +1730,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "snappy",
@@ -1720,14 +1742,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch of the low tone, the high one following; stock is ≈250 Hz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": -0.0678,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -1878,7 +1902,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -1889,14 +1914,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch of the upper tone, the lower one following; stock is ≈1.79 kHz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": 2.771,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -2058,7 +2085,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -2069,14 +2097,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈2.53 kHz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": 3.273,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -2087,7 +2117,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -2242,7 +2273,8 @@
         "name": "trigger",
         "description": "rising edges strike the bell",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -2253,14 +2285,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch of the lower tone, the higher one following; stock is 540 Hz against 800 Hz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": 1.0454,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -2395,7 +2429,8 @@
         "name": "trigger",
         "description": "rising edges clap",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -2406,7 +2441,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -2541,7 +2577,8 @@
         "name": "trigger",
         "description": "rising edges shake the maracas",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -2552,7 +2589,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -2714,7 +2752,8 @@
         "name": "trigger",
         "description": "rising edges strike the cymbal",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -2725,7 +2764,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -2736,7 +2776,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -2747,7 +2788,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -2942,13 +2984,15 @@
         "name": "closed",
         "description": "rising edges strike the closed hat, which also cuts off a ringing open hat",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "open",
         "description": "rising edges strike the open hat",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -2959,7 +3003,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -2970,7 +3015,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cut",
@@ -2981,7 +3027,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -3143,7 +3190,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -3154,14 +3202,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈87 Hz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": -1.5959,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -3172,7 +3222,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -3334,7 +3385,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -3345,14 +3397,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈134 Hz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": -0.9623,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -3363,7 +3417,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -3525,7 +3580,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -3536,14 +3592,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈182 Hz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": -0.5216,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -3554,7 +3612,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -3716,7 +3775,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -3727,14 +3787,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈192 Hz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": -0.4471,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -3745,7 +3807,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -3907,7 +3970,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -3918,14 +3982,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈276 Hz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": 0.0792,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -3936,7 +4002,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -4098,7 +4165,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -4109,14 +4177,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈405 Hz; its level shifts as you tune far from stock",
         "paramType": "pitch",
         "defaultValue": 0.629,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -4127,7 +4197,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -4311,7 +4382,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -4322,14 +4394,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "settled pitch, the sweep following; stock is ≈56 Hz",
         "paramType": "pitch",
         "defaultValue": -2.2235,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "sweep",
@@ -4340,7 +4414,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "attack",
@@ -4351,7 +4426,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -4362,7 +4438,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -4535,7 +4612,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -4546,14 +4624,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈148 Hz",
         "paramType": "pitch",
         "defaultValue": -0.8243,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -4564,7 +4644,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "snappy",
@@ -4575,7 +4656,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -4710,7 +4792,8 @@
         "name": "trigger",
         "description": "rising edges strike the rim",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -4721,7 +4804,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -4856,7 +4940,8 @@
         "name": "trigger",
         "description": "rising edges clap",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -4867,7 +4952,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -5029,7 +5115,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -5040,14 +5127,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈61 Hz",
         "paramType": "pitch",
         "defaultValue": -2.0993,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -5058,7 +5147,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -5220,7 +5310,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -5231,14 +5322,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈75 Hz",
         "paramType": "pitch",
         "defaultValue": -1.8098,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -5249,7 +5342,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -5411,7 +5505,8 @@
         "name": "trigger",
         "description": "rising edges strike the drum",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -5422,14 +5517,16 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch; stock is ≈92 Hz",
         "paramType": "pitch",
         "defaultValue": -1.5143,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -5440,7 +5537,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -5682,13 +5780,15 @@
         "name": "input",
         "description": "the sound to compress",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "sidechain",
         "description": "when patched, the compressor listens to this instead of the input, but still turns the input down; for ducking and pumping",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "threshold",
@@ -5698,7 +5798,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "ratio",
@@ -5708,7 +5809,8 @@
         "minValue": 0.001,
         "controlMin": 1.0,
         "controlMax": 20.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "upwardThreshold",
@@ -5718,7 +5820,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "upwardRatio",
@@ -5728,7 +5831,8 @@
         "minValue": 0.001,
         "controlMin": 0.1,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "attack",
@@ -5738,7 +5842,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 0.2,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "release",
@@ -5748,7 +5853,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 2.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "makeup",
@@ -5759,7 +5865,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "inputGain",
@@ -5770,7 +5877,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "outputGain",
@@ -5781,7 +5889,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "mix",
@@ -5792,7 +5901,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -5958,7 +6068,8 @@
         "name": "input",
         "description": "the sound to split",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "lowMidFreq",
@@ -5966,7 +6077,8 @@
         "paramType": "frequency",
         "defaultValue": -0.389,
         "minValue": -3.71,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "midHighFreq",
@@ -5974,7 +6086,8 @@
         "paramType": "frequency",
         "defaultValue": 2.935,
         "minValue": -3.71,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -6115,7 +6228,8 @@
         "paramType": "audio",
         "minValue": -5.0,
         "maxValue": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "amount",
@@ -6126,13 +6240,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch of the incoming signal; patch it to reduce aliasing on high notes",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -6277,7 +6393,8 @@
         "paramType": "audio",
         "minValue": -5.0,
         "maxValue": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "amount",
@@ -6287,13 +6404,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch of the incoming signal; patch it to reduce aliasing on high notes",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -6492,7 +6611,8 @@
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -6503,7 +6623,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "damping",
@@ -6514,7 +6635,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "size",
@@ -6525,7 +6647,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "predelay",
@@ -6536,7 +6659,8 @@
         "maxValue": 0.5,
         "controlMin": 0.0,
         "controlMax": 0.5,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "diffusion",
@@ -6547,7 +6671,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "modulation",
@@ -6556,7 +6681,8 @@
         "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -6726,7 +6852,8 @@
         "name": "input",
         "description": "signal to overdrive",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -6737,7 +6864,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -6748,7 +6876,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -6868,7 +6997,8 @@
         "name": "input",
         "description": "signal to strip of DC offset and sub-audio rumble",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -7042,7 +7172,8 @@
         "name": "input",
         "description": "signal to reverberate; all channels are mixed to mono",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "bandwidth",
@@ -7053,7 +7184,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "damping",
@@ -7064,7 +7196,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -7075,7 +7208,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "modulation",
@@ -7084,7 +7218,8 @@
         "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -7229,7 +7364,8 @@
         "name": "input",
         "description": "signal to grit up",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "amount",
@@ -7239,7 +7375,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "step",
@@ -7249,7 +7386,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "dither",
@@ -7260,7 +7398,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -7459,7 +7598,8 @@
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -7470,7 +7610,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "damping",
@@ -7481,7 +7622,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "size",
@@ -7492,7 +7634,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "width",
@@ -7503,7 +7646,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "predelay",
@@ -7514,7 +7658,8 @@
         "maxValue": 0.5,
         "controlMin": 0.0,
         "controlMax": 0.5,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "modulation",
@@ -7525,7 +7670,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -7722,7 +7868,8 @@
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -7733,7 +7880,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "damping",
@@ -7744,7 +7892,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "size",
@@ -7755,7 +7904,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "width",
@@ -7766,7 +7916,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "predelay",
@@ -7777,7 +7928,8 @@
         "maxValue": 0.5,
         "controlMin": 0.0,
         "controlMax": 0.5,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "modulation",
@@ -7788,7 +7940,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -7926,7 +8079,8 @@
         "paramType": "audio",
         "minValue": -5.0,
         "maxValue": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "amount",
@@ -7936,13 +8090,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch of the incoming signal; patch it to reduce aliasing on high notes",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -8145,7 +8301,8 @@
         "name": "input",
         "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "amount",
@@ -8156,7 +8313,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "size",
@@ -8167,7 +8325,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -8178,7 +8337,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -8477,19 +8637,22 @@
         "name": "input",
         "description": "signal to record; each channel gets its own voice",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "starts a grain",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freeze",
         "description": "while high, recording stops and grains keep playing the audio already held",
         "paramType": "gate",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "time",
@@ -8500,7 +8663,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "size",
@@ -8511,7 +8675,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "shape",
@@ -8522,19 +8687,22 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "grain pitch; grains keep the input's pitch when `freq` equals `rootFreq`",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "rootFreq",
         "description": "pitch of the input, so `freq` plays in tune",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "spread",
@@ -8545,7 +8713,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "width",
@@ -8556,7 +8725,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "feedback",
@@ -8567,7 +8737,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "mix",
@@ -8578,7 +8749,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -8867,7 +9039,8 @@
         "name": "trigger",
         "description": "starts a grain",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "time",
@@ -8878,7 +9051,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "size",
@@ -8889,7 +9063,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "shape",
@@ -8900,19 +9075,22 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "grain pitch; grains keep the file's pitch when `freq` equals `rootFreq`",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "rootFreq",
         "description": "pitch of the file, so `freq` plays in tune",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "spread",
@@ -8923,7 +9101,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "width",
@@ -8934,7 +9113,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -9095,7 +9275,8 @@
         "name": "input",
         "description": "signal to run through the tape; each channel wobbles in step",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "speed",
@@ -9106,7 +9287,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "intensity",
@@ -9117,7 +9299,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -9380,7 +9563,8 @@
         "name": "input",
         "description": "signal to delay; each channel gets its own delay",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "bars",
@@ -9390,7 +9574,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 4.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "time",
@@ -9401,7 +9586,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "shape",
@@ -9412,7 +9598,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "grooveAmount",
@@ -9423,25 +9610,29 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freeze",
         "description": "while high, recording stops and the delay loops slices of the audio it holds",
         "paramType": "gate",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch of the repeats; they keep the input's pitch when `freq` equals `rootFreq`",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "rootFreq",
         "description": "pitch of the input, so `freq` shifts the repeats in tune",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -9452,7 +9643,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "feedback",
@@ -9463,7 +9655,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "mix",
@@ -9474,7 +9667,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -9655,19 +9849,22 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "phaseOffset",
@@ -9678,7 +9875,8 @@
         "maxValue": 1.0,
         "controlMin": 0.0,
         "controlMax": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -9875,7 +10073,8 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "shape",
@@ -9886,19 +10085,22 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "phaseOffset",
@@ -9909,7 +10111,8 @@
         "maxValue": 1.0,
         "controlMin": 0.0,
         "controlMax": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -10112,7 +10315,8 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "width",
@@ -10123,7 +10327,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "pwm",
@@ -10134,19 +10339,22 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "phaseOffset",
@@ -10157,7 +10365,8 @@
         "maxValue": 1.0,
         "controlMin": 0.0,
         "controlMax": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -10279,7 +10488,8 @@
         "paramType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -10412,7 +10622,8 @@
         "paramType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "shape",
@@ -10423,7 +10634,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -10567,7 +10779,8 @@
         "paramType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "width",
@@ -10578,7 +10791,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "pwm",
@@ -10589,7 +10803,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -10822,7 +11037,8 @@
         "name": "rate",
         "description": "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop. Unpatched, a new value every sample",
         "paramType": "frequency",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -11332,7 +11548,8 @@
         "name": "freq",
         "description": "note pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "harmonics",
@@ -11343,7 +11560,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "timbre",
@@ -11354,7 +11572,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "morph",
@@ -11365,13 +11584,15 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation, scaled by `fmAmt`",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "timbreAmt",
@@ -11382,7 +11603,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fmAmt",
@@ -11393,7 +11615,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "morphAmt",
@@ -11404,13 +11627,15 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "strikes the internal envelope and lowpass gate; unpatched, the voice drones",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "level",
@@ -11420,7 +11645,8 @@
         "maxValue": 8.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "lpgColor",
@@ -11431,7 +11657,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "lpgDecay",
@@ -11442,7 +11669,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "mix",
@@ -11453,7 +11681,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -11650,7 +11879,8 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "detune",
@@ -11660,19 +11890,22 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 12.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts every saw of that note",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -12493,7 +12726,8 @@
         "name": "pitch",
         "description": "pitch of the scale's first note; every voice moves with it",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "root",
@@ -12502,7 +12736,8 @@
         "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "spread",
@@ -12513,7 +12748,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "detune",
@@ -12524,7 +12760,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "crossfade",
@@ -12535,7 +12772,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "crossFm",
@@ -12546,7 +12784,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "balance",
@@ -12557,7 +12796,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fold",
@@ -12568,7 +12808,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cheby",
@@ -12579,7 +12820,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "segment",
@@ -12590,7 +12832,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -12989,7 +13232,8 @@
         "name": "pitch",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "position",
@@ -13000,19 +13244,22 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "sync",
         "description": "hard sync: each rising edge restarts the cycle",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "phaseOffset",
@@ -13023,7 +13270,8 @@
         "maxValue": 1.0,
         "controlMin": 0.0,
         "controlMax": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -13166,7 +13414,8 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
@@ -13174,7 +13423,8 @@
         "paramType": "frequency",
         "defaultValue": 0.0,
         "minValue": -3.71,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -13184,7 +13434,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -13362,14 +13613,16 @@
         "name": "input",
         "description": "the sound to smear",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "the frequency the stages delay most",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "stages",
@@ -13380,7 +13633,8 @@
         "maxValue": 50.0,
         "controlMin": 1.0,
         "controlMax": 50.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -13391,7 +13645,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "feedback",
@@ -13402,7 +13657,8 @@
         "maxValue": 6.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -13542,14 +13798,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency; tops out just under half the sample rate",
         "paramType": "frequency",
         "minValue": -3.71,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -13559,7 +13817,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -13702,14 +13961,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "center",
         "description": "centre frequency; tops out just under half the sample rate",
         "paramType": "frequency",
         "minValue": -3.71,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -13719,7 +13980,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -13897,14 +14159,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency; tops out just under half the sample rate",
         "paramType": "frequency",
         "minValue": -3.71,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -13915,7 +14179,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -14087,13 +14352,15 @@
         "name": "input",
         "description": "the sound to gate",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "each trigger pings the gate fully open",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "level",
@@ -14104,7 +14371,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "color",
@@ -14115,7 +14383,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -14126,7 +14395,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -14344,7 +14614,8 @@
         "name": "input",
         "description": "the sound to filter; DC-coupled, so CV passes too",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
@@ -14353,7 +14624,8 @@
         "defaultValue": 0.0,
         "minValue": -10.08,
         "maxValue": 6.53,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -14363,7 +14635,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "mode",
@@ -14374,7 +14647,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -14385,7 +14659,8 @@
         "maxValue": 5.7,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fold",
@@ -14396,7 +14671,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -14658,7 +14934,8 @@
         "name": "input",
         "description": "the sound to EQ",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -14838,14 +15115,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -14856,7 +15135,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -15042,14 +15322,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -15060,7 +15342,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -15256,14 +15539,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the band",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -15274,7 +15559,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -15455,14 +15741,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the notch",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -15473,7 +15761,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -15614,14 +15903,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "frequency the phase shift centres on",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -15632,7 +15923,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -15803,14 +16095,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -15821,7 +16115,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -15992,14 +16287,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -16010,7 +16307,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -16181,14 +16479,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -16199,7 +16499,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -16375,14 +16676,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -16393,7 +16696,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -16569,14 +16873,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -16587,7 +16893,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -16748,14 +17055,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -16766,7 +17075,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -16927,14 +17237,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the band",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -16945,7 +17257,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -17106,14 +17419,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -17124,7 +17439,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -17285,14 +17601,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the notch",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -17303,7 +17621,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -17479,14 +17798,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -17497,7 +17818,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -17723,14 +18045,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency, or the centre for the bandpass, notch and phaser modes",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -17741,7 +18065,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -17918,14 +18243,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -17936,7 +18263,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -18113,14 +18441,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -18131,7 +18461,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -18308,14 +18639,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the band",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -18326,7 +18659,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -18503,14 +18837,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the notch",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -18521,7 +18857,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -18698,14 +19035,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "frequency the phase shift centres on",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -18716,7 +19055,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -18888,14 +19228,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -18906,7 +19248,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -19078,14 +19421,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -19096,7 +19441,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -19268,14 +19614,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the band",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -19286,7 +19634,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -19458,14 +19807,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "centre frequency of the notch",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -19476,7 +19827,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -19648,14 +20000,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "frequency the phase shift centres on",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -19666,7 +20020,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -19848,14 +20203,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -19866,7 +20223,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -20047,14 +20405,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "cutoff frequency, or the centre of the band, notch or peak",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -20065,7 +20425,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -20206,14 +20567,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "sample clock: how often the input is sampled; lower is crunchier",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -20224,7 +20587,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -20405,14 +20769,16 @@
         "name": "input",
         "description": "the sound to filter",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
         "description": "pitch the comb rings at",
         "paramType": "frequency",
         "defaultValue": 0.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -20423,7 +20789,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -20734,13 +21101,15 @@
         "paramType": "audio",
         "minValue": 0.0,
         "maxValue": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "freq",
         "description": "pitch of the incoming phase; patch it to cut aliasing from pulsar and feedback warps at high notes",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -20863,7 +21232,8 @@
         "name": "freq",
         "description": "how fast the ramp cycles",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -20985,7 +21355,8 @@
         "name": "input",
         "description": "pitch to detune",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "offset",
@@ -20993,7 +21364,8 @@
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -21190,7 +21562,8 @@
         "name": "gate",
         "description": "rising edge starts the envelope, falling edge starts the release",
         "paramType": "gate",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "attack",
@@ -21200,7 +21573,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -21210,7 +21584,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "sustain",
@@ -21222,7 +21597,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "release",
@@ -21232,7 +21608,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "curve",
@@ -21243,13 +21620,15 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "retrigger",
         "description": "rising edge restarts the attack from the current level, without a jump; follows the gate when not patched",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -21371,7 +21750,8 @@
         "name": "input",
         "description": "signal to add to",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "offset",
@@ -21379,7 +21759,8 @@
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -21391,7 +21772,7 @@
       }
     ],
     "experimental": false,
-    "customBounds": true
+    "customBounds": false
   },
   {
     "name": "$sub",
@@ -21504,7 +21885,8 @@
         "name": "input",
         "description": "signal to subtract from",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "offset",
@@ -21512,7 +21894,8 @@
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -21524,7 +21907,7 @@
       }
     ],
     "experimental": false,
-    "customBounds": true
+    "customBounds": false
   },
   {
     "name": "$mul",
@@ -21637,7 +22020,8 @@
         "name": "input",
         "description": "signal to multiply",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "factor",
@@ -21645,7 +22029,8 @@
         "paramType": "control",
         "controlMin": -2.0,
         "controlMax": 2.0,
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -21657,7 +22042,7 @@
       }
     ],
     "experimental": false,
-    "customBounds": true
+    "customBounds": false
   },
   {
     "name": "$div",
@@ -21770,7 +22155,8 @@
         "name": "input",
         "description": "signal to divide",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "divisor",
@@ -21778,7 +22164,8 @@
         "paramType": "control",
         "controlMin": 1.0,
         "controlMax": 16.0,
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": true
       }
     ],
     "positionalArgs": [
@@ -21790,7 +22177,7 @@
       }
     ],
     "experimental": false,
-    "customBounds": true
+    "customBounds": false
   },
   {
     "name": "$exp",
@@ -21903,7 +22290,8 @@
         "name": "input",
         "description": "signal to raise",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "exponent",
@@ -21912,7 +22300,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 4.0,
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -21924,7 +22313,7 @@
       }
     ],
     "experimental": false,
-    "customBounds": true
+    "customBounds": false
   },
   {
     "name": "_round",
@@ -22057,7 +22446,8 @@
         "name": "input",
         "description": "signal to round",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -22210,7 +22600,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -22333,7 +22724,8 @@
         "name": "input",
         "description": "signal recorded into the buffer",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -22565,7 +22957,8 @@
         "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -22708,7 +23101,8 @@
         "name": "input",
         "description": "signal to clamp",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "min",
@@ -22716,7 +23110,8 @@
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "max",
@@ -22724,7 +23119,8 @@
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -22733,7 +23129,11 @@
       }
     ],
     "experimental": false,
-    "customBounds": true
+    "customBounds": false,
+    "declaredRange": [
+      "min",
+      "max"
+    ]
   },
   {
     "name": "$clockDivider",
@@ -22862,13 +23262,15 @@
         "name": "input",
         "description": "clock to divide",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "reset",
         "description": "rising edge restarts the count, so the next tick fires",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -23013,7 +23415,8 @@
         "name": "input",
         "description": "triggers or gates to flip",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "probability",
@@ -23024,7 +23427,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -23174,7 +23578,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "distance",
@@ -23182,19 +23587,22 @@
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "rising edges step the counter by `distance`",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "reset",
         "description": "rising edge sets the counter to 0, winning over a trigger in the same sample",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -23322,7 +23730,8 @@
         "name": "input",
         "description": "signal to bend",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "exp",
@@ -23332,7 +23741,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 10.0,
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -23492,7 +23902,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -23709,7 +24120,8 @@
         "name": "input",
         "description": "signal to vary",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "amount",
@@ -23718,13 +24130,15 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "rising edge samples and holds the current random value",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "speed",
@@ -23735,7 +24149,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "bias",
@@ -23746,7 +24161,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "min",
@@ -23756,7 +24172,8 @@
         "defaultDoc": "the bottom of the input's range when it has one, otherwise -5",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "max",
@@ -23766,7 +24183,8 @@
         "defaultDoc": "the top of the input's range when it has one, otherwise 5",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -23899,7 +24317,8 @@
         "name": "input",
         "description": "rising edge opens the output gate",
         "paramType": "gate",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "time",
@@ -23909,7 +24328,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -24055,7 +24475,8 @@
         "name": "input",
         "description": "signal to smooth",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "rise",
@@ -24064,7 +24485,8 @@
         "minValue": 0.001,
         "controlMin": 0.001,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fall",
@@ -24074,7 +24496,8 @@
         "minValue": 0.001,
         "controlMin": 0.001,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -24193,7 +24616,8 @@
         "name": "input",
         "description": "signal watched for any rise from one sample to the next",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -24312,7 +24736,8 @@
         "name": "input",
         "description": "signal watched for any fall from one sample to the next",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -24488,19 +24913,22 @@
         "name": "x",
         "description": "signal read as `x` in the expression; 0 when not patched",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "y",
         "description": "signal read as `y` in the expression; 0 when not patched",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "z",
         "description": "signal read as `z` in the expression; 0 when not patched",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -24696,7 +25124,8 @@
         "name": "input",
         "description": "controller signal whose movement drives the output",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "attack",
@@ -24706,7 +25135,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "release",
@@ -24716,7 +25146,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "smooth",
@@ -24726,7 +25157,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "gain",
@@ -24735,7 +25167,8 @@
         "defaultValue": 0.25,
         "controlMin": 0.0,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "ceiling",
@@ -24745,7 +25178,8 @@
         "minValue": 0.001,
         "controlMin": 0.001,
         "controlMax": 20.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -24867,7 +25301,8 @@
         "name": "input",
         "description": "pitch to scale",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "factor",
@@ -24877,7 +25312,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 4.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -25000,7 +25436,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1000.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -25149,7 +25586,8 @@
         "name": "input",
         "description": "signal to rescale",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "outMin",
@@ -25158,7 +25596,8 @@
         "defaultValue": -5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "outMax",
@@ -25167,7 +25606,8 @@
         "defaultValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "inMin",
@@ -25177,7 +25617,8 @@
         "defaultDoc": "the start of the input's range when it has one, otherwise -5",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "inMax",
@@ -25187,7 +25628,8 @@
         "defaultDoc": "the end of the input's range when it has one, otherwise 5",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -25325,13 +25767,15 @@
         "name": "input",
         "description": "signal to sample",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "rising edge captures the current input value",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -25456,13 +25900,15 @@
         "name": "input",
         "description": "signal to track",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "gate",
         "description": "output follows the input while low and holds its last value while high",
         "paramType": "gate",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -25599,7 +26045,8 @@
         "name": "trigger",
         "description": "rising edge restarts the envelope from its current level",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -25609,7 +26056,8 @@
         "minValue": 0.001,
         "controlMin": 0.001,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -25787,19 +26235,22 @@
         "name": "input",
         "description": "pitch to quantize",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "offset",
         "description": "transposition added to the pitch before it snaps",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "gate",
         "description": "turns notes of the scale on and off: scale channel N is used only while gate channel N is high; with every gate low the output holds",
         "paramType": "gate",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -25924,7 +26375,8 @@
         "name": "input",
         "description": "signal to turn up or down",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "factor",
@@ -25933,7 +26385,8 @@
         "defaultValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 10.0,
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -25945,7 +26398,7 @@
       }
     ],
     "experimental": false,
-    "customBounds": true
+    "customBounds": false
   },
   {
     "name": "_crossfade",
@@ -26063,13 +26516,15 @@
         "name": "dry",
         "description": "signal heard at a mix of 0",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "wet",
         "description": "signal heard at a mix of 5",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "mix",
@@ -26080,7 +26535,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -26208,7 +26664,8 @@
         "name": "input",
         "description": "signal to turn up or down",
         "paramType": "audio",
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       },
       {
         "name": "level",
@@ -26217,7 +26674,8 @@
         "defaultValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": true
+        "carriesBounds": true,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -26229,7 +26687,7 @@
       }
     ],
     "experimental": false,
-    "customBounds": true
+    "customBounds": false
   },
   {
     "name": "_smoothControl",
@@ -26441,7 +26899,8 @@
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "max",
@@ -26449,7 +26908,8 @@
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "bias",
@@ -26458,7 +26918,8 @@
         "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -26605,7 +27066,8 @@
         "name": "input",
         "description": "pitch to fan out into detuned copies",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "spread",
@@ -26615,7 +27077,8 @@
         "maxValue": 10.0,
         "controlMin": 0.0,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -26746,7 +27209,8 @@
         "name": "input",
         "description": "signal published to the video renderer",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -26881,7 +27345,8 @@
         "name": "input",
         "description": "signal to wrap",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "min",
@@ -26890,7 +27355,8 @@
         "defaultValue": 0.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "max",
@@ -26899,7 +27365,8 @@
         "defaultValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -29330,7 +29797,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "groove",
@@ -29338,7 +29806,8 @@
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "velocity",
@@ -29346,7 +29815,8 @@
         "paramType": "control",
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -29542,7 +30012,8 @@
         "maxValue": 1.0,
         "controlMin": 0.0,
         "controlMax": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -29695,13 +30166,15 @@
         "name": "next",
         "description": "advances to the next step, wrapping after the last",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "reset",
         "description": "jumps back to the first step",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -30004,7 +30477,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "groove",
@@ -30012,7 +30486,8 @@
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "velocity",
@@ -30021,7 +30496,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "x",
@@ -30032,7 +30508,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "y",
@@ -30043,7 +30520,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "chaos",
@@ -30054,7 +30532,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "bdDensity",
@@ -30065,7 +30544,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "sdDensity",
@@ -30076,7 +30556,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "hhDensity",
@@ -30087,7 +30568,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [],
@@ -30335,7 +30817,8 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 1.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -30834,7 +31317,8 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "centroid",
@@ -30845,7 +31329,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "slope",
@@ -30856,7 +31341,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "bumps",
@@ -30867,13 +31353,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the wave backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -31029,7 +31517,8 @@
         "name": "input",
         "description": "signal to thicken; even channels feed the left side, odd the right, and an odd last channel feeds both",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "amount",
@@ -31040,7 +31529,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "depth",
@@ -31051,7 +31541,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -31222,7 +31713,8 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "registration",
@@ -31233,13 +31725,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the saws backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -31427,14 +31921,16 @@
         "name": "freq",
         "description": "pitch: how often the grains repeat",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "formant",
         "description": "first formant, independent of the pitch",
         "paramType": "frequency",
         "defaultValue": 0.5,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "ratio",
@@ -31445,7 +31941,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "width",
@@ -31456,13 +31953,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero plays each grain's window backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -31676,13 +32175,15 @@
         "name": "freq",
         "description": "the metallic tone's pitch: six square oscillators from twice it to five times it, with the clocked noise following",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "strikes the hat. Unpatched, the hat hisses steadily, as loud as `accent` and `decay` together allow",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -31693,7 +32194,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -31704,7 +32206,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "noisiness",
@@ -31715,7 +32218,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -31726,13 +32230,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -31946,13 +32452,15 @@
         "name": "freq",
         "description": "the metallic tone's pitch: its partials climb as it rises, levelling off above about 2 kHz, and the clocked noise follows",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "strikes the hat. Unpatched, the hat hisses steadily, as loud as `accent` and `decay` together allow",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -31963,7 +32471,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -31974,7 +32483,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "noisiness",
@@ -31985,7 +32495,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -31996,13 +32507,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -32238,13 +32751,15 @@
         "name": "freq",
         "description": "the drum's pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "strikes the drum. Unpatched, the drum drones: a sine at the pitch, bent by `selfFm`, as loud as `accent` and `decay` together allow",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -32255,7 +32770,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -32266,7 +32782,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "attackFm",
@@ -32277,7 +32794,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "selfFm",
@@ -32288,7 +32806,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -32299,7 +32818,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -32310,13 +32830,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -32552,13 +33074,15 @@
         "name": "freq",
         "description": "the drum's pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "strikes the drum. Unpatched, the drum drones: its body at the pitch, as loud as `accent` and `decay` together allow",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -32569,7 +33093,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -32580,7 +33105,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "dirt",
@@ -32592,7 +33118,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fmEnvelope",
@@ -32603,7 +33130,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fmDecay",
@@ -32614,7 +33142,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -32625,13 +33154,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -32867,13 +33398,15 @@
         "name": "freq",
         "description": "the pitch the body rings at",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "strikes the body; unpatched, it is excited continuously by a stream of tiny grains instead",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "structure",
@@ -32884,7 +33417,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "brightness",
@@ -32895,7 +33429,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -32906,7 +33441,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -32917,19 +33453,22 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "input",
         "description": "a sound to ring the body with, alongside its own strikes",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -33144,13 +33683,15 @@
         "name": "freq",
         "description": "the pitch the particles ring around",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "fires every particle at once; unpatched, they only crackle at random",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "density",
@@ -33161,7 +33702,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "spread",
@@ -33172,7 +33714,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "resonance",
@@ -33183,13 +33726,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filters take the frequency's size, so throughZero acts as lin",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -33386,7 +33931,8 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "ratio",
@@ -33397,7 +33943,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "amount",
@@ -33408,7 +33955,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "asymmetry",
@@ -33419,13 +33967,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -33650,13 +34200,15 @@
         "name": "freq",
         "description": "the note's pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "gate",
         "description": "holds the note: the envelopes attack and decay while high and release when it falls; a new note restarts them from where they are. Unpatched, the note sounds continuously and `envelope` scrubs through its envelopes",
         "paramType": "gate",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "bank",
@@ -33667,7 +34219,8 @@
         "maxValue": 2.0,
         "controlMin": 0.0,
         "controlMax": 2.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "patch",
@@ -33678,7 +34231,8 @@
         "maxValue": 31.0,
         "controlMin": 0.0,
         "controlMax": 31.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "brightness",
@@ -33689,7 +34243,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "envelope",
@@ -33700,7 +34255,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -33711,13 +34267,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the operators backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -33931,13 +34489,15 @@
         "name": "freq",
         "description": "the drum's pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "strikes the drum. Unpatched, the drum drones: its shell as steady sines and its snares as a steady hiss, as loud as `accent` and `decay` together allow",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "tone",
@@ -33948,7 +34508,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -33959,7 +34520,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "snappy",
@@ -33970,7 +34532,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -33981,13 +34544,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -34201,13 +34766,15 @@
         "name": "freq",
         "description": "the drum's pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "strikes the drum. Unpatched, the drum drones: its body and snares held steady, as loud as `accent` and `decay` together allow",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "attackFm",
@@ -34218,7 +34785,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -34229,7 +34797,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "snappy",
@@ -34240,7 +34809,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -34251,13 +34821,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency sounds at its magnitude",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -34504,13 +35076,15 @@
         "name": "freq",
         "description": "the voice's pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "says the word `word` picks, then falls silent until the next trigger; silent too until the first trigger and after `bank` changes. Unpatched, the voice holds the sound `word` scans to",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "bank",
@@ -34521,7 +35095,8 @@
         "maxValue": 4.0,
         "controlMin": 0.0,
         "controlMax": 4.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "word",
@@ -34532,7 +35107,8 @@
         "maxValue": 25.0,
         "controlMin": 0.0,
         "controlMax": 25.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "formantShift",
@@ -34543,7 +35119,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "prosody",
@@ -34554,7 +35131,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "speed",
@@ -34565,7 +35143,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -34576,13 +35155,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -34818,13 +35399,15 @@
         "name": "freq",
         "description": "the string's pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "plucks a string; earlier notes ring on on their own strings. Unpatched, a stream of tiny grains bows the string continuously instead",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "structure",
@@ -34835,7 +35418,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "brightness",
@@ -34846,7 +35430,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "decay",
@@ -34857,7 +35442,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "accent",
@@ -34868,19 +35454,22 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "input",
         "description": "a sound to resonate the current string with, alongside its plucks",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -35094,13 +35683,15 @@
         "name": "freq",
         "description": "the swarm's centre pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "starts a burst: every voice restarts at once with a flurry of quick grains that slows down; unpatched, the swarm runs continuously",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "density",
@@ -35111,7 +35702,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "spread",
@@ -35122,7 +35714,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "grainSize",
@@ -35133,13 +35726,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the voices backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -35342,7 +35937,8 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "ratio",
@@ -35353,7 +35949,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "index",
@@ -35364,7 +35961,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "feedback",
@@ -35375,13 +35973,15 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs both operators backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -35580,13 +36180,15 @@
         "name": "freq",
         "description": "the voice's pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "starts a syllable with a click: the pitch drops an octave for 50 ms. Unpatched, the vowel sustains",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "vowel",
@@ -35597,7 +36199,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "formantShift",
@@ -35608,13 +36211,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -35813,13 +36418,15 @@
         "name": "freq",
         "description": "the voice's pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "starts a syllable: one of SAM's consonants for 50 ms, picked from the knobs and pitch. Unpatched, the vowel sustains",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "vowel",
@@ -35830,7 +36437,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "formantShift",
@@ -35841,13 +36449,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -36046,13 +36656,15 @@
         "name": "freq",
         "description": "the voice's pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "trigger",
         "description": "starts a syllable: a consonant of about 25 ms, picked from the knobs and pitch and stretched as `formantShift` leaves the middle. Unpatched, the vowel sustains",
         "paramType": "trig",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "vowel",
@@ -36063,7 +36675,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "formantShift",
@@ -36074,13 +36687,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -36283,7 +36898,8 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "terrain",
@@ -36294,7 +36910,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "radius",
@@ -36305,7 +36922,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "offset",
@@ -36316,13 +36934,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero traces the circle backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -36525,7 +37145,8 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "shape",
@@ -36536,7 +37157,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fold",
@@ -36547,7 +37169,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "asymmetry",
@@ -36558,13 +37181,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waves backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -36752,7 +37377,8 @@
         "name": "freq",
         "description": "oscillator pitch",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "cutoff",
@@ -36763,7 +37389,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "shape",
@@ -36774,7 +37401,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "mode",
@@ -36785,13 +37413,15 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -37044,13 +37674,15 @@
         "name": "pitch",
         "description": "pitch of new grains: 0 plays at the file's own speed, each volt an octave",
         "paramType": "pitch",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "gate",
         "description": "grains spawn while high; each new gate restarts the `loopCount` tally",
         "paramType": "gate",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "start",
@@ -37061,7 +37693,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "length",
@@ -37071,7 +37704,8 @@
         "minValue": 0.01,
         "controlMin": 0.01,
         "controlMax": 10.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "density",
@@ -37082,7 +37716,8 @@
         "maxValue": 100.0,
         "controlMin": 0.0001,
         "controlMax": 100.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "directionBias",
@@ -37093,7 +37728,8 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -37427,7 +38063,8 @@
         "name": "gate",
         "description": "starts the selected slice playing; `mode` sets what the gate does after that",
         "paramType": "gate",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "speed",
@@ -37436,7 +38073,8 @@
         "defaultValue": 1.0,
         "controlMin": -4.0,
         "controlMax": 4.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -37604,7 +38242,8 @@
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -37615,7 +38254,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -37816,7 +38456,8 @@
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -37827,7 +38468,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -37993,7 +38635,8 @@
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -38004,7 +38647,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -38180,7 +38824,8 @@
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -38191,7 +38836,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -38362,7 +39008,8 @@
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -38373,7 +39020,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -38574,7 +39222,8 @@
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -38585,7 +39234,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -38721,7 +39371,8 @@
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -38732,7 +39383,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -38865,7 +39517,8 @@
         "name": "input",
         "description": "signal to shape; ±5 V spans the shaper's curve",
         "paramType": "audio",
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       },
       {
         "name": "drive",
@@ -38876,7 +39529,8 @@
         "maxValue": 5.0,
         "controlMin": -5.0,
         "controlMax": 5.0,
-        "carriesBounds": false
+        "carriesBounds": false,
+        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [

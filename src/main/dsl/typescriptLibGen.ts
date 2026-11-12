@@ -263,8 +263,11 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  */
 type Signal = number | Note | HZ | Collection | CollectionWithRange;
 
-/** A {@link Signal} whose range the engine knows: a fixed value or a ranged collection. */
-type RangedSignal = number | Note | HZ | CollectionWithRange;
+/** A {@link Signal} that holds still: a number, note or frequency. */
+type ConstantSignal = number | Note | HZ;
+
+/** A {@link Signal} whose range the engine knows, or a constant it carries along. */
+type RangedSignal = ConstantSignal | CollectionWithRange;
 
 /**
  * A potentially multi-channel signal for polyphonic patches.
@@ -1136,10 +1139,10 @@ function $c(...args: (Signal | Signal[])[]): Collection;
  * Create a {@link CollectionWithRange} holding the channels of every ranged
  * argument, each keeping its range.
  * 
- * Like $c() but the range() method uses the stored ranges.
+ * Like $c() for ranged collections: range() maps each from its own range.
  * @param args Ranged signals, or arrays of them, to group
  * @returns A {@link CollectionWithRange} of their channels
- * @example $r($sine('1hz'), $sine('2hz')).range(0, 5)  // Uses stored ranges
+ * @example $r($sine('1hz'), $sine('2hz')).range(0, 5)
  * @example $r(...[$sine('3hz'), $sine('4hz')]).range(0, 1)
  * @see {@link $c} - for signals without known ranges
  */
@@ -1762,12 +1765,13 @@ function getOutputType(output: { name: string; bounds?: string }): string {
 }
 
 /**
- * The positional params `moduleSchema`'s output takes its range from, when
- * a ranged receiver and ranged or constant arguments keep it ranged: a
- * single `bounds = input` output, the module's default test, and the
- * receiver among the tagged params, every one positional. `null` otherwise.
+ * The positional params `moduleSchema`'s output takes its range from, each
+ * mapped to whether it must hold a constant, when its output can be ranged
+ * by them: a single `bounds = input` output, the module's own test stated in
+ * its schema, and the first positional among the tagged params, every one
+ * positional. `null` otherwise.
  */
-function rangedChainParams(moduleSchema: Schema): Set<string> | null {
+function rangedParams(moduleSchema: Schema): Map<string, boolean> | null {
     const outputs = moduleSchema.outputs ?? [];
     if (
         outputs.length !== 1 ||
@@ -1776,49 +1780,68 @@ function rangedChainParams(moduleSchema: Schema): Set<string> | null {
     ) {
         return null;
     }
-    const tagged = new Set(
+    const tagged = new Map(
         moduleSchema.signalParams
             .filter((param) => param.carriesBounds)
-            .map((param) => param.name),
+            .map((param) => [param.name, param.boundsNeedConstant]),
     );
     const positionals = (moduleSchema.positionalArgs ?? []).map((a) => a.name);
     const receiver = positionals[0];
-    if (!receiver || !tagged.has(receiver)) {
+    if (!receiver || tagged.get(receiver) !== false) {
         return null;
     }
-    return [...tagged].every((name) => positionals.includes(name))
+    return [...tagged.keys()].every((name) => positionals.includes(name))
         ? tagged
         : null;
 }
 
 /**
- * The ranged overload of `moduleSchema`'s chain method on a ranged
- * collection: ranged or constant arguments where its range comes from, and a
- * ranged result. `null` for a module without one.
+ * `args` typed for a ranged result: `receiver` ranged, the other params
+ * `tagged` names ranged or constant, or constant where they must be.
+ */
+function rangedArgs(
+    args: string[],
+    tagged: Map<string, boolean>,
+    receiver: string | null,
+): string[] {
+    return args.map((arg) => {
+        const name = arg.match(/^(\w+)\??:/)?.[1];
+        if (!name || !tagged.has(name)) {
+            return arg;
+        }
+        const type =
+            name === receiver
+                ? 'OrArray<CollectionWithRange>'
+                : tagged.get(name)
+                  ? 'OrArray<ConstantSignal>'
+                  : 'OrArray<RangedSignal>';
+        return `${name}${arg.includes('?:') ? '?' : ''}: ${type}`;
+    });
+}
+
+/**
+ * The chain method of `moduleSchema` on a ranged collection: an overload
+ * keeping the range when its arguments allow, then the general one where
+ * other arguments reach it. `null` for a module without one.
  */
 function renderRangedChainMethod(
     moduleSchema: Schema,
     indent: string,
 ): string[] | null {
-    const tagged = rangedChainParams(moduleSchema);
+    const tagged = rangedParams(moduleSchema);
     if (!tagged) {
         return null;
     }
-    const { args } = buildSignature(moduleSchema, { positionalStart: 1 });
-    const ranged = args.map((arg) => {
-        const name = arg.match(/^(\w+)\??:/)?.[1];
-        if (!name || !tagged.has(name)) {
-            return arg;
-        }
-        return arg.includes('?:')
-            ? `${name}?: OrArray<RangedSignal>`
-            : `${name}: OrArray<RangedSignal>`;
-    });
-    return [
-        `${indent}/** Keeps this signal's range when every argument it follows is ranged or fixed. */`,
+    const { args, doc } = chainSignature(moduleSchema, indent);
+    const ranged = rangedArgs(args, tagged, null);
+    const lines = [
+        ...doc,
         `${indent}${chainMethodName(moduleSchema.name)}(${ranged.join(', ')}): CollectionWithRange;`,
-        ...renderChainMethod(moduleSchema, indent),
     ];
+    if (ranged.some((arg, i) => arg !== args[i])) {
+        lines.push(...renderChainMethod(moduleSchema, indent));
+    }
+    return lines;
 }
 
 /** The lib types of a pattern, each a root of `$cycle`'s outputs. */
@@ -2115,9 +2138,9 @@ function buildSignature(
 }
 
 /**
- * The args of `moduleSchema`'s overload for a range it declares: with the
- * declaring params given as numbers, its output is ranged whatever its
- * input. `null` for a module that declares none.
+ * The args of `moduleSchema`'s overload for a range it declares: with both
+ * declaring params given, its output is ranged whatever its input. `null`
+ * for a module that declares none.
  */
 function declaredRangeArgs(
     moduleSchema: Schema,
@@ -2130,24 +2153,20 @@ function declaredRangeArgs(
     const config = args[args.length - 1];
     let ranged = config.replace(/^config\?:/, 'config:');
     for (const name of declared) {
-        ranged = ranged.replace(
-            new RegExp(`\\b${name}\\?: [^;}]+`),
-            `${name}: number`,
-        );
+        ranged = ranged.replace(new RegExp(`\\b${name}\\?:`), `${name}:`);
     }
     return [...args.slice(0, -1), ranged];
 }
 
 /**
- * Render the chain method of `moduleSchema`: the module's factory without
- * its first positional, which the receiver supplies. Carries the module's
- * docs, like the factory.
- *
- * Only called on schemas passing `qualifiesForChain`, which guarantees
- * `chainMethodName` yields a valid TS identifier for the interface member.
+ * The args and doc comment of `moduleSchema`'s chain method: the module's
+ * factory without its first positional, which the receiver supplies, and the
+ * module's docs, like the factory.
  */
-function renderChainMethod(moduleSchema: Schema, indent: string): string[] {
-    const methodName = chainMethodName(moduleSchema.name);
+function chainSignature(
+    moduleSchema: Schema,
+    indent: string,
+): { args: string[]; doc: string[] } {
     const { args, docLines } = buildSignature(moduleSchema, {
         positionalStart: 1,
         leadDocLines: [
@@ -2156,12 +2175,26 @@ function renderChainMethod(moduleSchema: Schema, indent: string): string[] {
             '',
         ],
     });
+    return {
+        args,
+        doc: [
+            `${indent}/**`,
+            ...docLines.map((line) => `${indent} * ${line}`),
+            `${indent} */`,
+        ],
+    };
+}
 
-    const doc = [
-        `${indent}/**`,
-        ...docLines.map((line) => `${indent} * ${line}`),
-        `${indent} */`,
-    ];
+/**
+ * Render the chain method of `moduleSchema`, with the overload for a range
+ * it declares first.
+ *
+ * Only called on schemas passing `qualifiesForChain`, which guarantees
+ * `chainMethodName` yields a valid TS identifier for the interface member.
+ */
+function renderChainMethod(moduleSchema: Schema, indent: string): string[] {
+    const methodName = chainMethodName(moduleSchema.name);
+    const { args, doc } = chainSignature(moduleSchema, indent);
     // The chain interfaces sit outside the module's namespace, so a
     // multi-output interface is named in full.
     const returnType =
@@ -2202,18 +2235,26 @@ function renderFactoryFunction(
                   `${indent} */`,
               ]
             : [];
+    const overload = (overloadArgs: string[], type: string) => [
+        ...doc,
+        `${indent}export function ${functionName}(${overloadArgs.join(', ')}): ${type};`,
+    ];
     const lines: string[] = [];
-    const declared = declaredRangeArgs(moduleSchema, args);
-    if (declared) {
+    const tagged = rangedParams(moduleSchema);
+    if (tagged) {
+        const receiver = moduleSchema.positionalArgs[0].name;
         lines.push(
-            ...doc,
-            `${indent}export function ${functionName}(${declared.join(', ')}): CollectionWithRange;`,
+            ...overload(
+                rangedArgs(args, tagged, receiver),
+                'CollectionWithRange',
+            ),
         );
     }
-    lines.push(
-        ...doc,
-        `${indent}export function ${functionName}(${args.join(', ')}): ${returnType};`,
-    );
+    const declared = declaredRangeArgs(moduleSchema, args);
+    if (declared) {
+        lines.push(...overload(declared, 'CollectionWithRange'));
+    }
+    lines.push(...overload(args, returnType));
 
     return lines;
 }

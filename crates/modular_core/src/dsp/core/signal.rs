@@ -7,13 +7,14 @@ use crate::block_input::{self, InputScratch};
 use crate::bounds::Bounds;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::param_errors::{ModuleParamErrors, check_declared_range};
 use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 #[params(declares_range = (min, max))]
 #[derive(Clone, Deserr, JsonSchema, ChannelCount, Connect)]
 #[serde(rename_all = "camelCase")]
-#[deserr(rename_all = camelCase, deny_unknown_fields)]
+#[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_signal_params -> ModuleParamErrors)]
 struct SignalParams {
     #[input("the signal or value to pass on", type = audio, bounds)]
     value: PolySignal,
@@ -27,6 +28,14 @@ struct SignalParams {
     #[serde(default)]
     #[deserr(default)]
     max: Option<f32>,
+}
+
+fn validate_signal_params(
+    params: SignalParams,
+    _location: deserr::ValuePointerRef,
+) -> Result<SignalParams, ModuleParamErrors> {
+    check_declared_range(params.min, params.max)?;
+    Ok(params)
 }
 
 impl SignalParams {
@@ -57,8 +66,7 @@ const SIGNAL_DOCS: ModuleDocs = ModuleDocs {
     summary: "Pass-through signal",
     description: "Passes its input on unchanged, giving a value or cable a module of its own: \
                   a named point in the patch to tap, scope or reuse. A constant set here glides \
-                  to its new value when the patch updates instead of jumping. `min` and `max` give a \
-                  constant a range for `.range()` to map from.",
+                  to its new value when the patch updates instead of jumping.",
     categories: &[ModuleCategory::Utility],
     sections: &[],
     examples: &[DocExample {

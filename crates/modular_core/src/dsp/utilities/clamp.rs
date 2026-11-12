@@ -9,7 +9,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 
-#[params(bounded_when = clamp_bounded)]
+#[params(declares_range = (min, max))]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
@@ -39,11 +39,6 @@ struct ClampParams {
 struct ClampOutputs {
     #[output("output", "the clamped signal", type = cv, bounds = input, default)]
     sample: PolyOutput,
-}
-
-/// A clamp is bounded by a bounded input, or by both of its own limits.
-fn clamp_bounded(p: &ClampParams, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
-    p.input.statically_bounded(is_bounded) || (p.min.is_some() && p.max.is_some())
 }
 
 const CLAMP_DOCS: ModuleDocs = ModuleDocs {

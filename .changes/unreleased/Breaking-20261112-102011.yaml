@@ -1,11 +1,16 @@
 kind: Breaking
 body: |-
-    `.erratic()` on a ranged signal blends toward random values within its range by default, instead of shifting and clamping. Pass `mode: 'clamp'` to keep the old movement:
+    `.erratic()` on a ranged signal blends toward random values within its range by default, instead of shifting and clamping. Pass `mode: 'clamp'` to keep the old movement. With `mode: 'shift'` the result can leave the range, so it no longer has one: give `.range()` the input range too.
 
     ```js
     // before
     $sine('0.2hz').range(0, 5).erratic(2)
     // after
     $sine('0.2hz').range(0, 5).erratic(2, { mode: 'clamp' })
+
+    // before
+    lfo.range(0, 5).erratic(2, { mode: 'shift' }).range(0, 1)
+    // after
+    lfo.range(0, 5).erratic(2, { mode: 'shift' }).range(0, 1, 0, 5)
     ```
 time: 2026-11-12T10:20:11.93309-05:00

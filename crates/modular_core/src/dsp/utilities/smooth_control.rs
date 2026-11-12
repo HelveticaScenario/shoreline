@@ -5,6 +5,7 @@ use crate::bounds::Bounds;
 use crate::dsp::utils::sanitize;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::param_errors::{ModuleParamErrors, check_declared_range};
 use crate::poly::PolyOutput;
 
 /// Seconds the output takes to reach each new value. Longer than the interval
@@ -15,7 +16,7 @@ const RAMP_SECONDS: f32 = 0.03;
 #[params(declares_range = (min, max))]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
 #[serde(rename_all = "camelCase")]
-#[deserr(rename_all = camelCase, deny_unknown_fields)]
+#[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_smooth_control_params -> ModuleParamErrors)]
 struct SmoothControlParams {
     #[input("value the output ramps to")]
     value: f64,
@@ -27,6 +28,14 @@ struct SmoothControlParams {
     #[serde(default)]
     #[deserr(default)]
     max: Option<f32>,
+}
+
+fn validate_smooth_control_params(
+    params: SmoothControlParams,
+    _location: deserr::ValuePointerRef,
+) -> Result<SmoothControlParams, ModuleParamErrors> {
+    check_declared_range(params.min, params.max)?;
+    Ok(params)
 }
 
 #[derive(Outputs, JsonSchema)]

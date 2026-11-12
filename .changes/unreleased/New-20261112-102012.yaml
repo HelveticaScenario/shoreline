@@ -1,6 +1,6 @@
 kind: New
 body: |-
-    `.range(outMin, outMax)` works after any chain that keeps a signal's range, such as `.add()`, `.mul()`, `.round()`, `.lag()` or `.erratic()`, mapping from the range that results. `$signal` takes `min` and `max` to give a value a range of its own:
+    `.range(outMin, outMax)` works after any chain that keeps a signal's range, such as `.add()`, `.mul()`, `.div()` by a number, `.clamp()`, `.slew()`, `.round()` or `.erratic()`, mapping from the range that results. `$signal` takes `min` and `max` to give a value a range of its own:
 
     ```js
     $sine('1hz').range(0, 2).add(1).range(-5, 5)

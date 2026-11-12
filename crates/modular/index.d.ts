@@ -459,8 +459,8 @@ export interface WavTimeSignature {
 }
 /**
  * How an output's bounds arise, named in `#[output(bounds = …)]` or implied
- * by its `range`. Whether a `Params` or `Input` output is bounded in a given
- * patch is settled when the patch is built.
+ * by its `range`. Whether an `Input` output is bounded in a given patch is
+ * settled when the patch is built.
  */
 export type BoundsKind = /** Never bounded. */
 'unbounded'|
@@ -468,7 +468,10 @@ export type BoundsKind = /** Never bounded. */
 'fixed'|
 /** Bounded by the module's own params. */
 'params'|
-/** Bounded when every input the module tags with `bounds` is. */
+/**
+ * Bounded by the inputs the module tags with `bounds`| or by a range
+ * its params declare; see [`BoundsInputs::inputs_bounded`].
+ */
 'input';
 
 export interface DocExampleSchema {
@@ -736,6 +739,11 @@ export interface SignalParamSchema {
    * this input (`#[input(…, bounds)]`).
    */
   carriesBounds: boolean
+  /**
+   * Whether those outputs are bounded only while this input holds a
+   * constant (`#[input(…, bounds = constant)]`).
+   */
+  boundsNeedConstant: boolean
 }
 
 /** One VU meter's loudness snapshot, joined to its `VuMeterSpec` by `module_id`. */

@@ -1,7 +1,8 @@
 import { captureSourceLocation } from './captureSourceLocation';
 import {
+    asRanged,
     Collection,
-    CollectionWithRange,
+    type CollectionWithRange,
     DeferredCollection,
     DeferredModuleOutput,
     type GraphBuilder,
@@ -74,9 +75,9 @@ export class OutLaneTap {
         this.level = deferred();
         this.pan = deferred();
         this.lane = new OutLane(this.audio.items, {
-            active: new CollectionWithRange(this.active.ranged()),
-            level: new CollectionWithRange(this.level.ranged()),
-            pan: new CollectionWithRange(this.pan.ranged()),
+            active: asRanged(new Collection(this.active)),
+            level: asRanged(new Collection(this.level)),
+            pan: asRanged(new Collection(this.pan)),
         });
     }
 

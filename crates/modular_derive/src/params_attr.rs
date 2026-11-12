@@ -104,6 +104,9 @@ struct InputAttr {
     /// `bounds`: the module's `bounds = input` outputs are bounded only
     /// when this input is.
     carries_bounds: bool,
+    /// `bounds = constant`: as `bounds`, and only while this input holds a
+    /// constant.
+    bounds_need_constant: bool,
 }
 
 fn parse_number(input: ParseStream) -> syn::Result<Number> {
@@ -183,6 +186,7 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
             range: None,
             control_range: None,
             carries_bounds: false,
+            bounds_need_constant: false,
         };
         while !input.is_empty() {
             input.parse::<Token![,]>()?;
@@ -195,6 +199,17 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
                     return Err(syn::Error::new(key.span(), "duplicate `bounds`"));
                 }
                 parsed.carries_bounds = true;
+                if input.peek(Token![=]) {
+                    input.parse::<Token![=]>()?;
+                    let value = Ident::parse_any(input)?;
+                    if value != "constant" {
+                        return Err(syn::Error::new(
+                            value.span(),
+                            "expected `bounds` or `bounds = constant`",
+                        ));
+                    }
+                    parsed.bounds_need_constant = true;
+                }
                 continue;
             }
             input.parse::<Token![=]>()?;
@@ -541,6 +556,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
     let mut schemas = Vec::new();
     let mut defaults = Vec::new();
     let mut bounds_checks = Vec::new();
+    let mut constant_checks = Vec::new();
     for field in fields.named.iter_mut() {
         let ident = field.ident.clone().expect("named field");
         let position = field.attrs.iter().position(|a| a.path().is_ident("input"));
@@ -571,6 +587,15 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         }
         let parsed = parse_input_attr(&input_attr)?;
         validate(&parsed, field)?;
+        if parsed.bounds_need_constant {
+            if !is_poly_signal_type(&field.ty) {
+                return Err(syn::Error::new(
+                    field.ty.span(),
+                    "`bounds = constant` applies to `PolySignal` inputs",
+                ));
+            }
+            constant_checks.push(quote! { self.#ident.is_constant() });
+        }
         if parsed.carries_bounds {
             if is_poly_signal_type(&field.ty) {
                 bounds_checks.push(quote! { inputs.push(&self.#ident); });
@@ -633,6 +658,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         let field_name = ident.to_string().to_case(Case::Camel);
         let type_variant = param_type.variant();
         let carries_bounds = parsed.carries_bounds;
+        let bounds_need_constant = parsed.bounds_need_constant;
         let declared_default = match &parsed.default {
             Some((DocumentedDefault::Number(n), _)) => Some(n.value),
             _ => None,
@@ -670,6 +696,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                 control_min: #control_min,
                 control_max: #control_max,
                 carries_bounds: #carries_bounds,
+                bounds_need_constant: #bounds_need_constant,
             }
         });
         if is_option_poly_signal_type(&field.ty) {
@@ -703,10 +730,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
 
             fn inputs_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
                 (self.#min.is_some() && self.#max.is_some())
-                    || self
-                        .bounds_inputs()
-                        .iter()
-                        .all(|input| input.statically_bounded(is_bounded))
+                    || self.tagged_inputs_bounded(is_bounded)
             }
         })
     } else {
@@ -733,6 +757,9 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                 let mut inputs = Vec::new();
                 #(#bounds_checks)*
                 inputs
+            }
+            fn constants_hold(&self) -> bool {
+                true #(&& #constant_checks)*
             }
             #inputs_bounded
             #bounds_read
