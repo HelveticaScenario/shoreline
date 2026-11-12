@@ -111,7 +111,7 @@ Parameter names are semantic (no harmonics/timbre/morph). Absolute frequencies (
 | `$mi.kick`             | `drums/analog_bass_drum` + overdrive             | `tone`, `decay`, `attackFm`, `selfFm`, `drive`                                              | `freq`, `fm`, `trigger`, `accent`        | `output`             |
 | `$mi.synthKick`        | `drums/synthetic_bass_drum`                      | `tone`, `decay`, `dirt`, `fmEnvelope`, `fmDecay`                                            | `freq`, `fm`, `trigger`, `accent`        | `output`             |
 | `$mi.snare`            | `drums/analog_snare_drum`                        | `tone`, `decay`, `snappy`                                                                   | `freq`, `fm`, `trigger`, `accent`        | `output`             |
-| `$mi.synthSnare`       | `drums/synthetic_snare_drum`                     | `tone`, `decay`, `snappy`                                                                   | `freq`, `fm`, `trigger`, `accent`        | `output`             |
+| `$mi.synthSnare`       | `drums/synthetic_snare_drum`                     | `attackFm`, `decay`, `snappy`                                                               | `freq`, `fm`, `trigger`, `accent`        | `output`             |
 | `$mi.hiHat`            | `drums/hi_hat` (square noise, swing VCA, HPF)    | `tone`, `decay`, `noisiness`                                                                | `freq`, `fm`, `trigger`, `accent`        | `output`             |
 | `$mi.ringHat`          | `drums/hi_hat` (ring-mod noise, linear VCA)      | `tone`, `decay`, `noisiness`                                                                | `freq`, `fm`, `trigger`, `accent`        | `output`             |
 
