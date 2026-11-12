@@ -120,3 +120,73 @@ fn changing_accent_does_not_step_a_ringing_voice() {
         }
     }
 }
+
+/// A patched trigger holds the accent from its strike: an accent that moves
+/// mid-hit changes nothing, in the level or in the voice's own response.
+#[test]
+fn a_hit_keeps_the_accent_it_was_struck_with() {
+    for (module, params, port) in struck() {
+        let render = |accent_hz: f32| {
+            render_clocks(
+                module,
+                params.clone(),
+                &[(port, 1.0), ("accent", accent_hz)],
+                output(module),
+                0.9,
+            )
+            .0
+        };
+        assert_eq!(render(7.0), render(13.0), "{module}");
+    }
+}
+
+/// Peaks of the hits struck at `strikes`, past the first and leaving out
+/// every `skip`th, whose strike lands on an edge of the accent.
+fn hit_peaks(x: &[f32], strikes: &[usize], skip: usize) -> Vec<f32> {
+    strikes
+        .windows(2)
+        .enumerate()
+        .filter(|(i, _)| i % skip != 0)
+        .map(|(_, w)| peak(&x[w[0]..w[1]]))
+        .collect()
+}
+
+/// Accented hits struck over ringing ones stand out about as far as hits
+/// struck at a steady full accent stand out from steady unaccented ones.
+#[test]
+fn accents_land_on_overlapping_hits() {
+    // Seven strikes a second against an accent that flips four times a
+    // second, so the accent changes while hits ring.
+    const STRIKES_HZ: f32 = 7.0;
+    const ACCENT_HZ: f32 = 2.0;
+    let mean = |v: &[f32]| v.iter().sum::<f32>() / v.len() as f32;
+    for (module, params, port) in struck() {
+        let mut params = params.clone();
+        if !matches!(module, "$mi.sixOp" | "$mi.speak") {
+            params["decay"] = json!(4.0);
+        }
+        let steady = |accent: f32| {
+            let mut params = params.clone();
+            params["accent"] = json!(accent);
+            let (x, strikes) =
+                render_clocks(module, params, &[(port, STRIKES_HZ)], output(module), 2.0);
+            mean(&hit_peaks(&x, &strikes, 7))
+        };
+        let expected = steady(5.0) / steady(0.0);
+        let (x, strikes) = render_clocks(
+            module,
+            params,
+            &[(port, STRIKES_HZ), ("accent", ACCENT_HZ)],
+            output(module),
+            2.0,
+        );
+        let mut peaks = hit_peaks(&x, &strikes, 7);
+        peaks.sort_by(f32::total_cmp);
+        let third = peaks.len() / 3;
+        let contrast = mean(&peaks[peaks.len() - third..]) / mean(&peaks[..third]);
+        assert!(
+            contrast >= 0.8 * expected,
+            "{module}: {contrast} of {expected}"
+        );
+    }
+}

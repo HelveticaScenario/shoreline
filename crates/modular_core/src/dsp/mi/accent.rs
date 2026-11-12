@@ -1,6 +1,7 @@
 //! Accent as the drum machines take it: 0 V plays at Plaits' default accent,
 //! 5 V plays twice as loud, and a patched trigger samples it at each strike.
 
+use crate::dsp::drums::voice::Level;
 use crate::dsp::utils::SchmittTrigger;
 use crate::types::{GlideMark, SwapGlide};
 
@@ -35,11 +36,8 @@ pub(super) struct Accent {
     struck: bool,
     /// Whether the trigger is patched.
     patched: bool,
-    level: f32,
-    /// The level the last strike set, which a ramp ends on.
-    target: f32,
-    step: f32,
-    left: u32,
+    /// The output level less one.
+    level: Level,
     /// The size of the last sample in, to tell whether the voice sounds.
     last: f32,
 }
@@ -53,10 +51,7 @@ impl Default for Accent {
             volts: 0.0,
             struck: false,
             patched: false,
-            level: 1.0,
-            target: 1.0,
-            step: 0.0,
-            left: 0,
+            level: Level::default(),
             last: 0.0,
         }
     }
@@ -96,34 +91,16 @@ impl Accent {
     /// still sounds, and it holds through the hit.
     #[inline(always)]
     pub(super) fn apply(&mut self, out: f32, trim: f32, sample_rate: f32) -> f32 {
-        let accented = 1.0 + (trim - 1.0) * self.volts * 0.2;
+        let boost = (trim - 1.0) * self.volts * 0.2;
         if !self.patched {
-            self.level = accented;
-            self.target = accented;
-            self.left = 0;
-        } else {
-            if self.struck {
-                self.target = accented;
-                if self.last > SILENT {
-                    let samples = (RAMP_SECS * sample_rate).max(1.0) as u32;
-                    self.step = (accented - self.level) / samples as f32;
-                    self.left = samples;
-                } else {
-                    self.level = accented;
-                    self.left = 0;
-                }
-            }
-            if self.left > 0 {
-                self.left -= 1;
-                self.level = if self.left == 0 {
-                    self.target
-                } else {
-                    self.level + self.step
-                };
-            }
+            self.level.set(boost, false, 1);
+        } else if self.struck {
+            let samples = (RAMP_SECS * sample_rate).max(1.0) as u32;
+            self.level.set(boost, self.last > SILENT, samples);
         }
+        let level = 1.0 + self.level.next();
         self.last = out.abs();
-        out * self.level
+        out * level
     }
 }
 
