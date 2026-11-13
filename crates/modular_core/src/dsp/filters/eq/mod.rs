@@ -129,7 +129,7 @@ const EQ_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$eq", stereo = mono, docs = EQ_DOCS, lanes_derive = eq_derive_lane_count, patch_update, stateful, args(input), block)]
+#[module(name = "$eq", docs = EQ_DOCS, lanes_derive = eq_derive_lane_count, patch_update, stateful, args(input), block)]
 pub struct ParametricEq {
     outputs: ParametricEqOutputs,
     state: ParametricEqState,
@@ -163,8 +163,10 @@ impl ParametricEq {
             }
             EqSections::PerLane(lists) => {
                 // List `l` is computed once, on lane `l`'s runtimes; there
-                // are never fewer lanes than lists.
-                let num_lists = lists.len().min(lanes);
+                // are never fewer lanes than lists. A stereo lane's two sides
+                // share its list.
+                let channels = self.channels();
+                let num_lists = lists.len().min(lanes / channels);
                 for (l, list) in lists.iter().take(num_lists).enumerate() {
                     let n = list.len().min(MAX_EQ_SECTIONS);
                     let per = &mut self.lane_state[l].per;
@@ -173,7 +175,7 @@ impl ParametricEq {
                     }
                 }
                 for lane in 0..lanes {
-                    let l = lane % num_lists;
+                    let l = (lane / channels) % num_lists;
                     let n = lists[l].len().min(MAX_EQ_SECTIONS);
                     let mut x = sanitize(self.params.input.get_value(lane));
                     for s in 0..n {
@@ -194,11 +196,12 @@ impl ParametricEq {
         sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        let channels = self.channels();
         let adaptive_q = self.params.adaptive_q;
         let shared = matches!(self.params.sections, EqSections::Shared(_));
         let (lists, num_lists) = match &self.params.sections {
             EqSections::Shared(list) => (std::slice::from_ref(list), 1),
-            EqSections::PerLane(lists) => (&lists[..], lists.len().min(lanes)),
+            EqSections::PerLane(lists) => (&lists[..], lists.len().min(lanes / channels)),
         };
         let mut s_in = InputScratch::new();
         let input = self
@@ -253,7 +256,7 @@ impl ParametricEq {
             let row = input.row(i);
             let slot = outputs.sample.slot_mut(i);
             for (lane, (out, &x)) in slot.iter_mut().zip(row).enumerate() {
-                let l = lane % num_lists;
+                let l = (lane / channels) % num_lists;
                 let n = lists[l].len().min(MAX_EQ_SECTIONS);
                 let mut x = sanitize(x);
                 for s in 0..n {
@@ -317,7 +320,7 @@ impl crate::types::PatchUpdateHandler for ParametricEq {
         let now = match &self.params.sections {
             EqSections::Shared(_) => ActiveRuntimes::Shared,
             EqSections::PerLane(lists) => {
-                ActiveRuntimes::PerLane(lists.len().min(self.lane_count()))
+                ActiveRuntimes::PerLane(lists.len().min(self.lane_count() / self.channels()))
             }
         };
         let fresh_lists = match (self.state.active, now) {
@@ -358,7 +361,7 @@ impl crate::types::StatefulModule for ParametricEq {
                 out.write_list(0, self.state.mono[..n].iter().map(|rt| rt.live_values()));
             }
             EqSections::PerLane(lists) => {
-                let num_lists = lists.len().min(self.lane_count());
+                let num_lists = lists.len().min(self.lane_count() / self.channels());
                 for (l, list) in lists.iter().take(num_lists).enumerate() {
                     let n = list.len().min(MAX_EQ_SECTIONS);
                     let per = &self.lane_state[l].per[..n];

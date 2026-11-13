@@ -614,6 +614,13 @@ export interface ModuleSpec {
   params: any
 }
 
+/**
+ * The precision of an output's values, named in `#[output(precision = …)]`.
+ * `F64` is for a value such as a song position, which keeps growing past
+ * where f32 can resolve a single sample. `Inherit` is f64 when any of the
+ * module's cables comes from an f64 output, so arithmetic on an f64 value
+ * keeps its precision.
+ */
 export type OutputPrecision =  'f32'|
 'f64'|
 'inherit';
@@ -750,23 +757,16 @@ export interface SignalParamSchema {
   boundsNeedConstant: boolean
 }
 
-/**
- * The precision of an output's values, named in `#[output(precision = …)]`.
- * `F64` is for a value such as a song position, which keeps growing past
- * where f32 can resolve a single sample. `Inherit` is f64 when any of the
- * module's cables comes from an f64 output, so arithmetic on an f64 value
- * keeps its precision.
- * How a module's lanes carry stereo, from `#[module(stereo = …)]`.
- */
+/** How a module's lanes carry stereo, from `#[module(stereo = …)]`. */
 export type StereoMode = /**
- * Stereo when any input it reads lane by lane is: the module runs one
- * lane per side| each reading its own side of every input.
+ * Stereo when any input it reads lane by lane is stereo: the module then
+ * runs one lane per side and each reads its own side of every input.
  */
 'lift'|
 /** Always mono: every input folds a stereo producer to `(L + R) / 2`. */
 'mono'|
 /**
- * Always stereo| whatever its inputs: the module writes both sides of
+ * Always stereo whatever its inputs: the module writes both sides of
  * each lane itself.
  */
 'stereo';

@@ -856,6 +856,17 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         })
         .collect();
 
+    // A port sized to the module's lane count carries its channels per lane;
+    // a fixed-width or single-value port is mono.
+    let follows_arms: Vec<_> = outputs
+        .iter()
+        .enumerate()
+        .map(|(i, o)| {
+            let follows = matches!(o.precision, OutputPrecision::PolySignal) && o.lanes.is_none();
+            quote! { #i => #follows, }
+        })
+        .collect();
+
     let data_at_arms: Vec<_> = outputs
         .iter()
         .enumerate()
@@ -1035,6 +1046,16 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 match port_idx {
                     #(#lanes_at_arms)*
                     _ => 0,
+                }
+            }
+
+            /// Whether a port, by index from [`port_index`], is sized to the
+            /// module's lane count and so carries its channels per lane.
+            #[inline]
+            pub fn follows_lanes(port_idx: usize) -> bool {
+                match port_idx {
+                    #(#follows_arms)*
+                    _ => false,
                 }
             }
 

@@ -362,6 +362,13 @@ pub trait Sampleable: MessageHandler + Send {
     fn port_lanes(&self, _port: &str) -> usize {
         crate::PORT_MAX_LANES
     }
+    /// Channels per lane port `port` carries: lane `l` side `c` is physical
+    /// lane `l * channels + c` of [`port_lanes`](Self::port_lanes). Only
+    /// readers outside the patch's own cables need it, such as scopes, which
+    /// address lanes as the DSL counts them.
+    fn port_channels(&self, _port: &str) -> usize {
+        1
+    }
     /// Write the module's live editor state into `out` (its type-erased
     /// [`ModuleLiveState`](crate::module_state::ModuleLiveState); only modules
     /// that publish state override this: `$cycle` and `$eq`). Runs on
@@ -477,7 +484,15 @@ impl GlideMark {
 
     #[inline]
     pub(crate) fn changed(&self) -> bool {
-        self.changed & (1 << (self.lane % self.lanes)) != 0
+        self.changed & Self::bit(self.lane % self.lanes) != 0
+    }
+
+    /// Lane `lane`'s bit in a changed-lanes mask. A signal read side by side
+    /// can be wider than the mask, and its lanes from 63 on share the last
+    /// bit, so a change to any of them counts for all.
+    #[inline]
+    pub(crate) fn bit(lane: usize) -> u64 {
+        1 << lane.min(63)
     }
 }
 
@@ -2678,14 +2693,12 @@ impl Signal {
 impl Signal {
     /// The bounds of the value [`get_value`](Self::get_value) reads, at the
     /// same slot: a constant holds still, a cable reads its producer's, and
-    /// a fold averages its two sides'.
+    /// a fold averages its two sides' (see [`Bounds::midpoint`]).
     pub fn get_bounds(&self) -> crate::bounds::Bounds {
         use crate::bounds::Bounds;
         match self {
             Signal::Volts(v) => Bounds::point(*v),
-            Signal::Cable { fold: true, .. } => self
-                .cable_bounds(0)
-                .combine(self.cable_bounds(1), |a, b| 0.5 * (a + b)),
+            Signal::Cable { fold: true, .. } => self.cable_bounds(0).midpoint(self.cable_bounds(1)),
             Signal::Cable { .. } => self.cable_bounds(0),
         }
     }
@@ -2736,7 +2749,7 @@ impl Signal {
             Signal::Cable { fold: true, .. } => {
                 let left = self.cable_uniform_bounds(range.clone(), 0)?;
                 let right = self.cable_uniform_bounds(range, 1)?;
-                Some(left.combine(right, |a, b| 0.5 * (a + b)))
+                Some(left.midpoint(right))
             }
             Signal::Cable { .. } => self.cable_uniform_bounds(range, 0),
         }
@@ -2880,22 +2893,28 @@ impl PartialEq for Box<dyn Sampleable> {
 impl Signal {
     /// Whether this signal, in the incoming patch, reads the same source as
     /// `old` did in the outgoing one: the same constant, or a cable from the
-    /// same module (across renames), port and lane.
+    /// same module (across renames), port and lane, folded or not.
     pub(crate) fn same_source(&self, old: &Signal, ids: &dyn PreviousIds) -> bool {
         match (self, old) {
             (Signal::Volts(a), Signal::Volts(b)) => a.to_bits() == b.to_bits(),
             (
                 Signal::Cable {
-                    module, port, lane, ..
+                    module,
+                    port,
+                    lane,
+                    fold,
+                    ..
                 },
                 Signal::Cable {
                     module: old_module,
                     port: old_port,
                     lane: old_lane,
+                    fold: old_fold,
                     ..
                 },
             ) => {
                 lane == old_lane
+                    && fold == old_fold
                     && port == old_port
                     && ids.previous(module) == Some(old_module.as_str())
             }
@@ -3042,27 +3061,27 @@ pub enum OutputType {
     Trig,
 }
 
-/// The precision of an output's values, named in `#[output(precision = …)]`.
-/// `F64` is for a value such as a song position, which keeps growing past
-/// where f32 can resolve a single sample. `Inherit` is f64 when any of the
-/// module's cables comes from an f64 output, so arithmetic on an f64 value
-/// keeps its precision.
 /// How a module's lanes carry stereo, from `#[module(stereo = …)]`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[napi(string_enum = "lowercase")]
 pub enum StereoMode {
-    /// Stereo when any input it reads lane by lane is: the module runs one
-    /// lane per side, each reading its own side of every input.
+    /// Stereo when any input it reads lane by lane is stereo: the module then
+    /// runs one lane per side and each reads its own side of every input.
     #[default]
     Lift,
     /// Always mono: every input folds a stereo producer to `(L + R) / 2`.
     Mono,
-    /// Always stereo, whatever its inputs: the module writes both sides of
+    /// Always stereo whatever its inputs: the module writes both sides of
     /// each lane itself.
     Stereo,
 }
 
+/// The precision of an output's values, named in `#[output(precision = …)]`.
+/// `F64` is for a value such as a song position, which keeps growing past
+/// where f32 can resolve a single sample. `Inherit` is f64 when any of the
+/// module's cables comes from an f64 output, so arithmetic on an f64 value
+/// keeps its precision.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[napi(string_enum = "lowercase")]

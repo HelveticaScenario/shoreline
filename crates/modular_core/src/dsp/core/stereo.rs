@@ -13,9 +13,9 @@ use crate::poly::{PairSignal, PolyOutput, PolySignal};
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct StereoParams {
     #[input("the left side", type = audio)]
-    left: PolySignal,
+    left: PairSignal,
     #[input("the right side", type = audio)]
-    right: PolySignal,
+    right: PairSignal,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -28,7 +28,7 @@ struct StereoOutputs {
 const STEREO_DOCS: ModuleDocs = ModuleDocs {
     summary: "Join two sides into stereo",
     description: "Makes a stereo signal from a left and a right signal, lane by lane. A \
-                  stereo `left` gives its left side and a stereo `right` its right.",
+                  stereo input is folded to mono first.",
     categories: &[ModuleCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
@@ -37,7 +37,12 @@ const STEREO_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$stereo", docs = STEREO_DOCS, args(left, right), stereo = stereo, experimental)]
+#[module(
+    name = "$stereo",
+    docs = STEREO_DOCS,
+    args(left, right),
+    stereo = stereo,
+)]
 pub struct Stereo {
     outputs: StereoOutputs,
     params: StereoParams,
@@ -45,15 +50,14 @@ pub struct Stereo {
 
 impl Stereo {
     fn update(&mut self, _sample_rate: f32) {
-        // Lane `l` side `c` is lane `l * 2 + c`, and each input reads the
-        // same side of its producer there.
+        // Lane `l` side `c` is lane `l * 2 + c`.
         for lane in 0..self.lane_count() {
-            let side = if lane % 2 == 0 {
+            let input = if lane % 2 == 0 {
                 &self.params.left
             } else {
                 &self.params.right
             };
-            self.outputs.sample.set(lane, side.get_value(lane));
+            self.outputs.sample.set(lane, input.get_folded(lane / 2));
         }
     }
 }
@@ -88,7 +92,7 @@ const MONO_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$mono", docs = MONO_DOCS, args(input), stereo = mono, experimental)]
+#[module(name = "$mono", docs = MONO_DOCS, args(input), stereo = mono)]
 pub struct Mono {
     outputs: MonoOutputs,
     params: MonoParams,
@@ -107,7 +111,7 @@ impl Mono {
 message_handlers!(impl Mono {});
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SideParams {
@@ -124,10 +128,6 @@ struct SideOutputs {
 
 type LeftParams = SideParams;
 type RightParams = SideParams;
-
-fn side_lane_count(params: &SideParams) -> usize {
-    params.input.lanes()
-}
 
 const LEFT_DOCS: ModuleDocs = ModuleDocs {
     summary: "Left side of stereo",
@@ -148,9 +148,7 @@ const LEFT_DOCS: ModuleDocs = ModuleDocs {
     name = "$left",
     docs = LEFT_DOCS,
     args(input),
-    lanes_derive = side_lane_count,
     stereo = mono,
-    experimental,
 )]
 pub struct Left {
     outputs: SideOutputs,
@@ -185,9 +183,7 @@ const RIGHT_DOCS: ModuleDocs = ModuleDocs {
     name = "$right",
     docs = RIGHT_DOCS,
     args(input),
-    lanes_derive = side_lane_count,
     stereo = mono,
-    experimental,
 )]
 pub struct Right {
     outputs: SideOutputs,

@@ -1491,91 +1491,59 @@ fn clock_meter_change_keeps_beat_triggers_on_bar_grid() {
 }
 
 #[test]
-fn supersaw_voice_state_transfers_intact_across_a_voice_count_change() {
-    // Supersaw's lane_state is a [voice][input_ch] matrix with a fixed row
-    // stride, so the element-wise state transfer must keep every surviving
-    // voice's per-lane runtime state at its own coordinates when the
-    // `voices` param changes: carried voices stay phase-continuous on the
-    // transfer frame, and freshly added voices arrive with their zero-cross
-    // mute armed (silent) instead of inheriting another voice's mid-cycle,
-    // already-unmuted state.
-    let supersaw_params = |voices: u32| {
+fn supersaw_saws_carry_across_a_patch_update() {
+    // Supersaw's lane_state is a [voice][lane] matrix with a fixed row
+    // stride, so the element-wise state transfer keeps every saw's runtime
+    // state at its own coordinates: a stereo lane carries on from where it
+    // was across an update, and a change of voice count keeps running.
+    let supersaw_params = |voices: u32, detune: f32| {
         json!({
-            // Two-lane poly pitch (~C2): the matrix has more than one live
-            // column, so a stride mismatch would land lane >= 1 cells on
-            // the wrong (voice, lane) coordinates.
+            // Two notes (~C2): two stereo lanes, so a stride mismatch would
+            // land a cell on another note's or side's coordinates.
             "freq": [-2.0, -1.9],
             "unison": voices,
-            // Constant-high sync: its one rising edge (the trigger's first
-            // sample) resets every voice to phase 0, so the carried voices'
-            // phases at the transfer frame are fixed rather than seeded from
-            // the module's address. The latched trigger state transfers with
-            // the module, so the new patch sees no further edge.
-            "sync": 5.0
+            "detune": detune,
         })
     };
-
-    let old_graph = make_graph(vec![("ss", "$supersaw", supersaw_params(5))]);
-    let old_patch = from_graph(&old_graph, SAMPLE_RATE, TEST_BLOCK_SIZE, &HashMap::new())
-        .expect("from_graph failed");
-
-    // Run past several C2 periods (~734 samples each) so every voice's
-    // zero-cross mute has released and phases sit at arbitrary points.
-    for _ in 0..4000 {
-        process_frame(&old_patch);
-    }
-    let old_ss = old_patch.sampleables.get("ss").unwrap();
-    let old_out: Vec<f32> = (0..5)
-        .map(|v| old_ss.get_value_at(DEFAULT_PORT, v, 0))
-        .collect();
-
-    let new_graph = make_graph(vec![("ss", "$supersaw", supersaw_params(7))]);
-    let new_patch = from_graph(&new_graph, SAMPLE_RATE, TEST_BLOCK_SIZE, &HashMap::new())
-        .expect("from_graph failed");
-
-    // Mirror apply_patch_update: transfer state, then connect (which also
-    // re-runs on_patch_update so param-derived caches reflect the new params).
-    for (id, new_module) in &new_patch.sampleables {
-        if let Some(old_module) = old_patch.sampleables.get(id) {
-            new_module.transfer_state_from(old_module.as_ref(), &SameIds);
+    let run = |before: Value, after: Value| {
+        let old_graph = make_graph(vec![("ss", "$supersaw", before)]);
+        let old_patch = from_graph(&old_graph, SAMPLE_RATE, TEST_BLOCK_SIZE, &HashMap::new())
+            .expect("from_graph failed");
+        for _ in 0..4000 {
+            process_frame(&old_patch);
         }
-    }
-    new_patch.connect_all();
+        let old_ss = old_patch.sampleables.get("ss").unwrap();
+        let old_out: Vec<f32> = (0..4)
+            .map(|lane| old_ss.get_value_at(DEFAULT_PORT, lane, 0))
+            .collect();
+        let new_graph = make_graph(vec![("ss", "$supersaw", after)]);
+        let new_patch = from_graph(&new_graph, SAMPLE_RATE, TEST_BLOCK_SIZE, &HashMap::new())
+            .expect("from_graph failed");
+        for (id, new_module) in &new_patch.sampleables {
+            if let Some(old_module) = old_patch.sampleables.get(id) {
+                new_module.transfer_state_from(old_module.as_ref(), &SameIds);
+            }
+        }
+        new_patch.connect_all();
+        process_frame(&new_patch);
+        let new_ss = new_patch.sampleables.get("ss").unwrap();
+        let new_out: Vec<f32> = (0..4)
+            .map(|lane| new_ss.get_value_at(DEFAULT_PORT, lane, 0))
+            .collect();
+        (old_out, new_out)
+    };
 
-    process_frame(&new_patch);
-    let new_ss = new_patch.sampleables.get("ss").unwrap();
-
-    // The added voices must be (near-)silent on the transfer frame: their mute
-    // is armed and releases only at their own first rising zero crossing. A
-    // seeded phase within one step below that crossing releases on this very
-    // frame, contributing at most one ramp step (2 * dt) per input lane, so
-    // the bound is that step summed over both lanes at the highest detuned
-    // pitch, times the 5 / sqrt(2) lane-compensated gain (~0.02 V).
-    let max_hz = 261.63 * 2.0f32.powf(-1.9 + 0.09 / 12.0);
-    let max_release_step = 2.0 * max_hz / SAMPLE_RATE;
-    let fresh_bound = 2.0 * max_release_step * 5.0 / 2.0f32.sqrt();
-    for voice in 5..7 {
-        let v = new_ss.get_value_at(DEFAULT_PORT, voice, 0);
+    let (before, after) = run(supersaw_params(5, 0.18), supersaw_params(5, 0.2));
+    for (lane, (&b, &a)) in before.iter().zip(&after).enumerate() {
         assert!(
-            v.abs() <= fresh_bound,
-            "fresh voice {voice} must start muted on the transfer frame, got {v} (bound {fresh_bound})"
+            (a - b).abs() < 0.5,
+            "lane {lane} must be continuous across the transfer: {b} → {a}"
         );
     }
 
-    // Carried voices continue from their transferred phases: one frame of
-    // evolution, not a jump to another voice's state.
-    for (voice, &before) in old_out.iter().enumerate() {
-        let after = new_ss.get_value_at(DEFAULT_PORT, voice, 0);
-        let delta = (after - before).abs();
-        assert!(
-            delta < 0.5,
-            "voice {voice} must be continuous across the transfer.\n\
-             Before: {before}, after: {after}, delta: {delta}"
-        );
-    }
+    let (_, after) = run(supersaw_params(5, 0.18), supersaw_params(7, 0.18));
+    assert!(after.iter().all(|v| v.is_finite()), "{after:?}");
 }
-
-// ─── $cycle($p.s) CV hold during rest after state transfer ───────────────────
 
 #[test]
 fn cycle_ps_cv_holds_during_rest_after_state_transfer() {

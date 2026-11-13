@@ -348,7 +348,7 @@ impl crate::types::Connect for PolySignal {
                 .and_then(|o| o.lanes.get(i))
                 .is_some_and(|o| signal.same_source(o, ids));
             if !same {
-                self.changed |= 1 << i;
+                self.changed |= crate::types::GlideMark::bit(i);
             }
         }
     }
@@ -801,6 +801,11 @@ pub struct PairSignal {
 }
 
 impl PairSignal {
+    /// The underlying signal, for counting lanes before construction.
+    pub(crate) fn poly(&self) -> &PolySignal {
+        &self.inner
+    }
+
     /// The input's lanes.
     pub fn lanes(&self) -> usize {
         if self.paired {
@@ -814,6 +819,13 @@ impl PairSignal {
     #[inline]
     pub fn get_value(&self, lane: usize, side: usize) -> f32 {
         self.inner.get_value(lane * 2 + side)
+    }
+
+    /// Lane `lane` folded to mono, `(L + R) / 2`: a mono producer's value as
+    /// it is.
+    #[inline]
+    pub fn get_folded(&self, lane: usize) -> f32 {
+        0.5 * (self.get_value(lane, 0) + self.get_value(lane, 1))
     }
 }
 

@@ -1106,6 +1106,15 @@ fn impl_module_macro_attr(
                 outputs.lanes_at(port_idx)
             }
 
+            fn port_channels(&self, port: &str) -> usize {
+                match <#block_outputs_ty>::port_index(port) {
+                    Some(port_idx) if <#block_outputs_ty>::follows_lanes(port_idx) => {
+                        unsafe { (*self.module.get())._channels.max(1) }
+                    }
+                    _ => 1,
+                }
+            }
+
             fn get_module_type(&self) -> &str {
                 <#name as crate::types::Module>::MODULE_TYPE
             }

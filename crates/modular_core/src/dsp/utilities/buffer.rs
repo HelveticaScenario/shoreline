@@ -161,6 +161,11 @@ impl BufferWriteBlockOutputs {
     }
 
     #[inline]
+    pub fn follows_lanes(port_idx: usize) -> bool {
+        port_idx == 0
+    }
+
+    #[inline]
     pub fn data_at(&self, port_idx: usize) -> Option<(*const f32, usize, usize)> {
         match port_idx {
             0 => Some((self.sample.as_ptr(), self.sample.lanes(), 1)),

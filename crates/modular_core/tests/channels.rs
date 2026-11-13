@@ -235,18 +235,21 @@ fn a_feedback_cycle_with_a_stereo_source_is_stereo() {
 
 #[test]
 fn a_stereo_signal_carries_half_the_lanes() {
+    // 33 mono lanes plus a stereo operand make a 33-lane stereo `$add`.
     let lanes: Vec<f32> = (0..33).map(|lane| lane as f32).collect();
     let error = build(&[
         ("k", "$signal", signal(json!(lanes))),
+        ("l", "$signal", signal(json!(1.0))),
+        ("st", "$stereo", json!({ "left": cable("l", 0), "right": cable("l", 0) })),
         (
-            "st",
-            "$stereo",
-            json!({ "left": (0..33).map(|lane| cable("k", lane)).collect::<Vec<_>>(), "right": 0.0 }),
+            "wide",
+            "$add",
+            json!({ "input": (0..33).map(|lane| cable("k", lane)).collect::<Vec<_>>(), "offset": cable("st", 0) }),
         ),
     ])
     .err()
     .unwrap();
-    assert!(error.contains("st") && error.contains("32"), "{error}");
+    assert!(error.contains("wide") && error.contains("32"), "{error}");
 }
 
 #[test]
@@ -292,4 +295,103 @@ fn widening_to_stereo_keeps_the_left_side_running() {
         "left carries on: {after:?}"
     );
     assert_eq!(after[1], 5.0, "right starts fresh: {after:?}");
+}
+
+#[test]
+fn a_side_reads_every_lane_of_a_wide_signal() {
+    // 40 mono lanes into `$left`: read side by side they fill 80 physical
+    // lanes, and a swap's glide marks still cover them.
+    let lanes: Vec<f32> = (0..40).map(|lane| lane as f32).collect();
+    let modules = [
+        ("k", "$signal", signal(json!(lanes))),
+        (
+            "left",
+            "$left",
+            json!({ "input": (0..40).map(|lane| cable("k", lane)).collect::<Vec<_>>() }),
+        ),
+    ];
+    let old = build(&modules).unwrap();
+    let new = build(&modules).unwrap();
+    for (id, module) in &new.sampleables {
+        module.transfer_state_from(old.sampleables[id].as_ref(), &SameIds);
+    }
+    new.connect_all();
+    let values = step(&new, "left");
+    assert_eq!(values.len(), 40);
+    assert_eq!(values[39], 39.0);
+}
+
+#[test]
+fn stereo_folds_a_stereo_input_before_joining() {
+    let patch = build(&[
+        ("a", "$signal", signal(json!(1.0))),
+        ("b", "$signal", signal(json!(3.0))),
+        ("c", "$signal", signal(json!(5.0))),
+        (
+            "ab",
+            "$stereo",
+            json!({ "left": cable("a", 0), "right": cable("b", 0) }),
+        ),
+        (
+            "join",
+            "$stereo",
+            json!({ "left": cable("ab", 0), "right": cable("c", 0) }),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(step(&patch, "join"), [2.0, 5.0]);
+}
+
+#[test]
+fn a_stereo_lane_filters_both_sides_with_its_own_list() {
+    // Two stereo lanes with the same signal on both sides, each lane with its
+    // own section list: the sides of a lane match and the lanes differ.
+    let patch = build(&[
+        ("a", "$signal", signal(json!([1.0, 1.0]))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": [cable("a", 0), cable("a", 1)], "right": [cable("a", 0), cable("a", 1)] }),
+        ),
+        (
+            "eq",
+            "$eq",
+            json!({
+                "input": [cable("st", 0), cable("st", 1)],
+                "sections": [
+                    [{ "type": "lowShelf", "freq": 0.0, "gain": 12.0 }],
+                    [{ "type": "lowShelf", "freq": 0.0, "gain": -12.0 }],
+                ],
+            }),
+        ),
+    ])
+    .unwrap();
+    let mut out = Vec::new();
+    for _ in 0..4800 {
+        out = step(&patch, "eq");
+    }
+    assert_eq!(out.len(), 4);
+    assert_eq!(out[0], out[1], "lane 0's sides");
+    assert_eq!(out[2], out[3], "lane 1's sides");
+    assert!(out[0] > out[2], "each lane its own list: {out:?}");
+}
+
+#[test]
+fn set_lanes_folds_each_side_on_its_own() {
+    let patch = build(&[
+        ("l", "$signal", signal(json!([1.0, 2.0]))),
+        ("r", "$signal", signal(json!([10.0, 20.0]))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": [cable("l", 0), cable("l", 1)], "right": [cable("r", 0), cable("r", 1)] }),
+        ),
+        (
+            "fold",
+            "$setLanes",
+            json!({ "input": [cable("st", 0), cable("st", 1)], "lanes": 1 }),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(step(&patch, "fold"), [3.0, 30.0]);
 }

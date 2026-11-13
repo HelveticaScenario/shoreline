@@ -59,7 +59,7 @@ const SET_LANES_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$setLanes", stereo = mono,
+    name = "$setLanes",
     docs = SET_LANES_DOCS,
     lanes_param = "lanes",
     args(input, lanes),
@@ -91,9 +91,18 @@ impl SetLanes {
     /// counts are resolved by construction time: `out_ch` from `lanes`,
     /// `in_ch` from the input signal's width.
     fn init(&mut self, _sample_rate: f32) {
-        let in_ch = self.params.input.lanes().min(PORT_MAX_LANES);
-        let out_ch = self.lane_count();
+        let (in_ch, out_ch) = self.logical_lanes();
         self.lane_state = vec![0.0; in_ch * out_ch].into_boxed_slice();
+    }
+
+    /// Input and output lanes as the DSL counts them: a stereo lane is one
+    /// lane, its sides folded separately.
+    fn logical_lanes(&self) -> (usize, usize) {
+        let channels = self.channels();
+        (
+            (self.params.input.lanes() / channels).min(PORT_MAX_LANES),
+            self.lane_count() / channels,
+        )
     }
 
     /// Fill `gains` with the equal-power pan matrix mapping `in_ch` (N) input
@@ -168,13 +177,19 @@ impl SetLanes {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let in_ch = self.params.input.lanes().min(PORT_MAX_LANES);
-        let out_ch = self.lane_count();
+        let (in_ch, out_ch) = self.logical_lanes();
+        // Each side folds on its own: lane `l` side `c` is `l * channels + c`.
+        let channels = self.channels();
+        for side in 0..channels {
+            self.update_side(in_ch, out_ch, channels, side);
+        }
+    }
 
+    fn update_side(&mut self, in_ch: usize, out_ch: usize, channels: usize, side: usize) {
         // Snapshot input lane values once (stack, no allocation).
         let mut in_vals = [0.0f32; PORT_MAX_LANES];
         for (i, v) in in_vals.iter_mut().enumerate().take(in_ch) {
-            *v = self.params.input.get_value(i);
+            *v = self.params.input.get_value(i * channels + side);
         }
 
         let gains = &self.lane_state;
@@ -197,7 +212,7 @@ impl SetLanes {
                     for i in 0..in_ch {
                         acc += in_vals[i] * gains[i * out_ch + j];
                     }
-                    self.outputs.sample.set(j, acc);
+                    self.outputs.sample.set(j * channels + side, acc);
                 }
             }
             MixMode::Average => {
@@ -212,9 +227,10 @@ impl SetLanes {
                         acc += in_vals[i] * g;
                         count += 1;
                     }
-                    self.outputs
-                        .sample
-                        .set(j, if count > 0 { acc / count as f32 } else { 0.0 });
+                    self.outputs.sample.set(
+                        j * channels + side,
+                        if count > 0 { acc / count as f32 } else { 0.0 },
+                    );
                 }
             }
             MixMode::Max => {
@@ -235,9 +251,10 @@ impl SetLanes {
                             best_val = v;
                         }
                     }
-                    self.outputs
-                        .sample
-                        .set(j, if best_abs >= 0.0 { best_val } else { 0.0 });
+                    self.outputs.sample.set(
+                        j * channels + side,
+                        if best_abs >= 0.0 { best_val } else { 0.0 },
+                    );
                 }
             }
             MixMode::Min => {
@@ -259,9 +276,10 @@ impl SetLanes {
                             best_val = v;
                         }
                     }
-                    self.outputs
-                        .sample
-                        .set(j, if best_abs.is_finite() { best_val } else { 0.0 });
+                    self.outputs.sample.set(
+                        j * channels + side,
+                        if best_abs.is_finite() { best_val } else { 0.0 },
+                    );
                 }
             }
         }
@@ -276,8 +294,7 @@ impl crate::types::PatchUpdateHandler for SetLanes {
     /// swapped-in matrix. The matrix was sized in `init`, so this only fills it
     /// — allocation-free, safe on the audio thread.
     fn on_patch_update(&mut self) {
-        let in_ch = self.params.input.lanes().min(PORT_MAX_LANES);
-        let out_ch = self.lane_count();
+        let (in_ch, out_ch) = self.logical_lanes();
         Self::build_gains(&mut self.lane_state, in_ch, out_ch);
     }
 }
