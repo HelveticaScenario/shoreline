@@ -3119,6 +3119,10 @@ pub struct OutputSchema {
     /// module's derived lane count.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lanes: Option<u32>,
+    /// One value per logical lane even when the module is stereo
+    /// (`#[output(…, mono)]`).
+    #[serde(default)]
+    pub mono: bool,
     /// An `OutputPrecision` value.
     #[serde(default)]
     #[napi(ts_type = "string")]
@@ -3233,6 +3237,10 @@ pub trait OutputStruct: Default + Send + 'static {
     /// Allocates — main thread only, after
     /// [`set_all_lanes`](Self::set_all_lanes).
     fn make_bounded(&mut self, _mask: u64) {}
+    /// Size the `#[output(…, mono)]` outputs to one lane per logical lane
+    /// of a module with `channels` sides. Main thread only, after
+    /// [`set_all_lanes`](Self::set_all_lanes).
+    fn narrow_mono_outputs(&mut self, _channels: usize) {}
     fn schemas() -> Vec<OutputSchema>
     where
         Self: Sized;
