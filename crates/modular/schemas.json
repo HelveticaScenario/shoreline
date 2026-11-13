@@ -9465,7 +9465,7 @@
     "name": "$granular",
     "docs": {
       "summary": "Live granular processor",
-      "description": "The granular processor from Mutable Instruments Beads: it records its input and plays it back as grains, one per trigger, for clouds, smears and stutters of live sound. For grain-to-grain variation, modulate its settings with something sampled on the same trigger, such as `$sah`. Follow it with `$wowFlutter` and `$reverb` for the rest of Beads' sound.",
+      "description": "The granular processor from Mutable Instruments Beads: it records its input and plays it back as grains, one per trigger, for clouds, smears and stutters of live sound. Each lane records and plays in stereo. For grain-to-grain variation, modulate its settings with something sampled on the same trigger, such as `$sah`. Follow it with `$wowFlutter` and `$reverb` for the rest of Beads' sound.",
       "categories": [
         "effect"
       ],
@@ -9473,7 +9473,7 @@
       "examples": [
         {
           "title": "Chord cloud from a single saw",
-          "code": "const grains = $pulse('8hz')\n$granular($saw('a3'), grains, {\n  time: $sah($noise('white').range(0, 2), grains),\n  freq: $p('[c4, e4, g4] [b3, d4, g4]'),\n  rootFreq: 'a3',\n  width: 4,\n  spread: 2,\n  mix: 4,\n}).out()"
+          "code": "const grains = $pulse('8hz')\n$granular($saw('a3'), grains, {\n  time: $sah($noise('white').range(0, 2), grains),\n  freq: $p('[c4, e4, g4] [b3, d4, g4]'),\n  rootFreq: 'a3',\n  spread: 2,\n  mix: 4,\n}).out()"
         }
       ]
     },
@@ -9574,17 +9574,6 @@
             }
           ]
         },
-        "width": {
-          "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LaneSum"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "feedback": {
           "description": "feeds the grains back into the recording, building dense washes",
           "anyOf": [
@@ -9674,19 +9663,6 @@
             }
           ]
         },
-        "LaneSum": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Signal"
-            },
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Signal"
-              }
-            }
-          ]
-        },
         "GranularQuality": {
           "description": "Sound character, after Beads' four quality settings. Lower qualities\nsound darker and grittier and hold more audio.",
           "oneOf": [
@@ -9716,24 +9692,11 @@
     },
     "outputs": [
       {
-        "name": "stereo",
-        "description": "stereo mix of every voice, as left and right lanes",
+        "name": "output",
+        "description": "each lane's grains and dry signal, in stereo",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
-        "lanes": 2,
-        "mono": false,
-        "precision": "f32",
-        "bounds": "fixed"
-      },
-      {
-        "name": "voices",
-        "description": "each voice on its own lane, mono",
-        "outputType": "cv",
-        "polyphonic": true,
-        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -9827,18 +9790,6 @@
         "boundsNeedConstant": false
       },
       {
-        "name": "width",
-        "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 5.0,
-        "controlMin": 0.0,
-        "controlMax": 5.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false
-      },
-      {
         "name": "feedback",
         "description": "feeds the grains back into the recording, building dense washes",
         "paramType": "control",
@@ -9872,7 +9823,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "stereo"
   },
   {
     "name": "$granularSampler",
@@ -9886,7 +9837,7 @@
       "examples": [
         {
           "title": "Scattered pad texture",
-          "code": "const grains = $pulse('8hz')\n$granularSampler('/wavs/pad.wav', grains, {\n  time: $sah($noise('white').range(0, 5), grains),\n  width: 4,\n  spread: 2,\n}).out()"
+          "code": "const grains = $pulse('8hz')\n$granularSampler('/wavs/pad.wav', grains, {\n  time: $sah($noise('white').range(0, 5), grains),\n  spread: 2,\n}).out()"
         }
       ]
     },
@@ -9970,17 +9921,6 @@
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "width": {
-          "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -10078,19 +10018,6 @@
             }
           ]
         },
-        "LaneSum": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Signal"
-            },
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Signal"
-              }
-            }
-          ]
-        },
         "GranularQuality": {
           "description": "Sound character, after Beads' four quality settings. Lower qualities\nsound darker and grittier and hold more audio.",
           "oneOf": [
@@ -10120,24 +10047,11 @@
     },
     "outputs": [
       {
-        "name": "stereo",
-        "description": "stereo mix of every voice, as left and right lanes",
+        "name": "output",
+        "description": "each lane's grains, in stereo",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
-        "lanes": 2,
-        "mono": false,
-        "precision": "f32",
-        "bounds": "fixed"
-      },
-      {
-        "name": "voices",
-        "description": "each voice on its own lane, mono",
-        "outputType": "cv",
-        "polyphonic": true,
-        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -10215,18 +10129,6 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false
-      },
-      {
-        "name": "width",
-        "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 5.0,
-        "controlMin": 0.0,
-        "controlMax": 5.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
@@ -10238,7 +10140,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "stereo"
   },
   {
     "name": "$wowFlutter",

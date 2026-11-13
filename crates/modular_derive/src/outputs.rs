@@ -157,7 +157,6 @@ struct OutputAttr {
     output_type: OutputType,
     is_default: bool,
     range: Option<(f64, f64)>,
-    lanes: Option<u32>,
     mono: bool,
     value_precision: ValuePrecision,
     bounds: BoundsDecl,
@@ -179,8 +178,6 @@ struct OutputField {
     output_type: OutputType,
     is_default: bool,
     range: Option<(f64, f64)>,
-    /// Fixed lane count of a `PolyOutput`, independent of the module's.
-    lanes: Option<u32>,
     /// One value per logical lane even when the module is stereo.
     mono: bool,
     value_precision: ValuePrecision,
@@ -192,7 +189,6 @@ struct OutputField {
 /// - #[output("name", "description", type = cv)]
 /// - #[output("name", "description", type = gate, default)]
 /// - #[output("name", "description", type = cv, range = (-1.0, 1.0))]
-/// - #[output("name", "description", type = cv, lanes = 2)]
 /// - #[output("name", "description", type = cv, mono)]
 /// - #[output("name", "description", type = cv, precision = f64)]
 /// - #[output("name", "description", type = cv, bounds = input)]
@@ -210,7 +206,6 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
         output_type: OutputType,
         is_default: bool,
         range: Option<(f64, f64)>,
-        lanes: Option<u32>,
         mono: bool,
         value_precision: ValuePrecision,
         bounds: BoundsDecl,
@@ -229,7 +224,6 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
             let mut output_type: Option<OutputType> = None;
             let mut is_default = false;
             let mut range: Option<(f64, f64)> = None;
-            let mut lanes: Option<u32> = None;
             let mut mono = false;
             let mut value_precision = ValuePrecision::F32;
             let mut bounds: Option<(BoundsDecl, Span)> = None;
@@ -260,14 +254,6 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                         content.parse::<Token![,]>()?;
                         let max: syn::LitFloat = content.parse()?;
                         range = Some((min.base10_parse()?, max.base10_parse()?));
-                    } else if ident == "lanes" {
-                        input.parse::<Token![=]>()?;
-                        let n: syn::LitInt = input.parse()?;
-                        let value: u32 = n.base10_parse()?;
-                        if value == 0 {
-                            return Err(syn::Error::new(n.span(), "lanes must be at least 1"));
-                        }
-                        lanes = Some(value);
                     } else if ident == "precision" {
                         input.parse::<Token![=]>()?;
                         value_precision = ValuePrecision::parse(&Ident::parse_any(input)?)?;
@@ -279,7 +265,7 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                         return Err(syn::Error::new(
                             ident.span(),
                             format!(
-                                "Unknown output attribute '{}'. Expected 'type', 'default', 'range', 'lanes', 'mono', 'precision' or 'bounds'",
+                                "Unknown output attribute '{}'. Expected 'type', 'default', 'range', 'mono', 'precision' or 'bounds'",
                                 ident
                             ),
                         ));
@@ -326,7 +312,6 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                 output_type,
                 is_default,
                 range,
-                lanes,
                 mono,
                 value_precision,
                 bounds,
@@ -342,7 +327,6 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
         output_type: parsed.output_type,
         is_default: parsed.is_default,
         range: parsed.range,
-        lanes: parsed.lanes,
         mono: parsed.mono,
         value_precision: parsed.value_precision,
         bounds: parsed.bounds,
@@ -422,22 +406,13 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                         .map(|d| quote!(#d.to_string()))
                         .unwrap_or(quote!("".to_string()));
 
-                    if output_attr.lanes.is_some() && precision != OutputPrecision::PolySignal {
-                        return syn::Error::new(
-                            f.span(),
-                            "`lanes` applies only to PolyOutput fields",
-                        )
-                        .to_compile_error()
-                        .into();
-                    }
                     if output_attr.mono
                         && (precision != OutputPrecision::PolySignal
-                            || output_attr.lanes.is_some()
                             || output_attr.value_precision != ValuePrecision::F32)
                     {
                         return syn::Error::new(
                             f.span(),
-                            "`mono` applies only to f32-precision PolyOutput fields without `lanes`",
+                            "`mono` applies only to f32-precision PolyOutput fields",
                         )
                         .to_compile_error()
                         .into();
@@ -470,7 +445,6 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                         output_type: output_attr.output_type,
                         is_default: output_attr.is_default,
                         range: output_attr.range,
-                        lanes: output_attr.lanes,
                         mono: output_attr.mono,
                         value_precision: output_attr.value_precision,
                         bounds: output_attr.bounds,
@@ -583,10 +557,6 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 Some((_, max)) => quote! { Some(#max) },
                 None => quote! { None },
             };
-            let lanes = match o.lanes {
-                Some(n) => quote! { Some(#n) },
-                None => quote! { None },
-            };
             let precision = o.value_precision.variant();
             let bounds = o.bounds.variant();
             let mono = o.mono;
@@ -599,7 +569,6 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                     default: #is_default,
                     min_value: #min_value,
                     max_value: #max_value,
-                    lanes: #lanes,
                     mono: #mono,
                     precision: #precision,
                     bounds: #bounds,
@@ -613,13 +582,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .filter(|o| o.precision == OutputPrecision::PolySignal)
         .map(|o| {
             let field_name = &o.field_name;
-            match o.lanes {
-                Some(n) => {
-                    let n = n as usize;
-                    quote! { self.#field_name.set_lanes(#n); }
-                }
-                None => quote! { self.#field_name.set_lanes(lanes); },
-            }
+            quote! { self.#field_name.set_lanes(lanes); }
         })
         .collect();
 
@@ -733,8 +696,8 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .collect();
 
     // Each port is sized to its true width: f32 outputs are mono (1 lane,
-    // broadcast to consumers via cycling-on-read), PolyOutput ports get their
-    // fixed `lanes` or else the module's derived lane count.
+    // broadcast to consumers via cycling-on-read), PolyOutput ports get the
+    // module's lane count.
     let block_new_inits: Vec<_> = outputs
         .iter()
         .map(|o| {
@@ -744,13 +707,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                     quote! { crate::block_port::BlockPort::new(block_size, 1) }
                 }
                 OutputPrecision::PolySignal => {
-                    let width = match o.lanes {
-                        Some(n) => {
-                            let n = n as usize;
-                            quote! { #n }
-                        }
-                        None => quote! { lane_count },
-                    };
+                    let width = quote! { lane_count };
                     match o.value_precision {
                         ValuePrecision::F32 => quote! {
                             crate::block_port::BlockPort::new(block_size, #width)
@@ -902,13 +859,12 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .collect();
 
     // A port sized to the module's lane count carries its channels per lane;
-    // a fixed-width or single-value port is mono.
+    // a single-value or `mono` port is mono.
     let follows_arms: Vec<_> = outputs
         .iter()
         .enumerate()
         .map(|(i, o)| {
-            let follows =
-                matches!(o.precision, OutputPrecision::PolySignal) && o.lanes.is_none() && !o.mono;
+            let follows = matches!(o.precision, OutputPrecision::PolySignal) && !o.mono;
             quote! { #i => #follows, }
         })
         .collect();

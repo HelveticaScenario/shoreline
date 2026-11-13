@@ -3149,10 +3149,6 @@ pub struct OutputSchema {
     /// The maximum value of the raw output range (before any remapping)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_value: Option<f64>,
-    /// Fixed lane count of a polyphonic output; `None` follows the
-    /// module's derived lane count.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub lanes: Option<u32>,
     /// One value per logical lane even when the module is stereo
     /// (`#[output(…, mono)]`).
     #[serde(default)]

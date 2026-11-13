@@ -1985,9 +1985,7 @@ export class ModuleNode {
             );
         }
 
-        const lanes = outputSchema.polyphonic
-            ? (outputSchema.lanes ?? this.laneCount)
-            : 1;
+        const lanes = outputSchema.polyphonic ? this.laneCount : 1;
         const items = Array.from(
             { length: lanes },
             (_, i) => new ModuleOutput(this.builder, this.id, portName, i),

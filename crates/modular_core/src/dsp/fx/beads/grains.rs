@@ -1,11 +1,11 @@
-//! `$granular`: Beads' grain voices on a live input, with a stereo mix and
-//! one output lane per voice.
+//! `$granular`: Beads' grain voices on a live input, one stereo lane per
+//! input lane.
 
 use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
-use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal, PolySignalExt};
+use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::PatchUpdateHandler;
 
 use super::chain::Media;
@@ -81,14 +81,6 @@ struct GranularParams {
     #[deserr(default)]
     spread: Option<PolySignal>,
     #[input(
-        "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
-        type = control,
-        default = 0.0,
-        range = (0.0, 5.0),
-    )]
-    #[deserr(default)]
-    width: Option<LaneSum>,
-    #[input(
         "feeds the grains back into the recording, building dense washes",
         type = control,
         default = 0.0,
@@ -122,16 +114,13 @@ struct GranularParams {
 #[serde(rename_all = "camelCase")]
 struct GranularOutputs {
     #[output(
-        "stereo",
-        "stereo mix of every voice, as left and right lanes",
+        "output",
+        "each lane's grains and dry signal, in stereo",
         type = cv,
         default,
         range = (-5.0, 5.0),
-        lanes = 2
     )]
     sample: PolyOutput,
-    #[output("voices", "each voice on its own lane, mono", type = cv, range = (-5.0, 5.0))]
-    voices: PolyOutput,
 }
 
 #[derive(Default)]
@@ -150,7 +139,7 @@ const GRANULAR_DOCS: ModuleDocs = ModuleDocs {
     summary: "Live granular processor",
     description: "The granular processor from Mutable Instruments Beads: it records its input \
                   and plays it back as grains, one per trigger, for clouds, smears and stutters \
-                  of live sound. For grain-to-grain variation, modulate its settings with \
+                  of live sound. Each lane records and plays in stereo. For grain-to-grain variation, modulate its settings with \
                   something sampled on the same trigger, such as `$sah`. Follow it with `$wowFlutter` and `$reverb` for the \
                   rest of Beads' sound.",
     categories: &[ModuleCategory::Effect],
@@ -163,7 +152,6 @@ const GRANULAR_DOCS: ModuleDocs = ModuleDocs {
               time: $sah($noise('white').range(0, 2), grains),
               freq: $p('[c4, e4, g4] [b3, d4, g4]'),
               rootFreq: 'a3',
-              width: 4,
               spread: 2,
               mix: 4,
             }).out()
@@ -172,7 +160,7 @@ const GRANULAR_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$granular", stereo = mono,
+    name = "$granular", stereo = stereo,
     docs = GRANULAR_DOCS,
     has_init,
     patch_update,
@@ -182,7 +170,7 @@ pub struct Granular {
     outputs: GranularOutputs,
     state: GranularState,
     params: GranularParams,
-    /// One voice per lane of the widest input.
+    /// One voice per side of each lane of the widest input.
     lane_state: Box<[GrainsVoice]>,
 }
 
@@ -266,7 +254,6 @@ impl Granular {
         let delay = resampler.input_delay();
         let ratio = resampler.ratio();
         let mut controls = |i: usize| Self::voice_controls(params, i);
-        let mut width = || params.width.value_or(0.0).clamp(0.0, 5.0);
 
         let tap = resampler.tick(|inner, out_index| {
             if converts {
@@ -277,28 +264,19 @@ impl Granular {
             if !pending.is_empty() {
                 pending.take_due(now, inner.ago, delay, ratio, |t| chain.offer(voices, t));
             }
-            chain.process(voices, &mut controls, &mut width, rng, out_index);
+            chain.process(voices, &mut controls, rng, out_index);
         });
 
         for (i, v) in voices.iter().enumerate() {
             self.outputs
-                .voices
-                .set(i, tap.read(&v.output) * FULL_SCALE_VOLTS);
-        }
-        for (lane, h) in chain.stereo.iter().enumerate() {
-            self.outputs
                 .sample
-                .set(lane, tap.read(h) * FULL_SCALE_VOLTS);
+                .set(i, tap.read(&v.output) * FULL_SCALE_VOLTS);
         }
     }
 }
 
 impl PatchUpdateHandler for Granular {
     fn on_patch_update(&mut self) {
-        let lanes = self.params.input.lanes();
-        for (i, v) in self.lane_state.iter_mut().enumerate() {
-            v.voice.dry_source = i < lanes;
-        }
         // A quality change clears every voice, and a voice new to this
         // module still holds the silent stand-in: both take a fresh buffer,
         // which needs no clearing here. Other voices keep recording into
