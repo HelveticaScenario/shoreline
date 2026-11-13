@@ -33,8 +33,9 @@ struct ParametricEqLane {
     /// Per-section integrator states.
     ic1: [f32; MAX_EQ_SECTIONS],
     ic2: [f32; MAX_EQ_SECTIONS],
-    /// In the per-lane form, the coefficients of list `c` live on lane
-    /// `c`, and every lane reads its list's from there.
+    /// In the per-lane form, the coefficients of list `l`'s side `c` live
+    /// on lane `l * channels + c`, and every lane reads its list's side from
+    /// there.
     per: [SectionRuntime; MAX_EQ_SECTIONS],
 }
 
@@ -49,8 +50,9 @@ impl Default for ParametricEqLane {
 }
 
 struct ParametricEqState {
-    /// Coefficients of the shared section list, used by every lane.
-    mono: [SectionRuntime; MAX_EQ_SECTIONS],
+    /// Coefficients of the shared section list per side, used by every
+    /// lane's side.
+    shared: [[SectionRuntime; MAX_EQ_SECTIONS]; 2],
     /// The runtimes that ran last; the others hold glide state from an older
     /// form. None before the first patch update.
     active: Option<ActiveRuntimes>,
@@ -59,16 +61,16 @@ struct ParametricEqState {
 /// Which runtimes a sections form drives.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ActiveRuntimes {
-    /// `state.mono`.
+    /// `state.shared`.
     Shared,
-    /// `per` on the first this-many lanes.
+    /// `per` on the lanes of the first this-many lists.
     PerLane(usize),
 }
 
 impl Default for ParametricEqState {
     fn default() -> Self {
         Self {
-            mono: [SectionRuntime::default(); MAX_EQ_SECTIONS],
+            shared: [[SectionRuntime::default(); MAX_EQ_SECTIONS]; 2],
             active: None,
         }
     }
@@ -140,46 +142,47 @@ pub struct ParametricEq {
 impl ParametricEq {
     fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
+        let channels = self.channels();
         let adaptive_q = self.params.adaptive_q;
         match &self.params.sections {
             EqSections::Shared(list) => {
                 let n = list.len().min(MAX_EQ_SECTIONS);
-                for (rt, sec) in self.state.mono.iter_mut().zip(&list[..n]) {
-                    rt.refresh(sec, sample_rate, adaptive_q);
+                for (side, shared) in self.state.shared.iter_mut().enumerate().take(channels) {
+                    for (rt, sec) in shared.iter_mut().zip(&list[..n]) {
+                        rt.refresh(sec, side, sample_rate, adaptive_q);
+                    }
                 }
                 for lane in 0..lanes {
+                    let shared = &self.state.shared[lane % channels];
                     let cs = &mut self.lane_state[lane];
                     let mut x = sanitize(self.params.input.get_value(lane));
-                    for s in 0..n {
-                        x = svf_core::process(
-                            &self.state.mono[s].coeffs,
-                            &mut cs.ic1[s],
-                            &mut cs.ic2[s],
-                            x,
-                        );
+                    for (s, rt) in shared.iter().enumerate().take(n) {
+                        x = svf_core::process(&rt.coeffs, &mut cs.ic1[s], &mut cs.ic2[s], x);
                     }
                     self.outputs.sample.set(lane, x);
                 }
             }
             EqSections::PerLane(lists) => {
-                // List `l` is computed once, on lane `l`'s runtimes; there
-                // are never fewer lanes than lists. A stereo lane's two sides
-                // share its list.
-                let channels = self.channels();
+                // List `l`'s side `c` is computed once, on lane
+                // `l * channels + c`'s runtimes; there are never fewer lanes
+                // than lists.
                 let num_lists = lists.len().min(lanes / channels);
                 for (l, list) in lists.iter().take(num_lists).enumerate() {
                     let n = list.len().min(MAX_EQ_SECTIONS);
-                    let per = &mut self.lane_state[l].per;
-                    for (rt, sec) in per.iter_mut().zip(&list[..n]) {
-                        rt.refresh(sec, sample_rate, adaptive_q);
+                    for side in 0..channels {
+                        let per = &mut self.lane_state[l * channels + side].per;
+                        for (rt, sec) in per.iter_mut().zip(&list[..n]) {
+                            rt.refresh(sec, side, sample_rate, adaptive_q);
+                        }
                     }
                 }
                 for lane in 0..lanes {
                     let l = (lane / channels) % num_lists;
+                    let holder = l * channels + lane % channels;
                     let n = lists[l].len().min(MAX_EQ_SECTIONS);
                     let mut x = sanitize(self.params.input.get_value(lane));
                     for s in 0..n {
-                        let c = self.lane_state[l].per[s].coeffs;
+                        let c = self.lane_state[holder].per[s].coeffs;
                         let cs = &mut self.lane_state[lane];
                         x = svf_core::process(&c, &mut cs.ic1[s], &mut cs.ic2[s], x);
                     }
@@ -219,12 +222,14 @@ impl ParametricEq {
         for (l, list) in lists.iter().take(num_lists).enumerate() {
             let n = list.len().min(MAX_EQ_SECTIONS);
             for (s, sec) in list[..n].iter().enumerate() {
-                let rt = if shared {
-                    &self.state.mono[s]
-                } else {
-                    &self.lane_state[l].per[s]
-                };
-                if rt.is_settled() {
+                let settled = (0..channels).all(|side| {
+                    if shared {
+                        self.state.shared[side][s].is_settled()
+                    } else {
+                        self.lane_state[l * channels + side].per[s].is_settled()
+                    }
+                });
+                if settled {
                     continue;
                 }
                 let targets = [
@@ -239,18 +244,24 @@ impl ParametricEq {
 
         for i in range {
             for &(l, s, [f, g, q]) in moving[..count].iter().flatten() {
-                let rt = if shared {
-                    &mut self.state.mono[s]
-                } else {
-                    &mut self.lane_state[l].per[s]
-                };
-                if !rt.is_settled() {
-                    rt.advance(
-                        &lists[l][s],
-                        [f.at(i), g.at(i), q.at(i)],
-                        sample_rate,
-                        adaptive_q,
-                    );
+                for side in 0..channels {
+                    let rt = if shared {
+                        &mut self.state.shared[side][s]
+                    } else {
+                        &mut self.lane_state[l * channels + side].per[s]
+                    };
+                    if !rt.is_settled() {
+                        rt.advance(
+                            &lists[l][s],
+                            [
+                                f.at(i, side, channels),
+                                g.at(i, side, channels),
+                                q.at(i, side, channels),
+                            ],
+                            sample_rate,
+                            adaptive_q,
+                        );
+                    }
                 }
             }
             let row = input.row(i);
@@ -261,9 +272,9 @@ impl ParametricEq {
                 let mut x = sanitize(x);
                 for s in 0..n {
                     let c = if shared {
-                        self.state.mono[s].coeffs
+                        self.state.shared[lane % channels][s].coeffs
                     } else {
-                        self.lane_state[l].per[s].coeffs
+                        self.lane_state[l * channels + lane % channels].per[s].coeffs
                     };
                     let cs = &mut self.lane_state[lane];
                     x = svf_core::process(&c, &mut cs.ic1[s], &mut cs.ic2[s], x);
@@ -298,11 +309,12 @@ impl<'a> Target<'a> {
             .map(Target::Summed)
     }
 
-    /// Slot `i`'s value, summed as [`LaneSum::get_value`] sums.
+    /// Slot `i`'s value on side `side` of `channels`, summed as
+    /// [`LaneSum::get_side`] sums.
     #[inline(always)]
-    fn at(&self, i: usize) -> f32 {
+    fn at(&self, i: usize, side: usize, channels: usize) -> f32 {
         match self {
-            Target::Summed(rows) => rows.row(i).iter().sum(),
+            Target::Summed(rows) => rows.row(i).iter().skip(side).step_by(channels).sum(),
             Target::Default(value) => *value,
         }
     }
@@ -326,18 +338,19 @@ impl crate::types::PatchUpdateHandler for ParametricEq {
         let fresh_lists = match (self.state.active, now) {
             (Some(ActiveRuntimes::Shared), ActiveRuntimes::Shared) => 0..0,
             (_, ActiveRuntimes::Shared) => {
-                self.state.mono = [SectionRuntime::default(); MAX_EQ_SECTIONS];
+                self.state.shared = [[SectionRuntime::default(); MAX_EQ_SECTIONS]; 2];
                 0..0
             }
             (Some(ActiveRuntimes::PerLane(was)), ActiveRuntimes::PerLane(n)) => was.min(n)..n,
             (_, ActiveRuntimes::PerLane(n)) => 0..n,
         };
-        for cs in &mut self.lane_state[fresh_lists] {
+        let channels = self.channels();
+        for cs in &mut self.lane_state[fresh_lists.start * channels..fresh_lists.end * channels] {
             cs.per = [SectionRuntime::default(); MAX_EQ_SECTIONS];
         }
         self.state.active = Some(now);
 
-        for rt in self.state.mono.iter_mut() {
+        for rt in self.state.shared.iter_mut().flatten() {
             rt.invalidate();
         }
         for cs in self.lane_state.iter_mut() {
@@ -358,13 +371,17 @@ impl crate::types::StatefulModule for ParametricEq {
         match &self.params.sections {
             EqSections::Shared(list) => {
                 let n = list.len().min(MAX_EQ_SECTIONS);
-                out.write_list(0, self.state.mono[..n].iter().map(|rt| rt.live_values()));
+                out.write_list(
+                    0,
+                    self.state.shared[0][..n].iter().map(|rt| rt.live_values()),
+                );
             }
             EqSections::PerLane(lists) => {
-                let num_lists = lists.len().min(self.lane_count() / self.channels());
+                let channels = self.channels();
+                let num_lists = lists.len().min(self.lane_count() / channels);
                 for (l, list) in lists.iter().take(num_lists).enumerate() {
                     let n = list.len().min(MAX_EQ_SECTIONS);
-                    let per = &self.lane_state[l].per[..n];
+                    let per = &self.lane_state[l * channels].per[..n];
                     out.write_list(l, per.iter().map(|rt| rt.live_values()));
                 }
             }
@@ -680,7 +697,7 @@ mod tests {
         m.params.sections = EqSections::Shared(vec![band(4.0)]);
         m.on_patch_update();
         m.update(48000.0);
-        let freq = m.state.mono[0].live_values()[0];
+        let freq = m.state.shared[0][0].live_values()[0];
         assert!(
             (freq - 4.0).abs() < 1e-3,
             "the shared runtime starts at the new freq, got {freq} V"

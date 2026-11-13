@@ -67,8 +67,10 @@ struct Line {
 
 #[derive(Default)]
 struct WowFlutterState {
-    modulation: WowModulation,
-    rng: LcgRng,
+    /// One wobble per side, seeded alike, so a stereo lane's sides wobble
+    /// together unless `speed` or `intensity` differ between them.
+    modulation: [WowModulation; 2],
+    rng: [LcgRng; 2],
     /// Engine samples per hardware sample.
     ratio: f32,
     /// Low-pass coefficient at the engine rate.
@@ -119,8 +121,10 @@ impl WowFlutter {
         let state = &mut self.state;
         state.ratio = sample_rate / HARDWARE_RATE;
         state.lp = 1.0 - (1.0 - HARDWARE_LP).powf(HARDWARE_RATE / sample_rate);
-        state.modulation.init(sample_rate);
-        state.rng.seed(seed, 0);
+        for (modulation, rng) in state.modulation.iter_mut().zip(&mut state.rng) {
+            modulation.init(sample_rate);
+            rng.seed(seed, 0);
+        }
         state.block_size = ((sample_rate / BLOCK_RATE) as usize).max(1);
         state.block_pos = 0;
         let len = ((MAX_HARDWARE_DELAY * state.ratio) as usize + 2).next_power_of_two();
@@ -130,20 +134,28 @@ impl WowFlutter {
     }
 
     fn update(&mut self, _sample_rate: f32) {
+        let channels = self.channels();
         let state = &mut self.state;
-        if state.block_pos == 0 {
-            let p = &self.params;
-            let control = |s: &Option<LaneSum>| sanitize(s.value_or(2.5)).clamp(0.0, 5.0);
-            let speed = (control(&p.speed) - 2.5).exp2();
-            let depth = control(&p.intensity) / 5.0 * MAX_DEPTH;
-            state
-                .modulation
-                .start_block(state.block_size, &mut state.rng, speed, depth);
+        let mut delays = [0.0; 2];
+        for (side, delay) in delays.iter_mut().enumerate().take(channels) {
+            if state.block_pos == 0 {
+                let p = &self.params;
+                let control = |s: &Option<LaneSum>| sanitize(s.side_or(side, 2.5)).clamp(0.0, 5.0);
+                let speed = (control(&p.speed) - 2.5).exp2();
+                let depth = control(&p.intensity) / 5.0 * MAX_DEPTH;
+                state.modulation[side].start_block(
+                    state.block_size,
+                    &mut state.rng[side],
+                    speed,
+                    depth,
+                );
+            }
+            *delay = state.modulation[side].next() * state.ratio;
         }
         state.block_pos = (state.block_pos + 1) % state.block_size;
-        let delay = state.modulation.next() * state.ratio;
         for (lane, line) in self.lane_state.iter_mut().enumerate() {
             let x = input_value(&self.params.input, lane);
+            let delay = delays[lane % channels];
             let y = write_read(&mut line.line, &mut line.write_ptr, x, delay);
             line.lp_state += state.lp * (y - line.lp_state);
             self.outputs
