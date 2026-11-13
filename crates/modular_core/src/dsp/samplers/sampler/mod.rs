@@ -18,7 +18,7 @@ mod voice;
 /// Output width follows the WAV, capped at the port-wide lane limit — a
 /// WAV header can claim any u16 channel count.
 fn sampler_derive_lane_count(params: &SamplerParams) -> usize {
-    params.wav.channel_count().clamp(1, PORT_MAX_LANES)
+    params.wav.lanes().clamp(1, PORT_MAX_LANES)
 }
 
 fn default_fade() -> f64 {
@@ -111,7 +111,7 @@ fn sampler_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SamplerOutputs {
-    #[output("output", "the played sample", type = cv, default)]
+    #[output("output", "the played sample, stereo for a two-channel file", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -180,7 +180,7 @@ const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$sampler", stereo = mono, docs = SAMPLER_DOCS, lanes_derive = sampler_derive_lane_count, args(wav, gate), has_init, patch_update)]
+#[module(name = "$sampler", stereo = derived, docs = SAMPLER_DOCS, lanes_derive = sampler_derive_lane_count, args(wav, gate), has_init, patch_update)]
 pub struct Sampler {
     params: SamplerParams,
     outputs: SamplerOutputs,

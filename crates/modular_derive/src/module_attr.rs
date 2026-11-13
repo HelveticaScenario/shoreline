@@ -149,10 +149,10 @@ impl syn::parse::Parse for ModuleAttrArgs {
                 "stereo" => {
                     input.parse::<Token![=]>()?;
                     let mode: Ident = input.parse()?;
-                    if mode != "mono" && mode != "stereo" {
+                    if mode != "mono" && mode != "stereo" && mode != "derived" {
                         return Err(syn::Error::new(
                             mode.span(),
-                            "stereo must be `mono` or `stereo`; a module lifts by default",
+                            "stereo must be `mono`, `stereo` or `derived`; a module lifts by default",
                         ));
                     }
                     stereo = Some(mode);
@@ -525,6 +525,7 @@ fn impl_module_macro_attr(
     let experimental = attr_args.experimental;
     let stereo_mode = match attr_args.stereo.as_ref().map(|i| i.to_string()).as_deref() {
         Some("mono") => quote! { crate::types::StereoMode::Mono },
+        Some("derived") => quote! { crate::types::StereoMode::Derived },
         Some(_) => quote! { crate::types::StereoMode::Stereo },
         None => quote! { crate::types::StereoMode::Lift },
     };

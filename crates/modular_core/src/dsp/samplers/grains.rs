@@ -200,7 +200,7 @@ struct GrainsOutputs {
     // No declared range: the Clouds-style normalisation is power-based, so
     // correlated grains (a sustained tone, DC) can sum above the ±5 V nominal
     // level, and a declared range would be a contract the output cannot keep.
-    #[output("output", "the mix of all playing grains", type = cv, default)]
+    #[output("output", "the mix of all playing grains, stereo for a two-channel file", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -251,7 +251,7 @@ const GRAINS_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$grains", stereo = mono,
+    name = "$grains", stereo = derived,
     docs = GRAINS_DOCS,
     lanes_derive = grains_derive_lane_count,
     args(pitch, wav, gate),
@@ -381,14 +381,25 @@ impl Grains {
         let sample_rate = self.state.sample_rate;
         let shape = self.params.shape;
         let wav_channels = self.params.wav.channel_count().max(1);
+        // A stereo file makes every lane stereo, lane `l` side `c` at
+        // `l * 2 + c`: its grains run once, on the left side's state, read
+        // both channels, and read each input folded.
+        let channels = self.channels();
+        let lanes = lanes / channels;
+        let last = channels - 1;
 
         for lane in 0..lanes {
+            let at = lane * channels;
+            let folded = |signal: &Option<PolySignal>, default: f32| {
+                0.5 * (signal.value_or(at, default) + signal.value_or(at + last, default))
+            };
             // ── Read params for this lane ───────────────────────────────
-            let gate_val = self.params.gate.get_value(lane);
+            let gate_val =
+                0.5 * (self.params.gate.get_value(at) + self.params.gate.get_value(at + last));
             // A cable can carry any f32, so enforce the documented range
             // here (non-finite falls back to the default): the spawn drain
             // loop below only terminates for a finite, bounded rate.
-            let density = self.params.density.value_or(lane, 2.5);
+            let density = folded(&self.params.density, 2.5);
             let density = if density.is_finite() {
                 density.clamp(0.0001, 100.0)
             } else {
@@ -398,7 +409,7 @@ impl Grains {
 
             // ── Gate / spawn control ───────────────────────────────────────
             {
-                let cs = &mut self.lane_state[lane];
+                let cs = &mut self.lane_state[at];
                 let (is_high, edge) = cs.gate_trigger.process_with_edge(gate_val);
 
                 if edge.is_rising() {
@@ -414,14 +425,12 @@ impl Grains {
                 }
                 // Grain parameters are only needed on a sample that spawns.
                 if is_high && !limit_reached && cs.spawn_phase >= 1.0 {
-                    let pitch = self.params.pitch.get_value(lane);
-                    let start_v = self.params.start.value_or(lane, 0.0).clamp(0.0, 5.0);
-                    let length_v = self.params.length.value_or(lane, 1.0).max(0.01);
-                    let dir_bias = self
-                        .params
-                        .direction_bias
-                        .value_or(lane, 0.0)
-                        .clamp(0.0, 5.0);
+                    let pitch = 0.5
+                        * (self.params.pitch.get_value(at)
+                            + self.params.pitch.get_value(at + last));
+                    let start_v = folded(&self.params.start, 0.0).clamp(0.0, 5.0);
+                    let length_v = folded(&self.params.length, 1.0).max(0.01);
+                    let dir_bias = folded(&self.params.direction_bias, 0.0).clamp(0.0, 5.0);
 
                     let start_frame = (start_v as f64 / 5.0) * (frame_count - 1) as f64;
                     let max_len_s = frame_count as f64 / (sample_rate as f64 * rate_ratio).max(1.0);
@@ -436,7 +445,7 @@ impl Grains {
                     let decay_samps = ((1.0 - d_ratio as f64) * length_samps).max(1.0);
                     let decay_coeff = (-6.9 / decay_samps).exp() as f32;
 
-                    let cs = &mut self.lane_state[lane];
+                    let cs = &mut self.lane_state[at];
                     // The pool holds GRAINS_PER_LANE slots, so any spawn
                     // beyond that within one sample only overwrites a grain
                     // spawned this same sample; dropping the residual keeps
@@ -481,12 +490,17 @@ impl Grains {
             }
 
             // ── Process active grains ──────────────────────────────────────
-            let mut sum = 0.0_f32;
+            let mut sum = [0.0_f32; 2];
             let mut active_count = 0_u32;
-            let samples = self.params.wav.channel(lane % wav_channels);
+            let sides = if channels == 2 {
+                [self.params.wav.channel(0), self.params.wav.channel(1)]
+            } else {
+                let samples = self.params.wav.channel(lane % wav_channels);
+                [samples, samples]
+            };
             let lut = &self.state.window_lut;
 
-            let cs = &mut self.lane_state[lane];
+            let cs = &mut self.lane_state[at];
             // Ascending slot order keeps the summation order deterministic.
             let mut pending = cs.active;
             while pending != 0 {
@@ -545,9 +559,9 @@ impl Grains {
                     _ => lut_read(lut, t),
                 };
 
-                let sample = hermite_clamped(samples, grain.read_pos);
-
-                sum += sample * window;
+                for (sum, samples) in sum.iter_mut().zip(sides).take(channels) {
+                    *sum += hermite_clamped(samples, grain.read_pos) * window;
+                }
                 active_count += 1;
 
                 grain.read_pos += grain.signed_rate;
@@ -566,7 +580,11 @@ impl Grains {
             };
 
             // WAV samples are −1..1; scale to ±5 V oscillator level.
-            self.outputs.sample.set(lane, sanitize(sum * gain * 5.0));
+            for (side, sum) in sum.iter().enumerate().take(channels) {
+                self.outputs
+                    .sample
+                    .set(at + side, sanitize(sum * gain * 5.0));
+            }
         }
     }
 

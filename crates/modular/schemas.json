@@ -39181,7 +39181,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the mix of all playing grains",
+        "description": "the mix of all playing grains, stereo for a two-channel file",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -39266,7 +39266,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "derived"
   },
   {
     "name": "_mediaAudio",
@@ -39346,7 +39346,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the media file's audio",
+        "description": "the media file's audio, stereo for a two-channel track",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -39363,7 +39363,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "derived"
   },
   {
     "name": "$sampler",
@@ -39572,7 +39572,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the played sample",
+        "description": "the played sample, stereo for a two-channel file",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -39610,7 +39610,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "derived"
   },
   {
     "name": "$unstable.shape.saturate",
