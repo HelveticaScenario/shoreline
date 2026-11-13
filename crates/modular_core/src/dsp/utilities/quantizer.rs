@@ -9,7 +9,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     Patch,
     dsp::utils::{SchmittTrigger, TempGate, TempGateState, min_gate_samples},
-    poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
+    poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
     types::Connect,
 };
 
@@ -21,7 +21,7 @@ use super::scale::ScaleSpec;
 /// toggling when the input hovers near a boundary.
 const HYSTERESIS_VOCT: f64 = 10.0 / 1200.0;
 
-/// The pitches a quantizer snaps to: one V/Oct note per channel.
+/// The pitches a quantizer snaps to: one V/Oct note per lane.
 ///
 /// The engine only accepts a signal here. The DSL rewrites a spec string
 /// (`"C(major)"`, `"C[maj7]"`) into a `$chord` module feeding this param, so
@@ -79,14 +79,14 @@ impl<E: DeserializeError> deserr::Deserr<E> for ScaleSignal {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct QuantizerParams {
     #[input("pitch to quantize", type = pitch)]
     input: PolySignal,
     #[input(
-        "notes to snap to, one pitch per channel in any octave, or a spec like \"C(major)\" or \"C[maj7]\"; snaps to semitones when left out"
+        "notes to snap to, one pitch per lane in any octave, or a spec like \"C(major)\" or \"C[maj7]\"; snaps to semitones when left out"
     )]
     #[deserr(default)]
     scale: Option<ScaleSignal>,
@@ -94,7 +94,7 @@ struct QuantizerParams {
     #[deserr(default)]
     offset: Option<PolySignal>,
     #[input(
-        "turns notes of the scale on and off: scale channel N is used only while gate channel N is high; with every gate low the output holds",
+        "turns notes of the scale on and off: scale lane N is used only while gate lane N is high; with every gate low the output holds",
         type = gate,
     )]
     #[deserr(default)]
@@ -104,12 +104,8 @@ struct QuantizerParams {
 /// As wide as `input` and `offset`. The scale and its gate describe one shared
 /// set of notes, so neither widens the module.
 #[allow(private_interfaces)]
-pub fn quantizer_derive_channel_count(params: &QuantizerParams) -> usize {
-    params
-        .input
-        .channels()
-        .max(params.offset.channel_count())
-        .max(1)
+pub fn quantizer_derive_lane_count(params: &QuantizerParams) -> usize {
+    params.input.lanes().max(params.offset.lane_count()).max(1)
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -121,16 +117,16 @@ struct QuantizerOutputs {
     trig: PolyOutput,
 }
 
-/// Per-channel state for tracking note changes.
+/// Per-lane state for tracking note changes.
 #[derive(Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     /// Previous quantized voltage (None until the first note is chosen)
     prev_quantized: Option<f64>,
-    /// Trigger generator for this channel
+    /// Trigger generator for this lane
     trigger: TempGate,
 }
 
-impl Default for ChannelState {
+impl Default for LaneState {
     fn default() -> Self {
         Self {
             prev_quantized: None,
@@ -140,14 +136,14 @@ impl Default for ChannelState {
 }
 
 struct QuantizerState {
-    /// One per scale channel, reading the matching gate channel.
-    gate_triggers: [SchmittTrigger; PORT_MAX_CHANNELS],
+    /// One per scale lane, reading the matching gate lane.
+    gate_triggers: [SchmittTrigger; PORT_MAX_LANES],
 }
 
 impl Default for QuantizerState {
     fn default() -> Self {
         Self {
-            gate_triggers: [SchmittTrigger::default(); PORT_MAX_CHANNELS],
+            gate_triggers: [SchmittTrigger::default(); PORT_MAX_LANES],
         }
     }
 }
@@ -223,7 +219,7 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Playing only the keys you hold",
             code: r#"
-                const midi = $midiCV({ channels: 4 })
+                const midi = $midiCV({ lanes: 4 })
                 $sine(
                   $quantizer($sine('0.1hz').range('c3', 'c5'), midi, {
                     gate: midi,
@@ -234,28 +230,28 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$quantizer", docs = QUANTIZER_DOCS, channels_derive = quantizer_derive_channel_count, args(input, scale))]
+#[module(name = "$quantizer", docs = QUANTIZER_DOCS, lanes_derive = quantizer_derive_lane_count, args(input, scale))]
 pub struct Quantizer {
     outputs: QuantizerOutputs,
     params: QuantizerParams,
     state: QuantizerState,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
 }
 
 impl Quantizer {
     pub fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
         let hold_samples = min_gate_samples(sample_rate);
 
-        // Collect the active scale notes once; every channel snaps to the same set.
+        // Collect the active scale notes once; every lane snaps to the same set.
         let scale = self.params.scale.as_ref().map(|s| &s.0);
         let gate = self.params.gate.as_ref();
         let note_count = match (scale, gate) {
-            (Some(scale), _) => scale.channels(),
-            (None, Some(gate)) => gate.channels(),
+            (Some(scale), _) => scale.lanes(),
+            (None, Some(gate)) => gate.lanes(),
             (None, None) => 0,
         };
-        let mut notes = ArrayVec::<f64, PORT_MAX_CHANNELS>::new();
+        let mut notes = ArrayVec::<f64, PORT_MAX_LANES>::new();
         let mut any_active = false;
         for i in 0..note_count {
             let active = match gate {
@@ -274,11 +270,11 @@ impl Quantizer {
         }
         let hold = gate.is_some() && !any_active;
 
-        for ch in 0..num_channels {
-            let input = self.params.input.get_value(ch) as f64;
-            let offset = self.params.offset.value_or_zero(ch) as f64;
+        for lane in 0..num_lanes {
+            let input = self.params.input.get_value(lane) as f64;
+            let offset = self.params.offset.value_or_zero(lane) as f64;
             let combined = input + offset;
-            let state = &mut self.channel_state[ch];
+            let state = &mut self.lane_state[lane];
 
             let quantized = if hold {
                 // Nothing to snap to: keep the last note, or pass the input
@@ -304,8 +300,8 @@ impl Quantizer {
                 quantized
             };
 
-            self.outputs.output.set(ch, quantized as f32);
-            self.outputs.trig.set(ch, state.trigger.process());
+            self.outputs.output.set(lane, quantized as f32);
+            self.outputs.trig.set(lane, state.trigger.process());
         }
     }
 }
@@ -329,15 +325,15 @@ mod tests {
     }
 
     fn make_quantizer(params: QuantizerParams) -> Quantizer {
-        let channels = quantizer_derive_channel_count(&params);
+        let lanes = quantizer_derive_lane_count(&params);
         let mut outputs = QuantizerOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         Quantizer {
             outputs,
             params,
             state: QuantizerState::default(),
-            channel_state: vec![ChannelState::default(); channels].into_boxed_slice(),
-            _channel_count: channels,
+            lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
+            _lane_count: lanes,
             _block_index: Default::default(),
         }
     }
@@ -372,7 +368,7 @@ mod tests {
             (-0.6, -1.0),
             (-12.3, -12.0),
         ] {
-            q.channel_state[0] = ChannelState::default();
+            q.lane_state[0] = LaneState::default();
             set_input(&mut q, input / 12.0);
             q.update(48000.0);
             assert!(
@@ -427,7 +423,7 @@ mod tests {
     }
 
     #[test]
-    fn narrower_gate_cycles_across_scale_channels() {
+    fn narrower_gate_cycles_across_scale_lanes() {
         // Gate [high, low] over C E G → C and G active.
         let mut q = quantizer(
             5.0 / 12.0,
@@ -521,11 +517,11 @@ mod tests {
             scale: Some(spec_signal("chromatic")),
             gate: Some(volts(&[5.0; 8])),
         });
-        assert_eq!(q.channel_count(), 1);
+        assert_eq!(q.lane_count(), 1);
     }
 
     #[test]
-    fn offset_wider_than_input_drives_all_declared_channels() {
+    fn offset_wider_than_input_drives_all_declared_lanes() {
         let g4 = 7.0 / 12.0;
         let mut q = make_quantizer(QuantizerParams {
             input: volts(&[0.0]),
@@ -533,9 +529,9 @@ mod tests {
             scale: Some(spec_signal("C(major)")),
             gate: None,
         });
-        assert_eq!(q.channel_count(), 2);
+        assert_eq!(q.lane_count(), 2);
 
-        // The first sample counts as a note change on every channel.
+        // The first sample counts as a note change on every lane.
         q.update(48000.0);
         assert_eq!(q.outputs.trig.get(1), GATE_HIGH_VOLTAGE);
         assert!(q.outputs.output.get(0).abs() < 1e-6);

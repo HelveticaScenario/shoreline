@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct WrapParams {
@@ -97,14 +97,14 @@ impl Wrap {
     fn update(&mut self, _sample_rate: f32) {
         let (params, octave) = (&self.params, self.params.octave);
         if self.outputs.sample.stores_bounds() {
-            for i in 0..self.channel_count() {
+            for i in 0..self.lane_count() {
                 let bounds =
                     wrapped_bounds(params.min.get_value(i), params.max.get_value(i), octave);
                 self.outputs.sample.set_bounds(i, bounds);
             }
         }
         if self.outputs.sample.is_f64() {
-            for i in 0..self.channel_count() {
+            for i in 0..self.lane_count() {
                 let output = wrap_value(
                     params.input.get_value_f64(i),
                     params.min.get_value_f64(i),
@@ -115,7 +115,7 @@ impl Wrap {
             }
             return;
         }
-        for i in 0..self.channel_count() {
+        for i in 0..self.lane_count() {
             let output = wrap_value(
                 params.input.get_value(i),
                 params.min.get_value(i),
@@ -143,10 +143,10 @@ mod tests {
                 max: PolySignal::mono(Signal::Volts(max)),
                 octave: false,
             },
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
         };
-        module.outputs.sample.set_channels(1);
+        module.outputs.sample.set_lanes(1);
         module.update(44100.0);
         module.outputs.sample.get(0)
     }
@@ -160,10 +160,10 @@ mod tests {
                 max: PolySignal::mono(Signal::Volts(max)),
                 octave: true,
             },
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
         };
-        module.outputs.sample.set_channels(1);
+        module.outputs.sample.set_lanes(1);
         module.update(44100.0);
         module.outputs.sample.get(0)
     }

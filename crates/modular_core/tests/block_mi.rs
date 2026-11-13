@@ -19,7 +19,7 @@ fn formant_paths_agree() {
         json!({
             "freq": [-1.0, 0.0, 1.5, 3.0],
             "formant": cable("lfo", 0),
-            "ratio": poly_cable("lfo", CHANNELS),
+            "ratio": poly_cable("lfo", LANES),
             "width": 4.0,
             "fm": cable("src", 1),
         }),
@@ -43,7 +43,7 @@ fn z_osc_paths_agree() {
         json!({
             "freq": [-1.0, 0.0, 1.5, 3.0],
             "cutoff": cable("lfo", 0),
-            "shape": poly_cable("lfo", CHANNELS),
+            "shape": poly_cable("lfo", LANES),
             "mode": 1.0,
             "fm": cable("src", 1),
         }),
@@ -90,7 +90,7 @@ fn allocation_free() {
         assert_eq!(
             allocations_while_rendering(
                 module,
-                json!({ "freq": poly_cable("lfo", CHANNELS), "fm": cable("src", 0) })
+                json!({ "freq": poly_cable("lfo", LANES), "fm": cable("src", 0) })
             ),
             0,
             "{module}"
@@ -105,7 +105,7 @@ fn six_op_allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$mi.sixOp",
-            json!({ "freq": poly_cable("lfo", CHANNELS), "gate": poly_cable("src", CHANNELS),
+            json!({ "freq": poly_cable("lfo", LANES), "gate": poly_cable("src", LANES),
                     "bank": cable("lfo", 1), "patch": cable("lfo", 2), "envelope": cable("lfo", 3) })
         ),
         0
@@ -120,7 +120,7 @@ fn vowel_allocation_free() {
         assert_eq!(
             allocations_while_rendering(
                 module,
-                json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS),
+                json!({ "freq": poly_cable("lfo", LANES), "trigger": poly_cable("src", LANES),
                         "vowel": cable("lfo", 2), "formantShift": cable("lfo", 3) })
             ),
             0,
@@ -136,7 +136,7 @@ fn speak_allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$mi.speak",
-            json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS),
+            json!({ "freq": poly_cable("lfo", LANES), "trigger": poly_cable("src", LANES),
                     "bank": cable("lfo", 0), "word": cable("lfo", 1), "formantShift": cable("lfo", 2),
                     "prosody": cable("lfo", 3), "speed": cable("lfo", 1), "accent": cable("lfo", 2) })
         ),
@@ -162,9 +162,9 @@ fn drum_allocation_free() {
         ("$mi.ringHat", &["tone", "decay", "noisiness", "accent"]),
     ] {
         let mut params =
-            json!({ "freq": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS) });
+            json!({ "freq": poly_cable("lfo", LANES), "trigger": poly_cable("src", LANES) });
         for (i, &knob) in knobs.iter().enumerate() {
-            params[knob] = cable("lfo", i % CHANNELS);
+            params[knob] = cable("lfo", i % LANES);
         }
         assert_eq!(allocations_while_rendering(module, params), 0, "{module}");
     }
@@ -186,8 +186,8 @@ fn render_ports(patch: &modular_core::Patch, port: &str, calls: usize) -> Vec<f3
     for _ in 0..calls {
         render(patch, &[BLOCK_SIZE]);
         for index in 0..BLOCK_SIZE {
-            for ch in 0..CHANNELS {
-                out.push(patch.sampleables["dut"].get_value_at(port, ch, index));
+            for lane in 0..LANES {
+                out.push(patch.sampleables["dut"].get_value_at(port, lane, index));
             }
         }
     }
@@ -250,7 +250,7 @@ fn vowel_instances_draw_their_own_noise() {
         let params = json!({
             "freq": 0.0,
             "vowel": step as f32 * 0.5,
-            "trigger": poly_cable("lfo", CHANNELS),
+            "trigger": poly_cable("lfo", LANES),
         });
         let a = build(
             ProcessingMode::Block,
@@ -277,10 +277,10 @@ fn vowel_instances_draw_their_own_noise() {
 fn resonator_outputs_stay_in_range() {
     for module in ["$mi.modal", "$mi.string"] {
         for params in [
-            json!({ "freq": cable("lfo", 0), "trigger": poly_cable("src", CHANNELS),
+            json!({ "freq": cable("lfo", 0), "trigger": poly_cable("src", LANES),
                     "structure": 1.4, "brightness": 5.0, "decay": 5.0, "accent": 5.0 }),
             json!({ "freq": -2.0, "brightness": 4.0, "decay": 5.0, "accent": 5.0,
-                    "input": poly_cable("src", CHANNELS) }),
+                    "input": poly_cable("src", LANES) }),
         ] {
             let patch = build(ProcessingMode::Block, ProcessingMode::Block, module, params);
             for (port, range) in [(default_port(module).as_str(), 10.0), ("exciter", 5.0)] {

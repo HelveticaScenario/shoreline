@@ -10,12 +10,12 @@ use crate::{
         oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
         utils::{SchmittTrigger, sanitize, wrap_phase},
     },
-    poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
+    poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
@@ -67,7 +67,7 @@ struct PulseOscillatorOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct PulseChannelState {
+struct PulseLaneState {
     phase: f32,
     width: SwapGlide,
     pwm: SwapGlide,
@@ -112,11 +112,11 @@ const PULSE_DOCS: ModuleDocs = ModuleDocs {
 #[module(name = "$pulse", docs = PULSE_DOCS, args(freq), block)]
 pub struct PulseOscillator {
     outputs: PulseOscillatorOutputs,
-    channel_state: Box<[PulseChannelState]>,
+    lane_state: Box<[PulseLaneState]>,
     params: PulseOscillatorParams,
 }
 
-impl PulseChannelState {
+impl PulseLaneState {
     /// Advance the phase by `phase_increment` (cycles per sample) and return
     /// the next output sample. `width` is this sample's glided width plus
     /// PWM, clamped to 0–5, and `sync` its sync input, if connected.
@@ -178,28 +178,28 @@ impl PulseOscillator {
     /// does.
     fn update(&mut self, sample_rate: f32) {
         let p = &self.params;
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
             let width = state.width.follow(
-                p.width.value_or(ch, PulseOscillatorParams::WIDTH_DEFAULT),
-                p.width.glide_mark(ch),
+                p.width.value_or(lane, PulseOscillatorParams::WIDTH_DEFAULT),
+                p.width.glide_mark(lane),
                 sample_rate,
             );
             let pwm = state.pwm.follow(
-                p.pwm.value_or(ch, PulseOscillatorParams::PWM_DEFAULT),
-                p.pwm.glide_mark(ch),
+                p.pwm.value_or(lane, PulseOscillatorParams::PWM_DEFAULT),
+                p.pwm.glide_mark(lane),
                 sample_rate,
             );
-            let pitch = p.freq.get_value(ch);
-            let fm = p.fm.value_or(ch, 0.0);
+            let pitch = p.freq.get_value(lane);
+            let fm = p.fm.value_or(lane, 0.0);
             let increment = apply_fm(pitch, fm, p.fm_mode) / sample_rate;
             let offset = p
                 .phase_offset
-                .value_or(ch, PulseOscillatorParams::PHASE_OFFSET_DEFAULT);
-            let sync = p.sync.as_ref().map(|sync| sync.get_value(ch));
+                .value_or(lane, PulseOscillatorParams::PHASE_OFFSET_DEFAULT);
+            let sync = p.sync.as_ref().map(|sync| sync.get_value(lane));
             let width = (width + pwm).clamp(0.0, 5.0);
             self.outputs
                 .sample
-                .set(ch, state.step(increment, width, offset, sync));
+                .set(lane, state.step(increment, width, offset, sync));
         }
     }
 
@@ -209,14 +209,14 @@ impl PulseOscillator {
         range: Range<usize>,
         sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
-        let gliding = self.channel_state[..channels]
+        let gliding = self.lane_state[..lanes]
             .iter()
             .enumerate()
-            .any(|(ch, state)| {
-                state.width.will_glide(p.width.glide_mark(ch))
-                    || state.pwm.will_glide(p.pwm.glide_mark(ch))
+            .any(|(lane, state)| {
+                state.width.will_glide(p.width.glide_mark(lane))
+                    || state.pwm.will_glide(p.pwm.glide_mark(lane))
             });
         if gliding {
             return None;
@@ -229,9 +229,9 @@ impl PulseOscillator {
             fm,
             sync,
             phase_offset: offset,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         // A pitch held for the whole range needs its exponential only once.
-        let mut held_increments = [0.0f32; PORT_MAX_CHANNELS];
+        let mut held_increments = [0.0f32; PORT_MAX_LANES];
         let held = freq.is_constant() && fm.is_constant();
         if held {
             let (freq, fm) = (freq.row(range.start), fm.row(range.start));
@@ -248,22 +248,26 @@ impl PulseOscillator {
                 .sample
                 .slot_mut(i)
                 .iter_mut()
-                .zip(self.channel_state.iter_mut());
-            for (ch, (out, state)) in slots.enumerate() {
+                .zip(self.lane_state.iter_mut());
+            for (lane, (out, state)) in slots.enumerate() {
                 let increment = if held {
-                    held_increments[ch]
+                    held_increments[lane]
                 } else {
-                    apply_fm(pitch[ch], fm[ch], p.fm_mode) / sample_rate
+                    apply_fm(pitch[lane], fm[lane], p.fm_mode) / sample_rate
                 };
-                let width = (width[ch] + pwm[ch]).clamp(0.0, 5.0);
-                *out =
-                    sanitize(state.step(increment, width, offset[ch], sync.map(|sync| sync[ch])));
+                let width = (width[lane] + pwm[lane]).clamp(0.0, 5.0);
+                *out = sanitize(state.step(
+                    increment,
+                    width,
+                    offset[lane],
+                    sync.map(|sync| sync[lane]),
+                ));
             }
         }
         let (width, pwm) = (width.row(last), pwm.row(last));
-        for (ch, state) in self.channel_state[..channels].iter_mut().enumerate() {
-            state.width.settle(width[ch], p.width.glide_mark(ch));
-            state.pwm.settle(pwm[ch], p.pwm.glide_mark(ch));
+        for (lane, state) in self.lane_state[..lanes].iter_mut().enumerate() {
+            state.width.settle(width[lane], p.width.glide_mark(lane));
+            state.pwm.settle(pwm[lane], p.pwm.glide_mark(lane));
         }
         Some(())
     }

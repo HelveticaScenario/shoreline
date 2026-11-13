@@ -1,21 +1,21 @@
-import type { ScopeBufferKey, ScopeChannel, ScopeMode } from '@modular/core';
+import type { ScopeBufferKey, ScopeLane, ScopeMode } from '@modular/core';
 
 export const scopeBufferKeyToString = (key: ScopeBufferKey): string => {
     const trigger = key.triggerThreshold
         ? `${key.triggerThreshold[0]}:${key.triggerThreshold[1]}`
         : 'none';
-    return `:module:${key.moduleId}:${key.portName}:${key.channel}:${key.msPerFrame}:${trigger}`;
+    return `:module:${key.moduleId}:${key.portName}:${key.lane}:${key.msPerFrame}:${trigger}`;
 };
 
-export const scopeBufferKeyFromChannel = (
-    channel: ScopeChannel,
+export const scopeBufferKeyFromLane = (
+    lane: ScopeLane,
     msPerFrame: number,
     triggerThreshold?: [number, ScopeMode],
 ): string => {
     const trigger = triggerThreshold
         ? `${triggerThreshold[0]}:${triggerThreshold[1]}`
         : 'none';
-    return `:module:${channel.moduleId}:${channel.portName}:${channel.channel}:${msPerFrame}:${trigger}`;
+    return `:module:${lane.moduleId}:${lane.portName}:${lane.lane}:${msPerFrame}:${trigger}`;
 };
 
 export interface ScopeColors {
@@ -43,7 +43,7 @@ export interface ScopeDrawOptions {
         max: number;
         peakToPeak: number;
         readOffset: number[];
-        /** Per channel, in samples: see `ScopeStats.triggerOffset`. */
+        /** Per lane, in samples: see `ScopeStats.triggerOffset`. */
         triggerOffset: number[];
     };
 }
@@ -53,7 +53,7 @@ const MIN_WIDTH_FOR_STATS = 360;
 const MIN_WIDTH_FOR_LEGEND = 160;
 
 export const drawOscilloscope = (
-    channels: Float32Array[],
+    lanes: Float32Array[],
     canvas: HTMLCanvasElement,
     options: ScopeDrawOptions,
 ) => {
@@ -170,9 +170,9 @@ export const drawOscilloscope = (
 
     // Handle empty data
     if (
-        !channels ||
-        channels.length === 0 ||
-        channels.every((ch) => ch.length === 0)
+        !lanes ||
+        lanes.length === 0 ||
+        lanes.every((lane) => lane.length === 0)
     ) {
         ctx.fillStyle = mutedColor;
         ctx.font = `${13 * dpr}px "Fira Code", monospace`;
@@ -184,7 +184,7 @@ export const drawOscilloscope = (
 
     const windowSize = 1024;
 
-    // Draw all channels (same color, overlaid)
+    // Draw all lanes (same color, overlaid)
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 1.5 * dpr;
 
@@ -195,19 +195,19 @@ export const drawOscilloscope = (
     ctx.rect(waveformLeft, 0, waveformWidth, h);
     ctx.clip();
 
-    for (const [ch, data] of channels.entries()) {
+    for (const [lane, data] of lanes.entries()) {
         if (!data || data.length < 2) {
             continue;
         }
 
         const sampleCount = Math.min(windowSize, data.length);
         const stepX = waveformWidth / (windowSize - 1);
-        const offsetX = (stats.triggerOffset[ch] ?? 0) * stepX;
+        const offsetX = (stats.triggerOffset[lane] ?? 0) * stepX;
 
         ctx.beginPath();
 
         for (let i = 0; i < sampleCount; i++) {
-            const dataIndex = (i + stats.readOffset[ch]) % data.length;
+            const dataIndex = (i + stats.readOffset[lane]) % data.length;
             const x = waveformLeft + offsetX + stepX * i;
             const rawSample = data[dataIndex];
             const clampedSample = Math.max(

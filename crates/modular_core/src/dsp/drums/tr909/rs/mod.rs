@@ -13,10 +13,10 @@ use schemars::JsonSchema;
 
 use super::circuit::{DIODE_DROP, Shaper, TRIG_SECS, TRIG_V, VCA, VSAT, accent_volts};
 use crate::dsp::drums::analog::Junction;
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, Run};
 use crate::dsp::drums::input::{Input, Live, each_slot};
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState, STIFF};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing, Voices, rails};
 use crate::poly::{PolyOutput, PolySignal};
 
@@ -144,7 +144,7 @@ fn output_network(dt: f32) -> Mna<OUT_UNKNOWNS, OUT_CAPS, 0, 1> {
 
 /// The rim shot's circuit state.
 #[derive(Clone, Copy, Default)]
-struct Rim<L: Lanes = Mono> {
+struct Rim<L: Simd = Mono> {
     trigger: Pulse<L>,
     accent: L::S,
     env: L::S,
@@ -156,7 +156,7 @@ struct Rim<L: Lanes = Mono> {
     quiet: Quiet<L>,
 }
 
-lanewise!(Rim {
+elementwise!(Rim {
     trigger,
     accent,
     env,
@@ -183,9 +183,9 @@ struct RimDrum;
 
 impl Drum for RimDrum {
     type Shared = RimShared;
-    type Circuit<L: Lanes> = Rim<L>;
-    type Controls<L: Lanes> = ();
-    type Sources<L: Lanes> = ();
+    type Circuit<L: Simd> = Rim<L>;
+    type Controls<L: Simd> = ();
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = false;
     const RUNS_IN_PAIRS: bool = false;
 }
@@ -197,7 +197,7 @@ impl Fire for Rim {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Rim<L> {
+impl<L: Simd> Circuit<L> for Rim<L> {
     type Shared = RimShared;
     type Controls = ();
 

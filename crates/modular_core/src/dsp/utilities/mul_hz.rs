@@ -14,7 +14,7 @@ use crate::types::SwapGlide;
 const MIN_HZ: f32 = 1e-4;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MulHzParams {
@@ -58,7 +58,7 @@ const MUL_HZ_DOCS: ModuleDocs = ModuleDocs {
 pub struct MulHz {
     outputs: MulHzOutputs,
     params: MulHzParams,
-    channel_state: Box<[SwapGlide]>,
+    lane_state: Box<[SwapGlide]>,
 }
 
 /// The V/Oct pitch `voct` with its frequency multiplied by `factor`.
@@ -70,12 +70,9 @@ fn mul_hz(voct: f32, factor: f32) -> f32 {
 impl MulHz {
     fn update(&mut self, sample_rate: f32) {
         let factor = &self.params.factor;
-        for i in 0..self.channel_count() {
-            let factor_value = self.channel_state[i].follow(
-                factor.get_value(i),
-                factor.glide_mark(i),
-                sample_rate,
-            );
+        for i in 0..self.lane_count() {
+            let factor_value =
+                self.lane_state[i].follow(factor.get_value(i), factor.glide_mark(i), sample_rate);
             let value = mul_hz(self.params.input.get_value(i), factor_value);
             self.outputs.sample.set(i, value);
         }
@@ -87,8 +84,8 @@ impl MulHz {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
-        let glides = &mut self.channel_state[..channels];
+        let lanes = self.lane_count();
+        let glides = &mut self.lane_state[..lanes];
         let factor = &self.params.factor;
         if factor.glides_pending(glides) {
             return None;
@@ -97,8 +94,8 @@ impl MulHz {
         let input = self
             .params
             .input
-            .block_input(range.clone(), channels, &mut s0)?;
-        let factor_input = factor.block_input(range.clone(), channels, &mut s1)?;
+            .block_input(range.clone(), lanes, &mut s0)?;
+        let factor_input = factor.block_input(range.clone(), lanes, &mut s1)?;
         factor.settle_glides(glides, factor_input.row(range.end - 1));
         block_input::map(
             &mut outputs.sample,
@@ -119,16 +116,16 @@ mod tests {
 
     fn make(input_voct: f32, factor: f32) -> MulHz {
         let mut outputs = MulHzOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         MulHz {
             params: MulHzParams {
                 input: PolySignal::mono(Signal::Volts(input_voct)),
                 factor: PolySignal::mono(Signal::Volts(factor)),
             },
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
-            channel_state: Box::new([SwapGlide::default()]),
+            lane_state: Box::new([SwapGlide::default()]),
         }
     }
 

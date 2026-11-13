@@ -4,21 +4,21 @@ use super::*;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
-/// The inputs every channel of the rim shot reads.
+/// The inputs every lane of the rim shot reads.
 struct RsInputs<I> {
     trigger: I,
 }
 
-impl<I: Input> ChannelInputs<RimDrum> for RsInputs<I> {
-    type Channel = Voices<Rim>;
+impl<I: Input> LaneInputs<RimDrum> for RsInputs<I> {
+    type Lane = Voices<Rim>;
 
-    fn voices(channel: &mut Voices<Rim>) -> &mut Voices<Rim> {
-        channel
+    fn voices(lane: &mut Voices<Rim>) -> &mut Voices<Rim> {
+        lane
     }
 
     #[inline(always)]
-    fn inputs(&self, ch: usize, _: &mut Voices<Rim>) -> (f32, ()) {
-        (self.trigger.at(ch), ())
+    fn inputs(&self, lane: usize, _: &mut Voices<Rim>) -> (f32, ()) {
+        (self.trigger.at(lane), ())
     }
 }
 
@@ -29,7 +29,7 @@ struct RsState {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Rs909Params {
@@ -85,7 +85,7 @@ pub struct Rs909 {
     outputs: Rs909Outputs,
     params: Rs909Params,
     state: RsState,
-    channel_state: Box<[Voices<Rim>]>,
+    lane_state: Box<[Voices<Rim>]>,
 }
 
 impl Rs909 {
@@ -101,7 +101,7 @@ impl Rs909 {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -109,10 +109,10 @@ impl Rs909 {
         ];
         let out = &mut self.outputs.sample;
         self.state.tick(
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             inputs,
-            |ch, v| out.set(ch, v),
+            |lane, v| out.set(lane, v),
         );
     }
 
@@ -122,19 +122,19 @@ impl Rs909 {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Rs909ParamsBlockInputs { trigger, accent } =
-            p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+            p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot(
             &mut outputs.sample,
             range,
             [trigger, accent],
             |inputs, mut slot| {
                 self.state
-                    .tick(channel_state, p.restart, inputs, |ch, v| slot.set(ch, v))
+                    .tick(lane_state, p.restart, inputs, |lane, v| slot.set(lane, v))
             },
         );
         Some(())
@@ -142,12 +142,12 @@ impl Rs909 {
 }
 
 impl RsState {
-    /// Runs one sample of every channel on its `[trigger, accent]`, handing
+    /// Runs one sample of every lane on its `[trigger, accent]`, handing
     /// `out` each one's output.
     #[inline(always)]
     fn tick<I: Input>(
         &mut self,
-        channels: &mut [Voices<Rim>],
+        lanes: &mut [Voices<Rim>],
         restart: bool,
         [trigger, accent]: [I; 2],
         mut out: impl FnMut(usize, f32),
@@ -160,16 +160,16 @@ impl RsState {
         };
         let inputs = RsInputs { trigger };
         self.groups
-            .run(&inputs, channels, &run, |ch, v| out(ch, rails(v)));
+            .run(&inputs, lanes, &run, |lane, v| out(lane, rails(v)));
     }
 }
 
 impl crate::types::PatchUpdateHandler for Rs909 {
     fn on_patch_update(&mut self) {
-        let count = self.channel_count();
+        let count = self.lane_count();
         self.state
             .groups
-            .layout::<RsInputs<&[f32]>>(&mut self.channel_state, count);
+            .layout::<RsInputs<&[f32]>>(&mut self.lane_state, count);
     }
 }
 

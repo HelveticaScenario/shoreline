@@ -66,7 +66,7 @@ function isBufferRef(value: unknown): value is {
     type: 'buffer_ref';
     module: string;
     port: string;
-    channels: number;
+    lanes: number;
     frameCount: number;
 } {
     if (!isPlainObject(value)) {
@@ -163,7 +163,7 @@ function _canonicalizeForFingerprint(
     if (isBufferRef(value)) {
         const upstreamType = ctx.typeById.get(value.module) ?? 'unknown';
         return {
-            channels: value.channels,
+            lanes: value.lanes,
             frameCount: value.frameCount,
             port: value.port,
             type: 'buffer_ref',
@@ -208,7 +208,7 @@ function extractFeatures(
 
         if (isBufferRef(v)) {
             const upstreamType = ctx.typeById.get(v.module) ?? 'unknown';
-            const canonical = `${upstreamType}:${v.port}:${v.channels}:${v.frameCount}`;
+            const canonical = `${upstreamType}:${v.port}:${v.lanes}:${v.frameCount}`;
             features.set(key, {
                 key,
                 kind: 'bufferRef',
@@ -590,10 +590,10 @@ function _remapGraph(
     }
 
     for (const scope of applied.scopes) {
-        for (const channel of scope.channels) {
-            const nextId = idMap.get(channel.moduleId);
+        for (const lane of scope.lanes) {
+            const nextId = idMap.get(lane.moduleId);
             if (nextId) {
-                channel.moduleId = nextId;
+                lane.moduleId = nextId;
             }
         }
     }

@@ -11,7 +11,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MotionFollowerParams {
@@ -109,7 +109,7 @@ impl Follower {
 }
 
 #[derive(Default, Clone, Copy)]
-struct MotionFollowerChannelState {
+struct MotionFollowerLaneState {
     prev: f32,
     initialized: bool,
     both: Follower,
@@ -148,16 +148,16 @@ const MOTION_FOLLOWER_DOCS: ModuleDocs = ModuleDocs {
 pub struct MotionFollower {
     outputs: MotionFollowerOutputs,
     params: MotionFollowerParams,
-    channel_state: Box<[MotionFollowerChannelState]>,
+    lane_state: Box<[MotionFollowerLaneState]>,
 }
 
 impl MotionFollower {
     pub fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
-            let input = sanitize(self.params.input.get_value(ch));
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
+            let input = sanitize(self.params.input.get_value(lane));
             if !state.initialized {
                 state.prev = input;
                 state.initialized = true;
@@ -168,17 +168,17 @@ impl MotionFollower {
 
             let smooth_c = state
                 .smooth
-                .get(self.params.smooth.value_or(ch, 0.02), |secs| {
+                .get(self.params.smooth.value_or(lane, 0.02), |secs| {
                     time_coeff(secs, sample_rate)
                 });
             let attack_c = state
                 .attack
-                .get(self.params.attack.value_or(ch, 0.02), |secs| {
+                .get(self.params.attack.value_or(lane, 0.02), |secs| {
                     time_coeff(secs, sample_rate)
                 });
             let release_c = state
                 .release
-                .get(self.params.release.value_or(ch, 0.3), |secs| {
+                .get(self.params.release.value_or(lane, 0.3), |secs| {
                     time_coeff(secs, sample_rate)
                 });
 
@@ -192,12 +192,12 @@ impl MotionFollower {
                 .falling
                 .process((-rate).max(0.0), smooth_c, attack_c, release_c);
 
-            let ceiling = self.params.ceiling.value_or(ch, 5.0).max(0.001);
-            let gain = self.params.gain.value_or(ch, 0.25);
+            let ceiling = self.params.ceiling.value_or(lane, 5.0).max(0.001);
+            let gain = self.params.gain.value_or(lane, 0.25);
             let shape = |level: f32| sanitize(ceiling * tanh_driven(level * gain / ceiling));
-            self.outputs.sample.set(ch, shape(both));
-            self.outputs.pos.set(ch, shape(rising));
-            self.outputs.neg.set(ch, shape(falling));
+            self.outputs.sample.set(lane, shape(both));
+            self.outputs.pos.set(lane, shape(rising));
+            self.outputs.neg.set(lane, shape(falling));
         }
     }
 }
@@ -217,7 +217,7 @@ mod tests {
 
     /// A follower with unit gain and a ceiling high enough that the soft clip
     /// stays near-linear, so outputs read directly as speed in V/s.
-    fn make(channels: usize) -> MotionFollower {
+    fn make(lanes: usize) -> MotionFollower {
         let mut module = MotionFollower {
             outputs: MotionFollowerOutputs::default(),
             params: MotionFollowerParams {
@@ -228,13 +228,13 @@ mod tests {
                 gain: Some(volts(1.0)),
                 ceiling: Some(volts(1000.0)),
             },
-            channel_state: vec![MotionFollowerChannelState::default(); channels].into_boxed_slice(),
-            _channel_count: channels,
+            lane_state: vec![MotionFollowerLaneState::default(); lanes].into_boxed_slice(),
+            _lane_count: lanes,
             _block_index: Default::default(),
         };
-        module.outputs.sample.set_channels(channels);
-        module.outputs.pos.set_channels(channels);
-        module.outputs.neg.set_channels(channels);
+        module.outputs.sample.set_lanes(lanes);
+        module.outputs.pos.set_lanes(lanes);
+        module.outputs.neg.set_lanes(lanes);
         module
     }
 
@@ -350,7 +350,7 @@ mod tests {
     }
 
     #[test]
-    fn channels_are_independent() {
+    fn lanes_are_independent() {
         let mut m = make(2);
         for i in 0..SR as usize {
             let t = i as f32 / SR;

@@ -1,5 +1,5 @@
 import type { ModuleSchema } from '@modular/core';
-import { deriveChannelCount } from '@modular/core';
+import { deriveLaneCount } from '@modular/core';
 import type { AnyCollection, ScopeConfig } from './GraphBuilder';
 import {
     BaseCollection,
@@ -123,7 +123,7 @@ export function lookupArgumentSpan(
  * Throw a module-and-line formatted error if any number nested anywhere in
  * `params` is non-finite. The N-API boundary rejects NaN/Infinity with a
  * context-free conversion error, so this must run before any native call
- * (deriveChannelCount) that receives the params.
+ * (deriveLaneCount) that receives the params.
  */
 function assertFiniteNumericParams(
     moduleName: string,
@@ -156,20 +156,20 @@ function assertFiniteNumericParams(
 }
 
 /**
- * Derive a module's channel count with the guards every caller needs:
+ * Derive a module's lane count with the guards every caller needs:
  * `assertFiniteNumericParams` first (the N-API boundary rejects NaN/Infinity
  * with a context-free conversion error, so the finite check must precede the
  * native call), then module-and-line formatting for any deserialization
- * errors. Returns the derived channel count, or undefined when the module
+ * errors. Returns the derived lane count, or undefined when the module
  * has no derivation.
  */
-export function deriveChannelCountChecked(
+export function deriveLaneCountChecked(
     moduleName: string,
     params: unknown,
     sourceLocation: { line: number; column: number } | undefined,
 ): number | undefined {
     assertFiniteNumericParams(moduleName, params, sourceLocation);
-    const deriveResult = deriveChannelCount(moduleName, params);
+    const deriveResult = deriveLaneCount(moduleName, params);
     if (deriveResult.errors && deriveResult.errors.length > 0) {
         const messages = deriveResult.errors
             .map((e: { message: string }) => e.message)
@@ -177,7 +177,7 @@ export function deriveChannelCountChecked(
         const loc = sourceLocation ? ` at line ${sourceLocation.line}` : '';
         throw new Error(`${moduleName}${loc}: ${messages}`);
     }
-    return deriveResult.channelCount;
+    return deriveResult.laneCount;
 }
 
 // Return type for module factories: one output is a collection; several are
@@ -433,7 +433,7 @@ export class DSLContext {
             }
 
             // A `wav` param is a path; the reference the engine reads also
-            // carries the file's channel count, so the file loads here.
+            // carries the file's lane count, so the file loads here.
             for (const name of wavParamNames) {
                 if (!isWavRef(params[name])) {
                     params[name] = this.resolveWav(schema.name, params[name]);
@@ -472,16 +472,16 @@ export class DSLContext {
                 }
             }
 
-            // Derive channel count from params using Rust-side derivation (backed by LRU cache)
+            // Derive lane count from params using Rust-side derivation (backed by LRU cache)
             // This handles modules with custom derivation logic (like mix, seq)
             // As well as standard inference from PolySignal inputs
-            const channelCount = deriveChannelCountChecked(
+            const laneCount = deriveLaneCountChecked(
                 schema.name,
                 node.getParamsSnapshot(),
                 sourceLocation,
             );
-            if (channelCount !== undefined) {
-                node._setDerivedChannelCount(channelCount);
+            if (laneCount !== undefined) {
+                node._setDerivedLaneCount(laneCount);
             }
 
             // Return based on output configuration

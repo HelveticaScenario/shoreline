@@ -23,17 +23,17 @@ fn glide(pattern: Value, length: Value) -> Value {
     json!({ "__kind": "GlidePattern", "pattern": pattern, "length": length })
 }
 
-fn cycle_patch(pattern: Value, channels: Option<u64>) -> Patch {
-    cycle_patch_at(pattern, channels, 48000.0)
+fn cycle_patch(pattern: Value, lanes: Option<u64>) -> Patch {
+    cycle_patch_at(pattern, lanes, 48000.0)
 }
 
-fn cycle_patch_at(pattern: Value, channels: Option<u64>, tempo: f64) -> Patch {
-    cycle_patch_with(pattern, channels, tempo, None)
+fn cycle_patch_at(pattern: Value, lanes: Option<u64>, tempo: f64) -> Patch {
+    cycle_patch_with(pattern, lanes, tempo, None)
 }
 
 fn cycle_patch_with(
     pattern: Value,
-    channels: Option<u64>,
+    lanes: Option<u64>,
     tempo: f64,
     ribbon: Option<(f64, f64)>,
 ) -> Patch {
@@ -42,8 +42,8 @@ fn cycle_patch_with(
         params.insert("ribbon".to_string(), json!([offset, length]));
     }
     params.insert("pattern".to_string(), pattern);
-    if let Some(ch) = channels {
-        params.insert("channels".to_string(), json!(ch));
+    if let Some(lane) = lanes {
+        params.insert("lanes".to_string(), json!(lane));
     }
     let graph = PatchGraph {
         modules: [
@@ -79,20 +79,23 @@ fn process_frame(patch: &Patch) {
     }
 }
 
-fn seq_val(patch: &Patch, port: &str, ch: usize) -> f32 {
+fn seq_val(patch: &Patch, port: &str, lane: usize) -> f32 {
     patch
         .sampleables
         .get("seq")
         .unwrap()
-        .get_value_at(port, ch, 0)
+        .get_value_at(port, lane, 0)
 }
 
-/// Per-sample `(cv, trig)` of channel `ch` over `n` frames.
-fn trace(patch: &Patch, ch: usize, n: usize) -> Vec<(f32, bool)> {
+/// Per-sample `(cv, trig)` of lane `lane` over `n` frames.
+fn trace(patch: &Patch, lane: usize, n: usize) -> Vec<(f32, bool)> {
     (0..n)
         .map(|_| {
             process_frame(patch);
-            (seq_val(patch, "cv", ch), seq_val(patch, "trig", ch) > 2.5)
+            (
+                seq_val(patch, "cv", lane),
+                seq_val(patch, "trig", lane) > 2.5,
+            )
         })
         .collect()
 }
@@ -164,8 +167,8 @@ fn chord_voices_glide_to_their_nearest_notes() {
     let mut trig = Vec::new();
     for _ in 0..SAMPLES_PER_CYCLE {
         process_frame(&patch);
-        for (ch, trace) in cv.iter_mut().enumerate() {
-            trace.push(seq_val(&patch, "cv", ch));
+        for (lane, trace) in cv.iter_mut().enumerate() {
+            trace.push(seq_val(&patch, "cv", lane));
         }
         trig.push(seq_val(&patch, "trig", 0) > 2.5);
     }
@@ -245,22 +248,22 @@ fn glides_stay_continuous_on_a_clock_off_the_sample_grid() {
     let mut prev_trig = [false; 2];
     for frame in 0..4 * SAMPLES_PER_CYCLE {
         process_frame(&patch);
-        for ch in 0..2 {
-            let cv = seq_val(&patch, "cv", ch);
-            if let Some(p) = prev[ch]
+        for lane in 0..2 {
+            let cv = seq_val(&patch, "cv", lane);
+            if let Some(p) = prev[lane]
                 && frame > 2
             {
                 assert!(
                     (cv - p).abs() < 0.05,
-                    "channel {ch} steps from {p} to {cv} at frame {frame}"
+                    "lane {lane} steps from {p} to {cv} at frame {frame}"
                 );
             }
-            prev[ch] = Some(cv);
-            let trig = seq_val(&patch, "trig", ch) > 2.5;
-            if trig && !prev_trig[ch] {
+            prev[lane] = Some(cv);
+            let trig = seq_val(&patch, "trig", lane) > 2.5;
+            if trig && !prev_trig[lane] {
                 rises += 1;
             }
-            prev_trig[ch] = trig;
+            prev_trig[lane] = trig;
         }
     }
     assert!(rises >= 14, "every chord note fires: {rises} onsets");
@@ -290,8 +293,8 @@ fn a_stacked_glide_pattern_does_not_duplicate_notes() {
     let mut prev = [false; 4];
     for _ in 0..SAMPLES_PER_CYCLE - 1 {
         process_frame(&patch);
-        for (ch, prev) in prev.iter_mut().enumerate() {
-            let trig = seq_val(&patch, "trig", ch) > 2.5;
+        for (lane, prev) in prev.iter_mut().enumerate() {
+            let trig = seq_val(&patch, "trig", lane) > 2.5;
             if trig && !*prev {
                 rises += 1;
             }
@@ -335,9 +338,9 @@ fn a_glide_window_open_at_a_swap_is_claimed_after_it() {
 }
 
 #[test]
-fn every_note_glides_with_more_open_windows_than_channels() {
+fn every_note_glides_with_more_open_windows_than_lanes() {
     // Each of 80 notes glides over the whole loop, so more windows are open at
-    // once than a `$cycle` has channels, while one voice plays them in turn.
+    // once than a `$cycle` has lanes, while one voice plays them in turn.
     let notes: Vec<String> = (0..80).map(|n| n.to_string()).collect();
     // A fiftieth of the usual tempo, so each note outlasts its trigger pulse.
     let patch = cycle_patch_at(glide(mini(&notes.join(" ")), json!(1.0)), Some(1), 960.0);

@@ -15,7 +15,7 @@ use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FoldParams {
@@ -48,7 +48,7 @@ struct FoldOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     amount: SwapGlide,
     /// Onset fade-in — suppresses the click when the module is first added
     /// (`amount` snaps to its full value on the first sample, so the output
@@ -93,7 +93,7 @@ const FOLD_DOCS: ModuleDocs = ModuleDocs {
 pub struct Fold {
     outputs: FoldOutputs,
     state: FoldState,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: FoldParams,
 }
 
@@ -108,26 +108,26 @@ impl Fold {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
         let freq_connected = !self.params.freq.is_disconnected();
         let fade_inc = self.state.fade_inc;
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
 
-            let input = self.params.input.get_value(ch);
-            let amount_raw = self.params.amount.get_value(ch);
+            let input = self.params.input.get_value(lane);
+            let amount_raw = self.params.amount.get_value(lane);
 
             state
                 .amount
-                .update(amount_raw, self.params.amount.glide_mark(ch), sample_rate);
+                .update(amount_raw, self.params.amount.glide_mark(lane), sample_rate);
             let amount = *state.amount;
 
             let amount_norm = fold_amount((amount / 5.0).clamp(0.0, 1.0));
 
             // Apply anti-aliasing when freq is connected
             let amount_norm = if freq_connected {
-                let freq_hz = voct_to_hz(self.params.freq.value_or_zero(ch));
+                let freq_hz = voct_to_hz(self.params.freq.value_or_zero(lane));
                 aa_fold(freq_hz / sample_rate, amount_norm)
             } else {
                 amount_norm
@@ -144,7 +144,7 @@ impl Fold {
             let fade = state.fade.advance(fade_inc);
 
             // Scale back to output range
-            self.outputs.sample.set(ch, folded * 5.0 * fade);
+            self.outputs.sample.set(lane, folded * 5.0 * fade);
         }
     }
 }
@@ -158,7 +158,7 @@ mod tests {
 
     fn make(input: f32, amount: f32) -> Fold {
         let mut outputs = FoldOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         let mut fold = Fold {
             params: FoldParams {
                 input: PolySignal::mono(Signal::Volts(input)),
@@ -166,10 +166,10 @@ mod tests {
                 freq: None,
             },
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
             state: FoldState::default(),
-            channel_state: vec![ChannelState::default(); 1].into_boxed_slice(),
+            lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         };
         fold.init(48000.0);
         fold
@@ -252,12 +252,12 @@ mod tests {
     }
 
     #[test]
-    fn carried_over_channel_does_not_refade() {
-        // A channel whose state was carried over by `transfer_state_from`
+    fn carried_over_lane_does_not_refade() {
+        // A lane whose state was carried over by `transfer_state_from`
         // arrives with the fade already complete, so it plays at full level
         // immediately instead of re-fading on a patch edit.
         let mut fold = make(3.0, 1.28);
-        fold.channel_state[0].fade.gain = 1.0;
+        fold.lane_state[0].fade.gain = 1.0;
         fold.update(48000.0);
         let first = fold.outputs.sample.get(0).abs();
         for _ in 0..8000 {
@@ -270,7 +270,7 @@ mod tests {
         );
         assert!(
             (first - settled).abs() < 1e-4,
-            "carried-over channel should not re-fade (first {first} vs settled {settled})"
+            "carried-over lane should not re-fade (first {first} vs settled {settled})"
         );
     }
 }

@@ -202,7 +202,7 @@ impl std::fmt::Display for AudioError {
             AudioError::GarbageQueueFull { message } => {
                 write!(
                     f,
-                    "Failed to push a garbage item to the garbage channel: {}",
+                    "Failed to push a garbage item to the garbage lane: {}",
                     message
                 )
             }

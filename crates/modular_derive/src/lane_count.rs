@@ -6,7 +6,7 @@ use syn::{Data, DeriveInput, Fields};
 
 use crate::utils::{is_option_poly_signal_type, is_poly_signal_type};
 
-pub fn impl_channel_count_macro(ast: &DeriveInput) -> TokenStream {
+pub fn impl_lane_count_macro(ast: &DeriveInput) -> TokenStream {
     let name = &ast.ident;
 
     let poly_signal_field_refs: Vec<TokenStream2> = match &ast.data {
@@ -20,7 +20,7 @@ pub fn impl_channel_count_macro(ast: &DeriveInput) -> TokenStream {
                         // Bare PolySignal: always present, push reference directly
                         Some(quote! { fields.push(&self.#field_ident); })
                     } else if is_option_poly_signal_type(&field.ty) {
-                        // Option<PolySignal>: only push if Some (None contributes 0 channels)
+                        // Option<PolySignal>: only push if Some (None contributes 0 lanes)
                         Some(quote! {
                             if let Some(ref ps) = self.#field_ident {
                                 fields.push(ps);
@@ -34,14 +34,14 @@ pub fn impl_channel_count_macro(ast: &DeriveInput) -> TokenStream {
             Fields::Unnamed(_) | Fields::Unit => {
                 return syn::Error::new(
                     ast.span(),
-                    "#[derive(ChannelCount)] only supports structs with named fields",
+                    "#[derive(LaneCount)] only supports structs with named fields",
                 )
                 .to_compile_error()
                 .into();
             }
         },
         Data::Enum(_) | Data::Union(_) => {
-            return syn::Error::new(ast.span(), "#[derive(ChannelCount)] only supports structs")
+            return syn::Error::new(ast.span(), "#[derive(LaneCount)] only supports structs")
                 .to_compile_error()
                 .into();
         }

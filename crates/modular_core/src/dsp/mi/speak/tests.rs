@@ -17,13 +17,13 @@ fn knobs(bank: f32, [word, shift, prosody, speed, accent]: [f32; 5]) -> Knobs {
     }
 }
 
-/// A channel as `speak.cc` starts it, its noise seeded as the driver seeds
+/// A lane as `speak.cc` starts it, its noise seeded as the driver seeds
 /// stmlib's generator.
-fn channel() -> Channel {
-    let mut channel = Channel::default();
-    channel.speaker.random = Random::new(0x21);
-    channel.speaker.seeded = true;
-    channel
+fn new_lane() -> Lane {
+    let mut lane = Lane::default();
+    lane.speaker.random = Random::new(0x21);
+    lane.speaker.seeded = true;
+    lane
 }
 
 /// Replays `speak.f32`: Plaits' controller on its word banks, then its
@@ -35,10 +35,10 @@ fn matches_plaits() {
     let mut actual = Vec::new();
     let mut expected = Vec::new();
     for records in records("speak", 8 + 2).chunks(24000) {
-        let mut ch = channel();
+        let mut lane = new_lane();
         for r in records {
             let trigger = (r[7] >= 0.0).then_some(r[7]);
-            let (out, excitation) = ch.step(
+            let (out, excitation) = lane.step(
                 r[0],
                 knobs(r[1], [r[2], r[3], r[4], r[5], r[6]]),
                 trigger,
@@ -66,11 +66,11 @@ fn render(
     triggers: Option<&[usize]>,
 ) -> Vec<(f32, f32)> {
     let rates = Rates::new(sample_rate);
-    let mut ch = channel();
+    let mut lane = new_lane();
     (0..samples)
         .map(|n| {
             let trigger = triggers.map(|t| if t.contains(&n) { 5.0 } else { 0.0 });
-            ch.step(hz / sample_rate, knobs(bank, smooth), trigger, &rates)
+            lane.step(hz / sample_rate, knobs(bank, smooth), trigger, &rates)
         })
         .collect()
 }
@@ -258,10 +258,10 @@ fn prosody_follows_the_recorded_pitch() {
 /// A voice at `f0` cycles per 48 kHz sample, scanning.
 fn render_at(f0: f32) -> Vec<f32> {
     let rates = Rates::new(48000.0);
-    let mut ch = channel();
+    let mut lane = new_lane();
     (0..24000)
         .map(|_| {
-            ch.step(f0, knobs(1.0, [4.0, 2.0, 0.0, 2.5, 4.0]), None, &rates)
+            lane.step(f0, knobs(1.0, [4.0, 2.0, 0.0, 2.5, 4.0]), None, &rates)
                 .0
         })
         .collect()
@@ -315,13 +315,13 @@ fn each_word_index_says_its_word() {
 fn a_patched_trigger_is_silent_between_words() {
     let rates = Rates::new(48000.0);
     let render = |trigger: bool| {
-        let mut ch = channel();
+        let mut lane = new_lane();
         (0..48000)
             .map(|n| {
                 let bank = if n < 24000 { 1.0 } else { 3.0 };
                 let pulse = if n == 12000 { 5.0 } else { 0.0 };
                 let knobs = knobs(bank, [4.0, 2.5, 0.0, 2.5, 4.0]);
-                ch.step(120.0 / 48000.0, knobs, trigger.then_some(pulse), &rates)
+                lane.step(120.0 / 48000.0, knobs, trigger.then_some(pulse), &rates)
                     .0
             })
             .collect::<Vec<_>>()
@@ -344,8 +344,8 @@ fn a_patched_trigger_is_silent_between_words() {
 #[test]
 fn non_finite_knobs_hold() {
     let rates = Rates::new(48000.0);
-    let mut held = channel();
-    let mut glitched = channel();
+    let mut held = new_lane();
+    let mut glitched = new_lane();
     for n in 0..20000 {
         let steady = 0.5 + (n / 5000) as f32;
         let v = match n % 5000 {
@@ -369,7 +369,7 @@ fn non_finite_knobs_hold() {
 fn stays_finite() {
     for sample_rate in [8000.0, 22050.0, 44100.0, 96000.0, 192000.0] {
         let rates = Rates::new(sample_rate);
-        let mut ch = channel();
+        let mut lane = new_lane();
         for n in 0..40000 {
             let f0 = match n % 600 {
                 100 => f32::NAN,
@@ -397,7 +397,7 @@ fn stays_finite() {
                 0..=3000 => Some(if n % 701 == 0 { 5.0 } else { 0.0 }),
                 _ => None,
             };
-            let (out, excitation) = ch.output(f0, knobs(bank, smooth), trigger, &rates);
+            let (out, excitation) = lane.output(f0, knobs(bank, smooth), trigger, &rates);
             assert!(
                 out.is_finite() && excitation.is_finite(),
                 "{sample_rate} Hz, sample {n}: {out}, {excitation}"
@@ -411,10 +411,10 @@ fn stays_finite() {
 #[test]
 fn a_trigger_patched_again_rises() {
     let rates = Rates::new(48000.0);
-    let mut ch = channel();
+    let mut lane = new_lane();
     for _ in 0..100 {
-        ch.step(0.004, knobs(0.0, DEFAULTS), Some(5.0), &rates);
+        lane.step(0.004, knobs(0.0, DEFAULTS), Some(5.0), &rates);
     }
-    ch.step(0.004, knobs(0.0, DEFAULTS), None, &rates);
-    assert!(ch.trigger.process(5.0));
+    lane.step(0.004, knobs(0.0, DEFAULTS), None, &rates);
+    assert!(lane.trigger.process(5.0));
 }

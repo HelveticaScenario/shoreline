@@ -5,7 +5,7 @@ import type {
     ModuleSpec,
     PatchGraph,
     Scope,
-    ScopeChannel,
+    ScopeLane,
     ScopeMode,
     ScopeSplit,
 } from '@modular/core';
@@ -48,11 +48,11 @@ import {
     expandSignalGroups,
     isSignalGroupLike,
 } from './signalGroups';
-import type { OutLaneSources, OutLaneTap } from './outLane';
+import type { TrackTapSources, PendingTrackTap } from './trackTap';
 
 import z from 'zod';
 
-export const PORT_MAX_CHANNELS = 64;
+export const PORT_MAX_LANES = 64;
 
 /**
  * Scope with an optional source location captured at call time.
@@ -75,7 +75,7 @@ export interface ScopeConfig {
 }
 
 const ResolvedModuleOutput = z.object({
-    channel: z.number().optional(),
+    lane: z.number().optional(),
     module: z.string(),
     port: z.string(),
     type: z.literal('cable'),
@@ -85,7 +85,7 @@ export type ResolvedModuleOutput = z.infer<typeof ResolvedModuleOutput>;
 
 // Type definitions for Collection system
 export type OrArray<T> = T | T[];
-/** One channel: a constant, a note/Hz string, or a module output channel. */
+/** One lane: a constant, a note/Hz string, or a module output lane. */
 export type Signal = number | string | ModuleOutput;
 export type AnyCollection = BaseCollection<ModuleOutput>;
 export type PolySignal = OrArray<Signal | AnyCollection>;
@@ -109,7 +109,7 @@ export type BufferOutputRef = {
     type: 'buffer_ref';
     module: string;
     port: string;
-    channels: number;
+    lanes: number;
     frameCount: number;
 };
 
@@ -235,14 +235,14 @@ function resolveMonoOutArgs(
 }
 
 /**
- * Live-display tap for a locked VU control: the (module, port, channel)
+ * Live-display tap for a locked VU control: the (module, port, lane)
  * address the engine samples so the panel can track the signal. Collections
- * and arrays tap their first channel. A deferred output's placeholder id is
+ * and arrays tap their first lane. A deferred output's placeholder id is
  * resolved once every deferred is set (see `resolveControlTap`).
  */
 function controlSourceTap(
     value: PolySignal | undefined,
-): { moduleId: string; portName: string; channel: number } | undefined {
+): { moduleId: string; portName: string; lane: number } | undefined {
     if (
         value == null ||
         typeof value === 'number' ||
@@ -253,7 +253,7 @@ function controlSourceTap(
     const single = toSignalArray(value)[0];
     if (single instanceof ModuleOutput) {
         return {
-            channel: single.channel ?? 0,
+            lane: single.lane ?? 0,
             moduleId: single.moduleId,
             portName: single.portName,
         };
@@ -313,8 +313,8 @@ export class Bus {
 }
 
 /**
- * Normalize a {@link PolySignal} into a flat array of single-channel
- * {@link Signal}s: collections contribute their channels, arrays flatten.
+ * Normalize a {@link PolySignal} into a flat array of single-lane
+ * {@link Signal}s: collections contribute their lanes, arrays flatten.
  */
 function toSignalArray(v: PolySignal): Signal[] {
     if (Array.isArray(v)) {
@@ -327,35 +327,35 @@ function toSignalArray(v: PolySignal): Signal[] {
 }
 
 /**
- * BaseCollection is the DSL's only signal type: an ordered set of channels,
+ * BaseCollection is the DSL's only signal type: an ordered set of lanes,
  * each a {@link ModuleOutput}, with chainable DSP methods. Indexing and
- * iteration yield one-channel collections of the same class, so DSL code never
- * holds a bare channel; a one-channel collection is its own channel 0.
+ * iteration yield one-lane collections of the same class, so DSL code never
+ * holds a bare lane; a one-lane collection is its own lane 0.
  */
 export class BaseCollection<T extends ModuleOutput> {
     [index: number]: this;
-    /** The channels. Internal plumbing; DSL code sees only collections. */
+    /** The lanes. Internal plumbing; DSL code sees only collections. */
     readonly items: T[] = [];
-    private readonly channelViews: (this | undefined)[] = [];
+    private readonly laneViews: (this | undefined)[] = [];
 
     constructor(...args: T[]) {
         this.items.push(...args);
         for (let i = 0; i < args.length; i++) {
             Object.defineProperty(this, i, {
-                get: () => this.channel(i),
+                get: () => this.lane(i),
             });
         }
     }
 
-    /** Channel `i` as a one-channel collection of this collection's class. */
-    private channel(i: number): this {
+    /** Lane `i` as a one-lane collection of this collection's class. */
+    private lane(i: number): this {
         if (this.items.length === 1) {
             return this;
         }
-        let view = this.channelViews[i];
+        let view = this.laneViews[i];
         if (view === undefined) {
             view = this.slice(i, i + 1);
-            this.channelViews[i] = view;
+            this.laneViews[i] = view;
         }
         return view;
     }
@@ -366,7 +366,7 @@ export class BaseCollection<T extends ModuleOutput> {
 
     *[Symbol.iterator](): Iterator<this> {
         for (let i = 0; i < this.items.length; i++) {
-            yield this.channel(i);
+            yield this.lane(i);
         }
     }
 
@@ -507,7 +507,7 @@ export class BaseCollection<T extends ModuleOutput> {
         return builder ? wetMix(builder, this, mix) : new Collection();
     }
 
-    /** A one-channel collection reads as its channel, so it interpolates into patterns. */
+    /** A one-lane collection reads as its lane, so it interpolates into patterns. */
     toString(): string {
         if (this.items.length === 1) {
             return this.items[0].toString();
@@ -519,7 +519,7 @@ export class BaseCollection<T extends ModuleOutput> {
 const CARRIED = Symbol('carried');
 
 /**
- * `collection` with `props` assigned, which its slices, channels and chunks
+ * `collection` with `props` assigned, which its slices, lanes and chunks
  * keep too.
  */
 export function withCarried<C extends AnyCollection, P extends object>(
@@ -535,26 +535,26 @@ function carriedOf(collection: AnyCollection): object | undefined {
 }
 
 /**
- * Make `sliced` a root standing for the same channels of every output of the
+ * Make `sliced` a root standing for the same lanes of every output of the
  * root `set` came from, so each input still takes the output that fits it:
- * `$perc(seq[1])` takes channel 1 of the trigger. An output whose width
+ * `$perc(seq[1])` takes lane 1 of the trigger. An output whose width
  * differs from the root's, such as a fixed-width one, stays whole.
  */
 function sliceRoot(
     sliced: object,
     set: OutputSet,
-    rootChannels: number,
+    rootLanes: number,
     start?: number,
     end?: number,
 ): void {
-    const indices = Array.from({ length: rootChannels }, (_, i) => i).slice(
+    const indices = Array.from({ length: rootLanes }, (_, i) => i).slice(
         start,
         end,
     );
     const values: Record<string, unknown> = {};
     for (const [name, value] of Object.entries(set.values)) {
         values[name] =
-            value instanceof BaseCollection && value.length === rootChannels
+            value instanceof BaseCollection && value.length === rootLanes
                 ? new (value.constructor as new (
                       ...args: ModuleOutput[]
                   ) => AnyCollection)(...indices.map((i) => value.items[i]))
@@ -564,8 +564,8 @@ function sliceRoot(
 }
 
 /**
- * The same channels as a ranged collection, for outputs whose source is set
- * later to one the engine bounds (an `$outLane` control).
+ * The same lanes as a ranged collection, for outputs whose source is set
+ * later to one the engine bounds (a `$trackTap` control).
  */
 export function asRanged(
     collection: BaseCollection<ModuleOutput>,
@@ -637,7 +637,7 @@ export class CollectionWithRange extends BaseCollection<ModuleOutput> {
     }
 }
 
-/** The channels of every ranged collection given, as one ranged collection. */
+/** The lanes of every ranged collection given, as one ranged collection. */
 export const $r = (
     ...args: OrArray<CollectionWithRange>[]
 ): CollectionWithRange =>
@@ -653,21 +653,21 @@ export const $r = (
     );
 
 /**
- * Broadcast a signal across `channels` channels by cycling its existing
- * channels (channel `i` ← source channel `i % len`). Useful when a narrow
+ * Broadcast a signal across `lanes` lanes by cycling its existing
+ * lanes (lane `i` ← source lane `i % len`). Useful when a narrow
  * input must excite a wider polyphonic structure: summing/buffering modules
- * skip a narrower input group's missing channels rather than cycling them, so
- * the extra channels would otherwise be silent. Returns the signal unchanged
- * when it carries no channels.
+ * skip a narrower input group's missing lanes rather than cycling them, so
+ * the extra lanes would otherwise be silent. Returns the signal unchanged
+ * when it carries no lanes.
  */
-export const cycleToChannels = (
+export const cycleToLanes = (
     signal: AnyCollection,
-    channels: number,
+    lanes: number,
 ): AnyCollection => {
     const { items } = signal;
     if (items.length === 0) return signal;
     return new Collection(
-        ...Array.from({ length: channels }, (_, i) => items[i % items.length]),
+        ...Array.from({ length: lanes }, (_, i) => items[i % items.length]),
     );
 };
 
@@ -695,7 +695,7 @@ export interface SourceLocation {
  * GraphBuilder manages the construction of a PatchGraph from DSL code.
  * It tracks modules, generates deterministic IDs, and builds the final graph.
  *
- * Note: Factory functions add overhead from channel count derivation but provide
+ * Note: Factory functions add overhead from lane count derivation but provide
  * consistency across all module creation paths.
  */
 export class GraphBuilder implements ChainHost {
@@ -722,10 +722,10 @@ export class GraphBuilder implements ChainHost {
     private sourceLocationMap = new Map<string, SourceLocation>();
     /** Track all deferred outputs for string replacement during toPatch */
     private deferredOutputs = new Map<string, DeferredModuleOutput>();
-    /** `$outLane` taps, resolved against their labeled out in toPatch */
-    private outLaneTaps: {
+    /** `$trackTap` taps, resolved against their labeled out in toPatch */
+    private trackTaps: {
         label: string;
-        tap: OutLaneTap;
+        tap: PendingTrackTap;
         sourceLocation?: { line: number; column: number };
     }[] = [];
     /** Global tempo for ROOT_CLOCK in BPM (default: 120) */
@@ -866,9 +866,9 @@ export class GraphBuilder implements ChainHost {
 
     /**
      * How a param value, as stored, stands towards the range the engine knows
-     * for it, channel by channel: `'constant'` holds still in every channel
+     * for it, lane by lane: `'constant'` holds still in every lane
      * (an unset param reads one), `'ranged'` is a cable from a ranged port in
-     * every channel, `'carried'` mixes the two, and `'unranged'` has a cable
+     * every lane, `'carried'` mixes the two, and `'unranged'` has a cable
      * from any other port, a deferred output's among them.
      */
     rangeOf(value: unknown): 'constant' | 'ranged' | 'carried' | 'unranged' {
@@ -982,7 +982,7 @@ export class GraphBuilder implements ChainHost {
 
     /**
      * Create a Collection from outputs. Each argument is flattened into the
-     * Collection's channels: collections contribute their channels, arrays
+     * Collection's lanes: collections contribute their lanes, arrays
      * are spread, and bare Signal literals — numbers and
      * note/Hz strings — are lifted into `$signal` modules, so `$c(440, 'c4',
      * osc)` works alongside `$c(osc1, osc2)`. Lifting nests, so scalars inside
@@ -1024,7 +1024,7 @@ export class GraphBuilder implements ChainHost {
      * Build the final PatchGraph
      *
      * Note: Uses factory functions for signal/mix modules for consistency,
-     * which adds overhead from channel count derivation on every patch build.
+     * which adds overhead from lane count derivation on every patch build.
      */
     toPatch(): PatchGraph {
         this.processingBusses = true;
@@ -1049,8 +1049,8 @@ export class GraphBuilder implements ChainHost {
         // sorted into source order before emission.
         const vuMeters: (VuMeterDef & { ordinal: number })[] = [];
 
-        // Each labeled lane's signals, for `$outLane` taps.
-        const lanesByLabel = new Map<
+        // Each labeled out's signals, for `$trackTap` taps.
+        const outsByLabel = new Map<
             string,
             {
                 audio: ModuleOutput[];
@@ -1230,7 +1230,7 @@ export class GraphBuilder implements ChainHost {
                     outputSignals = gated.items;
 
                     if (group.label !== undefined) {
-                        lanesByLabel.set(group.label, {
+                        outsByLabel.set(group.label, {
                             active: muteSig.items[0],
                             audio: outputSignals,
                             level: gainSource,
@@ -1384,7 +1384,7 @@ export class GraphBuilder implements ChainHost {
             signalFactory(0, { id: 'ROOT_OUTPUT' });
         }
 
-        // A lane control is the first channel of its source: tapped directly
+        // A tap control is the first lane of its source: tapped directly
         // when the source is ranged, as a lifted control is, and otherwise
         // through a `$signal` declaring the control's usual span.
         const control = (
@@ -1393,11 +1393,11 @@ export class GraphBuilder implements ChainHost {
         ): ModuleOutput => {
             // Every deferred is set by now, so a deferred source is judged by
             // the output it was set to.
-            const channel = firstChannel(source);
+            const lane = firstLane(source);
             const first =
-                channel instanceof DeferredModuleOutput
-                    ? (channel.resolve() ?? channel)
-                    : channel;
+                lane instanceof DeferredModuleOutput
+                    ? (lane.resolve() ?? lane)
+                    : lane;
             if (
                 first instanceof ModuleOutput &&
                 this.rangedPorts.has(`${first.moduleId}:${first.portName}`)
@@ -1406,25 +1406,25 @@ export class GraphBuilder implements ChainHost {
             }
             return (signalFactory(first, { ...range }) as Collection).items[0];
         };
-        // Every tap of a lane shares its sources.
-        const laneSources = new Map<string, OutLaneSources>();
-        for (const { label, tap, sourceLocation } of this.outLaneTaps) {
-            const lane = lanesByLabel.get(label);
-            if (!lane) {
+        // Every tap of an out shares its sources.
+        const outSources = new Map<string, TrackTapSources>();
+        for (const { label, tap, sourceLocation } of this.trackTaps) {
+            const out = outsByLabel.get(label);
+            if (!out) {
                 const at = sourceLocation
                     ? ` (line ${sourceLocation.line})`
                     : '';
-                throw new Error(`$outLane: no out is labeled "${label}"${at}`);
+                throw new Error(`$trackTap: no out is labeled "${label}"${at}`);
             }
-            let sources = laneSources.get(label);
+            let sources = outSources.get(label);
             if (!sources) {
                 sources = {
-                    active: control(lane.active, GATE_RANGE),
-                    audio: lane.audio,
-                    level: control(lane.level, OUT_GAIN_RANGE),
-                    pan: control(lane.pan, OUT_PAN_RANGE),
+                    active: control(out.active, GATE_RANGE),
+                    audio: out.audio,
+                    level: control(out.level, OUT_GAIN_RANGE),
+                    pan: control(out.pan, OUT_PAN_RANGE),
                 };
-                laneSources.set(label, sources);
+                outSources.set(label, sources);
             }
             tap.resolve(sources);
         }
@@ -1499,8 +1499,8 @@ export class GraphBuilder implements ChainHost {
                     (scope) =>
                         ({
                             ...scope,
-                            channels: scope.channels.map((ch) =>
-                                this.resolveScopeChannel(ch),
+                            lanes: scope.lanes.map((lane) =>
+                                this.resolveScopeLane(lane),
                             ),
                         }) as ScopeWithLocation,
                 ),
@@ -1557,7 +1557,7 @@ export class GraphBuilder implements ChainHost {
                     ? sections.length
                     : 1;
             const spectrum = {
-                channels: Array.from({ length: lists }, (_, i) => i),
+                lanes: Array.from({ length: lists }, (_, i) => i),
                 moduleId: m.id,
                 msPerFrame: EQ_SPECTRUM_MS_PER_FRAME,
                 portName: 'output',
@@ -1572,11 +1572,11 @@ export class GraphBuilder implements ChainHost {
                 spectrum,
                 zoneLocation,
             });
-            for (const channel of spectrum.channels) {
+            for (const lane of spectrum.lanes) {
                 eqScopes.push({
-                    channels: [
+                    lanes: [
                         {
-                            channel,
+                            lane,
                             moduleId: m.id,
                             portName: spectrum.portName,
                         },
@@ -1609,7 +1609,7 @@ export class GraphBuilder implements ChainHost {
         this.outLabels.clear();
         this.sourceLocationMap.clear();
         this.deferredOutputs.clear();
-        this.outLaneTaps = [];
+        this.trackTaps = [];
         this.tempo = 120;
         this.outputGain = DEFAULT_OUTPUT_GAIN;
         this.timeSignatureNumerator = 4;
@@ -1642,9 +1642,9 @@ export class GraphBuilder implements ChainHost {
         // The right channel lands on baseChannel + 1, so the pair has to fit
         // inside the engine's port width.
         const baseChannel = options.baseChannel ?? 0;
-        if (baseChannel < 0 || baseChannel > PORT_MAX_CHANNELS - 2) {
+        if (baseChannel < 0 || baseChannel > PORT_MAX_LANES - 2) {
             throw new Error(
-                `baseChannel must be 0-${PORT_MAX_CHANNELS - 2}, got ${baseChannel}`,
+                `baseChannel must be 0-${PORT_MAX_LANES - 2}, got ${baseChannel}`,
             );
         }
 
@@ -1684,9 +1684,9 @@ export class GraphBuilder implements ChainHost {
         }
 
         const channel = options.channel ?? 0;
-        if (channel < 0 || channel > PORT_MAX_CHANNELS - 1) {
+        if (channel < 0 || channel > PORT_MAX_LANES - 1) {
             throw new Error(
-                `channel must be 0-${PORT_MAX_CHANNELS - 1}, got ${channel}`,
+                `channel must be 0-${PORT_MAX_LANES - 1}, got ${channel}`,
             );
         }
 
@@ -1740,15 +1740,15 @@ export class GraphBuilder implements ChainHost {
     }
 
     /**
-     * Register an `$outLane` tap. It resolves in toPatch, so the out may be
+     * Register an `$trackTap` tap. It resolves in toPatch, so the out may be
      * declared after the tap; a label no out declares throws there.
      */
-    addOutLaneTap(
+    addTrackTap(
         label: string,
-        tap: OutLaneTap,
+        tap: PendingTrackTap,
         sourceLocation?: { line: number; column: number },
     ): void {
-        this.outLaneTaps.push({ label, sourceLocation, tap });
+        this.trackTaps.push({ label, sourceLocation, tap });
     }
 
     /**
@@ -1793,14 +1793,14 @@ export class GraphBuilder implements ChainHost {
         }
 
         const outputs = Array.isArray(value) ? value : [value];
-        const channels = outputs.map((o) => ({
-            channel: o.channel,
+        const lanes = outputs.map((o) => ({
+            lane: o.lane,
             moduleId: o.moduleId,
             portName: o.portName,
         }));
 
         this.scopes.push({
-            channels,
+            lanes,
             msPerFrame,
             range,
             sourceLocation,
@@ -1823,7 +1823,7 @@ export class GraphBuilder implements ChainHost {
         const resolved = deferred.resolve();
         return resolved
             ? {
-                  channel: resolved.channel ?? 0,
+                  lane: resolved.lane ?? 0,
                   moduleId: resolved.moduleId,
                   portName: resolved.portName,
               }
@@ -1831,13 +1831,13 @@ export class GraphBuilder implements ChainHost {
     }
 
     /**
-     * Resolve a scope channel ref against the $deferred outputs: a channel
+     * Resolve a scope lane ref against the $deferred outputs: a lane
      * naming a deferred module is replaced by the module it was set to.
      * Throws if the $deferred was never set.
      */
-    private resolveScopeChannel(ch: ScopeChannel): ScopeChannel {
-        const deferred = this.deferredOutputs.get(ch.moduleId);
-        if (!deferred) return ch;
+    private resolveScopeLane(lane: ScopeLane): ScopeLane {
+        const deferred = this.deferredOutputs.get(lane.moduleId);
+        if (!deferred) return lane;
         const resolved = deferred.resolve();
         if (resolved === null) {
             throw new Error(
@@ -1845,7 +1845,7 @@ export class GraphBuilder implements ChainHost {
             );
         }
         return {
-            channel: ch.channel,
+            lane: lane.lane,
             moduleId: resolved.moduleId,
             portName: resolved.portName,
         };
@@ -1861,7 +1861,7 @@ export class ModuleNode {
     readonly id: string;
     readonly moduleType: string;
     readonly schema: ProcessedModuleSchema;
-    private _channelCount: number = 1;
+    private _laneCount: number = 1;
 
     constructor(
         builder: GraphBuilder,
@@ -1876,11 +1876,11 @@ export class ModuleNode {
     }
 
     /**
-     * Get the number of channels this module produces.
-     * Set by Rust-side derivation via _setDerivedChannelCount.
+     * Get the number of lanes this module produces.
+     * Set by Rust-side derivation via _setDerivedLaneCount.
      */
-    get channelCount(): number {
-        return this._channelCount;
+    get laneCount(): number {
+        return this._laneCount;
     }
 
     _setParam(paramName: string, value: unknown): this {
@@ -1890,7 +1890,7 @@ export class ModuleNode {
 
     /**
      * Get a snapshot of the current params for this module.
-     * Used for Rust-side channel count derivation. Signal groups are
+     * Used for Rust-side lane count derivation. Signal groups are
      * expanded here so the engine only ever sees plain signal arrays.
      */
     getParamsSnapshot(): Record<string, unknown> {
@@ -1899,10 +1899,10 @@ export class ModuleNode {
     }
 
     /**
-     * Set the channel count derived from Rust-side analysis.
+     * Set the lane count derived from Rust-side analysis.
      */
-    _setDerivedChannelCount(channels: number): void {
-        this._channelCount = channels;
+    _setDerivedLaneCount(lanes: number): void {
+        this._laneCount = lanes;
     }
 
     /**
@@ -1934,7 +1934,7 @@ export class ModuleNode {
                     return false;
                 }
                 // A constant holds still: it carries the range along but has
-                // none to give, so some input must be ranged in every channel.
+                // none to give, so some input must be ranged in every lane.
                 const tagged = this.schema.signalParams
                     .filter((param) => param.carriesBounds)
                     .map((param) => ({
@@ -1955,8 +1955,8 @@ export class ModuleNode {
     }
 
     /**
-     * An output port of this module, as a collection of its channels: ranged
-     * when the engine knows its range. A mono port is one channel.
+     * An output port of this module, as a collection of its lanes: ranged
+     * when the engine knows its range. A mono port is one lane.
      */
     _output(portName: string): Collection | CollectionWithRange {
         const outputSchema = this.schema.outputs.find(
@@ -1968,11 +1968,11 @@ export class ModuleNode {
             );
         }
 
-        const channels = outputSchema.polyphonic
-            ? (outputSchema.channels ?? this.channelCount)
+        const lanes = outputSchema.polyphonic
+            ? (outputSchema.lanes ?? this.laneCount)
             : 1;
         const items = Array.from(
-            { length: channels },
+            { length: lanes },
             (_, i) => new ModuleOutput(this.builder, this.id, portName, i),
         );
         if (this.isRanged(outputSchema)) {
@@ -1984,36 +1984,36 @@ export class ModuleNode {
 }
 
 /**
- * One channel of a module output port. Internal plumbing: the DSL hands out
- * collections of these, never a bare channel.
+ * One lane of a module output port. Internal plumbing: the DSL hands out
+ * collections of these, never a bare lane.
  */
 export class ModuleOutput {
     readonly builder: GraphBuilder;
     readonly moduleId: string;
     readonly portName: string;
-    readonly channel: number = 0;
+    readonly lane: number = 0;
 
     constructor(
         builder: GraphBuilder,
         moduleId: string,
         portName: string,
-        channel: number = 0,
+        lane: number = 0,
     ) {
         this.builder = builder;
         this.moduleId = moduleId;
         this.portName = portName;
-        this.channel = channel;
+        this.lane = lane;
     }
 
     toString(): string {
-        return `module(${this.moduleId}:${this.portName}:${this.channel})`;
+        return `module(${this.moduleId}:${this.portName}:${this.lane})`;
     }
 }
 
 /**
- * DeferredModuleOutput is a channel placeholder for a signal assigned later,
+ * DeferredModuleOutput is a lane placeholder for a signal assigned later,
  * for feedback loops and forward references. Cables to it resolve at the end
- * of the script to the channel it was set to.
+ * of the script to the lane it was set to.
  */
 export class DeferredModuleOutput extends ModuleOutput {
     private resolvedModuleOutput: ModuleOutput | null = null;
@@ -2031,7 +2031,7 @@ export class DeferredModuleOutput extends ModuleOutput {
     }
 
     /**
-     * Set the channel this placeholder resolves to. Bare Signal literals
+     * Set the lane this placeholder resolves to. Bare Signal literals
      * (numbers, note/Hz strings) are lifted into $signal modules, matching
      * `$c`.
      */
@@ -2081,7 +2081,7 @@ export class DeferredModuleOutput extends ModuleOutput {
 export class DeferredCollection extends BaseCollection<DeferredModuleOutput> {
     /**
      * Set the signals for all deferred outputs in this collection, cycling a
-     * narrower argument across the channels. Bare Signal literals (numbers,
+     * narrower argument across the lanes. Bare Signal literals (numbers,
      * note/Hz strings) are lifted into $signal modules, matching `$c` — a
      * string is one signal, not spread into characters.
      * @param outputs - A Poly<Signal> (single signal, array, or iterable) to distribute across outputs
@@ -2199,17 +2199,17 @@ export function replaceValues(input: unknown, replacer: Replacer): unknown {
 }
 
 /**
- * A collection as a param value: the array of its channels. Nested in an
- * array or object (a tuple element, a nested field), a one-channel collection
- * is that channel, so it fills a single-signal slot.
+ * A collection as a param value: the array of its lanes. Nested in an
+ * array or object (a tuple element, a nested field), a one-lane collection
+ * is that lane, so it fills a single-signal slot.
  */
 function collectionValue(
     key: string,
     value: AnyCollection,
-    replaceChannel: (channel: ModuleOutput) => unknown,
+    replaceLane: (lane: ModuleOutput) => unknown,
 ): unknown {
     return key !== '' && value.items.length === 1
-        ? replaceChannel(value.items[0])
+        ? replaceLane(value.items[0])
         : value.items;
 }
 
@@ -2298,8 +2298,8 @@ function replaceDeferred(
     }
     return replaceValues(input, (key, value) => {
         if (value instanceof BaseCollection) {
-            return collectionValue(key, value, (channel) =>
-                replace(valueToSignal(channel)),
+            return collectionValue(key, value, (lane) =>
+                replace(valueToSignal(lane)),
             );
         }
 
@@ -2308,13 +2308,13 @@ function replaceDeferred(
 }
 
 /**
- * First channel of a signal param value: the value itself for a scalar or
+ * First lane of a signal param value: the value itself for a scalar or
  * ModuleOutput, else the first element of an array, Collection, or `$gN`
  * group. An empty value reads as 0.
  */
-function firstChannel(value: unknown): Signal {
+function firstLane(value: unknown): Signal {
     if (isSignalGroupLike(value)) {
-        return firstChannel(value.signals);
+        return firstLane(value.signals);
     }
     if (
         value instanceof ModuleOutput ||
@@ -2325,7 +2325,7 @@ function firstChannel(value: unknown): Signal {
     }
     if (value instanceof BaseCollection || Array.isArray(value)) {
         const [first] = toSignalArray(value as PolySignal);
-        return first === undefined ? 0 : firstChannel(first);
+        return first === undefined ? 0 : firstLane(first);
     }
     return 0;
 }
@@ -2333,7 +2333,7 @@ function firstChannel(value: unknown): Signal {
 function valueToSignal(value: unknown): unknown {
     if (value instanceof ModuleOutput) {
         return {
-            channel: value.channel,
+            lane: value.lane,
             module: value.moduleId,
             port: value.portName,
             type: 'cable',

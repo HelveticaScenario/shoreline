@@ -12,7 +12,7 @@ use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 #[params(declares_range = (min, max))]
-#[derive(Clone, Deserr, JsonSchema, ChannelCount, Connect)]
+#[derive(Clone, Deserr, JsonSchema, LaneCount, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_signal_params -> ModuleParamErrors)]
 struct SignalParams {
@@ -71,17 +71,17 @@ const SIGNAL_DOCS: ModuleDocs = ModuleDocs {
 pub struct Signal {
     outputs: SignalOutputs,
     params: SignalParams,
-    channel_state: Box<[SwapGlide]>,
+    lane_state: Box<[SwapGlide]>,
 }
 
 impl Signal {
     fn update(&mut self, sample_rate: f32) {
         let value = &self.params.value;
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let out = &mut self.outputs.sample;
-        for i in 0..channels {
+        for i in 0..lanes {
             let input = value.get_value(i);
-            let v = self.channel_state[i].follow(input, value.glide_mark(i), sample_rate);
+            let v = self.lane_state[i].follow(input, value.glide_mark(i), sample_rate);
             out.set(i, v);
             if out.stores_bounds() {
                 // Mid-glide the output is the input offset by what remains
@@ -102,17 +102,17 @@ impl Signal {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
-        let glides = &mut self.channel_state[..channels];
+        let lanes = self.lane_count();
+        let glides = &mut self.lane_state[..lanes];
         let value = &self.params.value;
         if value.glides_pending(glides) {
             return None;
         }
         let mut scratch = InputScratch::new();
-        let input = value.block_input(range.clone(), channels, &mut scratch)?;
+        let input = value.block_input(range.clone(), lanes, &mut scratch)?;
         let declared = self.params.declared();
-        outputs.sample.fill_bounds_with(range.clone(), |ch| {
-            declared.or_else(|| value.block_bounds(range.clone(), ch))
+        outputs.sample.fill_bounds_with(range.clone(), |lane| {
+            declared.or_else(|| value.block_bounds(range.clone(), lane))
         })?;
         value.settle_glides(glides, input.row(range.end - 1));
         block_input::map(&mut outputs.sample, range, [input], |[x]| x);

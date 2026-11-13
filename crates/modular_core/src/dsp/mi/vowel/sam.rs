@@ -19,7 +19,7 @@ use crate::{
     poly::{PolyOutput, PolySignal, PolySignalExt},
 };
 
-use super::{Channel, Rates, Voice, update_channels};
+use super::{Lane, Rates, Voice, update_lanes};
 
 const FORMANTS: usize = 3;
 const VOWELS: usize = 9;
@@ -173,7 +173,7 @@ impl Voice for SamSynth {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SamVowelParams {
@@ -250,20 +250,20 @@ const SAM_VOWEL_DOCS: ModuleDocs = ModuleDocs {
 pub struct SamVowel {
     outputs: SamVowelOutputs,
     state: Rates,
-    channel_state: Box<[Channel<SamSynth>]>,
+    lane_state: Box<[Lane<SamSynth>]>,
     params: SamVowelParams,
 }
 
 impl SamVowel {
     fn init(&mut self, sample_rate: f32) {
         self.state = Rates::new(sample_rate);
-        for channel in self.channel_state.iter_mut() {
-            *channel = Channel::new(&self.state);
+        for lane in self.lane_state.iter_mut() {
+            *lane = Lane::new(&self.state);
         }
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        update_channels!(self, SamVowelParams);
+        update_lanes!(self, SamVowelParams);
     }
 }
 

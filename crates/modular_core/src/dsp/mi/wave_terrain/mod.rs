@@ -20,7 +20,7 @@ use terrain::{TERRAINS, terrain};
 const OUTPUT_GAIN: f32 = -0.7 * 5.0;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct WaveTerrainParams {
@@ -109,7 +109,7 @@ const WAVE_TERRAIN_DOCS: ModuleDocs = ModuleDocs {
 pub struct WaveTerrain {
     outputs: WaveTerrainOutputs,
     state: WaveTerrainState,
-    channel_state: Box<[Voice]>,
+    lane_state: Box<[Voice]>,
     params: WaveTerrainParams,
 }
 
@@ -266,32 +266,32 @@ impl WaveTerrain {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
-        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, WaveTerrainParams::FM_DEFAULT),
+                p.freq.get_value(lane),
+                p.fm.value_or(lane, WaveTerrainParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
             let knobs = Knobs {
                 terrain: (
-                    p.terrain.value_or(ch, WaveTerrainParams::TERRAIN_DEFAULT),
-                    p.terrain.glide_mark(ch),
+                    p.terrain.value_or(lane, WaveTerrainParams::TERRAIN_DEFAULT),
+                    p.terrain.glide_mark(lane),
                 ),
                 radius: (
-                    p.radius.value_or(ch, WaveTerrainParams::RADIUS_DEFAULT),
-                    p.radius.glide_mark(ch),
+                    p.radius.value_or(lane, WaveTerrainParams::RADIUS_DEFAULT),
+                    p.radius.glide_mark(lane),
                 ),
                 offset: (
-                    p.offset.value_or(ch, WaveTerrainParams::OFFSET_DEFAULT),
-                    p.offset.glide_mark(ch),
+                    p.offset.value_or(lane, WaveTerrainParams::OFFSET_DEFAULT),
+                    p.offset.glide_mark(lane),
                 ),
             };
             let controls = voice.control(f0, knobs, &self.state);
             let (out, pm) = voice.step(controls);
-            self.outputs.sample.set(ch, OUTPUT_GAIN * out);
-            self.outputs.pm.set(ch, OUTPUT_GAIN * pm);
+            self.outputs.sample.set(lane, OUTPUT_GAIN * out);
+            self.outputs.pm.set(lane, OUTPUT_GAIN * pm);
         }
     }
 }

@@ -26,7 +26,7 @@ fn check(params: Value, reference: impl Fn(&[f32], &[f32]) -> Vec<f32>) {
 #[test]
 fn poly_cable_with_constant_factor() {
     check(
-        json!({ "input": poly_cable("src", CHANNELS), "factor": 4.0 }),
+        json!({ "input": poly_cable("src", LANES), "factor": 4.0 }),
         |src, _| expected(src, &constant(4.0)),
     );
 }
@@ -34,51 +34,47 @@ fn poly_cable_with_constant_factor() {
 #[test]
 fn every_input_a_cable() {
     check(
-        json!({ "input": poly_cable("src", CHANNELS), "factor": poly_cable("lfo", CHANNELS) }),
+        json!({ "input": poly_cable("src", LANES), "factor": poly_cable("lfo", LANES) }),
         expected,
     );
 }
 
 #[test]
-fn constants_cycle_across_wider_channels() {
-    // Two factors cycle over four channels.
+fn constants_cycle_across_wider_lanes() {
+    // Two factors cycle over four lanes.
     check(
-        json!({ "input": poly_cable("src", CHANNELS), "factor": [1.0, 3.0] }),
+        json!({ "input": poly_cable("src", LANES), "factor": [1.0, 3.0] }),
         |src, _| {
-            let factor: Vec<f32> = (0..src.len())
-                .map(|k| [1.0, 3.0][k % CHANNELS % 2])
-                .collect();
+            let factor: Vec<f32> = (0..src.len()).map(|k| [1.0, 3.0][k % LANES % 2]).collect();
             expected(src, &factor)
         },
     );
 }
 
 #[test]
-fn mono_cable_broadcast_across_poly_channels() {
-    // The four-wide factor makes the module four channels wide; the input is
-    // channel 2 of `src` read on every channel.
+fn mono_cable_broadcast_across_poly_lanes() {
+    // The four-wide factor makes the module four lanes wide; the input is
+    // lane 2 of `src` read on every lane.
     check(
         json!({ "input": cable("src", 2), "factor": [0.0, 1.0, 2.0, 3.0] }),
         |src, _| {
-            let input: Vec<f32> = (0..src.len())
-                .map(|k| src[k / CHANNELS * CHANNELS + 2])
-                .collect();
-            let factor: Vec<f32> = (0..src.len()).map(|k| (k % CHANNELS) as f32).collect();
+            let input: Vec<f32> = (0..src.len()).map(|k| src[k / LANES * LANES + 2]).collect();
+            let factor: Vec<f32> = (0..src.len()).map(|k| (k % LANES) as f32).collect();
             expected(&input, &factor)
         },
     );
 }
 
 #[test]
-fn mixed_cable_and_constant_channels() {
+fn mixed_cable_and_constant_lanes() {
     check(
         json!({
-            "input": poly_cable("src", CHANNELS),
+            "input": poly_cable("src", LANES),
             "factor": [cable("lfo", 0), 2.0, cable("lfo", 2), 7.0],
         }),
         |src, lfo| {
             let factor: Vec<f32> = (0..src.len())
-                .map(|k| match k % CHANNELS {
+                .map(|k| match k % LANES {
                     1 => 2.0,
                     3 => 7.0,
                     _ => lfo[k],
@@ -90,11 +86,11 @@ fn mixed_cable_and_constant_channels() {
 }
 
 #[test]
-fn permuted_cable_channels() {
-    let reversed = Value::Array((0..CHANNELS).rev().map(|ch| cable("src", ch)).collect());
+fn permuted_cable_lanes() {
+    let reversed = Value::Array((0..LANES).rev().map(|lane| cable("src", lane)).collect());
     check(json!({ "input": reversed, "factor": 2.5 }), |src, _| {
         let input: Vec<f32> = (0..src.len())
-            .map(|k| src[k / CHANNELS * CHANNELS + (CHANNELS - 1 - k % CHANNELS)])
+            .map(|k| src[k / LANES * LANES + (LANES - 1 - k % LANES)])
             .collect();
         expected(&input, &constant(2.5))
     });
@@ -103,7 +99,7 @@ fn permuted_cable_channels() {
 #[test]
 fn non_finite_results_are_silenced() {
     check(
-        json!({ "input": poly_cable("src", CHANNELS), "factor": f32::MAX }),
+        json!({ "input": poly_cable("src", LANES), "factor": f32::MAX }),
         |src, _| {
             expected(src, &constant(f32::MAX))
                 .into_iter()
@@ -115,26 +111,24 @@ fn non_finite_results_are_silenced() {
 
 #[test]
 fn mono_cable_modulates_poly_input() {
-    // `.amp(envelope)`: a poly input scaled by one channel of another module.
+    // `.amp(envelope)`: a poly input scaled by one lane of another module.
     check(
-        json!({ "input": poly_cable("src", CHANNELS), "factor": cable("lfo", 1) }),
+        json!({ "input": poly_cable("src", LANES), "factor": cable("lfo", 1) }),
         |src, lfo| {
-            let factor: Vec<f32> = (0..src.len())
-                .map(|k| lfo[k / CHANNELS * CHANNELS + 1])
-                .collect();
+            let factor: Vec<f32> = (0..src.len()).map(|k| lfo[k / LANES * LANES + 1]).collect();
             expected(src, &factor)
         },
     );
 }
 
 #[test]
-fn cable_channels_starting_past_zero() {
-    // Channels 1..4 of `src` make a three-wide module; reading its channel 3
-    // wraps to channel 0, which is `src` channel 1.
-    let shifted = Value::Array((1..CHANNELS).map(|ch| cable("src", ch)).collect());
+fn cable_lanes_starting_past_zero() {
+    // Lanes 1..4 of `src` make a three-wide module; reading its lane 3
+    // wraps to lane 0, which is `src` lane 1.
+    let shifted = Value::Array((1..LANES).map(|lane| cable("src", lane)).collect());
     check(json!({ "input": shifted, "factor": 3.0 }), |src, _| {
         let input: Vec<f32> = (0..src.len())
-            .map(|k| src[k / CHANNELS * CHANNELS + 1 + (k % CHANNELS) % (CHANNELS - 1)])
+            .map(|k| src[k / LANES * LANES + 1 + (k % LANES) % (LANES - 1)])
             .collect();
         expected(&input, &constant(3.0))
     });
@@ -144,13 +138,13 @@ fn cable_channels_starting_past_zero() {
 fn paths_agree() {
     check_paths_agree(
         "$amp",
-        json!({ "input": poly_cable("src", CHANNELS), "factor": cable("lfo", 1) }),
+        json!({ "input": poly_cable("src", LANES), "factor": cable("lfo", 1) }),
     );
 }
 
 #[test]
 fn swap_agrees_through_a_factor_glide() {
-    let input = poly_cable("src", CHANNELS);
+    let input = poly_cable("src", LANES);
     check_swap_agrees(
         "$amp",
         json!({ "input": input.clone(), "factor": 1.0 }),
@@ -161,8 +155,8 @@ fn swap_agrees_through_a_factor_glide() {
 #[test]
 fn allocation_free() {
     for params in [
-        json!({ "input": poly_cable("src", CHANNELS), "factor": 4.0 }),
-        json!({ "input": poly_cable("src", CHANNELS), "factor": cable("src", 2) }),
+        json!({ "input": poly_cable("src", LANES), "factor": 4.0 }),
+        json!({ "input": poly_cable("src", LANES), "factor": cable("src", 2) }),
         json!({ "input": cable("src", 1), "factor": [cable("src", 0), 2.0, 3.0, 4.0] }),
     ] {
         assert_eq!(allocations_while_rendering("$amp", params), 0);
@@ -171,12 +165,12 @@ fn allocation_free() {
 
 #[test]
 fn bounds_scale_with_the_factor() {
-    let input = poly_cable("src", CHANNELS);
+    let input = poly_cable("src", LANES);
     let cases = [
         (json!(2.5), Bounds::new(-2.5, 2.5)),
         // A negative factor swaps the swing, as it inverts the signal.
         (json!(-5.0), Bounds::new(5.0, -5.0)),
-        (poly_cable("lfo", CHANNELS), Bounds::new(-5.0, 5.0)),
+        (poly_cable("lfo", LANES), Bounds::new(-5.0, 5.0)),
     ];
     for (factor, expected) in cases {
         let bounds = check_bounds_agree("$amp", json!({ "input": input, "factor": factor }));

@@ -6,14 +6,14 @@ use crate::dsp::drums::voice::rails;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
-/// Seeds each channel's noise from the module's [`seed_base`].
-fn seed(base: u64, channels: &mut [Channel]) {
-    for (ch, cs) in channels.iter_mut().enumerate() {
-        cs.noise.seed(base, ch);
+/// Seeds each lane's noise from the module's [`seed_base`].
+fn seed(base: u64, lanes: &mut [Lane]) {
+    for (lane, cs) in lanes.iter_mut().enumerate() {
+        cs.noise.seed(base, lane);
     }
 }
 
-/// The inputs every channel of a tom or conga reads.
+/// The inputs every lane of a tom or conga reads.
 struct TomInputs<'a, I> {
     parts: &'static Parts,
     sh: &'a TomShared,
@@ -22,46 +22,43 @@ struct TomInputs<'a, I> {
     decay: I,
 }
 
-impl<I: Input> ChannelInputs<TomDrum> for TomInputs<'_, I> {
-    type Channel = Channel;
+impl<I: Input> LaneInputs<TomDrum> for TomInputs<'_, I> {
+    type Lane = Lane;
 
-    fn voices(channel: &mut Channel) -> &mut Voices<Tom> {
-        &mut channel.voices
+    fn voices(lane: &mut Lane) -> &mut Voices<Tom> {
+        &mut lane.voices
     }
 
     #[inline(always)]
-    fn inputs(&self, ch: usize, cs: &mut Channel) -> (f32, TomControls) {
-        let network = cs
-            .network
-            .get((self.freq.at(ch), self.decay.at(ch)), |(freq, decay)| {
-                Network::new(self.parts, freq, decay, self.sh.rest_hz)
-            });
+    fn inputs(&self, lane: usize, cs: &mut Lane) -> (f32, TomControls) {
+        let network = cs.network.get(
+            (self.freq.at(lane), self.decay.at(lane)),
+            |(freq, decay)| Network::new(self.parts, freq, decay, self.sh.rest_hz),
+        );
         let controls = TomControls {
             t: network.t,
             white: cs.noise.next(self.sh.noise_scale),
             level: network.level,
         };
-        (self.trigger.at(ch), controls)
+        (self.trigger.at(lane), controls)
     }
 }
 
 impl TomState {
-    /// Runs one sample of every channel of the drum built from `parts` on
+    /// Runs one sample of every lane of the drum built from `parts` on
     /// its `[trigger, accent, freq, decay]`, handing `out` each one's
     /// output.
     #[inline(always)]
     fn tick<I: Input>(
         &mut self,
         parts: &'static Parts,
-        channels: &mut [Channel],
+        lanes: &mut [Lane],
         restart: bool,
         hold: bool,
         [trigger, accent, freq, decay]: [I; 4],
         mut out: impl FnMut(usize, f32),
     ) {
-        let [freq, decay] = self
-            .hold
-            .apply(hold, channels.len(), [trigger], [freq, decay]);
+        let [freq, decay] = self.hold.apply(hold, lanes.len(), [trigger], [freq, decay]);
         let trigger = Held::Live(trigger);
         let run = Run {
             accent,
@@ -76,8 +73,8 @@ impl TomState {
             freq,
             decay,
         };
-        self.groups.run(&inputs, channels, &run, |ch, v| {
-            out(ch, rails(v * parts.gain))
+        self.groups.run(&inputs, lanes, &run, |lane, v| {
+            out(lane, rails(v * parts.gain))
         });
     }
 }
@@ -94,7 +91,7 @@ macro_rules! tom_module {
     ) => {
         paste::paste! {
             #[params]
-            #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+            #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
@@ -140,7 +137,7 @@ macro_rules! tom_module {
                 outputs: [<$Struct Outputs>],
                 params: [<$Struct Params>],
                 state: TomState,
-                channel_state: Box<[Channel]>,
+                lane_state: Box<[Lane]>,
             }
 
             impl $Struct {
@@ -150,7 +147,7 @@ macro_rules! tom_module {
                 }
 
                 fn update(&mut self, _sample_rate: f32) {
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     let p = &self.params;
                     let inputs = [
                         Live::new(&p.trigger),
@@ -161,11 +158,11 @@ macro_rules! tom_module {
                     let out = &mut self.outputs.sample;
                     self.state.tick(
                         &$parts,
-                        &mut self.channel_state[..channels],
+                        &mut self.lane_state[..lanes],
                         p.restart,
                         p.hold,
                         inputs,
-                        |ch, v| out.set(ch, v),
+                        |lane, v| out.set(lane, v),
                     );
                 }
 
@@ -175,7 +172,7 @@ macro_rules! tom_module {
                     range: Range<usize>,
                     _sample_rate: f32,
                 ) -> Option<()> {
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     let p = &self.params;
                     let mut scratch = Default::default();
                     let [<$Struct ParamsBlockInputs>] {
@@ -183,8 +180,8 @@ macro_rules! tom_module {
                         accent,
                         freq,
                         decay,
-                    } = p.block_inputs(range.clone(), channels, &mut scratch)?;
-                    let channel_state = &mut self.channel_state[..channels];
+                    } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+                    let lane_state = &mut self.lane_state[..lanes];
                     each_slot(
                         &mut outputs.sample,
                         range,
@@ -192,11 +189,11 @@ macro_rules! tom_module {
                         |inputs, mut slot| {
                             self.state.tick(
                                 &$parts,
-                                channel_state,
+                                lane_state,
                                 p.restart,
                                 p.hold,
                                 inputs,
-                                |ch, v| slot.set(ch, v),
+                                |lane, v| slot.set(lane, v),
                             )
                         },
                     );
@@ -207,11 +204,11 @@ macro_rules! tom_module {
             impl crate::types::PatchUpdateHandler for $Struct {
                 fn on_patch_update(&mut self) {
                     let base = seed_base(self);
-                    seed(base, &mut self.channel_state);
-                    let count = self.channel_count();
+                    seed(base, &mut self.lane_state);
+                    let count = self.lane_count();
                     self.state
                         .groups
-                        .layout::<TomInputs<&[f32]>>(&mut self.channel_state, count);
+                        .layout::<TomInputs<&[f32]>>(&mut self.lane_state, count);
                 }
             }
 

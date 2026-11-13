@@ -1,4 +1,4 @@
-//! Per-channel generator state for `$noise`.
+//! Per-lane generator state for `$noise`.
 
 use super::generators::{
     BLUE_GAIN, BROWN_STEP, Lfsr, LfsrLoop, PINK_GAIN, PinkFilter, coin, dust_gap, gaussian, rail,
@@ -13,12 +13,12 @@ use crate::dsp::utils::{CatmullRom, TempGate, TempGateState, trigger_samples};
 /// near-silent for that long — minutes at slow rates.
 const PINK_WARMUP: usize = 1024;
 
-/// Each channel runs its own RNG and filters so every channel produces an
+/// Each lane runs its own RNG and filters so every lane produces an
 /// independent sequence.
 #[derive(Default)]
-pub(super) struct NoiseChannelState {
+pub(super) struct NoiseLaneState {
     generator: LcgRng,
-    /// Set once this channel's RNG is seeded. Per channel, because channels
+    /// Set once this lane's RNG is seeded. Per lane, because lanes
     /// added by a patch update arrive fresh beside transferred, seeded ones.
     pub(super) seeded: bool,
     pink: PinkFilter,
@@ -56,20 +56,20 @@ pub(super) struct NoiseChannelState {
     dust_wait: f64,
 }
 
-impl NoiseChannelState {
-    /// Seed this channel's RNG from a [`seed_base`] and its channel index, set
+impl NoiseLaneState {
+    /// Seed this lane's RNG from a [`seed_base`] and its lane index, set
     /// where its LFSR starts, then start `kind` fresh.
     ///
     /// [`seed_base`]: crate::dsp::utils::rng::seed_base
     pub(super) fn seed(
         &mut self,
         base: u64,
-        channel: usize,
+        lane: usize,
         lfsr_phase: u16,
         lfsr_loop: LfsrLoop,
         kind: NoiseKind,
     ) {
-        self.generator.seed(base, channel);
+        self.generator.seed(base, lane);
         self.lfsr.set_phase(lfsr_phase);
         self.lfsr_loop = lfsr_loop;
         self.seeded = true;
@@ -252,7 +252,7 @@ mod tests {
     /// full speed.
     #[test]
     fn tiny_increments_keep_advancing() {
-        let mut state = NoiseChannelState::default();
+        let mut state = NoiseLaneState::default();
         state.seed(0x5eed, 0, 0, LfsrLoop::default(), NoiseKind::White);
         state.phase = 0.75;
         let inc = 2e-8;

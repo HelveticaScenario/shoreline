@@ -15,7 +15,7 @@ const SAMPLE_RATE: f32 = 48_000.0;
 const FRAMES: usize = 24_000;
 
 fn cable(module: &str) -> Value {
-    json!({ "type": "cable", "module": module, "port": "output", "channel": 0 })
+    json!({ "type": "cable", "module": module, "port": "output", "lane": 0 })
 }
 
 fn filter_params(module_type: &str, freq: Value) -> Value {

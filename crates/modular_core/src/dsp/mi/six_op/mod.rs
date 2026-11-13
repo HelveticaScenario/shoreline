@@ -35,7 +35,7 @@ const OUTPUT_GAIN: f32 = -5.0;
 const ACCENT_TRIM: f32 = 2.0;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SixOpParams {
@@ -134,7 +134,7 @@ const SIX_OP_DOCS: ModuleDocs = ModuleDocs {
 pub struct SixOp {
     outputs: SixOpOutputs,
     state: SixOpState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
     params: SixOpParams,
 }
 
@@ -170,8 +170,8 @@ fn knob(volts: f32) -> f32 {
     (volts * 0.2).clamp(0.0, 1.0)
 }
 
-/// One channel: Plaits' `SixOpEngine` with one voice, a sample at a time.
-struct Channel {
+/// One lane: Plaits' `SixOpEngine` with one voice, a sample at a time.
+struct Lane {
     voice: FmVoice,
     trigger: SchmittTrigger,
     gate: bool,
@@ -188,11 +188,11 @@ struct Channel {
     bank: usize,
     patch: usize,
     /// Whether `random` has its per-instance seed. Transfers with the
-    /// channel, so its LFOs stay continuous across patch updates.
+    /// lane, so its LFOs stay continuous across patch updates.
     seeded: bool,
 }
 
-impl Default for Channel {
+impl Default for Lane {
     fn default() -> Self {
         Self {
             voice: FmVoice::default(),
@@ -220,7 +220,7 @@ fn select(volts: f32, count: usize) -> Option<usize> {
     (!volts.is_nan()).then(|| volts.round().clamp(0.0, (count - 1) as f32) as usize)
 }
 
-impl Channel {
+impl Lane {
     /// One sample of the voice at `f0` cycles per sample through Plaits'
     /// output stage, before the output gain. `gate` is `None` when unpatched,
     /// to scrub the envelopes.
@@ -298,58 +298,59 @@ impl SixOp {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
-        for (ch, channel) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane_index, lane) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, SixOpParams::FM_DEFAULT),
+                p.freq.get_value(lane_index),
+                p.fm.value_or(lane_index, SixOpParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
-            let gate_volts = p.gate.as_ref().map(|g| g.get_value(ch));
-            let gate = gate_volts.map(|volts| channel.trigger.process_with_edge(volts).0);
+            let gate_volts = p.gate.as_ref().map(|g| g.get_value(lane_index));
+            let gate = gate_volts.map(|volts| lane.trigger.process_with_edge(volts).0);
             let accent = (
-                p.accent.value_or(ch, SixOpParams::ACCENT_DEFAULT),
-                p.accent.glide_mark(ch),
+                p.accent.value_or(lane_index, SixOpParams::ACCENT_DEFAULT),
+                p.accent.glide_mark(lane_index),
             );
             let mark = accent.1;
-            let accent = channel
+            let accent = lane
                 .accent_state
                 .read(accent, gate_volts, self.state.sample_rate);
             let knobs = Knobs {
-                bank: p.bank.value_or(ch, SixOpParams::BANK_DEFAULT),
-                patch: p.patch.value_or(ch, SixOpParams::PATCH_DEFAULT),
+                bank: p.bank.value_or(lane_index, SixOpParams::BANK_DEFAULT),
+                patch: p.patch.value_or(lane_index, SixOpParams::PATCH_DEFAULT),
                 brightness: (
-                    p.brightness.value_or(ch, SixOpParams::BRIGHTNESS_DEFAULT),
-                    p.brightness.glide_mark(ch),
+                    p.brightness
+                        .value_or(lane_index, SixOpParams::BRIGHTNESS_DEFAULT),
+                    p.brightness.glide_mark(lane_index),
                 ),
                 envelope: (
-                    p.envelope.value_or(ch, SixOpParams::ENVELOPE_DEFAULT),
-                    p.envelope.glide_mark(ch),
+                    p.envelope
+                        .value_or(lane_index, SixOpParams::ENVELOPE_DEFAULT),
+                    p.envelope.glide_mark(lane_index),
                 ),
                 accent: (plaits_volts(accent), mark),
             };
-            let out = channel.step(f0, knobs, gate, &self.state);
+            let out = lane.step(f0, knobs, gate, &self.state);
             let out =
-                channel
-                    .accent_state
+                lane.accent_state
                     .apply(OUTPUT_GAIN * out, ACCENT_TRIM, self.state.sample_rate);
-            self.outputs.sample.set(ch, out);
+            self.outputs.sample.set(lane_index, out);
         }
     }
 }
 
 impl crate::types::PatchUpdateHandler for SixOp {
-    /// Seeds the LFO generators of channels that have none yet. Runs here,
+    /// Seeds the LFO generators of lanes that have none yet. Runs here,
     /// not in `init`, because `init` runs in a stack slot that consecutive
     /// constructions share, so every instance would draw the same values.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, channel) in self.channel_state.iter_mut().enumerate() {
-            if !channel.seeded {
-                let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
-                channel.random = Random::new((unit * f64::from(u32::MAX)) as u32);
-                channel.seeded = true;
+        for (lane_index, lane) in self.lane_state.iter_mut().enumerate() {
+            if !lane.seeded {
+                let unit = (hash_bipolar(base, lane_index as u64) + 1.0) * 0.5;
+                lane.random = Random::new((unit * f64::from(u32::MAX)) as u32);
+                lane.seeded = true;
             }
         }
     }

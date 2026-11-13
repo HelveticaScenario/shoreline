@@ -8,13 +8,13 @@ use crate::module_docs::ModuleDocs;
 use crate::{
     Wav,
     param_errors::ModuleParamErrors,
-    poly::{PORT_MAX_CHANNELS, PolyOutput},
+    poly::{PORT_MAX_LANES, PolyOutput},
     types::hermite_clamped,
 };
 
-/// Output width follows the audio track, capped at the port-wide channel limit.
-fn media_audio_derive_channel_count(params: &MediaAudioParams) -> usize {
-    params.wav.channel_count().clamp(1, PORT_MAX_CHANNELS)
+/// Output width follows the audio track, capped at the port-wide lane limit.
+fn media_audio_derive_lane_count(params: &MediaAudioParams) -> usize {
+    params.wav.channel_count().clamp(1, PORT_MAX_LANES)
 }
 
 fn default_speed() -> f64 {
@@ -28,7 +28,7 @@ const MAX_SPEED: f64 = 16.0;
 const EDGE_FADE_SECONDS: f64 = 0.001;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = media_audio_validate_params -> ModuleParamErrors)]
 struct MediaAudioParams {
@@ -115,7 +115,7 @@ const MEDIA_AUDIO_DOCS: ModuleDocs = ModuleDocs {
     examples: &[],
 };
 
-#[module(name = "_mediaAudio", docs = MEDIA_AUDIO_DOCS, channels_derive = media_audio_derive_channel_count, args(wav), has_init, patch_update)]
+#[module(name = "_mediaAudio", docs = MEDIA_AUDIO_DOCS, lanes_derive = media_audio_derive_lane_count, args(wav), has_init, patch_update)]
 pub struct MediaAudio {
     params: MediaAudioParams,
     outputs: MediaAudioOutputs,
@@ -128,12 +128,12 @@ impl MediaAudio {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let state = &mut self.state;
         if !self.params.wav.is_loaded() || state.win_hi <= state.win_lo || self.params.speed == 0.0
         {
-            for ch in 0..channels {
-                self.outputs.sample.set(ch, 0.0);
+            for lane in 0..lanes {
+                self.outputs.sample.set(lane, 0.0);
             }
             return;
         }
@@ -152,12 +152,12 @@ impl MediaAudio {
         } else {
             1.0
         };
-        for ch in 0..channels {
-            let samples = self.params.wav.channel(ch);
+        for lane in 0..lanes {
+            let samples = self.params.wav.channel(lane);
             // A wav's samples are -1 to 1; the engine's audio is -5 to 5V.
             self.outputs
                 .sample
-                .set(ch, hermite_clamped(samples, position) * 5.0 * gain);
+                .set(lane, hermite_clamped(samples, position) * 5.0 * gain);
         }
 
         state.position += self.params.speed * state.rate_ratio;
@@ -215,7 +215,7 @@ mod tests {
             SAMPLE_RATE,
             DeserializedParams {
                 params: cached.params,
-                channel_count: cached.channel_count,
+                lane_count: cached.lane_count,
                 f64_inputs: false,
             },
             1,

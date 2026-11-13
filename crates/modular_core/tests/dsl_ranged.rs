@@ -6,7 +6,7 @@
 //! `dslRangedFixture.test.ts` via `yarn gen:dsl-ranged-fixture`: a patch of
 //! DSL chains and the outputs the DSL hands out as ranged. It builds the
 //! patch with a `$remap` reading each of those outputs, renders it, and
-//! checks the bounds of every channel at every slot.
+//! checks the bounds of every lane at every slot.
 
 use std::fs;
 use std::path::PathBuf;
@@ -34,7 +34,7 @@ struct ModuleSpec {
 struct Output {
     module: String,
     port: String,
-    channel: usize,
+    lane: usize,
 }
 
 #[derive(Deserialize)]
@@ -73,7 +73,7 @@ fn every_dsl_ranged_output_has_a_range_in_the_engine() {
                 "type": "cable",
                 "module": o.module,
                 "port": o.port,
-                "channel": o.channel,
+                "lane": o.lane,
             });
             (
                 format!("reader_{i}"),
@@ -99,7 +99,7 @@ fn every_dsl_ranged_output_has_a_range_in_the_engine() {
                     module_type.clone(),
                     DeserializedParams {
                         params: cached.params,
-                        channel_count: cached.channel_count,
+                        lane_count: cached.lane_count,
                         f64_inputs: false,
                     },
                     ProcessingMode::Block,
@@ -122,13 +122,13 @@ fn every_dsl_ranged_output_has_a_range_in_the_engine() {
             for o in outputs {
                 let module = &patch.sampleables[o.module.as_str()];
                 for slot in 0..BLOCK_SIZE {
-                    let bounds = module.get_bounds_at(&o.port, o.channel, slot);
+                    let bounds = module.get_bounds_at(&o.port, o.lane, slot);
                     assert!(
                         bounds.is_bounded() && bounds.swings(),
-                        "{label}: {}:{} channel {} reads {bounds:?} at slot {slot}",
+                        "{label}: {}:{} lane {} reads {bounds:?} at slot {slot}",
                         o.module,
                         o.port,
-                        o.channel,
+                        o.lane,
                     );
                 }
             }

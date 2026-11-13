@@ -38,7 +38,7 @@ const TICK_RATE: f32 = 4000.0;
 const PLAITS_BLOCK: f32 = 12.0;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SwarmParams {
@@ -126,7 +126,7 @@ const SWARM_DOCS: ModuleDocs = ModuleDocs {
 pub struct Swarm {
     outputs: SwarmOutputs,
     state: SwarmState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
     params: SwarmParams,
 }
 
@@ -154,13 +154,13 @@ impl SwarmState {
     }
 }
 
-/// One channel's swarm.
+/// One lane's swarm.
 #[derive(Clone, Copy)]
-struct Channel {
+struct Lane {
     voices: [SwarmVoice; VOICES],
     random: Random,
     /// Whether `random` has its per-instance seed. Transfers with the
-    /// channel, so a patch update never reseeds a running swarm.
+    /// lane, so a patch update never reseeds a running swarm.
     seeded: bool,
     trigger: SchmittTrigger,
     limiter: Limiter,
@@ -174,7 +174,7 @@ struct Channel {
     held: [f32; 3],
 }
 
-impl Default for Channel {
+impl Default for Lane {
     fn default() -> Self {
         Self {
             voices: [SwarmVoice::default(); VOICES],
@@ -206,7 +206,7 @@ fn note_to_frequency(note: f32) -> f32 {
     A0 * 0.25 * semitones_to_ratio((note - 9.0).clamp(-128.0, 127.0))
 }
 
-impl Channel {
+impl Lane {
     /// Reads a sample's density, spread and grain size and, when a tick is
     /// due or a burst starts, steps every voice's grain from their mean since
     /// the last tick.
@@ -305,49 +305,50 @@ impl Swarm {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let burst_mode = p.trigger.is_some();
-        for (ch, channel) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane_index, lane) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, SwarmParams::FM_DEFAULT),
+                p.freq.get_value(lane_index),
+                p.fm.value_or(lane_index, SwarmParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
             let f0 = limit_frequency(f0, 0.5);
             let start_burst = p
                 .trigger
                 .as_ref()
-                .is_some_and(|t| channel.trigger.process(t.get_value(ch)));
+                .is_some_and(|t| lane.trigger.process(t.get_value(lane_index)));
             let knobs = [
-                p.density.value_or(ch, SwarmParams::DENSITY_DEFAULT),
-                p.spread.value_or(ch, SwarmParams::SPREAD_DEFAULT),
-                p.grain_size.value_or(ch, SwarmParams::GRAIN_SIZE_DEFAULT),
+                p.density.value_or(lane_index, SwarmParams::DENSITY_DEFAULT),
+                p.spread.value_or(lane_index, SwarmParams::SPREAD_DEFAULT),
+                p.grain_size
+                    .value_or(lane_index, SwarmParams::GRAIN_SIZE_DEFAULT),
             ];
-            channel.control(knobs, burst_mode, start_burst, &self.state);
-            let (saws, sines) = channel.step(f0, &self.state);
+            lane.control(knobs, burst_mode, start_burst, &self.state);
+            let (saws, sines) = lane.step(f0, &self.state);
             // Plaits clips after its slow limiter.
             self.outputs
                 .sample
-                .set(ch, (OUTPUT_GAIN * saws).clamp(-5.0, 5.0));
+                .set(lane_index, (OUTPUT_GAIN * saws).clamp(-5.0, 5.0));
             self.outputs
                 .sine
-                .set(ch, (SINE_GAIN * sines).clamp(-5.0, 5.0));
+                .set(lane_index, (SINE_GAIN * sines).clamp(-5.0, 5.0));
         }
     }
 }
 
 impl crate::types::PatchUpdateHandler for Swarm {
-    /// Seeds the grain generators of channels that have none yet. Runs here,
+    /// Seeds the grain generators of lanes that have none yet. Runs here,
     /// not in `init`, because `init` runs in a stack slot that consecutive
     /// constructions share, so every instance would draw the same grains.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, channel) in self.channel_state.iter_mut().enumerate() {
-            if !channel.seeded {
-                let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
-                channel.random = Random::new((unit * f64::from(u32::MAX)) as u32);
-                channel.seeded = true;
+        for (lane_index, lane) in self.lane_state.iter_mut().enumerate() {
+            if !lane.seeded {
+                let unit = (hash_bipolar(base, lane_index as u64) + 1.0) * 0.5;
+                lane.random = Random::new((unit * f64::from(u32::MAX)) as u32);
+                lane.seeded = true;
             }
         }
     }

@@ -10,9 +10,7 @@ use schemars::JsonSchema;
 use crate::Wav;
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::patch::Patch;
-use crate::poly::{
-    MonoSignal, MonoSignalExt, PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt,
-};
+use crate::poly::{LaneSum, LaneSumExt, PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
 use crate::types::{PatchUpdateHandler, PolySignalFields, WavData};
 
 use super::buffer::GrainBuffer;
@@ -34,7 +32,7 @@ const CONTROLS: VoiceControls = VoiceControls {
 };
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct GranularSamplerParams {
@@ -91,7 +89,7 @@ struct GranularSamplerParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    width: Option<MonoSignal>,
+    width: Option<LaneSum>,
     #[input("sound character: how clean it sounds", default = "digital")]
     #[serde(default)]
     #[deserr(default)]
@@ -132,14 +130,14 @@ impl crate::types::Connect for Loaded {
 struct GranularSamplerOutputs {
     #[output(
         "stereo",
-        "stereo mix of every voice, as left and right channels",
+        "stereo mix of every voice, as left and right lanes",
         type = cv,
         default,
         range = (-5.0, 5.0),
-        channels = 2
+        lanes = 2
     )]
     sample: PolyOutput,
-    #[output("voices", "each voice on its own channel, mono", type = cv, range = (-5.0, 5.0))]
+    #[output("voices", "each voice on its own lane, mono", type = cv, range = (-5.0, 5.0))]
     voices: PolyOutput,
 }
 
@@ -155,15 +153,15 @@ struct GranularSamplerState {
     pending: TriggerQueue,
 }
 
-fn sampler_channel_count(params: &GranularSamplerParams) -> usize {
+fn sampler_lane_count(params: &GranularSamplerParams) -> usize {
     params
         .poly_signal_fields()
         .iter()
-        .map(|p| p.channels())
+        .map(|p| p.lanes())
         .max()
         .unwrap_or(1)
         .max(params.wav.channel_count())
-        .clamp(1, PORT_MAX_CHANNELS)
+        .clamp(1, PORT_MAX_LANES)
 }
 
 const GRANULAR_SAMPLER_DOCS: ModuleDocs = ModuleDocs {
@@ -190,7 +188,7 @@ const GRANULAR_SAMPLER_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "$granularSampler",
     docs = GRANULAR_SAMPLER_DOCS,
-    channels_derive = sampler_channel_count,
+    lanes_derive = sampler_lane_count,
     has_init,
     patch_update,
     has_prepare_resources,
@@ -200,8 +198,8 @@ pub struct GranularSampler {
     outputs: GranularSamplerOutputs,
     state: GranularSamplerState,
     params: GranularSamplerParams,
-    /// One voice per channel of the file or of the widest grain input.
-    channel_state: Box<[GrainsVoice]>,
+    /// One voice per channel of the file or lane of the widest grain input.
+    lane_state: Box<[GrainsVoice]>,
 }
 
 impl GranularSampler {
@@ -210,7 +208,7 @@ impl GranularSampler {
     fn init(&mut self, sample_rate: f32) {
         let seed = seed_base(self);
         self.state.chain.allocate();
-        for voice in self.channel_state.iter_mut() {
+        for voice in self.lane_state.iter_mut() {
             voice.allocate_playback();
         }
         let state = &mut self.state;
@@ -221,7 +219,7 @@ impl GranularSampler {
         self.configure(media);
         // Voices play silence until `prepare_resources` loads the file.
         let (source, silence) = cached_load(None, media);
-        for voice in self.channel_state.iter_mut() {
+        for voice in self.lane_state.iter_mut() {
             let mut buffer = GrainBuffer::clone(&silence[0]);
             buffer.set_source(source);
             voice.voice.granular.buffer = buffer;
@@ -231,7 +229,7 @@ impl GranularSampler {
     fn configure(&mut self, media: Media) {
         let state = &mut self.state;
         state.media = media;
-        state.chain.configure(media, &mut self.channel_state);
+        state.chain.configure(media, &mut self.lane_state);
         state
             .resampler
             .configure(state.engine_sample_rate, media.sample_rate());
@@ -249,7 +247,7 @@ impl GranularSampler {
             .get(self.params.wav.path())
             .filter(|w| w.frame_count() > 0 && w.sample_rate() > 0.0);
         let (source, per_channel) = cached_load(wav, media);
-        let buffers = (0..self.channel_state.len())
+        let buffers = (0..self.lane_state.len())
             .map(|v| {
                 let mut b = GrainBuffer::clone(&per_channel[v % per_channel.len()]);
                 b.set_source(source);
@@ -262,7 +260,7 @@ impl GranularSampler {
     fn update(&mut self, _sample_rate: f32) {
         let params = &self.params;
         let state = &mut self.state;
-        let voices = &mut self.channel_state;
+        let voices = &mut self.lane_state;
 
         let index = state.resampler.input_index();
         for (i, v) in voices.iter_mut().enumerate() {
@@ -312,8 +310,10 @@ impl GranularSampler {
                 .voices
                 .set(i, tap.read(&v.output) * FULL_SCALE_VOLTS);
         }
-        for (ch, h) in chain.stereo.iter().enumerate() {
-            self.outputs.sample.set(ch, tap.read(h) * FULL_SCALE_VOLTS);
+        for (lane, h) in chain.stereo.iter().enumerate() {
+            self.outputs
+                .sample
+                .set(lane, tap.read(h) * FULL_SCALE_VOLTS);
         }
     }
 }
@@ -329,7 +329,7 @@ impl PatchUpdateHandler for GranularSampler {
         // thread.
         if let Some(loaded) = &mut self.params.loaded {
             let source = loaded.source;
-            for (v, b) in self.channel_state.iter_mut().zip(loaded.buffers.iter_mut()) {
+            for (v, b) in self.lane_state.iter_mut().zip(loaded.buffers.iter_mut()) {
                 let buffer = &mut v.voice.granular.buffer;
                 if buffer.source() != source && b.source() == source {
                     std::mem::swap(buffer, b);

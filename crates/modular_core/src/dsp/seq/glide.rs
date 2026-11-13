@@ -11,7 +11,7 @@ use arrayvec::ArrayVec;
 
 use super::cache::get_cycle_storage;
 use super::seq_value::{HAP_MATCH_EPS, SeqCycleStorage, SeqValue};
-use crate::poly::PORT_MAX_CHANNELS;
+use crate::poly::PORT_MAX_LANES;
 
 /// A gliding note's window in the baked ribbon window.
 #[derive(Clone, Copy, Debug)]
@@ -153,7 +153,7 @@ impl GlideRamp {
     }
 }
 
-/// The voice-facing view a claim needs of one channel.
+/// The voice-facing view a claim needs of one lane.
 pub(super) trait GlideVoice {
     fn ramp(&self) -> Option<&GlideRamp>;
     /// True when the voice is idle, or its note ends, by `onset`.
@@ -198,7 +198,7 @@ impl Playhead {
 pub(super) struct GlideTracker {
     /// Rebuild `pending` from the bake on the next sample.
     pub rescan: bool,
-    pending: ArrayVec<GlideTarget, PORT_MAX_CHANNELS>,
+    pending: ArrayVec<GlideTarget, PORT_MAX_LANES>,
     /// `pending` dropped a window while full. The dropped window has a full
     /// list of unclaimed onsets before it, so it cannot claim a voice until
     /// `pending` has room again, which triggers a rescan.

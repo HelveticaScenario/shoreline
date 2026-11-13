@@ -1,6 +1,6 @@
 //! Discretised analog building blocks shared by the drum voices.
 
-use super::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
+use super::simd::{Mask, Mono, Real, Simd, c, elementwise};
 
 /// Thermal voltage at room temperature.
 pub const VT: f32 = 0.025_85;
@@ -53,15 +53,15 @@ const REFRESH: f64 = 4096.0;
 /// than an `exp`, whose latency would otherwise dominate the solve. The
 /// argument is clamped to ±80. The default computes afresh on first use.
 #[derive(Clone, Copy)]
-pub struct Exp<L: Lanes = Mono> {
+pub struct Exp<L: Simd = Mono> {
     arg: L::D,
     pub value: L::D,
     steps: L::D,
 }
 
-lanewise!(Exp { arg, value, steps });
+elementwise!(Exp { arg, value, steps });
 
-impl<L: Lanes> Default for Exp<L> {
+impl<L: Simd> Default for Exp<L> {
     fn default() -> Self {
         Self {
             arg: c(0.0),
@@ -71,7 +71,7 @@ impl<L: Lanes> Default for Exp<L> {
     }
 }
 
-impl<L: Lanes> Exp<L> {
+impl<L: Simd> Exp<L> {
     /// The exponential at `x`, for the same `scale`.
     #[inline]
     pub fn at(self, x: L::D, scale: f64) -> Self {
@@ -102,13 +102,13 @@ impl<L: Lanes> Exp<L> {
         }
     }
 
-    /// [`Self::at`] in the lanes of `mask`; the others keep `self`.
+    /// [`Self::at`] in the elements of `mask`; the others keep `self`.
     #[inline]
     pub fn at_where(self, mask: L::DM, x: L::D, scale: f64) -> Self {
         Self::select(mask, self.at(x, scale), self)
     }
 
-    /// `a` in the lanes of `mask`, `b` in the others.
+    /// `a` in the elements of `mask`, `b` in the others.
     #[inline]
     pub fn select(mask: L::DM, a: Self, b: Self) -> Self {
         Self {
@@ -119,21 +119,21 @@ impl<L: Lanes> Exp<L> {
     }
 }
 
-/// `exp` of `arg` in the lanes of `far`, `taylor` in the others: a group
-/// whose lanes differ. Out of line and cold, so the compiler cannot hoist
+/// `exp` of `arg` in the elements of `far`, `taylor` in the others: a group
+/// whose elements differ. Out of line and cold, so the compiler cannot hoist
 /// the `exp` into every step.
 #[cold]
 #[inline(never)]
-fn exact<L: Lanes>(arg: L::D, far: L::DM, taylor: L::D) -> L::D {
+fn exact<L: Simd>(arg: L::D, far: L::DM, taylor: L::D) -> L::D {
     arg.map_where(far, taylor, f64::exp)
 }
 
 /// A junction's voltage and its exponential, carried from sample to sample
 /// as the next solve's starting point.
 #[derive(Clone, Copy, Default)]
-pub struct Junction<L: Lanes = Mono> {
+pub struct Junction<L: Simd = Mono> {
     pub v: L::D,
     pub e: Exp<L>,
 }
 
-lanewise!(Junction { v, e });
+elementwise!(Junction { v, e });

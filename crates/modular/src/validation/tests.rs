@@ -229,7 +229,7 @@ fn test_schema_refers_to_module_reference_descends_prefix_items() {
         "type": "array",
         "prefixItems": [
             { "type": "array", "items": { "type": "number" } },
-            { "$ref": "#/$defs/MonoSignal" }
+            { "$ref": "#/$defs/LaneSum" }
         ]
     })
     .try_into()
@@ -576,7 +576,7 @@ fn patch_with_buffer_ref(target_module: &str, port: &str) -> PatchGraph {
                         "type": "buffer_ref",
                         "module": target_module,
                         "port": port,
-                        "channels": 1
+                        "lanes": 1
                     },
                     "time": 0.1
                 }),

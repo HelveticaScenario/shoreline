@@ -20,11 +20,11 @@ use serde_json::{Value, json};
 
 pub const SAMPLE_RATE: f32 = 48000.0;
 pub const BLOCK_SIZE: usize = 64;
-pub const CHANNELS: usize = 4;
+pub const LANES: usize = 4;
 pub const BLOCKS: usize = 4;
 
-pub fn cable(module: &str, channel: usize) -> Value {
-    json!({ "type": "cable", "module": module, "port": "output", "channel": channel })
+pub fn cable(module: &str, lane: usize) -> Value {
+    json!({ "type": "cable", "module": module, "port": "output", "lane": lane })
 }
 
 /// The output `module_type` gives when read as a signal itself.
@@ -38,11 +38,11 @@ pub fn default_port(module_type: &str) -> String {
     outputs[default].name.clone()
 }
 
-pub fn poly_cable(module: &str, channels: usize) -> Value {
-    Value::Array((0..channels).map(|ch| cable(module, ch)).collect())
+pub fn poly_cable(module: &str, lanes: usize) -> Value {
+    Value::Array((0..lanes).map(|lane| cable(module, lane)).collect())
 }
 
-/// `src` (a `CHANNELS`-wide saw) and `lfo` (a `CHANNELS`-wide sine) feed
+/// `src` (a `LANES`-wide saw) and `lfo` (a `LANES`-wide sine) feed
 /// `dut`, a `module_type` with `params`, and `reader` maps `dut` from its own
 /// range, so `dut` stores its bounds when it has any. The wav `table` holds
 /// [`wavetable`].
@@ -53,8 +53,8 @@ pub fn build(
     params: Value,
 ) -> Patch {
     let deserializers = get_params_deserializers();
-    let freqs: Vec<f32> = (0..CHANNELS).map(|ch| ch as f32 * 0.3).collect();
-    let lfo_freqs: Vec<f32> = (0..CHANNELS).map(|ch| ch as f32 * 0.2 - 3.0).collect();
+    let freqs: Vec<f32> = (0..LANES).map(|lane| lane as f32 * 0.3).collect();
+    let lfo_freqs: Vec<f32> = (0..LANES).map(|lane| lane as f32 * 0.2 - 3.0).collect();
     let dut_port = default_port(module_type);
     let modules = [
         ("src", "$saw", json!({ "freq": freqs }), src_mode),
@@ -64,7 +64,7 @@ pub fn build(
             "reader",
             "$remap",
             json!({
-                "input": { "type": "cable", "module": "dut", "port": dut_port, "channel": 0 },
+                "input": { "type": "cable", "module": "dut", "port": dut_port, "lane": 0 },
                 "outMin": 0.0,
                 "outMax": 1.0,
             }),
@@ -81,7 +81,7 @@ pub fn build(
                     module_type.to_string(),
                     DeserializedParams {
                         params: cached.params,
-                        channel_count: cached.channel_count,
+                        lane_count: cached.lane_count,
                         f64_inputs: false,
                     },
                     mode,
@@ -131,7 +131,7 @@ fn render_block(patch: &Patch, steps: &[usize]) {
 }
 
 /// Render `BLOCKS` blocks through `steps`. Returns `(dut, src, lfo)` samples,
-/// slot major then channel.
+/// slot major then lane.
 pub fn render(patch: &Patch, steps: &[usize]) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
     let (dut, src, lfo, _) = render_with_bounds(patch, steps);
     (dut, src, lfo)
@@ -148,13 +148,13 @@ pub fn render_with_bounds(
     for _ in 0..BLOCKS {
         render_block(patch, steps);
         for index in 0..BLOCK_SIZE {
-            for ch in 0..CHANNELS {
+            for lane in 0..LANES {
                 let read =
-                    |id: &str, port: &str| patch.sampleables[id].get_value_at(port, ch, index);
+                    |id: &str, port: &str| patch.sampleables[id].get_value_at(port, lane, index);
                 out.0.push(read("dut", &dut_port));
                 out.1.push(read("src", "output"));
                 out.2.push(read("lfo", "output"));
-                out.3.push(dut.get_bounds_at(&dut_port, ch, index));
+                out.3.push(dut.get_bounds_at(&dut_port, lane, index));
             }
         }
     }
@@ -163,7 +163,7 @@ pub fn render_with_bounds(
 
 /// `value` repeated for every rendered sample.
 pub fn constant(value: f32) -> Vec<f32> {
-    vec![value; BLOCKS * BLOCK_SIZE * CHANNELS]
+    vec![value; BLOCKS * BLOCK_SIZE * LANES]
 }
 
 /// `f(src, lfo)` per sample, silencing non-finite results like every output.
@@ -233,7 +233,7 @@ pub fn check_paths_agree(module_type: &str, params: Value) {
 }
 
 /// `dut`'s bounds over `BLOCKS` blocks rendered through `steps`, slot major
-/// then channel, read as [`render`] reads values.
+/// then lane, read as [`render`] reads values.
 pub fn render_bounds(patch: &Patch, steps: &[usize]) -> Vec<Bounds> {
     render_with_bounds(patch, steps).3
 }

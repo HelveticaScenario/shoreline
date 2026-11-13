@@ -1,4 +1,4 @@
-//! The loop feeding a channel's output back into its input.
+//! The loop feeding a lane's output back into its input.
 
 use crate::dsp::{
     filters::surge::fastmath::fasttanh_clamped,
@@ -102,8 +102,8 @@ impl Default for FeedbackLoop {
 }
 
 impl FeedbackLoop {
-    pub(super) fn seed_noise(&mut self, base: u64, channel: usize) {
-        self.noise.seed(base, channel);
+    pub(super) fn seed_noise(&mut self, base: u64, lane: usize) {
+        self.noise.seed(base, lane);
     }
 
     /// Center the excess bandpass on prewarp `g`.

@@ -177,10 +177,10 @@ pub fn validate_patch(
 
     // === Scope validation ===
     for scope in &patch.scopes {
-        if scope.channels.is_empty() {
+        if scope.lanes.is_empty() {
             errors.push(ValidationError {
                 field: "scopes".to_string(),
-                message: "Scope has no channels".to_string(),
+                message: "Scope has no lanes".to_string(),
                 location: None,
                 expected_type: None,
                 actual_value: None,
@@ -188,12 +188,12 @@ pub fn validate_patch(
             continue;
         }
 
-        for channel in &scope.channels {
+        for lane in &scope.lanes {
             // Scope target module must exist
-            let Some(module) = module_by_id.get(channel.module_id.as_str()).copied() else {
+            let Some(module) = module_by_id.get(lane.module_id.as_str()).copied() else {
                 errors.push(ValidationError {
                     field: "scopes".to_string(),
-                    message: format!("Scope references missing module '{}'", channel.module_id),
+                    message: format!("Scope references missing module '{}'", lane.module_id),
                     location: None,
                     expected_type: None,
                     actual_value: None,
@@ -207,7 +207,7 @@ pub fn validate_patch(
                     field: "scopes".to_string(),
                     message: format!(
                         "Scope references module '{}' with unknown type '{}'",
-                        channel.module_id, module.module_type
+                        lane.module_id, module.module_type
                     ),
                     location: None,
                     expected_type: None,
@@ -217,12 +217,12 @@ pub fn validate_patch(
             };
 
             // Output port must exist in module schema
-            if !schema.outputs.iter().any(|o| o.name == *channel.port_name) {
+            if !schema.outputs.iter().any(|o| o.name == *lane.port_name) {
                 errors.push(ValidationError {
                     field: "scopes".to_string(),
                     message: format!(
                         "Scope references missing output port '{}' on module '{}'",
-                        channel.port_name, channel.module_id
+                        lane.port_name, lane.module_id
                     ),
                     location: None,
                     expected_type: None,

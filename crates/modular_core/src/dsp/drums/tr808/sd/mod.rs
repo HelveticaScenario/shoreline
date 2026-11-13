@@ -17,8 +17,8 @@ use super::circuit::{
 };
 use super::levels;
 use crate::dsp::drums::analog::{high_pass, low_pass, one_pole_coeff, rc_hz};
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, Run};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::dsp::utils::voct_to_hz;
@@ -102,7 +102,7 @@ const OUTPUT_GAIN: f32 = 2.925;
 
 /// The circuit's state for one hit sequence.
 #[derive(Clone, Copy, Default)]
-struct Snare<L: Lanes = Mono> {
+struct Snare<L: Simd = Mono> {
     pulse: Pulse<L>,
     /// Voltage across C57.
     c57: L::S,
@@ -122,7 +122,7 @@ struct Snare<L: Lanes = Mono> {
     out_lp: L::S,
 }
 
-lanewise!(Snare {
+elementwise!(Snare {
     pulse,
     c57,
     low,
@@ -151,7 +151,7 @@ impl Fire for Snare {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Snare<L> {
+impl<L: Simd> Circuit<L> for Snare<L> {
     type Shared = SnareShared;
     type Controls = SnareControls<L>;
 
@@ -176,9 +176,9 @@ struct SnareDrum;
 
 impl Drum for SnareDrum {
     type Shared = SnareShared;
-    type Circuit<L: Lanes> = Snare<L>;
-    type Controls<L: Lanes> = SnareControls<L>;
-    type Sources<L: Lanes> = ();
+    type Circuit<L: Simd> = Snare<L>;
+    type Controls<L: Simd> = SnareControls<L>;
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = false;
 }
@@ -227,7 +227,7 @@ impl Tuning {
 
 /// The front-panel settings for one sample.
 #[derive(Clone, Copy, Default)]
-struct SnareControls<L: Lanes = Mono> {
+struct SnareControls<L: Simd = Mono> {
     low: BridgedT<L>,
     high: BridgedT<L>,
     /// Tone and snappy pot positions, 0–1.
@@ -239,7 +239,7 @@ struct SnareControls<L: Lanes = Mono> {
     level: L::S,
 }
 
-lanewise!(SnareControls {
+elementwise!(SnareControls {
     low,
     high,
     tone,
@@ -248,7 +248,7 @@ lanewise!(SnareControls {
     level
 });
 
-impl<L: Lanes> Snare<L> {
+impl<L: Simd> Snare<L> {
     /// Advances the circuit one sample, returning IC13's output.
     #[inline]
     fn advance(&mut self, sh: &SnareShared, ctl: &SnareControls<L>) -> L::S {

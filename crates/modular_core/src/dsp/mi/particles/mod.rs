@@ -27,7 +27,7 @@ use crate::{
 use diffuser::{Diffuser, DiffuserRates};
 use particle::{MAX_TICK, Particle};
 
-/// Particles per channel.
+/// Particles per lane.
 const PARTICLES: usize = 6;
 
 /// Plaits' gain into its limiter, and its raw-dust gain, at ±5 V full scale.
@@ -39,7 +39,7 @@ const RAW_GAIN: f32 = -5.0;
 const TICK_RATE: f32 = 4000.0;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MiParticlesParams {
@@ -131,7 +131,7 @@ const PARTICLES_DOCS: ModuleDocs = ModuleDocs {
 pub struct MiParticles {
     outputs: MiParticlesOutputs,
     state: ParticlesState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
     params: MiParticlesParams,
 }
 
@@ -158,12 +158,12 @@ impl ParticlesState {
     }
 }
 
-/// One channel's particles.
-struct Channel {
+/// One lane's particles.
+struct Lane {
     particles: [Particle; PARTICLES],
     random: Random,
     /// Whether `random` has its per-instance seed. Transfers with the
-    /// channel, so a patch update never reseeds it.
+    /// lane, so a patch update never reseeds it.
     seeded: bool,
     trigger: SchmittTrigger,
     post_filter: Svf,
@@ -184,8 +184,8 @@ struct Channel {
     held: [f32; 3],
 }
 
-impl Channel {
-    /// A channel with its diffuser sized for `state`'s rate. Allocates.
+impl Lane {
+    /// A lane with its diffuser sized for `state`'s rate. Allocates.
     fn new(state: &ParticlesState) -> Self {
         Self {
             diffuser: Diffuser::new(&state.diffuser),
@@ -194,7 +194,7 @@ impl Channel {
     }
 }
 
-impl Default for Channel {
+impl Default for Lane {
     fn default() -> Self {
         Self {
             particles: [Particle::default(); PARTICLES],
@@ -230,7 +230,7 @@ fn note_to_frequency(note: f32) -> f32 {
     A0 * 0.25 * semitones_to_ratio((note - 9.0).clamp(-128.0, 127.0))
 }
 
-impl Channel {
+impl Lane {
     /// Reads a sample's knobs and, when a tick is due or `sync` fires every
     /// particle, draws the next tick's impulses from the density knob's
     /// mean since the last tick.
@@ -326,18 +326,18 @@ impl Channel {
 impl MiParticles {
     fn init(&mut self, sample_rate: f32) {
         self.state = ParticlesState::new(sample_rate);
-        for channel in self.channel_state.iter_mut() {
-            *channel = Channel::new(&self.state);
+        for lane in self.lane_state.iter_mut() {
+            *lane = Lane::new(&self.state);
         }
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
-        for (ch, channel) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane_index, lane) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, MiParticlesParams::FM_DEFAULT),
+                p.freq.get_value(lane_index),
+                p.fm.value_or(lane_index, MiParticlesParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
             // A resonator has no backward; at a standstill its filters would
@@ -346,35 +346,39 @@ impl MiParticles {
             let sync = p
                 .trigger
                 .as_ref()
-                .is_some_and(|t| channel.trigger.process(t.get_value(ch)));
+                .is_some_and(|t| lane.trigger.process(t.get_value(lane_index)));
             let knobs = [
-                p.density.value_or(ch, MiParticlesParams::DENSITY_DEFAULT),
-                p.spread.value_or(ch, MiParticlesParams::SPREAD_DEFAULT),
+                p.density
+                    .value_or(lane_index, MiParticlesParams::DENSITY_DEFAULT),
+                p.spread
+                    .value_or(lane_index, MiParticlesParams::SPREAD_DEFAULT),
                 p.resonance
-                    .value_or(ch, MiParticlesParams::RESONANCE_DEFAULT),
+                    .value_or(lane_index, MiParticlesParams::RESONANCE_DEFAULT),
             ];
-            channel.control(knobs, sync, &self.state);
-            let (out, raw) = channel.step(f0, &self.state);
+            lane.control(knobs, sync, &self.state);
+            let (out, raw) = lane.step(f0, &self.state);
             // Plaits clips after its slow limiter.
             self.outputs
                 .sample
-                .set(ch, (OUTPUT_GAIN * out).clamp(-5.0, 5.0));
-            self.outputs.raw.set(ch, (RAW_GAIN * raw).clamp(-5.0, 5.0));
+                .set(lane_index, (OUTPUT_GAIN * out).clamp(-5.0, 5.0));
+            self.outputs
+                .raw
+                .set(lane_index, (RAW_GAIN * raw).clamp(-5.0, 5.0));
         }
     }
 }
 
 impl crate::types::PatchUpdateHandler for MiParticles {
-    /// Seeds the random generators of channels that have none yet. Runs here,
+    /// Seeds the random generators of lanes that have none yet. Runs here,
     /// not in `init`, because `init` runs in a stack slot that consecutive
     /// constructions share, so every instance would draw the same impulses.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, channel) in self.channel_state.iter_mut().enumerate() {
-            if !channel.seeded {
-                let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
-                channel.random = Random::new((unit * f64::from(u32::MAX)) as u32);
-                channel.seeded = true;
+        for (lane_index, lane) in self.lane_state.iter_mut().enumerate() {
+            if !lane.seeded {
+                let unit = (hash_bipolar(base, lane_index as u64) + 1.0) * 0.5;
+                lane.random = Random::new((unit * f64::from(u32::MAX)) as u32);
+                lane.seeded = true;
             }
         }
     }

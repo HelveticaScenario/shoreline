@@ -151,7 +151,7 @@ mod tests {
     use crate::dsp::filters::surge::coeffs::ST_DRIVEN;
     use crate::dsp::filters::surge::filter_core::test_util::{sine_rms, sweep_stays_bounded};
     use crate::dsp::filters::surge::filter_core::{
-        FilterChannel, FilterInputs, FilterModuleState, on_patch_update, run,
+        FilterInputs, FilterLane, FilterModuleState, on_patch_update, run,
     };
 
     fn all_modes() -> Vec<BiquadMode> {
@@ -199,7 +199,7 @@ mod tests {
         let reso = Some(PolySignal::mono(Signal::Volts(4.0)));
         let mut out = PolyOutput::mono(0.0);
         let mut state = FilterModuleState::default();
-        let mut ch = vec![FilterChannel::default()];
+        let mut lane = vec![FilterLane::default()];
         let sig = |i: usize| (2.0 * std::f32::consts::PI * 220.0 * (i as f32 / sr)).sin() * 5.0;
 
         let standard = BiquadMode {
@@ -212,7 +212,7 @@ mod tests {
         };
 
         // Settle in Standard, measuring the steady-state per-sample step for reference.
-        on_patch_update::<LpBiquad>(&mut state, &mut ch, standard);
+        on_patch_update::<LpBiquad>(&mut state, &mut lane, standard);
         let mut prev = 0.0f32;
         let mut steady_max = 0.0f32;
         for i in 0..4000 {
@@ -227,7 +227,7 @@ mod tests {
                 },
                 sr,
                 &mut state,
-                &mut ch,
+                &mut lane,
                 &mut out,
             );
             let y = out.get(0);
@@ -238,7 +238,7 @@ mod tests {
         }
 
         // Form change Standard → Driven: crossfade must keep the step near steady-state.
-        on_patch_update::<LpBiquad>(&mut state, &mut ch, driven);
+        on_patch_update::<LpBiquad>(&mut state, &mut lane, driven);
         let n = 4000usize;
         let mut switch_max = 0.0f32;
         let mut sumsq = 0.0f64;
@@ -254,7 +254,7 @@ mod tests {
                 },
                 sr,
                 &mut state,
-                &mut ch,
+                &mut lane,
                 &mut out,
             );
             let y = out.get(0);

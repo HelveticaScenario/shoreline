@@ -10,7 +10,7 @@ use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CurveParams {
@@ -61,7 +61,7 @@ const CURVE_DOCS: ModuleDocs = ModuleDocs {
 pub struct Curve {
     outputs: CurveOutputs,
     params: CurveParams,
-    channel_state: Box<[SwapGlide]>,
+    lane_state: Box<[SwapGlide]>,
 }
 
 /// `x` bent by `exp` across ±5 V, keeping its sign; a negative exponent
@@ -75,10 +75,10 @@ fn curve(x: f32, exp: f32) -> f32 {
 impl Curve {
     fn update(&mut self, sample_rate: f32) {
         let exp = &self.params.exp;
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let out = &mut self.outputs.sample;
-        for i in 0..channels {
-            let glide = &mut self.channel_state[i];
+        for i in 0..lanes {
+            let glide = &mut self.lane_state[i];
             let exp_value = glide.follow(exp.get_value(i), exp.glide_mark(i), sample_rate);
             let input = &self.params.input;
             out.set(i, curve(input.get_value(i), exp_value));
@@ -100,8 +100,8 @@ impl Curve {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
-        let glides = &mut self.channel_state[..channels];
+        let lanes = self.lane_count();
+        let glides = &mut self.lane_state[..lanes];
         let exp = &self.params.exp;
         if exp.glides_pending(glides) {
             return None;
@@ -110,12 +110,12 @@ impl Curve {
         let input = self
             .params
             .input
-            .block_input(range.clone(), channels, &mut s0)?;
-        let exp_input = exp.block_input(range.clone(), channels, &mut s1)?;
+            .block_input(range.clone(), lanes, &mut s0)?;
+        let exp_input = exp.block_input(range.clone(), lanes, &mut s1)?;
         let signal = &self.params.input;
-        outputs.sample.fill_bounds_with(range.clone(), |ch| {
-            let input = signal.block_bounds(range.clone(), ch)?;
-            Some(input.combine(exp.block_bounds(range.clone(), ch)?, curve))
+        outputs.sample.fill_bounds_with(range.clone(), |lane| {
+            let input = signal.block_bounds(range.clone(), lane)?;
+            Some(input.combine(exp.block_bounds(range.clone(), lane)?, curve))
         })?;
         exp.settle_glides(glides, exp_input.row(range.end - 1));
         block_input::map(

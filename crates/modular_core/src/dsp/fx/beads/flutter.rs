@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::sanitize;
-use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
 
 use super::wow_flutter::{WowModulation, write_read};
 use super::{FULL_SCALE_VOLTS, input_value};
@@ -25,11 +25,11 @@ const HARDWARE_LP: f32 = 0.95;
 const BLOCK_RATE: f32 = 4000.0;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct WowFlutterParams {
-    #[input("signal to run through the tape; each channel wobbles in step", type = audio)]
+    #[input("signal to run through the tape; each lane wobbles in step", type = audio)]
     input: PolySignal,
     #[input(
         "how fast the tape wobbles; each volt doubles it, and 2.5 is Beads' dirty tape",
@@ -38,7 +38,7 @@ struct WowFlutterParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    speed: Option<MonoSignal>,
+    speed: Option<LaneSum>,
     #[input(
         "how deep the wobble is: 0 none, 2.5 Beads' dirty tape, 5 twice as deep",
         type = control,
@@ -46,7 +46,7 @@ struct WowFlutterParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    intensity: Option<MonoSignal>,
+    intensity: Option<LaneSum>,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -56,7 +56,7 @@ struct WowFlutterOutputs {
     sample: PolyOutput,
 }
 
-/// One channel's delay line and low-pass.
+/// One lane's delay line and low-pass.
 #[derive(Default)]
 struct Line {
     /// Power-of-two length covering the longest delay at the engine rate.
@@ -80,7 +80,7 @@ struct WowFlutterState {
 const WOW_FLUTTER_DOCS: ModuleDocs = ModuleDocs {
     summary: "Tape wow and flutter",
     description: "The drifting pitch wobble and softened highs of worn tape, from Mutable \
-                  Instruments Beads' dirty tape setting. Every channel wobbles together, as if \
+                  Instruments Beads' dirty tape setting. Every lane wobbles together, as if \
                   one tape carried them all.",
     categories: &[ModuleCategory::Effect],
     sections: &[],
@@ -108,11 +108,11 @@ pub struct WowFlutter {
     outputs: WowFlutterOutputs,
     state: WowFlutterState,
     params: WowFlutterParams,
-    channel_state: Box<[Line]>,
+    lane_state: Box<[Line]>,
 }
 
 impl WowFlutter {
-    /// Allocate each channel's delay line for `sample_rate`. Main thread.
+    /// Allocate each lane's delay line for `sample_rate`. Main thread.
     fn init(&mut self, sample_rate: f32) {
         let seed = seed_base(self);
         super::primitives::warm_tables();
@@ -124,7 +124,7 @@ impl WowFlutter {
         state.block_size = ((sample_rate / BLOCK_RATE) as usize).max(1);
         state.block_pos = 0;
         let len = ((MAX_HARDWARE_DELAY * state.ratio) as usize + 2).next_power_of_two();
-        for line in self.channel_state.iter_mut() {
+        for line in self.lane_state.iter_mut() {
             line.line = vec![0.0; len].into_boxed_slice();
         }
     }
@@ -133,7 +133,7 @@ impl WowFlutter {
         let state = &mut self.state;
         if state.block_pos == 0 {
             let p = &self.params;
-            let control = |s: &Option<MonoSignal>| sanitize(s.value_or(2.5)).clamp(0.0, 5.0);
+            let control = |s: &Option<LaneSum>| sanitize(s.value_or(2.5)).clamp(0.0, 5.0);
             let speed = (control(&p.speed) - 2.5).exp2();
             let depth = control(&p.intensity) / 5.0 * MAX_DEPTH;
             state
@@ -142,13 +142,13 @@ impl WowFlutter {
         }
         state.block_pos = (state.block_pos + 1) % state.block_size;
         let delay = state.modulation.next() * state.ratio;
-        for (ch, line) in self.channel_state.iter_mut().enumerate() {
-            let x = input_value(&self.params.input, ch);
+        for (lane, line) in self.lane_state.iter_mut().enumerate() {
+            let x = input_value(&self.params.input, lane);
             let y = write_read(&mut line.line, &mut line.write_ptr, x, delay);
             line.lp_state += state.lp * (y - line.lp_state);
             self.outputs
                 .sample
-                .set(ch, line.lp_state * FULL_SCALE_VOLTS);
+                .set(lane, line.lp_state * FULL_SCALE_VOLTS);
         }
     }
 }
@@ -162,32 +162,32 @@ mod tests {
 
     const SR: f32 = 48000.0;
 
-    fn make(channels: usize, sample_rate: f32) -> WowFlutter {
+    fn make(lanes: usize, sample_rate: f32) -> WowFlutter {
         let mut outputs = WowFlutterOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         let mut m = WowFlutter {
             outputs,
             state: Default::default(),
             params: WowFlutterParams {
-                input: PolySignal::poly(&vec![Signal::Volts(0.0); channels]),
+                input: PolySignal::poly(&vec![Signal::Volts(0.0); lanes]),
                 speed: None,
                 intensity: None,
             },
-            channel_state: (0..channels).map(|_| Line::default()).collect(),
-            _channel_count: channels,
+            lane_state: (0..lanes).map(|_| Line::default()).collect(),
+            _lane_count: lanes,
             _block_index: Default::default(),
         };
         m.init(sample_rate);
         m
     }
 
-    /// Feed each channel's signal from `input` for `n` samples and return
-    /// every channel's output.
+    /// Feed each lane's signal from `input` for `n` samples and return
+    /// every lane's output.
     fn run(m: &mut WowFlutter, n: usize, input: impl Fn(usize, usize) -> f32) -> Vec<Vec<f32>> {
-        let channels = m.channel_state.len();
-        let mut out = vec![Vec::new(); channels];
+        let lanes = m.lane_state.len();
+        let mut out = vec![Vec::new(); lanes];
         for i in 0..n {
-            let signals: Vec<Signal> = (0..channels).map(|c| Signal::Volts(input(i, c))).collect();
+            let signals: Vec<Signal> = (0..lanes).map(|c| Signal::Volts(input(i, c))).collect();
             m.params.input = PolySignal::poly(&signals);
             m.update(SR);
             for (c, o) in out.iter_mut().enumerate() {
@@ -205,7 +205,7 @@ mod tests {
     }
 
     #[test]
-    fn channels_share_one_modulation() {
+    fn lanes_share_one_modulation() {
         let mut m = make(3, SR);
         let out = run(&mut m, 48_000, |i, _| (i as f32 * 0.05).sin());
         assert_eq!(out[0], out[1]);
@@ -220,8 +220,8 @@ mod tests {
             .collect()
     }
 
-    fn volts(v: f32) -> Option<MonoSignal> {
-        Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v))))
+    fn volts(v: f32) -> Option<LaneSum> {
+        Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(v))))
     }
 
     /// Shortest and longest period of a 1 kHz tone through `m`, in samples.
@@ -282,6 +282,6 @@ mod tests {
     #[test]
     fn delay_line_covers_the_longest_delay_at_high_rates() {
         let m = make(1, 192_000.0);
-        assert!(m.channel_state[0].line.len() as f32 > MAX_HARDWARE_DELAY * 8.0 + 1.0);
+        assert!(m.lane_state[0].line.len() as f32 > MAX_HARDWARE_DELAY * 8.0 + 1.0);
     }
 }

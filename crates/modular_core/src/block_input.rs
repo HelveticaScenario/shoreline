@@ -4,21 +4,21 @@
 //! (Sample mode), and a `process_block(outputs, range, sample_rate)`, which
 //! runs everywhere else (Block mode). Both share the module's per-sample math.
 //! `process_block` resolves every input for the whole `range` up front into a
-//! [`BlockInput`], then runs plain loops over channel rows — no per-read
-//! dispatch between constants and cables, no channel cycling, and no copy
+//! [`BlockInput`], then runs plain loops over lane rows — no per-read
+//! dispatch between constants and cables, no lane cycling, and no copy
 //! through an intermediate output struct. [`map`] covers the common
 //! elementwise case.
 //!
 //! An input that cannot be read in place is copied into the caller's
-//! [`InputScratch`]: a mono cable broadcast across wider consumer channels
+//! [`InputScratch`]: a mono cable broadcast across wider consumer lanes
 //! straight from the producer's buffer, and anything else — a cable from a
-//! feedback cycle, a narrower poly cable cycled across wider channels,
-//! permuted channels, a mix of cables and constants — one slot at a time,
+//! feedback cycle, a narrower poly cable cycled across wider lanes,
+//! permuted lanes, a mix of cables and constants — one slot at a time,
 //! exactly as a per-sample read would see it. When the range is too long for
 //! the scratch, resolution returns `None`, and `process_block` returns `None`
 //! too; it must therefore resolve every input before writing anything. The
 //! generated wrapper then retries over sub-ranges of at most
-//! [`SCRATCH_LEN`]` / channels` slots, and runs `update` for any sub-range
+//! [`SCRATCH_LEN`]` / lanes` slots, and runs `update` for any sub-range
 //! still declined — the route for a module whose input it cannot read by
 //! block at all. Each call starts with the consumer's per-block index at
 //! `range.start`.
@@ -30,15 +30,15 @@ use std::ops::Range;
 use crate::BlockPort;
 use crate::bounds::Bounds;
 use crate::dsp::utils::sanitize;
-use crate::poly::{PORT_MAX_CHANNELS, PolySignal};
+use crate::poly::{PORT_MAX_LANES, PolySignal};
 use crate::types::Signal;
 
 /// Values one [`InputScratch`] holds: a whole 64-slot block of up to four
-/// channels, and at least `PORT_MAX_CHANNELS`, so one slot of any module fits.
-pub const SCRATCH_LEN: usize = 4 * PORT_MAX_CHANNELS;
+/// lanes, and at least `PORT_MAX_LANES`, so one slot of any module fits.
+pub const SCRATCH_LEN: usize = 4 * PORT_MAX_LANES;
 
 /// Stack storage for an input that cannot be read in place: a constant row
-/// broadcast across channels, or values copied out slot by slot.
+/// broadcast across lanes, or values copied out slot by slot.
 pub struct InputScratch(MaybeUninit<[f32; SCRATCH_LEN]>);
 
 impl InputScratch {
@@ -60,7 +60,7 @@ impl Default for InputScratch {
 }
 
 /// One input resolved for a range of slots: [`row(i)`](Self::row) is slot
-/// `i`'s values across the consumer's channels.
+/// `i`'s values across the consumer's lanes.
 #[derive(Clone, Copy)]
 pub struct BlockInput<'a> {
     /// The first slot's row; slot `i`'s starts at `data + (i - first) * stride`.
@@ -70,7 +70,7 @@ pub struct BlockInput<'a> {
     /// One past the last resolved slot.
     end: usize,
     stride: usize,
-    channels: usize,
+    lanes: usize,
     _rows: PhantomData<&'a [f32]>,
 }
 
@@ -89,34 +89,31 @@ impl BlockInput<'_> {
             (self.first..self.end).contains(&i),
             "slot outside the resolved range"
         );
-        // SAFETY: resolution guarantees `channels` initialised values per row
+        // SAFETY: resolution guarantees `lanes` initialised values per row
         // for every slot in the resolved range: a rendered producer buffer
         // (which outlives the call, see `PolyCableView`), the input's own
         // constants, or the borrowed scratch.
         unsafe {
-            std::slice::from_raw_parts(self.data.add((i - self.first) * self.stride), self.channels)
+            std::slice::from_raw_parts(self.data.add((i - self.first) * self.stride), self.lanes)
         }
     }
 }
 
 impl PolySignal {
-    /// Resolve this input for slots `range` across `channels` consumer
-    /// channels, using `scratch` when it cannot be read in place. See the
-    /// module docs for when this returns `None`. Panics if `channels` exceeds
-    /// `PORT_MAX_CHANNELS`.
+    /// Resolve this input for slots `range` across `lanes` consumer
+    /// lanes, using `scratch` when it cannot be read in place. See the
+    /// module docs for when this returns `None`. Panics if `lanes` exceeds
+    /// `PORT_MAX_LANES`.
     #[inline(always)]
     pub fn block_input<'a>(
         &'a self,
         range: Range<usize>,
-        channels: usize,
+        lanes: usize,
         scratch: &'a mut InputScratch,
     ) -> Option<BlockInput<'a>> {
-        assert!(
-            channels <= PORT_MAX_CHANNELS,
-            "more channels than a port holds"
-        );
+        assert!(lanes <= PORT_MAX_LANES, "more lanes than a port holds");
         // Inputs read in place resolve inline; copies go out of line.
-        if channels <= self.channels() {
+        if lanes <= self.lanes() {
             let volts = self.volts();
             if !volts.is_empty() {
                 return Some(BlockInput {
@@ -124,7 +121,7 @@ impl PolySignal {
                     first: range.start,
                     end: range.end,
                     stride: 0,
-                    channels,
+                    lanes,
                     _rows: PhantomData,
                 });
             }
@@ -138,29 +135,29 @@ impl PolySignal {
                     first: range.start,
                     end: range.end,
                     stride,
-                    channels,
+                    lanes,
                     _rows: PhantomData,
                 });
             }
         }
-        // One slot reads each channel at the consumer's index, which the
+        // One slot reads each lane at the consumer's index, which the
         // wrapper leaves at `range.start`.
         if range.len() == 1 && self.volts().is_empty() {
             let row = scratch.as_mut_ptr();
-            for ch in 0..channels {
-                // SAFETY: `channels <= PORT_MAX_CHANNELS <= SCRATCH_LEN`.
-                unsafe { row.add(ch).write(self.get_value(ch)) };
+            for lane in 0..lanes {
+                // SAFETY: `lanes <= PORT_MAX_LANES <= SCRATCH_LEN`.
+                unsafe { row.add(lane).write(self.get_value(lane)) };
             }
             return Some(BlockInput {
                 data: row,
                 first: range.start,
                 end: range.end,
                 stride: 0,
-                channels,
+                lanes,
                 _rows: PhantomData,
             });
         }
-        self.copied_block_input(range, channels, scratch)
+        self.copied_block_input(range, lanes, scratch)
     }
 
     /// [`block_input`](Self::block_input) for inputs copied into `scratch`.
@@ -168,27 +165,27 @@ impl PolySignal {
     fn copied_block_input<'a>(
         &'a self,
         range: Range<usize>,
-        channels: usize,
+        lanes: usize,
         scratch: &'a mut InputScratch,
     ) -> Option<BlockInput<'a>> {
-        let width = self.channels();
+        let width = self.lanes();
         let volts = self.volts();
         if !volts.is_empty() {
             let row = scratch.as_mut_ptr();
-            for ch in 0..channels {
-                // SAFETY: `channels <= PORT_MAX_CHANNELS <= SCRATCH_LEN`.
-                unsafe { row.add(ch).write(volts[ch % width]) };
+            for lane in 0..lanes {
+                // SAFETY: `lanes <= PORT_MAX_LANES <= SCRATCH_LEN`.
+                unsafe { row.add(lane).write(volts[lane % width]) };
             }
             return Some(BlockInput {
                 data: row,
                 first: range.start,
                 end: range.end,
                 stride: 0,
-                channels,
+                lanes,
                 _rows: PhantomData,
             });
         }
-        if range.len() * channels > SCRATCH_LEN {
+        if range.len() * lanes > SCRATCH_LEN {
             return None;
         }
         if width == 1
@@ -198,12 +195,12 @@ impl PolySignal {
         {
             let rows = scratch.as_mut_ptr();
             for (n, i) in range.clone().enumerate() {
-                // SAFETY: slot `i` is rendered; `range.len() * channels <=
+                // SAFETY: slot `i` is rendered; `range.len() * lanes <=
                 // SCRATCH_LEN`.
                 unsafe {
                     let value = *data.add(i * stride);
-                    for ch in 0..channels {
-                        rows.add(n * channels + ch).write(value);
+                    for lane in 0..lanes {
+                        rows.add(n * lanes + lane).write(value);
                     }
                 }
             }
@@ -211,8 +208,8 @@ impl PolySignal {
                 data: rows,
                 first: range.start,
                 end: range.end,
-                stride: channels,
-                channels,
+                stride: lanes,
+                lanes,
                 _rows: PhantomData,
             });
         }
@@ -230,24 +227,24 @@ impl PolySignal {
                 // its params; audio thread only.
                 unsafe { (*index).set(i) };
             }
-            for ch in 0..channels {
-                // SAFETY: `range.len() * channels <= SCRATCH_LEN`.
-                unsafe { rows.add(n * channels + ch).write(self.get_value(ch)) };
+            for lane in 0..lanes {
+                // SAFETY: `range.len() * lanes <= SCRATCH_LEN`.
+                unsafe { rows.add(n * lanes + lane).write(self.get_value(lane)) };
             }
         }
         Some(BlockInput {
             data: rows,
             first: range.start,
             end: range.end,
-            stride: channels,
-            channels,
+            stride: lanes,
+            lanes,
             _rows: PhantomData,
         })
     }
 }
 
 /// A disconnected input's row when it defaults to zero, read in place.
-static ZERO_ROW: [f32; PORT_MAX_CHANNELS] = [0.0; PORT_MAX_CHANNELS];
+static ZERO_ROW: [f32; PORT_MAX_LANES] = [0.0; PORT_MAX_LANES];
 
 /// [`PolySignal::block_input`] for an optional input, broadcasting `default`
 /// when it is disconnected.
@@ -255,7 +252,7 @@ pub trait OptionBlockInput {
     fn block_input_or<'a>(
         &'a self,
         range: Range<usize>,
-        channels: usize,
+        lanes: usize,
         default: f32,
         scratch: &'a mut InputScratch,
     ) -> Option<BlockInput<'a>>;
@@ -266,36 +263,33 @@ impl OptionBlockInput for Option<PolySignal> {
     fn block_input_or<'a>(
         &'a self,
         range: Range<usize>,
-        channels: usize,
+        lanes: usize,
         default: f32,
         scratch: &'a mut InputScratch,
     ) -> Option<BlockInput<'a>> {
-        assert!(
-            channels <= PORT_MAX_CHANNELS,
-            "more channels than a port holds"
-        );
+        assert!(lanes <= PORT_MAX_LANES, "more lanes than a port holds");
         match self {
-            Some(signal) => signal.block_input(range, channels, scratch),
+            Some(signal) => signal.block_input(range, lanes, scratch),
             None if default == 0.0 => Some(BlockInput {
                 data: ZERO_ROW.as_ptr(),
                 first: range.start,
                 end: range.end,
                 stride: 0,
-                channels,
+                lanes,
                 _rows: PhantomData,
             }),
             None => {
                 let row = scratch.as_mut_ptr();
-                for ch in 0..channels {
-                    // SAFETY: `channels <= PORT_MAX_CHANNELS <= SCRATCH_LEN`.
-                    unsafe { row.add(ch).write(default) };
+                for lane in 0..lanes {
+                    // SAFETY: `lanes <= PORT_MAX_LANES <= SCRATCH_LEN`.
+                    unsafe { row.add(lane).write(default) };
                 }
                 Some(BlockInput {
                     data: row,
                     first: range.start,
                     end: range.end,
                     stride: 0,
-                    channels,
+                    lanes,
                     _rows: PhantomData,
                 })
             }
@@ -303,18 +297,18 @@ impl OptionBlockInput for Option<PolySignal> {
     }
 }
 
-/// Elements per pass of [`map`]'s flat loop. Also bounds the channel count a
+/// Elements per pass of [`map`]'s flat loop. Also bounds the lane count a
 /// repeated row can be expanded across, so it must be at least
-/// `PORT_MAX_CHANNELS`.
-const CHUNK: usize = PORT_MAX_CHANNELS;
+/// `PORT_MAX_LANES`.
+const CHUNK: usize = PORT_MAX_LANES;
 
-/// Write `f(inputs)` to every channel of `out` for slots `range`, sanitising
+/// Write `f(inputs)` to every lane of `out` for slots `range`, sanitising
 /// each result. Panics unless every input was resolved for `range` at `out`'s
-/// channel count.
+/// lane count.
 ///
 /// When every input is either contiguous rows or one repeated row, a
 /// multi-slot range is processed as a single flat run, which vectorises at any
-/// channel count; otherwise row by row.
+/// lane count; otherwise row by row.
 #[inline(always)]
 pub fn map<const N: usize>(
     out: &mut BlockPort,
@@ -322,32 +316,32 @@ pub fn map<const N: usize>(
     inputs: [BlockInput<'_>; N],
     f: impl Fn([f32; N]) -> f32,
 ) {
-    let channels = out.channels();
+    let lanes = out.lanes();
     assert!(
-        inputs.iter().all(|input| input.channels == channels
+        inputs.iter().all(|input| input.lanes == lanes
             && input.first == range.start
             && input.end == range.end),
         "input resolved for another range or width"
     );
-    if channels == 0 {
+    if lanes == 0 {
         return;
     }
     let flat = range.len() > 1
         && inputs
             .iter()
-            .all(|input| input.stride == channels || input.stride == 0);
+            .all(|input| input.stride == lanes || input.stride == 0);
     if !flat {
         for i in range {
             let rows: [&[f32]; N] = std::array::from_fn(|j| inputs[j].row(i));
-            for (ch, value) in out.slot_mut(i).iter_mut().enumerate() {
-                *value = sanitize(f(rows.map(|row| row[ch])));
+            for (lane, value) in out.slot_mut(i).iter_mut().enumerate() {
+                *value = sanitize(f(rows.map(|row| row[lane])));
             }
         }
         return;
     }
     // A repeated row is expanded into a whole number of rows filling (nearly)
     // a chunk, so every chunk starts on a row boundary and reads it from 0.
-    let chunk = (CHUNK / channels * channels).min(range.len() * channels);
+    let chunk = (CHUNK / lanes * lanes).min(range.len() * lanes);
     let mut repeated = [const { MaybeUninit::<[f32; CHUNK]>::uninit() }; N];
     for (buffer, input) in repeated.iter_mut().zip(&inputs) {
         if input.stride == 0 {
@@ -359,7 +353,7 @@ pub fn map<const N: usize>(
             if let [value] = row {
                 buffer.fill(*value);
             } else {
-                for rows in buffer.chunks_exact_mut(channels) {
+                for rows in buffer.chunks_exact_mut(lanes) {
                     for (value, &v) in rows.iter_mut().zip(row) {
                         *value = v;
                     }
@@ -389,7 +383,7 @@ pub fn map<const N: usize>(
 }
 
 /// Write `out`'s bounds for every slot of `range` from each slot's `values`:
-/// `rule(ch, values)` per channel. When every value holds still one row fills
+/// `rule(lane, values)` per lane. When every value holds still one row fills
 /// the range; otherwise each slot is computed. A rule gives `None` only for
 /// bounds that move within the range, so a `None` on the first slot writes
 /// nothing and returns `None`, letting the block path decline. Call it before
@@ -405,48 +399,45 @@ pub fn map_bounds<const N: usize>(
     }
     let first: [&[f32]; N] = std::array::from_fn(|j| values[j].row(range.start));
     if values.iter().all(|value| value.is_constant()) {
-        return out.fill_bounds_with(range, |ch| rule(ch, first.map(|row| row[ch])));
+        return out.fill_bounds_with(range, |lane| rule(lane, first.map(|row| row[lane])));
     }
-    let channels = out.channels();
-    if (0..channels).any(|ch| rule(ch, first.map(|row| row[ch])).is_none()) {
+    let lanes = out.lanes();
+    if (0..lanes).any(|lane| rule(lane, first.map(|row| row[lane])).is_none()) {
         return None;
     }
     let start = range.start;
     let bounds = out.bounds_slots_mut(range.clone());
     for i in range {
         let rows: [&[f32]; N] = std::array::from_fn(|j| values[j].row(i));
-        let slot = &mut bounds[(i - start) * channels..(i - start + 1) * channels];
-        for (ch, b) in slot.iter_mut().enumerate() {
-            *b = rule(ch, rows.map(|row| row[ch])).unwrap_or(Bounds::UNBOUNDED);
+        let slot = &mut bounds[(i - start) * lanes..(i - start + 1) * lanes];
+        for (lane, b) in slot.iter_mut().enumerate() {
+            *b = rule(lane, rows.map(|row| row[lane])).unwrap_or(Bounds::UNBOUNDED);
         }
     }
     Some(())
 }
 
-/// A [`BlockInput`] that holds `value(ch)` on each of `channels` channels for
+/// A [`BlockInput`] that holds `value(lane)` on each of `lanes` lanes for
 /// every slot of `range`, built in `scratch`: a value a module derives once per
 /// range, read like any other input.
 pub fn constant_row<'a>(
     range: Range<usize>,
-    channels: usize,
+    lanes: usize,
     scratch: &'a mut InputScratch,
     value: impl Fn(usize) -> f32,
 ) -> BlockInput<'a> {
-    assert!(
-        channels <= PORT_MAX_CHANNELS,
-        "more channels than a port holds"
-    );
+    assert!(lanes <= PORT_MAX_LANES, "more lanes than a port holds");
     let row = scratch.as_mut_ptr();
-    for ch in 0..channels {
-        // SAFETY: `channels <= PORT_MAX_CHANNELS <= SCRATCH_LEN`.
-        unsafe { row.add(ch).write(value(ch)) };
+    for lane in 0..lanes {
+        // SAFETY: `lanes <= PORT_MAX_LANES <= SCRATCH_LEN`.
+        unsafe { row.add(lane).write(value(lane)) };
     }
     BlockInput {
         data: row,
         first: range.start,
         end: range.end,
         stride: 0,
-        channels,
+        lanes,
         _rows: PhantomData,
     }
 }

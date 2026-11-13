@@ -1,7 +1,7 @@
 //! `Patch::connect_all` runs inside the audio callback on every patch apply,
 //! so the whole call — cable resolution and `on_patch_update` — must never
 //! touch the heap. `#[default_connection]` inputs (e.g. the ROOT_CLOCK
-//! playhead normalled into `$cycle`/`$track`) are filled at module
+//! playhead normalled into `$cycle`/`$keyframes`) are filled at module
 //! construction on the main thread, so a patch that leaves them disconnected
 //! still connects allocation-free.
 //!
@@ -59,7 +59,7 @@ fn build_unconnected_patch(modules: Vec<(&str, &str, serde_json::Value)>) -> Pat
             module_type.to_string(),
             DeserializedParams {
                 params: cached.params,
-                channel_count: cached.channel_count,
+                lane_count: cached.lane_count,
                 f64_inputs: false,
             },
             ProcessingMode::Block,
@@ -84,7 +84,7 @@ fn process_frame(patch: &Patch) {
 
 #[test]
 fn connect_all_with_default_connections_is_allocation_free() {
-    // Neither $track nor $cycle gets an explicit playhead, exactly like the
+    // Neither $keyframes nor $cycle gets an explicit playhead, exactly like the
     // DSL emits them, so both rely on their #[default_connection] to
     // ROOT_CLOCK's playhead output.
     let pattern = modular_core::dsp::seq::seq_value::ParsedPatternPayload::parse_for_test("c4");
@@ -96,7 +96,7 @@ fn connect_all_with_default_connections_is_allocation_free() {
         ),
         (
             "track",
-            "$track",
+            "$keyframes",
             json!({ "keyframes": [[0.0, 0.0], [10.0, 1.0]] }),
         ),
         (

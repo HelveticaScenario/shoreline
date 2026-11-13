@@ -1,4 +1,4 @@
-//! `$enosc` — the core of the 4ms Ensemble Oscillator: per channel, a bank of
+//! `$enosc` — the core of the 4ms Ensemble Oscillator: per lane, a bank of
 //! sine voices spread across a scale, with cross FM, a phase warp, and the
 //! fold/cheby/segment warps.
 //!
@@ -21,13 +21,13 @@ use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::sanitize;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt};
+use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
 use scale::{EnoscScale, ScaleNotes};
 use voice::{CONTROL_BLOCK, ControlContext, EffectOrder, Voice, VoiceContext, WarpChain};
 
-/// Most voices per channel.
+/// Most voices per lane.
 const MAX_VOICES: usize = 16;
 
 /// Gain correction for a sum of `n` uncorrelated voices, indexed by `n`: how far
@@ -82,7 +82,7 @@ fn default_count() -> usize {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct EnoscParams {
@@ -154,7 +154,7 @@ struct EnoscParams {
     #[serde(default)]
     #[deserr(default)]
     effect_order: EffectOrder,
-    #[input("voices per channel", range = (1, 16))]
+    #[input("voices per lane", range = (1, 16))]
     #[serde(default = "default_count")]
     #[deserr(default = default_count())]
     count: usize,
@@ -163,21 +163,21 @@ struct EnoscParams {
 /// As wide as the widest input. The scale is one shared set of notes, so it
 /// does not widen the module.
 #[allow(private_interfaces)]
-pub fn enosc_derive_channel_count(params: &EnoscParams) -> usize {
+pub fn enosc_derive_lane_count(params: &EnoscParams) -> usize {
     params
         .pitch
-        .channels()
-        .max(params.root.channel_count())
-        .max(params.spread.channel_count())
-        .max(params.detune.channel_count())
-        .max(params.crossfade.channel_count())
-        .max(params.cross_fm.channel_count())
-        .max(params.balance.channel_count())
-        .max(params.phase.as_ref().map_or(0, PhaseWarp::channels))
-        .max(params.fold.channel_count())
-        .max(params.cheby.channel_count())
-        .max(params.segment.channel_count())
-        .clamp(1, PORT_MAX_CHANNELS)
+        .lanes()
+        .max(params.root.lane_count())
+        .max(params.spread.lane_count())
+        .max(params.detune.lane_count())
+        .max(params.crossfade.lane_count())
+        .max(params.cross_fm.lane_count())
+        .max(params.balance.lane_count())
+        .max(params.phase.as_ref().map_or(0, PhaseWarp::lanes))
+        .max(params.fold.lane_count())
+        .max(params.cheby.lane_count())
+        .max(params.segment.lane_count())
+        .clamp(1, PORT_MAX_LANES)
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -203,7 +203,7 @@ struct EnoscOutputs {
 const OUTPUTS: usize = 7;
 
 #[derive(Clone, Copy, Default)]
-struct ChannelState {
+struct LaneState {
     voices: [Voice; MAX_VOICES],
     /// Voices that sounded on the previous sample; the rest restart silent.
     active_voices: usize,
@@ -254,7 +254,7 @@ impl BalanceRatio {
 
 #[derive(Default)]
 struct EnoscState {
-    /// Voices per channel, the cross-FM depth scale for that many, and the mix
+    /// Voices per lane, the cross-FM depth scale for that many, and the mix
     /// normalization for that many; set from the params in `on_patch_update`.
     count: usize,
     depth_scale: f32,
@@ -312,7 +312,7 @@ const ENOSC_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "$enosc",
     docs = ENOSC_DOCS,
-    channels_derive = enosc_derive_channel_count,
+    lanes_derive = enosc_derive_lane_count,
     has_init,
     patch_update,
     args(pitch, scale)
@@ -320,14 +320,14 @@ const ENOSC_DOCS: ModuleDocs = ModuleDocs {
 pub struct Enosc {
     outputs: EnoscOutputs,
     state: EnoscState,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: EnoscParams,
 }
 
 impl Enosc {
     /// Sample-rate-only constants and the random starting phases. Phases live in
-    /// `channel_state`, which a patch update carries over channel by channel, so
-    /// only fresh channels keep these.
+    /// `lane_state`, which a patch update carries over lane by lane, so
+    /// only fresh lanes keep these.
     fn init(&mut self, sample_rate: f32) {
         enosc_tables::prime();
         self.state.inv_sample_rate = 1.0 / sample_rate;
@@ -342,8 +342,8 @@ impl Enosc {
 
         let mut rng = LcgRng::default();
         rng.seed(seed_base(self), 0);
-        for channel in self.channel_state.iter_mut() {
-            for voice in channel.voices.iter_mut() {
+        for lane in self.lane_state.iter_mut() {
+            for voice in lane.voices.iter_mut() {
                 for osc in voice.osc.iter_mut() {
                     osc.phase = rng.next_unit();
                 }
@@ -352,7 +352,7 @@ impl Enosc {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let params = &self.params;
         let state = &self.state;
         let scale = params
@@ -362,8 +362,8 @@ impl Enosc {
 
         let count = state.count;
 
-        for ch in 0..channels {
-            let cs = &mut self.channel_state[ch];
+        for lane in 0..lanes {
+            let cs = &mut self.lane_state[lane];
             if count > cs.active_voices {
                 for voice in &mut cs.voices[cs.active_voices..count] {
                     voice.restart();
@@ -374,17 +374,18 @@ impl Enosc {
 
             if cs.control_left == 0 {
                 cs.control_left = CONTROL_BLOCK;
-                let pitch = sanitize(params.pitch.get_value(ch));
-                let root = sanitize(params.root.value_or_zero(ch));
+                let pitch = sanitize(params.pitch.get_value(lane));
+                let root = sanitize(params.root.value_or_zero(lane));
                 let spread =
-                    knob(params.spread.value_or(ch, EnoscParams::SPREAD_DEFAULT)) * 7.5 / 12.0;
-                let detune = knob(params.detune.value_or(ch, EnoscParams::DETUNE_DEFAULT)).powi(4)
+                    knob(params.spread.value_or(lane, EnoscParams::SPREAD_DEFAULT)) * 7.5 / 12.0;
+                let detune = knob(params.detune.value_or(lane, EnoscParams::DETUNE_DEFAULT))
+                    .powi(4)
                     * (10.0 / 16.0)
                     / 12.0;
                 let crossfade = knob(
                     params
                         .crossfade
-                        .value_or(ch, EnoscParams::CROSSFADE_DEFAULT),
+                        .value_or(lane, EnoscParams::CROSSFADE_DEFAULT),
                 );
                 let ctx = ControlContext {
                     inv_sample_rate: state.inv_sample_rate,
@@ -406,22 +407,26 @@ impl Enosc {
             cs.control_left -= 1;
 
             let cross_fm = cs.cross_fm.follow(
-                params.cross_fm.value_or_zero(ch),
-                params.cross_fm.glide_mark(ch),
+                params.cross_fm.value_or_zero(lane),
+                params.cross_fm.glide_mark(lane),
                 sample_rate,
             );
             // Ignore the bottom 1% so CV noise cannot add harmonics.
             let cross_fm = ((knob(cross_fm) - 0.01) / 0.99).max(0.0) * state.depth_scale;
 
             let balance = cs.balance.follow(
-                params.balance.value_or_zero(ch),
-                params.balance.glide_mark(ch),
+                params.balance.value_or_zero(lane),
+                params.balance.glide_mark(lane),
                 sample_rate,
             );
             let balance = cs.balance_ratio.get(balance);
 
             let glided = |glide: &mut SwapGlide, signal: &Option<PolySignal>| {
-                knob(glide.follow(signal.value_or_zero(ch), signal.glide_mark(ch), sample_rate))
+                knob(glide.follow(
+                    signal.value_or_zero(lane),
+                    signal.glide_mark(lane),
+                    sample_rate,
+                ))
             };
             cs.warps.set(
                 params.effect_order,
@@ -433,7 +438,7 @@ impl Enosc {
             let phase = params
                 .phase
                 .as_ref()
-                .map(|warp| (warp, warp.resolve(ch, sample_rate, &mut cs.phase)));
+                .map(|warp| (warp, warp.resolve(lane, sample_rate, &mut cs.phase)));
 
             let ctx = VoiceContext {
                 phase,
@@ -507,7 +512,7 @@ impl Enosc {
             ];
             for (((out, sum), gain), dc) in outputs.into_iter().zip(sums).zip(gains).zip(&mut cs.dc)
             {
-                out.set(ch, dc.process(sum * gain * 5.0, state.dc_coeff));
+                out.set(lane, dc.process(sum * gain * 5.0, state.dc_coeff));
             }
         }
     }

@@ -13,9 +13,9 @@ use schemars::JsonSchema;
 use super::circuit::{PULSE_V, WhiteNoise, pulse_volts};
 use crate::dsp::drums::analog::VT;
 use crate::dsp::drums::clap::{Envelope, EnvelopeNetwork, ota_current};
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, Run};
 use crate::dsp::drums::mna::{DC_STEP, GROUND, Mna, MnaBuilder, MnaState, STIFF, Switch};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Level, Pulse, Quiet, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::poly::{PolyOutput, PolySignal};
@@ -35,7 +35,7 @@ const OTA_SWING: f32 = 13.5;
 /// The BA662's output across R383, for control current `iabc` and voltage
 /// `input` at its inverting input.
 #[inline]
-fn ota<L: Lanes>(iabc: L::S, input: L::S) -> L::S {
+fn ota<L: Simd>(iabc: L::S, input: L::S) -> L::S {
     (ota_current::<L>(iabc, input) * R383).clamp(c(-OTA_SWING), c(OTA_SWING))
 }
 
@@ -167,7 +167,7 @@ fn q70_emitter<D: Real<Elem = f64>>(ie: D) -> D {
 /// and impedance `z`, by Newton on its base-emitter voltage from `vbe`;
 /// returns the base and collector currents.
 #[inline]
-fn q70<L: Lanes>(open: L::S, z: L::S, vbe: &mut L::D) -> (L::S, L::S) {
+fn q70<L: Simd>(open: L::S, z: L::S, vbe: &mut L::D) -> (L::S, L::S) {
     let (open, z, vt) = (L::wide(open), L::wide(z), VT as f64);
     let beta = BETA as f64;
     let g_emit = 1.0 / R369 as f64 + 1.0 / R200 as f64;
@@ -199,7 +199,7 @@ fn q70<L: Lanes>(open: L::S, z: L::S, vbe: &mut L::D) -> (L::S, L::S) {
 
 /// The clap's circuit state.
 #[derive(Clone, Copy, Default)]
-struct Clap<L: Lanes = Mono> {
+struct Clap<L: Simd = Mono> {
     pulse: Pulse<L>,
     noise: MnaState<NOISE_CAPS, L>,
     output: MnaState<OUT_CAPS, L>,
@@ -216,7 +216,7 @@ struct Clap<L: Lanes = Mono> {
     quiet: Quiet<L>,
 }
 
-lanewise!(Clap {
+elementwise!(Clap {
     pulse,
     noise,
     output,
@@ -246,15 +246,15 @@ struct ClapDrum;
 
 impl Drum for ClapDrum {
     type Shared = ClapShared;
-    type Circuit<L: Lanes> = Clap<L>;
+    type Circuit<L: Simd> = Clap<L>;
     /// The white noise generator's voltage.
-    type Controls<L: Lanes> = L::S;
-    type Sources<L: Lanes> = ();
+    type Controls<L: Simd> = L::S;
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = true;
 }
 
-impl<L: Lanes> Clap<L> {
+impl<L: Simd> Clap<L> {
     /// Advances one sample with the trigger line at `line` (or released,
     /// pulled toward −15 V, while it is 0) and white noise `white`.
     #[inline]
@@ -319,7 +319,7 @@ impl Fire for Clap {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Clap<L> {
+impl<L: Simd> Circuit<L> for Clap<L> {
     type Shared = ClapShared;
     type Controls = L::S;
 

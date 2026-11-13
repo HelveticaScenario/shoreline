@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { octavesToQ, qToOctaves } from './eqGeometry';
 import { decodeSection, withLive } from './eqPanelModel';
 
-const cable = { channel: 0, module: 'lfo', port: 'output', type: 'cable' };
+const cable = { lane: 0, module: 'lfo', port: 'output', type: 'cable' };
 
 describe('decodeSection', () => {
     it('marks signal-driven params and leaves their values unknown', () => {

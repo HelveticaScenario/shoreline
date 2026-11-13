@@ -124,12 +124,12 @@ fn sides_cross_through_one_tap() {
     }
 }
 
-/// A poly input folds to stereo: even channels left, odd right, an odd last
-/// channel to both, a non-finite sample as 0.
+/// A poly input folds to stereo: even lanes left, odd right, an odd last
+/// lane to both, a non-finite sample as 0.
 #[test]
 fn input_folds_to_stereo() {
     let values = [1.0, 10.0, 100.0, f32::NAN, 1000.0];
-    let fold = |channels| fold_to_stereo(channels, |ch| values[ch]);
+    let fold = |lanes| fold_to_stereo(lanes, |lane| values[lane]);
     assert_eq!(fold(0), (0.0, 0.0));
     assert_eq!(fold(1), (1.0, 1.0));
     assert_eq!(fold(2), (1.0, 10.0));

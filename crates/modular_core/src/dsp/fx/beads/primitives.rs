@@ -337,7 +337,7 @@ fn src2_tap(k: usize) -> f32 {
     }
 }
 
-/// 2:1 decimator for one channel: call [`Self::push`] twice, then read.
+/// 2:1 decimator for one lane: call [`Self::push`] twice, then read.
 #[derive(Clone, Copy, Debug)]
 pub struct Decimator2 {
     history: [f32; SRC2_TAPS],
@@ -371,7 +371,7 @@ impl Decimator2 {
     }
 }
 
-/// 1:2 interpolator for one channel: each input sample yields two outputs.
+/// 1:2 interpolator for one lane: each input sample yields two outputs.
 #[derive(Clone, Copy, Debug)]
 pub struct Interpolator2 {
     history: [f32; SRC2_TAPS / 2],

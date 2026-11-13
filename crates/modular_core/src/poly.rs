@@ -1,9 +1,9 @@
-//! Polyphonic signal support for multichannel cables.
+//! Polyphonic signal support for multilane cables.
 //!
 //! This module provides VCV Rack-style polyphonic signal handling,
-//! allowing a single cable to carry up to 16 independent audio channels.
+//! allowing a single cable to carry up to 16 independent audio lanes.
 //!
-//! - `PolyOutput`: A fixed-capacity output buffer with channel count metadata (for module outputs)
+//! - `PolyOutput`: A fixed-capacity output buffer with lane count metadata (for module outputs)
 //! - `PolySignal`: A fixed-capacity input buffer containing Signal values (for polyphonic module inputs)
 
 use crate::{
@@ -16,26 +16,26 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Cow;
 
-/// Maximum channels per cable. A hard cap on polyphony — buffers are sized to
-/// each module's actual channel count, so this only bounds the maximum, it is
+/// Maximum lanes per cable. A hard cap on polyphony — buffers are sized to
+/// each module's actual lane count, so this only bounds the maximum, it is
 /// not allocated up front.
-pub const PORT_MAX_CHANNELS: usize = 64;
+pub const PORT_MAX_LANES: usize = 64;
 
-/// A polyphonic output buffer holding one voltage per active channel.
+/// A polyphonic output buffer holding one voltage per active lane.
 ///
-/// The backing slice is sized to the module's channel count (1..=16) on the
-/// main thread at construction (`set_channels`), never on the audio thread.
-/// `voltages.len()` is the active channel count: 0 = disconnected, 1 = mono,
+/// The backing slice is sized to the module's lane count (1..=16) on the
+/// main thread at construction (`set_lanes`), never on the audio thread.
+/// `voltages.len()` is the active lane count: 0 = disconnected, 1 = mono,
 /// 2-16 = polyphonic.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PolyOutput {
-    /// One voltage per active channel. Length is the channel count.
+    /// One voltage per active lane. Length is the lane count.
     voltages: Box<[f32]>,
-    /// One full-precision value per channel on an f64 output (see
+    /// One full-precision value per lane on an f64 output (see
     /// [`make_f64`](Self::make_f64)); empty otherwise. `voltages` holds the
     /// same values rounded to f32.
     precise: Box<[f64]>,
-    /// One [`Bounds`] per channel on a bounded output (see
+    /// One [`Bounds`] per lane on a bounded output (see
     /// [`make_bounded`](Self::make_bounded)); empty otherwise.
     bounds: Box<[Bounds]>,
 }
@@ -43,7 +43,7 @@ pub struct PolyOutput {
 impl Default for PolyOutput {
     fn default() -> Self {
         Self {
-            voltages: Box::new([]), // Disconnected (0 channels)
+            voltages: Box::new([]), // Disconnected (0 lanes)
             precise: Box::new([]),
             bounds: Box::new([]),
         }
@@ -72,56 +72,56 @@ impl PolyOutput {
 
     // === Accessors ===
 
-    /// Get voltage for a specific channel (returns 0.0 if out of range)
-    pub fn get(&self, channel: usize) -> f32 {
-        self.voltages.get(channel).copied().unwrap_or(0.0)
+    /// Get voltage for a specific lane (returns 0.0 if out of range)
+    pub fn get(&self, lane: usize) -> f32 {
+        self.voltages.get(lane).copied().unwrap_or(0.0)
     }
 
-    /// Set voltage for a specific channel. An f64 output is written with
+    /// Set voltage for a specific lane. An f64 output is written with
     /// [`set_f64`](Self::set_f64) instead.
-    pub fn set(&mut self, channel: usize, value: f32) {
+    pub fn set(&mut self, lane: usize, value: f32) {
         debug_assert!(
             self.precise.is_empty(),
             "f64 outputs are written with set_f64"
         );
-        if let Some(slot) = self.voltages.get_mut(channel) {
+        if let Some(slot) = self.voltages.get_mut(lane) {
             *slot = sanitize(value);
         }
     }
 
-    /// Set a channel at full precision on an f64 output; an f32 output keeps
+    /// Set a lane at full precision on an f64 output; an f32 output keeps
     /// its nearest f32.
-    pub fn set_f64(&mut self, channel: usize, value: f64) {
+    pub fn set_f64(&mut self, lane: usize, value: f64) {
         let value = sanitize_f64(value);
-        if let Some(slot) = self.voltages.get_mut(channel) {
+        if let Some(slot) = self.voltages.get_mut(lane) {
             *slot = value as f32;
         }
-        if let Some(slot) = self.precise.get_mut(channel) {
+        if let Some(slot) = self.precise.get_mut(lane) {
             *slot = value;
         }
     }
 
     /// Like [`get_cycling`](Self::get_cycling), at full precision on an f64
     /// output.
-    pub fn get_cycling_f64(&self, channel: usize) -> f64 {
+    pub fn get_cycling_f64(&self, lane: usize) -> f64 {
         let n = self.precise.len();
         if n == 0 {
-            self.get_cycling(channel) as f64
+            self.get_cycling(lane) as f64
         } else {
-            self.precise[channel % n]
+            self.precise[lane % n]
         }
     }
 
     /// Like [`get`](Self::get), at full precision on an f64 output.
-    pub fn get_f64(&self, channel: usize) -> f64 {
-        match self.precise.get(channel) {
+    pub fn get_f64(&self, lane: usize) -> f64 {
+        match self.precise.get(lane) {
             Some(&value) => value,
-            None => self.get(channel) as f64,
+            None => self.get(lane) as f64,
         }
     }
 
-    /// Make this an f64 output, holding a full-precision value per channel.
-    /// Allocates — **main thread only**, after [`set_channels`](Self::set_channels).
+    /// Make this an f64 output, holding a full-precision value per lane.
+    /// Allocates — **main thread only**, after [`set_lanes`](Self::set_lanes).
     pub fn make_f64(&mut self) {
         self.precise = vec![0.0; self.voltages.len()].into_boxed_slice();
     }
@@ -131,9 +131,9 @@ impl PolyOutput {
         !self.precise.is_empty()
     }
 
-    /// Make this a bounded output, holding a [`Bounds`] per channel beside
+    /// Make this a bounded output, holding a [`Bounds`] per lane beside
     /// each value. Allocates — **main thread only**, after
-    /// [`set_channels`](Self::set_channels).
+    /// [`set_lanes`](Self::set_lanes).
     pub fn make_bounded(&mut self) {
         self.bounds = vec![Bounds::UNBOUNDED; self.voltages.len()].into_boxed_slice();
     }
@@ -145,51 +145,51 @@ impl PolyOutput {
         !self.bounds.is_empty()
     }
 
-    /// Set a channel's bounds; ignored on an output that carries none.
+    /// Set a lane's bounds; ignored on an output that carries none.
     #[inline]
-    pub fn set_bounds(&mut self, channel: usize, bounds: Bounds) {
-        if let Some(slot) = self.bounds.get_mut(channel) {
+    pub fn set_bounds(&mut self, lane: usize, bounds: Bounds) {
+        if let Some(slot) = self.bounds.get_mut(lane) {
             *slot = bounds;
         }
     }
 
-    /// Every channel's bounds; empty on an output that carries none.
+    /// Every lane's bounds; empty on an output that carries none.
     #[inline]
     pub fn bounds(&self) -> &[Bounds] {
         &self.bounds
     }
 
-    /// Get voltage with modulo cycling: channel wraps around available channels.
+    /// Get voltage with modulo cycling: lane wraps around available lanes.
     /// This is consistent with Vec::cycle_get for non-signal params.
-    /// A mono signal cycles to all channels, a 2-ch signal alternates, etc.
-    pub fn get_cycling(&self, channel: usize) -> f32 {
+    /// A mono signal cycles to all lanes, a 2-lane signal alternates, etc.
+    pub fn get_cycling(&self, lane: usize) -> f32 {
         let n = self.voltages.len();
         if n == 0 {
             0.0 // Disconnected
         } else {
-            self.voltages[channel % n]
+            self.voltages[lane % n]
         }
     }
 
-    /// Size the buffer to `channels` active channels.
+    /// Size the buffer to `lanes` active lanes.
     ///
     /// Reallocates when the count changes — **main thread only** (called once
-    /// per output at construction via `OutputStruct::set_all_channels`). When
+    /// per output at construction via `OutputStruct::set_all_lanes`). When
     /// the count is unchanged this is a no-op, so it is safe to re-invoke.
-    pub fn set_channels(&mut self, channels: usize) {
-        let channels = channels.min(PORT_MAX_CHANNELS);
-        if self.voltages.len() != channels {
-            self.voltages = vec![0.0; channels].into_boxed_slice();
+    pub fn set_lanes(&mut self, lanes: usize) {
+        let lanes = lanes.min(PORT_MAX_LANES);
+        if self.voltages.len() != lanes {
+            self.voltages = vec![0.0; lanes].into_boxed_slice();
             if !self.precise.is_empty() {
-                self.precise = vec![0.0; channels].into_boxed_slice();
+                self.precise = vec![0.0; lanes].into_boxed_slice();
             }
             if !self.bounds.is_empty() {
-                self.bounds = vec![Bounds::UNBOUNDED; channels].into_boxed_slice();
+                self.bounds = vec![Bounds::UNBOUNDED; lanes].into_boxed_slice();
             }
         }
     }
 
-    pub fn channels(&self) -> usize {
+    pub fn lanes(&self) -> usize {
         self.voltages.len()
     }
 }
@@ -201,10 +201,10 @@ impl Serialize for PolyOutput {
     where
         S: serde::Serializer,
     {
-        // Serialize as a struct with channels and voltages array
+        // Serialize as a struct with lanes and voltages array
         use serde::ser::SerializeStruct;
         let mut state = serializer.serialize_struct("PolyOutput", 2)?;
-        state.serialize_field("channels", &self.voltages.len())?;
+        state.serialize_field("lanes", &self.voltages.len())?;
         state.serialize_field("voltages", &self.voltages[..])?;
         state.end()
     }
@@ -217,14 +217,14 @@ impl<'de> Deserialize<'de> for PolyOutput {
     {
         #[derive(Deserialize)]
         struct PolyOutputDe {
-            channels: usize,
+            lanes: usize,
             voltages: Vec<f32>,
         }
 
         let de = PolyOutputDe::deserialize(deserializer)?;
-        let channels = de.channels.min(PORT_MAX_CHANNELS);
-        let mut voltages = vec![0.0f32; channels].into_boxed_slice();
-        for (i, &v) in de.voltages.iter().enumerate().take(channels) {
+        let lanes = de.lanes.min(PORT_MAX_LANES);
+        let mut voltages = vec![0.0f32; lanes].into_boxed_slice();
+        for (i, &v) in de.voltages.iter().enumerate().take(lanes) {
             voltages[i] = v;
         }
         Ok(PolyOutput {
@@ -247,7 +247,7 @@ impl JsonSchema for PolyOutput {
         #[derive(JsonSchema)]
         #[allow(dead_code)]
         struct PolyOutputSchema {
-            channels: usize,
+            lanes: usize,
             voltages: Vec<f32>,
         }
         PolyOutputSchema::json_schema(r#gen)
@@ -261,28 +261,28 @@ impl JsonSchema for PolyOutput {
 /// A polyphonic input buffer containing multiple Signal values.
 ///
 /// This is used for module inputs that need to accept polyphonic connections.
-/// Each channel is a separate Signal (Volts or Cable).
-/// A PolySignal always has at least 1 channel:
+/// Each lane is a separate Signal (Volts or Cable).
+/// A PolySignal always has at least 1 lane:
 /// - 1 = monophonic (single signal)
 /// - 2-16 = polyphonic (multiple signals)
 ///
 /// Disconnected inputs are represented as `Option<PolySignal>` at the param level.
 #[derive(Clone, Debug)]
 pub struct PolySignal {
-    /// Active signal channels (always at least 1, up to PORT_MAX_CHANNELS).
-    /// Sized to the actual channel count on the main thread at deserialize.
-    channels: Box<[Signal]>,
-    /// The channel values, densely packed, when every channel is a constant;
+    /// Active signal lanes (always at least 1, up to PORT_MAX_LANES).
+    /// Sized to the actual lane count on the main thread at deserialize.
+    lanes: Box<[Signal]>,
+    /// The lane values, densely packed, when every lane is a constant;
     /// empty otherwise. Read in place by block modules.
     volts: Box<[f32]>,
-    /// A single view over the upstream port when channel `i` is a cable to
-    /// channel `first + i` of one port, read in place by block modules. Resolved by
+    /// A single view over the upstream port when lane `i` is a cable to
+    /// lane `first + i` of one port, read in place by block modules. Resolved by
     /// `inject_index_ptr`, which runs after `connect`; `connect` clears it so
     /// a stale view is never read.
     cable: Option<PolyCableView>,
     /// Generation of the patch swap that installed this signal; 0 until one does.
     glide_generation: u64,
-    /// Bit `i` is set when channel `i` differs from the matching channel of the
+    /// Bit `i` is set when lane `i` differs from the matching lane of the
     /// replaced module's signal. All set until a swap compares them.
     changed: u64,
 }
@@ -296,27 +296,27 @@ impl crate::types::Connect for PolySignal {
     }
     fn connect(&mut self, patch: &crate::Patch) {
         self.cable = None;
-        for signal in self.channels.iter_mut() {
+        for signal in self.lanes.iter_mut() {
             signal.connect(patch);
         }
     }
     fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
-        for signal in self.channels.iter() {
+        for signal in self.lanes.iter() {
             signal.collect_cables(sink);
         }
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
-        for signal in self.channels.iter_mut() {
+        for signal in self.lanes.iter_mut() {
             signal.inject_index_ptr(ptr);
         }
-        self.cable = PolyCableView::resolve(&self.channels);
+        self.cable = PolyCableView::resolve(&self.lanes);
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
         self.glide_generation = generation;
         self.changed = 0;
-        for (i, signal) in self.channels.iter().enumerate() {
+        for (i, signal) in self.lanes.iter().enumerate() {
             let same = old
-                .and_then(|o| o.channels.get(i))
+                .and_then(|o| o.lanes.get(i))
                 .is_some_and(|o| signal.same_source(o, ids));
             if !same {
                 self.changed |= 1 << i;
@@ -326,28 +326,25 @@ impl crate::types::Connect for PolySignal {
 }
 
 impl PolySignal {
-    /// Create a mono (1-channel) PolySignal from a single Signal.
+    /// Create a mono (1-lane) PolySignal from a single Signal.
     pub fn mono(signal: Signal) -> Self {
-        Self::from_channels(vec![signal].into_boxed_slice())
+        Self::from_lanes(vec![signal].into_boxed_slice())
     }
 
     /// Create a polyphonic PolySignal from a slice of Signals.
     pub fn poly(signals: &[Signal]) -> Self {
-        assert!(
-            !signals.is_empty(),
-            "PolySignal must have at least 1 channel"
-        );
-        let channels = signals
+        assert!(!signals.is_empty(), "PolySignal must have at least 1 lane");
+        let lanes = signals
             .iter()
-            .take(PORT_MAX_CHANNELS)
+            .take(PORT_MAX_LANES)
             .cloned()
             .collect::<Vec<_>>()
             .into_boxed_slice();
-        Self::from_channels(channels)
+        Self::from_lanes(lanes)
     }
 
-    fn from_channels(channels: Box<[Signal]>) -> Self {
-        let volts = channels
+    fn from_lanes(lanes: Box<[Signal]>) -> Self {
+        let volts = lanes
             .iter()
             .map(|signal| match signal {
                 Signal::Volts(v) => Some(*v),
@@ -356,7 +353,7 @@ impl PolySignal {
             .collect::<Option<Box<[f32]>>>()
             .unwrap_or_default();
         Self {
-            channels,
+            lanes,
             volts,
             cable: None,
             glide_generation: 0,
@@ -366,109 +363,109 @@ impl PolySignal {
 
     // === Accessors ===
 
-    /// The channel values when every channel is a constant; empty otherwise.
+    /// The lane values when every lane is a constant; empty otherwise.
     pub(crate) fn volts(&self) -> &[f32] {
         &self.volts
     }
 
-    /// Every channel's signal.
+    /// Every lane's signal.
     pub(crate) fn signals(&self) -> &[Signal] {
-        &self.channels
+        &self.lanes
     }
 
-    /// The single-port view, when the channels resolved to one.
+    /// The single-port view, when the lanes resolved to one.
     pub(crate) fn cable_view(&self) -> Option<&PolyCableView> {
         self.cable.as_ref()
     }
 
-    /// Get the number of active channels
-    pub fn channels(&self) -> usize {
-        self.channels.len()
+    /// Get the number of active lanes
+    pub fn lanes(&self) -> usize {
+        self.lanes.len()
     }
 
-    /// Check if monophonic (exactly 1 channel)
+    /// Check if monophonic (exactly 1 lane)
     pub fn is_monophonic(&self) -> bool {
-        self.channels.len() == 1
+        self.lanes.len() == 1
     }
 
-    /// Check if polyphonic (more than 1 channel)
+    /// Check if polyphonic (more than 1 lane)
     pub fn is_polyphonic(&self) -> bool {
-        self.channels.len() > 1
+        self.lanes.len() > 1
     }
 
-    /// Get signal at a specific channel (returns None if out of range)
-    pub fn get(&self, channel: usize) -> Option<&Signal> {
-        self.channels.get(channel)
+    /// Get signal at a specific lane (returns None if out of range)
+    pub fn get(&self, lane: usize) -> Option<&Signal> {
+        self.lanes.get(lane)
     }
 
-    /// Get signal with cycling (wraps around available channels)
-    pub fn get_cycling(&self, channel: usize) -> &Signal {
-        &self.channels[channel % self.channels.len()]
+    /// Get signal with cycling (wraps around available lanes)
+    pub fn get_cycling(&self, lane: usize) -> &Signal {
+        &self.lanes[lane % self.lanes.len()]
     }
 
-    /// Get the f32 value at a channel with cycling
-    pub fn get_value(&self, channel: usize) -> f32 {
-        self.channels[channel % self.channels.len()].get_value()
+    /// Get the f32 value at a lane with cycling
+    pub fn get_value(&self, lane: usize) -> f32 {
+        self.lanes[lane % self.lanes.len()].get_value()
     }
 
     /// Like [`get_value`](Self::get_value), at full precision from an f64 output.
-    pub fn get_value_f64(&self, channel: usize) -> f64 {
-        self.channels[channel % self.channels.len()].get_value_f64()
+    pub fn get_value_f64(&self, lane: usize) -> f64 {
+        self.lanes[lane % self.lanes.len()].get_value_f64()
     }
 
     /// The bounds of the value [`get_value`](Self::get_value) reads at the
     /// same slot.
     #[inline]
-    pub fn get_bounds(&self, channel: usize) -> Bounds {
-        self.channels[channel % self.channels.len()].get_bounds()
+    pub fn get_bounds(&self, lane: usize) -> Bounds {
+        self.lanes[lane % self.lanes.len()].get_bounds()
     }
 
-    /// Channel `ch`'s bounds when they hold still over `range`, rendering a
+    /// Lane `lane`'s bounds when they hold still over `range`, rendering a
     /// cable's producer through it; `None` when they move, so a block path
     /// declines and the slots run `update`, which reads them one by one.
     #[inline]
-    pub fn block_bounds(&self, range: std::ops::Range<usize>, ch: usize) -> Option<Bounds> {
-        let len = self.channels.len();
-        self.channels[if ch < len { ch } else { ch % len }].uniform_bounds(range)
+    pub fn block_bounds(&self, range: std::ops::Range<usize>, lane: usize) -> Option<Bounds> {
+        let len = self.lanes.len();
+        self.lanes[if lane < len { lane } else { lane % len }].uniform_bounds(range)
     }
 
     /// Whether this input is bounded in a patch as `settled` so far: every
-    /// channel a constant or a cable from a bounded output. Main thread,
+    /// lane a constant or a cable from a bounded output. Main thread,
     /// while the patch is analysed.
     pub fn statically_bounded(&self, settled: &dyn crate::bounds::Settled) -> bool {
-        self.channels.iter().all(|signal| match signal {
+        self.lanes.iter().all(|signal| match signal {
             Signal::Volts(_) => true,
             Signal::Cable { module, port, .. } => settled.bounded(module, port),
         })
     }
 
     /// Whether this input has a range in a patch as `settled` so far: every
-    /// channel a cable from a ranged output. A constant holds still, so it
+    /// lane a cable from a ranged output. A constant holds still, so it
     /// has none. Main thread, while the patch is analysed.
     pub fn statically_ranged(&self, settled: &dyn crate::bounds::Settled) -> bool {
-        self.channels.iter().all(|signal| match signal {
+        self.lanes.iter().all(|signal| match signal {
             Signal::Volts(_) => false,
             Signal::Cable { module, port, .. } => settled.ranged(module, port),
         })
     }
 
-    /// Whether every channel is a fixed voltage.
+    /// Whether every lane is a fixed voltage.
     pub fn is_constant(&self) -> bool {
         !self.volts.is_empty()
     }
 
-    /// The [`GlideMark`] for the channel `get_value(channel)` reads.
+    /// The [`GlideMark`] for the lane `get_value(lane)` reads.
     #[inline]
-    pub fn glide_mark(&self, channel: usize) -> GlideMark {
+    pub fn glide_mark(&self, lane: usize) -> GlideMark {
         GlideMark {
             generation: self.glide_generation,
             changed: self.changed,
-            channel,
-            channels: self.channels.len(),
+            lane,
+            lanes: self.lanes.len(),
         }
     }
 
-    /// Whether any of `glides`, one per channel of this signal, starts or
+    /// Whether any of `glides`, one per lane of this signal, starts or
     /// continues a glide on its next update. While none does, a block path
     /// reads the signal raw and then calls [`settle_glides`](Self::settle_glides).
     pub fn glides_pending(&self, glides: &[SwapGlide]) -> bool {
@@ -485,18 +482,18 @@ impl PolySignal {
         }
     }
 
-    /// Calculate the maximum channel count across multiple PolySignals
-    pub fn max_channels(poly_signals: &[&PolySignal]) -> usize {
+    /// Calculate the maximum lane count across multiple PolySignals
+    pub fn max_lanes(poly_signals: &[&PolySignal]) -> usize {
         poly_signals
             .iter()
-            .map(|sig| sig.channels.len())
+            .map(|sig| sig.lanes.len())
             .max()
             .unwrap_or(0)
     }
 }
 
-impl From<MonoSignal> for PolySignal {
-    fn from(mono: MonoSignal) -> PolySignal {
+impl From<LaneSum> for PolySignal {
+    fn from(mono: LaneSum) -> PolySignal {
         mono.inner
     }
 }
@@ -509,7 +506,7 @@ impl Serialize for PolySignal {
         S: Serializer,
     {
         // Serialize as array of active signals
-        let signals: Vec<&Signal> = self.channels.iter().collect();
+        let signals: Vec<&Signal> = self.lanes.iter().collect();
         signals.serialize(serializer)
     }
 }
@@ -532,13 +529,13 @@ impl<'de> Deserialize<'de> for PolySignal {
             PolySignalDe::Array(signals) => {
                 if signals.is_empty() {
                     return Err(serde::de::Error::custom(
-                        "PolySignal must have at least 1 channel",
+                        "PolySignal must have at least 1 lane",
                     ));
                 }
-                if signals.len() > PORT_MAX_CHANNELS {
+                if signals.len() > PORT_MAX_LANES {
                     return Err(serde::de::Error::custom(format!(
-                        "PolySignal cannot exceed {} channels",
-                        PORT_MAX_CHANNELS
+                        "PolySignal cannot exceed {} lanes",
+                        PORT_MAX_LANES
                     )));
                 }
                 Ok(PolySignal::poly(&signals))
@@ -564,16 +561,16 @@ impl<E: DeserializeError> deserr::Deserr<E> for PolySignal {
                     return Err(deserr::take_cf_content(E::error::<V>(
                         None,
                         ErrorKind::Unexpected {
-                            msg: "PolySignal must have at least 1 channel".to_string(),
+                            msg: "PolySignal must have at least 1 lane".to_string(),
                         },
                         location,
                     )));
                 }
-                if signals.len() > PORT_MAX_CHANNELS {
+                if signals.len() > PORT_MAX_LANES {
                     return Err(deserr::take_cf_content(E::error::<V>(
                         None,
                         ErrorKind::Unexpected {
-                            msg: format!("PolySignal cannot exceed {} channels", PORT_MAX_CHANNELS),
+                            msg: format!("PolySignal cannot exceed {} lanes", PORT_MAX_LANES),
                         },
                         location,
                     )));
@@ -610,57 +607,57 @@ impl JsonSchema for PolySignal {
 }
 
 // =============================================================================
-// MonoSignal - Polyphonic input that sums to mono output
+// LaneSum - Polyphonic input that sums to mono output
 // =============================================================================
 
-/// A polyphonic input that sums all channels to a single mono value.
+/// A polyphonic input that sums all lanes to a single mono value.
 ///
 /// This wraps a `PolySignal` but provides a `Signal`-like API where
-/// `get_value()` returns the sum of all channels in the PolySignal.
+/// `get_value()` returns the sum of all lanes in the PolySignal.
 ///
 /// Use this for module inputs that accept polyphonic connections but produce
 /// a mono control signal (e.g., stereo width, etc.).
 ///
-/// Disconnected inputs are represented as `Option<MonoSignal>` at the param level.
+/// Disconnected inputs are represented as `Option<LaneSum>` at the param level.
 ///
-/// For polyphony propagation, MonoSignal is treated as a single channel.
+/// For polyphony propagation, LaneSum is treated as a single lane.
 #[derive(Clone, Debug, Connect)]
-pub struct MonoSignal {
+pub struct LaneSum {
     inner: PolySignal,
 }
 
-impl MonoSignal {
-    /// Create a MonoSignal from a PolySignal
+impl LaneSum {
+    /// Create a LaneSum from a PolySignal
     pub fn from_poly(poly: PolySignal) -> Self {
         Self { inner: poly }
     }
 
-    /// The channels this input sums.
+    /// The lanes this input sums.
     pub fn poly(&self) -> &PolySignal {
         &self.inner
     }
 
-    /// Get the summed value of all channels
+    /// Get the summed value of all lanes
     pub fn get_value(&self) -> f32 {
-        self.inner.channels.iter().map(|s| s.get_value()).sum()
+        self.inner.lanes.iter().map(|s| s.get_value()).sum()
     }
 
-    /// The [`GlideMark`] for the summed value: changed when any channel is.
+    /// The [`GlideMark`] for the summed value: changed when any lane is.
     #[inline]
     pub fn glide_mark(&self) -> GlideMark {
         GlideMark {
             generation: self.inner.glide_generation,
             changed: if self.inner.changed != 0 { u64::MAX } else { 0 },
-            channel: 0,
-            channels: 1,
+            lane: 0,
+            lanes: 1,
         }
     }
 
-    /// The summed value when every channel is a fixed voltage; None when any
-    /// channel is a cable.
+    /// The summed value when every lane is a fixed voltage; None when any
+    /// lane is a cable.
     pub fn constant_value(&self) -> Option<f32> {
         let mut sum = 0.0;
-        for signal in &self.inner.channels {
+        for signal in &self.inner.lanes {
             match signal {
                 Signal::Volts(v) => sum += v,
                 _ => return None,
@@ -669,25 +666,25 @@ impl MonoSignal {
         Some(sum)
     }
 
-    /// Get the summed value of all channels as f64
+    /// Get the summed value of all lanes as f64
     pub fn get_value_f64(&self) -> f64 {
         self.inner
-            .channels
+            .lanes
             .iter()
             .map(Signal::get_value_f64)
             .sum::<f64>()
     }
 }
 
-impl From<PolySignal> for MonoSignal {
-    fn from(poly: PolySignal) -> MonoSignal {
-        MonoSignal { inner: poly }
+impl From<PolySignal> for LaneSum {
+    fn from(poly: PolySignal) -> LaneSum {
+        LaneSum { inner: poly }
     }
 }
 
-// === Serialization for MonoSignal (delegates to PolySignal) ===
+// === Serialization for LaneSum (delegates to PolySignal) ===
 
-impl Serialize for MonoSignal {
+impl Serialize for LaneSum {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -696,32 +693,32 @@ impl Serialize for MonoSignal {
     }
 }
 
-impl<'de> Deserialize<'de> for MonoSignal {
+impl<'de> Deserialize<'de> for LaneSum {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Ok(MonoSignal {
+        Ok(LaneSum {
             inner: PolySignal::deserialize(deserializer)?,
         })
     }
 }
 
-// deserr implementation for MonoSignal - delegates to PolySignal.
-impl<E: DeserializeError> deserr::Deserr<E> for MonoSignal {
+// deserr implementation for LaneSum - delegates to PolySignal.
+impl<E: DeserializeError> deserr::Deserr<E> for LaneSum {
     fn deserialize_from_value<V: IntoValue>(
         value: deserr::Value<V>,
         location: ValuePointerRef<'_>,
     ) -> Result<Self, E> {
-        Ok(MonoSignal {
+        Ok(LaneSum {
             inner: PolySignal::deserialize_from_value(value, location)?,
         })
     }
 }
 
-impl JsonSchema for MonoSignal {
+impl JsonSchema for LaneSum {
     fn schema_name() -> Cow<'static, str> {
-        Cow::Borrowed("MonoSignal")
+        Cow::Borrowed("LaneSum")
     }
 
     fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
@@ -731,45 +728,45 @@ impl JsonSchema for MonoSignal {
 }
 
 // =============================================================================
-// Extension traits for Option<PolySignal> and Option<MonoSignal>
+// Extension traits for Option<PolySignal> and Option<LaneSum>
 // =============================================================================
 
 /// Extension trait for `Option<PolySignal>` providing normalled/default value access.
 ///
 /// This replaces the old `is_disconnected()` and `get_value_or()` methods that were
-/// on `PolySignal` itself. Disconnection is now represented by `None` at the param level.
+/// on `PolySignal` itself. Disconnection is represented by `None` at the param level.
 pub trait PolySignalExt {
-    /// Returns the signal's value at the given channel (cycling), or `default` if disconnected.
-    fn value_or(&self, ch: usize, default: f32) -> f32;
+    /// Returns the signal's value at the given lane (cycling), or `default` if disconnected.
+    fn value_or(&self, lane: usize, default: f32) -> f32;
 
-    /// Returns the signal's value at the given channel (cycling), or 0.0 if disconnected.
-    fn value_or_zero(&self, ch: usize) -> f32;
+    /// Returns the signal's value at the given lane (cycling), or 0.0 if disconnected.
+    fn value_or_zero(&self, lane: usize) -> f32;
 
-    /// Returns the number of active channels, or 0 if disconnected.
-    fn channel_count(&self) -> usize;
+    /// Returns the number of active lanes, or 0 if disconnected.
+    fn lane_count(&self) -> usize;
 
     /// Returns true if the signal is disconnected (None).
     fn is_disconnected(&self) -> bool;
 
-    /// The [`GlideMark`] for the given channel, or [`GlideMark::ABSENT`] if disconnected.
-    fn glide_mark(&self, ch: usize) -> GlideMark;
+    /// The [`GlideMark`] for the given lane, or [`GlideMark::ABSENT`] if disconnected.
+    fn glide_mark(&self, lane: usize) -> GlideMark;
 }
 
 impl PolySignalExt for Option<PolySignal> {
-    fn value_or(&self, ch: usize, default: f32) -> f32 {
+    fn value_or(&self, lane: usize, default: f32) -> f32 {
         match self {
-            Some(ps) => ps.get_value(ch),
+            Some(ps) => ps.get_value(lane),
             None => default,
         }
     }
 
-    fn value_or_zero(&self, ch: usize) -> f32 {
-        self.value_or(ch, 0.0)
+    fn value_or_zero(&self, lane: usize) -> f32 {
+        self.value_or(lane, 0.0)
     }
 
-    fn channel_count(&self) -> usize {
+    fn lane_count(&self) -> usize {
         match self {
-            Some(ps) => ps.channels(),
+            Some(ps) => ps.lanes(),
             None => 0,
         }
     }
@@ -779,19 +776,17 @@ impl PolySignalExt for Option<PolySignal> {
     }
 
     #[inline]
-    fn glide_mark(&self, ch: usize) -> GlideMark {
+    fn glide_mark(&self, lane: usize) -> GlideMark {
         match self {
-            Some(ps) => ps.glide_mark(ch),
+            Some(ps) => ps.glide_mark(lane),
             None => GlideMark::ABSENT,
         }
     }
 }
 
-/// Extension trait for `Option<MonoSignal>` providing normalled/default value access.
-///
-/// This replaces the old `is_disconnected()` and `get_value_or()` methods that were
-/// on `MonoSignal` itself. Disconnection is now represented by `None` at the param level.
-pub trait MonoSignalExt {
+/// Normalled/default value access for `Option<LaneSum>`; a disconnected input
+/// is `None` at the param level.
+pub trait LaneSumExt {
     /// Returns the summed signal value, or `default` if disconnected.
     fn value_or(&self, default: f32) -> f32;
 
@@ -805,7 +800,7 @@ pub trait MonoSignalExt {
     fn glide_mark(&self) -> GlideMark;
 }
 
-impl MonoSignalExt for Option<MonoSignal> {
+impl LaneSumExt for Option<LaneSum> {
     fn value_or(&self, default: f32) -> f32 {
         match self {
             Some(ms) => ms.get_value(),
@@ -838,18 +833,14 @@ mod tests {
     use crate::types::{Connect, SameIds};
 
     #[test]
-    fn mark_glides_flags_only_changed_channels() {
+    fn mark_glides_flags_only_changed_lanes() {
         let old = PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(2.0)]);
         let mut new =
             PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(5.0), Signal::Volts(3.0)]);
         new.mark_glides(Some(&old), 7, &SameIds);
-        let changed: Vec<bool> = (0..3).map(|ch| new.glide_mark(ch).changed()).collect();
-        assert_eq!(
-            changed,
-            [false, true, true],
-            "a new channel counts as changed"
-        );
-        assert!(new.glide_mark(4).changed(), "channel 4 reads channel 1");
+        let changed: Vec<bool> = (0..3).map(|lane| new.glide_mark(lane).changed()).collect();
+        assert_eq!(changed, [false, true, true], "a new lane counts as changed");
+        assert!(new.glide_mark(4).changed(), "lane 4 reads lane 1");
         assert_eq!(new.glide_mark(0).generation, 7);
 
         let mut fresh = PolySignal::mono(Signal::Volts(1.0));
@@ -863,7 +854,7 @@ mod tests {
     #[test]
     fn test_poly_signal_mono() {
         let sig = PolySignal::mono(Signal::Volts(1.0));
-        assert_eq!(sig.channels(), 1);
+        assert_eq!(sig.lanes(), 1);
         assert!(sig.is_monophonic());
         assert!(!sig.is_polyphonic());
         assert_eq!(sig.get_value(0), 1.0);
@@ -872,13 +863,13 @@ mod tests {
     #[test]
     fn test_poly_signal_poly() {
         let sig = PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(2.0), Signal::Volts(3.0)]);
-        assert_eq!(sig.channels(), 3);
+        assert_eq!(sig.lanes(), 3);
         assert!(!sig.is_monophonic());
         assert!(sig.is_polyphonic());
         assert_eq!(sig.get_value(0), 1.0);
         assert_eq!(sig.get_value(1), 2.0);
         assert_eq!(sig.get_value(2), 3.0);
-        // Cycling: channel 3 wraps to channel 0
+        // Cycling: lane 3 wraps to lane 0
         assert_eq!(sig.get_value(3), 1.0);
     }
 
@@ -894,15 +885,11 @@ mod tests {
         // Deserialize "440hz" string into PolySignal
         let json = r#""440hz""#;
         let result: PolySignal = serde_json::from_str(json).expect("Failed to deserialize");
-        println!("Deserialized '440hz': channels = {}", result.channels());
-        assert_eq!(
-            result.channels(),
-            1,
-            "String should deserialize to 1 channel"
-        );
+        println!("Deserialized '440hz': lanes = {}", result.lanes());
+        assert_eq!(result.lanes(), 1, "String should deserialize to 1 lane");
 
         let value = result.get_value(0);
-        println!("Value at channel 0: {}", value);
+        println!("Value at lane 0: {}", value);
         let target = hz_to_voct(440.0);
         assert!(
             (value - target).abs() < 0.01,
@@ -916,11 +903,7 @@ mod tests {
     fn test_poly_signal_deserialize_number() {
         let json = "4.0";
         let result: PolySignal = serde_json::from_str(json).expect("Failed to deserialize");
-        assert_eq!(
-            result.channels(),
-            1,
-            "Number should deserialize to 1 channel"
-        );
+        assert_eq!(result.lanes(), 1, "Number should deserialize to 1 lane");
         assert_eq!(result.get_value(0), 4.0);
     }
 
@@ -934,11 +917,11 @@ mod tests {
     #[test]
     fn test_poly_output() {
         let mut sig = PolyOutput::default();
-        sig.set_channels(3);
+        sig.set_lanes(3);
         sig.set(0, 1.0);
         sig.set(1, 2.0);
         sig.set(2, 3.0);
-        assert_eq!(sig.channels(), 3);
+        assert_eq!(sig.lanes(), 3);
         assert_eq!(sig.get(0), 1.0);
         assert_eq!(sig.get(1), 2.0);
         assert_eq!(sig.get(2), 3.0);
@@ -948,7 +931,7 @@ mod tests {
     #[test]
     fn test_poly_output_cycling() {
         let mut sig = PolyOutput::default();
-        sig.set_channels(2);
+        sig.set_lanes(2);
         sig.set(0, 1.0);
         sig.set(1, 2.0);
         assert_eq!(sig.get_cycling(0), 1.0);
@@ -960,7 +943,7 @@ mod tests {
     #[test]
     fn test_poly_output_disconnected() {
         let sig = PolyOutput::default();
-        assert_eq!(sig.channels(), 0);
+        assert_eq!(sig.lanes(), 0);
         assert_eq!(sig.get_cycling(0), 0.0);
     }
 
@@ -978,17 +961,17 @@ mod tests {
     }
 
     #[test]
-    fn test_mono_signal_single_channel() {
+    fn test_mono_signal_single_lane() {
         let json = "2.5";
-        let mono: MonoSignal = serde_json::from_str(json).expect("Failed to deserialize");
+        let mono: LaneSum = serde_json::from_str(json).expect("Failed to deserialize");
         assert_eq!(mono.get_value(), 2.5);
     }
 
     #[test]
-    fn test_mono_signal_sums_channels() {
-        // MonoSignal should sum all channels
+    fn test_mono_signal_sums_lanes() {
+        // LaneSum should sum all lanes
         let json = "[1.0, 2.0, 3.0]";
-        let mono: MonoSignal = serde_json::from_str(json).expect("Failed to deserialize");
+        let mono: LaneSum = serde_json::from_str(json).expect("Failed to deserialize");
         assert_eq!(mono.get_value(), 6.0); // 1 + 2 + 3 = 6
     }
 
@@ -998,7 +981,7 @@ mod tests {
     fn test_poly_signal_ext_none() {
         let opt: Option<PolySignal> = None;
         assert!(opt.is_disconnected());
-        assert_eq!(opt.channel_count(), 0);
+        assert_eq!(opt.lane_count(), 0);
         assert_eq!(opt.value_or(0, 5.0), 5.0);
         assert_eq!(opt.value_or_zero(0), 0.0);
     }
@@ -1007,14 +990,14 @@ mod tests {
     fn test_poly_signal_ext_some() {
         let opt: Option<PolySignal> = Some(PolySignal::mono(Signal::Volts(3.0)));
         assert!(!opt.is_disconnected());
-        assert_eq!(opt.channel_count(), 1);
+        assert_eq!(opt.lane_count(), 1);
         assert_eq!(opt.value_or(0, 5.0), 3.0);
         assert_eq!(opt.value_or_zero(0), 3.0);
     }
 
     #[test]
     fn test_mono_signal_ext_none() {
-        let opt: Option<MonoSignal> = None;
+        let opt: Option<LaneSum> = None;
         assert!(opt.is_disconnected());
         assert_eq!(opt.value_or(5.0), 5.0);
         assert_eq!(opt.value_or_zero(), 0.0);
@@ -1022,8 +1005,8 @@ mod tests {
 
     #[test]
     fn test_mono_signal_ext_some() {
-        let mono = MonoSignal::from_poly(PolySignal::mono(Signal::Volts(2.0)));
-        let opt: Option<MonoSignal> = Some(mono);
+        let mono = LaneSum::from_poly(PolySignal::mono(Signal::Volts(2.0)));
+        let opt: Option<LaneSum> = Some(mono);
         assert!(!opt.is_disconnected());
         assert_eq!(opt.value_or(5.0), 2.0);
         assert_eq!(opt.value_or_zero(), 2.0);

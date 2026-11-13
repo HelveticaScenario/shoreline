@@ -16,9 +16,9 @@ const RESERVED_MEMBER_NAMES: &[&str] = &[
     // BaseCollection properties
     "items",
     "length",
-    "channelViews",
+    "laneViews",
     // BaseCollection methods
-    "channel",
+    "lane",
     "slice",
     "chunk",
     "scope",

@@ -7,7 +7,7 @@
 import { describe, test, expect } from 'vitest';
 import {
     validatePatchGraph,
-    deriveChannelCount,
+    deriveLaneCount,
     type PatchGraph,
 } from '@modular/core';
 
@@ -40,8 +40,8 @@ describe('validatePatchGraph', () => {
     test('wrong param name "frequency" is rejected via deserialization', () => {
         // Unknown param validation is now handled by deserr (deny_unknown_fields)
         // during deserialization, not by validatePatchGraph.
-        const result = deriveChannelCount('$sine', { frequency: '440hz' });
-        expect(result.channelCount).toBeUndefined();
+        const result = deriveLaneCount('$sine', { frequency: '440hz' });
+        expect(result.laneCount).toBeUndefined();
         expect(result.errors).toBeDefined();
         expect(result.errors!.length).toBeGreaterThan(0);
         expect(result.errors![0].message).toMatch(/unknown parameter/i);
@@ -68,11 +68,11 @@ describe('validatePatchGraph', () => {
     test('invalid param name produces errors via deserialization', () => {
         // Unknown param validation is now handled by deserr (deny_unknown_fields)
         // during deserialization, not by validatePatchGraph.
-        const result = deriveChannelCount('$sine', {
+        const result = deriveLaneCount('$sine', {
             freq: '440hz',
             bogusParam: 42,
         });
-        expect(result.channelCount).toBeUndefined();
+        expect(result.laneCount).toBeUndefined();
         expect(result.errors).toBeDefined();
         expect(result.errors!.length).toBeGreaterThan(0);
         expect(result.errors![0].message).toMatch(/unknown parameter/i);
@@ -83,11 +83,11 @@ describe('validatePatchGraph', () => {
             modules: [],
             scopes: [
                 {
-                    channels: [
+                    lanes: [
                         {
                             moduleId: 'ghost-module',
                             portName: 'output',
-                            channel: 0,
+                            lane: 0,
                         },
                     ],
                     msPerFrame: 50,
@@ -112,7 +112,7 @@ describe('validatePatchGraph', () => {
                             type: 'cable',
                             module: 'does-not-exist',
                             port: 'output',
-                            channel: 0,
+                            lane: 0,
                         },
                         cutoff: '1000hz',
                     },
@@ -147,39 +147,39 @@ describe('validatePatchGraph', () => {
     });
 });
 
-// ─── deriveChannelCount ──────────────────────────────────────────────────────
+// ─── deriveLaneCount ──────────────────────────────────────────────────────
 
-describe('deriveChannelCount', () => {
+describe('deriveLaneCount', () => {
     test('single note returns 1', () => {
-        const result = deriveChannelCount('$sine', { freq: 'C4' });
-        expect(result.channelCount).toBe(1);
+        const result = deriveLaneCount('$sine', { freq: 'C4' });
+        expect(result.laneCount).toBe(1);
         expect(result.errors).toBeUndefined();
     });
 
     test('array of notes returns correct count', () => {
-        const result = deriveChannelCount('$sine', {
+        const result = deriveLaneCount('$sine', {
             freq: ['C4', 'E4', 'G4'],
         });
-        expect(result.channelCount).toBe(3);
+        expect(result.laneCount).toBe(3);
         expect(result.errors).toBeUndefined();
     });
 
     test('unknown module type returns errors', () => {
-        const result = deriveChannelCount('$unknownFoo', { x: 1 });
-        expect(result.channelCount).toBeUndefined();
+        const result = deriveLaneCount('$unknownFoo', { x: 1 });
+        expect(result.laneCount).toBeUndefined();
         expect(result.errors).toBeDefined();
         expect(result.errors!.length).toBeGreaterThan(0);
     });
 
     test('Hz string returns 1', () => {
-        const result = deriveChannelCount('$sine', { freq: '440hz' });
-        expect(result.channelCount).toBe(1);
+        const result = deriveLaneCount('$sine', { freq: '440hz' });
+        expect(result.laneCount).toBe(1);
         expect(result.errors).toBeUndefined();
     });
 
     test('missing required param returns error with param name', () => {
-        const result = deriveChannelCount('$lpf', { cutoff: 'C4' });
-        expect(result.channelCount).toBeUndefined();
+        const result = deriveLaneCount('$lpf', { cutoff: 'C4' });
+        expect(result.laneCount).toBeUndefined();
         expect(result.errors).toBeDefined();
         expect(result.errors![0].params).toContain('input');
     });

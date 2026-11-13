@@ -9,7 +9,7 @@ use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::ClockMessages;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ClockDividerParams {
@@ -30,7 +30,7 @@ struct ClockDividerOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     counter: u32,
     input_schmitt: SchmittTrigger,
     reset_schmitt: SchmittTrigger,
@@ -68,7 +68,7 @@ const CLOCK_DIVIDER_DOCS: ModuleDocs = ModuleDocs {
 pub struct ClockDivider {
     params: ClockDividerParams,
     outputs: ClockDividerOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
 }
 
 message_handlers!(impl ClockDivider {
@@ -79,8 +79,8 @@ impl ClockDivider {
     fn on_clock_message(&mut self, m: &ClockMessages) -> Result<()> {
         match m {
             ClockMessages::Start => {
-                // Reset all channel counters on start
-                for state in self.channel_state.iter_mut() {
+                // Reset all lane counters on start
+                for state in self.lane_state.iter_mut() {
                     state.counter = 0;
                 }
             }
@@ -92,22 +92,25 @@ impl ClockDivider {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
         let division = self.params.division.max(1);
         let hold = min_gate_samples(sample_rate);
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
 
             // Reset counter on rising edge of reset trigger
             if state
                 .reset_schmitt
-                .process(self.params.reset.value_or_zero(ch))
+                .process(self.params.reset.value_or_zero(lane))
             {
                 state.counter = 0;
             }
 
-            if state.input_schmitt.process(self.params.input.get_value(ch)) {
+            if state
+                .input_schmitt
+                .process(self.params.input.get_value(lane))
+            {
                 if state.counter == 0 {
                     state
                         .trigger_gate
@@ -120,7 +123,7 @@ impl ClockDivider {
                 }
             }
 
-            self.outputs.output.set(ch, state.trigger_gate.process());
+            self.outputs.output.set(lane, state.trigger_gate.process());
         }
     }
 }

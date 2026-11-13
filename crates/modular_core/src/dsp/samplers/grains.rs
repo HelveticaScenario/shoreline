@@ -12,7 +12,7 @@ use crate::{
         rng::{LcgRng, seed_base},
         sanitize,
     },
-    poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
+    poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
     types::hermite_clamped,
 };
 
@@ -21,8 +21,8 @@ use crate::{
 /// Entries in the per-shape amplitude window look-up table.
 const LUT_SIZE: usize = 4096;
 
-/// Maximum concurrent grains per polyphonic channel.
-const GRAINS_PER_CHANNEL: usize = 64;
+/// Maximum concurrent grains per polyphonic lane.
+const GRAINS_PER_LANE: usize = 64;
 
 // ── GrainShape ─────────────────────────────────────────────────────────────────
 
@@ -70,10 +70,10 @@ struct Grain {
     decay_coeff: f32,
 }
 
-// ── Per-channel state ──────────────────────────────────────────────────────────
+// ── Per-lane state ──────────────────────────────────────────────────────────
 
-struct GrainChannel {
-    grains: [Grain; GRAINS_PER_CHANNEL],
+struct GrainLane {
+    grains: [Grain; GRAINS_PER_LANE],
     /// Bit `i` is set while `grains[i]` is playing.
     active: u64,
     /// Accumulator; a grain is spawned each time this crosses 1.0.
@@ -87,7 +87,7 @@ struct GrainChannel {
     rng: LcgRng,
 }
 
-impl Default for GrainChannel {
+impl Default for GrainLane {
     fn default() -> Self {
         Self {
             grains: std::array::from_fn(|_| Grain::default()),
@@ -114,7 +114,7 @@ struct GrainsState {
     /// Pre-computed window values for Bell / Sinc / Tukey.
     /// Allocated in `init`; refilled in `on_patch_update` when shape changes.
     window_lut: Box<[f32]>,
-    /// True once channel RNGs have been seeded off this instance's heap address.
+    /// True once lane RNGs have been seeded off this instance's heap address.
     seeded: bool,
 }
 
@@ -133,7 +133,7 @@ impl Default for GrainsState {
 // ── Params ─────────────────────────────────────────────────────────────────────
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct GrainsParams {
@@ -204,15 +204,15 @@ struct GrainsOutputs {
     sample: PolyOutput,
 }
 
-// ── Channel count ──────────────────────────────────────────────────────────────
+// ── Lane count ──────────────────────────────────────────────────────────────
 
-fn grains_derive_channel_count(params: &GrainsParams) -> usize {
-    let mut count = params.pitch.channels().max(params.gate.channels());
-    count = count.max(params.start.channel_count());
-    count = count.max(params.length.channel_count());
-    count = count.max(params.density.channel_count());
-    count = count.max(params.direction_bias.channel_count());
-    count.clamp(1, PORT_MAX_CHANNELS)
+fn grains_derive_lane_count(params: &GrainsParams) -> usize {
+    let mut count = params.pitch.lanes().max(params.gate.lanes());
+    count = count.max(params.start.lane_count());
+    count = count.max(params.length.lane_count());
+    count = count.max(params.density.lane_count());
+    count = count.max(params.direction_bias.lane_count());
+    count.clamp(1, PORT_MAX_LANES)
 }
 
 // ── Module ─────────────────────────────────────────────────────────────────────
@@ -253,7 +253,7 @@ const GRAINS_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "$grains",
     docs = GRAINS_DOCS,
-    channels_derive = grains_derive_channel_count,
+    lanes_derive = grains_derive_lane_count,
     args(pitch, wav, gate),
     has_init,
     patch_update
@@ -262,7 +262,7 @@ pub struct Grains {
     params: GrainsParams,
     outputs: GrainsOutputs,
     state: GrainsState,
-    channel_state: Box<[GrainChannel]>,
+    lane_state: Box<[GrainLane]>,
 }
 
 // ── Window helpers ─────────────────────────────────────────────────────────────
@@ -337,7 +337,7 @@ fn fill_window_lut(lut: &mut [f32], shape: GrainShape) {
 /// Find a free grain slot — the lowest bit clear in `active`. If all 64 are
 /// active, steal the oldest (highest `age`), which is closest to its natural end.
 #[inline]
-fn alloc_grain(grains: &[Grain; GRAINS_PER_CHANNEL], active: u64) -> usize {
+fn alloc_grain(grains: &[Grain; GRAINS_PER_LANE], active: u64) -> usize {
     if active != u64::MAX {
         return (!active).trailing_zeros() as usize;
     }
@@ -367,12 +367,12 @@ impl Grains {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let frame_count = self.params.wav.frame_count();
 
         if !self.params.wav.is_loaded() || frame_count == 0 {
-            for ch in 0..channels {
-                self.outputs.sample.set(ch, 0.0);
+            for lane in 0..lanes {
+                self.outputs.sample.set(lane, 0.0);
             }
             return;
         }
@@ -382,13 +382,13 @@ impl Grains {
         let shape = self.params.shape;
         let wav_channels = self.params.wav.channel_count().max(1);
 
-        for ch in 0..channels {
-            // ── Read params for this channel ───────────────────────────────
-            let gate_val = self.params.gate.get_value(ch);
+        for lane in 0..lanes {
+            // ── Read params for this lane ───────────────────────────────
+            let gate_val = self.params.gate.get_value(lane);
             // A cable can carry any f32, so enforce the documented range
             // here (non-finite falls back to the default): the spawn drain
             // loop below only terminates for a finite, bounded rate.
-            let density = self.params.density.value_or(ch, 2.5);
+            let density = self.params.density.value_or(lane, 2.5);
             let density = if density.is_finite() {
                 density.clamp(0.0001, 100.0)
             } else {
@@ -398,7 +398,7 @@ impl Grains {
 
             // ── Gate / spawn control ───────────────────────────────────────
             {
-                let cs = &mut self.channel_state[ch];
+                let cs = &mut self.lane_state[lane];
                 let (is_high, edge) = cs.gate_trigger.process_with_edge(gate_val);
 
                 if edge.is_rising() {
@@ -414,10 +414,14 @@ impl Grains {
                 }
                 // Grain parameters are only needed on a sample that spawns.
                 if is_high && !limit_reached && cs.spawn_phase >= 1.0 {
-                    let pitch = self.params.pitch.get_value(ch);
-                    let start_v = self.params.start.value_or(ch, 0.0).clamp(0.0, 5.0);
-                    let length_v = self.params.length.value_or(ch, 1.0).max(0.01);
-                    let dir_bias = self.params.direction_bias.value_or(ch, 0.0).clamp(0.0, 5.0);
+                    let pitch = self.params.pitch.get_value(lane);
+                    let start_v = self.params.start.value_or(lane, 0.0).clamp(0.0, 5.0);
+                    let length_v = self.params.length.value_or(lane, 1.0).max(0.01);
+                    let dir_bias = self
+                        .params
+                        .direction_bias
+                        .value_or(lane, 0.0)
+                        .clamp(0.0, 5.0);
 
                     let start_frame = (start_v as f64 / 5.0) * (frame_count - 1) as f64;
                     let max_len_s = frame_count as f64 / (sample_rate as f64 * rate_ratio).max(1.0);
@@ -432,12 +436,12 @@ impl Grains {
                     let decay_samps = ((1.0 - d_ratio as f64) * length_samps).max(1.0);
                     let decay_coeff = (-6.9 / decay_samps).exp() as f32;
 
-                    let cs = &mut self.channel_state[ch];
-                    // The pool holds GRAINS_PER_CHANNEL slots, so any spawn
+                    let cs = &mut self.lane_state[lane];
+                    // The pool holds GRAINS_PER_LANE slots, so any spawn
                     // beyond that within one sample only overwrites a grain
                     // spawned this same sample; dropping the residual keeps
                     // the drain loop bounded for any spawn_phase value.
-                    let mut spawn_budget = GRAINS_PER_CHANNEL;
+                    let mut spawn_budget = GRAINS_PER_LANE;
                     while cs.spawn_phase >= 1.0 {
                         if spawn_budget == 0 {
                             cs.spawn_phase = 0.0;
@@ -479,10 +483,10 @@ impl Grains {
             // ── Process active grains ──────────────────────────────────────
             let mut sum = 0.0_f32;
             let mut active_count = 0_u32;
-            let samples = self.params.wav.channel(ch % wav_channels);
+            let samples = self.params.wav.channel(lane % wav_channels);
             let lut = &self.state.window_lut;
 
-            let cs = &mut self.channel_state[ch];
+            let cs = &mut self.lane_state[lane];
             // Ascending slot order keeps the summation order deterministic.
             let mut pending = cs.active;
             while pending != 0 {
@@ -562,11 +566,11 @@ impl Grains {
             };
 
             // WAV samples are −1..1; scale to ±5 V oscillator level.
-            self.outputs.sample.set(ch, sanitize(sum * gain * 5.0));
+            self.outputs.sample.set(lane, sanitize(sum * gain * 5.0));
         }
     }
 
-    /// Seed each channel's RNG from this instance's stable heap address.
+    /// Seed each lane's RNG from this instance's stable heap address.
     ///
     /// Called from `on_patch_update` (not `init`) so the address is the
     /// stable per-instance heap address, not a transient stack slot.
@@ -575,8 +579,8 @@ impl Grains {
     /// pattern used in `noise.rs`.
     fn seed(&mut self) {
         let base = seed_base(self);
-        for (ch, cs) in self.channel_state.iter_mut().enumerate() {
-            cs.rng.seed(base, ch);
+        for (lane, cs) in self.lane_state.iter_mut().enumerate() {
+            cs.rng.seed(base, lane);
         }
         self.state.seeded = true;
     }
@@ -602,7 +606,7 @@ impl crate::types::PatchUpdateHandler for Grains {
         // Refill the window LUT when the shape changes (also covers the first
         // call, where last_shape is None). The buffer is allocated once in
         // init; on_patch_update only fills it, never reallocates (mirrors the
-        // mix_down.rs convention — no heap allocation on the audio thread).
+        // set_lanes.rs convention — no heap allocation on the audio thread).
         let shape = self.params.shape;
         if self.state.last_shape != Some(shape) {
             fill_window_lut(&mut self.state.window_lut, shape);
@@ -641,7 +645,7 @@ mod tests {
             .unwrap_or_else(|e| panic!("params deserialization for '{module_type}' failed: {e}"));
         let deserialized = DeserializedParams {
             params: cached.params,
-            channel_count: cached.channel_count,
+            lane_count: cached.lane_count,
             f64_inputs: false,
         };
         constructors
@@ -1039,13 +1043,13 @@ mod tests {
         patch.wav_data.insert("t".to_string(), wav_data);
         params.connect(&patch);
         let mut outputs = GrainsOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         let mut grains = Grains {
             params,
             outputs,
             state: GrainsState::default(),
-            channel_state: vec![GrainChannel::default()].into_boxed_slice(),
-            _channel_count: 1,
+            lane_state: vec![GrainLane::default()].into_boxed_slice(),
+            _lane_count: 1,
             _block_index: Default::default(),
         };
         grains.init(SAMPLE_RATE);
@@ -1071,7 +1075,7 @@ mod tests {
             grains.params.density = Some(PolySignal::mono(Signal::Volts(density)));
             grains.update(SAMPLE_RATE);
             assert!(
-                grains.channel_state[0].spawn_phase.is_finite(),
+                grains.lane_state[0].spawn_phase.is_finite(),
                 "spawn_phase must stay finite for density {density}"
             );
         }
@@ -1100,8 +1104,8 @@ mod tests {
             wav,
         );
         let life = (1u64 << 24) + 50;
-        grains.channel_state[0].active = 1;
-        grains.channel_state[0].grains[0] = Grain {
+        grains.lane_state[0].active = 1;
+        grains.lane_state[0].grains[0] = Grain {
             read_pos: 0.0,
             signed_rate: 0.0,
             age: (1 << 24) - 10,
@@ -1114,7 +1118,7 @@ mod tests {
             grains.update(SAMPLE_RATE);
         }
         assert_eq!(
-            grains.channel_state[0].active & 1,
+            grains.lane_state[0].active & 1,
             0,
             "a grain must deactivate once its age reaches its life"
         );

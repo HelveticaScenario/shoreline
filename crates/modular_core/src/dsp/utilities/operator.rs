@@ -1,4 +1,4 @@
-//! Operator modules: an input combined channel by channel with one operand
+//! Operator modules: an input combined lane by lane with one operand
 //! that glides when it is edited, so a changed amount never clicks. Each is
 //! stamped by [`operator_module!`] from the combining expression; the update
 //! and block paths here are shared by all of them, and so is the rule for the
@@ -35,7 +35,7 @@ pub(super) trait Combine {
     }
 }
 
-/// The output's bounds for one channel: the input's through the operation,
+/// The output's bounds for one lane: the input's through the operation,
 /// at the glided operand while a glide runs.
 #[inline(always)]
 fn bounds<C: Combine>(input: Bounds, operand: Bounds, glided: Option<f32>) -> Bounds {
@@ -45,7 +45,7 @@ fn bounds<C: Combine>(input: Bounds, operand: Bounds, glided: Option<f32>) -> Bo
     }
 }
 
-/// One sample of every channel. Outside a glide the operand is applied raw,
+/// One sample of every lane. Outside a glide the operand is applied raw,
 /// exactly as [`process_block`] applies it, and at full precision when `out`
 /// is f64, since the operand may be an f64 cable itself.
 #[inline(always)]
@@ -54,11 +54,11 @@ pub(super) fn update<C: Combine>(
     operand: &PolySignal,
     glides: &mut [SwapGlide],
     out: &mut PolyOutput,
-    channels: usize,
+    lanes: usize,
     sample_rate: f32,
 ) {
     if out.is_f64() {
-        for (i, glide) in glides[..channels].iter_mut().enumerate() {
+        for (i, glide) in glides[..lanes].iter_mut().enumerate() {
             let mark = operand.glide_mark(i);
             let x = input.get_value_f64(i);
             let mut glided = None;
@@ -83,7 +83,7 @@ pub(super) fn update<C: Combine>(
         }
         return;
     }
-    for (i, glide) in glides[..channels].iter_mut().enumerate() {
+    for (i, glide) in glides[..lanes].iter_mut().enumerate() {
         let (x, y) = (input.get_value(i), operand.get_value(i));
         let form = glide.follow(C::glide_form(y), operand.glide_mark(i), sample_rate);
         let glided = glide.gliding().then_some(form);
@@ -101,7 +101,7 @@ pub(super) fn update<C: Combine>(
     }
 }
 
-/// The block path; `None` while any channel's operand glides.
+/// The block path; `None` while any lane's operand glides.
 #[inline(always)]
 pub(super) fn process_block<C: Combine>(
     input: &PolySignal,
@@ -109,20 +109,20 @@ pub(super) fn process_block<C: Combine>(
     glides: &mut [SwapGlide],
     out: &mut BlockPort,
     range: Range<usize>,
-    channels: usize,
+    lanes: usize,
 ) -> Option<()> {
-    let glides = &mut glides[..channels];
+    let glides = &mut glides[..lanes];
     if operand.glides_pending(glides) {
         return None;
     }
     let (mut s0, mut s1) = (InputScratch::new(), InputScratch::new());
-    let x = input.block_input(range.clone(), channels, &mut s0)?;
-    let y = operand.block_input(range.clone(), channels, &mut s1)?;
-    out.fill_bounds_with(range.clone(), |ch| {
-        let x = input.block_bounds(range.clone(), ch)?;
+    let x = input.block_input(range.clone(), lanes, &mut s0)?;
+    let y = operand.block_input(range.clone(), lanes, &mut s1)?;
+    out.fill_bounds_with(range.clone(), |lane| {
+        let x = input.block_bounds(range.clone(), lane)?;
         Some(bounds::<C>(
             x,
-            operand.block_bounds(range.clone(), ch)?,
+            operand.block_bounds(range.clone(), lane)?,
             None,
         ))
     })?;
@@ -157,7 +157,7 @@ macro_rules! operator_module {
     ) => {
         paste::paste! {
             #[params]
-            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, LaneCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Module Params>] {
@@ -185,7 +185,7 @@ macro_rules! operator_module {
             pub struct $Module {
                 outputs: [<$Module Outputs>],
                 params: [<$Module Params>],
-                channel_state: Box<[crate::types::SwapGlide]>,
+                lane_state: Box<[crate::types::SwapGlide]>,
             }
 
             struct [<$Module Combine>];
@@ -211,13 +211,13 @@ macro_rules! operator_module {
 
             impl $Module {
                 fn update(&mut self, sample_rate: f32) {
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     crate::dsp::utilities::operator::update::<[<$Module Combine>]>(
                         &self.params.input,
                         &self.params.$operand,
-                        &mut self.channel_state,
+                        &mut self.lane_state,
                         &mut self.outputs.sample,
-                        channels,
+                        lanes,
                         sample_rate,
                     );
                 }
@@ -228,14 +228,14 @@ macro_rules! operator_module {
                     range: std::ops::Range<usize>,
                     _sample_rate: f32,
                 ) -> Option<()> {
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     crate::dsp::utilities::operator::process_block::<[<$Module Combine>]>(
                         &self.params.input,
                         &self.params.$operand,
-                        &mut self.channel_state,
+                        &mut self.lane_state,
                         &mut outputs.sample,
                         range,
-                        channels,
+                        lanes,
                     )
                 }
             }

@@ -93,7 +93,7 @@ shape_module! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dsp::shape::shape_core::{ShapeChannel, ShapeInputs, ShapeModuleState, run};
+    use crate::dsp::shape::shape_core::{ShapeInputs, ShapeLane, ShapeModuleState, run};
     use crate::poly::{PolyOutput, PolySignal};
     use crate::types::Signal;
 
@@ -104,7 +104,7 @@ mod tests {
         let sr = 48_000.0;
         let mut state = ShapeModuleState::default();
         state.init(sr);
-        let mut ch: Vec<ShapeChannel<RectifyShaper>> = vec![ShapeChannel::default()];
+        let mut lane: Vec<ShapeLane<RectifyShaper>> = vec![ShapeLane::default()];
         let mut out = PolyOutput::mono(0.0);
         let drive = Some(PolySignal::mono(Signal::Volts(3.0)));
         let sig = |i: usize| (2.0 * std::f32::consts::PI * 220.0 * (i as f32 / sr)).sin() * 5.0;
@@ -119,7 +119,7 @@ mod tests {
                     mode: RectifyMode::Full,
                 },
                 &state,
-                &mut ch,
+                &mut lane,
                 &mut out,
                 sr,
             );
@@ -134,7 +134,7 @@ mod tests {
                     mode: RectifyMode::Soft,
                 },
                 &state,
-                &mut ch,
+                &mut lane,
                 &mut out,
                 sr,
             );

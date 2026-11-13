@@ -79,12 +79,12 @@ fn get_at_out_of_range_returns_zero() {
 }
 
 #[test]
-fn channels_at_reports_port_width() {
+fn lanes_at_reports_port_width() {
     let bo = SimpleBlockOutputs::new(4, 3, false);
     let value_idx = SimpleBlockOutputs::port_index("value").unwrap();
     let poly_idx = SimpleBlockOutputs::port_index("poly").unwrap();
-    // An f32 port is always mono; a poly port carries the module's channels.
-    assert_eq!(bo.channels_at(value_idx), 1);
-    assert_eq!(bo.channels_at(poly_idx), 3);
-    assert_eq!(bo.channels_at(99), 0);
+    // An f32 port is always mono; a poly port carries the module's lanes.
+    assert_eq!(bo.lanes_at(value_idx), 1);
+    assert_eq!(bo.lanes_at(poly_idx), 3);
+    assert_eq!(bo.lanes_at(99), 0);
 }

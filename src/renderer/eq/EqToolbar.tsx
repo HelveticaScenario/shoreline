@@ -4,7 +4,7 @@ import {
     DEFAULT_Q,
     type EqSectionType,
     EQ_SECTION_TYPES,
-    MAX_EQ_CHANNEL_LISTS,
+    MAX_EQ_LANE_LISTS,
     MAX_EQ_SECTIONS,
     typeHasGain,
 } from './eqMath';
@@ -31,8 +31,8 @@ const TYPE_GLYPHS: Record<EqSectionType, string> = {
     peak: 'M1 10 C6 10 7 3 10 3 C13 3 14 10 19 10',
 };
 
-/** L/R for a stereo pair of lists, channel numbers otherwise. */
-function channelLabel(index: number, count: number): string {
+/** L/R for a stereo pair of lists, lane numbers otherwise. */
+function laneLabel(index: number, count: number): string {
     if (count === 2) {
         return index === 0 ? 'L' : 'R';
     }
@@ -42,36 +42,36 @@ function channelLabel(index: number, count: number): string {
 type EqToolbarProps = Pick<
     EqPanelProps,
     | 'sections'
-    | 'channelLists'
-    | 'channel'
+    | 'laneLists'
+    | 'lane'
     | 'ghosts'
     | 'selected'
     | 'editable'
     | 'onSelect'
-    | 'onChannel'
+    | 'onLane'
     | 'onChange'
     | 'onAdd'
     | 'onRemove'
-    | 'onAddChannel'
-    | 'onRemoveChannel'
+    | 'onAddLane'
+    | 'onRemoveLane'
     | 'onRevert'
 >;
 
-/** Channel tabs, section chips, and the selected section's type and values. */
+/** Lane tabs, section chips, and the selected section's type and values. */
 export function EqToolbar({
     sections,
-    channelLists,
-    channel,
+    laneLists,
+    lane,
     ghosts,
     selected,
     editable,
     onSelect,
-    onChannel,
+    onLane,
     onChange,
     onAdd,
     onRemove,
-    onAddChannel,
-    onRemoveChannel,
+    onAddLane,
+    onRemoveLane,
     onRevert,
 }: EqToolbarProps): React.ReactElement {
     const sel = selected !== null ? sections[selected] : undefined;
@@ -86,29 +86,29 @@ export function EqToolbar({
 
     return (
         <div className="eq-panel-toolbar">
-            <div className="eq-channels" role="tablist">
-                {channelLists ? (
-                    channelLists.map((_, i) => (
+            <div className="eq-lanes" role="tablist">
+                {laneLists ? (
+                    laneLists.map((_, i) => (
                         <span key={i} className="eq-removable">
                             <button
                                 type="button"
                                 role="tab"
-                                aria-selected={i === channel}
+                                aria-selected={i === lane}
                                 className={
-                                    i === channel
-                                        ? 'eq-channel eq-channel-active'
-                                        : 'eq-channel'
+                                    i === lane
+                                        ? 'eq-lane eq-lane-active'
+                                        : 'eq-lane'
                                 }
-                                title={`Edit channel ${i + 1}'s sections`}
-                                onClick={() => onChannel(i)}
+                                title={`Edit lane ${i + 1}'s sections`}
+                                onClick={() => onLane(i)}
                             >
-                                {channelLabel(i, channelLists.length)}
+                                {laneLabel(i, laneLists.length)}
                             </button>
                             <button
                                 type="button"
                                 className="eq-remove-x"
-                                title={`Remove channel ${i + 1}'s list`}
-                                onClick={() => onRemoveChannel(i)}
+                                title={`Remove lane ${i + 1}'s list`}
+                                onClick={() => onRemoveLane(i)}
                             >
                                 ×
                             </button>
@@ -119,24 +119,22 @@ export function EqToolbar({
                         type="button"
                         role="tab"
                         aria-selected
-                        className="eq-channel eq-channel-active"
-                        title="One section list for every channel"
+                        className="eq-lane eq-lane-active"
+                        title="One section list for every lane"
                     >
                         all
                     </button>
                 )}
                 <button
                     type="button"
-                    className="eq-channel"
+                    className="eq-lane"
                     title={
-                        channelLists
-                            ? 'Add a channel list, copying this one'
-                            : 'Split into per-channel lists (L/R)'
+                        laneLists
+                            ? 'Add a lane list, copying this one'
+                            : 'Split into per-lane lists (L/R)'
                     }
-                    disabled={
-                        (channelLists?.length ?? 0) >= MAX_EQ_CHANNEL_LISTS
-                    }
-                    onClick={onAddChannel}
+                    disabled={(laneLists?.length ?? 0) >= MAX_EQ_LANE_LISTS}
+                    onClick={onAddLane}
                 >
                     +
                 </button>

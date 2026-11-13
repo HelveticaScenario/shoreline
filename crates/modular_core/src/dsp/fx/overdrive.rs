@@ -32,7 +32,7 @@ pub enum OverdriveMode {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct OverdriveParams {
@@ -70,7 +70,7 @@ struct OverdriveOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     drive: SwapGlide,
     tone: SwapGlide,
     up: Halfband2xUp,
@@ -84,7 +84,7 @@ struct ChannelState {
     tone_gains: Option<(f32, f32, f32)>,
 }
 
-impl ChannelState {
+impl LaneState {
     /// High-band gains `(pre, post)` for `tone` in [-5, 5], cached while the
     /// tone holds. 3^(tone/5) maps tone=-5 → pre=1/3, post=3;
     /// tone=0 → 1, 1; tone=+5 → pre=3, post=1/3. Linear-signal cascade
@@ -157,7 +157,7 @@ const OVERDRIVE_DOCS: ModuleDocs = ModuleDocs {
 pub struct Overdrive {
     outputs: OverdriveOutputs,
     state: OverdriveState,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: OverdriveParams,
 }
 
@@ -174,34 +174,34 @@ impl Overdrive {
         self.state.dc_block_coeff = DcBlocker::coeff(DEFAULT_DC_BLOCK_FC_HZ, sample_rate);
 
         // Tilt-EQ coefficient is constant for the module's lifetime, so seed
-        // every channel's filters once here instead of per sample. `init` runs
-        // after the macro sizes `channel_state` to the channel count and before
-        // the audio thread carries over runtime state, so a later channel-count
-        // grow keeps the freshly seeded surplus channels.
-        for channel in self.channel_state.iter_mut() {
-            channel.tilt_pre.set_coeff(self.state.tilt_coeff);
-            channel.tilt_post.set_coeff(self.state.tilt_coeff);
+        // every lane's filters once here instead of per sample. `init` runs
+        // after the macro sizes `lane_state` to the lane count and before
+        // the audio thread carries over runtime state, so a later lane-count
+        // grow keeps the freshly seeded surplus lanes.
+        for lane in self.lane_state.iter_mut() {
+            lane.tilt_pre.set_coeff(self.state.tilt_coeff);
+            lane.tilt_post.set_coeff(self.state.tilt_coeff);
         }
     }
 
     fn update(&mut self, sample_rate: f32) {
         let dc_coeff = self.state.dc_block_coeff;
         let mode = self.params.mode.unwrap_or_default();
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
 
-            let input = self.params.input.get_value(ch);
-            let drive_raw = self.params.drive.get_value(ch);
-            let tone_raw = self.params.tone.value_or(ch, 0.0);
+            let input = self.params.input.get_value(lane);
+            let drive_raw = self.params.drive.get_value(lane);
+            let tone_raw = self.params.tone.value_or(lane, 0.0);
 
             state
                 .drive
-                .update(drive_raw, self.params.drive.glide_mark(ch), sample_rate);
+                .update(drive_raw, self.params.drive.glide_mark(lane), sample_rate);
             state
                 .tone
-                .update(tone_raw, self.params.tone.glide_mark(ch), sample_rate);
+                .update(tone_raw, self.params.tone.glide_mark(lane), sample_rate);
             let drive = (*state.drive).clamp(0.0, 5.0);
             let tone = (*state.tone).clamp(-5.0, 5.0);
 
@@ -232,7 +232,7 @@ impl Overdrive {
                 &mut state.tilt_post,
             );
             let y = state.down.process(e_shaped, o_shaped);
-            self.outputs.sample.set(ch, y * 5.0);
+            self.outputs.sample.set(lane, y * 5.0);
         }
     }
 }
@@ -275,14 +275,14 @@ message_handlers!(impl Overdrive {});
 pub fn __bench_make_overdrive(params: OverdriveParams) -> Overdrive {
     use crate::types::OutputStruct;
     let mut outputs = OverdriveOutputs::default();
-    outputs.set_all_channels(1);
+    outputs.set_all_lanes(1);
     let mut od = Overdrive {
         params,
         outputs,
-        _channel_count: 1,
+        _lane_count: 1,
         _block_index: Default::default(),
         state: OverdriveState::default(),
-        channel_state: vec![ChannelState::default(); 1].into_boxed_slice(),
+        lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
     };
     od.init(48000.0);
     od
@@ -303,14 +303,14 @@ mod tests {
 
     fn make(params: OverdriveParams) -> Overdrive {
         let mut outputs = OverdriveOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         let mut od = Overdrive {
             params,
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
             state: OverdriveState::default(),
-            channel_state: vec![ChannelState::default(); 1].into_boxed_slice(),
+            lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         };
         od.init(48000.0);
         od

@@ -4,7 +4,7 @@
 /// nonlinearity's direct value is used instead.
 const ADAA_TOL: f32 = 1.0e-4;
 
-/// One channel of ADAA state.
+/// One lane of ADAA state.
 ///
 /// Given a nonlinearity `F` with antiderivative `AD`, first-order ADAA outputs
 /// the average value of `F` over the last step, `(AD(x) − AD(x_prev)) / (x −

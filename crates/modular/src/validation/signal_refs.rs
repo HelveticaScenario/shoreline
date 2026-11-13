@@ -52,7 +52,7 @@ pub(super) fn schema_properties(schema: &Schema) -> HashMap<String, Schema> {
 pub(super) fn schema_refers_to_module_reference(schema_node: &Schema) -> bool {
     if let Some(obj) = schema_node.as_object() {
         if let Some(r) = obj.get("$ref").and_then(|v| v.as_str()) {
-            return r.contains("Signal") || r.contains("Buffer");
+            return r.contains("Signal") || r.contains("LaneSum") || r.contains("Buffer");
         }
 
         for key in ["anyOf", "oneOf", "allOf"] {

@@ -2,7 +2,7 @@ mod crossfade;
 mod feedback;
 
 use super::{
-    channel::{AllpassChannel, Controls},
+    lane::{AllpassLane, Controls},
     stage::{MAX_Q, damping, prewarp},
     *,
 };
@@ -22,27 +22,27 @@ pub(super) fn controls(cutoff: f32, stages: f32, resonance: f32) -> Controls {
     }
 }
 
-pub(super) fn channel() -> AllpassChannel {
-    AllpassChannel::default()
+pub(super) fn new_lane() -> AllpassLane {
+    AllpassLane::default()
 }
 
-/// Impulse response of one channel held at `c`.
-pub(super) fn impulse_response(ch: &mut AllpassChannel, c: Controls, len: usize) -> Vec<f32> {
-    faded_impulse_response(c, 0, len, ch)
+/// Impulse response of one lane held at `c`.
+pub(super) fn impulse_response(lane: &mut AllpassLane, c: Controls, len: usize) -> Vec<f32> {
+    faded_impulse_response(c, 0, len, lane)
 }
 
-/// Impulse response of one channel held at `c` with crossfade step
+/// Impulse response of one lane held at `c` with crossfade step
 /// `fade_step`.
 pub(super) fn faded_impulse_response(
     c: Controls,
     fade_step: usize,
     len: usize,
-    ch: &mut AllpassChannel,
+    lane: &mut AllpassLane,
 ) -> Vec<f32> {
     (0..len)
         .map(|n| {
             let x = if n == 0 { 1.0 } else { 0.0 };
-            ch.step(x, c, fade_step, log2_c4_over_fs())
+            lane.step(x, c, fade_step, log2_c4_over_fs())
         })
         .collect()
 }
@@ -62,7 +62,7 @@ fn chain_passes_all_energy() {
     for stages in [1.0, 4.0, 50.0] {
         for resonance in [0.0, 2.5, 5.0] {
             let e = energy(&impulse_response(
-                &mut channel(),
+                &mut new_lane(),
                 controls(0.0, stages, resonance),
                 1 << 16,
             ));
@@ -84,7 +84,7 @@ fn single_pole(s: &mut f32, a: f32, x: f32) -> f32 {
 
 #[test]
 fn unresonant_stage_is_two_single_poles() {
-    let pair = impulse_response(&mut channel(), controls(1.0, 1.0, 0.0), 512);
+    let pair = impulse_response(&mut new_lane(), controls(1.0, 1.0, 0.0), 512);
     let g = (std::f32::consts::PI * C4_HZ_F32 * 2.0 / SR).tan();
     let a = (g - 1.0) / (g + 1.0);
     let (mut s1, mut s2) = (0.0, 0.0);
@@ -100,7 +100,7 @@ fn fractional_stages_pass_all_energy() {
     for stages in [1.25, 1.5, 2.6, 3.4, 49.75] {
         for resonance in [0.0, 2.0, 4.0] {
             let c = controls(0.0, stages, resonance);
-            let e = energy(&impulse_response(&mut channel(), c, 1 << 16));
+            let e = energy(&impulse_response(&mut new_lane(), c, 1 << 16));
             assert!(
                 (e - 1.0).abs() < 1e-3,
                 "stages {stages} resonance {resonance}: energy {e}"
@@ -113,12 +113,12 @@ fn fractional_stages_pass_all_energy() {
 fn fractional_stages_keep_a_sine_at_cutoff_level() {
     let omega = std::f32::consts::TAU * C4_HZ_F32 / SR;
     for stages in [1.25, 1.5, 2.75] {
-        let mut ch = channel();
+        let mut lane = new_lane();
         let c = controls(0.0, stages, 3.0);
         let (mut input, mut output) = (0.0, 0.0);
         for n in 0..SR as usize {
             let x = (omega * n as f32).sin();
-            let y = ch.step(x, c, 0, log2_c4_over_fs());
+            let y = lane.step(x, c, 0, log2_c4_over_fs());
             if n >= SR as usize / 2 {
                 input += x * x;
                 output += y * y;
@@ -134,7 +134,7 @@ fn fractional_stages_meet_their_neighbours() {
     for whole in [1.0, 3.0, 49.0] {
         for resonance in [0.0, 4.0] {
             let response =
-                |stages| impulse_response(&mut channel(), controls(0.5, stages, resonance), 4096);
+                |stages| impulse_response(&mut new_lane(), controls(0.5, stages, resonance), 4096);
             for (stages, neighbour) in [(whole + 1e-4, whole), (whole + 1.0 - 1e-4, whole + 1.0)] {
                 let distance: f32 = response(stages)
                     .iter()
@@ -183,7 +183,7 @@ fn group_delay(h: &[f32], hz: f32) -> f32 {
 fn cutoff_delay_is_poles_over_two_pi_cutoff() {
     // 50 stages, 100 poles, at C3: about 120 ms.
     let hz = C4_HZ_F32 / 2.0;
-    let h = impulse_response(&mut channel(), controls(-1.0, 50.0, 0.0), 1 << 15);
+    let h = impulse_response(&mut new_lane(), controls(-1.0, 50.0, 0.0), 1 << 15);
     let delay = group_delay(&h, hz);
     let expected = 100.0 / (std::f32::consts::TAU * hz);
     assert!(
@@ -195,7 +195,7 @@ fn cutoff_delay_is_poles_over_two_pi_cutoff() {
 #[test]
 fn full_resonance_delays_the_cutoff_forty_times_longer() {
     let delay = |resonance| {
-        let h = impulse_response(&mut channel(), controls(1.0, 10.0, resonance), 1 << 17);
+        let h = impulse_response(&mut new_lane(), controls(1.0, 10.0, resonance), 1 << 17);
         group_delay(&h, C4_HZ_F32 * 2.0)
     };
     let ratio = delay(5.0) / delay(0.0);
@@ -205,9 +205,9 @@ fn full_resonance_delays_the_cutoff_forty_times_longer() {
 #[test]
 fn extreme_cutoffs_stay_finite() {
     for cutoff in [-1000.0, 1000.0] {
-        let mut ch = channel();
+        let mut lane = new_lane();
         for n in 0..256 {
-            let y = ch.step(
+            let y = lane.step(
                 (n as f32).sin(),
                 controls(cutoff, 3.5, 2.0),
                 0,
@@ -224,14 +224,14 @@ fn gliding_stages_do_not_ring_at_nyquist() {
     // near Nyquist; started off its input, it rings there at many times the
     // sine's own curvature.
     for (from, to) in [(1.0, 6.0), (6.0, 1.0)] {
-        let mut ch = channel();
+        let mut lane = new_lane();
         let len = 4 * SR as usize;
         let (mut y1, mut y2) = (0.0f32, 0.0f32);
         let mut largest = 0.0f32;
         for n in 0..len {
             let x = (std::f32::consts::TAU * 50.0 * n as f32 / SR).sin();
             let stages = from + (to - from) * n as f32 / len as f32;
-            let y = ch.step(x, controls(0.0, stages, 1.0), 0, log2_c4_over_fs());
+            let y = lane.step(x, controls(0.0, stages, 1.0), 0, log2_c4_over_fs());
             // Past the chain's start-up transient.
             if n > SR as usize / 10 {
                 largest = largest.max((y - 2.0 * y1 + y2).abs());
@@ -245,10 +245,10 @@ fn gliding_stages_do_not_ring_at_nyquist() {
 #[test]
 fn gliding_stage_follows_a_cutoff_change_made_at_a_whole_count() {
     // A sine's steady state after a cutoff change made while `stages` sat on
-    // a whole count matches a channel that only ever saw the new cutoff.
+    // a whole count matches a lane that only ever saw the new cutoff.
     let sine = |n: usize| (std::f32::consts::TAU * 1_000.0 * n as f32 / SR).sin();
     let len = SR as usize / 2;
-    let mut moved = channel();
+    let mut moved = new_lane();
     for n in 0..len {
         let c = match n {
             0..1000 => controls(0.0, 2.5, 1.0),
@@ -257,7 +257,7 @@ fn gliding_stage_follows_a_cutoff_change_made_at_a_whole_count() {
         };
         moved.step(sine(n), c, 0, log2_c4_over_fs());
     }
-    let mut fresh = channel();
+    let mut fresh = new_lane();
     for n in 0..len {
         fresh.step(sine(n), controls(1.0, 2.5, 1.0), 0, log2_c4_over_fs());
     }
@@ -273,15 +273,15 @@ fn gliding_stage_follows_a_cutoff_change_made_at_a_whole_count() {
 
 #[test]
 fn recovers_from_an_input_that_overflows_the_stages() {
-    let mut ch = channel();
+    let mut lane = new_lane();
     let c = controls(0.0, 4.0, 5.0);
     for _ in 0..16 {
-        ch.step(f32::MAX, c, 0, log2_c4_over_fs());
+        lane.step(f32::MAX, c, 0, log2_c4_over_fs());
     }
     let y: Vec<f32> = (0..SR as usize / 10)
         .map(|n| {
             let x = (std::f32::consts::TAU * 200.0 * n as f32 / SR).sin();
-            ch.step(x, c, 0, log2_c4_over_fs())
+            lane.step(x, c, 0, log2_c4_over_fs())
         })
         .collect();
     assert!(y.iter().all(|v| v.is_finite()));

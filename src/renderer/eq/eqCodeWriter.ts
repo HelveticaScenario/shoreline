@@ -6,7 +6,7 @@
  */
 import { EQ_MODULE_TYPE } from '../../shared/dsl/eqPanelTypes';
 import type { CodeStyle } from '../dsl/listEdits';
-import { isPerChannel, sectionLists } from './eqPanelModel';
+import { isPerLane, sectionLists } from './eqPanelModel';
 import {
     type EqPanelContext,
     NOTICES,
@@ -75,7 +75,7 @@ export function flushCode(
         const pending = [...panel.pendingCode];
         panel.pendingCode.clear();
         const lists = sectionLists(panel.params);
-        const perChannel = isPerChannel(panel.params);
+        const perLane = isPerLane(panel.params);
         for (const [key, fields] of pending) {
             const { list, index } = parseSectionKey(key);
             applySourceOp(
@@ -83,7 +83,7 @@ export function flushCode(
                 panel,
                 {
                     count: lists[list]?.length ?? 0,
-                    list: perChannel ? list : null,
+                    list: perLane ? list : null,
                     listCount: lists.length,
                 },
                 { fields, index, kind: 'set' },

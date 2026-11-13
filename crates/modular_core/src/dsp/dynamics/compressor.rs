@@ -34,7 +34,7 @@ fn follower_coeff(time: f32, sample_rate: f32) -> f32 {
     (-1.0 / (time.max(1e-6) * sample_rate)).exp()
 }
 
-/// One channel's compressor settings for the current sample, already mapped
+/// One lane's compressor settings for the current sample, already mapped
 /// out of volts: thresholds in dB, attack/release as [`follower_coeff`]s and
 /// makeup as a linear gain.
 #[derive(Clone, Copy)]
@@ -130,7 +130,7 @@ fn compress(
 }
 
 #[derive(Clone, Copy, Default)]
-struct ChannelState {
+struct LaneState {
     envelope: f32,
     input_gain: Cached<f32>,
     output_gain: Cached<f32>,
@@ -142,7 +142,7 @@ struct ChannelState {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CompressorParams {
@@ -293,30 +293,30 @@ const COMP_DOCS: ModuleDocs = ModuleDocs {
 #[module(name = "$comp", docs = COMP_DOCS, args(input), experimental)]
 pub struct Compressor {
     outputs: CompressorOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: CompressorParams,
 }
 
 impl Compressor {
     fn update(&mut self, sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
 
-        for ch in 0..channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..lanes {
+            let state = &mut self.lane_state[lane];
 
-            let input = self.params.input.get_value(ch);
+            let input = self.params.input.get_value(lane);
 
             // Apply input gain
             let input_gain_voltage = self
                 .params
                 .input_gain
-                .value_or(ch, CompressorParams::INPUT_GAIN_DEFAULT);
+                .value_or(lane, CompressorParams::INPUT_GAIN_DEFAULT);
             let gained = input * state.input_gain.get(input_gain_voltage, voltage_to_gain);
 
             // Side-chain: detector reads from sidechain input if connected,
             // otherwise from the gain-staged input itself.
             let detector = match &self.params.sidechain {
-                Some(sc) => sc.get_value(ch),
+                Some(sc) => sc.get_value(lane),
                 None => gained,
             };
 
@@ -324,34 +324,34 @@ impl Compressor {
             let threshold = self
                 .params
                 .threshold
-                .value_or(ch, CompressorParams::THRESHOLD_DEFAULT);
+                .value_or(lane, CompressorParams::THRESHOLD_DEFAULT);
             let ratio = self
                 .params
                 .ratio
-                .value_or(ch, CompressorParams::RATIO_DEFAULT);
+                .value_or(lane, CompressorParams::RATIO_DEFAULT);
             let upward_threshold = self
                 .params
                 .upward_threshold
-                .value_or(ch, CompressorParams::UPWARD_THRESHOLD_DEFAULT);
+                .value_or(lane, CompressorParams::UPWARD_THRESHOLD_DEFAULT);
             let upward_ratio = self
                 .params
                 .upward_ratio
-                .value_or(ch, CompressorParams::UPWARD_RATIO_DEFAULT);
+                .value_or(lane, CompressorParams::UPWARD_RATIO_DEFAULT);
             let attack = self
                 .params
                 .attack
-                .value_or(ch, CompressorParams::ATTACK_DEFAULT);
+                .value_or(lane, CompressorParams::ATTACK_DEFAULT);
             let release = self
                 .params
                 .release
-                .value_or(ch, CompressorParams::RELEASE_DEFAULT);
+                .value_or(lane, CompressorParams::RELEASE_DEFAULT);
             // makeup is a dB-domain voltage matching inputGain / outputGain
             // (-5 V = -24 dB, 0 V = unity, +5 V = +24 dB). voltage_to_gain
             // clamps the voltage internally.
             let makeup_voltage = self
                 .params
                 .makeup
-                .value_or(ch, CompressorParams::MAKEUP_DEFAULT);
+                .value_or(lane, CompressorParams::MAKEUP_DEFAULT);
             let makeup = state.makeup.get(makeup_voltage, voltage_to_gain);
 
             // Compress
@@ -376,19 +376,19 @@ impl Compressor {
             let output_gain_voltage = self
                 .params
                 .output_gain
-                .value_or(ch, CompressorParams::OUTPUT_GAIN_DEFAULT);
+                .value_or(lane, CompressorParams::OUTPUT_GAIN_DEFAULT);
             let out = compressed * state.output_gain.get(output_gain_voltage, voltage_to_gain);
 
             // Dry/wet mix (dry signal is original input before gain staging)
             let mix_amount = self
                 .params
                 .mix
-                .value_or(ch, CompressorParams::MIX_DEFAULT)
+                .value_or(lane, CompressorParams::MIX_DEFAULT)
                 .clamp(0.0, 5.0)
                 / 5.0;
             let output = input * (1.0 - mix_amount) + out * mix_amount;
 
-            self.outputs.sample.set(ch, output);
+            self.outputs.sample.set(lane, output);
         }
     }
 }

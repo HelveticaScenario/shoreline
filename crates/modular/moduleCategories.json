@@ -57,7 +57,7 @@
   },
   {
     "name": "mixer",
-    "description": "Combining and panning channels."
+    "description": "Combining and panning lanes."
   },
   {
     "name": "math",

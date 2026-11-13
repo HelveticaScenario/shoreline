@@ -14,7 +14,7 @@ use crate::poly::PolyOutput;
 const RAMP_SECONDS: f32 = 0.03;
 
 #[params(declares_range = (min, max))]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_smooth_control_params -> ModuleParamErrors)]
 struct SmoothControlParams {
@@ -139,7 +139,7 @@ mod tests {
 
     fn make(value: f64) -> SmoothControl {
         let mut outputs = SmoothControlOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         let mut s = SmoothControl {
             params: SmoothControlParams {
                 value,
@@ -148,7 +148,7 @@ mod tests {
             },
             outputs,
             state: SmoothControlState::default(),
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
         };
         s.init(SR);

@@ -8,7 +8,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Bd909Params {
@@ -99,7 +99,7 @@ pub struct Bd909 {
     outputs: Bd909Outputs,
     params: Bd909Params,
     state: BdState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
 }
 
 #[derive(Default)]
@@ -110,7 +110,7 @@ struct BdState {
 }
 
 #[derive(Clone, Copy, Default)]
-struct Channel {
+struct Lane {
     voices: Voices<Kick>,
     noise: Noise,
     rate: Cached<f32, f32>,
@@ -141,7 +141,7 @@ impl Bd909 {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -153,11 +153,11 @@ impl Bd909 {
         ];
         let out = &mut self.outputs.sample;
         self.state.tick(
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             p.hold,
             inputs,
-            |ch, v| out.set(ch, v),
+            |lane, v| out.set(lane, v),
         );
     }
 
@@ -167,7 +167,7 @@ impl Bd909 {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Bd909ParamsBlockInputs {
@@ -177,16 +177,16 @@ impl Bd909 {
             sweep,
             decay,
             attack,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot(
             &mut outputs.sample,
             range,
             [trigger, accent, freq, sweep, decay, attack],
             |inputs, mut slot| {
                 self.state
-                    .tick(channel_state, p.restart, p.hold, inputs, |ch, v| {
-                        slot.set(ch, v)
+                    .tick(lane_state, p.restart, p.hold, inputs, |lane, v| {
+                        slot.set(lane, v)
                     })
             },
         );
@@ -195,23 +195,20 @@ impl Bd909 {
 }
 
 impl BdState {
-    /// Runs one sample of every channel on its `[trigger, accent, freq,
+    /// Runs one sample of every lane on its `[trigger, accent, freq,
     /// sweep, decay, attack]`, handing `out` each one's output.
     #[inline(always)]
     fn tick<I: Input>(
         &mut self,
-        channels: &mut [Channel],
+        lanes: &mut [Lane],
         restart: bool,
         hold: bool,
         [trigger, accent, freq, sweep, decay, attack]: [I; 6],
         mut out: impl FnMut(usize, f32),
     ) {
-        let [freq, sweep, decay, attack] = self.hold.apply(
-            hold,
-            channels.len(),
-            [trigger],
-            [freq, sweep, decay, attack],
-        );
+        let [freq, sweep, decay, attack] =
+            self.hold
+                .apply(hold, lanes.len(), [trigger], [freq, sweep, decay, attack]);
         let trigger = Held::Live(trigger);
         let run = Run {
             accent,
@@ -227,13 +224,13 @@ impl BdState {
             attack,
             noise_rate: self.shared.noise_rate,
         };
-        self.groups.run(&inputs, channels, &run, |ch, v| {
-            out(ch, rails(v * OUTPUT_GAIN))
+        self.groups.run(&inputs, lanes, &run, |lane, v| {
+            out(lane, rails(v * OUTPUT_GAIN))
         });
     }
 }
 
-/// The inputs every channel of the bass drum reads.
+/// The inputs every lane of the bass drum reads.
 struct BdInputs<I> {
     trigger: I,
     freq: I,
@@ -243,42 +240,42 @@ struct BdInputs<I> {
     noise_rate: f32,
 }
 
-impl<I: Input> ChannelInputs<KickDrum> for BdInputs<I> {
-    type Channel = Channel;
+impl<I: Input> LaneInputs<KickDrum> for BdInputs<I> {
+    type Lane = Lane;
 
-    fn voices(channel: &mut Channel) -> &mut Voices<Kick> {
-        &mut channel.voices
+    fn voices(lane: &mut Lane) -> &mut Voices<Kick> {
+        &mut lane.voices
     }
 
     #[inline(always)]
-    fn inputs(&self, ch: usize, cs: &mut Channel) -> (f32, KickControls) {
+    fn inputs(&self, lane: usize, cs: &mut Lane) -> (f32, KickControls) {
         let controls = KickControls {
-            rate: cs
-                .rate
-                .get(self.freq.at(ch), |f| (f - Bd909Params::FREQ_DEFAULT).exp2()),
+            rate: cs.rate.get(self.freq.at(lane), |f| {
+                (f - Bd909Params::FREQ_DEFAULT).exp2()
+            }),
             sweep: cs
                 .sweep
-                .get(knob(self.sweep.at(ch)), |k| tapered_pot(k, R57, VR2)),
+                .get(knob(self.sweep.at(lane)), |k| tapered_pot(k, R57, VR2)),
             decay: cs
                 .decay
-                .get(knob(self.decay.at(ch)), |k| tapered_pot(k, R58, VR5)),
-            attack: VR3 * (1.0 - knob(self.attack.at(ch))),
+                .get(knob(self.decay.at(lane)), |k| tapered_pot(k, R58, VR5)),
+            attack: VR3 * (1.0 - knob(self.attack.at(lane))),
             noise: cs.noise.next(self.noise_rate),
         };
-        (self.trigger.at(ch), controls)
+        (self.trigger.at(lane), controls)
     }
 }
 
 impl crate::types::PatchUpdateHandler for Bd909 {
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, cs) in self.channel_state.iter_mut().enumerate() {
-            cs.noise.seed(base, ch);
+        for (lane, cs) in self.lane_state.iter_mut().enumerate() {
+            cs.noise.seed(base, lane);
         }
-        let count = self.channel_count();
+        let count = self.lane_count();
         self.state
             .groups
-            .layout::<BdInputs<&[f32]>>(&mut self.channel_state, count);
+            .layout::<BdInputs<&[f32]>>(&mut self.lane_state, count);
     }
 }
 

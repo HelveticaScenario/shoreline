@@ -29,7 +29,7 @@ macro_rules! filter_module {
     ) => {
         paste::paste! {
             #[params]
-            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, LaneCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
@@ -66,7 +66,7 @@ macro_rules! filter_module {
                 state: crate::dsp::filters::surge::filter_core::FilterModuleState<
                     <$Kernel as crate::dsp::filters::surge::filter_core::Filter>::Mode,
                 >,
-                channel_state: ::std::boxed::Box<[crate::dsp::filters::surge::filter_core::FilterChannel<
+                lane_state: ::std::boxed::Box<[crate::dsp::filters::surge::filter_core::FilterLane<
                     <$Kernel as crate::dsp::filters::surge::filter_core::Filter>::Extra,
                 >]>,
                 params: [<$Struct Params>],
@@ -81,9 +81,9 @@ macro_rules! filter_module {
 
                 fn update(&mut self, sample_rate: f32) {
                     let mode = self.mode();
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     crate::dsp::filters::surge::filter_core::run::<$Kernel>(
-                        channels,
+                        lanes,
                         crate::dsp::filters::surge::filter_core::FilterInputs {
                             input: &self.params.input,
                             cutoff: &self.params.cutoff,
@@ -92,7 +92,7 @@ macro_rules! filter_module {
                         },
                         sample_rate,
                         &mut self.state,
-                        &mut self.channel_state,
+                        &mut self.lane_state,
                         &mut self.outputs.sample,
                     );
                 }
@@ -103,7 +103,7 @@ macro_rules! filter_module {
                     let mode = self.mode();
                     crate::dsp::filters::surge::filter_core::on_patch_update::<$Kernel>(
                         &mut self.state,
-                        &mut self.channel_state,
+                        &mut self.lane_state,
                         mode,
                     );
                 }

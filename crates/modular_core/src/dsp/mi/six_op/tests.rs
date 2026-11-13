@@ -17,10 +17,10 @@ fn knobs(bank: f32, patch: f32, brightness: f32, envelope: f32, accent: f32) -> 
     }
 }
 
-fn channel(seed: u32) -> Channel {
-    Channel {
+fn new_lane(seed: u32) -> Lane {
+    Lane {
         random: Random::new(seed),
-        ..Channel::default()
+        ..Lane::default()
     }
 }
 
@@ -32,19 +32,19 @@ fn channel(seed: u32) -> Channel {
 fn matches_plaits() {
     let state = SixOpState::new(48000.0);
     let mut current = -1.0;
-    let mut ch = channel(0);
+    let mut lane = new_lane(0);
     let mut actual = Vec::new();
     let mut expected = Vec::new();
     for record in records("six_op", 9) {
         if record[0] != current {
             current = record[0];
-            ch = channel(0x5eed + current as u32);
+            lane = new_lane(0x5eed + current as u32);
         }
         let gate = match record[5] {
             g if g < 0.0 => None,
             g => Some(g > 0.0),
         };
-        let out = ch.step(
+        let out = lane.step(
             record[1],
             knobs(record[6], record[7], record[2], record[3], record[4]),
             gate,
@@ -77,12 +77,12 @@ fn render(
     seconds: f32,
 ) -> Vec<f32> {
     let state = SixOpState::new(sample_rate);
-    let mut ch = channel(1);
+    let mut lane = new_lane(1);
     let samples = (sample_rate * seconds) as usize;
     (0..samples)
         .map(|n| {
             let gate = gated.then_some(n < samples / 2);
-            ch.step(
+            lane.step(
                 hz / sample_rate,
                 knobs(bank, patch, 2.5, envelope, 4.0),
                 gate,
@@ -152,9 +152,9 @@ fn runs_backward() {
     // Patches without feedback or fixed-frequency operators.
     for (bank, patch) in [(0.0, 2.0), (2.0, 1.0)] {
         let render = |f0: f32| {
-            let mut ch = channel(1);
+            let mut lane = new_lane(1);
             (0..4800)
-                .map(|_| ch.step(f0, knobs(bank, patch, 2.5, 2.5, 4.0), None, &state))
+                .map(|_| lane.step(f0, knobs(bank, patch, 2.5, 2.5, 4.0), None, &state))
                 .collect::<Vec<_>>()
         };
         let forward = render(0.004);
@@ -176,8 +176,8 @@ fn runs_backward() {
 #[test]
 fn non_finite_knobs_hold() {
     let state = SixOpState::new(48000.0);
-    let mut held = channel(7);
-    let mut glitched = channel(7);
+    let mut held = new_lane(7);
+    let mut glitched = new_lane(7);
     for n in 0..4000 {
         let v = match n {
             500 => f32::NAN,
@@ -200,7 +200,7 @@ fn stays_finite() {
         let state = SixOpState::new(sample_rate);
         for bank in 0..3 {
             for patch in 0..32 {
-                let mut ch = channel(3);
+                let mut lane = new_lane(3);
                 for n in 0..3000 {
                     let f0 = match n % 7 {
                         0 => 0.5,
@@ -211,7 +211,7 @@ fn stays_finite() {
                     };
                     let knob = (n % 11) as f32 * 0.5;
                     let gate = (bank != 2).then_some(n % 400 < 250);
-                    let out = ch.step(
+                    let out = lane.step(
                         f0,
                         knobs(bank as f32, patch as f32, knob, 5.0 - knob, 5.0),
                         gate,
@@ -279,11 +279,11 @@ fn envelope_knob_runs_from_snappy_to_slow() {
 #[test]
 fn a_gate_patched_again_rises() {
     let state = SixOpState::new(48000.0);
-    let mut ch = channel(1);
+    let mut lane = new_lane(1);
     for _ in 0..100 {
-        ch.step(0.005, knobs(0.0, 0.0, 2.5, 2.5, 4.0), Some(true), &state);
+        lane.step(0.005, knobs(0.0, 0.0, 2.5, 2.5, 4.0), Some(true), &state);
     }
-    assert!(ch.gate);
-    ch.step(0.005, knobs(0.0, 0.0, 2.5, 2.5, 4.0), None, &state);
-    assert!(!ch.gate);
+    assert!(lane.gate);
+    lane.step(0.005, knobs(0.0, 0.0, 2.5, 2.5, 4.0), None, &state);
+    assert!(!lane.gate);
 }

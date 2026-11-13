@@ -10,7 +10,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 
 #[params(declares_range = (min, max))]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ClampParams {
@@ -103,10 +103,10 @@ fn clamped_bounds(input: Bounds, min: Option<f32>, max: Option<f32>) -> Bounds {
 
 impl Clamp {
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let out = &mut self.outputs.sample;
-        for i in 0..channels {
+        for i in 0..lanes {
             let min = p.min.as_ref().map(|min| min.get_value(i));
             let max = p.max.as_ref().map(|max| max.get_value(i));
             out.set(i, clamp(p.input.get_value(i), min, max));
@@ -122,30 +122,30 @@ impl Clamp {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let mut scratch = Default::default();
         let inputs = self
             .params
-            .block_inputs(range.clone(), channels, &mut scratch)?;
+            .block_inputs(range.clone(), lanes, &mut scratch)?;
         let (signal, input, out) = (&self.params.input, inputs.input, &mut outputs.sample);
         // The input's bounds, read once for the range as rows of their ends,
         // then clamped with the limits each slot reads.
         let stores = out.has_bounds();
-        if stores && (0..channels).any(|ch| signal.block_bounds(range.clone(), ch).is_none()) {
+        if stores && (0..lanes).any(|lane| signal.block_bounds(range.clone(), lane).is_none()) {
             return None;
         }
-        let input_bounds = |ch: usize| match stores {
+        let input_bounds = |lane: usize| match stores {
             true => signal
-                .block_bounds(range.clone(), ch)
+                .block_bounds(range.clone(), lane)
                 .unwrap_or(Bounds::UNBOUNDED),
             false => Bounds::UNBOUNDED,
         };
         let (mut s_start, mut s_end) = (InputScratch::new(), InputScratch::new());
-        let start = block_input::constant_row(range.clone(), channels, &mut s_start, |ch| {
-            input_bounds(ch).start
+        let start = block_input::constant_row(range.clone(), lanes, &mut s_start, |lane| {
+            input_bounds(lane).start
         });
-        let end = block_input::constant_row(range.clone(), channels, &mut s_end, |ch| {
-            input_bounds(ch).end
+        let end = block_input::constant_row(range.clone(), lanes, &mut s_end, |lane| {
+            input_bounds(lane).end
         });
         let bounds = |start: f32, end: f32, min: Option<f32>, max: Option<f32>| {
             Some(clamped_bounds(Bounds::new(start, end), min, max))

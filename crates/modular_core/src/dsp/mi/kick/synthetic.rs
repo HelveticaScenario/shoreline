@@ -27,7 +27,7 @@ use crate::dsp::mi::drum::{Knob, OUTPUT_GAIN, pitch, rises};
 const ACCENT_TRIM: f32 = 1.85;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MiSynthKickParams {
@@ -140,7 +140,7 @@ const SYNTH_KICK_DOCS: ModuleDocs = ModuleDocs {
 pub struct MiSynthKick {
     outputs: MiSynthKickOutputs,
     state: SynthKickState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
     params: MiSynthKickParams,
 }
 
@@ -177,9 +177,9 @@ pub(super) struct Knobs {
     pub accent: (f32, GlideMark),
 }
 
-pub(super) struct Channel {
+pub(super) struct Lane {
     drum: SyntheticBassDrum,
-    /// The channel's noise, for the phase jitter and the attack.
+    /// The lane's noise, for the phase jitter and the attack.
     random: Random,
     trigger: SchmittTrigger,
     tone: Knob,
@@ -190,17 +190,17 @@ pub(super) struct Channel {
     accent: Knob,
     accent_state: Accent,
     /// Whether `random` has its per-instance seed. Transfers with the
-    /// channel, so its noise stays continuous across patch updates.
+    /// lane, so its noise stays continuous across patch updates.
     seeded: bool,
 }
 
-impl Default for Channel {
+impl Default for Lane {
     fn default() -> Self {
         Self::new(0, &SyntheticRates::new(48000.0))
     }
 }
 
-impl Channel {
+impl Lane {
     pub(super) fn new(seed: u32, rates: &SyntheticRates) -> Self {
         Self {
             drum: SyntheticBassDrum::new(rates),
@@ -257,64 +257,65 @@ impl Channel {
 impl MiSynthKick {
     fn init(&mut self, sample_rate: f32) {
         self.state = SynthKickState::new(sample_rate);
-        for channel in self.channel_state.iter_mut() {
-            *channel = Channel::new(0, &self.state.rates);
+        for lane in self.lane_state.iter_mut() {
+            *lane = Lane::new(0, &self.state.rates);
         }
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let state = &self.state;
-        for (ch, channel) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane_index, lane) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = pitch(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, MiSynthKickParams::FM_DEFAULT),
+                p.freq.get_value(lane_index),
+                p.fm.value_or(lane_index, MiSynthKickParams::FM_DEFAULT),
                 p.fm_mode,
                 state.inv_sample_rate,
             );
-            let trigger = p.trigger.as_ref().map(|t| t.get_value(ch));
+            let trigger = p.trigger.as_ref().map(|t| t.get_value(lane_index));
             let knob = |signal: &Option<PolySignal>, default| {
-                (signal.value_or(ch, default), signal.glide_mark(ch))
+                (
+                    signal.value_or(lane_index, default),
+                    signal.glide_mark(lane_index),
+                )
             };
             let accent = knob(&p.accent, MiSynthKickParams::ACCENT_DEFAULT);
             let mark = accent.1;
-            let accent = channel
-                .accent_state
-                .read(accent, trigger, state.sample_rate);
+            let accent = lane.accent_state.read(accent, trigger, state.sample_rate);
             let knobs = Knobs {
                 tone: knob(&p.tone, MiSynthKickParams::TONE_DEFAULT),
                 decay: knob(&p.decay, MiSynthKickParams::DECAY_DEFAULT),
                 dirt: (
-                    p.dirt.as_ref().map(|dirt| dirt.get_value(ch)),
-                    p.dirt.glide_mark(ch),
+                    p.dirt.as_ref().map(|dirt| dirt.get_value(lane_index)),
+                    p.dirt.glide_mark(lane_index),
                 ),
                 fm_envelope: knob(&p.fm_envelope, MiSynthKickParams::FM_ENVELOPE_DEFAULT),
                 fm_decay: knob(&p.fm_decay, MiSynthKickParams::FM_DECAY_DEFAULT),
                 accent: (plaits_volts(accent), mark),
             };
-            let out = channel.step(f0, knobs, trigger, state);
-            let out = channel.accent_state.apply(
+            let out = lane.step(f0, knobs, trigger, state);
+            let out = lane.accent_state.apply(
                 (OUTPUT_GAIN * out).clamp(-5.0, 5.0),
                 ACCENT_TRIM,
                 state.sample_rate,
             );
-            self.outputs.sample.set(ch, out);
+            self.outputs.sample.set(lane_index, out);
         }
     }
 }
 
 impl crate::types::PatchUpdateHandler for MiSynthKick {
-    /// Seeds the noise generators of channels that have none yet. Runs here,
+    /// Seeds the noise generators of lanes that have none yet. Runs here,
     /// not in `init`, because `init` runs in a stack slot that consecutive
     /// constructions share, so every instance would draw the same noise.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, channel) in self.channel_state.iter_mut().enumerate() {
-            if !channel.seeded {
-                let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
-                channel.random = Random::new((unit * f64::from(u32::MAX)) as u32);
-                channel.seeded = true;
+        for (lane_index, lane) in self.lane_state.iter_mut().enumerate() {
+            if !lane.seeded {
+                let unit = (hash_bipolar(base, lane_index as u64) + 1.0) * 0.5;
+                lane.random = Random::new((unit * f64::from(u32::MAX)) as u32);
+                lane.seeded = true;
             }
         }
     }

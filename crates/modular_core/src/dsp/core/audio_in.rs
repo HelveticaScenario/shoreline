@@ -6,7 +6,7 @@ use std::cell::UnsafeCell;
 
 use crate::{
     Sampleable,
-    poly::PORT_MAX_CHANNELS,
+    poly::PORT_MAX_LANES,
     types::{MessageHandler, WellKnownModule},
 };
 
@@ -17,10 +17,10 @@ const AUDIO_IN_MAX_BLOCK: usize = 4096;
 /// Hidden audio-input module. The audio callback pulls one CPAL frame per
 /// slot of the current internal block into `block` via `inject_audio_in`,
 /// and consumers read per-slot values via
-/// `get_value_at(_, ch, slot)`.
+/// `get_value_at(_, lane, slot)`.
 pub struct AudioIn {
     /// Per-block input frames, one entry per slot, each holding all
-    /// channels. Layout mirrors `BlockPort`: `block[sample_index][channel_index]`.
+    /// lanes. Layout mirrors `BlockPort`: `block[sample_index][lane_index]`.
     ///
     /// Heap-allocated (`Box<[_]>`) so that constructing `AudioIn` does not
     /// push a 256 KB array through the stack: a stack-resident
@@ -35,14 +35,14 @@ pub struct AudioIn {
     ///   - Read during `get_value_at` (inside module processing).
     ///
     /// These phases are serialised on the same thread — no concurrent access.
-    block: UnsafeCell<Box<[[f32; PORT_MAX_CHANNELS]]>>,
+    block: UnsafeCell<Box<[[f32; PORT_MAX_LANES]]>>,
     /// Number of valid samples in `block`: the slots of the current internal
     /// block injected so far.
     block_len: UnsafeCell<usize>,
 }
 
-fn make_empty_block() -> Box<[[f32; PORT_MAX_CHANNELS]]> {
-    vec![[0.0f32; PORT_MAX_CHANNELS]; AUDIO_IN_MAX_BLOCK].into_boxed_slice()
+fn make_empty_block() -> Box<[[f32; PORT_MAX_LANES]]> {
+    vec![[0.0f32; PORT_MAX_LANES]; AUDIO_IN_MAX_BLOCK].into_boxed_slice()
 }
 
 impl Default for AudioIn {
@@ -76,7 +76,7 @@ impl Sampleable for AudioIn {
 
     /// Store host input frames for slots `first_slot..`, clamped to
     /// `AUDIO_IN_MAX_BLOCK`.
-    fn inject_audio_in(&self, first_slot: usize, frames: &[[f32; PORT_MAX_CHANNELS]]) {
+    fn inject_audio_in(&self, first_slot: usize, frames: &[[f32; PORT_MAX_LANES]]) {
         let end = (first_slot + frames.len()).min(AUDIO_IN_MAX_BLOCK);
         let Some(len) = end.checked_sub(first_slot) else {
             return;
@@ -89,13 +89,13 @@ impl Sampleable for AudioIn {
     }
 
     /// Per-slot read of the injected block. Returns 0.0 for out-of-range
-    /// slot/channel indices, including when no block has been injected yet.
-    fn get_value_at(&self, _port: &str, ch: usize, index: usize) -> f32 {
+    /// slot/lane indices, including when no block has been injected yet.
+    fn get_value_at(&self, _port: &str, lane: usize, index: usize) -> f32 {
         let len = unsafe { *self.block_len.get() };
-        if index >= len || ch >= PORT_MAX_CHANNELS {
+        if index >= len || lane >= PORT_MAX_LANES {
             return 0.0;
         }
-        unsafe { (*self.block.get())[index][ch] }
+        unsafe { (*self.block.get())[index][lane] }
     }
 
     fn transfer_state_from(&self, old: &dyn Sampleable, _ids: &dyn crate::types::PreviousIds) {
@@ -129,7 +129,7 @@ mod tests {
     fn injected_ranges_fill_their_own_slots() {
         let audio_in = AudioIn::default();
         let frame = |v: f32| {
-            let mut f = [0.0; PORT_MAX_CHANNELS];
+            let mut f = [0.0; PORT_MAX_LANES];
             f[0] = v;
             f
         };

@@ -21,7 +21,7 @@ use crate::{
     poly::{PolyOutput, PolySignal, PolySignalExt},
 };
 
-use super::{Channel, Rates, Voice, update_channels};
+use super::{Lane, Rates, Voice, update_lanes};
 
 const VOWELS: usize = 5;
 const CONSONANTS: usize = 10;
@@ -38,7 +38,7 @@ pub struct LpcVowels {
     /// generator.
     pub(super) random: Random,
     /// Whether `random` has its per-instance seed. Transfers with the
-    /// channel, so a patch update never reseeds it.
+    /// lane, so a patch update never reseeds it.
     pub(super) seeded: bool,
     synth: LpcSynth,
     clock: LpcClock,
@@ -78,11 +78,11 @@ impl Default for LpcVowels {
 }
 
 impl LpcVowels {
-    /// Seeds the noise for channel `ch` of the instance with seed `base`,
+    /// Seeds the noise for lane `lane` of the instance with seed `base`,
     /// unless it has its seed.
-    pub(super) fn seed(&mut self, base: u64, ch: usize) {
+    pub(super) fn seed(&mut self, base: u64, lane: usize) {
         if !self.seeded {
-            let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
+            let unit = (hash_bipolar(base, lane as u64) + 1.0) * 0.5;
             self.random = Random::new((unit * f64::from(u32::MAX)) as u32);
             self.seeded = true;
         }
@@ -160,7 +160,7 @@ impl Voice for LpcVowels {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct LpcVowelParams {
@@ -234,31 +234,31 @@ const LPC_VOWEL_DOCS: ModuleDocs = ModuleDocs {
 pub struct LpcVowel {
     outputs: LpcVowelOutputs,
     state: Rates,
-    channel_state: Box<[Channel<LpcVowels>]>,
+    lane_state: Box<[Lane<LpcVowels>]>,
     params: LpcVowelParams,
 }
 
 impl LpcVowel {
     fn init(&mut self, sample_rate: f32) {
         self.state = Rates::new(sample_rate);
-        for channel in self.channel_state.iter_mut() {
-            *channel = Channel::new(&self.state);
+        for lane in self.lane_state.iter_mut() {
+            *lane = Lane::new(&self.state);
         }
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        update_channels!(self, LpcVowelParams);
+        update_lanes!(self, LpcVowelParams);
     }
 }
 
 impl crate::types::PatchUpdateHandler for LpcVowel {
-    /// Seeds the noise generators of channels that have none yet. Runs here,
+    /// Seeds the noise generators of lanes that have none yet. Runs here,
     /// not in `init`, because `init` runs in a stack slot that consecutive
     /// constructions share, so every instance would draw the same noise.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, channel) in self.channel_state.iter_mut().enumerate() {
-            channel.voice.seed(base, ch);
+        for (lane_index, lane) in self.lane_state.iter_mut().enumerate() {
+            lane.voice.seed(base, lane_index);
         }
     }
 }

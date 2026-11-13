@@ -14,7 +14,7 @@ use crate::dsp::utils::one_pole::OnePole;
 use crate::dsp::utils::{map_range, sanitize};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 // ─── Reference sample rate ───────────────────────────────────────────────────
@@ -84,12 +84,12 @@ fn scale_samples(ref_samples: usize, sample_rate: f32) -> usize {
 // ─── Params ──────────────────────────────────────────────────────────────────
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PlateParams {
     #[input(
-        "signal to reverberate; all channels are mixed to mono",
+        "signal to reverberate; all lanes are mixed to mono",
         type = audio,
     )]
     input: PolySignal,
@@ -100,7 +100,7 @@ struct PlateParams {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    bandwidth: Option<MonoSignal>,
+    bandwidth: Option<LaneSum>,
     #[input(
         "how fast the tail darkens: -5 bright, +5 muffled",
         type = control,
@@ -108,7 +108,7 @@ struct PlateParams {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    damping: Option<MonoSignal>,
+    damping: Option<LaneSum>,
     #[input(
         "how long the tail rings: -5 shortest, +5 almost endless",
         type = control,
@@ -116,7 +116,7 @@ struct PlateParams {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    decay: Option<MonoSignal>,
+    decay: Option<LaneSum>,
     #[input(
         "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.1 ms",
         type = control,
@@ -124,7 +124,7 @@ struct PlateParams {
         control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    modulation: Option<MonoSignal>,
+    modulation: Option<LaneSum>,
 }
 
 // ─── Outputs ─────────────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ struct PlateParams {
 struct PlateOutputs {
     #[output(
         "output",
-        "stereo reverb, fully wet, as left and right channels",
+        "stereo reverb, fully wet, as left and right lanes",
         type = cv,
         default
     )]
@@ -243,7 +243,7 @@ const PLATE_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "$plate",
     docs = PLATE_DOCS,
-    channels = 2,
+    lanes = 2,
     has_init,
     args(input)
 )]
@@ -356,7 +356,7 @@ impl Plate {
 
     fn update(&mut self, sample_rate: f32) {
         let lens = self.state.lengths;
-        let num_input_channels = self.params.input.channels();
+        let num_input_lanes = self.params.input.lanes();
 
         // ── Read parameters ──────────────────────────────────────────────
 
@@ -388,22 +388,22 @@ impl Plate {
         let mod_v = self.params.modulation.value_or(0.0);
         let mod_excursion = mod_v * lens.mod_excursion_scale;
 
-        // ── Sum input channels to mono ───────────────────────────────────
+        // ── Sum input lanes to mono ───────────────────────────────────
 
         let mut left_in = 0.0f32;
         let mut right_in = 0.0f32;
-        for ch in 0..num_input_channels {
-            let sample = self.params.input.get_value(ch);
-            if ch % 2 == 0 {
+        for lane in 0..num_input_lanes {
+            let sample = self.params.input.get_value(lane);
+            if lane % 2 == 0 {
                 left_in += sample;
             } else {
                 right_in += sample;
             }
         }
-        // With an odd channel count the final channel has no stereo partner,
+        // With an odd lane count the final lane has no stereo partner,
         // so feed it to both sides (a mono input drives left and right equally).
-        if num_input_channels % 2 == 1 {
-            right_in += self.params.input.get_value(num_input_channels - 1);
+        if num_input_lanes % 2 == 1 {
+            right_in += self.params.input.get_value(num_input_lanes - 1);
         }
         let mono_in = (left_in + right_in) * 0.5;
 
@@ -575,7 +575,7 @@ mod tests {
         let cached = deserializer(params).unwrap();
         let deserialized = DeserializedParams {
             params: cached.params,
-            channel_count: cached.channel_count,
+            lane_count: cached.lane_count,
             f64_inputs: false,
         };
         constructors.get("$plate").unwrap()(
@@ -623,7 +623,7 @@ mod tests {
         use crate::types::{OutputStruct, Signal};
 
         let mut outputs = super::PlateOutputs::default();
-        outputs.set_all_channels(2);
+        outputs.set_all_lanes(2);
         let mut m = super::Plate {
             outputs,
             state: Default::default(),
@@ -634,7 +634,7 @@ mod tests {
                 decay: None,
                 modulation: None,
             },
-            _channel_count: 2,
+            _lane_count: 2,
             _block_index: Default::default(),
         };
         m.init(SAMPLE_RATE);
@@ -686,11 +686,11 @@ mod tests {
         let right_energy: f32 = right.iter().map(|s| s * s).sum();
         assert!(
             left_energy > 0.0,
-            "left channel should have energy from impulse"
+            "left lane should have energy from impulse"
         );
         assert!(
             right_energy > 0.0,
-            "right channel should have energy from impulse"
+            "right lane should have energy from impulse"
         );
     }
 
@@ -702,7 +702,7 @@ mod tests {
             .iter()
             .zip(right.iter())
             .all(|(l, r)| (l - r).abs() < 1e-10);
-        assert!(!identical, "left and right channels should be decorrelated");
+        assert!(!identical, "left and right lanes should be decorrelated");
     }
 
     #[test]

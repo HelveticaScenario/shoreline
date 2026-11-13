@@ -9,7 +9,7 @@
 //! until C135 runs out and C134 recharges through R343. A Sallen-Key
 //! high-pass on Q68 leaves only the hiss.
 
-use crate::dsp::drums::lanes::Mono;
+use crate::dsp::drums::simd::Mono;
 use deserr::Deserr;
 use schemars::JsonSchema;
 

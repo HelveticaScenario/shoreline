@@ -70,7 +70,7 @@ impl Voice {
         }
     }
 
-    /// Reads one channel's samples at the voice position.
+    /// Reads one lane's samples at the voice position.
     pub(super) fn read(&self, samples: &[f32]) -> f32 {
         if self.wrap_reads {
             hermite_wrapped(samples, self.position)

@@ -7,10 +7,10 @@ use crate::dsp::phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState};
 use crate::dsp::utils::voct_to_hz;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt};
+use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PWarpParams {
@@ -34,20 +34,20 @@ struct PWarpOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     warp: PhaseWarpState,
     glides: PhaseWarpGlides,
 }
 
 /// As wide as the input, the warp's signals, and `freq`.
 #[allow(private_interfaces)]
-pub fn p_warp_derive_channel_count(params: &PWarpParams) -> usize {
+pub fn p_warp_derive_lane_count(params: &PWarpParams) -> usize {
     params
         .input
-        .channels()
-        .max(params.phase.channels())
-        .max(params.freq.channel_count())
-        .clamp(1, PORT_MAX_CHANNELS)
+        .lanes()
+        .max(params.phase.lanes())
+        .max(params.freq.lane_count())
+        .clamp(1, PORT_MAX_LANES)
 }
 
 const P_WARP_DOCS: ModuleDocs = ModuleDocs {
@@ -83,35 +83,35 @@ const P_WARP_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$pWarp", docs = P_WARP_DOCS, channels_derive = p_warp_derive_channel_count, args(input, phase))]
+#[module(name = "$pWarp", docs = P_WARP_DOCS, lanes_derive = p_warp_derive_lane_count, args(input, phase))]
 pub struct PWarp {
     outputs: PWarpOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: PWarpParams,
 }
 
 impl PWarp {
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
         let freq_connected = !self.params.freq.is_disconnected();
 
-        for ch in 0..num_channels {
+        for lane in 0..num_lanes {
             let freq_norm = if freq_connected {
-                voct_to_hz(self.params.freq.value_or_zero(ch)) / sample_rate
+                voct_to_hz(self.params.freq.value_or_zero(lane)) / sample_rate
             } else {
                 0.0
             };
-            let input = self.params.input.get_value(ch).clamp(0.0, 1.0);
-            let state = &mut self.channel_state[ch];
+            let input = self.params.input.get_value(lane).clamp(0.0, 1.0);
+            let state = &mut self.lane_state[lane];
             let resolved = self
                 .params
                 .phase
-                .resolve(ch, sample_rate, &mut state.glides);
+                .resolve(lane, sample_rate, &mut state.glides);
             let y = self
                 .params
                 .phase
                 .evaluate(input, &resolved, freq_norm, &mut state.warp);
-            self.outputs.sample.set(ch, y);
+            self.outputs.sample.set(lane, y);
         }
     }
 }

@@ -35,9 +35,7 @@ pub mod types;
 pub use block_port::BlockPort;
 pub use patch::Patch;
 
-pub use poly::{
-    MonoSignal, MonoSignalExt, PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt,
-};
+pub use poly::{LaneSum, LaneSumExt, PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
 
 pub use params::{
     ARGUMENT_SPANS_KEY, CachedParams, CloneableParams, DeserializedParams, ParamsDeserializer,

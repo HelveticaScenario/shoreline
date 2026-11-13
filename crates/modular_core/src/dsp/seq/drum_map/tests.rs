@@ -25,16 +25,16 @@ fn params(x: f32, y: f32, density: f32, resolution: DrumMapResolution) -> DrumMa
 
 /// Mirrors the production lifecycle: construction, then `on_patch_update`.
 fn make_fresh(params: DrumMapParams) -> DrumMap {
-    let channels = 1;
+    let lanes = 1;
     let mut outputs = DrumMapOutputs::default();
-    outputs.set_all_channels(channels);
+    outputs.set_all_lanes(lanes);
     let mut m = DrumMap {
         params,
         outputs,
-        _channel_count: channels,
+        _lane_count: lanes,
         _block_index: Default::default(),
         state: DrumMapState::default(),
-        channel_state: vec![ChannelState::default(); channels].into_boxed_slice(),
+        lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
     };
     m.on_patch_update();
     m
@@ -47,11 +47,11 @@ fn make(params: DrumMapParams) -> DrumMap {
     m
 }
 
-/// Drives the playhead the way the root clock does: bar phase on channel 0,
-/// completed bar count on channel 1.
+/// Drives the playhead the way the root clock does: bar phase on lane 0,
+/// completed bar count on lane 1.
 fn set_playhead(m: &mut DrumMap, p: f64) {
     let bars = p.floor();
-    m.params.playhead = Some(MonoSignal::from_poly(PolySignal::poly(&[
+    m.params.playhead = Some(LaneSum::from_poly(PolySignal::poly(&[
         Signal::Volts((p - bars) as f32),
         Signal::Volts(bars as f32),
     ])));
@@ -156,9 +156,7 @@ fn velocity_scales_accents_but_not_hits() {
     let mut accents_at_full = 0;
     for volts in [5.0, 3.0, 0.0] {
         let mut p = params(0.0, 0.0, 5.0, DrumMapResolution::ThirtySecond);
-        p.velocity = Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(
-            volts,
-        ))));
+        p.velocity = Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(volts))));
         let mut m = make(p);
         let hits = run_cycle(&mut m, 0);
         let (parts, accent_rows) = hits.split_at(NUM_PARTS);
@@ -301,9 +299,7 @@ fn phasor_playhead_wraps_into_a_new_cycle() {
     assert!(bd_fires_at(&mut m, 0.0));
     bd_fires_at(&mut m, at_step(31));
     // A 0–1 ramp wraps without the bar count advancing.
-    m.params.playhead = Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(
-        0.001,
-    ))));
+    m.params.playhead = Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(0.001))));
     m.update(SAMPLE_RATE);
     assert_eq!(m.outputs.bd.get(0), 5.0);
 }
@@ -319,9 +315,9 @@ fn chaos_rerolls_once_per_cycle() {
             set_playhead(&mut m, cycle as f64 + at_step(step));
             m.update(SAMPLE_RATE);
             if step == 0 {
-                rolls.push(m.channel_state[0].perturbation);
+                rolls.push(m.lane_state[0].perturbation);
             } else {
-                assert_eq!(m.channel_state[0].perturbation, *rolls.last().unwrap());
+                assert_eq!(m.lane_state[0].perturbation, *rolls.last().unwrap());
             }
         }
     }
@@ -398,5 +394,5 @@ fn module_created_at_downbeat_rolls_chaos() {
         set_playhead(&mut m, 5.0 + i as f64 * rate);
         m.update(SAMPLE_RATE);
     }
-    assert_ne!(m.channel_state[0].perturbation, [0; NUM_PARTS]);
+    assert_ne!(m.lane_state[0].perturbation, [0; NUM_PARTS]);
 }

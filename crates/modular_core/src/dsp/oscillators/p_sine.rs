@@ -11,7 +11,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
@@ -60,12 +60,12 @@ pub struct PSineOscillator {
 
 impl PSineOscillator {
     fn update(&mut self, _sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
-        for ch in 0..num_channels {
-            let phase = wrap(0.0..1.0, self.params.phase.get_value(ch));
+        for lane in 0..num_lanes {
+            let phase = wrap(0.0..1.0, self.params.phase.get_value(lane));
             let sine = interpolate(LUT_SINE, phase, LUT_SINE_SIZE);
-            self.outputs.sample.set(ch, sine * 5.0);
+            self.outputs.sample.set(lane, sine * 5.0);
         }
     }
 }

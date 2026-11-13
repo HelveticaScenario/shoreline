@@ -52,7 +52,7 @@ fn registration_amplitudes(registration: f32) -> [f32; 7] {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct DivideDownParams {
@@ -116,7 +116,7 @@ const DIVIDE_DOWN_DOCS: ModuleDocs = ModuleDocs {
 pub struct DivideDown {
     outputs: DivideDownOutputs,
     state: DivideDownState,
-    channel_state: Box<[Voice]>,
+    lane_state: Box<[Voice]>,
     params: DivideDownParams,
 }
 
@@ -228,21 +228,21 @@ impl DivideDown {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
-        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, DivideDownParams::FM_DEFAULT),
+                p.freq.get_value(lane),
+                p.fm.value_or(lane, DivideDownParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
             let registration = (
                 p.registration
-                    .value_or(ch, DivideDownParams::REGISTRATION_DEFAULT),
-                p.registration.glide_mark(ch),
+                    .value_or(lane, DivideDownParams::REGISTRATION_DEFAULT),
+                p.registration.glide_mark(lane),
             );
             let out = voice.step(f0, registration, &self.state);
-            self.outputs.sample.set(ch, OUTPUT_GAIN * out);
+            self.outputs.sample.set(lane, OUTPUT_GAIN * out);
         }
     }
 }

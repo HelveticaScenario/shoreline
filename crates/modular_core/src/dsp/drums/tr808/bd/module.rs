@@ -8,7 +8,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Bd808Params {
@@ -102,10 +102,10 @@ pub struct Bd808 {
     outputs: Bd808Outputs,
     params: Bd808Params,
     state: BdState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
 }
 
-/// The bass drum's per-sample-rate constants and its channel groups.
+/// The bass drum's per-sample-rate constants and its lane groups.
 #[derive(Default)]
 struct BdState {
     hold: Hold<1, 3>,
@@ -114,9 +114,9 @@ struct BdState {
 }
 
 #[derive(Clone, Copy, Default)]
-struct Channel {
+struct Lane {
     voices: Voices<Kick>,
-    /// The bridged-T for the channel's `freq` and `decay`.
+    /// The bridged-T for the lane's `freq` and `decay`.
     network: Cached<(f32, f32), Network>,
     /// The tone low-pass coefficient for its `tone`.
     tone: Cached<f32, f32>,
@@ -141,7 +141,7 @@ impl Bd808 {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -152,11 +152,11 @@ impl Bd808 {
         ];
         let out = &mut self.outputs.sample;
         self.state.tick(
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             p.hold,
             inputs,
-            |ch, v| out.set(ch, v),
+            |lane, v| out.set(lane, v),
         );
     }
 
@@ -166,7 +166,7 @@ impl Bd808 {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Bd808ParamsBlockInputs {
@@ -175,16 +175,16 @@ impl Bd808 {
             freq,
             decay,
             tone,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot(
             &mut outputs.sample,
             range,
             [trigger, accent, freq, decay, tone],
             |inputs, mut slot| {
                 self.state
-                    .tick(channel_state, p.restart, p.hold, inputs, |ch, v| {
-                        slot.set(ch, v)
+                    .tick(lane_state, p.restart, p.hold, inputs, |lane, v| {
+                        slot.set(lane, v)
                     })
             },
         );
@@ -193,12 +193,12 @@ impl Bd808 {
 }
 
 impl BdState {
-    /// Runs one sample of every channel on its `[trigger, accent, freq, decay,
+    /// Runs one sample of every lane on its `[trigger, accent, freq, decay,
     /// tone]`, handing `out` each one's output.
     #[inline(always)]
     fn tick<I: Input>(
         &mut self,
-        channels: &mut [Channel],
+        lanes: &mut [Lane],
         restart: bool,
         hold: bool,
         [trigger, accent, freq, decay, tone]: [I; 5],
@@ -206,7 +206,7 @@ impl BdState {
     ) {
         let [freq, decay, tone] =
             self.hold
-                .apply(hold, channels.len(), [trigger], [freq, decay, tone]);
+                .apply(hold, lanes.len(), [trigger], [freq, decay, tone]);
         let trigger = Held::Live(trigger);
         let run = Run {
             accent,
@@ -221,13 +221,13 @@ impl BdState {
             decay,
             tone,
         };
-        self.groups.run(&inputs, channels, &run, |ch, v| {
-            out(ch, rails(v * OUTPUT_GAIN))
+        self.groups.run(&inputs, lanes, &run, |lane, v| {
+            out(lane, rails(v * OUTPUT_GAIN))
         });
     }
 }
 
-/// The inputs every channel of the bass drum reads.
+/// The inputs every lane of the bass drum reads.
 struct BdInputs<'a, I> {
     sh: &'a KickShared,
     trigger: I,
@@ -236,21 +236,20 @@ struct BdInputs<'a, I> {
     tone: I,
 }
 
-impl<I: Input> ChannelInputs<KickDrum> for BdInputs<'_, I> {
-    type Channel = Channel;
+impl<I: Input> LaneInputs<KickDrum> for BdInputs<'_, I> {
+    type Lane = Lane;
 
-    fn voices(channel: &mut Channel) -> &mut Voices<Kick> {
-        &mut channel.voices
+    fn voices(lane: &mut Lane) -> &mut Voices<Kick> {
+        &mut lane.voices
     }
 
     #[inline(always)]
-    fn inputs(&self, ch: usize, cs: &mut Channel) -> (f32, KickControls) {
-        let network = cs
-            .network
-            .get((self.freq.at(ch), self.decay.at(ch)), |(freq, decay)| {
-                Network::new(freq, decay, self.sh.rest_hz)
-            });
-        let tone_coeff = cs.tone.get(self.tone.at(ch), |tone| {
+    fn inputs(&self, lane: usize, cs: &mut Lane) -> (f32, KickControls) {
+        let network = cs.network.get(
+            (self.freq.at(lane), self.decay.at(lane)),
+            |(freq, decay)| Network::new(freq, decay, self.sh.rest_hz),
+        );
+        let tone_coeff = cs.tone.get(self.tone.at(lane), |tone| {
             one_pole_coeff(tone_hz(tone), self.sh.sample_rate)
         });
         let controls = KickControls {
@@ -260,16 +259,16 @@ impl<I: Input> ChannelInputs<KickDrum> for BdInputs<'_, I> {
             tone_coeff,
             level: network.level,
         };
-        (self.trigger.at(ch), controls)
+        (self.trigger.at(lane), controls)
     }
 }
 
 impl crate::types::PatchUpdateHandler for Bd808 {
     fn on_patch_update(&mut self) {
-        let count = self.channel_count();
+        let count = self.lane_count();
         self.state
             .groups
-            .layout::<BdInputs<&[f32]>>(&mut self.channel_state, count);
+            .layout::<BdInputs<&[f32]>>(&mut self.lane_state, count);
     }
 }
 

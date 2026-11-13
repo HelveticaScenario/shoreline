@@ -58,7 +58,7 @@ enum ErraticMode {
 }
 
 #[params(reads_bounds = erratic_reads_bounds, settles = erratic_settle)]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ErraticParams {
@@ -149,7 +149,7 @@ struct ErraticOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct ErraticChannelState {
+struct ErraticLaneState {
     rng: LcgRng,
     /// Drives `sparse_points` only, so `rng`'s sequence is the same with
     /// sparse on or off.
@@ -202,7 +202,7 @@ fn input_range(input: Bounds) -> (f32, f32) {
     }
 }
 
-/// The bounds of a channel's output: its range, in the order it runs,
+/// The bounds of a lane's output: its range, in the order it runs,
 /// unless it shifts.
 #[inline(always)]
 fn output_bounds(min: f32, max: f32, mode: ErraticMode) -> Bounds {
@@ -212,8 +212,8 @@ fn output_bounds(min: f32, max: f32, mode: ErraticMode) -> Bounds {
     }
 }
 
-/// One channel's inputs for one sample.
-struct ChannelInputs {
+/// One lane's inputs for one sample.
+struct LaneInputs {
     input: f32,
     amount: f32,
     /// `None` when no trigger is connected.
@@ -225,12 +225,12 @@ struct ChannelInputs {
     mode: ErraticMode,
 }
 
-impl ErraticChannelState {
-    /// Seed this channel's RNG from a [`seed_base`] and its channel index, and
+impl ErraticLaneState {
+    /// Seed this lane's RNG from a [`seed_base`] and its lane index, and
     /// draw its first four points.
-    fn seed(&mut self, base: u64, channel: usize) {
-        self.rng.seed(base, channel);
-        self.sparse_rng.seed(base ^ SPARSE_SEED_SALT, channel);
+    fn seed(&mut self, base: u64, lane: usize) {
+        self.rng.seed(base, lane);
+        self.sparse_rng.seed(base ^ SPARSE_SEED_SALT, lane);
         self.points = std::array::from_fn(|_| self.rng.next_bipolar());
         self.sparse_points = std::array::from_fn(|_| self.sparse_rng.next_unit());
         self.curve = CatmullRom::new(self.points);
@@ -240,7 +240,7 @@ impl ErraticChannelState {
 
     /// Advance one sample and return the randomised input.
     #[inline(always)]
-    fn step(&mut self, f: ChannelInputs, p: &ErraticParams, sample_rate: f32) -> f32 {
+    fn step(&mut self, f: LaneInputs, p: &ErraticParams, sample_rate: f32) -> f32 {
         let inc = speed_to_increment(f.speed, sample_rate);
         self.phase += f64::from(inc);
         if self.phase >= 1.0 {
@@ -351,7 +351,7 @@ const ERRATIC_DOCS: ModuleDocs = ModuleDocs {
 pub struct Erratic {
     outputs: ErraticOutputs,
     params: ErraticParams,
-    channel_state: Box<[ErraticChannelState]>,
+    lane_state: Box<[ErraticLaneState]>,
 }
 
 impl Erratic {
@@ -359,29 +359,29 @@ impl Erratic {
         let p = &self.params;
         let mode = p.mode();
         let reads_bounds = p.min.is_none() || p.max.is_none();
-        for ch in 0..self.channel_count() {
+        for lane in 0..self.lane_count() {
             let (lo, hi) = if reads_bounds {
-                input_range(p.input.get_bounds(ch))
+                input_range(p.input.get_bounds(lane))
             } else {
                 (0.0, 0.0)
             };
-            let min = p.min.as_ref().map_or(lo, |min| min.get_value(ch));
-            let max = p.max.as_ref().map_or(hi, |max| max.get_value(ch));
-            let frame = ChannelInputs {
-                input: p.input.get_value(ch),
-                amount: p.amount.get_value(ch),
-                trigger: p.trigger.as_ref().map(|trigger| trigger.get_value(ch)),
-                speed: p.speed.value_or(ch, ErraticParams::SPEED_DEFAULT),
-                bias: p.bias.value_or(ch, ErraticParams::BIAS_DEFAULT),
+            let min = p.min.as_ref().map_or(lo, |min| min.get_value(lane));
+            let max = p.max.as_ref().map_or(hi, |max| max.get_value(lane));
+            let frame = LaneInputs {
+                input: p.input.get_value(lane),
+                amount: p.amount.get_value(lane),
+                trigger: p.trigger.as_ref().map(|trigger| trigger.get_value(lane)),
+                speed: p.speed.value_or(lane, ErraticParams::SPEED_DEFAULT),
+                bias: p.bias.value_or(lane, ErraticParams::BIAS_DEFAULT),
                 min,
                 max,
                 mode,
             };
-            let value = self.channel_state[ch].step(frame, p, sample_rate);
-            self.outputs.sample.set(ch, value);
+            let value = self.lane_state[lane].step(frame, p, sample_rate);
+            self.outputs.sample.set(lane, value);
             self.outputs
                 .sample
-                .set_bounds(ch, output_bounds(min, max, mode));
+                .set_bounds(lane, output_bounds(min, max, mode));
         }
     }
 
@@ -391,31 +391,32 @@ impl Erratic {
         range: Range<usize>,
         sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let mut scratch = Default::default();
         let p = &self.params;
         let mode = p.mode();
-        let inputs = p.block_inputs(range.clone(), channels, &mut scratch)?;
+        let inputs = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         // An unset range reads the input's, which holds still over the
         // range or sends the slots to `update`.
         let reads_bounds = p.min.is_none() || p.max.is_none();
-        if reads_bounds && (0..channels).any(|ch| p.input.block_bounds(range.clone(), ch).is_none())
+        if reads_bounds
+            && (0..lanes).any(|lane| p.input.block_bounds(range.clone(), lane).is_none())
         {
             return None;
         }
-        let unset = |ch: usize| {
+        let unset = |lane: usize| {
             input_range(
                 p.input
-                    .block_bounds(range.clone(), ch)
+                    .block_bounds(range.clone(), lane)
                     .unwrap_or(Bounds::UNBOUNDED),
             )
         };
         let (mut s_min, mut s_max) = (InputScratch::new(), InputScratch::new());
         let min = inputs.min.unwrap_or_else(|| {
-            block_input::constant_row(range.clone(), channels, &mut s_min, |ch| unset(ch).0)
+            block_input::constant_row(range.clone(), lanes, &mut s_min, |lane| unset(lane).0)
         });
         let max = inputs.max.unwrap_or_else(|| {
-            block_input::constant_row(range.clone(), channels, &mut s_max, |ch| unset(ch).1)
+            block_input::constant_row(range.clone(), lanes, &mut s_max, |lane| unset(lane).1)
         });
         block_input::map_bounds(
             &mut outputs.sample,
@@ -434,18 +435,18 @@ impl Erratic {
             ]
             .map(|input| input.row(i));
             let trigger = inputs.trigger.as_ref().map(|input| input.row(i));
-            for (ch, value) in outputs.sample.slot_mut(i).iter_mut().enumerate() {
-                let frame = ChannelInputs {
-                    input: input[ch],
-                    amount: amount[ch],
-                    trigger: trigger.map(|row| row[ch]),
-                    speed: speed[ch],
-                    bias: bias[ch],
-                    min: min[ch],
-                    max: max[ch],
+            for (lane, value) in outputs.sample.slot_mut(i).iter_mut().enumerate() {
+                let frame = LaneInputs {
+                    input: input[lane],
+                    amount: amount[lane],
+                    trigger: trigger.map(|row| row[lane]),
+                    speed: speed[lane],
+                    bias: bias[lane],
+                    min: min[lane],
+                    max: max[lane],
                     mode,
                 };
-                *value = self.channel_state[ch].step(frame, p, sample_rate);
+                *value = self.lane_state[lane].step(frame, p, sample_rate);
             }
         }
         Some(())
@@ -453,15 +454,15 @@ impl Erratic {
 }
 
 impl crate::types::PatchUpdateHandler for Erratic {
-    /// Seeds each unseeded channel off the module's stable heap address. The
-    /// per-channel `seeded` flag rides `transfer_state_from`, so a running
-    /// channel keeps its sequence across patch updates while newly added
-    /// channels still get distinct streams.
+    /// Seeds each unseeded lane off the module's stable heap address. The
+    /// per-lane `seeded` flag rides `transfer_state_from`, so a running
+    /// lane keeps its sequence across patch updates while newly added
+    /// lanes still get distinct streams.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
             if !state.seeded {
-                state.seed(base, ch);
+                state.seed(base, lane);
             }
         }
     }
@@ -497,14 +498,14 @@ mod tests {
     }
 
     fn make(params: ErraticParams) -> Erratic {
-        let channels = __erratic_derive_channel_count(&params);
+        let lanes = __erratic_derive_lane_count(&params);
         let mut outputs = ErraticOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         let mut m = Erratic {
             params,
             outputs,
-            channel_state: vec![ErraticChannelState::default(); channels].into_boxed_slice(),
-            _channel_count: channels,
+            lane_state: vec![ErraticLaneState::default(); lanes].into_boxed_slice(),
+            _lane_count: lanes,
             _block_index: Default::default(),
         };
         m.on_patch_update();
@@ -618,7 +619,7 @@ mod tests {
     }
 
     /// `process_block` over ranges of varying length matches `update` sample
-    /// for sample, from the same seeded state, with per-channel constants and a
+    /// for sample, from the same seeded state, with per-lane constants and a
     /// trigger that rises mid-run.
     #[test]
     fn block_path_matches_update() {
@@ -644,10 +645,10 @@ mod tests {
             p.sparse = sparse;
             let mut sample = make(p.clone());
             let mut block = make(p);
-            block.channel_state.copy_from_slice(&sample.channel_state);
+            block.lane_state.copy_from_slice(&sample.lane_state);
 
-            let channels = sample.channel_count();
-            let mut outputs = ErraticBlockOutputs::new(64, channels, false);
+            let lanes = sample.lane_count();
+            let mut outputs = ErraticBlockOutputs::new(64, lanes, false);
             let mut expected = Vec::new();
             let mut actual = Vec::new();
             for (n, len) in [1, 9, 1, 30, 23].into_iter().cycle().take(20).enumerate() {
@@ -659,7 +660,7 @@ mod tests {
                 }
                 for _ in 0..len {
                     sample.update(SR);
-                    expected.extend((0..channels).map(|ch| sample.outputs.sample.get(ch)));
+                    expected.extend((0..lanes).map(|lane| sample.outputs.sample.get(lane)));
                 }
                 block
                     .process_block(&mut outputs, start..start + len, SR)
@@ -681,11 +682,11 @@ mod tests {
     fn low_speed_keeps_moving() {
         let speed = 0.1;
         let mut m = make(params(0.0, 5.0, speed, 0.0));
-        m.channel_state[0].phase = 0.75;
+        m.lane_state[0].phase = 0.75;
         let samples = 48_000;
         run(&mut m, samples);
         let expected = 0.75 + f64::from(speed_to_increment(speed, SR)) * samples as f64;
-        assert!((m.channel_state[0].phase - expected).abs() < 1e-9);
+        assert!((m.lane_state[0].phase - expected).abs() < 1e-9);
     }
 
     #[test]
@@ -717,16 +718,13 @@ mod tests {
         let mut dense = make(p.clone());
         p.sparse = true;
         let mut sparse = make(p);
-        sparse.channel_state[0].rng = dense.channel_state[0].rng;
-        sparse.channel_state[0].points = dense.channel_state[0].points;
-        sparse.channel_state[0].curve = dense.channel_state[0].curve;
+        sparse.lane_state[0].rng = dense.lane_state[0].rng;
+        sparse.lane_state[0].points = dense.lane_state[0].points;
+        sparse.lane_state[0].curve = dense.lane_state[0].curve;
         for _ in 0..256 {
             dense.update(SR);
             sparse.update(SR);
-            assert_eq!(
-                dense.channel_state[0].points,
-                sparse.channel_state[0].points
-            );
+            assert_eq!(dense.lane_state[0].points, sparse.lane_state[0].points);
         }
     }
 
@@ -735,9 +733,9 @@ mod tests {
     #[test]
     fn full_speed_draws_fresh_points_at_high_sample_rates() {
         let mut m = make(params(0.0, 5.0, 5.0, 0.0));
-        m.channel_state[0].phase = 0.4;
+        m.lane_state[0].phase = 0.4;
         run_at(&mut m, 4, 96_000.0);
-        let state = m.channel_state[0];
+        let state = m.lane_state[0];
         assert_eq!(state.phase, 0.0);
         assert!((m.outputs.sample.get(0) - 5.0 * state.points[1]).abs() < 1e-5);
     }
@@ -789,7 +787,7 @@ mod tests {
         let mut full = 0;
         for _ in 0..n {
             m.update(SR);
-            let state = m.channel_state[0];
+            let state = m.lane_state[0];
             let target = (state.points[1] + 1.0) * 0.5;
             let out = m.outputs.sample.get(0);
             if (out - target).abs() < 1e-6 {

@@ -7,7 +7,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ScanParams {
@@ -40,7 +40,7 @@ struct ScanOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     counter: f32,
     trigger_schmitt: SchmittTrigger,
     reset_schmitt: SchmittTrigger,
@@ -63,7 +63,7 @@ const SCAN_DOCS: ModuleDocs = ModuleDocs {
 pub struct Scan {
     params: ScanParams,
     outputs: ScanOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
 }
 
 message_handlers!(impl Scan {});
@@ -119,20 +119,20 @@ fn step(counter: f32, distance: f32, length: f32, snap_on_wrap: bool) -> f32 {
 impl Scan {
     fn update(&mut self, _sample_rate: f32) {
         let p = &self.params;
-        for ch in 0..self.channel_count() {
-            let state = &mut self.channel_state[ch];
-            if state.trigger_schmitt.process(p.trigger.get_value(ch)) {
+        for lane in 0..self.lane_count() {
+            let state = &mut self.lane_state[lane];
+            if state.trigger_schmitt.process(p.trigger.get_value(lane)) {
                 state.counter = step(
                     state.counter,
-                    p.distance.get_value(ch),
-                    p.length.get_value(ch),
+                    p.distance.get_value(lane),
+                    p.length.get_value(lane),
                     p.snap_on_wrap,
                 );
             }
-            if state.reset_schmitt.process(p.reset.value_or_zero(ch)) {
+            if state.reset_schmitt.process(p.reset.value_or_zero(lane)) {
                 state.counter = 0.0;
             }
-            self.outputs.output.set(ch, state.counter);
+            self.outputs.output.set(lane, state.counter);
         }
     }
 }
@@ -144,7 +144,7 @@ mod tests {
 
     fn make(length: f32, distance: f32, snap_on_wrap: bool) -> Scan {
         let mut outputs = ScanOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         Scan {
             params: ScanParams {
                 length: PolySignal::mono(Signal::Volts(length)),
@@ -154,9 +154,9 @@ mod tests {
                 snap_on_wrap,
             },
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
-            channel_state: vec![ChannelState::default(); 1].into_boxed_slice(),
+            lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         }
     }
 
@@ -280,9 +280,9 @@ mod tests {
     }
 
     #[test]
-    fn channels_count_independently() {
+    fn lanes_count_independently() {
         let mut outputs = ScanOutputs::default();
-        outputs.set_all_channels(2);
+        outputs.set_all_lanes(2);
         let mut m = Scan {
             params: ScanParams {
                 length: PolySignal::mono(Signal::Volts(4.0)),
@@ -292,9 +292,9 @@ mod tests {
                 snap_on_wrap: false,
             },
             outputs,
-            _channel_count: 2,
+            _lane_count: 2,
             _block_index: Default::default(),
-            channel_state: vec![ChannelState::default(); 2].into_boxed_slice(),
+            lane_state: vec![LaneState::default(); 2].into_boxed_slice(),
         };
         m.update(48_000.0);
         assert_eq!(m.outputs.output.get(0), 1.0);

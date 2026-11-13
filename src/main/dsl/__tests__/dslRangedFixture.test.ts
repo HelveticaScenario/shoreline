@@ -21,7 +21,7 @@ import {
     CollectionWithRange,
     DeferredModuleOutput,
 } from '../GraphBuilder';
-import { createOutLane } from '../outLane';
+import { createTrackTap } from '../trackTap';
 
 const FIXTURE_PATH = resolve(
     dirname(fileURLToPath(import.meta.url)),
@@ -49,7 +49,7 @@ function buildFixture() {
         addRanged: chain(lfo(), 'add', flipped()),
         amp: chain(lfo(), 'amp', 3),
         ceil: chain(lfo(), 'ceil'),
-        channel: lfo()[0],
+        lane: lfo()[0],
         clamp: chain(lfo(), 'clamp', { min: 0.5 }),
         clampLimits: factory('$clamp')(unranged(), { max: 1, min: -1 }),
         curve: chain(lfo(), 'curve', 2),
@@ -102,13 +102,13 @@ function buildFixture() {
         pan: lfo(),
     });
     for (const label of ['lifted', 'wrapped']) {
-        const lane = createOutLane(builder, label);
-        chains[`${label}.active`] = lane.active;
-        chains[`${label}.level`] = lane.level;
-        chains[`${label}.pan`] = lane.pan;
+        const tap = createTrackTap(builder, label);
+        chains[`${label}.active`] = tap.active;
+        chains[`${label}.level`] = tap.level;
+        chains[`${label}.pan`] = tap.pan;
     }
 
-    // A constant channel beside a ranged one has no range to give.
+    // A constant lane beside a ranged one has no range to give.
     expect(chain(factory('$sine')(['1hz', '2hz']), 'slew', 1)).toBeInstanceOf(
         CollectionWithRange,
     );
@@ -134,7 +134,7 @@ function buildFixture() {
             const output =
                 item instanceof DeferredModuleOutput ? item.resolve()! : item;
             return {
-                channel: output.channel,
+                lane: output.lane,
                 module: output.moduleId,
                 port: output.portName,
             };

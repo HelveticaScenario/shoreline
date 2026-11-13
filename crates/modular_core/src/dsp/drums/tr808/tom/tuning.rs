@@ -67,15 +67,15 @@ fn tuning_current_exact(x: f32) -> f32 {
     ((x - vd - i * pa) / pb) as f32
 }
 
-/// The tuning network's current at `x` and its slope, interpolated, lane by
-/// lane.
+/// The tuning network's current at `x` and its slope, interpolated, element by
+/// element.
 #[inline]
-pub(super) fn tuning_current<L: Lanes>(table: &[f32], x: L::S) -> (L::S, L::S) {
+pub(super) fn tuning_current<L: Simd>(table: &[f32], x: L::S) -> (L::S, L::S) {
     let (mut current, mut slope) = (c::<L::S>(0.0), c::<L::S>(0.0));
-    for lane in 0..L::WIDTH {
-        let (i, g) = tuning_current_at(table, x.lane(lane));
-        current.set_lane(lane, &i);
-        slope.set_lane(lane, &g);
+    for element in 0..L::WIDTH {
+        let (i, g) = tuning_current_at(table, x.element(element));
+        current.set_element(element, &i);
+        slope.set_element(element, &g);
     }
     (current, slope)
 }

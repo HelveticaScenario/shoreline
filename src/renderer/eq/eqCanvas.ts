@@ -1,5 +1,5 @@
 /**
- * EQ panel graph drawing: response curves (live, other channels, and the
+ * EQ panel graph drawing: response curves (live, other lanes, and the
  * code's when it diverges) and Q handles over the painted layers. Geometry
  * is in CSS pixels; drawing scales by devicePixelRatio.
  */
@@ -30,7 +30,7 @@ export interface DrawSection {
 
 export interface EqDrawState {
     sections: DrawSection[];
-    /** Other channels' lists (per-channel form), drawn as faint curves. */
+    /** Other lanes' lists (per-lane form), drawn as faint curves. */
     background: EqSectionView[][];
     selected: number | null;
     hovered: number | null;

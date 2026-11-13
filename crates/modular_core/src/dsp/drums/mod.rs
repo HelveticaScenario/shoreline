@@ -9,9 +9,9 @@ mod analog;
 mod clap;
 mod group;
 mod input;
-mod lanes;
 mod mna;
 mod pitch_level;
+mod simd;
 #[cfg(test)]
 mod tests;
 pub mod tr808;

@@ -5,7 +5,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cb808Params {
@@ -83,7 +83,7 @@ pub struct Cb808 {
     outputs: Cb808Outputs,
     params: Cb808Params,
     state: CbState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
 }
 
 /// The cowbell's per-sample-rate constants and its held `freq`.
@@ -94,12 +94,12 @@ struct CbState {
 }
 
 #[derive(Clone, Copy, Default)]
-struct Channel {
+struct Lane {
     voices: Voices<Bell>,
     /// The oscillators' phases, in cycles.
     phases: [f32; 2],
     seeded: bool,
-    /// Their steps per sample at the channel's `freq`, and the output gain
+    /// Their steps per sample at the lane's `freq`, and the output gain
     /// levelling it.
     tuning: Cached<f32, ([f32; 2], f32)>,
 }
@@ -139,7 +139,7 @@ impl Cb808 {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -149,12 +149,12 @@ impl Cb808 {
         let out = &mut self.outputs.sample;
         tick(
             &mut self.state,
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             p.hold,
             sample_rate,
             inputs,
-            |ch, v| out.set(ch, v),
+            |lane, v| out.set(lane, v),
         );
     }
 
@@ -164,15 +164,15 @@ impl Cb808 {
         range: Range<usize>,
         sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Cb808ParamsBlockInputs {
             trigger,
             accent,
             freq,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot(
             &mut outputs.sample,
             range,
@@ -180,12 +180,12 @@ impl Cb808 {
             |inputs, mut slot| {
                 tick(
                     &mut self.state,
-                    channel_state,
+                    lane_state,
                     p.restart,
                     p.hold,
                     sample_rate,
                     inputs,
-                    |ch, v| slot.set(ch, v),
+                    |lane, v| slot.set(lane, v),
                 )
             },
         );
@@ -193,22 +193,22 @@ impl Cb808 {
     }
 }
 
-/// Runs one sample of every channel on its `[trigger, accent, freq]`,
+/// Runs one sample of every lane on its `[trigger, accent, freq]`,
 /// handing `out` each one's output.
 #[inline(always)]
 fn tick<I: Input>(
     state: &mut CbState,
-    channels: &mut [Channel],
+    lanes: &mut [Lane],
     restart: bool,
     hold: bool,
     sample_rate: f32,
     [trigger, accent, freq]: [I; 3],
     mut out: impl FnMut(usize, f32),
 ) {
-    let [freq] = state.hold.apply(hold, channels.len(), [trigger], [freq]);
+    let [freq] = state.hold.apply(hold, lanes.len(), [trigger], [freq]);
     let sh = &state.shared;
-    for (ch, cs) in channels.iter_mut().enumerate() {
-        let (inc, level) = cs.tuning.get(freq.at(ch), |freq| {
+    for (lane, cs) in lanes.iter_mut().enumerate() {
+        let (inc, level) = cs.tuning.get(freq.at(lane), |freq| {
             let r = voct_to_hz(freq) / COWBELL_HZ[0];
             let inc = COWBELL_HZ.map(|hz| hz * r / sample_rate);
             (inc, levels::COWBELL.gain(freq))
@@ -219,9 +219,9 @@ fn tick<I: Input>(
             high: (phases[1], inc[1]),
         };
         let v = cs.voices.process(
-            trigger.at(ch),
+            trigger.at(lane),
             accent,
-            ch,
+            lane,
             restart,
             sh.timing.fade_samples,
             sh,
@@ -229,11 +229,11 @@ fn tick<I: Input>(
         );
         phases[0] = (phases[0] + inc[0]).fract();
         phases[1] = (phases[1] + inc[1]).fract();
-        out(ch, rails(v * OUTPUT_GAIN * level));
+        out(lane, rails(v * OUTPUT_GAIN * level));
     }
 }
 
-impl Channel {
+impl Lane {
     /// Starts the oscillators at random phases, as the 808's run freely from
     /// power-on, unless they already are.
     fn seed(&mut self, base: u64, stream: usize) {
@@ -250,8 +250,8 @@ impl Channel {
 impl crate::types::PatchUpdateHandler for Cb808 {
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, cs) in self.channel_state.iter_mut().enumerate() {
-            cs.seed(base, ch);
+        for (lane, cs) in self.lane_state.iter_mut().enumerate() {
+            cs.seed(base, lane);
         }
     }
 }

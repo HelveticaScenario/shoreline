@@ -23,7 +23,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
         .unwrap_or_else(|e| panic!("params deserialization for '{module_type}' failed: {e}"));
     let deserialized = DeserializedParams {
         params: cached.params,
-        channel_count: cached.channel_count,
+        lane_count: cached.lane_count,
         f64_inputs: false,
     };
     constructors
@@ -126,12 +126,12 @@ fn make_direct(params_json: serde_json::Value, wav_data: Arc<WavData>) -> Sample
     patch.wav_data.insert("test".to_string(), wav_data);
     params.connect(&patch);
     let mut outputs = SamplerOutputs::default();
-    outputs.set_all_channels(1);
+    outputs.set_all_lanes(1);
     let mut sampler = Sampler {
         params,
         outputs,
         state: SamplerState::default(),
-        _channel_count: 1,
+        _lane_count: 1,
         _block_index: Default::default(),
     };
     sampler.init(SAMPLE_RATE);
@@ -140,7 +140,7 @@ fn make_direct(params_json: serde_json::Value, wav_data: Arc<WavData>) -> Sample
 }
 
 fn set_gate(sampler: &mut Sampler, volts: f32) {
-    sampler.params.gate = MonoSignal::from_poly(PolySignal::mono(Signal::Volts(volts)));
+    sampler.params.gate = LaneSum::from_poly(PolySignal::mono(Signal::Volts(volts)));
 }
 
 fn releasing(sampler: &Sampler) -> bool {
@@ -159,7 +159,7 @@ fn release_positions(sampler: &Sampler) -> Vec<f64> {
 
 fn set_slice_signal(sampler: &mut Sampler, volts: f32) {
     sampler.params.slice.as_mut().unwrap().signal =
-        MonoSignal::from_poly(PolySignal::mono(Signal::Volts(volts)));
+        LaneSum::from_poly(PolySignal::mono(Signal::Volts(volts)));
 }
 
 fn run(sampler: &mut Sampler, n: usize) -> Vec<f32> {
@@ -198,7 +198,7 @@ fn ramp_wav() -> Vec<f32> {
 fn set_slice(sampler: &mut Sampler, points: &[f64], volts: f32) {
     let slice = sampler.params.slice.as_mut().unwrap();
     slice.points = points.to_vec();
-    slice.signal = MonoSignal::from_poly(PolySignal::mono(Signal::Volts(volts)));
+    slice.signal = LaneSum::from_poly(PolySignal::mono(Signal::Volts(volts)));
 }
 
 /// Largest sample-to-sample step in `out`, starting from `prev`.

@@ -1,5 +1,5 @@
-mod channel;
 mod feedback;
+mod lane;
 mod stage;
 
 use std::ops::Range;
@@ -15,7 +15,7 @@ use crate::{
     poly::{PolyOutput, PolySignal, PolySignalExt},
 };
 
-use channel::{AllpassChannel, Controls};
+use lane::{AllpassLane, Controls};
 
 const MAX_STAGES: usize = 50;
 
@@ -23,7 +23,7 @@ const MAX_STAGES: usize = 50;
 const MAX_FADE_STEP: u32 = MAX_STAGES as u32 - 1;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_allpass_params -> ModuleParamErrors)]
 struct AllpassParams {
@@ -137,7 +137,7 @@ const APF_DOCS: ModuleDocs = ModuleDocs {
 pub struct Allpass {
     outputs: AllpassOutputs,
     state: AllpassState,
-    channel_state: Box<[AllpassChannel]>,
+    lane_state: Box<[AllpassLane]>,
     params: AllpassParams,
 }
 
@@ -151,28 +151,28 @@ impl Allpass {
     fn init(&mut self, sample_rate: f32) {
         self.state.log2_c4_over_fs = (C4_HZ_F32 / sample_rate).log2();
         let base = seed_base(self);
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
-            state.seed_noise(base, ch);
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
+            state.seed_noise(base, lane);
         }
     }
 
     fn update(&mut self, _sample_rate: f32) {
         let fade_step = self.params.fade_step as usize;
         let p = &self.params;
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
             let controls = Controls {
-                cutoff: p.cutoff.get_value(ch),
-                stages: p.stages.value_or(ch, AllpassParams::STAGES_DEFAULT),
-                resonance: p.resonance.value_or(ch, AllpassParams::RESONANCE_DEFAULT),
-                feedback: p.feedback.value_or(ch, AllpassParams::FEEDBACK_DEFAULT),
+                cutoff: p.cutoff.get_value(lane),
+                stages: p.stages.value_or(lane, AllpassParams::STAGES_DEFAULT),
+                resonance: p.resonance.value_or(lane, AllpassParams::RESONANCE_DEFAULT),
+                feedback: p.feedback.value_or(lane, AllpassParams::FEEDBACK_DEFAULT),
             };
             let y = state.step(
-                p.input.get_value(ch),
+                p.input.get_value(lane),
                 controls,
                 fade_step,
                 self.state.log2_c4_over_fs,
             );
-            self.outputs.sample.set(ch, y);
+            self.outputs.sample.set(lane, y);
         }
     }
 
@@ -186,22 +186,22 @@ impl Allpass {
         let mut scratch = Default::default();
         let inputs = self
             .params
-            .block_inputs(range.clone(), self.channel_count(), &mut scratch)?;
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
+            .block_inputs(range.clone(), self.lane_count(), &mut scratch)?;
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
             for i in range.clone() {
                 let controls = Controls {
-                    cutoff: inputs.cutoff.row(i)[ch],
-                    stages: inputs.stages.row(i)[ch],
-                    resonance: inputs.resonance.row(i)[ch],
-                    feedback: inputs.feedback.row(i)[ch],
+                    cutoff: inputs.cutoff.row(i)[lane],
+                    stages: inputs.stages.row(i)[lane],
+                    resonance: inputs.resonance.row(i)[lane],
+                    feedback: inputs.feedback.row(i)[lane],
                 };
                 let y = state.step(
-                    inputs.input.row(i)[ch],
+                    inputs.input.row(i)[lane],
                     controls,
                     fade_step,
                     self.state.log2_c4_over_fs,
                 );
-                outputs.sample.slot_mut(i)[ch] = y;
+                outputs.sample.slot_mut(i)[lane] = y;
             }
         }
         Some(())

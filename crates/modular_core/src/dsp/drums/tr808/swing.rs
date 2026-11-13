@@ -12,8 +12,8 @@
 //! the envelope and a saturation floor in time with the band's peaks.
 
 use crate::dsp::drums::analog::{Exp, Junction, VT, converged};
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
 use crate::dsp::drums::mna::{Mna, MnaState};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 
 /// The 2SC945's saturation current and forward current gain.
 const IS: f64 = 10.0e-15;
@@ -42,7 +42,7 @@ const DIODE_MAX: f32 = 0.7;
 /// base-emitter voltage, with its exponential, on the last sample; and the
 /// node voltage that last saturated the collector.
 #[derive(Clone, Copy, Default)]
-pub struct SwingState<L: Lanes = Mono> {
+pub struct SwingState<L: Simd = Mono> {
     couple_v: L::S,
     couple_i: L::S,
     vbe: L::D,
@@ -50,7 +50,7 @@ pub struct SwingState<L: Lanes = Mono> {
     saturated: Junction<L>,
 }
 
-lanewise!(SwingState {
+elementwise!(SwingState {
     couple_v,
     couple_i,
     vbe,
@@ -82,7 +82,7 @@ impl SwingState {
     }
 }
 
-impl<L: Lanes> SwingState<L> {
+impl<L: Simd> SwingState<L> {
     /// Advances one time step `dt` with the band at `band` and the collector
     /// able to sink at most `available` amps, returning the collector
     /// current.
@@ -136,7 +136,7 @@ impl<L: Lanes> SwingState<L> {
 /// saturated collector, from the node's open-circuit voltage `open` and
 /// impedance `z`, by Newton on the node voltage from its last solution.
 #[inline(always)]
-fn saturated_current<L: Lanes>(open: L::S, z: L::S, node: &mut Junction<L>) -> L::S {
+fn saturated_current<L: Simd>(open: L::S, z: L::S, node: &mut Junction<L>) -> L::S {
     let on = open.gt(c(VCE_SAT));
     if !on.any() {
         return c(0.0);
@@ -175,7 +175,7 @@ fn saturated_current<L: Lanes>(open: L::S, z: L::S, node: &mut Junction<L>) -> L
 /// collector current, and that current pulls the node down.
 #[allow(clippy::too_many_arguments)]
 #[inline]
-pub fn vca<L: Lanes, const U: usize, const C: usize, const S: usize, const K: usize>(
+pub fn vca<L: Simd, const U: usize, const C: usize, const S: usize, const K: usize>(
     net: &Mna<U, C, S, K>,
     state: &mut MnaState<C, L>,
     closed: L::Closed,

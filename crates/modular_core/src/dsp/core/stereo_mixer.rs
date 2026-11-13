@@ -5,45 +5,45 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     block_input::{InputScratch, OptionBlockInput},
     dsp::utils::sanitize,
-    poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal, PolySignalExt},
+    poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 use deserr::Deserr;
 use schemars::JsonSchema;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct StereoMixerParams {
     #[input("the signal to place in the stereo field", type = audio)]
     input: PolySignal,
     #[input(
-        "pan position of each channel: -5 left, 0 centre, +5 right",
+        "pan position of each lane: -5 left, 0 centre, +5 right",
         type = control,
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     pan: Option<PolySignal>,
     #[input(
-        "how far the channels fan out around their pan positions: 0 none, 5 widest",
+        "how far the lanes fan out around their pan positions: 0 none, 5 widest",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    width: Option<MonoSignal>,
+    width: Option<LaneSum>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct StereoMixerOutputs {
-    #[output("output", "stereo mix: left on channel 0, right on channel 1", type = cv, default)]
+    #[output("output", "stereo mix: left on lane 0, right on lane 1", type = cv, default)]
     sample: PolyOutput,
 }
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     pan: SwapGlide,
     /// The final pan the cached gains were computed for, and the
     /// `(left, right)` gains.
@@ -53,7 +53,7 @@ struct ChannelState {
 const STEREO_MIX_DOCS: ModuleDocs = ModuleDocs {
     summary: "Stereo panner and spreader",
     description: "Places a signal in the stereo field and puts out left and right. Give each \
-                  channel its own `pan`, or raise `width` to fan the voices of a chord out \
+                  lane its own `pan`, or raise `width` to fan the voices of a chord out \
                   from the centre.",
     categories: &[ModuleCategory::Mixer],
     sections: &[],
@@ -70,7 +70,7 @@ const STEREO_MIX_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "$stereoMix",
     docs = STEREO_MIX_DOCS,
-    channels = 2,
+    lanes = 2,
     args(input),
     has_init,
     block
@@ -79,12 +79,12 @@ pub struct StereoMixer {
     outputs: StereoMixerOutputs,
     params: StereoMixerParams,
     state: StereoMixerState,
-    /// Per-input-channel pan state. Sized to the *input* signal's channel
-    /// count (not the module's fixed 2 output channels) in `init`, so its
-    /// length is decoupled from the derived channel count. State transfer
-    /// carries over the overlapping channels; a width change keeps the surplus
+    /// Per-input-lane pan state. Sized to the *input* signal's lane
+    /// count (not the module's fixed 2 output lanes) in `init`, so its
+    /// length is decoupled from the derived lane count. State transfer
+    /// carries over the overlapping lanes; a width change keeps the surplus
     /// freshly initialised.
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
 }
 
 /// Module-level state for the StereoMixer.
@@ -96,9 +96,9 @@ struct StereoMixerState {
 
 impl StereoMixer {
     fn init(&mut self, _sample_rate: f32) {
-        // One pan glide per input channel.
-        let input_channels = self.params.input.channels().max(1);
-        self.channel_state = vec![ChannelState::default(); input_channels].into_boxed_slice();
+        // One pan glide per input lane.
+        let input_lanes = self.params.input.lanes().max(1);
+        self.lane_state = vec![LaneState::default(); input_lanes].into_boxed_slice();
     }
 
     /// Outside a glide, reads width and pan raw, exactly as `process_block`
@@ -111,13 +111,13 @@ impl StereoMixer {
             sample_rate,
         );
         let (left, right) = mix_sample(
-            &mut self.channel_state[..p.input.channels()],
+            &mut self.lane_state[..p.input.lanes()],
             width,
-            |ch| p.input.get_value(ch),
-            |ch, glide| {
+            |lane| p.input.get_value(lane),
+            |lane, glide| {
                 glide.follow(
-                    p.pan.value_or_zero(ch).clamp(-5.0, 5.0),
-                    p.pan.glide_mark(ch),
+                    p.pan.value_or_zero(lane).clamp(-5.0, 5.0),
+                    p.pan.glide_mark(lane),
                     sample_rate,
                 )
             },
@@ -133,27 +133,25 @@ impl StereoMixer {
         _sample_rate: f32,
     ) -> Option<()> {
         let p = &self.params;
-        let input_channels = p.input.channels();
+        let input_lanes = p.input.lanes();
         let width_glide = &mut self.state.width_buffer;
-        let channel_state = &mut self.channel_state[..input_channels];
+        let lane_state = &mut self.lane_state[..input_lanes];
         let gliding = width_glide.will_glide(p.width.glide_mark())
-            || channel_state
+            || lane_state
                 .iter()
                 .enumerate()
-                .any(|(ch, state)| state.pan.will_glide(p.pan.glide_mark(ch)));
+                .any(|(lane, state)| state.pan.will_glide(p.pan.glide_mark(lane)));
         if gliding {
             return None;
         }
         let mut scratch: [InputScratch; 3] = std::array::from_fn(|_| InputScratch::new());
         let [s0, s1, s2] = &mut scratch;
-        let input = p.input.block_input(range.clone(), input_channels, s0)?;
-        let pan = p
-            .pan
-            .block_input_or(range.clone(), input_channels, 0.0, s1)?;
+        let input = p.input.block_input(range.clone(), input_lanes, s0)?;
+        let pan = p.pan.block_input_or(range.clone(), input_lanes, 0.0, s1)?;
         let width = match &p.width {
             Some(width) => {
                 let width = width.poly();
-                Some(width.block_input(range.clone(), width.channels(), s2)?)
+                Some(width.block_input(range.clone(), width.lanes(), s2)?)
             }
             None => None,
         };
@@ -165,10 +163,10 @@ impl StereoMixer {
         for i in range.clone() {
             let (input, pan) = (input.row(i), pan.row(i));
             let (left, right) = mix_sample(
-                channel_state,
+                lane_state,
                 width_at(i),
-                |ch| input[ch],
-                |ch, _| pan[ch].clamp(-5.0, 5.0),
+                |lane| input[lane],
+                |lane, _| pan[lane].clamp(-5.0, 5.0),
             );
             let out = outputs.sample.slot_mut(i);
             out[0] = sanitize(left);
@@ -176,34 +174,36 @@ impl StereoMixer {
         }
         let last = range.end - 1;
         width_glide.settle(width_at(last), p.width.glide_mark());
-        for (ch, (state, &pan)) in channel_state.iter_mut().zip(pan.row(last)).enumerate() {
-            state.pan.settle(pan.clamp(-5.0, 5.0), p.pan.glide_mark(ch));
+        for (lane, (state, &pan)) in lane_state.iter_mut().zip(pan.row(last)).enumerate() {
+            state
+                .pan
+                .settle(pan.clamp(-5.0, 5.0), p.pan.glide_mark(lane));
         }
         Some(())
     }
 }
 
-/// One sample of the stereo mix: each channel `input(ch)` placed at the base
-/// pan `pan(ch, glide)` returns, spread by `width`, summed into `(left, right)`.
+/// One sample of the stereo mix: each lane `input(lane)` placed at the base
+/// pan `pan(lane, glide)` returns, spread by `width`, summed into `(left, right)`.
 #[inline(always)]
 fn mix_sample(
-    channel_state: &mut [ChannelState],
+    lane_state: &mut [LaneState],
     width: f32,
     input: impl Fn(usize) -> f32,
     mut pan: impl FnMut(usize, &mut SwapGlide) -> f32,
 ) -> (f32, f32) {
-    let input_channels = channel_state.len();
+    let input_lanes = lane_state.len();
     let mut left_sum = 0.0f32;
     let mut right_sum = 0.0f32;
 
-    for (ch, state) in channel_state.iter_mut().enumerate() {
-        let input = input(ch);
-        let base_pan = pan(ch, &mut state.pan);
+    for (lane, state) in lane_state.iter_mut().enumerate() {
+        let input = input(lane);
+        let base_pan = pan(lane, &mut state.pan);
 
         // Voices spread from -width (voice 0) to +width (last voice) around
         // their base pan.
-        let spread_offset = if input_channels > 1 {
-            let voice_pos = ch as f32 / (input_channels - 1) as f32;
+        let spread_offset = if input_lanes > 1 {
+            let voice_pos = lane as f32 / (input_lanes - 1) as f32;
             (voice_pos - 0.5) * 2.0 * width
         } else {
             0.0
@@ -216,7 +216,7 @@ fn mix_sample(
     (left_sum, right_sum)
 }
 
-impl ChannelState {
+impl LaneState {
     /// The equal-power `(left, right)` gains for `pan`, cached while it holds.
     #[inline(always)]
     fn gains(&mut self, pan: f32) -> (f32, f32) {
@@ -240,13 +240,13 @@ mod tests {
     use super::*;
     use crate::types::{OutputStruct as _, Signal};
 
-    /// Build a StereoMixer the way the module macro would: fixed 2-channel
-    /// stereo output, per-input-channel pan state sized by `init`. A fresh
+    /// Build a StereoMixer the way the module macro would: fixed 2-lane
+    /// stereo output, per-input-lane pan state sized by `init`. A fresh
     /// `SwapGlide` starts on its input, so a single call shows the full
     /// pan/width.
     fn make_stereo(input: PolySignal) -> StereoMixer {
         let mut outputs = StereoMixerOutputs::default();
-        outputs.set_all_channels(2);
+        outputs.set_all_lanes(2);
         let mut m = StereoMixer {
             outputs,
             params: StereoMixerParams {
@@ -255,8 +255,8 @@ mod tests {
                 width: None,
             },
             state: StereoMixerState::default(),
-            channel_state: Box::default(),
-            _channel_count: 2,
+            lane_state: Box::default(),
+            _lane_count: 2,
             _block_index: Default::default(),
         };
         m.init(48000.0);
@@ -272,23 +272,23 @@ mod tests {
     }
 
     #[test]
-    fn pan_state_sized_to_input_channels() {
-        assert_eq!(make_stereo(poly(5)).channel_state.len(), 5);
-        assert_eq!(make_stereo(poly(1)).channel_state.len(), 1);
+    fn pan_state_sized_to_input_lanes() {
+        assert_eq!(make_stereo(poly(5)).lane_state.len(), 5);
+        assert_eq!(make_stereo(poly(1)).lane_state.len(), 1);
     }
 
     #[test]
     fn wide_input_does_not_panic_and_outputs_stereo() {
         let mut m = make_stereo(poly(40));
         m.update(48000.0);
-        assert_eq!(m.outputs.sample.channels(), 2);
+        assert_eq!(m.outputs.sample.lanes(), 2);
     }
 
     #[test]
     fn test_default_width_is_no_spread() {
         // With no width signal connected, width defaults to 0 (no spread):
         // every voice stays centered, so a 2-voice input sums equally to both
-        // channels at the equal-power center gain sqrt(0.5). (A width of 5
+        // lanes at the equal-power center gain sqrt(0.5). (A width of 5
         // would instead hard-pan voice 0 left and voice 1 right.)
         let mut m = make_stereo(PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(0.0)]));
         m.update(48000.0);

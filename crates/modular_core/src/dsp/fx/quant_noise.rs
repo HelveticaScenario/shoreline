@@ -16,7 +16,7 @@ use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct QuantNoiseParams {
@@ -64,24 +64,24 @@ struct QuantNoiseOutputs {
 const MIN_STEP: f32 = 1.0e-4;
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     amount: SwapGlide,
     step: SwapGlide,
     /// Previous quantized value, for the differentiation that brightens the grit.
     prev_q: f32,
-    /// False until the first sample has seeded `prev_q`. A fresh channel primes
+    /// False until the first sample has seeded `prev_q`. A fresh lane primes
     /// itself so the differentiation does not spike on the opening sample (which
-    /// would click); a channel carried over by `transfer_state_from` arrives
+    /// would click); a lane carried over by `transfer_state_from` arrives
     /// already primed and keeps its running `prev_q`.
     primed: bool,
-    /// Per-channel dither source.
+    /// Per-lane dither source.
     rng: LcgRng,
 }
 
 /// Module-level state for the quantization-noise effect.
 #[derive(Default)]
 struct QuantNoiseState {
-    /// Set once the per-channel dither RNGs have been seeded off the module's
+    /// Set once the per-lane dither RNGs have been seeded off the module's
     /// stable heap address (see `seed`).
     seeded: bool,
 }
@@ -108,14 +108,14 @@ const QUANT_NOISE_DOCS: ModuleDocs = ModuleDocs {
 pub struct QuantNoise {
     outputs: QuantNoiseOutputs,
     state: QuantNoiseState,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: QuantNoiseParams,
 }
 
 impl QuantNoise {
-    /// Seed each channel's dither RNG off this module's stable heap address so
-    /// every instance gets a distinct stream; mixing the channel index with an
-    /// odd golden-ratio constant decorrelates the channels.
+    /// Seed each lane's dither RNG off this module's stable heap address so
+    /// every instance gets a distinct stream; mixing the lane index with an
+    /// odd golden-ratio constant decorrelates the lanes.
     ///
     /// Called from `on_patch_update`, not `init`: `init` runs while the module
     /// still lives in a transient stack slot that is reused across
@@ -129,32 +129,32 @@ impl QuantNoise {
     /// previous patch on every edit. Seeding once keeps the dither continuous.
     fn seed(&mut self) {
         let base = seed_base(self);
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
-            state.rng.seed(base, ch);
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
+            state.rng.seed(base, lane);
         }
         self.state.seeded = true;
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
 
-            let input = self.params.input.get_value(ch);
+            let input = self.params.input.get_value(lane);
             state.amount.update(
-                self.params.amount.get_value(ch),
-                self.params.amount.glide_mark(ch),
+                self.params.amount.get_value(lane),
+                self.params.amount.glide_mark(lane),
                 sample_rate,
             );
             state.step.update(
-                self.params.step.value_or(ch, 0.25),
-                self.params.step.glide_mark(ch),
+                self.params.step.value_or(lane, 0.25),
+                self.params.step.glide_mark(lane),
                 sample_rate,
             );
             let amount = (*state.amount).max(0.0);
             let step = (*state.step).max(MIN_STEP);
-            let dither = self.params.dither.value_or(ch, 5.0).clamp(0.0, 5.0) / 5.0;
+            let dither = self.params.dither.value_or(lane, 5.0).clamp(0.0, 5.0) / 5.0;
 
             // Dither up to ±one step so rounding can flip to an adjacent level
             // anywhere in the grid, decorrelating the quantization error into
@@ -175,7 +175,7 @@ impl QuantNoise {
             let grit = (q - state.prev_q) * amount;
             state.prev_q = q;
 
-            self.outputs.sample.set(ch, input + grit);
+            self.outputs.sample.set(lane, input + grit);
         }
     }
 }
@@ -197,7 +197,7 @@ mod tests {
 
     fn make(input: f32, amount: f32, step: f32, dither: f32) -> QuantNoise {
         let mut outputs = QuantNoiseOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         let mut m = QuantNoise {
             params: QuantNoiseParams {
                 input: PolySignal::mono(Signal::Volts(input)),
@@ -206,16 +206,16 @@ mod tests {
                 dither: Some(PolySignal::mono(Signal::Volts(dither))),
             },
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
             state: QuantNoiseState::default(),
-            channel_state: vec![ChannelState::default(); 1].into_boxed_slice(),
+            lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         };
         m.on_patch_update();
         m
     }
 
-    /// Run `n` samples, returning channel-0 output minus the (constant) dry input
+    /// Run `n` samples, returning lane-0 output minus the (constant) dry input
     /// so the result is the grit alone.
     fn grit_series(m: &mut QuantNoise, input: f32, n: usize) -> Vec<f32> {
         (0..n)

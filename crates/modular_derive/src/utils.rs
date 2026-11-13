@@ -59,20 +59,20 @@ pub fn is_option_poly_signal_type(ty: &Type) -> bool {
     is_type(ty, is_poly_signal_type)
 }
 
-/// Check if a type is exactly MonoSignal (for default_connection code generation)
+/// Check if a type is exactly LaneSum (for default_connection code generation)
 pub fn is_mono_signal_type(ty: &Type) -> bool {
     match ty {
         Type::Path(tp) => tp
             .path
             .segments
             .last()
-            .map(|seg| seg.ident == "MonoSignal")
+            .map(|seg| seg.ident == "LaneSum")
             .unwrap_or(false),
         _ => false,
     }
 }
 
-/// Check if a type is Option<MonoSignal>
+/// Check if a type is Option<LaneSum>
 pub fn is_option_mono_signal_type(ty: &Type) -> bool {
     is_type(ty, is_mono_signal_type)
 }

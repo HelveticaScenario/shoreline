@@ -65,7 +65,7 @@ fn curve_shape_inverse(level: f32, c: f32) -> f32 {
 /// arbitrarily short ramp slews to its target instead of clicking; when the cap
 /// holds the level back, the ramp finishes only once the level has caught up.
 #[inline]
-fn advance_ramp(state: &mut ChannelState, start: f32, target: f32, c: f32, dphase: f32) -> bool {
+fn advance_ramp(state: &mut LaneState, start: f32, target: f32, c: f32, dphase: f32) -> bool {
     if state.phase < 1.0 {
         let phase_prev = state.phase;
         state.phase = (state.phase + dphase).min(1.0);
@@ -95,7 +95,7 @@ fn advance_ramp(state: &mut ChannelState, start: f32, target: f32, c: f32, dphas
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct AdsrParams {
@@ -156,9 +156,9 @@ enum EnvelopeStage {
     Release,
 }
 
-/// Per-channel envelope state.
+/// Per-lane envelope state.
 #[derive(Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     stage: EnvelopeStage,
     /// Current envelope level in `[0, 1]`; scaled to 0–5V on output.
     current_level: f32,
@@ -172,7 +172,7 @@ struct ChannelState {
     retrig_schmitt: SchmittTrigger,
 }
 
-impl Default for ChannelState {
+impl Default for LaneState {
     fn default() -> Self {
         Self {
             stage: EnvelopeStage::Idle,
@@ -218,7 +218,7 @@ const ADSR_DOCS: ModuleDocs = ModuleDocs {
 #[module(name = "$adsr", docs = ADSR_DOCS, args(gate))]
 pub struct Adsr {
     outputs: AdsrOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: AdsrParams,
 }
 
@@ -231,7 +231,7 @@ struct AdsrOutputs {
 
 impl Adsr {
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
         // When decay is set explicitly but sustain is omitted, sustain defaults to
         // 0V (a plucky attack-decay shape); otherwise it defaults to full 5V.
@@ -243,18 +243,18 @@ impl Adsr {
 
         let reset_on_retrig = self.params.reset_on_retrig;
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
 
-            let attack = self.params.attack.value_or(ch, 0.001).max(0.0);
-            let decay = self.params.decay.value_or(ch, 0.05).max(0.0);
-            let release = self.params.release.value_or(ch, 0.01).max(0.0);
+            let attack = self.params.attack.value_or(lane, 0.001).max(0.0);
+            let decay = self.params.decay.value_or(lane, 0.05).max(0.0);
+            let release = self.params.release.value_or(lane, 0.01).max(0.0);
             let sustain = self
                 .params
                 .sustain
-                .value_or(ch, sustain_default)
+                .value_or(lane, sustain_default)
                 .clamp(0.0, 5.0);
-            let curve = self.params.curve.value_or(ch, 5.0).clamp(-5.0, 5.0);
+            let curve = self.params.curve.value_or(lane, 5.0).clamp(-5.0, 5.0);
 
             // Curve coefficient shared by every ramp (see `curve_shape`). A
             // negative coefficient bends a ramp concave (fast then slow), positive
@@ -268,11 +268,11 @@ impl Adsr {
 
             let sustain_level = (sustain / 5.0).clamp(0.0, 1.0);
 
-            let gate_val = self.params.gate.get_value(ch);
+            let gate_val = self.params.gate.get_value(lane);
             let (gate_on, gate_edge) = state.gate_schmitt.process_with_edge(gate_val);
 
             // The retrigger input defaults to the gate when not patched.
-            let retrig_val = self.params.retrigger.value_or(ch, gate_val);
+            let retrig_val = self.params.retrigger.value_or(lane, gate_val);
             let (_, retrig_edge) = state.retrig_schmitt.process_with_edge(retrig_val);
 
             if gate_edge.is_rising() {
@@ -385,7 +385,7 @@ impl Adsr {
                 }
             }
 
-            self.outputs.sample.set(ch, state.current_level * 5.0);
+            self.outputs.sample.set(lane, state.current_level * 5.0);
         }
     }
 }
@@ -401,13 +401,13 @@ mod tests {
 
     fn make(params: AdsrParams) -> Adsr {
         let mut outputs = AdsrOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         Adsr {
             params,
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
-            channel_state: vec![ChannelState::default(); 1].into_boxed_slice(),
+            lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         }
     }
 

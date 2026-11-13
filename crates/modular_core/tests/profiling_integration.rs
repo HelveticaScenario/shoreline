@@ -63,7 +63,7 @@ fn profiler_attributes_work_to_both_modules() {
                     "type": "cable",
                     "module": "osc",
                     "port": "output",
-                    "channel": 0,
+                    "lane": 0,
                 }
             }),
         ),

@@ -252,13 +252,13 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * - A **number** (constant voltage)
  * - A **{@link Note}** string like \`"C4"\` or \`"A#3"\`
  * - A **{@link HZ}** string like \`"440hz"\`
- * - A **{@link Collection}** from another module, one voice per channel
+ * - A **{@link Collection}** from another module, one voice per lane
  * 
  * @example $sine("C4")           // Note string
  * @example $sine(2)              // Number
  * @example $sine("440hz")        // Hz string
  * @example $sine($signal('c').add($sine("1hz").amp(0.1)))   // Collection (1Hz vibrato)
- * @see {@link Poly<Signal>} - for multi-channel signals
+ * @see {@link Poly<Signal>} - for multi-lane signals
  * @see {@link Collection} - for module connections
  */
 type Signal = number | Note | HZ | Collection | CollectionWithRange;
@@ -270,7 +270,7 @@ type ConstantSignal = number | Note | HZ;
 type RangedSignal = ConstantSignal | CollectionWithRange;
 
 /**
- * A potentially multi-channel signal for polyphonic patches.
+ * A potentially multi-lane signal for polyphonic patches.
  *
  * Can be:
  * - A single {@link Signal}
@@ -278,7 +278,7 @@ type RangedSignal = ConstantSignal | CollectionWithRange;
  * - A {@link SignalGroup} from \`$g1\`/\`$g2\`/\`$g3\` (cartesian voice expansion)
  *
  * @example $saw(["C3", "E3", "G3"]).out()                    // 3-voice chord
- * @example $saw([...$sine("1hz"), ...$sine("2hz")]).out()   // Spread channels into voices
+ * @example $saw([...$sine("1hz"), ...$sine("2hz")]).out()   // Spread lanes into voices
  * @see {@link Signal} - for a single signal
  * @see {@link Collection} - for grouping outputs
  */
@@ -286,16 +286,16 @@ type Poly<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRa
 
 /**
  * An axis of an XY scope: signals and collections, or an array mixing
- * them. Every channel is its own trace.
+ * them. Every lane is its own trace.
  */
 type ScopeAxis = OrArray<Signal>;
 
 /**
  * A param value tagged into a cartesian signal group by {@link $g1}, {@link $g2},
  * or {@link $g3}. Params in different groups multiply within a module — its
- * channel count becomes the product of the group widths — while params in the
+ * lane count becomes the product of the group widths — while params in the
  * same group cycle against each other as usual. Untagged params are group 0.
- * Lower-numbered groups vary fastest across the resulting channels.
+ * Lower-numbered groups vary fastest across the resulting lanes.
  *
  * Opaque: construct only with \`$g1\`/\`$g2\`/\`$g3\`.
  */
@@ -306,16 +306,16 @@ interface SignalGroup {
 
 
 /**
- * A signal input that sums all channels to a single mono value. Takes what
+ * A signal input that sums all lanes to a single mono value. Takes what
  * {@link Poly} takes except a signal group: the module combines all voices
  * into one control signal rather than preserving polyphony.
  *
  * @example $stereoMix($saw("c3"), { width: 0.8 })          // Constant width
  * @example $stereoMix($saw("c3"), { width: $sine("1hz") }) // Oscillating stereo width
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
- * @see {@link Signal} - for single-channel signals
+ * @see {@link Signal} - for single-lane signals
  */
-type Mono<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange>;
+type LaneSum<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange>;
 
 /**
  * A phase warp produced by the \`$phase.*\` helpers.
@@ -363,7 +363,7 @@ type BufferOutputRef = {
   readonly type: "buffer_ref";
   readonly module: string;
   readonly port: string;
-  readonly channels: number;
+  readonly lanes: number;
   readonly frameCount: number;
 };
 
@@ -371,7 +371,7 @@ type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : neve
 
 /**
  * The \`$cycle\` sequencer a pattern plays through, as the pattern has it.
- * What a member gives back (a channel, a slice, the receiver of \`.out()\`)
+ * What a member gives back (a lane, a slice, the receiver of \`.out()\`)
  * is that sequencer's signal, not a pattern.
  */
 type PatternModule = { [K in keyof CycleOutputs]: CycleOutputs[K] };
@@ -690,7 +690,7 @@ type GlideMode = ${literalUnion(GLIDE_MODES)};
  */
 type WavMeta = {
   readonly path: string;
-  readonly channels: number;
+  readonly lanes: number;
   readonly sampleRate: number;
   readonly frameCount: number;
   readonly duration: number;
@@ -734,20 +734,20 @@ ${renderOutOptionsMembers(MONO_OUT_OPTIONS)}
 }
 
 /**
- * Every signal in a patch: an ordered set of channels, one voice each, with
- * chainable DSP methods. Indexing and iteration give one-channel collections
+ * Every signal in a patch: an ordered set of lanes, one voice each, with
+ * chainable DSP methods. Indexing and iteration give one-lane collections
  * of the same type, so \`osc[0]\` is still a signal with every method.
  */
 interface BaseCollection extends ModuleChain {}
 class BaseCollection {
-  /** Number of channels in the collection */
+  /** Number of lanes in the collection */
   readonly length: number;
-  /** Channel \`index\` as a one-channel collection */
+  /** Lane \`index\` as a one-lane collection */
   readonly [index: number]: this;
   [Symbol.iterator](): Iterator<this>;
 
   /**
-   * A collection of the same type holding the channels from \`start\` up to but
+   * A collection of the same type holding the lanes from \`start\` up to but
    * not including \`end\`. Negative indices count from the end, as with
    * \`Array.prototype.slice\`.
    * @param start First index to include (default 0)
@@ -758,31 +758,31 @@ class BaseCollection {
 
   /**
    * Split into an array of consecutive collections of the same type, each
-   * \`size\` channels long except the last, which holds the remainder.
+   * \`size\` lanes long except the last, which holds the remainder.
    *
    * \`\`\`js
    * const [low, high] = $saw(['c3', 'e3', 'g3', 'b3']).chunk(2)
    * low.out({ pan: -5 })
    * high.out({ pan: 5 })
    * \`\`\`
-   * @param size Channels per chunk (a positive integer)
+   * @param size Lanes per chunk (a positive integer)
    */
   chunk(size: number): this[];
 
   /**
-   * Add scope visualization for all channels, overlaid on one scope unless \`split\` is set.
+   * Add scope visualization for all lanes, overlaid on one scope unless \`split\` is set.
    * The scope appears as an overlay in the editor.
    * @param config Scope configuration options
    * @param config.msPerFrame Time window in milliseconds (default 500)
    * @param config.triggerThreshold Trigger threshold in volts (optional)
    * @param config.triggerWaitToRender Whether the scope should wait to render until the buffer fills (default true). Only applicable if triggerThreshold is set.
    * @param config.range Voltage range for display as [min, max] tuple (default [-5, 5])
-   * @param config.split Draw each channel in its own scope instead of overlaying them: 'vertical' stacks them top to bottom, 'horizontal' fits them side by side
+   * @param config.split Draw each lane in its own scope instead of overlaying them: 'vertical' stacks them top to bottom, 'horizontal' fits them side by side
    */
   scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number]; split?: 'vertical' | 'horizontal' }): this;
 
   /**
-   * Send all channels to speakers as stereo, summed together.
+   * Send all lanes to speakers as stereo, summed together.
    *
    * Options:
 ${renderOutOptionsJsDocList(STEREO_OUT_OPTIONS)}
@@ -793,7 +793,7 @@ ${renderOutOptionsJsDocList(STEREO_OUT_OPTIONS)}
   out(options?: StereoOutOptions): this;
 
   /**
-   * Send all channels to speakers as mono, summed together.
+   * Send all lanes to speakers as mono, summed together.
    *
    * Options:
 ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
@@ -838,14 +838,14 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
   pipe<T>(pipeFn: (self: this) => T): T;
   /**
    * Pipe this signal through a transform for each element of an array.
-   * Returns a {@link Collection} of every result's channels.
+   * Returns a {@link Collection} of every result's lanes.
    *
    * @param pipeFn A function that receives this signal and one element from the array
    * @param array An array whose elements are passed to \`pipeFn\` one by one
-   * @returns A {@link Collection} with the channels of every result
+   * @returns A {@link Collection} with the lanes of every result
    *
    * @example
-   * // 6 channels
+   * // 6 lanes
    * $sine(['C4', 'E4', 'G4']).pipe(
    *   (s, cut) => $lpf(s, cut),
    *   ['440hz', '880hz'],
@@ -887,7 +887,7 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
   wet(mix?: Poly<Signal>): Collection;
 
   /**
-   * Register all channels as a send to a bus, with optional gain.
+   * Register all lanes as a send to a bus, with optional gain.
    * @param bus The {@link Bus} to send to
    * @param gain Send level as {@link Poly<Signal>}
    * @returns This collection for chaining
@@ -897,10 +897,10 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
 
 /**
  * A signal with chainable DSP methods: what every module returns, one
- * channel per voice.
+ * lane per voice.
  * 
  * Group signals with the $c() helper function. Supports iteration, indexing,
- * and spreading, each giving one-channel collections.
+ * and spreading, each giving one-lane collections.
  * 
  * @example
  * const voices = $c($sine('c3'), $sine('e3'), $sine('g3'))
@@ -950,7 +950,7 @@ class CollectionWithRange extends BaseCollection {
 }
 
 /**
- * Placeholder channels for signals assigned later, from {@link $deferred}:
+ * Placeholder lanes for signals assigned later, from {@link $deferred}:
  * use it as a signal now and call .set() before the end of the script, for
  * feedback loops and forward references.
  */
@@ -958,21 +958,21 @@ class DeferredCollection extends BaseCollection {
   protected constructor();
 
   /**
-   * Set the signals for all channels, cycling a narrower argument across
+   * Set the signals for all lanes, cycling a narrower argument across
    * them. Bare {@link Signal} literals (numbers, note/Hz strings) are lifted
    * into $signal modules, matching $c — a string is one signal, not spread
    * into characters.
-   * @param polySignal A {@link Poly<Signal>} (single signal or array) to distribute across the channels
+   * @param polySignal A {@link Poly<Signal>} (single signal or array) to distribute across the lanes
    */
   set(polySignal: Poly<Signal>): void;
 }
 
 /**
- * A tap on a labeled out lane, returned by {@link $outLane}. As a
+ * A tap on a labeled out, returned by {@link $trackTap}. As a
  * {@link Collection} it is the lane's audio after its gain and mute/solo gate:
- * two channels, with a mono lane's signal on both.
+ * two lanes, with a mono out's signal on both.
  */
-class OutLane extends Collection {
+class TrackTap extends Collection {
   private constructor();
   /** 5V while the lane is audible, 0V while it is muted or silenced by another out's solo. */
   readonly active: CollectionWithRange;
@@ -1034,29 +1034,29 @@ function $hz(
 function $note(noteName: string): number;
 
 /**
- * Create a {@link Collection} holding the channels of every argument, in order.
+ * Create a {@link Collection} holding the lanes of every argument, in order.
  *
  * Collections support chainable DSP methods, iteration, indexing, and spreading.
  * Bare {@link Signal} literals (numbers, note/Hz strings) are lifted into
  * $signal modules, so they can be mixed in alongside module outputs.
  * @param args Signals, or arrays of them, to group
- * @returns A {@link Collection} of their channels
+ * @returns A {@link Collection} of their lanes
  * @example $c($sine('c3'), $sine('e3')).amp(0.5).out()
  * @example $c(440, 'c4', $sine('e3'))  // Bare number/string lifted into $signal
  * @example $c($p('c4 e4'), 'g4')      // A pattern contributes its voices
- * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access: a one-channel Collection
- * @example [...$c($sine('c3'), $sine('e3'))]             // Spread to an array of one-channel Collections
+ * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access: a one-lane Collection
+ * @example [...$c($sine('c3'), $sine('e3'))]             // Spread to an array of one-lane Collections
  * @see {@link $r} - for ranged signals
  */
 function $c(...args: (Signal | Signal[])[]): Collection;
 
 /**
- * Create a {@link CollectionWithRange} holding the channels of every ranged
+ * Create a {@link CollectionWithRange} holding the lanes of every ranged
  * argument, each keeping its range.
  * 
  * Like $c() for ranged collections: range() maps each from its own range.
  * @param args Ranged signals, or arrays of them, to group
- * @returns A {@link CollectionWithRange} of their channels
+ * @returns A {@link CollectionWithRange} of their lanes
  * @example $r($sine('1hz'), $sine('2hz')).range(0, 5)
  * @example $r(...[$sine('3hz'), $sine('4hz')]).range(0, 1)
  * @see {@link $c} - for signals without known ranges
@@ -1084,16 +1084,16 @@ function $setTempo(tempo: number): void;
 
 /**
  * Set the global output gain applied to the final mix.
- * @param gain Gain as a {@link Mono<Signal>} (2.5 is default, 5.0 is unity)
+ * @param gain Gain as a {@link LaneSum<Signal>} (2.5 is default, 5.0 is unity)
  * @example $setOutputGain(2.5) // 50% gain (default)
  * @example $setOutputGain(5.0) // unity
  * @example $setOutputGain($adsr($clock._beatTrigger, {})) // modulate gain from envelope
  */
-function $setOutputGain(gain: Mono<Signal>): void;
+function $setOutputGain(gain: LaneSum<Signal>): void;
 
 /**
  * An XY oscilloscope as the patch's picture: shorthand for
- * \`$v.scopeXY(x, y, config).out()\`. Each channel of \`x\` and \`y\` is its own
+ * \`$v.scopeXY(x, y, config).out()\`. Each lane of \`x\` and \`y\` is its own
  * signal, paired off in order with the shorter side cycling, one trace per pair.
  * @param x Horizontal signal(s)
  * @param y Vertical signal(s)
@@ -1169,7 +1169,7 @@ function $swing(
 /**
  * Create a DeferredCollection with placeholder signals that can be assigned later.
  * Useful for feedback loops and forward references.
- * @param channels Number of deferred outputs (1-64, default 1)
+ * @param lanes Number of deferred outputs (1-64, default 1)
  * @example
  * const fb = $deferred();
  * // the delay's buffer breaks the cycle, so the deferred can feed back in
@@ -1177,7 +1177,7 @@ function $swing(
  * fb.set(echoed);
  * echoed.out();
  */
-function $deferred(channels?: number): DeferredCollection;
+function $deferred(lanes?: number): DeferredCollection;
 
 /**
  * Create a slider control that binds a UI slider to a signal module.
@@ -1320,18 +1320,18 @@ function $bus(cb: (mixed: Collection) => unknown): Bus;
  * live VU-panel changes. The out may be declared before or after the tap; a
  * label no out declares is an error.
  *
- * @param label Label of the out lane to follow
- * @returns An {@link OutLane}
+ * @param label Label of the out to follow
+ * @returns An {@link TrackTap}
  *
  * @example
  * $saw('c2').out({ label: 'bass' });
- * const bass = $outLane('bass');
+ * const bass = $trackTap('bass');
  * // Follows the bass fader and pan
  * $sine('c5').gain(bass.level).out({ pan: bass.pan });
  * // Silent while bass is muted or soloed out
  * $sine('g5').gain(bass.active).out();
  */
-function $outLane(label: string): OutLane;
+function $trackTap(label: string): TrackTap;
 
 /**
  * Set a custom end-of-chain processor applied to the final mix before output gain.
@@ -1372,11 +1372,11 @@ function $cartesian<A extends unknown[][]>(...arrays: A): ElementsOf<A>[];
 /**
  * Tag a parameter value into signal group 1.
  *
- * Parameters in different groups multiply (cartesian product of channels)
+ * Parameters in different groups multiply (cartesian product of lanes)
  * within a module instead of cycling together; parameters in the same group
  * cycle as usual, and untagged parameters are group 0. Lower-numbered groups
- * vary fastest across the resulting channels. The product across groups may
- * not exceed 64 channels, and \`$gN\` must wrap the entire parameter value —
+ * vary fastest across the resulting lanes. The product across groups may
+ * not exceed 64 lanes, and \`$gN\` must wrap the entire parameter value —
  * it cannot appear inside an array.
  *
  * @example
@@ -1476,9 +1476,9 @@ function $ott(input: Collection | CollectionWithRange, config?: {
  */
 function $cross(
     count: number,
-    playhead: Mono<Signal>,
+    playhead: LaneSum<Signal>,
     range?: [number, number],
-    interpolationType?: Parameters<typeof $track>[1]['interpolationType'],
+    interpolationType?: Parameters<typeof $keyframes>[1]['interpolationType'],
 ): Collection;
 
 /**
@@ -1526,7 +1526,7 @@ declare const $phase: {
     crush(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
     /**
      * Feedback: offset the phase by a lowpassed sine of its own output (0–5).
-     * Each stage keeps its own state per channel or voice.
+     * Each stage keeps its own state per lane or voice.
      */
     feedback(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
 };
@@ -1565,7 +1565,7 @@ interface VideoFile extends VideoSignal {
 /**
  * A constant, a {@link VideoSignal}, or an audio signal whose live value drives
  * the input: a \`$slider\` / \`$btn\` / \`$toggleBtn\`, or any module output
- * such as an LFO or envelope, with several channels summed to one. A
+ * such as an LFO or envelope, with several lanes summed to one. A
  * pattern's values are used as they are, so \`$p('0 0.5 1')\` steps from 0
  * to 1.
  */
@@ -2334,7 +2334,7 @@ export function generateDSL(schemas: Schemas): string {
     if (signalSchema) {
         lines.push('');
         lines.push(
-            '/** Live audio input, one channel per input on the current device. */',
+            '/** Live audio input, one lane per input channel on the current device. */',
         );
         const signalReturnType = getFactoryReturnType(signalSchema);
         lines.push(`export const $input: Readonly<${signalReturnType}>;`);

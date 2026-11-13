@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 
 use super::params::MAX_EQ_SECTIONS;
 use crate::module_state::{ModuleLiveState, ModuleStateMeta};
-use crate::poly::PORT_MAX_CHANNELS;
+use crate::poly::PORT_MAX_LANES;
 
 /// `[freq V/Oct, gain dB, q]` of one section.
 pub(super) type SectionValues = [f32; 3];
@@ -24,8 +24,8 @@ pub struct EqLiveState {
 impl EqLiveState {
     fn new() -> Self {
         Self {
-            counts: vec![0; PORT_MAX_CHANNELS],
-            values: vec![[[0.0; 3]; MAX_EQ_SECTIONS]; PORT_MAX_CHANNELS],
+            counts: vec![0; PORT_MAX_LANES],
+            values: vec![[[0.0; 3]; MAX_EQ_SECTIONS]; PORT_MAX_LANES],
             used: 0,
         }
     }
@@ -113,7 +113,7 @@ mod tests {
         let mut live = EqLiveState::new();
         live.write_list(0, [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]].into_iter());
         live.write_list(1, std::iter::once([7.0, 8.0, 9.0]));
-        live.write_list(PORT_MAX_CHANNELS, std::iter::once([0.0; 3]));
+        live.write_list(PORT_MAX_LANES, std::iter::once([0.0; 3]));
         assert_eq!(
             EqLiveMeta.build_json(&live),
             json!({ "eqLive": [[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], [[7.0, 8.0, 9.0]]] })

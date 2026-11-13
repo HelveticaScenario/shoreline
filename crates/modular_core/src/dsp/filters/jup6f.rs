@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Jup6fParams {
@@ -45,7 +45,7 @@ struct Jup6fOutputs {
     hp: PolyOutput,
 }
 
-/// 4-stage OTA ladder state for a single channel.
+/// 4-stage OTA ladder state for a single lane.
 #[derive(Default, Clone, Copy)]
 struct LadderState {
     /// Four cascaded 1-pole stages
@@ -100,7 +100,7 @@ const JUP6F_DOCS: ModuleDocs = ModuleDocs {
 pub struct Jup6f {
     outputs: Jup6fOutputs,
     state: Jup6fState,
-    channel_state: Box<[LadderState]>,
+    lane_state: Box<[LadderState]>,
     params: Jup6fParams,
 }
 
@@ -215,10 +215,10 @@ fn tanh_approx(x: f32) -> f32 {
 
 impl Jup6f {
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
         let state = &mut self.state;
         let is_mono = state.mono_path;
-        let channel_state = &mut self.channel_state;
+        let lane_state = &mut self.lane_state;
         let (cutoff, resonance) = (&self.params.cutoff, &self.params.resonance);
 
         // Update coefficients
@@ -235,33 +235,32 @@ impl Jup6f {
                 state.last_resonance_mono = r;
             }
         } else {
-            for i in 0..num_channels {
-                let (c, r) = channel_state[i]
+            for i in 0..num_lanes {
+                let (c, r) = lane_state[i]
                     .glides
                     .update(cutoff, resonance, 0.0, i, sample_rate);
 
-                if changed(c, channel_state[i].last_cutoff)
-                    || changed(r, channel_state[i].last_resonance)
+                if changed(c, lane_state[i].last_cutoff) || changed(r, lane_state[i].last_resonance)
                 {
                     let (g, k) = compute_coeffs(c, r, sample_rate);
-                    channel_state[i].g = g;
-                    channel_state[i].k = k;
-                    channel_state[i].last_cutoff = c;
-                    channel_state[i].last_resonance = r;
+                    lane_state[i].g = g;
+                    lane_state[i].k = k;
+                    lane_state[i].last_cutoff = c;
+                    lane_state[i].last_resonance = r;
                 }
             }
         }
 
-        for i in 0..num_channels {
+        for i in 0..num_lanes {
             let input = self.params.input.get_value(i) * 0.2; // ±5V → ±1V
 
             let (g, k) = if is_mono {
                 (state.mono_g, state.mono_k)
             } else {
-                (channel_state[i].g, channel_state[i].k)
+                (lane_state[i].g, lane_state[i].k)
             };
 
-            let (lp24, lp12, bp, hp) = process_ladder(input, &mut channel_state[i].s, g, k);
+            let (lp24, lp12, bp, hp) = process_ladder(input, &mut lane_state[i].s, g, k);
 
             self.outputs.lp24.set(i, lp24 * 5.0);
             self.outputs.lp12.set(i, lp12 * 5.0);
@@ -278,7 +277,7 @@ impl crate::types::PatchUpdateHandler for Jup6f {
             mono,
             self.state.mono_path,
             &mut self.state.glides_mono,
-            self.channel_state.iter_mut().map(|cs| &mut cs.glides),
+            self.lane_state.iter_mut().map(|cs| &mut cs.glides),
         );
         self.state.mono_path = mono;
     }

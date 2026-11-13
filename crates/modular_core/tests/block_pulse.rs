@@ -15,17 +15,17 @@ fn pulse_paths_agree() {
     check_paths_agree(
         "$pulse",
         json!({
-            "freq": poly_cable("lfo", CHANNELS),
+            "freq": poly_cable("lfo", LANES),
             "fm": cable("src", 1),
             "fmMode": "lin",
             "width": [1.0, 2.5, 4.0, 0.0],
-            "pwm": poly_cable("lfo", CHANNELS),
+            "pwm": poly_cable("lfo", LANES),
             "phaseOffset": 0.25,
         }),
     );
     check_paths_agree(
         "$pulse",
-        json!({ "freq": 1.0, "sync": poly_cable("src", CHANNELS), "phaseOffset": cable("lfo", 0) }),
+        json!({ "freq": 1.0, "sync": poly_cable("src", LANES), "phaseOffset": cable("lfo", 0) }),
     );
 }
 
@@ -34,7 +34,7 @@ fn allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$pulse",
-            json!({ "freq": poly_cable("src", CHANNELS), "pwm": cable("src", 0), "sync": cable("src", 1) })
+            json!({ "freq": poly_cable("src", LANES), "pwm": cable("src", 0), "sync": cable("src", 1) })
         ),
         0
     );

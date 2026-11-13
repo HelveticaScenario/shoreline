@@ -82,7 +82,7 @@ impl Stage {
     }
 
     /// One sample, returning the bandpass response `v1`. `v0` must be
-    /// finite: the channel sanitizes its input once, and resets its stages if
+    /// finite: the lane sanitizes its input once, and resets its stages if
     /// an input near `f32::MAX` overflows them.
     #[inline(always)]
     fn tick(&mut self, c: &StageCoeffs, v0: f32) -> f32 {

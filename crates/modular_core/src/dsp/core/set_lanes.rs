@@ -4,28 +4,28 @@ use schemars::JsonSchema;
 use crate::dsp::core::mix::MixMode;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal};
+use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal};
 
-fn default_channels() -> usize {
+fn default_lanes() -> usize {
     1
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
-pub struct MixDownParams {
+pub struct SetLanesParams {
     #[input(
         "the polyphonic signal to fold down",
         type = audio,
     )]
     pub input: PolySignal,
-    #[input("number of output channels", range = (1, 64))]
-    #[serde(default = "default_channels")]
-    #[deserr(default = default_channels())]
-    pub channels: usize,
+    #[input("number of output lanes", range = (1, 64))]
+    #[serde(default = "default_lanes")]
+    #[deserr(default = default_lanes())]
+    pub lanes: usize,
     #[input(
-        "how channels landing on the same output combine when folding down",
+        "how lanes landing on the same output combine when folding down",
         default = "sum"
     )]
     #[serde(default)]
@@ -35,80 +35,80 @@ pub struct MixDownParams {
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct MixDownOutputs {
+struct SetLanesOutputs {
     #[output(
         "output",
-        "the input channels spread evenly across the output channels with equal-power panning",
+        "the input lanes spread evenly across the output lanes with equal-power panning",
         type = cv,
         default
     )]
     sample: PolyOutput,
 }
 
-const MIX_DOWN_DOCS: ModuleDocs = ModuleDocs {
-    summary: "Fold channels to fewer outputs",
-    description: "Folds a polyphonic signal down to a set number of channels, panning the \
+const SET_LANES_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Fold lanes to fewer outputs",
+    description: "Folds a polyphonic signal down to a set number of lanes, panning the \
                   voices evenly across them: 1 for a mono sum, 2 for a stereo spread. With more \
                   outputs than inputs it spreads the input to fill every output instead.",
     categories: &[ModuleCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
         title: "Detuned saws spread across stereo",
-        code: "$mixDown($saw($spread(-0.02, 0.02, 5)), 2).out()",
+        code: "$setLanes($saw($spread(-0.02, 0.02, 5)), 2).out()",
     }],
 };
 
 #[module(
-    name = "$mixDown",
-    docs = MIX_DOWN_DOCS,
-    channels_param = "channels",
-    args(input, channels),
+    name = "$setLanes",
+    docs = SET_LANES_DOCS,
+    lanes_param = "lanes",
+    args(input, lanes),
     has_init,
     patch_update
 )]
-pub struct MixDown {
-    outputs: MixDownOutputs,
-    params: MixDownParams,
+pub struct SetLanes {
+    outputs: SetLanesOutputs,
+    params: SetLanesParams,
     /// Equal-power pan gains, stored row-major as a flat `in_ch * out_ch`
-    /// matrix: `gains[i * out_ch + j]` is the gain from input channel `i` to
-    /// output channel `j`. Both counts are fixed for the patch's lifetime, so
+    /// matrix: `gains[i * out_ch + j]` is the gain from input lane `i` to
+    /// output lane `j`. Both counts are fixed for the patch's lifetime, so
     /// the matrix is sized to them in `init` (no fixed `PORT_MAX²` upfront cost)
     /// and rebuilt — never reallocated — in `on_patch_update`, then read
     /// unchanged on the audio thread.
     ///
-    /// It lives in `channel_state` (not `state`) so the macro's size-aware
-    /// transfer never grows a swapped-in box across a channel-count change: a
+    /// It lives in `lane_state` (not `state`) so the macro's size-aware
+    /// transfer never grows a swapped-in box across a lane-count change: a
     /// fresh `init` always sizes each new instance, and `on_patch_update` only
     /// fills within that length.
-    channel_state: Box<[f32]>,
+    lane_state: Box<[f32]>,
 }
 
-message_handlers!(impl MixDown {});
+message_handlers!(impl SetLanes {});
 
-impl MixDown {
-    /// Size the gain matrix to the patch's input × output channel counts on the
+impl SetLanes {
+    /// Size the gain matrix to the patch's input × output lane counts on the
     /// main thread, so `on_patch_update` (audio thread) only fills it. Both
-    /// counts are resolved by construction time: `out_ch` from `channels`,
+    /// counts are resolved by construction time: `out_ch` from `lanes`,
     /// `in_ch` from the input signal's width.
     fn init(&mut self, _sample_rate: f32) {
-        let in_ch = self.params.input.channels().min(PORT_MAX_CHANNELS);
-        let out_ch = self.channel_count();
-        self.channel_state = vec![0.0; in_ch * out_ch].into_boxed_slice();
+        let in_ch = self.params.input.lanes().min(PORT_MAX_LANES);
+        let out_ch = self.lane_count();
+        self.lane_state = vec![0.0; in_ch * out_ch].into_boxed_slice();
     }
 
     /// Fill `gains` with the equal-power pan matrix mapping `in_ch` (N) input
-    /// channels onto `out_ch` (M) output channels. `gains[i][j]` is the gain
-    /// from input channel `i` to output channel `j`.
+    /// lanes onto `out_ch` (M) output lanes. `gains[i][j]` is the gain
+    /// from input lane `i` to output lane `j`.
     ///
-    /// - `M == 1`: plain mono sum (every input contributes gain 1.0 to ch 0).
+    /// - `M == 1`: plain mono sum (every input contributes gain 1.0 to lane 0).
     /// - `M <= N` (fold-down): each input sits at normalized position
     ///   `t = i/(N-1)` (`0.5` if `N == 1`), mapped to output index space
     ///   `pos = t*(M-1)` and split between adjacent outputs with equal-power
     ///   gains `sqrt(1-frac)`/`sqrt(frac)`. Inputs that land on the same output
     ///   are combined by `mode` in `update()`.
-    /// - `M > N` (fold-up): each *output* channel `j` sits at input-space
+    /// - `M > N` (fold-up): each *output* lane `j` sits at input-space
     ///   position `s = j*(N-1)/(M-1)` and gathers an equal-power interpolation
-    ///   of the adjacent input channels. This fills every output channel — no
+    ///   of the adjacent input lanes. This fills every output lane — no
     ///   silent gaps. There are no collisions, so `mode` does not apply.
     fn build_gains(gains: &mut [f32], in_ch: usize, out_ch: usize) {
         // Clear any stale entries from a previous topology.
@@ -146,7 +146,7 @@ impl MixDown {
             }
         } else {
             // Fold-up: gather an equal-power interpolation of adjacent inputs
-            // into each output so no output channel is left silent. With a
+            // into each output so no output lane is left silent. With a
             // single input (N == 1) every output samples it at unity. This
             // branch writes one output column `j` across two adjacent input
             // rows (`lo`, `lo + 1`), so it indexes the flat matrix directly
@@ -168,22 +168,22 @@ impl MixDown {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let in_ch = self.params.input.channels().min(PORT_MAX_CHANNELS);
-        let out_ch = self.channel_count();
+        let in_ch = self.params.input.lanes().min(PORT_MAX_LANES);
+        let out_ch = self.lane_count();
 
-        // Snapshot input channel values once (stack, no allocation).
-        let mut in_vals = [0.0f32; PORT_MAX_CHANNELS];
+        // Snapshot input lane values once (stack, no allocation).
+        let mut in_vals = [0.0f32; PORT_MAX_LANES];
         for (i, v) in in_vals.iter_mut().enumerate().take(in_ch) {
             *v = self.params.input.get_value(i);
         }
 
-        let gains = &self.channel_state;
+        let gains = &self.lane_state;
 
         // Folding up gathers an equal-power crossfade per output (no inputs
         // collide on one output), so the combine mode is irrelevant — sum the
         // crossfade. Folding down can land several inputs on one output, where
         // `mode` decides how they combine. The mode match is hoisted out of the
-        // per-output-channel loop so each branch carries only the accumulator
+        // per-output-lane loop so each branch carries only the accumulator
         // it needs — mirrors mix.rs.
         let mode = if out_ch > in_ch {
             MixMode::Sum
@@ -268,17 +268,17 @@ impl MixDown {
     }
 }
 
-impl crate::types::PatchUpdateHandler for MixDown {
-    /// Build the equal-power gain matrix once per patch-apply. Both channel
+impl crate::types::PatchUpdateHandler for SetLanes {
+    /// Build the equal-power gain matrix once per patch-apply. Both lane
     /// counts are fixed for the patch's lifetime, and this runs after the
-    /// connect pass (so `input.channels()` is resolved) and after any
+    /// connect pass (so `input.lanes()` is resolved) and after any
     /// `transfer_state_from`, so the unconditional rebuild overwrites a stale
     /// swapped-in matrix. The matrix was sized in `init`, so this only fills it
     /// — allocation-free, safe on the audio thread.
     fn on_patch_update(&mut self) {
-        let in_ch = self.params.input.channels().min(PORT_MAX_CHANNELS);
-        let out_ch = self.channel_count();
-        Self::build_gains(&mut self.channel_state, in_ch, out_ch);
+        let in_ch = self.params.input.lanes().min(PORT_MAX_LANES);
+        let out_ch = self.lane_count();
+        Self::build_gains(&mut self.lane_state, in_ch, out_ch);
     }
 }
 
@@ -288,19 +288,19 @@ mod tests {
     use crate::poly::PolySignal;
     use crate::types::{OutputStruct, Signal};
 
-    /// Build a MixDown directly, initializing `_channel_count` and the output
-    /// channels the way the module macro would. `channels` is clamped to
-    /// 1–PORT_MAX_CHANNELS (matching the macro's `channels_param` codegen).
-    fn make_mix_down(params: MixDownParams) -> MixDown {
-        let channels = params.channels.clamp(1, PORT_MAX_CHANNELS);
-        let mut outputs = MixDownOutputs::default();
-        outputs.set_all_channels(channels);
-        let mut m = MixDown {
+    /// Build a SetLanes directly, initializing `_lane_count` and the output
+    /// lanes the way the module macro would. `lanes` is clamped to
+    /// 1–PORT_MAX_LANES (matching the macro's `lanes_param` codegen).
+    fn make_set_lanes(params: SetLanesParams) -> SetLanes {
+        let lanes = params.lanes.clamp(1, PORT_MAX_LANES);
+        let mut outputs = SetLanesOutputs::default();
+        outputs.set_all_lanes(lanes);
+        let mut m = SetLanes {
             params,
             outputs,
-            _channel_count: channels,
+            _lane_count: lanes,
             _block_index: Default::default(),
-            channel_state: Box::default(),
+            lane_state: Box::default(),
         };
         // Production constructs → init → connects → on_patch_update → process;
         // mirror that order so the gain matrix is sized (init) and built
@@ -318,15 +318,15 @@ mod tests {
 
     #[test]
     fn test_three_to_two_equal_power_pan() {
-        // 3 input channels folded to 2: inputs land at -1, 0, +1.
-        let mut m = make_mix_down(MixDownParams {
+        // 3 input lanes folded to 2: inputs land at -1, 0, +1.
+        let mut m = make_set_lanes(SetLanesParams {
             input: PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(1.0), Signal::Volts(1.0)]),
-            channels: 2,
+            lanes: 2,
             mode: MixMode::Sum,
         });
         m.update(48000.0);
-        assert_eq!(m.outputs.sample.channels(), 2);
-        // ch0 = 1*1 + 1*0.7071 + 1*0 ; ch1 = 1*0 + 1*0.7071 + 1*1
+        assert_eq!(m.outputs.sample.lanes(), 2);
+        // lane0 = 1*1 + 1*0.7071 + 1*0 ; lane1 = 1*0 + 1*0.7071 + 1*1
         approx(m.outputs.sample.get(0), 1.0 + HALF_POWER);
         approx(m.outputs.sample.get(1), HALF_POWER + 1.0);
     }
@@ -334,9 +334,9 @@ mod tests {
     #[test]
     fn test_center_input_equal_power() {
         // Only the center input is active: it pans equally to both outputs.
-        let mut m = make_mix_down(MixDownParams {
+        let mut m = make_set_lanes(SetLanesParams {
             input: PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(4.0), Signal::Volts(0.0)]),
-            channels: 2,
+            lanes: 2,
             mode: MixMode::Sum,
         });
         m.update(48000.0);
@@ -345,40 +345,40 @@ mod tests {
     }
 
     #[test]
-    fn test_mono_fold_down_default_channels() {
-        // channels defaults to 1 in the DSL; here we exercise a plain mono sum.
-        let mut m = make_mix_down(MixDownParams {
+    fn test_mono_fold_down_default_lanes() {
+        // lanes defaults to 1 in the DSL; here we exercise a plain mono sum.
+        let mut m = make_set_lanes(SetLanesParams {
             input: PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(2.0), Signal::Volts(3.0)]),
-            channels: 1,
+            lanes: 1,
             mode: MixMode::Sum,
         });
         m.update(48000.0);
-        assert_eq!(m.outputs.sample.channels(), 1);
+        assert_eq!(m.outputs.sample.lanes(), 1);
         approx(m.outputs.sample.get(0), 6.0);
     }
 
     #[test]
-    fn test_default_channels_is_one() {
+    fn test_default_lanes_is_one() {
         // The serde/deserr default genuinely yields 1 (mono), not 0.
-        let params: MixDownParams =
-            deserr::deserialize::<MixDownParams, _, crate::param_errors::ModuleParamErrors>(
+        let params: SetLanesParams =
+            deserr::deserialize::<SetLanesParams, _, crate::param_errors::ModuleParamErrors>(
                 serde_json::json!({ "input": 0.0 }),
             )
             .unwrap();
-        assert_eq!(params.channels, 1);
+        assert_eq!(params.lanes, 1);
     }
 
     #[test]
     fn test_single_input_fills_stereo() {
-        // Target (2) > input channels (1): fold-up. The lone input fills both
-        // output channels at unity (dual mono), leaving neither silent.
-        let mut m = make_mix_down(MixDownParams {
+        // Target (2) > input lanes (1): fold-up. The lone input fills both
+        // output lanes at unity (dual mono), leaving neither silent.
+        let mut m = make_set_lanes(SetLanesParams {
             input: PolySignal::mono(Signal::Volts(5.0)),
-            channels: 2,
+            lanes: 2,
             mode: MixMode::Sum,
         });
         m.update(48000.0);
-        assert_eq!(m.outputs.sample.channels(), 2);
+        assert_eq!(m.outputs.sample.lanes(), 2);
         approx(m.outputs.sample.get(0), 5.0);
         approx(m.outputs.sample.get(1), 5.0);
     }
@@ -386,41 +386,41 @@ mod tests {
     #[test]
     fn test_average_mode() {
         // 3→2, average of the contributing (non-zero-gain) inputs per output.
-        let mut m = make_mix_down(MixDownParams {
+        let mut m = make_set_lanes(SetLanesParams {
             input: PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(2.0), Signal::Volts(3.0)]),
-            channels: 2,
+            lanes: 2,
             mode: MixMode::Average,
         });
         m.update(48000.0);
-        // ch0 contributors: in0 (1*1=1), in1 (2*0.7071=1.4142) -> avg
+        // lane0 contributors: in0 (1*1=1), in1 (2*0.7071=1.4142) -> avg
         approx(m.outputs.sample.get(0), (1.0 + 2.0 * HALF_POWER) / 2.0);
-        // ch1 contributors: in1 (2*0.7071=1.4142), in2 (3*1=3) -> avg
+        // lane1 contributors: in1 (2*0.7071=1.4142), in2 (3*1=3) -> avg
         approx(m.outputs.sample.get(1), (2.0 * HALF_POWER + 3.0) / 2.0);
     }
 
     #[test]
-    fn test_channel_count_clamped() {
-        // Over-large channel counts clamp to PORT_MAX_CHANNELS.
-        let mut m = make_mix_down(MixDownParams {
+    fn test_lane_count_clamped() {
+        // Over-large lane counts clamp to PORT_MAX_LANES.
+        let mut m = make_set_lanes(SetLanesParams {
             input: PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(2.0)]),
-            channels: PORT_MAX_CHANNELS + 50,
+            lanes: PORT_MAX_LANES + 50,
             mode: MixMode::Sum,
         });
         m.update(48000.0);
-        assert_eq!(m.outputs.sample.channels(), PORT_MAX_CHANNELS);
+        assert_eq!(m.outputs.sample.lanes(), PORT_MAX_LANES);
     }
 
     #[test]
-    fn test_target_larger_than_input_fills_all_channels() {
-        // channels (4) > input channels (2): fold-up. Each output channel is an
+    fn test_target_larger_than_input_fills_all_lanes() {
+        // lanes (4) > input lanes (2): fold-up. Each output lane is an
         // equal-power interpolation of the adjacent inputs; no output is silent.
-        let mut m = make_mix_down(MixDownParams {
+        let mut m = make_set_lanes(SetLanesParams {
             input: PolySignal::poly(&[Signal::Volts(3.0), Signal::Volts(7.0)]),
-            channels: 4,
+            lanes: 4,
             mode: MixMode::Sum,
         });
         m.update(48000.0);
-        assert_eq!(m.outputs.sample.channels(), 4);
+        assert_eq!(m.outputs.sample.lanes(), 4);
         // Output positions in input space: 0, 1/3, 2/3, 1.
         let w_near = (2.0f32 / 3.0).sqrt();
         let w_far = (1.0f32 / 3.0).sqrt();
@@ -428,38 +428,38 @@ mod tests {
         approx(m.outputs.sample.get(1), 3.0 * w_near + 7.0 * w_far);
         approx(m.outputs.sample.get(2), 3.0 * w_far + 7.0 * w_near);
         approx(m.outputs.sample.get(3), 7.0); // input 1 endpoint
-        for ch in 0..4 {
+        for lane in 0..4 {
             assert!(
-                m.outputs.sample.get(ch).abs() > 0.0,
-                "channel {ch} should not be silent"
+                m.outputs.sample.get(lane).abs() > 0.0,
+                "lane {lane} should not be silent"
             );
         }
     }
 
     #[test]
-    fn test_mono_fills_all_channels() {
-        // A single input channel spread to 4 fills every output at unity.
-        let mut m = make_mix_down(MixDownParams {
+    fn test_mono_fills_all_lanes() {
+        // A single input lane spread to 4 fills every output at unity.
+        let mut m = make_set_lanes(SetLanesParams {
             input: PolySignal::mono(Signal::Volts(2.0)),
-            channels: 4,
+            lanes: 4,
             mode: MixMode::Sum,
         });
         m.update(48000.0);
-        for ch in 0..4 {
-            approx(m.outputs.sample.get(ch), 2.0);
+        for lane in 0..4 {
+            approx(m.outputs.sample.get(lane), 2.0);
         }
     }
 
     #[test]
-    fn test_zero_channels_clamps_to_mono() {
-        // An explicit 0 still becomes 1 channel.
-        let mut m = make_mix_down(MixDownParams {
+    fn test_zero_lanes_clamps_to_mono() {
+        // An explicit 0 still becomes 1 lane.
+        let mut m = make_set_lanes(SetLanesParams {
             input: PolySignal::poly(&[Signal::Volts(2.0), Signal::Volts(4.0)]),
-            channels: 0,
+            lanes: 0,
             mode: MixMode::Sum,
         });
         m.update(48000.0);
-        assert_eq!(m.outputs.sample.channels(), 1);
+        assert_eq!(m.outputs.sample.lanes(), 1);
         approx(m.outputs.sample.get(0), 6.0);
     }
 }

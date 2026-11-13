@@ -898,7 +898,7 @@ fn cp_and_ma_match_across_sample_rates() {
 }
 
 #[test]
-fn channels_added_by_a_patch_update_get_their_own_noise() {
+fn lanes_added_by_a_patch_update_get_their_own_noise() {
     let toms = TOMS.map(|(voice, _)| voice);
     for voice in [SD, CP, MA, CY, HH, CB].into_iter().chain(toms) {
         let (trigger, port) = if voice == HH {

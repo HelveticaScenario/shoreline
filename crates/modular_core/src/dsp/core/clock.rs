@@ -11,7 +11,7 @@ use crate::param_errors::ModuleParamErrors;
 use crate::types::{ClockMessages, ExternalClockState};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_clock_params -> ModuleParamErrors)]
 struct ClockParams {
@@ -100,7 +100,7 @@ const CLOCK_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "_clock",
     docs = CLOCK_DOCS,
-    channels = 1,
+    lanes = 1,
     args(tempo, numerator, denominator),
     clock_sync,
     patch_update
@@ -458,13 +458,13 @@ impl Default for Clock {
     fn default() -> Self {
         use crate::types::OutputStruct;
         let mut outputs = ClockOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         outputs.make_f64_outputs(false);
         Self {
             outputs,
             state: ClockState::default(),
             params: ClockParams::default(),
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
         }
     }

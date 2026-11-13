@@ -2,8 +2,8 @@ import type { ProcessedModuleSchema } from './paramsSchema';
 
 export const SIGNAL_GROUP_KIND = 'SignalGroup';
 
-/** Rust's PORT_MAX_CHANNELS — the engine rejects wider signal arrays. */
-const MAX_CHANNELS = 64;
+/** Rust's PORT_MAX_LANES — the engine rejects wider signal arrays. */
+const MAX_LANES = 64;
 
 /**
  * A param value tagged into a cartesian signal group. Constructed only by
@@ -38,9 +38,9 @@ function makeGroupTagger(group: 1 | 2 | 3) {
 
 /**
  * Tag a param value into signal group 1/2/3. Params in different groups
- * multiply (cartesian product of channels) within a module instead of cycling
+ * multiply (cartesian product of lanes) within a module instead of cycling
  * together; params in the same group cycle as usual, and untagged params are
- * group 0. Lower-numbered groups vary fastest across the resulting channels.
+ * group 0. Lower-numbered groups vary fastest across the resulting lanes.
  */
 export const $g1 = makeGroupTagger(1);
 export const $g2 = makeGroupTagger(2);
@@ -81,7 +81,7 @@ interface GroupMember {
     group: number;
     /** Unwrapped signals value (scalar or array, post-replaceSignals). */
     signals: unknown;
-    /** Channel count: array length, or 1 for a scalar/cable. */
+    /** Lane count: array length, or 1 for a scalar/cable. */
     n: number;
     wrapped: boolean;
 }
@@ -89,7 +89,7 @@ interface GroupMember {
 /**
  * Resolve $gN wrappers on a module's params into plain full-length signal
  * arrays implementing the cartesian product: the widest emitted array sets
- * the module's channel count, and the engine's per-channel modulo read
+ * the module's lane count, and the engine's per-lane modulo read
  * becomes the identity.
  *
  * Returns `params` untouched (same reference) when no param is wrapped.
@@ -114,7 +114,7 @@ export function expandSignalGroups(
         const wrapper = params[name] as SignalGroup;
         const desc = schema.paramsByName?.[name];
         if (!desc?.isPolySignalInput) {
-            const why = desc?.isMonoSignalInput
+            const why = desc?.isLaneSumInput
                 ? 'is a mono (summing) input'
                 : 'is not a polyphonic signal input';
             throw new Error(
@@ -156,18 +156,18 @@ export function expandSignalGroups(
     }
 
     const total = widths.reduce((acc, w) => acc * Math.max(w, 1), 1);
-    if (total > MAX_CHANNELS) {
+    if (total > MAX_LANES) {
         const detail = widths
             .map((w, g) => (w > 0 ? `g${g}:${w}` : null))
             .filter(Boolean)
             .join(' x ');
         throw new Error(
-            `signal groups on ${moduleType} multiply to ${total} channels (${detail}); the limit is ${MAX_CHANNELS}`,
+            `signal groups on ${moduleType} multiply to ${total} lanes (${detail}); the limit is ${MAX_LANES}`,
         );
     }
 
     // Ascending group order. lower-numbered group varies fastest across
-    // channels.
+    // lanes.
     const strides = [1, 1, 1, 1];
     let acc = 1;
     for (let g = 0; g <= 3; g++) {
@@ -192,7 +192,7 @@ export function expandSignalGroups(
             { length: total },
             // The inner % width keeps a narrower member cycling inside its
             // own group's slots.
-            (_, ch) => arr[(Math.floor(ch / stride) % width) % m.n],
+            (_, lane) => arr[(Math.floor(lane / stride) % width) % m.n],
         );
     }
     return out;

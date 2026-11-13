@@ -109,7 +109,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -286,7 +286,7 @@
           "default": 6
         },
         "seed": {
-          "description": "picks the sea: each seed, and each channel, places the waves at different frequencies and directions",
+          "description": "picks the sea: each seed, and each lane, places the waves at different frequencies and directions",
           "type": "integer",
           "format": "uint32",
           "minimum": 0,
@@ -335,7 +335,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -530,7 +530,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -586,8 +586,8 @@
   {
     "name": "$mix",
     "docs": {
-      "summary": "Channel-by-channel mixer",
-      "description": "Mixes several signals into one, keeping their channels apart: channel n of every input lands on output channel n, so mixing two four-voice signals still gives four voices. Use `$mixDown` to fold channels together instead.",
+      "summary": "Lane-by-lane mixer",
+      "description": "Mixes several signals into one, keeping their lanes apart: lane n of every input lands on output lane n, so mixing two four-voice signals still gives four voices. Use `$setLanes` to fold lanes together instead.",
       "categories": [
         "mixer"
       ],
@@ -605,7 +605,7 @@
       "type": "object",
       "properties": {
         "inputs": {
-          "description": "the signals to mix; channel n of each input mixes into output channel n",
+          "description": "the signals to mix; lane n of each input mixes into output lane n",
           "type": "array",
           "items": {
             "$ref": "#/$defs/PolySignal"
@@ -670,7 +670,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -719,7 +719,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the mix, keeping each channel separate rather than folding to mono",
+        "description": "the mix, keeping each lane separate rather than folding to mono",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -748,10 +748,10 @@
     "experimental": false
   },
   {
-    "name": "$mixDown",
+    "name": "$setLanes",
     "docs": {
-      "summary": "Fold channels to fewer outputs",
-      "description": "Folds a polyphonic signal down to a set number of channels, panning the voices evenly across them: 1 for a mono sum, 2 for a stereo spread. With more outputs than inputs it spreads the input to fill every output instead.",
+      "summary": "Fold lanes to fewer outputs",
+      "description": "Folds a polyphonic signal down to a set number of lanes, panning the voices evenly across them: 1 for a mono sum, 2 for a stereo spread. With more outputs than inputs it spreads the input to fill every output instead.",
       "categories": [
         "mixer"
       ],
@@ -759,21 +759,21 @@
       "examples": [
         {
           "title": "Detuned saws spread across stereo",
-          "code": "$mixDown($saw($spread(-0.02, 0.02, 5)), 2).out()"
+          "code": "$setLanes($saw($spread(-0.02, 0.02, 5)), 2).out()"
         }
       ]
     },
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "title": "MixDownParams",
+      "title": "SetLanesParams",
       "type": "object",
       "properties": {
         "input": {
           "description": "the polyphonic signal to fold down",
           "$ref": "#/$defs/PolySignal"
         },
-        "channels": {
-          "description": "number of output channels",
+        "lanes": {
+          "description": "number of output lanes",
           "type": "integer",
           "format": "uint",
           "minimum": 1,
@@ -781,7 +781,7 @@
           "default": 1
         },
         "mode": {
-          "description": "how channels landing on the same output combine when folding down",
+          "description": "how lanes landing on the same output combine when folding down",
           "$ref": "#/$defs/MixMode",
           "default": "sum"
         }
@@ -828,7 +828,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -877,7 +877,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the input channels spread evenly across the output channels with equal-power panning",
+        "description": "the input lanes spread evenly across the output lanes with equal-power panning",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -900,17 +900,17 @@
         "name": "input"
       },
       {
-        "name": "channels"
+        "name": "lanes"
       }
     ],
-    "channelsParam": "channels",
+    "lanesParam": "lanes",
     "experimental": false
   },
   {
     "name": "$stereoMix",
     "docs": {
       "summary": "Stereo panner and spreader",
-      "description": "Places a signal in the stereo field and puts out left and right. Give each channel its own `pan`, or raise `width` to fan the voices of a chord out from the centre.",
+      "description": "Places a signal in the stereo field and puts out left and right. Give each lane its own `pan`, or raise `width` to fan the voices of a chord out from the centre.",
       "categories": [
         "mixer"
       ],
@@ -932,7 +932,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "pan": {
-          "description": "pan position of each channel: -5 left, 0 centre, +5 right",
+          "description": "pan position of each lane: -5 left, 0 centre, +5 right",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -943,10 +943,10 @@
           ]
         },
         "width": {
-          "description": "how far the channels fan out around their pan positions: 0 none, 5 widest",
+          "description": "how far the lanes fan out around their pan positions: 0 none, 5 widest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -996,7 +996,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -1015,7 +1015,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -1033,7 +1033,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo mix: left on channel 0, right on channel 1",
+        "description": "stereo mix: left on lane 0, right on lane 1",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -1052,7 +1052,7 @@
       },
       {
         "name": "pan",
-        "description": "pan position of each channel: -5 left, 0 centre, +5 right",
+        "description": "pan position of each lane: -5 left, 0 centre, +5 right",
         "paramType": "control",
         "minValue": -5.0,
         "maxValue": 5.0,
@@ -1063,7 +1063,7 @@
       },
       {
         "name": "width",
-        "description": "how far the channels fan out around their pan positions: 0 none, 5 widest",
+        "description": "how far the lanes fan out around their pan positions: 0 none, 5 widest",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -1079,7 +1079,7 @@
         "name": "input"
       }
     ],
-    "channels": 2,
+    "lanes": 2,
     "experimental": false
   },
   {
@@ -1312,7 +1312,7 @@
         "name": "denominator"
       }
     ],
-    "channels": 1,
+    "lanes": 1,
     "experimental": false
   },
   {
@@ -1441,7 +1441,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -1658,7 +1658,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -1853,7 +1853,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -2035,7 +2035,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -2222,7 +2222,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -2377,7 +2377,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -2524,7 +2524,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -2698,7 +2698,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -2907,7 +2907,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -3134,7 +3134,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -3328,7 +3328,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -3522,7 +3522,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -3716,7 +3716,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -3910,7 +3910,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -4104,7 +4104,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -4320,7 +4320,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -4549,7 +4549,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -4728,7 +4728,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -4875,7 +4875,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -5049,7 +5049,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -5243,7 +5243,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -5437,7 +5437,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -5713,7 +5713,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -5973,7 +5973,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -6155,7 +6155,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -6319,7 +6319,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -6415,14 +6415,14 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+          "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
           "$ref": "#/$defs/PolySignal"
         },
         "decay": {
           "description": "how long the tail rings: -5 shortest, +5 almost endless",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6433,7 +6433,7 @@
           "description": "how fast the tail darkens: -5 bright, +5 muffled",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6444,7 +6444,7 @@
           "description": "room size, from 0.25× (-5) to 2× (+5) the plate's delay lengths",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6455,7 +6455,7 @@
           "description": "gap before the reverb starts, in seconds",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6466,7 +6466,7 @@
           "description": "how quickly the onset smears into a wash: 0 distinct echoes, 5 smoothest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6477,7 +6477,7 @@
           "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.5 ms",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6527,7 +6527,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -6546,7 +6546,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -6564,7 +6564,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet, as left and right channels",
+        "description": "stereo reverb, fully wet, as left and right lanes",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -6576,7 +6576,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -6657,7 +6657,7 @@
         "name": "input"
       }
     ],
-    "channels": 2,
+    "lanes": 2,
     "experimental": false
   },
   {
@@ -6760,7 +6760,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -6924,7 +6924,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -6995,14 +6995,14 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to reverberate; all channels are mixed to mono",
+          "description": "signal to reverberate; all lanes are mixed to mono",
           "$ref": "#/$defs/PolySignal"
         },
         "bandwidth": {
           "description": "how much treble enters the reverb: -5 dull, +5 full bandwidth",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7013,7 +7013,7 @@
           "description": "how fast the tail darkens: -5 bright, +5 muffled",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7024,7 +7024,7 @@
           "description": "how long the tail rings: -5 shortest, +5 almost endless",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7035,7 +7035,7 @@
           "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.1 ms",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7085,7 +7085,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -7104,7 +7104,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -7122,7 +7122,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet, as left and right channels",
+        "description": "stereo reverb, fully wet, as left and right lanes",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -7134,7 +7134,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to reverberate; all channels are mixed to mono",
+        "description": "signal to reverberate; all lanes are mixed to mono",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -7191,7 +7191,7 @@
         "name": "input"
       }
     ],
-    "channels": 2,
+    "lanes": 2,
     "experimental": false
   },
   {
@@ -7289,7 +7289,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -7397,14 +7397,14 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+          "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
           "$ref": "#/$defs/PolySignal"
         },
         "decay": {
           "description": "how long the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7415,7 +7415,7 @@
           "description": "how fast the tail darkens: -5 bright, +5 muffled",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7426,7 +7426,7 @@
           "description": "room size, from 0.5× (-5) to 2× (+5); bigger rooms space the echoes further apart",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7437,7 +7437,7 @@
           "description": "stereo width: -5 narrow, pulling panned sources toward the centre; +5 widest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7448,7 +7448,7 @@
           "description": "gap before the reverb starts, in seconds",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7459,7 +7459,7 @@
           "description": "gentle chorusing inside the tail that softens metallic ringing: -5 off, +5 deepest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7509,7 +7509,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -7528,7 +7528,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -7546,7 +7546,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet, as left and right channels",
+        "description": "stereo reverb, fully wet, as left and right lanes",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -7558,7 +7558,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -7641,7 +7641,7 @@
         "name": "input"
       }
     ],
-    "channels": 2,
+    "lanes": 2,
     "experimental": false
   },
   {
@@ -7666,14 +7666,14 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+          "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
           "$ref": "#/$defs/PolySignal"
         },
         "decay": {
           "description": "how long the low end of the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7684,7 +7684,7 @@
           "description": "how much faster the treble dies than the bass: -5 equally fast, +5 ten times faster",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7695,7 +7695,7 @@
           "description": "room size, from 0.5× (-5) to 2× (+5); bigger rooms space the echoes further apart",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7706,7 +7706,7 @@
           "description": "stereo width: -5 narrow, pulling panned sources toward the centre; +5 widest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7717,7 +7717,7 @@
           "description": "gap before the reverb starts, in seconds",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7728,7 +7728,7 @@
           "description": "gentle chorusing inside the tail that softens metallic ringing: -5 off, +5 deepest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7778,7 +7778,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -7797,7 +7797,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -7815,7 +7815,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet, as left and right channels",
+        "description": "stereo reverb, fully wet, as left and right lanes",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -7827,7 +7827,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -7910,7 +7910,7 @@
         "name": "input"
       }
     ],
-    "channels": 2,
+    "lanes": 2,
     "experimental": false
   },
   {
@@ -7997,7 +7997,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -8128,14 +8128,14 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+          "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
           "$ref": "#/$defs/PolySignal"
         },
         "amount": {
           "description": "how much reverb you hear and how long it rings: 0 dry, 5 most",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -8146,7 +8146,7 @@
           "description": "room size; moving it while the tail rings bends its pitch",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -8157,7 +8157,7 @@
           "description": "how fast the tail darkens: 0 bright, 5 muffled",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -8207,7 +8207,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -8226,7 +8226,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -8244,7 +8244,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the input plus reverb, as left and right channels",
+        "description": "the input plus reverb, as left and right lanes",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -8258,7 +8258,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -8308,7 +8308,7 @@
         "name": "amount"
       }
     ],
-    "channels": 2,
+    "lanes": 2,
     "experimental": false
   },
   {
@@ -8333,7 +8333,7 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to record; each channel gets its own voice",
+          "description": "signal to record; each lane gets its own voice",
           "$ref": "#/$defs/PolySignal"
         },
         "trigger": {
@@ -8428,7 +8428,7 @@
           "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -8505,7 +8505,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -8524,7 +8524,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -8567,19 +8567,19 @@
     "outputs": [
       {
         "name": "stereo",
-        "description": "stereo mix of every voice, as left and right channels",
+        "description": "stereo mix of every voice, as left and right lanes",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "channels": 2,
+        "lanes": 2,
         "precision": "f32",
         "bounds": "fixed"
       },
       {
         "name": "voices",
-        "description": "each voice on its own channel, mono",
+        "description": "each voice on its own lane, mono",
         "outputType": "cv",
         "polyphonic": true,
         "default": false,
@@ -8593,7 +8593,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to record; each channel gets its own voice",
+        "description": "signal to record; each lane gets its own voice",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -8827,7 +8827,7 @@
           "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -8906,7 +8906,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -8925,7 +8925,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -8968,19 +8968,19 @@
     "outputs": [
       {
         "name": "stereo",
-        "description": "stereo mix of every voice, as left and right channels",
+        "description": "stereo mix of every voice, as left and right lanes",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "channels": 2,
+        "lanes": 2,
         "precision": "f32",
         "bounds": "fixed"
       },
       {
         "name": "voices",
-        "description": "each voice on its own channel, mono",
+        "description": "each voice on its own lane, mono",
         "outputType": "cv",
         "polyphonic": true,
         "default": false,
@@ -9088,7 +9088,7 @@
     "name": "$wowFlutter",
     "docs": {
       "summary": "Tape wow and flutter",
-      "description": "The drifting pitch wobble and softened highs of worn tape, from Mutable Instruments Beads' dirty tape setting. Every channel wobbles together, as if one tape carried them all.",
+      "description": "The drifting pitch wobble and softened highs of worn tape, from Mutable Instruments Beads' dirty tape setting. Every lane wobbles together, as if one tape carried them all.",
       "categories": [
         "effect"
       ],
@@ -9110,14 +9110,14 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to run through the tape; each channel wobbles in step",
+          "description": "signal to run through the tape; each lane wobbles in step",
           "$ref": "#/$defs/PolySignal"
         },
         "speed": {
           "description": "how fast the tape wobbles; each volt doubles it, and 2.5 is Beads' dirty tape",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -9128,7 +9128,7 @@
           "description": "how deep the wobble is: 0 none, 2.5 Beads' dirty tape, 5 twice as deep",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -9178,7 +9178,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -9197,7 +9197,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -9229,7 +9229,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to run through the tape; each channel wobbles in step",
+        "description": "signal to run through the tape; each lane wobbles in step",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -9292,7 +9292,7 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to delay; each channel gets its own delay",
+          "description": "signal to delay; each lane gets its own delay",
           "$ref": "#/$defs/PolySignal"
         },
         "bars": {
@@ -9453,7 +9453,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -9502,7 +9502,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the input mixed with its repeats, one channel per delay",
+        "description": "the input mixed with its repeats, one lane per delay",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -9516,7 +9516,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to delay; each channel gets its own delay",
+        "description": "signal to delay; each lane gets its own delay",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -9743,7 +9743,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -9966,7 +9966,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -10207,7 +10207,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -10397,7 +10397,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -10530,7 +10530,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -10686,7 +10686,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -10814,8 +10814,8 @@
           "$ref": "#/$defs/NoiseInterp",
           "default": "step"
         },
-        "channels": {
-          "description": "number of independent noise channels, each a different sequence; a polyphonic `rate` raises it to that many",
+        "lanes": {
+          "description": "number of independent noise lanes, each a different sequence; a polyphonic `rate` raises it to that many",
           "type": "integer",
           "format": "uint",
           "minimum": 1,
@@ -10926,7 +10926,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -11308,7 +11308,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -11646,7 +11646,7 @@
     "name": "$supersaw",
     "docs": {
       "summary": "Detuned saw stack",
-      "description": "A stack of detuned sawtooths for huge trance leads, pads and chords. Each saw comes out on its own channel, ready to spread across stereo with `$stereoMix` or `$mixDown`.",
+      "description": "A stack of detuned sawtooths for huge trance leads, pads and chords. Each saw comes out on its own lane, ready to spread across stereo with `$stereoMix` or `$setLanes`.",
       "categories": [
         "oscillator"
       ],
@@ -11654,7 +11654,7 @@
       "examples": [
         {
           "title": "Trance chord",
-          "code": "$supersaw($chord('A2[m]'), { voices: 7, detune: 0.3 })\n  .lpf('c6', 1)\n  .out()"
+          "code": "$supersaw($chord('A2[m]'), { unison: 7, detune: 0.3 })\n  .lpf('c6', 1)\n  .out()"
         },
         {
           "title": "Wide lead sweep",
@@ -11671,8 +11671,8 @@
           "description": "oscillator pitch",
           "$ref": "#/$defs/PolySignal"
         },
-        "voices": {
-          "description": "number of detuned saws stacked per note; each is its own output channel",
+        "unison": {
+          "description": "number of detuned saws stacked per note; each is its own output lane",
           "type": "integer",
           "format": "uint",
           "minimum": 1,
@@ -11765,7 +11765,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -11809,7 +11809,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the stacked saws, one channel per voice",
+        "description": "the stacked saws, one lane per voice",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -12030,7 +12030,7 @@
           "default": "fcs"
         },
         "count": {
-          "description": "voices per channel",
+          "description": "voices per lane",
           "type": "integer",
           "format": "uint",
           "minimum": 1,
@@ -12080,7 +12080,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -12928,7 +12928,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -13319,7 +13319,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -13517,7 +13517,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -13701,7 +13701,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -13863,7 +13863,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -14025,7 +14025,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -14252,7 +14252,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -14351,7 +14351,7 @@
     "name": "$multimode",
     "docs": {
       "summary": "Blades-style multimode filter",
-      "description": "A circuit model of one channel of Mutable Instruments Blades: a filter that morphs from lowpass through bandpass to highpass, after a drive stage that soft-clips or wavefolds. It self-oscillates into a sine, takes audio-rate cutoff modulation for FM, and is DC-coupled, so it can shape CV too.",
+      "description": "A circuit model of one lane of Mutable Instruments Blades: a filter that morphs from lowpass through bandpass to highpass, after a drive stage that soft-clips or wavefolds. It self-oscillates into a sine, takes audio-rate cutoff modulation for FM, and is DC-coupled, so it can shape CV too.",
       "categories": [
         "filter",
         "distortion"
@@ -14478,7 +14478,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -14632,7 +14632,7 @@
     "name": "$eq",
     "docs": {
       "summary": "Parametric EQ",
-      "description": "Shapes tone with up to 8 bands of peaks, shelves, cuts and notches, any of which can be modulated. Give `sections` one list of bands per channel to EQ left and right differently, or set `ui: true` to shape it by hand.",
+      "description": "Shapes tone with up to 8 bands of peaks, shelves, cuts and notches, any of which can be modulated. Give `sections` one list of bands per lane to EQ left and right differently, or set `ui: true` to shape it by hand.",
       "categories": [
         "filter"
       ],
@@ -14654,7 +14654,7 @@
           "code": "$saw('c2')\n  .eq({\n    sections: [\n      { type: 'lowShelf', freq: '150hz', gain: 3 },\n      {\n        type: 'peak',\n        freq: $sine('0.5hz').range('400hz', '2000hz'),\n        gain: -6,\n        q: 2,\n      },\n      { type: 'highpass', freq: '40hz' },\n    ],\n    adaptiveQ: true,\n  })\n  .out()"
         },
         {
-          "title": "A darker left channel, a brighter right one",
+          "title": "A darker left lane, a brighter right one",
           "code": "$saw(['c2', 'g2'])\n  .eq({\n    sections: [\n      [{ type: 'highShelf', freq: '3000hz', gain: -6 }],\n      [{ type: 'highShelf', freq: '3000hz', gain: 4 }],\n    ],\n  })\n  .out()"
         }
       ]
@@ -14669,7 +14669,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "sections": {
-          "description": "up to 8 bands, or one list of bands per channel; with none the sound passes through unchanged",
+          "description": "up to 8 bands, or one list of bands per lane; with none the sound passes through unchanged",
           "$ref": "#/$defs/EqSections"
         },
         "adaptiveQ": {
@@ -14725,7 +14725,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -14774,13 +14774,13 @@
             },
             "freq": {
               "description": "where the band sits, like '1000hz' or 'c4'; tops out just under half the sample rate",
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             "gain": {
               "description": "boost or cut in dB; peaks and shelves only",
               "anyOf": [
                 {
-                  "$ref": "#/$defs/MonoSignal"
+                  "$ref": "#/$defs/LaneSum"
                 },
                 {
                   "type": "null"
@@ -14791,7 +14791,7 @@
               "description": "how narrow the band is; on shelves, lower is a gentler slope; above 0.707 shelves, lowpass and highpass get a resonant bump",
               "anyOf": [
                 {
-                  "$ref": "#/$defs/MonoSignal"
+                  "$ref": "#/$defs/LaneSum"
                 },
                 {
                   "type": "null"
@@ -14838,7 +14838,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -14975,7 +14975,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -15181,7 +15181,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -15387,7 +15387,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -15603,7 +15603,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -15794,7 +15794,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -15960,7 +15960,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -16151,7 +16151,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -16347,7 +16347,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -16533,7 +16533,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -16729,7 +16729,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -16925,7 +16925,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -17106,7 +17106,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -17287,7 +17287,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -17468,7 +17468,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -17649,7 +17649,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -17845,7 +17845,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -18102,7 +18102,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -18299,7 +18299,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -18496,7 +18496,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -18693,7 +18693,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -18890,7 +18890,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -19087,7 +19087,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -19279,7 +19279,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -19471,7 +19471,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -19663,7 +19663,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -19855,7 +19855,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -20047,7 +20047,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -20238,7 +20238,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -20434,7 +20434,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -20605,7 +20605,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -20800,7 +20800,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -21096,7 +21096,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -21220,7 +21220,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -21424,7 +21424,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -21613,7 +21613,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -21747,7 +21747,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -21881,7 +21881,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -22015,7 +22015,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -22149,7 +22149,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -22283,7 +22283,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -22400,7 +22400,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -22517,7 +22517,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -22593,7 +22593,7 @@
         },
         "frame": {
           "description": "read position: 0 the start of the buffer, 5 the end; wraps past either end",
-          "$ref": "#/$defs/MonoSignal"
+          "$ref": "#/$defs/LaneSum"
         }
       },
       "required": [
@@ -22614,7 +22614,7 @@
             "port": {
               "type": "string"
             },
-            "channels": {
+            "lanes": {
               "type": "integer",
               "format": "uint",
               "minimum": 0
@@ -22624,10 +22624,10 @@
             "type",
             "module",
             "port",
-            "channels"
+            "lanes"
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -22665,7 +22665,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -22689,7 +22689,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "one channel per buffer channel, read at the position",
+        "description": "one lane per buffer lane, read at the position",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -22791,7 +22791,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -22849,7 +22849,7 @@
     "name": "$chord",
     "docs": {
       "summary": "Notes of a chord or scale",
-      "description": "Outputs every note of a chord or scale as pitch voltages, one channel per note, lowest first. Patch it into an oscillator to hear the whole chord, or into `$quantizer` to keep a melody inside it. Patching `inversion` adds a channel, and the moving note crossfades between two of them: scale each voice by `level`, or the extra channel sounds too.",
+      "description": "Outputs every note of a chord or scale as pitch voltages, one lane per note, lowest first. Patch it into an oscillator to hear the whole chord, or into `$quantizer` to keep a melody inside it. Patching `inversion` adds a lane, and the moving note crossfades between two of them: scale each voice by `level`, or the extra lane sounds too.",
       "categories": [
         "pitch"
       ],
@@ -22958,7 +22958,7 @@
           "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -22973,7 +22973,7 @@
         "ScaleSpec": {
           "type": "string"
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -23011,7 +23011,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -23035,7 +23035,7 @@
     "outputs": [
       {
         "name": "pitch",
-        "description": "one pitch per note, lowest first; with `inversion` patched, one more channel, the notes rotating across them",
+        "description": "one pitch per note, lowest first; with `inversion` patched, one more lane, the notes rotating across them",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -23044,7 +23044,7 @@
       },
       {
         "name": "level",
-        "description": "each channel's level, full (5) unless `inversion` is fading a note between octaves",
+        "description": "each lane's level, full (5) unless `inversion` is fading a note between octaves",
         "outputType": "cv",
         "polyphonic": true,
         "default": false,
@@ -23168,7 +23168,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -23326,7 +23326,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -23467,7 +23467,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -23638,7 +23638,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -23793,7 +23793,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -23909,7 +23909,7 @@
             "port": {
               "type": "string"
             },
-            "channels": {
+            "lanes": {
               "type": "integer",
               "format": "uint",
               "minimum": 0
@@ -23919,7 +23919,7 @@
             "type",
             "module",
             "port",
-            "channels"
+            "lanes"
           ]
         },
         "PolySignal": {
@@ -23960,7 +23960,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -24165,7 +24165,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -24386,7 +24386,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -24545,7 +24545,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -24683,7 +24683,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -24802,7 +24802,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -24857,7 +24857,7 @@
     "name": "$math",
     "docs": {
       "summary": "Formula on signals",
-      "description": "Evaluates a formula every sample, for any transformation no other module offers. It runs once per channel, as wide as its widest input.",
+      "description": "Evaluates a formula every sample, for any transformation no other module offers. It runs once per lane, as wide as its widest input.",
       "categories": [
         "math"
       ],
@@ -24980,7 +24980,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -25166,7 +25166,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -25366,7 +25366,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -25497,7 +25497,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -25649,7 +25649,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -25829,7 +25829,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -25961,7 +25961,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -26103,7 +26103,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -26181,7 +26181,7 @@
         },
         {
           "title": "Playing only the keys you hold",
-          "code": "const midi = $midiCV({ channels: 4 })\n$sine(\n  $quantizer($sine('0.1hz').range('c3', 'c5'), midi, {\n    gate: midi,\n  }),\n).out()"
+          "code": "const midi = $midiCV({ lanes: 4 })\n$sine(\n  $quantizer($sine('0.1hz').range('c3', 'c5'), midi, {\n    gate: midi,\n  }),\n).out()"
         }
       ]
     },
@@ -26195,7 +26195,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "scale": {
-          "description": "notes to snap to, one pitch per channel in any octave, or a spec like \"C(major)\" or \"C[maj7]\"; snaps to semitones when left out",
+          "description": "notes to snap to, one pitch per lane in any octave, or a spec like \"C(major)\" or \"C[maj7]\"; snaps to semitones when left out",
           "anyOf": [
             {
               "$ref": "#/$defs/ScaleSignal"
@@ -26217,7 +26217,7 @@
           ]
         },
         "gate": {
-          "description": "turns notes of the scale on and off: scale channel N is used only while gate channel N is high; with every gate low the output holds",
+          "description": "turns notes of the scale on and off: scale lane N is used only while gate lane N is high; with every gate low the output holds",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -26270,7 +26270,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -26344,7 +26344,7 @@
       },
       {
         "name": "gate",
-        "description": "turns notes of the scale on and off: scale channel N is used only while gate channel N is high; with every gate low the output holds",
+        "description": "turns notes of the scale on and off: scale lane N is used only while gate lane N is high; with every gate low the output holds",
         "paramType": "gate",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -26433,7 +26433,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -26499,7 +26499,7 @@
     "name": "_crossfade",
     "docs": {
       "summary": "Dry/wet crossfade",
-      "description": "Fades linearly from one signal to another, channel by channel; the narrower of the two cycles across the wider. Backs the `.wet()` and `.pipeMix()` signal methods.",
+      "description": "Fades linearly from one signal to another, lane by lane; the narrower of the two cycles across the wider. Backs the `.wet()` and `.pipeMix()` signal methods.",
       "categories": [
         "math"
       ],
@@ -26573,7 +26573,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -26720,7 +26720,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -26858,8 +26858,8 @@
   {
     "name": "$spread",
     "docs": {
-      "summary": "Evenly spaced channel values",
-      "description": "Fills a set of channels with values spaced from `min` to `max`, for fanning pitches, pans or detunes across a polyphonic patch.",
+      "summary": "Evenly spaced lane values",
+      "description": "Fills a set of lanes with values spaced from `min` to `max`, for fanning pitches, pans or detunes across a polyphonic patch.",
       "categories": [
         "math"
       ],
@@ -26881,25 +26881,25 @@
       "type": "object",
       "properties": {
         "min": {
-          "description": "value of the first channel",
-          "$ref": "#/$defs/MonoSignal"
+          "description": "value of the first lane",
+          "$ref": "#/$defs/LaneSum"
         },
         "max": {
-          "description": "value of the last channel",
-          "$ref": "#/$defs/MonoSignal"
+          "description": "value of the last lane",
+          "$ref": "#/$defs/LaneSum"
         },
         "count": {
-          "description": "number of output channels; with 1, a single value between min and max placed by bias",
+          "description": "number of output lanes; with 1, a single value between min and max placed by bias",
           "type": "integer",
           "format": "uint",
           "minimum": 1,
           "maximum": 64
         },
         "bias": {
-          "description": "bunches the channels toward max (positive) or min (negative); 0 spaces them evenly",
+          "description": "bunches the lanes toward max (positive) or min (negative); 0 spaces them evenly",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -26913,7 +26913,7 @@
         "count"
       ],
       "$defs": {
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -26951,7 +26951,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -26975,7 +26975,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "one value per channel, from min to max",
+        "description": "one value per lane, from min to max",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -26987,7 +26987,7 @@
     "signalParams": [
       {
         "name": "min",
-        "description": "value of the first channel",
+        "description": "value of the first lane",
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
@@ -26996,7 +26996,7 @@
       },
       {
         "name": "max",
-        "description": "value of the last channel",
+        "description": "value of the last lane",
         "paramType": "control",
         "controlMin": -5.0,
         "controlMax": 5.0,
@@ -27005,7 +27005,7 @@
       },
       {
         "name": "bias",
-        "description": "bunches the channels toward max (positive) or min (negative); 0 spaces them evenly",
+        "description": "bunches the lanes toward max (positive) or min (negative); 0 spaces them evenly",
         "paramType": "control",
         "defaultValue": 0.0,
         "controlMin": -5.0,
@@ -27025,14 +27025,14 @@
         "name": "count"
       }
     ],
-    "channelsParam": "count",
+    "lanesParam": "count",
     "experimental": false
   },
   {
     "name": "$unison",
     "docs": {
       "summary": "Detuned unison copies",
-      "description": "Turns each pitch into a stack of detuned copies for thick unison leads and supersaw-style pads. Each copy is a full set of the input's channels, up to 64 channels in all.",
+      "description": "Turns each pitch into a stack of detuned copies for thick unison leads and supersaw-style pads. Each copy is a full set of the input's lanes, up to 64 lanes in all.",
       "categories": [
         "pitch"
       ],
@@ -27058,7 +27058,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "count": {
-          "description": "number of detuned copies per input channel",
+          "description": "number of detuned copies per input lane",
           "type": "integer",
           "format": "uint",
           "minimum": 1,
@@ -27119,7 +27119,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -27143,7 +27143,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the detuned copies, each a full set of the input channels",
+        "description": "the detuned copies, each a full set of the input lanes",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -27208,7 +27208,7 @@
       "properties": {
         "input": {
           "description": "signal published to the video renderer",
-          "$ref": "#/$defs/MonoSignal"
+          "$ref": "#/$defs/LaneSum"
         },
         "slot": {
           "description": "tap slot the renderer reads it from",
@@ -27223,7 +27223,7 @@
         "slot"
       ],
       "$defs": {
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -27261,7 +27261,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -27396,7 +27396,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -27648,7 +27648,7 @@
           "description": "playhead position in cycles; follows the global clock by default",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -27659,7 +27659,7 @@
           "description": "groove shift of note starts, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -27670,14 +27670,14 @@
           "description": "velocity held from each note start onto the `velocity` output. Follows the global groove, unless you set your own `playhead` or `groove`: then every note is full velocity until given a velocity too",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
             }
           ]
         },
-        "channels": {
+        "lanes": {
           "description": "number of voices; worked out from the pattern when unset",
           "type": [
             "integer",
@@ -29773,7 +29773,7 @@
             "end"
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -29811,7 +29811,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -29915,7 +29915,7 @@
     "experimental": false
   },
   {
-    "name": "$track",
+    "name": "$keyframes",
     "docs": {
       "summary": "Keyframed automation curve",
       "description": "Draws a curve through `[value, position]` keyframes and plays it along the bar, for automation that rises and falls at set points: a filter that opens over the bar, a swell into the downbeat.",
@@ -29927,13 +29927,13 @@
       "examples": [
         {
           "title": "Filter that opens and closes each bar",
-          "code": "const cutoff = $track(\n  [\n    ['c3', 0],\n    ['c6', 0.75],\n    ['c3', 1],\n  ],\n  { interpolationType: 'cubicIn' },\n)\n$saw('c2').lpf(cutoff, 3).out()"
+          "code": "const cutoff = $keyframes(\n  [\n    ['c3', 0],\n    ['c6', 0.75],\n    ['c3', 1],\n  ],\n  { interpolationType: 'cubicIn' },\n)\n$saw('c2').lpf(cutoff, 3).out()"
         }
       ]
     },
     "paramsSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "title": "TrackParams",
+      "title": "KeyframesParams",
       "type": "object",
       "properties": {
         "keyframes": {
@@ -29958,7 +29958,7 @@
           "description": "position along the keyframes",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30013,7 +30013,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -30032,7 +30032,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -30144,13 +30144,13 @@
         },
         "next": {
           "description": "advances to the next step, wrapping after the last",
-          "$ref": "#/$defs/MonoSignal"
+          "$ref": "#/$defs/LaneSum"
         },
         "reset": {
           "description": "jumps back to the first step",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30201,7 +30201,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -30220,7 +30220,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -30299,7 +30299,7 @@
           "description": "playhead position in cycles; one cycle plays the 32-step pattern once; follows the global clock by default",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30310,7 +30310,7 @@
           "description": "groove shift of each step, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30321,7 +30321,7 @@
           "description": "how readily each step accents: lower accents less, 0 never. Follows the global groove, unless you set your own `playhead` or `groove`: then it is full until given a velocity too",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30401,7 +30401,7 @@
         }
       },
       "$defs": {
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -30439,7 +30439,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -30731,7 +30731,7 @@
           "description": "straight playhead to groove, in cycles; follows the global clock (without its groove) by default",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30800,7 +30800,7 @@
             "timing"
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -30838,7 +30838,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -30916,7 +30916,7 @@
     "name": "$midiCV",
     "docs": {
       "summary": "MIDI notes to pitch and gate",
-      "description": "Turns notes from a MIDI keyboard or controller into pitch, gate, velocity and expression voltages for playing a patch live. Set `channels` above 1 for a polyphonic synth, one voice per channel, or leave it at 1 for a mono lead.",
+      "description": "Turns notes from a MIDI keyboard or controller into pitch, gate, velocity and expression voltages for playing a patch live. Set `lanes` above 1 for a polyphonic synth, one voice per lane, or leave it at 1 for a mono lead.",
       "categories": [
         "midi"
       ],
@@ -30924,7 +30924,7 @@
       "examples": [
         {
           "title": "Four-voice keyboard synth",
-          "code": "const midi = $midiCV({ channels: 4 })\n$saw(midi)\n  .lpf(midi._velocity.range('c4', 'c7'), 1)\n  .amp($adsr(midi, { release: 0.4 }))\n  .out()"
+          "code": "const midi = $midiCV({ lanes: 4 })\n$saw(midi)\n  .lpf(midi._velocity.range('c4', 'c7'), 1)\n  .amp($adsr(midi, { release: 0.4 }))\n  .out()"
         },
         {
           "title": "Mono lead with a wide pitch bend",
@@ -30944,7 +30944,7 @@
             "null"
           ]
         },
-        "channels": {
+        "lanes": {
           "description": "number of voices",
           "type": "integer",
           "format": "uint",
@@ -30968,7 +30968,7 @@
           "default": "rotate"
         },
         "monoMode": {
-          "description": "which held note plays when `channels` is 1",
+          "description": "which held note plays when `lanes` is 1",
           "$ref": "#/$defs/MonoMode",
           "default": "last"
         },
@@ -31114,7 +31114,7 @@
     "bufferOutputs": [],
     "signalParams": [],
     "positionalArgs": [],
-    "channelsParam": "channels",
+    "lanesParam": "lanes",
     "experimental": false
   },
   {
@@ -31323,7 +31323,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -31478,14 +31478,14 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to thicken; even channels feed the left side, odd the right, and an odd last channel feeds both",
+          "description": "signal to thicken; even lanes feed the left side, odd the right, and an odd last lane feeds both",
           "$ref": "#/$defs/PolySignal"
         },
         "amount": {
           "description": "how much chorus joins the dry signal, from none (0) to an even blend (5)",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -31496,7 +31496,7 @@
           "description": "how far the slow and fast swirl sweeps, from a slight shimmer (0) to a deep, wobbling ensemble (5)",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -31546,7 +31546,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -31565,7 +31565,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -31583,7 +31583,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the chorused signal, as left and right channels",
+        "description": "the chorused signal, as left and right lanes",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -31595,7 +31595,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to thicken; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        "description": "signal to thicken; even lanes feed the left side, odd the right, and an odd last lane feeds both",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -31630,7 +31630,7 @@
         "name": "input"
       }
     ],
-    "channels": 2,
+    "lanes": 2,
     "experimental": false
   },
   {
@@ -31732,7 +31732,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -31939,7 +31939,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -32192,7 +32192,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -32468,7 +32468,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -32766,7 +32766,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -33088,7 +33088,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -33400,7 +33400,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -33684,7 +33684,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -33942,7 +33942,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -34210,7 +34210,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -34498,7 +34498,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -34774,7 +34774,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -35072,7 +35072,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -35394,7 +35394,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -35677,7 +35677,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -35930,7 +35930,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -36172,7 +36172,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -36409,7 +36409,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -36646,7 +36646,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -36887,7 +36887,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -37133,7 +37133,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -37375,7 +37375,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -37629,7 +37629,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -37934,13 +37934,13 @@
         },
         "gate": {
           "description": "starts the selected slice playing; `mode` sets what the gate does after that",
-          "$ref": "#/$defs/MonoSignal"
+          "$ref": "#/$defs/LaneSum"
         },
         "speed": {
           "description": "playback speed: 1 normal, 2 double (an octave up), negative plays in reverse",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -37953,7 +37953,7 @@
             {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/MonoSignal"
+                  "$ref": "#/$defs/LaneSum"
                 },
                 {
                   "type": "array",
@@ -37966,7 +37966,7 @@
                       "minItems": 1
                     },
                     {
-                      "$ref": "#/$defs/MonoSignal"
+                      "$ref": "#/$defs/LaneSum"
                     }
                   ],
                   "minItems": 2,
@@ -38022,7 +38022,7 @@
             "channels"
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -38060,7 +38060,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -38226,7 +38226,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -38409,7 +38409,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -38622,7 +38622,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -38800,7 +38800,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -38988,7 +38988,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -39171,7 +39171,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -39379,7 +39379,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,
@@ -39524,7 +39524,7 @@
                 "port": {
                   "type": "string"
                 },
-                "channel": {
+                "lane": {
                   "type": "integer",
                   "format": "uint",
                   "minimum": 0,

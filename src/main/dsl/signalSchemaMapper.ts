@@ -7,7 +7,7 @@ export type SignalMapper = (
     map: (value: unknown, path: string) => unknown,
 ) => unknown;
 
-const SIGNAL_DEFS = new Set(['PolySignal', 'MonoSignal', 'Signal']);
+const SIGNAL_DEFS = new Set(['PolySignal', 'LaneSum', 'Signal']);
 
 /** Deeper than any param schema nests signals; also stops recursive defs. */
 const MAX_DEPTH = 6;
@@ -19,7 +19,7 @@ function isTuple(schema: JsonSchema): boolean {
 /**
  * Build a mapper that rewrites the signal positions of a param whose schema
  * nests signals inside arrays, tuples and unions (`$mix.inputs`,
- * `$track.keyframes`, …). Returns null when the schema holds no signal.
+ * `$keyframes.keyframes`, …). Returns null when the schema holds no signal.
  */
 export function buildSignalMapper(
     schema: JsonSchema,
