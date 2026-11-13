@@ -10,7 +10,9 @@
 //! inside an [`AudioThreadScope`] (entered at the top of the cpal callback) —
 //! records a fixed-size `Copy` event into a pre-allocated lock-free SPSC ring. A
 //! dedicated background thread drains the ring and writes rate-limited warnings to
-//! stderr, naming the offending module via the profiler's currently-running frame.
+//! stderr, naming the offending module via the profiler's currently-running frame
+//! and the call site from the event's stack. The audio thread only records the
+//! stack's return addresses; the logger resolves them to functions and lines.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::{Cell, UnsafeCell};
@@ -29,6 +31,23 @@ const RING_CAPACITY: usize = 8192;
 /// size of [`modular_core::profiling::current_module_id_into`].
 const MODULE_ID_CAP: usize = 64;
 
+/// Return addresses kept per event: the allocator's own frames plus enough of
+/// the caller's stack to place it.
+const MAX_FRAMES: usize = 32;
+
+/// Events per audio callback that get a stack. Walking the stack costs far more
+/// than recording the event, so an allocation made every sample would otherwise
+/// starve the callback; events past the budget are still counted and attributed
+/// to their module.
+const STACKS_PER_CALLBACK: u8 = 8;
+
+/// Distinct stacks the logger resolves and remembers. Events with a stack past
+/// this many are reported without one.
+const MAX_STACKS: usize = 256;
+
+/// Frames printed per stack, counted from the caller of the allocator.
+const PRINTED_FRAMES: usize = 12;
+
 /// A fixed-size, `Copy`, `Drop`-free allocation event — safe to push to the ring
 /// and to drop on the audio thread (dropping it frees nothing).
 #[derive(Clone, Copy)]
@@ -37,6 +56,10 @@ struct AllocEvent {
     module_id_len: u8,
     size: u32,
     is_dealloc: bool,
+    /// Return addresses, innermost first; `frame_count` 0 means no stack was
+    /// captured.
+    frames: [usize; MAX_FRAMES],
+    frame_count: u8,
 }
 
 thread_local! {
@@ -47,6 +70,8 @@ thread_local! {
     /// Re-entrancy backstop: set while `record_event` runs, so an allocation made
     /// by the recording path itself (there should be none) cannot recurse.
     static IN_DETECTOR: Cell<bool> = const { Cell::new(false) };
+    /// Stacks this callback may still capture; refilled on every callback.
+    static STACK_BUDGET: Cell<u8> = const { Cell::new(0) };
 }
 
 /// Running totals of audio-thread allocator traffic, plus events dropped because
@@ -102,6 +127,7 @@ impl AudioThreadScope {
         // Runs before `ON_AUDIO` is set, so the allocations it makes (ring buffer,
         // logger thread) are not recorded.
         INIT.call_once(init_detector);
+        STACK_BUDGET.with(|c| c.set(STACKS_PER_CALLBACK));
         ON_AUDIO.with(|c| c.set(true));
         AudioThreadScope
     }
@@ -154,11 +180,15 @@ fn record_event(size: usize, is_dealloc: bool) {
     if INITIALIZED.load(Ordering::Acquire) {
         let mut module_id = [0u8; MODULE_ID_CAP];
         let module_id_len = modular_core::profiling::current_module_id_into(&mut module_id);
+        let mut frames = [0usize; MAX_FRAMES];
+        let frame_count = capture_stack(&mut frames);
         let event = AllocEvent {
             module_id,
             module_id_len,
             size: size.min(u32::MAX as usize) as u32,
             is_dealloc,
+            frames,
+            frame_count,
         };
         // Claim exclusive access to the single SPSC producer before touching it.
         // Non-blocking: if another audio thread holds the claim (possible for a few
@@ -187,6 +217,34 @@ fn record_event(size: usize, is_dealloc: bool) {
     IN_DETECTOR.with(|c| c.set(false));
 }
 
+/// Record the current stack's return addresses into `frames` if this callback
+/// has stack budget left, returning how many were written (0 when out of
+/// budget). Only walks the stack: no allocation and no symbol lookup. On Linux
+/// the unwinder looks up each frame through the dynamic loader, which takes the
+/// loader's lock, so a `dlopen` on another thread can briefly stall the walk.
+#[inline]
+fn capture_stack(frames: &mut [usize; MAX_FRAMES]) -> u8 {
+    let budget = STACK_BUDGET.with(|c| c.get());
+    if budget == 0 {
+        return 0;
+    }
+    STACK_BUDGET.with(|c| c.set(budget - 1));
+    let mut count = 0;
+    // SAFETY: the unsynchronized walk skips `backtrace`'s global lock, which
+    // the logger holds for as long as a symbol lookup takes. The lock
+    // serializes symbol lookup; the unwinders it would also guard here
+    // (`_Unwind_Backtrace` on Unix, `RtlVirtualUnwind` on 64-bit Windows) are
+    // thread-safe, so walking alongside a resolve is sound.
+    unsafe {
+        backtrace::trace_unsynchronized(|frame| {
+            frames[count] = frame.ip() as usize;
+            count += 1;
+            count < MAX_FRAMES
+        });
+    }
+    count as u8
+}
+
 /// Spawn the background logger thread that owns the ring consumer. It force-enables
 /// module profiling so the audio thread populates frames (and allocations can be
 /// attributed) even with the profiling UI closed.
@@ -206,6 +264,9 @@ fn spawn_logger(consumer: Consumer<AllocEvent>) {
     }
 }
 
+/// An offender: its module id bytes and length, and whether it deallocates.
+type OffenderKey = ([u8; MODULE_ID_CAP], u8, bool);
+
 /// Per-offender accumulation between reports.
 #[derive(Default)]
 struct Offender {
@@ -213,6 +274,8 @@ struct Offender {
     pending: u64,
     /// Most recent allocation size for this key (matches the plan's per-line size).
     last_size: u32,
+    /// Call sites of this key's events since the last report.
+    stacks: Vec<usize>,
 }
 
 /// Snapshot of the running totals, for change-detection on the summary line.
@@ -224,9 +287,187 @@ struct Totals {
     dropped: u64,
 }
 
+/// One resolved call site: its printed frames, outermost last.
+struct Stack {
+    lines: Vec<String>,
+}
+
+/// Resolved stacks, deduplicated by their printed frames, so raw stacks that
+/// differ only in frames past [`PRINTED_FRAMES`] share one entry.
+#[derive(Default)]
+struct Stacks {
+    by_frames: std::collections::HashMap<Vec<usize>, Option<usize>>,
+    by_lines: std::collections::HashMap<Vec<String>, usize>,
+    stacks: Vec<Stack>,
+}
+
+impl Stacks {
+    /// The index of `frames`' call site, or `None` when no stack was captured,
+    /// it resolves to nothing, or [`MAX_STACKS`] sites are already known.
+    fn intern(&mut self, frames: &[usize]) -> Option<usize> {
+        if frames.is_empty() {
+            return None;
+        }
+        if let Some(&index) = self.by_frames.get(frames) {
+            return index;
+        }
+        let lines = resolve_stack(frames);
+        let index = if lines.is_empty() {
+            None
+        } else if let Some(&index) = self.by_lines.get(&lines) {
+            Some(index)
+        } else if self.stacks.len() < MAX_STACKS {
+            self.stacks.push(Stack {
+                lines: lines.clone(),
+            });
+            self.by_lines.insert(lines, self.stacks.len() - 1);
+            Some(self.stacks.len() - 1)
+        } else {
+            None
+        };
+        // Raw stacks vary with everything above the call site, so cap the cache
+        // rather than let a long session grow it without bound.
+        if self.by_frames.len() >= MAX_STACKS * 16 {
+            self.by_frames.clear();
+        }
+        self.by_frames.insert(frames.to_vec(), index);
+        index
+    }
+
+    /// Print stack `index` under its report line: in full, or as just its
+    /// innermost workspace frame once the same offender has shown it.
+    fn print(&self, index: usize, in_full: bool) {
+        let lines = &self.stacks[index].lines;
+        if in_full {
+            for line in lines {
+                eprintln!("[alloc-detector]     at {line}");
+            }
+        } else {
+            let site = lines
+                .iter()
+                .find(|line| line.contains(" (crates/"))
+                .unwrap_or(&lines[0]);
+            eprintln!("[alloc-detector]     at {site} (stack above)");
+        }
+    }
+}
+
+/// Resolve raw return addresses to `function (file:line)` lines, from the
+/// allocator's caller out to the workspace's outermost frame, where the audio
+/// host's callback begins. Inlined calls resolve to one line each. Of each run
+/// of standard-library frames only the outermost is kept: the `Vec`/`Box`/
+/// `String` call the code made.
+fn resolve_stack(frames: &[usize]) -> Vec<String> {
+    struct Resolved {
+        name: String,
+        file: String,
+        line: u32,
+    }
+    let mut resolved = Vec::new();
+    for &ip in frames {
+        // `resolve` steps back from the return address into the call itself.
+        backtrace::resolve(ip as *mut std::ffi::c_void, |symbol| {
+            resolved.push(Resolved {
+                name: symbol
+                    .name()
+                    .map_or_else(|| "<unknown>".to_string(), |n| format!("{n:#}")),
+                file: symbol
+                    .filename()
+                    .map_or_else(String::new, |f| short_path(&f.to_string_lossy())),
+                line: symbol.lineno().unwrap_or(0),
+            });
+        });
+    }
+    // The global-allocator shims by exact name: other `__rust_` symbols, such
+    // as `__rust_begin_short_backtrace` at the base of a std thread, are callers.
+    let is_allocator = |r: &Resolved| {
+        r.file.ends_with("alloc_detector.rs")
+            || r.file.contains("/backtrace-")
+            || matches!(
+                r.name.as_str(),
+                "__rust_alloc" | "__rust_dealloc" | "__rust_realloc" | "__rust_alloc_zeroed"
+            )
+            || r.name.starts_with("__rdl_")
+    };
+    let start = resolved.iter().rposition(is_allocator).map_or(0, |i| i + 1);
+    let is_std = |r: &Resolved| r.file.starts_with("library/");
+    let is_ours = |r: &Resolved| r.file.starts_with("crates/");
+    let mut lines = Vec::new();
+    let mut reached_ours = false;
+    for (i, r) in resolved.iter().enumerate().skip(start) {
+        if reached_ours && !is_ours(r) && !is_std(r) {
+            break;
+        }
+        reached_ours |= is_ours(r);
+        if is_std(r) && resolved.get(i + 1).is_some_and(is_std) {
+            continue;
+        }
+        lines.push(format!("{} ({}:{})", short_name(&r.name), r.file, r.line));
+        if lines.len() == PRINTED_FRAMES {
+            break;
+        }
+    }
+    lines
+}
+
+/// `name` with its generic arguments elided when it is long. A `<` right after
+/// a name opens generic arguments; any other opens a qualified path such as
+/// `<Vec<T> as Drop>::drop`, which is kept.
+fn short_name(name: &str) -> String {
+    if name.len() <= 48 {
+        return name.to_string();
+    }
+    let mut out = String::with_capacity(name.len());
+    let mut skip_depth = 0usize;
+    let mut prev = ' ';
+    for c in name.chars() {
+        if skip_depth > 0 {
+            match c {
+                '<' => skip_depth += 1,
+                '>' => skip_depth -= 1,
+                _ => {}
+            }
+        } else if c == '<' && (prev.is_alphanumeric() || matches!(prev, '_' | '}')) {
+            out.push_str("<…>");
+            skip_depth = 1;
+        } else {
+            out.push(c);
+        }
+        prev = c;
+    }
+    out
+}
+
+/// `path` with `/` separators, relative to the workspace, the toolchain's
+/// `library/` for the standard library, or the registry for dependencies.
+fn short_path(path: &str) -> String {
+    let path = &path.replace('\\', "/");
+    let workspace = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    let workspace = workspace.strip_suffix("crates/modular").unwrap_or("");
+    if let Some(i) = path.find("/rustlib/src/rust/library/") {
+        return path[i + "/rustlib/src/rust/".len()..].to_string();
+    }
+    if path.starts_with("/rustc/")
+        && let Some(i) = path.find("/library/")
+    {
+        return path[i + 1..].to_string();
+    }
+    if let Some(i) = path.find("/registry/src/") {
+        let index_and_crate = &path[i + "/registry/src/".len()..];
+        if let Some(j) = index_and_crate.find('/') {
+            return index_and_crate[j + 1..].to_string();
+        }
+    }
+    path.strip_prefix(workspace)
+        .or_else(|| path.strip_prefix("./"))
+        .unwrap_or(path)
+        .to_string()
+}
+
 /// Drain → dedup/rate-limit → stderr. Runs forever on the logger thread; all heap
-/// use here (`HashMap`, `String`, `format!`) is fine because this is not the audio
-/// thread (the `ON_AUDIO` gate is false here, so these allocations are ignored).
+/// use here (`HashMap`, `String`, `format!`, symbol resolution) is fine because
+/// this is not the audio thread (the `ON_AUDIO` gate is false here, so these
+/// allocations are ignored).
 fn logger_loop(mut consumer: Consumer<AllocEvent>) {
     use std::collections::HashMap;
     use std::time::{Duration, Instant};
@@ -234,20 +475,31 @@ fn logger_loop(mut consumer: Consumer<AllocEvent>) {
     let drain_interval = Duration::from_millis(200);
     let report_interval = Duration::from_millis(1000);
 
-    let mut offenders: HashMap<([u8; MODULE_ID_CAP], u8, bool), Offender> = HashMap::new();
+    let mut offenders: HashMap<OffenderKey, Offender> = HashMap::new();
+    let mut stacks = Stacks::default();
+    // (offender, stack) pairs whose stack has been printed in full.
+    let mut shown: std::collections::HashSet<(OffenderKey, usize)> =
+        std::collections::HashSet::new();
     let mut last_report = Instant::now();
     let mut last_totals = Totals::default();
 
     loop {
         while let Ok(event) = consumer.pop() {
+            let stack = stacks.intern(&event.frames[..event.frame_count as usize]);
             let key = (event.module_id, event.module_id_len, event.is_dealloc);
             let offender = offenders.entry(key).or_default();
             offender.pending += 1;
             offender.last_size = event.size;
+            if let Some(stack) = stack
+                && !offender.stacks.contains(&stack)
+            {
+                offender.stacks.push(stack);
+            }
         }
 
         if last_report.elapsed() >= report_interval {
-            for ((id_bytes, id_len, is_dealloc), offender) in offenders.iter_mut() {
+            for (key, offender) in offenders.iter_mut() {
+                let (id_bytes, id_len, is_dealloc) = key;
                 if offender.pending == 0 {
                     continue;
                 }
@@ -267,6 +519,12 @@ fn logger_loop(mut consumer: Consumer<AllocEvent>) {
                          init()/on_patch_update() (see CLAUDE.md lifecycle rules).",
                         offender.last_size, offender.pending,
                     );
+                }
+                for index in offender.stacks.drain(..) {
+                    if shown.len() >= MAX_STACKS * 16 {
+                        shown.clear();
+                    }
+                    stacks.print(index, shown.insert((*key, index)));
                 }
                 offender.pending = 0;
             }
