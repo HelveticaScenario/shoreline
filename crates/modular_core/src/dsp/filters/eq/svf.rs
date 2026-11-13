@@ -52,17 +52,24 @@ fn fixed_or(signal: &Option<LaneSum>, default: f32) -> Option<f32> {
 }
 
 impl SectionRuntime {
-    /// Glides the section's params and recomputes coefficients when they move.
-    pub(super) fn refresh(&mut self, sec: &EqSection, sample_rate: f32, adaptive_q: bool) {
+    /// Glides side `side` of the section's params and recomputes
+    /// coefficients when they move.
+    pub(super) fn refresh(
+        &mut self,
+        sec: &EqSection,
+        side: usize,
+        sample_rate: f32,
+        adaptive_q: bool,
+    ) {
         if self.settled {
             return;
         }
         self.advance(
             sec,
             [
-                sec.freq.get_value(),
-                sec.gain.value_or(0.0),
-                sec.q.value_or(DEFAULT_Q),
+                sec.freq.get_side(side),
+                sec.gain.side_or(side, 0.0),
+                sec.q.side_or(side, DEFAULT_Q),
             ],
             sample_rate,
             adaptive_q,

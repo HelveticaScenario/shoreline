@@ -640,10 +640,12 @@ pub trait Connect {
     /// pair items by position; leaf types are no-op.
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds);
 
-    /// Like [`collect_cables`](Self::collect_cables), but only the inputs a
-    /// module reads lane by lane: the ones that make a lifted module stereo.
-    /// An input read as one value (a [`LaneSum`](crate::poly::LaneSum) or a
-    /// bare [`Signal`]) folds its producer instead and is left out.
+    /// Like [`collect_cables`](Self::collect_cables), but only the inputs
+    /// that make a lifted module stereo: a `PolySignal` or a
+    /// [`LaneSum`](crate::poly::LaneSum), which keep their sides. A bare
+    /// [`Signal`] holds one value, so it folds its producer and is left out,
+    /// and so is a [`PairSignal`](crate::poly::PairSignal), which reads both
+    /// sides itself.
     fn collect_lane_cables(&self, sink: &mut Vec<CableSource>);
 
     /// Rewrite every cable to the physical lane it reads once the patch's

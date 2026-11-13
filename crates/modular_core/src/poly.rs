@@ -639,24 +639,25 @@ impl JsonSchema for PolySignal {
 // LaneSum - Polyphonic input that sums to mono output
 // =============================================================================
 
-/// A polyphonic input that sums all lanes to a single mono value.
+/// A polyphonic input read as one value for the whole module: the sum of its
+/// lanes, for a param that does not vary lane by lane.
 ///
-/// This wraps a `PolySignal` but provides a `Signal`-like API where
-/// `get_value()` returns the sum of all lanes in the PolySignal.
-///
-/// Use this for module inputs that accept polyphonic connections but produce
-/// a mono control signal (e.g., stereo width, etc.).
+/// It adds up lanes only: on a stereo module each side sums on its own
+/// ([`get_side`](Self::get_side)), and a stereo input makes a lifted module
+/// stereo as a `PolySignal` does.
 ///
 /// Disconnected inputs are represented as `Option<LaneSum>` at the param level.
-///
-/// For polyphony propagation, LaneSum is treated as a single lane.
 #[derive(Clone, Debug)]
 pub struct LaneSum {
     inner: PolySignal,
+    /// Channels per lane of the reading module, set by
+    /// [`expand_lanes`](crate::types::Connect::expand_lanes): `inner` holds
+    /// lane `l` side `c` at `l * channels + c`, and each side sums on its own.
+    channels: usize,
 }
 
-// Hand-written: a LaneSum reads one value for the whole module, so it folds a
-// stereo producer and never makes the module stereo.
+// Hand-written: a LaneSum sums every lane of one side, so it carries its
+// module's channels instead of a lane per lane.
 impl crate::types::Connect for LaneSum {
     fn apply_default_connections(&mut self) {
         self.inner.apply_default_connections();
@@ -674,19 +675,22 @@ impl crate::types::Connect for LaneSum {
         self.inner
             .mark_glides(old.map(|o| &o.inner), generation, ids);
     }
-    fn collect_lane_cables(&self, _sink: &mut Vec<crate::types::CableSource>) {}
+    fn collect_lane_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
+        self.inner.collect_cables(sink);
+    }
     fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
-        self.inner.expand_lanes(&crate::types::LaneExpansion {
-            channels: 1,
-            producer: expansion.producer,
-        });
+        self.inner.expand_lanes(expansion);
+        self.channels = expansion.channels;
     }
 }
 
 impl LaneSum {
     /// Create a LaneSum from a PolySignal
     pub fn from_poly(poly: PolySignal) -> Self {
-        Self { inner: poly }
+        Self {
+            inner: poly,
+            channels: 1,
+        }
     }
 
     /// The lanes this input sums.
@@ -694,9 +698,21 @@ impl LaneSum {
         &self.inner
     }
 
-    /// Get the summed value of all lanes
+    /// The sum of every lane, a stereo sum folded to `(L + R) / 2`.
     pub fn get_value(&self) -> f32 {
-        self.inner.lanes.iter().map(|s| s.get_value()).sum()
+        self.inner.lanes.iter().map(|s| s.get_value()).sum::<f32>() / self.channels as f32
+    }
+
+    /// The sum of every lane's side `side`; a mono sum on every side. A
+    /// module reads side `lane % channels` for its lane `lane`.
+    pub fn get_side(&self, side: usize) -> f32 {
+        self.inner
+            .lanes
+            .iter()
+            .skip(side % self.channels)
+            .step_by(self.channels)
+            .map(|s| s.get_value())
+            .sum()
     }
 
     /// The [`GlideMark`] for the summed value: changed when any lane is.
@@ -720,7 +736,7 @@ impl LaneSum {
                 _ => return None,
             }
         }
-        Some(sum)
+        Some(sum / self.channels as f32)
     }
 
     /// Get the summed value of all lanes as f64
@@ -730,12 +746,13 @@ impl LaneSum {
             .iter()
             .map(Signal::get_value_f64)
             .sum::<f64>()
+            / self.channels as f64
     }
 }
 
 impl From<PolySignal> for LaneSum {
     fn from(poly: PolySignal) -> LaneSum {
-        LaneSum { inner: poly }
+        LaneSum::from_poly(poly)
     }
 }
 
@@ -755,9 +772,7 @@ impl<'de> Deserialize<'de> for LaneSum {
     where
         D: Deserializer<'de>,
     {
-        Ok(LaneSum {
-            inner: PolySignal::deserialize(deserializer)?,
-        })
+        Ok(LaneSum::from_poly(PolySignal::deserialize(deserializer)?))
     }
 }
 
@@ -767,9 +782,9 @@ impl<E: DeserializeError> deserr::Deserr<E> for LaneSum {
         value: deserr::Value<V>,
         location: ValuePointerRef<'_>,
     ) -> Result<Self, E> {
-        Ok(LaneSum {
-            inner: PolySignal::deserialize_from_value(value, location)?,
-        })
+        Ok(LaneSum::from_poly(PolySignal::deserialize_from_value(
+            value, location,
+        )?))
     }
 }
 
@@ -966,6 +981,9 @@ pub trait LaneSumExt {
     /// Returns the summed signal value, or `default` if disconnected.
     fn value_or(&self, default: f32) -> f32;
 
+    /// Side `side`'s sum, or `default` if disconnected.
+    fn side_or(&self, side: usize, default: f32) -> f32;
+
     /// Returns the summed signal value, or 0.0 if disconnected.
     fn value_or_zero(&self) -> f32;
 
@@ -980,6 +998,13 @@ impl LaneSumExt for Option<LaneSum> {
     fn value_or(&self, default: f32) -> f32 {
         match self {
             Some(ms) => ms.get_value(),
+            None => default,
+        }
+    }
+
+    fn side_or(&self, side: usize, default: f32) -> f32 {
+        match self {
+            Some(ms) => ms.get_side(side),
             None => default,
         }
     }
