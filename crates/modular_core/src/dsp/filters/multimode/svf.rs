@@ -5,7 +5,7 @@
 use super::components::{
     ZENER_FLOOR_V, ZENER_MIN_LN_I, ZENER_PAIR_CAPACITANCE_0V, ZenerPoint, ZenerTables,
 };
-use super::lanes::{LANES, Lanes, clear_lane, f32x4, set_lane};
+use super::simd::{SIMD_WIDTH, Simd, clear_element, f32x4, set_element};
 use super::vca::{self, GainX4};
 
 /// Integrator input resistance (R132, R131). The zener pair across the first
@@ -53,24 +53,24 @@ impl CoreTuning {
     }
 }
 
-/// A group's four [`CoreTuning`]s, one per lane.
+/// A group's four [`CoreTuning`]s, one per element.
 #[derive(Clone, Copy, Default)]
 pub(super) struct TuningX4 {
     theta: f32x4,
     tan_theta: f32x4,
     sqrt_slowdown: f32x4,
     vca: GainX4,
-    /// Bit `l` set where lane `l` is below [`LINEAR_THETA`].
+    /// Bit `l` set where element `l` is below [`LINEAR_THETA`].
     linear: u32,
 }
 
 impl TuningX4 {
-    pub(super) fn set(&mut self, lane: usize, tuning: &CoreTuning) {
-        set_lane(&mut self.theta, lane, tuning.theta);
-        set_lane(&mut self.tan_theta, lane, tuning.tan_theta);
-        set_lane(&mut self.sqrt_slowdown, lane, tuning.sqrt_slowdown);
-        self.vca.set(lane, &tuning.vca);
-        let bit = 1 << lane;
+    pub(super) fn set(&mut self, element: usize, tuning: &CoreTuning) {
+        set_element(&mut self.theta, element, tuning.theta);
+        set_element(&mut self.tan_theta, element, tuning.tan_theta);
+        set_element(&mut self.sqrt_slowdown, element, tuning.sqrt_slowdown);
+        self.vca.set(element, &tuning.vca);
+        let bit = 1 << element;
         self.linear = if tuning.theta < LINEAR_THETA {
             self.linear | bit
         } else {
@@ -88,7 +88,7 @@ const LINEAR_THETA: f32 = 0.25;
 /// Integrator gains `(g1, g2)` where the rate changes scale the prewarped gain
 /// directly.
 #[inline]
-fn linear_gains<L: Lanes>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
+fn linear_gains<L: Simd>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
     let g = L::load(&tuning.tan_theta) * L::load(&tuning.sqrt_slowdown);
     (g * rate1, g * rate2)
 }
@@ -97,7 +97,7 @@ fn linear_gains<L: Lanes>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
 /// tuning, applied to the prewarped gain by tan addition with a cubic tan for
 /// the small step.
 #[inline]
-fn warped_gains<L: Lanes>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
+fn warped_gains<L: Simd>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
     let (theta, tan_theta) = (L::load(&tuning.theta), L::load(&tuning.tan_theta));
     let split = (rate1 / rate2).sqrt();
     let shift = split * rate2 * L::load(&tuning.sqrt_slowdown);
@@ -109,16 +109,16 @@ fn warped_gains<L: Lanes>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
 
 /// Trapezoidal integrator states for `b = −BP` and LP; BP and the first VCA's
 /// input current from the last sample, which set this sample's zener
-/// capacitance and VCA distortion; and the zener solve's seed. One lane per
-/// channel.
+/// capacitance and VCA distortion; and the zener solve's seed. One element per
+/// lane.
 #[derive(Clone, Copy)]
 pub(super) struct SvfCore {
     s1: f32x4,
     s2: f32x4,
     bp: f32x4,
     vca_input: f32x4,
-    zener: [ZenerSeed; LANES],
-    /// Bit `l` set where lane `l` was clamped last sample.
+    zener: [ZenerSeed; SIMD_WIDTH],
+    /// Bit `l` set where element `l` was clamped last sample.
     clamped: u32,
 }
 
@@ -129,7 +129,7 @@ impl Default for SvfCore {
             s2: f32x4::default(),
             bp: f32x4::default(),
             vca_input: f32x4::default(),
-            zener: [ZenerSeed::default(); LANES],
+            zener: [ZenerSeed::default(); SIMD_WIDTH],
             clamped: 0,
         }
     }
@@ -142,10 +142,10 @@ impl SvfCore {
     ///   db/dt = ω1(u − lp − damping·b − R·i_z(b)),   dlp/dt = ω2·b,
     /// and trapezoidal integration makes `b` implicit. The zener capacitance
     /// and the VCAs' second-harmonic terms follow last sample's BP and VCA
-    /// input current. The zener clamp is solved on the first `active` lanes
+    /// input current. The zener clamp is solved on the first `active` elements
     /// that reach it.
     #[inline]
-    pub(super) fn step<L: Lanes>(
+    pub(super) fn step<L: Simd>(
         &mut self,
         u: L,
         tuning: &TuningX4,
@@ -196,19 +196,19 @@ impl SvfCore {
         let (b, i_zener) = if clamped == 0 {
             (linear, L::splat(0.0))
         } else {
-            let (mut b, mut i_zener) = (linear.to_lanes(), [0.0; LANES]);
-            let (rhs, g1, denom) = (rhs.to_lanes(), g1.to_lanes(), denom.to_lanes());
-            for lane in (0..active).filter(|&lane| clamped & (1 << lane) != 0) {
-                (b[lane], i_zener[lane]) = solve_clamped(
-                    rhs[lane],
-                    g1[lane],
-                    denom[lane],
-                    &mut self.zener[lane],
-                    self.clamped & (1 << lane) != 0,
+            let (mut b, mut i_zener) = (linear.to_elements(), [0.0; SIMD_WIDTH]);
+            let (rhs, g1, denom) = (rhs.to_elements(), g1.to_elements(), denom.to_elements());
+            for element in (0..active).filter(|&element| clamped & (1 << element) != 0) {
+                (b[element], i_zener[element]) = solve_clamped(
+                    rhs[element],
+                    g1[element],
+                    denom[element],
+                    &mut self.zener[element],
+                    self.clamped & (1 << element) != 0,
                     zener,
                 );
             }
-            (L::from_lanes(b), L::from_lanes(i_zener))
+            (L::from_elements(b), L::from_elements(i_zener))
         };
         self.clamped = clamped;
         let lp = s2 + g2 * b;
@@ -224,13 +224,13 @@ impl SvfCore {
         (lp, -b)
     }
 
-    pub(super) fn clear_lane(&mut self, lane: usize) {
-        clear_lane(&mut self.s1, lane);
-        clear_lane(&mut self.s2, lane);
-        clear_lane(&mut self.bp, lane);
-        clear_lane(&mut self.vca_input, lane);
-        self.zener[lane] = ZenerSeed::default();
-        self.clamped &= !(1 << lane);
+    pub(super) fn clear_element(&mut self, element: usize) {
+        clear_element(&mut self.s1, element);
+        clear_element(&mut self.s2, element);
+        clear_element(&mut self.bp, element);
+        clear_element(&mut self.vca_input, element);
+        self.zener[element] = ZenerSeed::default();
+        self.clamped &= !(1 << element);
     }
 }
 

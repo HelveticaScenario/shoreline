@@ -51,7 +51,7 @@ function renderPropertyKey(name: string): string {
 
 /**
  * Resolve a `$ref` pointer against the root schema's `$defs`.
- * Returns the well-known Signal/Poly<Signal>/Mono<Signal>/Buffer sentinel strings
+ * Returns the well-known Signal/Poly<Signal>/LaneSum<Signal>/Buffer sentinel strings
  * for the three signal types, otherwise the raw resolved sub-schema.
  */
 export function resolveRef(
@@ -61,7 +61,7 @@ export function resolveRef(
     | JSONSchema
     | 'Signal'
     | 'Poly<Signal>'
-    | 'Mono<Signal>'
+    | 'LaneSum<Signal>'
     | 'Buffer'
     | 'Wav'
     | 'PhaseWarp'
@@ -92,8 +92,8 @@ export function resolveRef(
     if (defName === 'PolySignal') {
         return 'Poly<Signal>';
     }
-    if (defName === 'MonoSignal') {
-        return 'Mono<Signal>';
+    if (defName === 'LaneSum') {
+        return 'LaneSum<Signal>';
     }
     if (defName === 'Buffer') {
         return 'Buffer';
@@ -134,8 +134,8 @@ export function resolveRef(
     if (resolved?.title === 'PolySignal') {
         return 'Poly<Signal>';
     }
-    if (resolved?.title === 'MonoSignal') {
-        return 'Mono<Signal>';
+    if (resolved?.title === 'LaneSum') {
+        return 'LaneSum<Signal>';
     }
     if (resolved?.title === 'Buffer') {
         return 'Buffer';
@@ -215,7 +215,7 @@ export function getEnumVariants(
 /**
  * Convert a JSON Schema node into a human-readable TypeScript type expression.
  *
- * Handles: `$ref` (Signal/PolySignal/MonoSignal + arbitrary defs), `oneOf`/`anyOf`
+ * Handles: `$ref` (Signal/PolySignal/LaneSum + arbitrary defs), `oneOf`/`anyOf`
  * enum patterns, `allOf`, nullable type arrays, primitive types, object types,
  * array/tuple types, and `enum` schemas.
  */
@@ -313,8 +313,8 @@ export function schemaToTypeExpr(
         if (resolved === 'Poly<Signal>') {
             return 'Poly<Signal>';
         }
-        if (resolved === 'Mono<Signal>') {
-            return 'Mono<Signal>';
+        if (resolved === 'LaneSum<Signal>') {
+            return 'LaneSum<Signal>';
         }
         if (resolved === 'Buffer') {
             return 'BufferOutputRef';

@@ -117,7 +117,7 @@ describe('static resolution', () => {
         ]);
     });
 
-    test('a channel of a root resolves per input', () => {
+    test('a lane of a root resolves per input', () => {
         expect(
             hints(`const seq = $p('c e')\n$saw(seq[0]).amp($perc(seq[0]))`),
         ).toEqual(['$saw(seq[0]‹cv›', '$perc(seq[0]‹trig›']);

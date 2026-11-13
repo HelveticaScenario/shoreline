@@ -5,7 +5,7 @@
 use super::params::{DEFAULT_Q, EqSection, EqSectionType, MAX_Q, MIN_Q, effective_q};
 use crate::dsp::filters::svf_core::SvfCoeffs;
 use crate::dsp::utils::{changed, voct_to_hz};
-use crate::poly::{MonoSignal, MonoSignalExt};
+use crate::poly::{LaneSum, LaneSumExt};
 use crate::types::SwapGlide;
 
 /// Per-section patch-update glides and change-detection state. `NaN` = never computed.
@@ -44,7 +44,7 @@ pub(super) struct SectionRuntime {
 
 /// An optional param's fixed value (its default when absent), or None when
 /// it is signal-driven.
-fn fixed_or(signal: &Option<MonoSignal>, default: f32) -> Option<f32> {
+fn fixed_or(signal: &Option<LaneSum>, default: f32) -> Option<f32> {
     match signal {
         Some(s) => s.constant_value(),
         None => Some(default),

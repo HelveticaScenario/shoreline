@@ -1,4 +1,4 @@
-//! A group of four channels: its state, and the signal path run one sample at a
+//! A group of four lanes: its state, and the signal path run one sample at a
 //! time or over a block.
 
 use std::ops::Range;
@@ -9,8 +9,8 @@ use super::components::{self, ZENER_PAIR_CAPACITANCE_0V, ZenerTables};
 use super::controls::{ControlInputs, Controls, row, update_controls};
 use super::curve::Curve;
 use super::drive::{self, DriveCurves, DriveState, PreEmphasis};
-use super::lanes::{HalfbandDown, HalfbandUp, LANES, Lanes, OnePole, f32x4};
 use super::output::{self, OUTPUT_POLE_HZ, output_amp, rails};
+use super::simd::{HalfbandDown, HalfbandUp, OnePole, SIMD_WIDTH, Simd, f32x4};
 use super::svf::{NEGATIVE_DAMPING, SvfCore};
 use super::vca::{self, GainX4};
 use super::{MultimodeBlockOutputs, MultimodeParamsBlockInputs};
@@ -46,8 +46,8 @@ impl Tables {
     }
 }
 
-/// Four channels' state, one lane each; group `g` holds channels `4g..4g + 4`
-/// and lives in `channel_state[g]`. With `highRes` the whole circuit runs at
+/// Four lanes' state, one element each; group `g` holds lanes `4g..4g + 4`
+/// and lives in `lane_state[g]`. With `highRes` the whole circuit runs at
 /// twice the engine rate, and the four outputs are decimated separately.
 #[derive(Default, Clone, Copy)]
 pub(super) struct GroupState {
@@ -60,7 +60,7 @@ pub(super) struct GroupState {
     pub(super) output_poles: [OnePole; 3],
     pub(super) drive: DriveState,
     pub(super) core: SvfCore,
-    pub(super) noise: [LcgRng; LANES],
+    pub(super) noise: [LcgRng; SIMD_WIDTH],
     pub(super) pre_emphasis: PreEmphasis,
 }
 
@@ -83,46 +83,46 @@ impl GroupState {
         }
     }
 
-    /// Returns lane `lane` to rest, as a fresh channel starts. Its noise
+    /// Returns element `element` to rest, as a fresh lane starts. Its noise
     /// generator keeps its seed.
-    pub(super) fn clear_lane(&mut self, lane: usize) {
+    pub(super) fn clear_element(&mut self, element: usize) {
         let c = &mut self.controls;
-        c.drive.clear_lane(lane);
-        c.fold.clear_lane(lane);
-        c.tuning.clear_lane(lane);
-        c.res.clear_lane(lane);
-        c.mode.clear_lane(lane);
-        self.up.clear_lane(lane);
-        self.down.iter_mut().for_each(|d| d.clear_lane(lane));
-        self.drive_pole.clear_lane(lane);
+        c.drive.clear_element(element);
+        c.fold.clear_element(element);
+        c.tuning.clear_element(element);
+        c.res.clear_element(element);
+        c.mode.clear_element(element);
+        self.up.clear_element(element);
+        self.down.iter_mut().for_each(|d| d.clear_element(element));
+        self.drive_pole.clear_element(element);
         self.output_poles
             .iter_mut()
-            .for_each(|p| p.clear_lane(lane));
-        self.drive.clear_lane(lane);
-        self.core.clear_lane(lane);
-        self.pre_emphasis.clear_lane(lane);
+            .for_each(|p| p.clear_element(element));
+        self.drive.clear_element(element);
+        self.core.clear_element(element);
+        self.pre_emphasis.clear_element(element);
     }
 
     /// One core-rate sample from drive VCA outputs `x`, returning the outputs
     /// `[output, lp, bp, hp]`. The output amp's feedback pole filters the LP,
     /// BP and HP nodes before the mode VCAs, which only rescale them, so
     /// filtering each one equals filtering their mix. The drive stage runs on
-    /// the first `active` lanes.
+    /// the first `active` elements.
     #[inline]
-    fn tick<L: Lanes>(
+    fn tick<L: Simd>(
         &mut self,
         x: L,
-        fold_gains: &[(f32, f32); LANES],
+        fold_gains: &[(f32, f32); SIMD_WIDTH],
         tables: Tables,
         active: usize,
     ) -> [L; 4] {
         let x = self.drive_pole.process(x);
         let filter_in = self.drive.process(tables.drive, x, fold_gains, active);
-        let mut noise = [0.0; LANES];
+        let mut noise = [0.0; SIMD_WIDTH];
         for (noise, rng) in noise.iter_mut().zip(&mut self.noise).take(active) {
             *noise = rng.next_bipolar();
         }
-        let u = L::splat(NOISE_FLOOR_V) * L::from_lanes(noise) - filter_in;
+        let u = L::splat(NOISE_FLOOR_V) * L::from_elements(noise) - filter_in;
         let c = &self.controls;
         let (lp, bp) = self
             .core
@@ -144,7 +144,7 @@ impl GroupState {
 /// BP and HP through 62k each; VCA B takes its output less BP and LP (through
 /// the IC14C summer) and adds to the LP that reaches the output directly.
 #[inline]
-fn morph<L: Lanes>(lp: L, bp: L, hp: L, (gain_a, gain_b): &(GainX4, GainX4)) -> L {
+fn morph<L: Simd>(lp: L, bp: L, hp: L, (gain_a, gain_b): &(GainX4, GainX4)) -> L {
     // Below mode 2.5 VCA A is off, and at mode 0 VCA B too, so LP reaches the
     // output alone.
     let live = |gain: &GainX4| L::bits(gain.gain::<L>().ge(L::splat(f32::MIN_POSITIVE))) != 0;
@@ -161,27 +161,27 @@ fn morph<L: Lanes>(lp: L, bp: L, hp: L, (gain_a, gain_b): &(GainX4, GainX4)) -> 
     lp + r * vca::output(gain_b, w * inv_r)
 }
 
-/// One sample's `[output, lp, bp, hp]` for a group's lanes.
-pub(super) type GroupOutputs = [[f32; LANES]; 4];
+/// One sample's `[output, lp, bp, hp]` for a group's elements.
+pub(super) type GroupOutputs = [[f32; SIMD_WIDTH]; 4];
 
-/// One sample for the `active` channels of group `state`, kept out of line so
+/// One sample for the `active` lanes of group `state`, kept out of line so
 /// `update` carries one inlined copy.
 #[inline(never)]
-pub(super) fn process_group<L: Lanes>(
+pub(super) fn process_group<L: Simd>(
     state: &mut GroupState,
     controls: &ControlInputs,
-    input: [f32; LANES],
+    input: [f32; SIMD_WIDTH],
     (active, high_res, rate, tables): (usize, bool, f32, Tables),
 ) -> GroupOutputs {
     update_controls::<L>(&mut state.controls, controls, active, rate);
     step::<L>(state, input, active, high_res, tables)
 }
 
-/// Slots `range` for the `active` channels of group `state`, from channel
+/// Slots `range` for the `active` lanes of group `state`, from lane
 /// `base`, read from `inputs` and written to `outputs`. Controls held over the
 /// range update once.
 #[inline(never)]
-pub(super) fn process_block_group<L: Lanes>(
+pub(super) fn process_block_group<L: Simd>(
     state: &mut GroupState,
     inputs: &MultimodeParamsBlockInputs,
     outputs: &mut MultimodeBlockOutputs,
@@ -223,28 +223,28 @@ pub(super) fn process_block_group<L: Lanes>(
     }
 }
 
-/// One sample of the signal path for the first `active` lanes of group
-/// `state`, returning each output's lanes.
+/// One sample of the signal path for the first `active` elements of group
+/// `state`, returning each output's elements.
 #[inline(always)]
-pub(super) fn step<L: Lanes>(
+pub(super) fn step<L: Simd>(
     state: &mut GroupState,
-    input: [f32; LANES],
+    input: [f32; SIMD_WIDTH],
     active: usize,
     high_res: bool,
     tables: Tables,
 ) -> GroupOutputs {
     let c = &state.controls;
     let fold = c.fold_gains;
-    let input = L::from_lanes(input);
+    let input = L::from_elements(input);
     let drive_in = input * L::splat(1.0 / R_DRIVE_IN);
     let x = (L::splat(R_DRIVE_IN) * vca::output(&c.drive_x4, drive_in)).sanitize();
     let out = if high_res {
         let (even, odd) = state.up.process(x);
         let even = state.tick(even, &fold, tables, active);
         let odd = state.tick(odd, &fold, tables, active);
-        // A lone channel decimates its four outputs as one downsampler's lanes.
+        // A lone lane decimates its four outputs as one downsampler's elements.
         if L::WIDTH == 1 {
-            let pack = |o: [L; 4]| f32x4::new(o.map(|v| v.to_lanes()[0]));
+            let pack = |o: [L; 4]| f32x4::new(o.map(|v| v.to_elements()[0]));
             let y = state.down[0].process(pack(even), pack(odd)).to_array();
             y.map(L::splat)
         } else {
@@ -255,5 +255,5 @@ pub(super) fn step<L: Lanes>(
         state.tick(x, &fold, tables, active)
     };
 
-    out.map(|v| rails(v).to_lanes())
+    out.map(|v| rails(v).to_elements())
 }

@@ -160,7 +160,7 @@ fn select(active: [u8; 3]) -> Option<ChainFn> {
 /// Samples per control block: pitch and crossfade update once per block.
 pub(super) const CONTROL_BLOCK: usize = 8;
 
-/// Settings shared by every voice of a channel for one control block.
+/// Settings shared by every voice of a lane for one control block.
 pub(super) struct ControlContext {
     pub inv_sample_rate: f32,
     /// How much of each interval is a hard step rather than a crossfade, 0–0.5.
@@ -169,9 +169,9 @@ pub(super) struct ControlContext {
     pub crossfade_coef: f32,
 }
 
-/// Settings shared by every voice of a channel for one sample.
+/// Settings shared by every voice of a lane for one sample.
 pub(super) struct VoiceContext<'a> {
-    /// The phase warp with its stage values for this channel.
+    /// The phase warp with its stage values for this lane.
     pub phase: Option<(&'a PhaseWarp, ResolvedWarp)>,
     pub warps: WarpChain,
     /// Cross-FM depth, before per-oscillator antialiasing.

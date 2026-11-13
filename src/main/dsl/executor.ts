@@ -7,7 +7,7 @@ import {
     setActiveSpanRegistry,
     setDSLWrapperLineOffset,
     captureSourceLocation,
-    deriveChannelCountChecked,
+    deriveLaneCountChecked,
 } from './factories';
 import type {
     AnyCollection,
@@ -26,13 +26,13 @@ import {
     DeferredModuleOutput,
     DeferredCollection,
     Bus,
-    cycleToChannels,
+    cycleToLanes,
     withCarried,
     replaceSignals,
-    PORT_MAX_CHANNELS,
+    PORT_MAX_LANES,
 } from './GraphBuilder';
 import { $g1, $g2, $g3 } from './signalGroups';
-import { createOutLane, type OutLane } from './outLane';
+import { createTrackTap, type TrackTap } from './trackTap';
 import { analyzeSourceSpans } from './analyzeSource';
 import type { CallSiteSpanRegistry } from './analyzeSource';
 import type { InterpolationResolutionMap } from '../../shared/dsl/spanTypes';
@@ -164,7 +164,7 @@ export interface DSLExecutionOptions {
     /**
      * Channel count of the audio input device, which is how wide `$input` is
      * built. Read at execution time, so a device swap reaches `$input` on the
-     * next run of the patch. Clamped to 1..PORT_MAX_CHANNELS, and defaults to
+     * next run of the patch. Clamped to 1..PORT_MAX_LANES, and defaults to
      * the maximum for callers with no device to report — `$input` never
      * truncates silently, it only narrows when a host says how wide the
      * device is.
@@ -240,12 +240,12 @@ export function executePatchScript(
     });
 
     const inputChannels = Math.min(
-        Math.max(options.inputChannels ?? PORT_MAX_CHANNELS, 1),
-        PORT_MAX_CHANNELS,
+        Math.max(options.inputChannels ?? PORT_MAX_LANES, 1),
+        PORT_MAX_LANES,
     );
     const rootInput = signal(
         Array.from({ length: inputChannels }, (_, i) => ({
-            channel: i,
+            lane: i,
             module: 'HIDDEN_AUDIO_IN',
             port: 'input',
             type: 'cable',
@@ -334,22 +334,23 @@ export function executePatchScript(
     /**
      * Create a DeferredCollection with placeholder signals that can be assigned later.
      * Useful for feedback loops and forward references.
-     * @param channels - Number of deferred outputs (1-64, default 1)
+     * @param lanes - Number of deferred outputs (1-64, default 1)
      */
-    const $deferred = (channels: number = 1): DeferredCollection => {
-        if (channels < 1 || channels > PORT_MAX_CHANNELS) {
+    const $deferred = (lanes: number = 1): DeferredCollection => {
+        if (lanes < 1 || lanes > PORT_MAX_LANES) {
             throw new Error(
-                `deferred() channels must be between 1 and ${PORT_MAX_CHANNELS}, got ${channels}`,
+                `deferred() lanes must be between 1 and ${PORT_MAX_LANES}, got ${lanes}`,
             );
         }
         const items: DeferredModuleOutput[] = [];
-        for (let i = 0; i < channels; i++) {
+        for (let i = 0; i < lanes; i++) {
             items.push(new DeferredModuleOutput(builder));
         }
         return new DeferredCollection(...items);
     };
 
-    const $outLane = (label: string): OutLane => createOutLane(builder, label);
+    const $trackTap = (label: string): TrackTap =>
+        createTrackTap(builder, label);
 
     const $bus = (cb: (mixed: Collection) => unknown): Bus =>
         new Bus(builder, cb);
@@ -387,16 +388,16 @@ export function executePatchScript(
         node._setParam('input', resolvedInput);
         node._setParam('length', lengthSeconds);
 
-        // Derive channel count from the input signal
-        const derivedChannels = deriveChannelCountChecked(
+        // Derive lane count from the input signal
+        const derivedLanes = deriveLaneCountChecked(
             '$buffer',
             node.getParamsSnapshot(),
             sourceLocation,
         );
-        if (derivedChannels !== undefined) {
-            node._setDerivedChannelCount(derivedChannels);
+        if (derivedLanes !== undefined) {
+            node._setDerivedLaneCount(derivedLanes);
         }
-        const channels = derivedChannels ?? 1;
+        const lanes = derivedLanes ?? 1;
 
         const frameCount = Math.max(1, Math.ceil(lengthSeconds * sampleRate));
 
@@ -404,7 +405,7 @@ export function executePatchScript(
             type: 'buffer_ref',
             module: node.id,
             port: 'buffer',
-            channels,
+            lanes,
             frameCount,
         };
     };
@@ -470,13 +471,13 @@ export function executePatchScript(
         maxTime?: number;
     }
 
-    // Channel count of a polysignal argument: collections and arrays
+    // Lane count of a polysignal argument: collections and arrays
     // contribute their (flattened) length; a single output or scalar counts as
     // one. Used to size the feedback `$deferred` to the widest param.
-    const polyChannels = (v: unknown): number => {
+    const polyLanes = (v: unknown): number => {
         if (v instanceof BaseCollection) return Math.max(1, v.length);
         if (Array.isArray(v)) {
-            return v.reduce((n, e) => n + polyChannels(e), 0);
+            return v.reduce((n, e) => n + polyLanes(e), 0);
         }
         return 1;
     };
@@ -519,19 +520,19 @@ export function executePatchScript(
                 const maxTime = opts?.maxTime ?? 5;
                 // Size the feedback path to the widest polysignal param so a poly
                 // `time` or `feedback` is not truncated when it exceeds `input`.
-                const channels = Math.max(
+                const lanes = Math.max(
                     1,
-                    polyChannels(input),
-                    polyChannels(time),
-                    polyChannels(opts?.feedback ?? 2.5),
+                    polyLanes(input),
+                    polyLanes(time),
+                    polyLanes(opts?.feedback ?? 2.5),
                 );
-                const def = $deferred(channels);
-                // Broadcast a narrower input across the feedback width so every channel
-                // is excited by the dry signal (otherwise the extra channels carry
+                const def = $deferred(lanes);
+                // Broadcast a narrower input across the feedback width so every lane
+                // is excited by the dry signal (otherwise the extra lanes carry
                 // only feedback and decay to silence — `$mix` skips, not cycles, a
-                // narrower input group's missing channels).
+                // narrower input group's missing lanes).
                 const mixed = $mix([
-                    cycleToChannels(input, channels),
+                    cycleToLanes(input, lanes),
                     def,
                 ]) as Collection;
                 // Colour every recirculation: process the dry-plus-feedback mix before
@@ -669,10 +670,10 @@ export function executePatchScript(
         return _crossfade(input, wet, config.depth ?? 5) as Collection;
     };
 
-    const $track = userNamespaceTree['$track'];
-    if (typeof $track !== 'function') {
+    const $keyframes = userNamespaceTree['$keyframes'];
+    if (typeof $keyframes !== 'function') {
         throw new Error(
-            'DSL execution error: "$cross" requires "$track" module',
+            'DSL execution error: "$cross" requires "$keyframes" module',
         );
     }
 
@@ -698,7 +699,10 @@ export function executePatchScript(
             frame[i] = range[1];
             frames.push([frame, count > 1 ? i / (count - 1) : 0]);
         }
-        return $track(frames, { playhead, interpolationType }) as Collection;
+        return $keyframes(frames, {
+            playhead,
+            interpolationType,
+        }) as Collection;
     };
 
     if (typeof _smoothControl !== 'function') {
@@ -927,7 +931,7 @@ export function executePatchScript(
         $cGroup: controls.$cGroup,
         // Bus
         $bus,
-        $outLane,
+        $trackTap,
         // Global settings
         $setTempo,
         $setOutputGain,

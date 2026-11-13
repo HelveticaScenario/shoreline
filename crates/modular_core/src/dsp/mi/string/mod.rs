@@ -35,14 +35,14 @@ const OUTPUT_GAIN: f32 = -5.0;
 const ACCENT_TRIM: f32 = 1.8;
 const EXCITER_GAIN: f32 = -0.8 * 5.0;
 
-/// Strings per channel. A strike moves to the next, so earlier notes ring on.
+/// Strings per lane. A strike moves to the next, so earlier notes ring on.
 const STRINGS: usize = 3;
 
 /// Lowest excitation cutoff, in cycles per sample at 48 kHz.
 const MIN_CUTOFF: f32 = 1e-6;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MiStringParams {
@@ -143,7 +143,7 @@ const STRING_DOCS: ModuleDocs = ModuleDocs {
 pub struct MiString {
     outputs: MiStringOutputs,
     state: MiStringState,
-    channel_state: Box<[Voice]>,
+    lane_state: Box<[Voice]>,
     params: MiStringParams,
 }
 
@@ -172,7 +172,7 @@ struct StringVoice {
     remaining_noise_samples: usize,
 }
 
-/// The controls every string of a channel shares for a sample.
+/// The controls every string of a lane shares for a sample.
 struct Shared {
     accent: f32,
     structure: f32,
@@ -260,7 +260,7 @@ struct Voice {
     /// once a pluck moves on from it.
     f0: [f32; STRINGS],
     active: usize,
-    /// One generator for the channel, drawn by its strings in turn, as Plaits
+    /// One generator for the lane, drawn by its strings in turn, as Plaits
     /// draws its global one.
     random: Random,
     limiter: Limiter,
@@ -386,28 +386,28 @@ impl MiString {
             rates: StringRates::new(sample_rate),
             limiter: LimiterRates::new(sample_rate),
         };
-        for voice in self.channel_state.iter_mut() {
+        for voice in self.lane_state.iter_mut() {
             *voice = Voice::new(0, &self.state.rates);
         }
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let sustain = p.trigger.is_none();
-        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, MiStringParams::FM_DEFAULT),
+                p.freq.get_value(lane),
+                p.fm.value_or(lane, MiStringParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
             // A 1 Hz floor keeps the string's length finite at a standstill.
             let f0 = limit_frequency(f0.abs(), 0.5).max(self.state.inv_sample_rate);
-            let trigger = p.trigger.as_ref().map(|t| t.get_value(ch));
+            let trigger = p.trigger.as_ref().map(|t| t.get_value(lane));
             let pluck = trigger.is_some_and(|volts| voice.trigger.process(volts));
             let accent = (
-                p.accent.value_or(ch, MiStringParams::ACCENT_DEFAULT),
-                p.accent.glide_mark(ch),
+                p.accent.value_or(lane, MiStringParams::ACCENT_DEFAULT),
+                p.accent.glide_mark(lane),
             );
             let mark = accent.1;
             let accent = voice
@@ -415,21 +415,22 @@ impl MiString {
                 .read(accent, trigger, self.state.sample_rate);
             let knobs = Knobs {
                 structure: (
-                    p.structure.value_or(ch, MiStringParams::STRUCTURE_DEFAULT),
-                    p.structure.glide_mark(ch),
+                    p.structure
+                        .value_or(lane, MiStringParams::STRUCTURE_DEFAULT),
+                    p.structure.glide_mark(lane),
                 ),
                 brightness: (
                     p.brightness
-                        .value_or(ch, MiStringParams::BRIGHTNESS_DEFAULT),
-                    p.brightness.glide_mark(ch),
+                        .value_or(lane, MiStringParams::BRIGHTNESS_DEFAULT),
+                    p.brightness.glide_mark(lane),
                 ),
                 decay: (
-                    p.decay.value_or(ch, MiStringParams::DECAY_DEFAULT),
-                    p.decay.glide_mark(ch),
+                    p.decay.value_or(lane, MiStringParams::DECAY_DEFAULT),
+                    p.decay.glide_mark(lane),
                 ),
                 accent: (plaits_volts(accent), mark),
             };
-            let input = p.input.value_or(ch, 0.0) * 0.2;
+            let input = p.input.value_or(lane, 0.0) * 0.2;
             let input = if input.is_finite() { input } else { 0.0 };
             let (strings, exciter) = voice.step(f0, knobs, sustain, pluck, input, &self.state);
             // Plaits clips after its slow limiter.
@@ -438,10 +439,10 @@ impl MiString {
                 ACCENT_TRIM,
                 self.state.sample_rate,
             );
-            self.outputs.sample.set(ch, out);
+            self.outputs.sample.set(lane, out);
             self.outputs
                 .exciter
-                .set(ch, (EXCITER_GAIN * exciter).clamp(-5.0, 5.0));
+                .set(lane, (EXCITER_GAIN * exciter).clamp(-5.0, 5.0));
         }
     }
 }
@@ -452,9 +453,9 @@ impl crate::types::PatchUpdateHandler for MiString {
     /// constructions share, so every instance would draw the same noise.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, voice) in self.channel_state.iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state.iter_mut().enumerate() {
             if !voice.seeded {
-                let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
+                let unit = (hash_bipolar(base, lane as u64) + 1.0) * 0.5;
                 voice.random = Random::new((unit * f64::from(u32::MAX)) as u32);
                 voice.seeded = true;
             }

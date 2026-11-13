@@ -11,11 +11,11 @@ fn feedback_holds_average_power() {
                 feedback,
                 ..controls(0.0, stages, 2.0)
             };
-            let mut ch = channel();
+            let mut lane = new_lane();
             let e: f32 = (0..1 << 17)
                 .map(|n| {
                     let x = if n == 0 { 0.01 } else { 0.0 };
-                    let y = ch.step(x, c, 0, log2_c4_over_fs());
+                    let y = lane.step(x, c, 0, log2_c4_over_fs());
                     y * y
                 })
                 .sum();
@@ -34,7 +34,7 @@ fn full_feedback_stays_bounded() {
     // polarities of full feedback, on a long and a short resonant chain.
     for stages in [1.0, 50.0] {
         for feedback in [6.0, -6.0] {
-            let mut ch = channel();
+            let mut lane = new_lane();
             let mut peak = 0.0f32;
             for n in 0..2 * SR as usize {
                 let x = if (n / 50) % 2 == 0 { 5.0 } else { -5.0 };
@@ -42,7 +42,7 @@ fn full_feedback_stays_bounded() {
                     feedback,
                     ..controls((n as f32 / SR * 7.0).sin() * 3.0, stages, 5.0)
                 };
-                let y = ch.step(x, c, 0, log2_c4_over_fs());
+                let y = lane.step(x, c, 0, log2_c4_over_fs());
                 assert!(y.is_finite());
                 peak = peak.max(y.abs());
             }
@@ -94,9 +94,9 @@ fn ring(feedback: f32, seconds: f32) -> Vec<f32> {
         feedback,
         ..controls(0.0, 8.0, 2.0)
     };
-    let mut ch = channel();
+    let mut lane = new_lane();
     (0..(seconds * SR) as usize)
-        .map(|n| ch.step(if n == 0 { 0.01 } else { 0.0 }, c, 0, log2_c4_over_fs()))
+        .map(|n| lane.step(if n == 0 { 0.01 } else { 0.0 }, c, 0, log2_c4_over_fs()))
         .collect()
 }
 
@@ -121,9 +121,9 @@ fn self_oscillation(stages: f32, resonance: f32, feedback: f32, settle: f32) -> 
         feedback,
         ..controls(-1.0, stages, resonance)
     };
-    let mut ch = channel();
+    let mut lane = new_lane();
     let y: Vec<f32> = (0..((settle + 1.0) * SR) as usize)
-        .map(|_| ch.step(0.0, c, 0, log2_c4_over_fs()))
+        .map(|_| lane.step(0.0, c, 0, log2_c4_over_fs()))
         .collect();
     let tail = &y[(settle * SR) as usize..];
     let mean = tail.iter().sum::<f32>() / tail.len() as f32;

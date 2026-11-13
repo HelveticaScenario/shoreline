@@ -2,7 +2,7 @@
 import React from 'react';
 
 import { EqPanel } from './EqPanel';
-import { isPerChannel } from './eqPanelModel';
+import { isPerLane } from './eqPanelModel';
 import { type PanelRuntime, sectionKey, shownLists } from './eqPanelRuntime';
 
 /**
@@ -17,9 +17,9 @@ export function renderEqPanel(
         return;
     }
     const lists = shownLists(panel);
-    const sections = lists[panel.channel] ?? [];
+    const sections = lists[panel.lane] ?? [];
     const ghosts = sections.map((s, i) => {
-        const g = panel.ghosts.get(sectionKey(panel.channel, i));
+        const g = panel.ghosts.get(sectionKey(panel.lane, i));
         return g
             ? {
                   ...s,
@@ -33,8 +33,8 @@ export function renderEqPanel(
     panel.zone.root.render(
         <EqPanel
             adaptiveQ={panel.params.adaptiveQ === true}
-            channel={panel.channel}
-            channelLists={isPerChannel(panel.params) ? lists : null}
+            lane={panel.lane}
+            laneLists={isPerLane(panel.params) ? lists : null}
             editable={opts.editable}
             ghosts={ghosts}
             notice={panel.notice}

@@ -21,14 +21,14 @@ fn params(hz: f32) -> SwellParams {
 
 /// Build a swell the way the engine does: construct, then `on_patch_update`.
 fn make(params: SwellParams) -> Swell {
-    let channels = __swell_derive_channel_count(&params);
+    let lanes = __swell_derive_lane_count(&params);
     let mut outputs = SwellOutputs::default();
-    outputs.set_all_channels(channels);
+    outputs.set_all_lanes(lanes);
     let mut s = Swell {
         params,
         outputs,
-        channel_state: vec![ChannelState::default(); channels].into_boxed_slice(),
-        _channel_count: channels,
+        lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
+        _lane_count: lanes,
         _block_index: Default::default(),
     };
     s.on_patch_update();
@@ -47,7 +47,7 @@ fn render(params: SwellParams, samples: usize) -> Vec<f32> {
 
 /// Horizontal offset of the surface point above rest position `p`, minus `p`'s
 /// own position: zero exactly when that particle sits over the gauge.
-fn gauge_residual(state: &ChannelState, q: f32) -> f32 {
+fn gauge_residual(state: &LaneState, q: f32) -> f32 {
     let p = state.origin;
     let mut x = p;
     for wave in &state.waves[..state.span] {
@@ -109,7 +109,7 @@ fn gauge_solve_converges() {
         let mut s = make(stormy(hz));
         for n in 0..48_000 {
             s.update(SR);
-            let residual = gauge_residual(&s.channel_state[0], MAX_STEEPNESS);
+            let residual = gauge_residual(&s.lane_state[0], MAX_STEEPNESS);
             assert!(residual < 1e-4, "{hz} Hz, sample {n}: residual {residual}");
         }
     }
@@ -125,7 +125,7 @@ fn gauge_solve_converges_after_reseeding() {
     s.params.seed = 99;
     s.on_patch_update();
     s.update(SR);
-    let residual = gauge_residual(&s.channel_state[0], MAX_STEEPNESS);
+    let residual = gauge_residual(&s.lane_state[0], MAX_STEEPNESS);
     assert!(residual < 1e-4, "residual {residual}");
 }
 
@@ -193,11 +193,11 @@ fn spread_drives_roll() {
 }
 
 #[test]
-fn channels_and_seeds_are_distinct_seas() {
-    // Seeds and channels that share bits must still place every wave anew.
-    let places = |seed: u32, channel: usize| {
-        let mut state = ChannelState::default();
-        state.scatter(seed, channel, MAX_WAVES);
+fn lanes_and_seeds_are_distinct_seas() {
+    // Seeds and lanes that share bits must still place every wave anew.
+    let places = |seed: u32, lane: usize| {
+        let mut state = LaneState::default();
+        state.scatter(seed, lane, MAX_WAVES);
         state.waves[1..].iter().map(|w| w.place).collect::<Vec<_>>()
     };
     let seas = [(0, 0), (1, 0), (2, 0), (32, 0), (0, 1), (1, 1), (7, 3)];
@@ -206,7 +206,7 @@ fn channels_and_seeds_are_distinct_seas() {
             let (pa, pb) = (places(seed_a, ch_a), places(seed_b, ch_b));
             assert!(
                 pa.iter().all(|x| !pb.contains(x)),
-                "seed {seed_a} ch {ch_a} shares waves with seed {seed_b} ch {ch_b}"
+                "seed {seed_a} lane {ch_a} shares waves with seed {seed_b} lane {ch_b}"
             );
         }
     }
@@ -222,7 +222,7 @@ fn channels_and_seeds_are_distinct_seas() {
         s.update(SR);
         diff = diff.max((s.outputs.height.get(0) - s.outputs.height.get(1)).abs());
     }
-    assert!(diff > 0.1, "channels should differ: {diff}");
+    assert!(diff > 0.1, "lanes should differ: {diff}");
 }
 
 #[test]
@@ -279,7 +279,7 @@ fn changing_wave_count_fades() {
             step < settled * 2.0,
             "{waves} waves: step {step} vs settled {settled}"
         );
-        assert_eq!(s.channel_state[0].span, waves, "faded-out waves leave play");
+        assert_eq!(s.lane_state[0].span, waves, "faded-out waves leave play");
     }
 }
 

@@ -1,4 +1,4 @@
-use super::super::channel::grid_points;
+use super::super::lane::grid_points;
 use super::*;
 
 #[test]
@@ -21,7 +21,7 @@ fn crossfade_blends_the_chains_either_side() {
         (49.5, 8, 49.0, 50.0, 0.5),
     ] {
         let response = |stages, step| {
-            faded_impulse_response(controls(0.5, stages, 2.0), step, 2048, &mut channel())
+            faded_impulse_response(controls(0.5, stages, 2.0), step, 2048, &mut new_lane())
         };
         let (below, above) = (response(lower, 0), response(upper, 0));
         let faded = response(stages, step);
@@ -39,12 +39,12 @@ fn crossfade_blends_the_chains_either_side() {
 fn crossfade_keeps_the_level_above_the_cutoff() {
     // A sine four octaves above the cutoff, halfway between grid points.
     for (stages, step) in [(1.5, 1), (4.0, 2)] {
-        let mut ch = channel();
+        let mut lane = new_lane();
         let c = controls(-4.0, stages, 0.0);
         let y: Vec<f32> = (0..SR as usize)
             .map(|n| {
                 let x = (std::f32::consts::TAU * C4_HZ_F32 * n as f32 / SR).sin();
-                ch.step(x, c, step, log2_c4_over_fs())
+                lane.step(x, c, step, log2_c4_over_fs())
             })
             .collect();
         let level = rms(&y, 0.5, 1.0) * std::f32::consts::SQRT_2;
@@ -60,8 +60,8 @@ fn crossfade_at_a_grid_point_is_that_chain() {
     for (stages, step) in [(9.0, 8), (3.0, 2), (50.0, 49)] {
         let c = controls(0.0, stages, 3.0);
         assert_eq!(
-            faded_impulse_response(c, step, 1024, &mut channel()),
-            faded_impulse_response(c, 0, 1024, &mut channel()),
+            faded_impulse_response(c, step, 1024, &mut new_lane()),
+            faded_impulse_response(c, 0, 1024, &mut new_lane()),
             "{stages} stages at step {step}"
         );
     }
@@ -71,14 +71,14 @@ fn crossfade_at_a_grid_point_is_that_chain() {
 fn crossfade_sweeps_across_grid_points_without_jumps() {
     // A low sine while `stages` sweeps up over several grid points.
     for step in [0, 1, 2, 8] {
-        let mut ch = channel();
+        let mut lane = new_lane();
         let len = SR as usize;
         let mut previous = 0.0;
         let mut largest = 0.0f32;
         for n in 0..len {
             let x = (std::f32::consts::TAU * 50.0 * n as f32 / SR).sin();
             let stages = 1.0 + 20.0 * n as f32 / len as f32;
-            let y = ch.step(x, controls(0.0, stages, 1.0), step, log2_c4_over_fs());
+            let y = lane.step(x, controls(0.0, stages, 1.0), step, log2_c4_over_fs());
             if n > 0 {
                 largest = largest.max((y - previous).abs());
             }
@@ -106,7 +106,7 @@ fn fade_step_is_at_most_49() {
 fn crossfade_moves_off_a_grid_point_without_a_jump() {
     // Moving off a grid point brings the upper chain in settled, so the
     // output stays continuous.
-    let mut ch = channel();
+    let mut lane = new_lane();
     let len = SR as usize;
     let mut previous = 0.0;
     let mut largest = 0.0f32;
@@ -117,7 +117,7 @@ fn crossfade_moves_off_a_grid_point_without_a_jump() {
         } else {
             9.0 + (n - len / 2) as f32 / len as f32
         };
-        let y = ch.step(x, controls(0.0, stages, 1.0), 8, log2_c4_over_fs());
+        let y = lane.step(x, controls(0.0, stages, 1.0), 8, log2_c4_over_fs());
         if n > 0 {
             largest = largest.max((y - previous).abs());
         }

@@ -24,7 +24,7 @@ fn expected(input: &[f32], level: &[f32]) -> Vec<f32> {
 fn poly_cable_with_constant_level() {
     check_module(
         "$gain",
-        json!({ "input": poly_cable("src", CHANNELS), "level": 2.5 }),
+        json!({ "input": poly_cable("src", LANES), "level": 2.5 }),
         |src, _| expected(src, &constant(2.5)),
     );
 }
@@ -33,7 +33,7 @@ fn poly_cable_with_constant_level() {
 fn unity_at_five() {
     check_module(
         "$gain",
-        json!({ "input": poly_cable("src", CHANNELS), "level": 5.0 }),
+        json!({ "input": poly_cable("src", LANES), "level": 5.0 }),
         |src, _| src.to_vec(),
     );
 }
@@ -42,7 +42,7 @@ fn unity_at_five() {
 fn every_input_a_cable() {
     check_module(
         "$gain",
-        json!({ "input": poly_cable("src", CHANNELS), "level": poly_cable("lfo", CHANNELS) }),
+        json!({ "input": poly_cable("src", LANES), "level": poly_cable("lfo", LANES) }),
         expected,
     );
 }
@@ -51,7 +51,7 @@ fn every_input_a_cable() {
 fn negative_level_inverts() {
     check_module(
         "$gain",
-        json!({ "input": poly_cable("src", CHANNELS), "level": -2.5 }),
+        json!({ "input": poly_cable("src", LANES), "level": -2.5 }),
         |src, _| expected(src, &constant(-2.5)),
     );
 }
@@ -60,13 +60,13 @@ fn negative_level_inverts() {
 fn paths_agree() {
     check_paths_agree(
         "$gain",
-        json!({ "input": poly_cable("src", CHANNELS), "level": cable("lfo", 1) }),
+        json!({ "input": poly_cable("src", LANES), "level": cable("lfo", 1) }),
     );
 }
 
 #[test]
 fn swap_agrees_through_a_level_glide() {
-    let input = poly_cable("src", CHANNELS);
+    let input = poly_cable("src", LANES);
     check_swap_agrees(
         "$gain",
         json!({ "input": input.clone(), "level": 2.0 }),
@@ -77,7 +77,7 @@ fn swap_agrees_through_a_level_glide() {
 #[test]
 fn allocation_free() {
     for params in [
-        json!({ "input": poly_cable("src", CHANNELS), "level": 4.0 }),
+        json!({ "input": poly_cable("src", LANES), "level": 4.0 }),
         json!({ "input": cable("src", 1), "level": [cable("src", 0), 2.0, 3.0, 4.0] }),
     ] {
         assert_eq!(allocations_while_rendering("$gain", params), 0);
@@ -88,11 +88,11 @@ fn allocation_free() {
 fn bounds_follow_the_taper() {
     let bounds = check_bounds_agree(
         "$gain",
-        json!({ "input": poly_cable("src", CHANNELS), "level": 2.5 }),
+        json!({ "input": poly_cable("src", LANES), "level": 2.5 }),
     );
     assert!(bounds.iter().all(|&b| b == Bounds::new(-0.625, 0.625)));
     check_bounds_agree(
         "$gain",
-        json!({ "input": poly_cable("src", CHANNELS), "level": poly_cable("lfo", CHANNELS) }),
+        json!({ "input": poly_cable("src", LANES), "level": poly_cable("lfo", LANES) }),
     );
 }

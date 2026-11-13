@@ -110,8 +110,8 @@ fn knob(volts: f32) -> f32 {
     (volts * 0.2).clamp(0.0, 1.0)
 }
 
-/// One channel of a vowel module: its synth, then Plaits' limiter.
-pub struct Channel<V> {
+/// One lane of a vowel module: its synth, then Plaits' limiter.
+pub struct Lane<V> {
     voice: V,
     limiter: Limiter,
     trigger: SchmittTrigger,
@@ -122,7 +122,7 @@ pub struct Channel<V> {
     held: [f32; 2],
 }
 
-impl<V: Voice> Default for Channel<V> {
+impl<V: Voice> Default for Lane<V> {
     fn default() -> Self {
         Self {
             voice: V::default(),
@@ -135,7 +135,7 @@ impl<V: Voice> Default for Channel<V> {
     }
 }
 
-impl<V: Voice> Channel<V> {
+impl<V: Voice> Lane<V> {
     fn new(rates: &Rates) -> Self {
         Self {
             voice: V::new(rates),
@@ -188,38 +188,39 @@ impl<V: Voice> Channel<V> {
     }
 }
 
-/// The body of a vowel module's `update`: every channel of `$module`, whose
+/// The body of a vowel module's `update`: every lane of `$module`, whose
 /// params are `$params`, one sample.
-macro_rules! update_channels {
+macro_rules! update_lanes {
     ($module:expr, $params:ident) => {{
         let module = $module;
-        let channels = module.channel_count();
+        let lanes = module.lane_count();
         let p = &module.params;
         let rates = &module.state;
-        for (ch, channel) in module.channel_state[..channels].iter_mut().enumerate() {
+        for (lane_index, lane) in module.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = crate::dsp::oscillators::apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, $params::FM_DEFAULT),
+                p.freq.get_value(lane_index),
+                p.fm.value_or(lane_index, $params::FM_DEFAULT),
                 p.fm_mode,
             ) * rates.inv_sample_rate;
-            let trigger = p.trigger.as_ref().map(|t| t.get_value(ch));
+            let trigger = p.trigger.as_ref().map(|t| t.get_value(lane_index));
             let knobs = super::Knobs {
                 vowel: (
-                    p.vowel.value_or(ch, $params::VOWEL_DEFAULT),
-                    p.vowel.glide_mark(ch),
+                    p.vowel.value_or(lane_index, $params::VOWEL_DEFAULT),
+                    p.vowel.glide_mark(lane_index),
                 ),
                 formant_shift: (
-                    p.formant_shift.value_or(ch, $params::FORMANT_SHIFT_DEFAULT),
-                    p.formant_shift.glide_mark(ch),
+                    p.formant_shift
+                        .value_or(lane_index, $params::FORMANT_SHIFT_DEFAULT),
+                    p.formant_shift.glide_mark(lane_index),
                 ),
             };
-            let (out, excitation) = channel.output(f0, knobs, trigger, rates);
-            module.outputs.sample.set(ch, out);
-            module.outputs.excitation.set(ch, excitation);
+            let (out, excitation) = lane.output(f0, knobs, trigger, rates);
+            module.outputs.sample.set(lane_index, out);
+            module.outputs.excitation.set(lane_index, excitation);
         }
     }};
 }
-use update_channels;
+use update_lanes;
 
 #[cfg(test)]
 mod tests;

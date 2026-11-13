@@ -56,12 +56,12 @@ describe('generated DSL lib', () => {
         expect(libSource).not.toMatch(/^(<{7}|\|{7}|={7}|>{7})/m);
         expect(libSource).not.toMatch(/\bModuleOutput/);
         const collectionErrors = diagnostics('').filter((d) =>
-            /Collection|OutLane|Duplicate identifier|Cannot extend/.test(d),
+            /Collection|TrackTap|Duplicate identifier|Cannot extend/.test(d),
         );
         expect(collectionErrors).toEqual([]);
     });
 
-    test('collections index and iterate as one-channel collections', () => {
+    test('collections index and iterate as one-lane collections', () => {
         const patchErrors = diagnostics(`
                 const [a, b] = $saw(['c3', 'e3']);
                 a.amp(2).out();
@@ -71,9 +71,9 @@ describe('generated DSL lib', () => {
                 $r($sine('1hz'), $sine('2hz')[0]).range(0, 1);
                 $deferred(2)[1].set($sine('c3'));
                 $sine($clock._tempo.div(60)).out();
-                const lane = $outLane('bass');
-                lane[0].level.range(0, 1);
-                for (const c of lane) c.pan.range(-1, 1);
+                const tap = $trackTap('bass');
+                tap[0].level.range(0, 1);
+                for (const c of tap) c.pan.range(-1, 1);
                 const seq = $p('[c4,e4] [g4,b4]');
                 $perc(seq[1]).out();
                 $perc(seq[1]._trig).out();

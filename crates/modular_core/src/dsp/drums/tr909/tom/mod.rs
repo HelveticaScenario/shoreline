@@ -23,9 +23,9 @@ use super::circuit::{
 };
 use super::noise::{NOISE_MEAN, Noise};
 use crate::dsp::drums::analog::{Exp, Junction, VT, converged};
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, Run};
 use crate::dsp::drums::mna::{DC_STEP, GROUND, Mna, MnaBuilder, MnaState, STIFF};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::poly::{PolyOutput, PolySignal};
@@ -167,7 +167,7 @@ const ENV_SETTLED: f32 = 0.65;
 
 /// A tom's circuit state.
 #[derive(Clone, Copy, Default)]
-struct Tom<L: Lanes = Mono> {
+struct Tom<L: Simd = Mono> {
     trigger: Pulse<L>,
     accent: L::S,
     c16: L::S,
@@ -188,7 +188,7 @@ struct Tom<L: Lanes = Mono> {
     quiet: Quiet<L>,
 }
 
-lanewise!(Tom {
+elementwise!(Tom {
     trigger,
     accent,
     c16,
@@ -224,7 +224,7 @@ struct TomShared {
 }
 
 #[derive(Clone, Copy, Default)]
-struct TomControls<L: Lanes = Mono> {
+struct TomControls<L: Simd = Mono> {
     /// The VCOs' rate relative to stock.
     rate: L::S,
     /// Conductance draining C21 through the decay pot and R111.
@@ -232,7 +232,7 @@ struct TomControls<L: Lanes = Mono> {
     noise: L::S,
 }
 
-lanewise!(TomControls { rate, decay, noise });
+elementwise!(TomControls { rate, decay, noise });
 
 impl Fire for Tom {
     fn fire(&mut self, accent: f32, shared: &TomShared) {
@@ -245,7 +245,7 @@ impl Fire for Tom {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Tom<L> {
+impl<L: Simd> Circuit<L> for Tom<L> {
     type Shared = TomShared;
     type Controls = TomControls<L>;
 

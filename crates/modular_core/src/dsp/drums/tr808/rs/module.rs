@@ -9,7 +9,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Rs808Params {
@@ -77,7 +77,7 @@ pub struct Rs808 {
     outputs: Rs808Outputs,
     params: Rs808Params,
     state: RsState,
-    channel_state: Box<[RimChannel]>,
+    lane_state: Box<[RimLane]>,
 }
 
 /// The rim shot's per-sample-rate constants and its held `freq`.
@@ -94,18 +94,18 @@ struct ClState {
     hold: Hold<1, 2>,
 }
 
-/// A rim shot channel: its circuits, and its resonators tuned to its
+/// A rim shot lane: its circuits, and its resonators tuned to its
 /// `freq` with the output gain levelling it.
 #[derive(Clone, Copy, Default)]
-struct RimChannel {
+struct RimLane {
     voices: Voices<Rim>,
     controls: Cached<f32, (RimControls, f32)>,
 }
 
-/// A claves channel: its circuits, and its resonator tuned to its `freq`
+/// A claves lane: its circuits, and its resonator tuned to its `freq`
 /// and `decay` with the output gain levelling `freq`.
 #[derive(Clone, Copy, Default)]
-struct ClavesChannel {
+struct ClavesLane {
     voices: Voices<Claves>,
     t: Cached<(f32, f32), (BridgedT, f32)>,
 }
@@ -141,7 +141,7 @@ impl Rs808 {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -151,11 +151,11 @@ impl Rs808 {
         let out = &mut self.outputs.sample;
         rim_tick(
             &mut self.state,
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             p.hold,
             inputs,
-            |ch, v| out.set(ch, v),
+            |lane, v| out.set(lane, v),
         );
     }
 
@@ -165,15 +165,15 @@ impl Rs808 {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Rs808ParamsBlockInputs {
             trigger,
             accent,
             freq,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot(
             &mut outputs.sample,
             range,
@@ -181,11 +181,11 @@ impl Rs808 {
             |inputs, mut slot| {
                 rim_tick(
                     &mut self.state,
-                    channel_state,
+                    lane_state,
                     p.restart,
                     p.hold,
                     inputs,
-                    |ch, v| slot.set(ch, v),
+                    |lane, v| slot.set(lane, v),
                 )
             },
         );
@@ -193,22 +193,22 @@ impl Rs808 {
     }
 }
 
-/// Runs one sample of every rim shot channel on its `[trigger, accent,
+/// Runs one sample of every rim shot lane on its `[trigger, accent,
 /// freq]`, handing `out` each one's output.
 #[inline(always)]
 fn rim_tick<I: Input>(
     state: &mut RsState,
-    channels: &mut [RimChannel],
+    lanes: &mut [RimLane],
     restart: bool,
     hold: bool,
     [trigger, accent, freq]: [I; 3],
     mut out: impl FnMut(usize, f32),
 ) {
-    let [freq] = state.hold.apply(hold, channels.len(), [trigger], [freq]);
+    let [freq] = state.hold.apply(hold, lanes.len(), [trigger], [freq]);
     let sh = &state.shared;
-    for (ch, cs) in channels.iter_mut().enumerate() {
+    for (lane, cs) in lanes.iter_mut().enumerate() {
         // `freq` scales both resonators and keeps their stock decays.
-        let (controls, level) = cs.controls.get(freq.at(ch), |freq| {
+        let (controls, level) = cs.controls.get(freq.at(lane), |freq| {
             let r = voct_to_hz(freq) / rim_rest_hz();
             let controls = RimControls {
                 high: RIM_HIGH_T.tuned(r, T60_TO_RATE / RIM_HIGH_T.decay_rate()),
@@ -217,22 +217,22 @@ fn rim_tick<I: Input>(
             (controls, levels::RIM_SHOT.gain(freq))
         });
         let v = cs.voices.process(
-            trigger.at(ch),
+            trigger.at(lane),
             accent,
-            ch,
+            lane,
             restart,
             sh.timing.fade_samples,
             sh,
             &controls,
         );
-        out(ch, rails(v * RIM_GAIN * level));
+        out(lane, rails(v * RIM_GAIN * level));
     }
 }
 
 message_handlers!(impl Rs808 {});
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cl808Params {
@@ -307,7 +307,7 @@ pub struct Cl808 {
     outputs: Cl808Outputs,
     params: Cl808Params,
     state: ClState,
-    channel_state: Box<[ClavesChannel]>,
+    lane_state: Box<[ClavesLane]>,
 }
 
 impl Cl808 {
@@ -320,7 +320,7 @@ impl Cl808 {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -331,11 +331,11 @@ impl Cl808 {
         let out = &mut self.outputs.sample;
         claves_tick(
             &mut self.state,
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             p.hold,
             inputs,
-            |ch, v| out.set(ch, v),
+            |lane, v| out.set(lane, v),
         );
     }
 
@@ -345,7 +345,7 @@ impl Cl808 {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Cl808ParamsBlockInputs {
@@ -353,8 +353,8 @@ impl Cl808 {
             accent,
             freq,
             decay,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot(
             &mut outputs.sample,
             range,
@@ -362,11 +362,11 @@ impl Cl808 {
             |inputs, mut slot| {
                 claves_tick(
                     &mut self.state,
-                    channel_state,
+                    lane_state,
                     p.restart,
                     p.hold,
                     inputs,
-                    |ch, v| slot.set(ch, v),
+                    |lane, v| slot.set(lane, v),
                 )
             },
         );
@@ -374,12 +374,12 @@ impl Cl808 {
     }
 }
 
-/// Runs one sample of every claves channel on its `[trigger, accent, freq,
+/// Runs one sample of every claves lane on its `[trigger, accent, freq,
 /// decay]`, handing `out` each one's output.
 #[inline(always)]
 fn claves_tick<I: Input>(
     state: &mut ClState,
-    channels: &mut [ClavesChannel],
+    lanes: &mut [ClavesLane],
     restart: bool,
     hold: bool,
     [trigger, accent, freq, decay]: [I; 4],
@@ -387,24 +387,24 @@ fn claves_tick<I: Input>(
 ) {
     let [freq, decay] = state
         .hold
-        .apply(hold, channels.len(), [trigger], [freq, decay]);
+        .apply(hold, lanes.len(), [trigger], [freq, decay]);
     let sh = &state.shared;
-    for (ch, cs) in channels.iter_mut().enumerate() {
-        let (t, level) = cs.t.get((freq.at(ch), decay.at(ch)), |(freq, decay)| {
+    for (lane, cs) in lanes.iter_mut().enumerate() {
+        let (t, level) = cs.t.get((freq.at(lane), decay.at(lane)), |(freq, decay)| {
             let r = voct_to_hz(freq) / sh.rest_hz;
             let t = CLAVES_T.tuned(r, decay_around(decay, CLAVES_DECAY));
             (t, levels::CLAVES.gain(freq))
         });
         let v = cs.voices.process(
-            trigger.at(ch),
+            trigger.at(lane),
             accent,
-            ch,
+            lane,
             restart,
             sh.timing.fade_samples,
             sh,
             &t,
         );
-        out(ch, rails(v * CLAVES_GAIN * level));
+        out(lane, rails(v * CLAVES_GAIN * level));
     }
 }
 

@@ -1,7 +1,7 @@
 mod knobs;
 
-use super::channel::{Channel, HatState, Knobs};
 use super::hat_drum::{RingHat, SquareHat};
+use super::lane::{HatState, Knobs, Lane};
 use crate::dsp::mi::core::fixture::{max_error, records};
 use crate::dsp::mi::drum::measure::{mark, peak, pitch_cents, rms, window};
 use crate::dsp::mi::drum::pitch;
@@ -27,8 +27,8 @@ const SR: f32 = 48000.0;
 #[test]
 fn matches_plaits() {
     let state = HatState::new(SR);
-    let mut square = Channel::<SquareHat>::new(0x1234567);
-    let mut ring = Channel::<RingHat>::new(0x7654321);
+    let mut square = Lane::<SquareHat>::new(0x1234567);
+    let mut ring = Lane::<RingHat>::new(0x7654321);
     let mut actual = Vec::new();
     let mut expected = Vec::new();
     for r in records("hihat", 7 + 2) {
@@ -60,18 +60,18 @@ fn hit(sample_rate: f32, seconds: f32, mut step: impl FnMut(Option<f32>) -> f32)
 /// `seconds` of `$mi.hiHat` at `hz` with noise from `seed`, struck once.
 fn square_hit(sample_rate: f32, hz: f32, volts: [f32; 4], seed: u32, seconds: f32) -> Vec<f32> {
     let state = HatState::new(sample_rate);
-    let mut channel = Channel::<SquareHat>::new(seed);
+    let mut lane = Lane::<SquareHat>::new(seed);
     hit(sample_rate, seconds, |trigger| {
-        channel.step(hz / sample_rate, knobs(volts), trigger, &state)
+        lane.step(hz / sample_rate, knobs(volts), trigger, &state)
     })
 }
 
 /// `seconds` of `$mi.ringHat` at `hz` with noise from `seed`, struck once.
 fn ring_hit(sample_rate: f32, hz: f32, volts: [f32; 4], seed: u32, seconds: f32) -> Vec<f32> {
     let state = HatState::new(sample_rate);
-    let mut channel = Channel::<RingHat>::new(seed);
+    let mut lane = Lane::<RingHat>::new(seed);
     hit(sample_rate, seconds, |trigger| {
-        channel.step(hz / sample_rate, knobs(volts), trigger, &state)
+        lane.step(hz / sample_rate, knobs(volts), trigger, &state)
     })
 }
 
@@ -199,10 +199,10 @@ fn noise_sounds_the_same_at_any_rate() {
 fn ring_partials_hold_their_pitch_at_any_rate() {
     let hiss = |sample_rate: f32| {
         let state = HatState::new(sample_rate);
-        let mut channel = Channel::<RingHat>::new(1);
+        let mut lane = Lane::<RingHat>::new(1);
         let volts = [0.0, 5.0, 0.0, 5.0];
         (0..(0.5 * sample_rate) as usize)
-            .map(|_| channel.step(1000.0 / sample_rate, knobs(volts), None, &state))
+            .map(|_| lane.step(1000.0 / sample_rate, knobs(volts), None, &state))
             .collect::<Vec<f32>>()
     };
     // The lowest pair rings at 200 Hz ± the saw's partials, scaled by
@@ -241,24 +241,24 @@ fn hisses_when_unpatched() {
 /// Half a second of a hat with its trigger unpatched, at 300 Hz.
 fn hiss<M: super::hat_drum::Model>(volts: [f32; 4]) -> Vec<f32> {
     let state = HatState::new(SR);
-    let mut channel = Channel::<M>::new(1);
+    let mut lane = Lane::<M>::new(1);
     (0..24000)
-        .map(|_| channel.step(300.0 / SR, knobs(volts), None, &state))
+        .map(|_| lane.step(300.0 / SR, knobs(volts), None, &state))
         .collect()
 }
 
 /// Both hats stepped alike.
 struct Pair {
-    square: Channel<SquareHat>,
-    ring: Channel<RingHat>,
+    square: Lane<SquareHat>,
+    ring: Lane<RingHat>,
     state: HatState,
 }
 
 impl Pair {
     fn new(sample_rate: f32, seed: u32) -> Self {
         Self {
-            square: Channel::new(seed),
-            ring: Channel::new(seed),
+            square: Lane::new(seed),
+            ring: Lane::new(seed),
             state: HatState::new(sample_rate),
         }
     }

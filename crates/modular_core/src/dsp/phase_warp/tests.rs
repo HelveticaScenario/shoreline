@@ -4,7 +4,7 @@ use crate::types::{Connect, Signal};
 
 const SAMPLE_RATE: f32 = 48000.0;
 
-/// Warp `x` on channel 0, resolving the stage values with `glides`.
+/// Warp `x` on lane 0, resolving the stage values with `glides`.
 fn warp_with(
     t: &PhaseWarp,
     x: f32,
@@ -299,14 +299,14 @@ fn pipe_chains_evaluate_first_then_second() {
 }
 
 #[test]
-fn pipe_channels_is_max_of_both() {
+fn pipe_lanes_is_max_of_both() {
     let t = PhaseWarp::Pipe {
         first: Box::new(PhaseWarp::Mirror {
             amount: constant(0.5),
         }),
         second: Box::new(PhaseWarp::Identity),
     };
-    assert_eq!(t.channels(), 1); // Mirror has 1, Identity has 0
+    assert_eq!(t.lanes(), 1); // Mirror has 1, Identity has 0
 }
 
 #[test]
@@ -456,7 +456,7 @@ fn deserr_parses_twists() {
             serde_json::from_str(&format!(r#"{{"type":"{kind}","amount":2}}"#)).unwrap();
         let warp = deserr::deserialize::<PhaseWarp, _, deserr::errors::JsonError>(value)
             .unwrap_or_else(|e| panic!("{kind}: {e}"));
-        assert_eq!(warp.channels(), 1);
+        assert_eq!(warp.lanes(), 1);
     }
 }
 

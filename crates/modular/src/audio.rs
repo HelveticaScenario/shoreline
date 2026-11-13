@@ -5,7 +5,7 @@ use cpal::Sample;
 use cpal::SizedSample;
 use cpal::traits::{DeviceTrait, HostTrait};
 
-use modular_core::PORT_MAX_CHANNELS;
+use modular_core::PORT_MAX_LANES;
 use modular_core::PatchGraph;
 use modular_core::dsp::schema;
 use modular_core::dsp::utils::SchmittTrigger;
@@ -430,11 +430,11 @@ pub fn find_input_device_in_host(host: &Host, id: &str) -> Option<cpal::Device> 
 // Audio Input Ring Buffer (using ringbuf crate)
 // ============================================================================
 
-/// Ring buffer size for audio input (in frames, where each frame has PORT_MAX_CHANNELS samples)
+/// Ring buffer size for audio input (in frames, where each frame has PORT_MAX_LANES samples)
 const INPUT_RING_BUFFER_FRAMES: usize = 4096;
 
 /// Total size of the ring buffer in samples
-const INPUT_RING_BUFFER_SIZE: usize = INPUT_RING_BUFFER_FRAMES * PORT_MAX_CHANNELS;
+const INPUT_RING_BUFFER_SIZE: usize = INPUT_RING_BUFFER_FRAMES * PORT_MAX_LANES;
 
 /// Producer half of the input ring buffer (used by input stream callback)
 pub type InputBufferProducer = ringbuf::HeapProd<f32>;
@@ -464,15 +464,15 @@ pub struct InputBufferReader {
 }
 
 impl InputBufferReader {
-    /// Read one frame of input audio (up to PORT_MAX_CHANNELS samples)
-    pub fn read_frame(&mut self) -> [f32; PORT_MAX_CHANNELS] {
-        let mut result = [0.0f32; PORT_MAX_CHANNELS];
+    /// Read one frame of input audio (up to PORT_MAX_LANES samples)
+    pub fn read_frame(&mut self) -> [f32; PORT_MAX_LANES] {
+        let mut result = [0.0f32; PORT_MAX_LANES];
 
         if self.channels == 0 {
             return result;
         }
 
-        let samples_to_read = self.channels.min(PORT_MAX_CHANNELS);
+        let samples_to_read = self.channels.min(PORT_MAX_LANES);
 
         for slot in &mut result[..samples_to_read] {
             if let Some(sample) = self.consumer.try_pop() {
@@ -480,7 +480,7 @@ impl InputBufferReader {
             }
         }
 
-        // Skip extra channels if input has more than PORT_MAX_CHANNELS
+        // Skip extra channels if input has more than PORT_MAX_LANES
         for _ in samples_to_read..self.channels {
             let _ = self.consumer.try_pop();
         }
@@ -858,8 +858,8 @@ pub struct VuMeterState {
     pub channels: usize,
     /// Signal-driven pan/gain control taps, sampled so the panel's locked
     /// controls can track them live.
-    pub pan_source: Option<modular_core::types::ScopeChannel>,
-    pub gain_source: Option<modular_core::types::ScopeChannel>,
+    pub pan_source: Option<modular_core::types::ScopeLane>,
+    pub gain_source: Option<modular_core::types::ScopeLane>,
     levels: VuLevels,
     /// Most recent samples of the control taps.
     pan_value: f32,
@@ -1509,7 +1509,7 @@ impl AudioState {
             modules.into_iter().map(|m| (m.id.clone(), m)).collect();
 
         // Build the complete next scope membership: one fresh buffer per
-        // desired per-channel key (a key includes the scope's config, so a
+        // desired per-lane key (a key includes the scope's config, so a
         // config change is a new key). At apply time the audio thread moves
         // each carried-over key's live buffer state into this map and swaps it
         // in wholesale, so the resulting membership is exactly this update's
@@ -1517,10 +1517,10 @@ impl AudioState {
         update.scope_next = scopes
             .iter()
             .flat_map(|scope| {
-                scope.channels.iter().map(move |ch| ScopeBufferKey {
-                    module_id: ch.module_id.clone(),
-                    port_name: ch.port_name.clone(),
-                    channel: ch.channel,
+                scope.lanes.iter().map(move |lane| ScopeBufferKey {
+                    module_id: lane.module_id.clone(),
+                    port_name: lane.port_name.clone(),
+                    lane: lane.lane,
                     ms_per_frame: scope.ms_per_frame,
                     trigger_threshold: scope.trigger_threshold,
                 })
@@ -1864,7 +1864,7 @@ struct AudioProcessor {
     /// audio input. Filled slot range by slot range from `input_reader` and
     /// injected into `HiddenAudioIn` via `inject_audio_in`. Sized to
     /// `block_size` once in `new()` so the audio thread never allocates.
-    input_block_scratch: Vec<[f32; PORT_MAX_CHANNELS]>,
+    input_block_scratch: Vec<[f32; PORT_MAX_LANES]>,
     /// Ableton Link integration (audio-thread side). Owns the live
     /// `rusty_link` resources when active and exposes only RT-safe operations.
     link: crate::link::LinkState,
@@ -1916,7 +1916,7 @@ impl AudioProcessor {
             sample_rate,
             block_size,
             block_pos: block_size,
-            input_block_scratch: vec![[0.0f32; PORT_MAX_CHANNELS]; block_size],
+            input_block_scratch: vec![[0.0f32; PORT_MAX_LANES]; block_size],
             link: crate::link::LinkState::new(),
             module_profile_collection: shared.module_profile_collection,
             pending_profile_shared_seed: None,
@@ -2260,7 +2260,7 @@ impl AudioProcessor {
         use modular_core::types::WellKnownModule;
         for slot in &mut self.input_block_scratch[slots.clone()] {
             let frame = input_reader.read_frame();
-            for ch in 0..PORT_MAX_CHANNELS {
+            for ch in 0..PORT_MAX_LANES {
                 slot[ch] = frame[ch] * AUDIO_INPUT_GAIN;
             }
         }
@@ -2340,7 +2340,7 @@ impl AudioProcessor {
                         sampleables,
                         &key.module_id,
                         &key.port_name,
-                        key.channel as usize,
+                        key.lane as usize,
                     ) {
                         buffer.push_block(range.clone(), |i| tap.get(i));
                     }
@@ -2351,7 +2351,7 @@ impl AudioProcessor {
                     sampleables,
                     &key.module_id,
                     &key.port_name,
-                    key.channel as usize,
+                    key.lane as usize,
                 )
                 .map(|tap| tap.get(i))
             }),
@@ -2370,13 +2370,13 @@ impl AudioProcessor {
                 // Signal-driven pan/gain are display-only and each write
                 // overwrites the last, so only the block's final slot is read.
                 let last = range.end - 1;
-                let sample = |src: &Option<modular_core::types::ScopeChannel>| {
+                let sample = |src: &Option<modular_core::types::ScopeLane>| {
                     src.as_ref().and_then(|src| {
                         Tap::resolve(
                             sampleables,
                             &src.module_id,
                             &src.port_name,
-                            src.channel as usize,
+                            src.lane as usize,
                         )
                         .map(|tap| tap.get(last))
                     })
@@ -2734,7 +2734,7 @@ where
                                         audio_processor.patch.sampleables.get(&*ROOT_ID)
                                     {
                                         let mut any_audible = false;
-                                        let mut samples = [0.0f32; PORT_MAX_CHANNELS];
+                                        let mut samples = [0.0f32; PORT_MAX_LANES];
                                         // Compensated ch-0 volts, reused by the
                                         // recording tap below so the file captures
                                         // exactly what the declick emitted.
@@ -2778,7 +2778,7 @@ where
                                             }
                                         } else {
                                             for ch in 0..num_channels {
-                                                let v = if ch < PORT_MAX_CHANNELS {
+                                                let v = if ch < PORT_MAX_LANES {
                                                     samples[ch]
                                                 } else {
                                                     0.0
@@ -3012,13 +3012,13 @@ struct FinalStateProcessor {
     /// Raw (pre-attenuation) output volts actually emitted last sample, per
     /// channel, including any live declick tail — the reference the next
     /// patch swap declicks against.
-    last_emitted: [f32; PORT_MAX_CHANNELS],
+    last_emitted: [f32; PORT_MAX_LANES],
     /// Additive declick tail per channel; decays toward zero each sample.
-    declick_level: [f32; PORT_MAX_CHANNELS],
+    declick_level: [f32; PORT_MAX_LANES],
     /// Set on every channel when a swap applies; a channel's next emitted
     /// sample resolves its tail and clears its flag, so resolution is
     /// per-channel and immune to the drain splitting a block.
-    declick_armed: [bool; PORT_MAX_CHANNELS],
+    declick_armed: [bool; PORT_MAX_LANES],
     /// Per-sample decay coefficient derived from `SWAP_DECLICK_TAU_SECONDS`.
     declick_decay: f32,
 }
@@ -3029,9 +3029,9 @@ impl FinalStateProcessor {
             attenuation_factor: 0.0,
             volume_change: VolumeChange::None,
             prev_is_stopped: true,
-            last_emitted: [0.0; PORT_MAX_CHANNELS],
-            declick_level: [0.0; PORT_MAX_CHANNELS],
-            declick_armed: [false; PORT_MAX_CHANNELS],
+            last_emitted: [0.0; PORT_MAX_LANES],
+            declick_level: [0.0; PORT_MAX_LANES],
+            declick_armed: [false; PORT_MAX_LANES],
             declick_decay: (-1.0f32 / (SWAP_DECLICK_TAU_SECONDS * sample_rate)).exp(),
         }
     }
@@ -3039,16 +3039,16 @@ impl FinalStateProcessor {
     /// Arm every channel's declick for its next emitted sample. Called at the
     /// instant a patch swap applies.
     fn arm_declick(&mut self) {
-        self.declick_armed = [true; PORT_MAX_CHANNELS];
+        self.declick_armed = [true; PORT_MAX_LANES];
     }
 
     /// Drop the tail and reference level. Called on paths that emit hard
     /// silence, so a later swap declicks against what the listener actually
     /// hears rather than a stale loud sample.
     fn reset_declick(&mut self) {
-        self.last_emitted = [0.0; PORT_MAX_CHANNELS];
-        self.declick_level = [0.0; PORT_MAX_CHANNELS];
-        self.declick_armed = [false; PORT_MAX_CHANNELS];
+        self.last_emitted = [0.0; PORT_MAX_LANES];
+        self.declick_level = [0.0; PORT_MAX_LANES];
+        self.declick_armed = [false; PORT_MAX_LANES];
     }
 
     /// Compensate one channel's raw output sample across patch swaps. Must be
@@ -4038,7 +4038,7 @@ mod tests {
         let (_cmd_producer, mut processor) = create_test_processor();
 
         // Inject a host-input frame into the live HIDDEN_AUDIO_IN.
-        let mut block = [[0.0f32; PORT_MAX_CHANNELS]; 1];
+        let mut block = [[0.0f32; PORT_MAX_LANES]; 1];
         block[0][0] = 0.42;
         processor
             .patch
@@ -4830,7 +4830,7 @@ mod tests {
         ScopeBufferKey {
             module_id: module_id.into(),
             port_name: "output".into(),
-            channel: 0,
+            lane: 0,
             ms_per_frame: 100,
             trigger_threshold: None,
         }
@@ -4918,7 +4918,7 @@ mod tests {
                 ty.to_string(),
                 modular_core::params::DeserializedParams {
                     params: cached.params,
-                    channel_count: cached.channel_count,
+                    lane_count: cached.lane_count,
                     f64_inputs: false,
                 },
                 mode,
@@ -4949,10 +4949,10 @@ mod tests {
         update.process_order_ids = vec!["blk".into(), "smp".into()];
         processor.apply_patch_update(Box::new(update), 0);
 
-        let key = |id: &str, channel: u32, trigger| ScopeBufferKey {
+        let key = |id: &str, lane: u32, trigger| ScopeBufferKey {
             module_id: id.into(),
             port_name: "output".into(),
-            channel,
+            lane,
             ms_per_frame: 10,
             trigger_threshold: trigger,
         };
@@ -4979,10 +4979,10 @@ mod tests {
             port_name: "output".into(),
             channels: 2,
             mute_module_id: None,
-            pan_source: Some(modular_core::types::ScopeChannel {
+            pan_source: Some(modular_core::types::ScopeLane {
                 module_id: "smp".into(),
                 port_name: "output".into(),
-                channel: 0,
+                lane: 0,
             }),
             gain_source: None,
         };
@@ -5001,7 +5001,7 @@ mod tests {
                     |id: &str, ch: usize, i: usize| sampleables[id].get_value_at("output", ch, i);
                 for i in range.clone() {
                     for (k, buffer) in ref_scopes.iter_mut() {
-                        buffer.push(read(&k.module_id, k.channel as usize, i));
+                        buffer.push(read(&k.module_id, k.lane as usize, i));
                     }
                     for ch in 0..2 {
                         ref_meter
@@ -5143,7 +5143,7 @@ mod tests {
         // A module rebuilt on its own (`set_module_param`) takes its storage
         // from here, so its bounds keep reaching the modules that read them.
         let state = create_test_audio_state();
-        let cable = |module: &str| serde_json::json!({ "type": "cable", "module": module, "port": "output", "channel": 0 });
+        let cable = |module: &str| serde_json::json!({ "type": "cable", "module": module, "port": "output", "lane": 0 });
         let module = |id: &str, module_type: &str, params| modular_core::types::ModuleSpec {
             id: id.into(),
             module_type: module_type.into(),

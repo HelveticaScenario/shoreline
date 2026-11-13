@@ -13,14 +13,14 @@ use crate::utils::{
 struct DefaultConnectionAttr {
     module: Ident,
     port: String,
-    channel: usize,
+    lane: usize,
 }
 
-/// Parse `#[default_connection(module = ..., port = "...", channel = N)]`.
+/// Parse `#[default_connection(module = ..., port = "...", lane = N)]`.
 fn parse_default_connection_attr(attr: &Attribute) -> syn::Result<DefaultConnectionAttr> {
     let mut module: Option<Ident> = None;
     let mut port: Option<String> = None;
-    let mut channel: Option<usize> = None;
+    let mut lane: Option<usize> = None;
 
     attr.parse_nested_meta(|meta| {
         if meta.path.is_ident("module") {
@@ -31,12 +31,12 @@ fn parse_default_connection_attr(attr: &Attribute) -> syn::Result<DefaultConnect
             let value: LitStr = meta.value()?.parse()?;
             port = Some(value.value());
             Ok(())
-        } else if meta.path.is_ident("channel") {
+        } else if meta.path.is_ident("lane") {
             let value: syn::LitInt = meta.value()?.parse()?;
-            channel = Some(value.base10_parse()?);
+            lane = Some(value.base10_parse()?);
             Ok(())
         } else {
-            Err(meta.error("expected `module`, `port` or `channel`"))
+            Err(meta.error("expected `module`, `port` or `lane`"))
         }
     })?;
 
@@ -44,14 +44,10 @@ fn parse_default_connection_attr(attr: &Attribute) -> syn::Result<DefaultConnect
         .ok_or_else(|| syn::Error::new(attr.span(), "missing `module` in default_connection"))?;
     let port =
         port.ok_or_else(|| syn::Error::new(attr.span(), "missing `port` in default_connection"))?;
-    let channel = channel
-        .ok_or_else(|| syn::Error::new(attr.span(), "missing `channel` in default_connection"))?;
+    let lane =
+        lane.ok_or_else(|| syn::Error::new(attr.span(), "missing `lane` in default_connection"))?;
 
-    Ok(DefaultConnectionAttr {
-        module,
-        port,
-        channel,
-    })
+    Ok(DefaultConnectionAttr { module, port, lane })
 }
 
 /// Per-struct-field codegen: emits `default_connection` defaulting plus
@@ -78,7 +74,7 @@ fn emit_field_named_struct(
         let dc = parse_default_connection_attr(attr)?;
         let module = &dc.module;
         let port = &dc.port;
-        let ch = dc.channel;
+        let lane = dc.lane;
         let is_poly = is_poly_signal_type(&field.ty);
         let is_mono = is_mono_signal_type(&field.ty);
         let is_option_poly = is_option_poly_signal_type(&field.ty);
@@ -86,7 +82,7 @@ fn emit_field_named_struct(
         let is_option_signal = is_option_signal_type(&field.ty);
 
         if is_poly || is_mono || is_option_poly || is_option_mono {
-            let cable = quote! { crate::types::WellKnownModule::#module.to_cable(#ch, #port) };
+            let cable = quote! { crate::types::WellKnownModule::#module.to_cable(#lane, #port) };
 
             if is_option_poly {
                 default_stmts.extend(quote_spanned! {field.span()=>
@@ -97,25 +93,25 @@ fn emit_field_named_struct(
             } else if is_option_mono {
                 default_stmts.extend(quote_spanned! {field.span()=>
                     if self.#field_ident.is_none() {
-                        self.#field_ident = Some(crate::poly::MonoSignal::from_poly(
+                        self.#field_ident = Some(crate::poly::LaneSum::from_poly(
                             crate::poly::PolySignal::poly(&[#cable]),
                         ));
                     }
                 });
             } else {
-                // Bare PolySignal/MonoSignal fields are required — they
+                // Bare PolySignal/LaneSum fields are required — they
                 // should not have #[default_connection] since the user
                 // must always provide them.
                 return Err(syn::Error::new(
                     field.span(),
                     "#[default_connection] is not supported on bare (required) signal fields. \
-                     Use Option<PolySignal> or Option<MonoSignal> instead.",
+                     Use Option<PolySignal> or Option<LaneSum> instead.",
                 ));
             }
         } else if is_option_signal {
             default_stmts.extend(quote_spanned! {field.span()=>
                 if self.#field_ident.is_none() {
-                    self.#field_ident = Some(crate::types::WellKnownModule::#module.to_cable(#ch, #port));
+                    self.#field_ident = Some(crate::types::WellKnownModule::#module.to_cable(#lane, #port));
                 }
             });
         } else {

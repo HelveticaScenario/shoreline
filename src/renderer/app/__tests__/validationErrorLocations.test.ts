@@ -32,10 +32,10 @@ describe('transformErrorsWithSourceLocations', () => {
     test('a type that is a prefix of another type never matches the longer type', () => {
         const map = {
             '$mix-1': loc(2),
-            '$mixDown-1': loc(7),
+            '$setLanes-1': loc(7),
         };
         const [out] = transformErrorsWithSourceLocations(
-            [err('$mixDown(...)')],
+            [err('$setLanes(...)')],
             map,
         );
         expect(out.location).toBe('line 7');

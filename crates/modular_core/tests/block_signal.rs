@@ -12,7 +12,7 @@ static GLOBAL: CountingAllocator = CountingAllocator;
 fn signal_forwards_cables_and_constants() {
     check_module(
         "$signal",
-        json!({ "value": poly_cable("src", CHANNELS) }),
+        json!({ "value": poly_cable("src", LANES) }),
         |src, lfo| elementwise(src, lfo, |x, _| x),
     );
     check_module(
@@ -20,7 +20,7 @@ fn signal_forwards_cables_and_constants() {
         json!({ "value": [0.5, -1.0, 2.0, 3.5] }),
         |src, _| {
             (0..src.len())
-                .map(|k| [0.5, -1.0, 2.0, 3.5][k % CHANNELS])
+                .map(|k| [0.5, -1.0, 2.0, 3.5][k % LANES])
                 .collect()
         },
     );
@@ -28,20 +28,20 @@ fn signal_forwards_cables_and_constants() {
 
 #[test]
 fn paths_agree() {
-    check_paths_agree("$signal", json!({ "value": poly_cable("src", CHANNELS) }));
+    check_paths_agree("$signal", json!({ "value": poly_cable("src", LANES) }));
 }
 
 #[test]
 fn allocation_free() {
     assert_eq!(
-        allocations_while_rendering("$signal", json!({ "value": poly_cable("src", CHANNELS) })),
+        allocations_while_rendering("$signal", json!({ "value": poly_cable("src", LANES) })),
         0
     );
 }
 
 #[test]
 fn bounds_pass_through() {
-    let bounds = check_bounds_agree("$signal", json!({ "value": poly_cable("src", CHANNELS) }));
+    let bounds = check_bounds_agree("$signal", json!({ "value": poly_cable("src", LANES) }));
     assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
     let bounds = check_bounds_agree("$signal", json!({ "value": 3.0 }));
     assert!(bounds.iter().all(|&b| b == Bounds::point(3.0)));

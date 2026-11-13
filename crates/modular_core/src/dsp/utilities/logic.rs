@@ -8,7 +8,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RisingEdgeDetectorParams {
@@ -17,7 +17,7 @@ struct RisingEdgeDetectorParams {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FallingEdgeDetectorParams {
@@ -50,12 +50,12 @@ struct FallingEdgeDetectorOutputs {
 }
 
 #[derive(Clone, Copy)]
-struct EdgeChannelState {
+struct EdgeLaneState {
     last_input: f32,
     trigger_gate: TempGate,
 }
 
-impl Default for EdgeChannelState {
+impl Default for EdgeLaneState {
     fn default() -> Self {
         Self {
             last_input: 0.0,
@@ -86,17 +86,17 @@ const RISING_DOCS: ModuleDocs = ModuleDocs {
 pub struct RisingEdgeDetector {
     outputs: RisingEdgeDetectorOutputs,
     params: RisingEdgeDetectorParams,
-    channel_state: Box<[EdgeChannelState]>,
+    lane_state: Box<[EdgeLaneState]>,
 }
 
 impl RisingEdgeDetector {
     pub fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
         let hold = min_gate_samples(sample_rate);
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
-            let input = self.params.input.get_value(ch);
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
+            let input = self.params.input.get_value(lane);
 
             if input > state.last_input {
                 state
@@ -105,7 +105,7 @@ impl RisingEdgeDetector {
             }
 
             state.last_input = input;
-            self.outputs.output.set(ch, state.trigger_gate.process());
+            self.outputs.output.set(lane, state.trigger_gate.process());
         }
     }
 }
@@ -134,17 +134,17 @@ const FALLING_DOCS: ModuleDocs = ModuleDocs {
 pub struct FallingEdgeDetector {
     outputs: FallingEdgeDetectorOutputs,
     params: FallingEdgeDetectorParams,
-    channel_state: Box<[EdgeChannelState]>,
+    lane_state: Box<[EdgeLaneState]>,
 }
 
 impl FallingEdgeDetector {
     pub fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
         let hold = min_gate_samples(sample_rate);
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
-            let input = self.params.input.get_value(ch);
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
+            let input = self.params.input.get_value(lane);
 
             if input < state.last_input {
                 state
@@ -153,7 +153,7 @@ impl FallingEdgeDetector {
             }
 
             state.last_input = input;
-            self.outputs.output.set(ch, state.trigger_gate.process());
+            self.outputs.output.set(lane, state.trigger_gate.process());
         }
     }
 }

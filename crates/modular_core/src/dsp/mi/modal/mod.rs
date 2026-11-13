@@ -40,7 +40,7 @@ const EXCITER_GAIN: f32 = -0.8 * 5.0;
 const MIN_CUTOFF: f32 = 1e-6;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ModalParams {
@@ -140,7 +140,7 @@ const MODAL_DOCS: ModuleDocs = ModuleDocs {
 pub struct Modal {
     outputs: ModalOutputs,
     state: ModalState,
-    channel_state: Box<[Voice]>,
+    lane_state: Box<[Voice]>,
     params: ModalParams,
 }
 
@@ -353,23 +353,23 @@ impl Modal {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let sustain = p.trigger.is_none();
-        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, ModalParams::FM_DEFAULT),
+                p.freq.get_value(lane),
+                p.fm.value_or(lane, ModalParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
             // At a standstill the modes would freeze into a held level; a
             // 1 Hz floor lets them ring out, at a resonance too low to hear.
             let f0 = limit_frequency(f0.abs(), 0.5).max(self.state.inv_sample_rate);
-            let trigger = p.trigger.as_ref().map(|t| t.get_value(ch));
+            let trigger = p.trigger.as_ref().map(|t| t.get_value(lane));
             let strike = trigger.is_some_and(|volts| voice.trigger.process(volts));
             let accent = (
-                p.accent.value_or(ch, ModalParams::ACCENT_DEFAULT),
-                p.accent.glide_mark(ch),
+                p.accent.value_or(lane, ModalParams::ACCENT_DEFAULT),
+                p.accent.glide_mark(lane),
             );
             let mark = accent.1;
             let accent = voice
@@ -377,20 +377,20 @@ impl Modal {
                 .read(accent, trigger, self.state.sample_rate);
             let knobs = Knobs {
                 structure: (
-                    p.structure.value_or(ch, ModalParams::STRUCTURE_DEFAULT),
-                    p.structure.glide_mark(ch),
+                    p.structure.value_or(lane, ModalParams::STRUCTURE_DEFAULT),
+                    p.structure.glide_mark(lane),
                 ),
                 brightness: (
-                    p.brightness.value_or(ch, ModalParams::BRIGHTNESS_DEFAULT),
-                    p.brightness.glide_mark(ch),
+                    p.brightness.value_or(lane, ModalParams::BRIGHTNESS_DEFAULT),
+                    p.brightness.glide_mark(lane),
                 ),
                 decay: (
-                    p.decay.value_or(ch, ModalParams::DECAY_DEFAULT),
-                    p.decay.glide_mark(ch),
+                    p.decay.value_or(lane, ModalParams::DECAY_DEFAULT),
+                    p.decay.glide_mark(lane),
                 ),
                 accent: (plaits_volts(accent), mark),
             };
-            let input = p.input.value_or(ch, 0.0) * 0.2;
+            let input = p.input.value_or(lane, 0.0) * 0.2;
             let input = if input.is_finite() { input } else { 0.0 };
             let (body, exciter) = voice.step(f0, knobs, sustain, strike, input, &self.state);
             // Plaits clips after its slow limiter.
@@ -399,10 +399,10 @@ impl Modal {
                 ACCENT_TRIM,
                 self.state.sample_rate,
             );
-            self.outputs.sample.set(ch, out);
+            self.outputs.sample.set(lane, out);
             self.outputs
                 .exciter
-                .set(ch, (EXCITER_GAIN * exciter).clamp(-5.0, 5.0));
+                .set(lane, (EXCITER_GAIN * exciter).clamp(-5.0, 5.0));
         }
     }
 }
@@ -413,9 +413,9 @@ impl crate::types::PatchUpdateHandler for Modal {
     /// constructions share, so every instance would draw the same grains.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, voice) in self.channel_state.iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state.iter_mut().enumerate() {
             if !voice.seeded {
-                let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
+                let unit = (hash_bipolar(base, lane as u64) + 1.0) * 0.5;
                 voice.random = Random::new((unit * f64::from(u32::MAX)) as u32);
                 voice.seeded = true;
             }

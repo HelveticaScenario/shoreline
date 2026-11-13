@@ -1,6 +1,6 @@
 //! The values a signal swings between, carried beside its samples.
 //!
-//! A bounded output stores one [`Bounds`] per channel per slot, written with
+//! A bounded output stores one [`Bounds`] per lane per slot, written with
 //! the sample it describes and read through the same paths, so a reader at
 //! slot `i` always sees the bounds of slot `i`. Whether an output is bounded
 //! is settled when the patch is built (see [`BoundsKind`]); an unbounded

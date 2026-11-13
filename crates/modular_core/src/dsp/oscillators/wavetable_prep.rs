@@ -319,10 +319,13 @@ mod tests {
     #[test]
     fn multi_frame_crossfades_between_frames() {
         let size = 2048;
-        let mut ch: Vec<f32> = Vec::with_capacity(size * 2);
-        ch.extend(make_sine_frame(size, 0.0));
-        ch.extend(make_cosine_frame(size));
-        let wav = WavData::new(SampleBuffer::from_samples(vec![ch], 48000.0), Some(size));
+        let mut channel: Vec<f32> = Vec::with_capacity(size * 2);
+        channel.extend(make_sine_frame(size, 0.0));
+        channel.extend(make_cosine_frame(size));
+        let wav = WavData::new(
+            SampleBuffer::from_samples(vec![channel], 48000.0),
+            Some(size),
+        );
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
 
         assert_eq!(prep.frame_count, 2);
@@ -347,10 +350,13 @@ mod tests {
         // of size/4 = 512.
         let bin = size / 2 - 2;
         let freq_norm = bin as f32 / size as f32;
-        let ch: Vec<f32> = (0..size)
+        let channel: Vec<f32> = (0..size)
             .map(|i| (TAU * freq_norm * i as f32).cos())
             .collect();
-        let wav = WavData::new(SampleBuffer::from_samples(vec![ch], 48000.0), Some(size));
+        let wav = WavData::new(
+            SampleBuffer::from_samples(vec![channel], 48000.0),
+            Some(size),
+        );
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
 
         let rms = |level: usize| -> f32 {
@@ -371,8 +377,11 @@ mod tests {
     #[test]
     fn mipmap_level_for_freq_picks_correct_level() {
         let size = 2048;
-        let ch = make_sine_frame(size, 0.0);
-        let wav = WavData::new(SampleBuffer::from_samples(vec![ch], 48000.0), Some(size));
+        let channel = make_sine_frame(size, 0.0);
+        let wav = WavData::new(
+            SampleBuffer::from_samples(vec![channel], 48000.0),
+            Some(size),
+        );
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
 
         // base_frequency = 48000 / 2048 ≈ 23.4375 Hz.
@@ -396,8 +405,11 @@ mod tests {
     #[test]
     fn mipmap_level_uses_frequency_magnitude() {
         let size = 2048;
-        let ch = make_sine_frame(size, 0.0);
-        let wav = WavData::new(SampleBuffer::from_samples(vec![ch], 48000.0), Some(size));
+        let channel = make_sine_frame(size, 0.0);
+        let wav = WavData::new(
+            SampleBuffer::from_samples(vec![channel], 48000.0),
+            Some(size),
+        );
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
 
         // Backwards (negative-frequency) playback from through-zero FM has
@@ -427,8 +439,8 @@ mod tests {
     #[test]
     fn fallback_frame_size_when_metadata_missing() {
         let size = 2048;
-        let ch = make_sine_frame(size, 0.0);
-        let wav = WavData::new(SampleBuffer::from_samples(vec![ch], 48000.0), None);
+        let channel = make_sine_frame(size, 0.0);
+        let wav = WavData::new(SampleBuffer::from_samples(vec![channel], 48000.0), None);
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
         assert_eq!(prep.frame_size, DEFAULT_FRAME_SIZE);
     }

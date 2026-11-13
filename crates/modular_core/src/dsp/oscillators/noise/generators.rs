@@ -1,8 +1,8 @@
-//! Per-channel noise sources for `$noise`. Every source draws one value per
+//! Per-lane noise sources for `$noise`. Every source draws one value per
 //! clock tick, normalized to `[-1, 1]`.
 
 use crate::dsp::utils::rng::LcgRng;
-use crate::poly::PORT_MAX_CHANNELS;
+use crate::poly::PORT_MAX_LANES;
 
 /// Paul Kellett's pink filter bank: −3 dB/octave from white input.
 #[derive(Default)]
@@ -110,7 +110,7 @@ pub(super) const LFSR_LONG_PERIOD: u32 = 32767;
 /// the steps a long-mode start takes.
 const LFSR_LONG_STRIDE: u32 = 64;
 
-const _: () = assert!(LFSR_SHORT_CYCLE_COUNT >= PORT_MAX_CHANNELS);
+const _: () = assert!(LFSR_SHORT_CYCLE_COUNT >= PORT_MAX_LANES);
 
 const fn lfsr_step(state: u16, tap: u32) -> u16 {
     let bit = (state ^ (state >> tap)) & 1;
@@ -170,33 +170,33 @@ pub(super) fn lfsr_phase_distance(a: u16, b: u16) -> u32 {
     d.min(LFSR_LONG_PERIOD - d)
 }
 
-/// Long-mode phase of channel `channel` among `channels` that all start
+/// Long-mode phase of lane `lane` among `lanes` that all start
 /// together: evenly spaced from `offset`, so neighbours sit at least
-/// `32767 / channels` ticks apart.
-pub(super) fn lfsr_even_phase(offset: u32, channel: usize, channels: usize) -> u16 {
-    let spacing = LFSR_LONG_PERIOD / channels.max(1) as u32;
-    ((offset + channel as u32 * spacing) % LFSR_LONG_PERIOD) as u16
+/// `32767 / lanes` ticks apart.
+pub(super) fn lfsr_even_phase(offset: u32, lane: usize, lanes: usize) -> u16 {
+    let spacing = LFSR_LONG_PERIOD / lanes.max(1) as u32;
+    ((offset + lane as u32 * spacing) % LFSR_LONG_PERIOD) as u16
 }
 
-/// The long-mode phases taken by a module's channels, for placing channels
+/// The long-mode phases taken by a module's lanes, for placing lanes
 /// that join running ones.
 pub(super) struct LfsrPhases {
-    taken: [u16; PORT_MAX_CHANNELS],
+    taken: [u16; PORT_MAX_LANES],
     len: usize,
 }
 
 impl LfsrPhases {
     pub(super) fn new(running: impl Iterator<Item = u16>) -> Self {
-        let mut taken = [0; PORT_MAX_CHANNELS];
+        let mut taken = [0; PORT_MAX_LANES];
         let mut len = 0;
-        for phase in running.take(PORT_MAX_CHANNELS) {
+        for phase in running.take(PORT_MAX_LANES) {
             taken[len] = phase;
             len += 1;
         }
         Self { taken, len }
     }
 
-    /// Claim a phase for one more channel: the middle of the widest gap
+    /// Claim a phase for one more lane: the middle of the widest gap
     /// between taken phases. With `n` phases taken, it lands at least
     /// `32767 / (2 * n)` ticks from every one of them.
     pub(super) fn claim(&mut self) -> u16 {
@@ -218,7 +218,7 @@ impl LfsrPhases {
                 (u32::from(from) + widest / 2) % LFSR_LONG_PERIOD
             }
         } as u16;
-        if self.len < PORT_MAX_CHANNELS {
+        if self.len < PORT_MAX_LANES {
             self.taken[self.len] = phase;
             self.len += 1;
         }
@@ -236,19 +236,19 @@ pub(super) struct LfsrLoop {
 }
 
 impl LfsrLoop {
-    /// The loop of channel `channel` in a module with random seed `seed`.
-    /// Channels of one module play distinct cycles; the seed also picks where
-    /// on its cycle every channel starts.
-    pub(super) fn for_channel(seed: u32, channel: usize) -> Self {
+    /// The loop of lane `lane` in a module with random seed `seed`.
+    /// Lanes of one module play distinct cycles; the seed also picks where
+    /// on its cycle every lane starts.
+    pub(super) fn for_lane(seed: u32, lane: usize) -> Self {
         Self {
-            cycle: (seed as usize + channel) % LFSR_SHORT_CYCLE_COUNT,
+            cycle: (seed as usize + lane) % LFSR_SHORT_CYCLE_COUNT,
             rotation: seed / LFSR_SHORT_CYCLE_COUNT as u32 % LFSR_SHORT_CYCLE,
         }
     }
 }
 
 /// 15-bit linear-feedback shift register in the style of the NES noise
-/// channel. Long mode (tap 1) cycles through all 32767 nonzero states; short
+/// lane. Long mode (tap 1) cycles through all 32767 nonzero states; short
 /// mode (tap 6) loops a 93-step cycle, which sounds pitched and metallic.
 pub(super) struct Lfsr {
     state: u16,

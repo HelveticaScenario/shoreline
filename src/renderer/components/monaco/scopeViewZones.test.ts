@@ -65,7 +65,7 @@ function makeEditor() {
 
 function makeView(key: string, decorationIndex: number | null): ScopeView {
     return {
-        channelKeys: [key],
+        laneKeys: [key],
         decorationIndex,
         file: 'buf',
         key,
@@ -148,11 +148,11 @@ describe('createScopeViewZones', () => {
         handle.dispose();
     });
 
-    test('a split view registers one canvas per channel in a single zone', () => {
+    test('a split view registers one canvas per lane in a single zone', () => {
         const { editor, addedZones } = makeEditor();
         const registered: string[] = [];
         const view = (key: string, split: ScopeView['split']): ScopeView => ({
-            channelKeys: ['ch0', 'ch1', 'ch2'],
+            laneKeys: ['lane0', 'lane1', 'lane2'],
             decorationIndex: 0,
             file: 'buf',
             key,

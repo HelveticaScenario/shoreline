@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 
 use super::components::{ZENER_FLOOR_V, ZENER_PAIR_CAPACITANCE_0V, zener_clamp};
 use super::curve::Curve;
-use super::lanes::Lanes;
+use super::simd::Simd;
 
 /// Feedback resistor R153.
 const R_OUTPUT_FB: f64 = 120.0e3;
@@ -37,9 +37,9 @@ pub(super) fn chain() -> &'static Curve {
 
 /// Output voltages for `v`, the mode VCAs' output expressed as the voltage it
 /// would develop across R173 (the amp inverts). The chain is evaluated on the
-/// first `active` lanes that reach it.
+/// first `active` elements that reach it.
 #[inline(always)]
-pub(super) fn output_amp<L: Lanes>(chain: &Curve, v: L, active: usize) -> L {
+pub(super) fn output_amp<L: Simd>(chain: &Curve, v: L, active: usize) -> L {
     let x = L::splat(-OUTPUT_GAIN) * v;
     // Below two pairs' floor voltage the chain carries nothing.
     let conducting =
@@ -47,15 +47,15 @@ pub(super) fn output_amp<L: Lanes>(chain: &Curve, v: L, active: usize) -> L {
     if conducting == 0 {
         return x;
     }
-    let mut lanes = x.to_lanes();
-    for lane in (0..active).filter(|&lane| conducting & (1 << lane) != 0) {
-        lanes[lane] = chain.eval(lanes[lane] as f64) as f32;
+    let mut elements = x.to_elements();
+    for element in (0..active).filter(|&element| conducting & (1 << element) != 0) {
+        elements[element] = chain.eval(elements[element] as f64) as f32;
     }
-    L::from_lanes(lanes)
+    L::from_elements(elements)
 }
 
 /// Limits decimated outputs to the op-amp's swing.
 #[inline]
-pub(super) fn rails<L: Lanes>(v: L) -> L {
+pub(super) fn rails<L: Simd>(v: L) -> L {
     v.max(L::splat(RAIL_NEG)).min(L::splat(RAIL_POS))
 }

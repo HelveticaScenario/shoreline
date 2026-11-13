@@ -47,7 +47,7 @@ export const STEREO_OUT_OPTIONS: readonly OutOptionField[] = [
     {
         doc: 'Stereo width/spread (0 = no spread, 5 = full spread). Default 0',
         name: 'width',
-        type: 'Mono<Signal>',
+        type: 'LaneSum<Signal>',
     },
     ...LEVEL_FIELDS,
 ];

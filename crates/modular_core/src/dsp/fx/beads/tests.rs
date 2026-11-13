@@ -1,10 +1,10 @@
-use crate::poly::{MonoSignal, PolySignal};
+use crate::poly::{LaneSum, PolySignal};
 use crate::types::Signal;
 
 pub(super) const SR: f32 = 48000.0;
 
-pub(super) fn volts(v: f32) -> Option<MonoSignal> {
-    Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v))))
+pub(super) fn volts(v: f32) -> Option<LaneSum> {
+    Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(v))))
 }
 
 pub(super) fn poly_volts(vs: &[f32]) -> Option<PolySignal> {

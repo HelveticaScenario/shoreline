@@ -7,7 +7,7 @@ use deserr::{DeserializeError, Deserr, ErrorKind, IntoValue, ValuePointerRef};
 use napi::Result;
 use schemars::JsonSchema;
 
-use crate::MonoSignal;
+use crate::LaneSum;
 use crate::dsp::seq::FRESH_WINDOW_SECS;
 use crate::dsp::seq::groove::{GrooveHold, before_first_step, fill_groove_inputs};
 use crate::dsp::utils::rng::{LcgRng, seed_base};
@@ -15,7 +15,7 @@ use crate::dsp::utils::{GATE_HIGH_VOLTAGE, TempGate, TempGateState, min_gate_sam
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::param_errors::ModuleParamErrors;
-use crate::poly::{MonoSignalExt, PolyOutput, PolySignal, PolySignalExt};
+use crate::poly::{LaneSumExt, PolyOutput, PolySignal, PolySignalExt};
 use crate::types::ClockMessages;
 use crate::types::PatchUpdateHandler;
 
@@ -87,7 +87,7 @@ impl JsonSchema for DrumMapResolution {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = drum_map_fill_groove -> ModuleParamErrors)]
 struct DrumMapParams {
@@ -97,26 +97,26 @@ struct DrumMapParams {
         range = (0.0, ..),
         control_range = (0.0, 1.0),
     )]
-    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
+    #[default_connection(module = RootClock, port = "playhead", lane = 0)]
     #[deserr(default)]
-    playhead: Option<MonoSignal>,
+    playhead: Option<LaneSum>,
     #[input(
         "groove shift of each step, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
         type = control,
         control_range = (-5.0, 5.0),
     )]
-    #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
+    #[default_connection(module = RootClock, port = "grooveOffset", lane = 0)]
     #[deserr(default)]
-    groove: Option<MonoSignal>,
+    groove: Option<LaneSum>,
     #[input(
         "how readily each step accents: lower accents less, 0 never. Follows the global groove, unless you set your own `playhead` or `groove`: then it is full until given a velocity too",
         type = control,
         range = (0.0, ..),
         control_range = (0.0, 5.0),
     )]
-    #[default_connection(module = RootClock, port = "grooveVelocity", channel = 0)]
+    #[default_connection(module = RootClock, port = "grooveVelocity", lane = 0)]
     #[deserr(default)]
-    velocity: Option<MonoSignal>,
+    velocity: Option<LaneSum>,
     #[input(
         "horizontal position in the map of drum patterns",
         type = control,
@@ -215,7 +215,7 @@ struct DrumMapState {
 }
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     rng: LcgRng,
     seeded: bool,
     perturbation: [u8; NUM_PARTS],
@@ -251,7 +251,7 @@ pub struct DrumMap {
     outputs: DrumMapOutputs,
     params: DrumMapParams,
     state: DrumMapState,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
 }
 
 message_handlers!(impl DrumMap {
@@ -300,7 +300,7 @@ impl DrumMap {
             .params
             .playhead
             .as_ref()
-            .map_or(0.0, MonoSignal::get_value_f64);
+            .map_or(0.0, LaneSum::get_value_f64);
         let playhead = self.state.groove_hold.apply(
             straight,
             straight + self.params.groove.value_or_zero() as f64,
@@ -311,14 +311,14 @@ impl DrumMap {
             self.advance_to(playhead, sample_rate);
         }
 
-        for ch in 0..self.channel_count() {
-            let state = &mut self.channel_state[ch];
-            self.outputs.bd.set(ch, state.triggers[0].process());
-            self.outputs.sd.set(ch, state.triggers[1].process());
-            self.outputs.hh.set(ch, state.triggers[2].process());
-            self.outputs.bd_accent.set(ch, state.accents[0].process());
-            self.outputs.sd_accent.set(ch, state.accents[1].process());
-            self.outputs.hh_accent.set(ch, state.accents[2].process());
+        for lane in 0..self.lane_count() {
+            let state = &mut self.lane_state[lane];
+            self.outputs.bd.set(lane, state.triggers[0].process());
+            self.outputs.sd.set(lane, state.triggers[1].process());
+            self.outputs.hh.set(lane, state.triggers[2].process());
+            self.outputs.bd_accent.set(lane, state.accents[0].process());
+            self.outputs.sd_accent.set(lane, state.accents[1].process());
+            self.outputs.hh_accent.set(lane, state.accents[2].process());
         }
     }
 
@@ -371,22 +371,22 @@ impl DrumMap {
     /// accent threshold.
     fn evaluate(&mut self, step: usize, new_cycle: bool, velocity: f32, hold: u32) {
         let p = &self.params;
-        for ch in 0..self.channel_count() {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..self.lane_count() {
+            let state = &mut self.lane_state[lane];
             if new_cycle {
-                let randomness = knob(p.chaos.value_or(ch, 0.0)) >> 2;
+                let randomness = knob(p.chaos.value_or(lane, 0.0)) >> 2;
                 for perturbation in state.perturbation.iter_mut() {
                     let byte = (state.rng.next_unit() * 256.0) as u8;
                     *perturbation = u8_mul_shift8(byte, randomness);
                 }
             }
 
-            let x = knob(p.x.value_or(ch, 2.5));
-            let y = knob(p.y.value_or(ch, 2.5));
+            let x = knob(p.x.value_or(lane, 2.5));
+            let y = knob(p.y.value_or(lane, 2.5));
             let densities = [
-                knob(p.bd_density.value_or(ch, 2.5)),
-                knob(p.sd_density.value_or(ch, 2.5)),
-                knob(p.hh_density.value_or(ch, 2.5)),
+                knob(p.bd_density.value_or(lane, 2.5)),
+                knob(p.sd_density.value_or(lane, 2.5)),
+                knob(p.hh_density.value_or(lane, 2.5)),
             ];
             for (part, &density) in densities.iter().enumerate() {
                 let level =
@@ -409,9 +409,9 @@ impl DrumMap {
 impl PatchUpdateHandler for DrumMap {
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
             if !state.seeded {
-                state.rng.seed(base, ch);
+                state.rng.seed(base, lane);
                 state.seeded = true;
             }
         }

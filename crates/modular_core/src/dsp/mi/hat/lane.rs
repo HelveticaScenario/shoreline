@@ -1,4 +1,4 @@
-//! What `$mi.hiHat` and `$mi.ringHat` share: a channel's hat, noise,
+//! What `$mi.hiHat` and `$mi.ringHat` share: a lane's hat, noise,
 //! trigger and knobs.
 
 use crate::dsp::{
@@ -51,9 +51,9 @@ pub(super) struct Knobs {
     pub accent: (f32, GlideMark),
 }
 
-pub(super) struct Channel<M: Model> {
+pub(super) struct Lane<M: Model> {
     hat: HiHat<M>,
-    /// The channel's clocked noise.
+    /// The lane's clocked noise.
     random: Random,
     trigger: SchmittTrigger,
     tone: Knob,
@@ -62,17 +62,17 @@ pub(super) struct Channel<M: Model> {
     accent: Knob,
     pub(super) accent_state: Accent,
     /// Whether `random` has its per-instance seed. Transfers with the
-    /// channel, so its noise stays continuous across patch updates.
+    /// lane, so its noise stays continuous across patch updates.
     seeded: bool,
 }
 
-impl<M: Model> Default for Channel<M> {
+impl<M: Model> Default for Lane<M> {
     fn default() -> Self {
         Self::new(0)
     }
 }
 
-impl<M: Model> Channel<M> {
+impl<M: Model> Lane<M> {
     pub(super) fn new(seed: u32) -> Self {
         Self {
             hat: HiHat::default(),
@@ -116,17 +116,17 @@ impl<M: Model> Channel<M> {
     }
 }
 
-/// Seeds the noise generators of `channels` that have none yet, from `base`,
+/// Seeds the noise generators of `lanes` that have none yet, from `base`,
 /// the module's [`seed_base`](crate::dsp::utils::rng::seed_base). Runs in
 /// `on_patch_update`, not `init`, because `init` runs in a stack slot that
 /// consecutive constructions share, so every instance would draw the same
 /// noise.
-pub(super) fn seed<M: Model>(base: u64, channels: &mut [Channel<M>]) {
-    for (ch, channel) in channels.iter_mut().enumerate() {
-        if !channel.seeded {
-            let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
-            channel.random = Random::new((unit * f64::from(u32::MAX)) as u32);
-            channel.seeded = true;
+pub(super) fn seed<M: Model>(base: u64, lanes: &mut [Lane<M>]) {
+    for (lane_index, lane) in lanes.iter_mut().enumerate() {
+        if !lane.seeded {
+            let unit = (hash_bipolar(base, lane_index as u64) + 1.0) * 0.5;
+            lane.random = Random::new((unit * f64::from(u32::MAX)) as u32);
+            lane.seeded = true;
         }
     }
 }

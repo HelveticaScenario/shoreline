@@ -1,4 +1,4 @@
-use super::{NO_SNARES, SR, SynthChannel, SynthSnareState, snare_hit, synth_hit, synth_knobs};
+use super::{NO_SNARES, SR, SynthLane, SynthSnareState, snare_hit, synth_hit, synth_knobs};
 use crate::dsp::mi::drum::measure::{crossings, level, peak, window};
 
 /// `$mi.snare` struck at 48 kHz at `hz` with knob `index` at `volts`, the
@@ -107,10 +107,10 @@ fn synth_snare_knobs_do_what_they_say() {
     // them: a component at the difference of their frequencies.
     let drone = |hz: f32, attack_fm| {
         let state = SynthSnareState::new(SR);
-        let mut channel = SynthChannel::new(1);
+        let mut lane = SynthLane::new(1);
         let knobs = [attack_fm, 4.0, 0.0, 4.0];
         (0..24000)
-            .map(|_| channel.step(hz / SR, synth_knobs(knobs), None, &state))
+            .map(|_| lane.step(hz / SR, synth_knobs(knobs), None, &state))
             .collect::<Vec<f32>>()
     };
     let difference = |attack_fm| amplitude(&drone(100.0, attack_fm)[4800..], 47.0);

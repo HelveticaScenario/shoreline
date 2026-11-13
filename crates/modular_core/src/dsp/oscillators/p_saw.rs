@@ -9,7 +9,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
@@ -37,9 +37,9 @@ struct PSawOscillatorOutputs {
     sample: PolyOutput,
 }
 
-/// Per-channel state for shape glide and phase tracking
+/// Per-lane state for shape glide and phase tracking
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     shape: SwapGlide,
     /// Previous phase, kept in f64 so the DPW differencing (which divides a
     /// difference of near-equal integral values by the per-sample phase delta)
@@ -73,23 +73,23 @@ const P_SAW_DOCS: ModuleDocs = ModuleDocs {
 #[module(name = "$pSaw", docs = P_SAW_DOCS, args(phase))]
 pub struct PSawOscillator {
     outputs: PSawOscillatorOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: PSawOscillatorParams,
 }
 
 impl PSawOscillator {
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
 
-            let shape_val = self.params.shape.value_or(ch, 0.0).clamp(0.0, 5.0);
+            let shape_val = self.params.shape.value_or(lane, 0.0).clamp(0.0, 5.0);
             state
                 .shape
-                .update(shape_val, self.params.shape.glide_mark(ch), sample_rate);
+                .update(shape_val, self.params.shape.glide_mark(lane), sample_rate);
 
-            let phase = wrap(0.0..1.0, self.params.phase.get_value(ch)) as f64;
+            let phase = wrap(0.0..1.0, self.params.phase.get_value(lane)) as f64;
 
             // Calculate phase increment from phase difference
             // Handle phase wrapping correctly
@@ -124,7 +124,7 @@ impl PSawOscillator {
             };
 
             state.prev_phase = phase;
-            self.outputs.sample.set(ch, raw_output as f32 * 5.0);
+            self.outputs.sample.set(lane, raw_output as f32 * 5.0);
         }
     }
 }
@@ -176,15 +176,15 @@ mod tests {
             phase: PolySignal::mono(Signal::Volts(0.0)),
             shape: None, // 0 → saw
         };
-        let channels = params.phase.channels().max(1);
+        let lanes = params.phase.lanes().max(1);
         let mut outputs = PSawOscillatorOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         let mut osc = PSawOscillator {
             params,
             outputs,
-            _channel_count: channels,
+            _lane_count: lanes,
             _block_index: Default::default(),
-            channel_state: vec![ChannelState::default(); channels].into_boxed_slice(),
+            lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
         };
 
         // 0.2 Hz at 48 kHz ⇒ the phasor advances 0.2/48000 per sample. Start

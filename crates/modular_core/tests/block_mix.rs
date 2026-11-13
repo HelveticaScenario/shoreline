@@ -11,25 +11,25 @@ static GLOBAL: CountingAllocator = CountingAllocator;
 
 #[test]
 fn mix_every_mode_across_input_widths() {
-    // A four-wide cable, a two-wide cable and a mono constant: channels past an
+    // A four-wide cable, a two-wide cable and a mono constant: lanes past an
     // input's width leave it out. Gain is a mono cable.
     for mode in ["sum", "average", "max", "min"] {
         check_module(
             "$mix",
             json!({
-                "inputs": [poly_cable("src", CHANNELS), poly_cable("lfo", 2), 0.0],
+                "inputs": [poly_cable("src", LANES), poly_cable("lfo", 2), 0.0],
                 "mode": mode,
                 "gain": cable("lfo", 3),
             }),
             |src, lfo| {
                 (0..src.len())
                     .map(|k| {
-                        let ch = k % CHANNELS;
+                        let lane = k % LANES;
                         let mut values = vec![src[k]];
-                        if ch < 2 {
+                        if lane < 2 {
                             values.push(lfo[k]);
                         }
-                        if ch < 1 {
+                        if lane < 1 {
                             values.push(0.0);
                         }
                         let pre = match mode {
@@ -56,7 +56,7 @@ fn mix_every_mode_across_input_widths() {
                                 if best_abs.is_finite() { best } else { 0.0 }
                             }
                         };
-                        let amp = lfo[k - ch + 3];
+                        let amp = lfo[k - lane + 3];
                         let g = amp * (1.0 / 5.0);
                         let v = pre * (g * g * g);
                         if v.is_finite() { v } else { 0.0 }
@@ -73,7 +73,7 @@ fn paths_agree() {
         check_paths_agree(
             "$mix",
             json!({
-                "inputs": [poly_cable("src", CHANNELS), cable("lfo", 1), [0.5, -0.25]],
+                "inputs": [poly_cable("src", LANES), cable("lfo", 1), [0.5, -0.25]],
                 "mode": mode,
                 "gain": [cable("lfo", 0), 4.0],
             }),
@@ -81,7 +81,7 @@ fn paths_agree() {
     }
     check_paths_agree(
         "$mix",
-        json!({ "inputs": [poly_cable("src", 2)], "gain": poly_cable("lfo", CHANNELS) }),
+        json!({ "inputs": [poly_cable("src", 2)], "gain": poly_cable("lfo", LANES) }),
     );
 }
 
@@ -90,7 +90,7 @@ fn allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$mix",
-            json!({ "inputs": [poly_cable("src", CHANNELS), cable("src", 1), 0.5], "mode": "max", "gain": cable("src", 0) })
+            json!({ "inputs": [poly_cable("src", LANES), cable("src", 1), 0.5], "mode": "max", "gain": cable("src", 0) })
         ),
         0
     );
@@ -98,7 +98,7 @@ fn allocation_free() {
 
 #[test]
 fn swap_agrees_through_a_gain_glide() {
-    let inputs = json!([poly_cable("src", CHANNELS), cable("lfo", 1)]);
+    let inputs = json!([poly_cable("src", LANES), cable("lfo", 1)]);
     check_swap_agrees(
         "$mix",
         json!({ "inputs": inputs.clone(), "gain": 1.0 }),

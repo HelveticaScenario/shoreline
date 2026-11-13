@@ -1,7 +1,7 @@
 mod knobs;
 
-use super::analog::{Channel as SnareChannel, Knobs as SnareKnobs, SnareState};
-use super::synthetic::{Channel as SynthChannel, Knobs as SynthKnobs, SynthSnareState};
+use super::analog::{Knobs as SnareKnobs, Lane as SnareLane, SnareState};
+use super::synthetic::{Knobs as SynthKnobs, Lane as SynthLane, SynthSnareState};
 use crate::dsp::mi::core::fixture::{max_error, records};
 use crate::dsp::mi::drum::measure::{
     assert_rate_independent, mark, peak, pitch_cents, rms, window,
@@ -40,8 +40,8 @@ const SR: f32 = 48000.0;
 fn matches_plaits() {
     let snare_state = SnareState::new(SR);
     let synth_state = SynthSnareState::new(SR);
-    let mut snare = SnareChannel::new(0x1234567);
-    let mut synth = SynthChannel::new(0x7654321);
+    let mut snare = SnareLane::new(0x1234567);
+    let mut synth = SynthLane::new(0x7654321);
     let mut actual = Vec::new();
     let mut expected = Vec::new();
     for r in records("snare", 8 + 2) {
@@ -82,18 +82,18 @@ fn hit(sample_rate: f32, seconds: f32, mut step: impl FnMut(Option<f32>) -> f32)
 /// `seconds` of `$mi.snare` at `hz` with noise from `seed`, struck once.
 fn snare_hit(sample_rate: f32, hz: f32, knobs: [f32; 4], seed: u32, seconds: f32) -> Vec<f32> {
     let state = SnareState::new(sample_rate);
-    let mut channel = SnareChannel::new(seed);
+    let mut lane = SnareLane::new(seed);
     hit(sample_rate, seconds, |trigger| {
-        channel.step(hz / sample_rate, snare_knobs(knobs), trigger, &state)
+        lane.step(hz / sample_rate, snare_knobs(knobs), trigger, &state)
     })
 }
 
 /// `seconds` of `$mi.synthSnare` at `hz` with noise from `seed`, struck once.
 fn synth_hit(sample_rate: f32, hz: f32, knobs: [f32; 4], seed: u32, seconds: f32) -> Vec<f32> {
     let state = SynthSnareState::new(sample_rate);
-    let mut channel = SynthChannel::new(seed);
+    let mut lane = SynthLane::new(seed);
     hit(sample_rate, seconds, |trigger| {
-        channel.step(hz / sample_rate, synth_knobs(knobs), trigger, &state)
+        lane.step(hz / sample_rate, synth_knobs(knobs), trigger, &state)
     })
 }
 
@@ -168,8 +168,8 @@ fn snares_sound_the_same_at_any_rate() {
 /// One sample of each drum, at `f0` cycles per sample, with every knob at
 /// `knobs`.
 struct Pair {
-    snare: SnareChannel,
-    synth: SynthChannel,
+    snare: SnareLane,
+    synth: SynthLane,
     snare_state: SnareState,
     synth_state: SynthSnareState,
 }
@@ -177,8 +177,8 @@ struct Pair {
 impl Pair {
     fn new(sample_rate: f32, seed: u32) -> Self {
         Self {
-            snare: SnareChannel::new(seed),
-            synth: SynthChannel::new(seed),
+            snare: SnareLane::new(seed),
+            synth: SynthLane::new(seed),
             snare_state: SnareState::new(sample_rate),
             synth_state: SynthSnareState::new(sample_rate),
         }

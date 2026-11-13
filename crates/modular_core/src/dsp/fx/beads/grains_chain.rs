@@ -199,8 +199,8 @@ impl GrainsChain {
             let dry = voice.dry.next();
             let wet = voice.wet.next();
 
-            // Only voices fed by their own input channel carry dry signal
-            // into the stereo mix, so a shared channel is not doubled.
+            // Only voices fed by their own input lane carry dry signal
+            // into the stereo mix, so a shared lane is not doubled.
             let ds = if voice.dry_source { d } else { 0.0 };
             stereo += Frame::new(ds * place[0], ds * place[1]) * dry + voice.pair_wet[k] * wet;
 

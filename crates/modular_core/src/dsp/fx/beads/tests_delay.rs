@@ -36,21 +36,21 @@ fn delay_params(quality: GranularQuality) -> ClockedDelayParams {
 
 /// A module up to the point where state transfer happens.
 fn construct(params: ClockedDelayParams) -> ClockedDelay {
-    let channels = params
+    let lanes = params
         .poly_signal_fields()
         .iter()
-        .map(|p| p.channels())
+        .map(|p| p.lanes())
         .max()
         .unwrap_or(1)
         .max(1);
     let mut outputs = ClockedDelayOutputs::default();
-    outputs.set_all_channels(channels);
+    outputs.set_all_lanes(lanes);
     let mut m = ClockedDelay {
         outputs,
         state: Default::default(),
         params,
-        channel_state: (0..channels).map(|_| Default::default()).collect(),
-        _channel_count: channels,
+        lane_state: (0..lanes).map(|_| Default::default()).collect(),
+        _lane_count: lanes,
         _block_index: Default::default(),
     };
     m.init(SR);
@@ -67,13 +67,13 @@ fn make(params: ClockedDelayParams) -> ClockedDelay {
 /// Carry `old`'s state into `new` as a patch update does.
 fn transfer(old: &mut ClockedDelay, new: &mut ClockedDelay) {
     std::mem::swap(&mut old.state, &mut new.state);
-    let n = old.channel_state.len().min(new.channel_state.len());
-    new.channel_state[..n].swap_with_slice(&mut old.channel_state[..n]);
+    let n = old.lane_state.len().min(new.lane_state.len());
+    new.lane_state[..n].swap_with_slice(&mut old.lane_state[..n]);
     new.on_patch_update();
 }
 
-fn playhead(bars: f64) -> Option<MonoSignal> {
-    Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(
+fn playhead(bars: f64) -> Option<LaneSum> {
+    Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(
         bars as f32,
     ))))
 }
@@ -234,7 +234,7 @@ fn groove_amount_moves_the_windows_by_its_share_of_the_groove() {
     p.shape = poly_volts(&[2.5]);
     // Half the groove, which runs a tenth of a bar ahead of the playhead.
     p.groove_amount = poly_volts(&[2.5]);
-    p.groove = Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(0.1))));
+    p.groove = Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(0.1))));
     let mut m = make(p);
     let y: Vec<f32> = (0..60_000)
         .map(|n| step(&mut m, sine(437.0, n, SR, 2.0), n as f64 / BAR))
@@ -421,7 +421,7 @@ fn pitched_repeats_at_the_longest_delay_stay_in_the_buffer() {
 }
 
 #[test]
-fn a_channel_added_mid_block_delays_its_input() {
+fn a_lane_added_mid_block_delays_its_input() {
     for quality in ALL_QUALITIES {
         let p = delay_params(quality);
         let mut old = make(p.clone());
@@ -483,7 +483,7 @@ fn tempo_is_measured_from_the_playhead_starting() {
 
 #[test]
 fn bpm_and_meter_time_the_delay_until_the_playhead_moves() {
-    let mono = |v: f32| Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v))));
+    let mono = |v: f32| Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(v))));
     let mut p = delay_params(GranularQuality::Digital);
     p.bars = poly_volts(&[0.25]);
     p.bpm = mono(90.0);

@@ -26,8 +26,8 @@ export const EQ_SECTION_TYPES: readonly EqSectionType[] = [
 ];
 
 export const MAX_EQ_SECTIONS = 8;
-/** Most per-channel section lists (the engine's port width). */
-export const MAX_EQ_CHANNEL_LISTS = 64;
+/** Most per-lane section lists (the engine's port width). */
+export const MAX_EQ_LANE_LISTS = 64;
 export const DEFAULT_Q = Math.SQRT1_2;
 export const MIN_Q = 0.1;
 export const MAX_Q = 20;

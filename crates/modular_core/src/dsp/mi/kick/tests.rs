@@ -1,5 +1,5 @@
-use super::analog::{Channel as KickChannel, KickState, Knobs as KickKnobs};
-use super::synthetic::{Channel as SynthChannel, Knobs as SynthKnobs, SynthKickState};
+use super::analog::{KickState, Knobs as KickKnobs, Lane as KickLane};
+use super::synthetic::{Knobs as SynthKnobs, Lane as SynthLane, SynthKickState};
 use crate::dsp::mi::core::fixture::{max_error, records};
 use crate::dsp::mi::drum::measure::{
     assert_rate_independent, brightness, crossings, level, mark, peak, pitch_cents, rms, window,
@@ -47,8 +47,8 @@ const SYNTH_DEFAULTS: [f32; 5] = [2.5, 2.5, 5.0, 0.0, 4.0];
 fn matches_plaits() {
     let kick_state = KickState::new(48000.0);
     let synth_state = SynthKickState::new(48000.0);
-    let mut kick = KickChannel::default();
-    let mut synth = SynthChannel::new(0x1234567, &synth_state.rates);
+    let mut kick = KickLane::default();
+    let mut synth = SynthLane::new(0x1234567, &synth_state.rates);
     let mut actual = Vec::new();
     let mut expected = Vec::new();
     for r in records("kick", 12 + 2) {
@@ -80,11 +80,11 @@ fn matches_plaits() {
 /// `seconds` of `$mi.kick` at `hz`, struck once at the start.
 fn kick_hit(sample_rate: f32, hz: f32, knobs: [f32; 6], seconds: f32) -> Vec<f32> {
     let state = KickState::new(sample_rate);
-    let mut channel = KickChannel::default();
+    let mut lane = KickLane::default();
     (0..(seconds * sample_rate) as usize)
         .map(|n| {
             let trigger = if n == 0 { 5.0 } else { 0.0 };
-            channel.step(hz / sample_rate, kick_knobs(knobs), Some(trigger), &state)
+            lane.step(hz / sample_rate, kick_knobs(knobs), Some(trigger), &state)
         })
         .collect()
 }
@@ -100,12 +100,12 @@ fn synth_hit(
     seconds: f32,
 ) -> Vec<f32> {
     let state = SynthKickState::new(sample_rate);
-    let mut channel = SynthChannel::new(seed, &state.rates);
+    let mut lane = SynthLane::new(seed, &state.rates);
     let settle = (0.2 * sample_rate) as usize;
     (0..settle + (seconds * sample_rate) as usize)
         .map(|n| {
             let trigger = if n == settle { 5.0 } else { 0.0 };
-            channel.step(
+            lane.step(
                 hz / sample_rate,
                 synth_knobs(knobs, dirt),
                 Some(trigger),
@@ -262,10 +262,10 @@ fn synth_kick_knobs_do_what_they_say() {
     // Jitter: the drone's period wanders.
     let jitter = |dirt| {
         let state = SynthKickState::new(SR);
-        let mut channel = SynthChannel::new(1, &state.rates);
+        let mut lane = SynthLane::new(1, &state.rates);
         let x: Vec<f32> = (0..48000)
             .map(|_| {
-                channel.step(
+                lane.step(
                     100.0 / SR,
                     synth_knobs([2.5, 5.0, 5.0, 0.0, 4.0], Some(dirt)),
                     None,
@@ -334,8 +334,8 @@ fn drones_when_unpatched() {
     let kick_state = KickState::new(SR);
     let synth_state = SynthKickState::new(SR);
     let drone = |decay: f32| {
-        let mut kick = KickChannel::default();
-        let mut synth = SynthChannel::new(1, &synth_state.rates);
+        let mut kick = KickLane::default();
+        let mut synth = SynthLane::new(1, &synth_state.rates);
         // No self FM, which bends the drone's pitch.
         let mut knobs = KICK_DEFAULTS;
         knobs[1] = decay;
@@ -385,8 +385,8 @@ fn trigger_patched_again_rises() {
     let kick_state = KickState::new(SR);
     let synth_state = SynthKickState::new(SR);
     let run = |unpatch: bool| {
-        let mut kick = KickChannel::default();
-        let mut synth = SynthChannel::new(1, &synth_state.rates);
+        let mut kick = KickLane::default();
+        let mut synth = SynthLane::new(1, &synth_state.rates);
         let mut out = (Vec::new(), Vec::new());
         for n in 0..30000 {
             let trigger = if unpatch && (10000..12000).contains(&n) {
@@ -427,10 +427,10 @@ fn trigger_patched_again_rises() {
 fn non_finite_knobs_hold() {
     let kick_state = KickState::new(SR);
     let synth_state = SynthKickState::new(SR);
-    let mut kicks = [KickChannel::default(), KickChannel::default()];
+    let mut kicks = [KickLane::default(), KickLane::default()];
     let mut synths = [
-        SynthChannel::new(7, &synth_state.rates),
-        SynthChannel::new(7, &synth_state.rates),
+        SynthLane::new(7, &synth_state.rates),
+        SynthLane::new(7, &synth_state.rates),
     ];
     for n in 0..8000 {
         let v = match n {
@@ -479,8 +479,8 @@ fn stays_finite() {
     for sample_rate in [8000.0, 44100.0, 192000.0] {
         let kick_state = KickState::new(sample_rate);
         let synth_state = SynthKickState::new(sample_rate);
-        let mut kick = KickChannel::default();
-        let mut synth = SynthChannel::new(3, &synth_state.rates);
+        let mut kick = KickLane::default();
+        let mut synth = SynthLane::new(3, &synth_state.rates);
         let mut peak = 0.0f32;
         for n in 0..40000 {
             let freq = match n % 7 {

@@ -1,6 +1,6 @@
-//! Four channels at a time. A group of four channels runs as one `f32x4` per
-//! signal; the few parts with no vector form run per lane, on the active lanes
-//! only. Lanes past the channel count are dead: they compute on silence and
+//! Four lanes at a time. A group of four lanes runs as one `f32x4` per
+//! signal; the few parts with no vector form run per element, on the active elements
+//! only. Elements past the lane count are dead: they compute on silence and
 //! never reach an output.
 
 pub(super) use wide::f32x4;
@@ -12,14 +12,14 @@ use crate::dsp::utils::{
     sanitize,
 };
 
-/// Channels per group.
-pub(super) const LANES: usize = 4;
+/// Lanes per group.
+pub(super) const SIMD_WIDTH: usize = 4;
 
-/// Every lane set to `value`, broadcast in a register so that no use lowers to
+/// Every element set to `value`, broadcast in a register so that no use lowers to
 /// a `memset_pattern16` call on Apple targets.
 #[inline(always)]
 fn broadcast(value: f32) -> f32x4 {
-    // SAFETY: both types are four `f32` lanes, and every bit pattern is a valid
+    // SAFETY: both types are four `f32` elements, and every bit pattern is a valid
     // value of each.
     #[cfg(target_arch = "aarch64")]
     unsafe {
@@ -34,10 +34,10 @@ fn broadcast(value: f32) -> f32x4 {
 }
 
 /// The value type the filter computes with, so one kernel serves both widths:
-/// `f32x4` runs a whole group and `f32` runs lane 0 alone, a single-channel
-/// module's one channel, without paying for three dead lanes. State is stored
+/// `f32x4` runs a whole group and `f32` runs element 0 alone, a single-lane
+/// module's one lane, without paying for three dead elements. State is stored
 /// as `f32x4` either way.
-pub(super) trait Lanes:
+pub(super) trait Simd:
     Copy
     + Add<Output = Self>
     + Sub<Output = Self>
@@ -45,18 +45,18 @@ pub(super) trait Lanes:
     + Div<Output = Self>
     + Neg<Output = Self>
 {
-    /// Per-lane flags: lane masks for `f32x4`, a `bool` for `f32`.
+    /// Per-element flags: element masks for `f32x4`, a `bool` for `f32`.
     type Mask: Copy;
-    /// Lanes computed: 4 for `f32x4`, lane 0 alone for `f32`.
+    /// Elements computed: 4 for `f32x4`, element 0 alone for `f32`.
     const WIDTH: usize;
 
     fn splat(value: f32) -> Self;
     fn load(stored: &f32x4) -> Self;
     fn store(self, stored: &mut f32x4);
-    /// Lane values, for work with no vector form; `f32` fills lane 0.
-    fn to_lanes(self) -> [f32; LANES];
-    fn from_lanes(lanes: [f32; LANES]) -> Self;
-    /// Non-finite lanes become 0, lane for lane as `sanitize` does.
+    /// Element values, for work with no vector form; `f32` fills element 0.
+    fn to_elements(self) -> [f32; SIMD_WIDTH];
+    fn from_elements(elements: [f32; SIMD_WIDTH]) -> Self;
+    /// Non-finite elements become 0, element for element as `sanitize` does.
     fn sanitize(self) -> Self;
     fn abs(self) -> Self;
     fn min(self, rhs: Self) -> Self;
@@ -65,16 +65,16 @@ pub(super) trait Lanes:
     fn lt(self, rhs: Self) -> Self::Mask;
     fn ge(self, rhs: Self) -> Self::Mask;
     fn select(mask: Self::Mask, if_true: Self, if_false: Self) -> Self;
-    /// Bit `l` set where lane `l`'s flag is.
+    /// Bit `l` set where element `l`'s flag is.
     fn bits(mask: Self::Mask) -> u32;
     /// Linear interpolation in `table` at fractional positions `pos`. Positions
     /// are held inside the table and NaN ones read its first entry.
     fn lerp(table: &[f32], pos: Self) -> Self;
 }
 
-impl Lanes for f32x4 {
+impl Simd for f32x4 {
     type Mask = f32x4;
-    const WIDTH: usize = LANES;
+    const WIDTH: usize = SIMD_WIDTH;
 
     #[inline(always)]
     fn splat(value: f32) -> Self {
@@ -89,12 +89,12 @@ impl Lanes for f32x4 {
         *stored = self;
     }
     #[inline(always)]
-    fn to_lanes(self) -> [f32; LANES] {
+    fn to_elements(self) -> [f32; SIMD_WIDTH] {
         self.to_array()
     }
     #[inline(always)]
-    fn from_lanes(lanes: [f32; LANES]) -> Self {
-        f32x4::new(lanes)
+    fn from_elements(elements: [f32; SIMD_WIDTH]) -> Self {
+        f32x4::new(elements)
     }
     // `x − x` is zero exactly when `x` is finite.
     #[allow(clippy::eq_op)]
@@ -150,7 +150,7 @@ impl Lanes for f32x4 {
     }
 }
 
-impl Lanes for f32 {
+impl Simd for f32 {
     type Mask = bool;
     const WIDTH: usize = 1;
 
@@ -167,12 +167,12 @@ impl Lanes for f32 {
         stored.as_mut_array()[0] = self;
     }
     #[inline(always)]
-    fn to_lanes(self) -> [f32; LANES] {
+    fn to_elements(self) -> [f32; SIMD_WIDTH] {
         [self, 0.0, 0.0, 0.0]
     }
     #[inline(always)]
-    fn from_lanes(lanes: [f32; LANES]) -> Self {
-        lanes[0]
+    fn from_elements(elements: [f32; SIMD_WIDTH]) -> Self {
+        elements[0]
     }
     #[inline(always)]
     fn sanitize(self) -> Self {
@@ -222,20 +222,20 @@ impl Lanes for f32 {
     }
 }
 
-/// Clears lane `lane` of `v`.
+/// Clears element `element` of `v`.
 #[inline]
-pub(super) fn clear_lane(v: &mut f32x4, lane: usize) {
-    v.as_mut_array()[lane] = 0.0;
+pub(super) fn clear_element(v: &mut f32x4, element: usize) {
+    v.as_mut_array()[element] = 0.0;
 }
 
-/// Sets lane `lane` of `v` to `value`.
+/// Sets element `element` of `v` to `value`.
 #[inline]
-pub(super) fn set_lane(v: &mut f32x4, lane: usize, value: f32) {
-    v.as_mut_array()[lane] = value;
+pub(super) fn set_element(v: &mut f32x4, element: usize, value: f32) {
+    v.as_mut_array()[element] = value;
 }
 
 /// A first-order allpass section, `y[n] = a·(x[n] − y[n−1]) + x[n−1]`, per
-/// lane; its state is sanitized every sample as the scalar section's is.
+/// element; its state is sanitized every sample as the scalar section's is.
 #[derive(Clone, Copy, Default)]
 struct Allpass {
     x_prev: f32x4,
@@ -244,20 +244,20 @@ struct Allpass {
 
 impl Allpass {
     #[inline]
-    fn process<L: Lanes>(&mut self, coeff: f32, x: L) -> L {
+    fn process<L: Simd>(&mut self, coeff: f32, x: L) -> L {
         let y = (L::splat(coeff) * (x - L::load(&self.y_prev)) + L::load(&self.x_prev)).sanitize();
         x.sanitize().store(&mut self.x_prev);
         y.store(&mut self.y_prev);
         y
     }
 
-    fn clear_lane(&mut self, lane: usize) {
-        clear_lane(&mut self.x_prev, lane);
-        clear_lane(&mut self.y_prev, lane);
+    fn clear_element(&mut self, element: usize) {
+        clear_element(&mut self.x_prev, element);
+        clear_element(&mut self.y_prev, element);
     }
 }
 
-/// The shared polyphase halfband, as a 2× upsampler per lane.
+/// The shared polyphase halfband, as a 2× upsampler per element.
 #[derive(Clone, Copy, Default)]
 pub(super) struct HalfbandUp {
     stages: [Allpass; 4],
@@ -266,19 +266,21 @@ pub(super) struct HalfbandUp {
 impl HalfbandUp {
     /// Returns `(even, odd)` at the upper rate.
     #[inline]
-    pub(super) fn process<L: Lanes>(&mut self, x: L) -> (L, L) {
+    pub(super) fn process<L: Simd>(&mut self, x: L) -> (L, L) {
         let [a1, a2, b1, b2] = &mut self.stages;
         let even = a2.process(BRANCH_A[1], a1.process(BRANCH_A[0], x));
         let odd = b2.process(BRANCH_B[1], b1.process(BRANCH_B[0], x));
         (even, odd)
     }
 
-    pub(super) fn clear_lane(&mut self, lane: usize) {
-        self.stages.iter_mut().for_each(|s| s.clear_lane(lane));
+    pub(super) fn clear_element(&mut self, element: usize) {
+        self.stages
+            .iter_mut()
+            .for_each(|s| s.clear_element(element));
     }
 }
 
-/// The shared polyphase halfband, as a 2× downsampler per lane.
+/// The shared polyphase halfband, as a 2× downsampler per element.
 #[derive(Clone, Copy, Default)]
 pub(super) struct HalfbandDown {
     stages: [Allpass; 4],
@@ -287,19 +289,21 @@ pub(super) struct HalfbandDown {
 impl HalfbandDown {
     /// One lower-rate sample from an even/odd pair, even first in time.
     #[inline]
-    pub(super) fn process<L: Lanes>(&mut self, even: L, odd: L) -> L {
+    pub(super) fn process<L: Simd>(&mut self, even: L, odd: L) -> L {
         let [a1, a2, b1, b2] = &mut self.stages;
         let a = a2.process(BRANCH_A[1], a1.process(BRANCH_A[0], odd));
         let b = b2.process(BRANCH_B[1], b1.process(BRANCH_B[0], even));
         (a + b) * L::splat(0.5)
     }
 
-    pub(super) fn clear_lane(&mut self, lane: usize) {
-        self.stages.iter_mut().for_each(|s| s.clear_lane(lane));
+    pub(super) fn clear_element(&mut self, element: usize) {
+        self.stages
+            .iter_mut()
+            .for_each(|s| s.clear_element(element));
     }
 
-    /// Swaps lane `l` of `downs[k]` with lane `k` of `downs[l]`, moving four
-    /// signals of one lane into one downsampler's four lanes or back.
+    /// Swaps element `l` of `downs[k]` with element `k` of `downs[l]`, moving four
+    /// signals of one element into one downsampler's four elements or back.
     pub(super) fn transpose(downs: &mut [Self; 4]) {
         for stage in 0..4 {
             transpose(downs.each_mut().map(|d| &mut d.stages[stage].x_prev));
@@ -316,7 +320,7 @@ fn transpose(rows: [&mut f32x4; 4]) {
     }
 }
 
-/// One-pole lowpass per lane, with one coefficient for the group.
+/// One-pole lowpass per element, with one coefficient for the group.
 #[derive(Clone, Copy, Default)]
 pub(super) struct OnePole {
     coeff: f32,
@@ -329,68 +333,68 @@ impl OnePole {
     }
 
     #[inline]
-    pub(super) fn process<L: Lanes>(&mut self, x: L) -> L {
+    pub(super) fn process<L: Simd>(&mut self, x: L) -> L {
         let y = (x * L::splat(self.coeff) + L::load(&self.state) * L::splat(1.0 - self.coeff))
             .sanitize();
         y.store(&mut self.state);
         y
     }
 
-    pub(super) fn clear_lane(&mut self, lane: usize) {
-        clear_lane(&mut self.state, lane);
+    pub(super) fn clear_element(&mut self, element: usize) {
+        clear_element(&mut self.state, element);
     }
 }
 
-/// The inputs a control law was last derived from, per lane: each lane
-/// recomputes when its input's bits change, as `Cached` does for one channel.
+/// The inputs a control law was last derived from, per element: each element
+/// recomputes when its input's bits change, as `Cached` does for one lane.
 #[derive(Clone, Copy, Default)]
-pub(super) struct LaneCache {
-    bits: [Option<u32>; LANES],
+pub(super) struct ElementCache {
+    bits: [Option<u32>; SIMD_WIDTH],
 }
 
-/// The law's value for lane `lane`, handed to `set` for it and, from lane 0,
-/// for the dead lanes. Kept out of line so the unchanged-control path stays
+/// The law's value for element `element`, handed to `set` for it and, from element 0,
+/// for the dead elements. Kept out of line so the unchanged-control path stays
 /// small enough to inline.
 #[inline(never)]
 fn recompute<T>(
-    lane: usize,
+    element: usize,
     input: f32,
     dead: std::ops::Range<usize>,
     derive: &impl Fn(f32) -> T,
     set: &mut impl FnMut(usize, &T),
 ) {
     let value = derive(input);
-    set(lane, &value);
-    if lane == 0 {
+    set(element, &value);
+    if element == 0 {
         dead.for_each(|dead| set(dead, &value));
     }
 }
 
-impl LaneCache {
-    /// Hands `set` the law's value for each of the first `active` lanes whose
-    /// input changed. Lanes in `dead` follow lane 0, so they compute on a
+impl ElementCache {
+    /// Hands `set` the law's value for each of the first `active` elements whose
+    /// input changed. Elements in `dead` follow element 0, so they compute on a
     /// valid operating point.
     #[inline(always)]
     pub(super) fn update<T>(
         &mut self,
-        inputs: [f32; LANES],
+        inputs: [f32; SIMD_WIDTH],
         active: usize,
         dead: std::ops::Range<usize>,
         derive: impl Fn(f32) -> T,
         mut set: impl FnMut(usize, &T),
     ) {
-        let lanes = self.bits.iter_mut().zip(inputs).enumerate();
-        for (lane, (cached, input)) in lanes.take(active) {
+        let elements = self.bits.iter_mut().zip(inputs).enumerate();
+        for (element, (cached, input)) in elements.take(active) {
             let bits = input.to_bits();
             if *cached != Some(bits) {
                 *cached = Some(bits);
-                recompute(lane, input, dead.clone(), &derive, &mut set);
+                recompute(element, input, dead.clone(), &derive, &mut set);
             }
         }
     }
 
-    pub(super) fn clear_lane(&mut self, lane: usize) {
-        self.bits[lane] = None;
+    pub(super) fn clear_element(&mut self, element: usize) {
+        self.bits[element] = None;
     }
 
     pub(super) fn clear(&mut self) {
@@ -412,16 +416,16 @@ mod tests {
         assert!((got[3] - 3.0).abs() < 1.0e-3);
         assert_eq!(
             f32x4::lerp(&table, f32x4::splat(f32::NAN)).to_array(),
-            [0.0; LANES]
+            [0.0; SIMD_WIDTH]
         );
-        // Each lane reads as the scalar lookup does.
-        for (lane, pos) in [1.5, -4.0, f32::INFINITY, 1.0e9].into_iter().enumerate() {
-            assert_eq!(f32::lerp(&table, pos), got[lane]);
+        // Each element reads as the scalar lookup does.
+        for (element, pos) in [1.5, -4.0, f32::INFINITY, 1.0e9].into_iter().enumerate() {
+            assert_eq!(f32::lerp(&table, pos), got[element]);
         }
     }
 
     #[test]
-    fn sanitize_clears_only_non_finite_lanes() {
+    fn sanitize_clears_only_non_finite_elements() {
         let got = f32x4::new([1.0, f32::NAN, f32::NEG_INFINITY, -2.0])
             .sanitize()
             .to_array();

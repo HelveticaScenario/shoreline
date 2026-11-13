@@ -15,7 +15,7 @@ fn sine_paths_agree() {
     check_paths_agree(
         "$sine",
         json!({
-            "freq": poly_cable("lfo", CHANNELS),
+            "freq": poly_cable("lfo", LANES),
             "fm": cable("src", 1),
             "fmMode": "exp",
             "phaseOffset": 0.25,
@@ -23,7 +23,7 @@ fn sine_paths_agree() {
     );
     check_paths_agree(
         "$sine",
-        json!({ "freq": 1.0, "sync": poly_cable("src", CHANNELS), "phaseOffset": cable("lfo", 0) }),
+        json!({ "freq": 1.0, "sync": poly_cable("src", LANES), "phaseOffset": cable("lfo", 0) }),
     );
 }
 
@@ -32,7 +32,7 @@ fn allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$sine",
-            json!({ "freq": poly_cable("src", CHANNELS), "fm": cable("src", 0), "sync": cable("src", 1) })
+            json!({ "freq": poly_cable("src", LANES), "fm": cable("src", 0), "sync": cable("src", 1) })
         ),
         0
     );

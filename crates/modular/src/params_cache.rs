@@ -1,7 +1,7 @@
 //! LRU-cached params deserialization for the main thread.
 //!
 //! Provides two entry points:
-//! - [`deserialize_params`] — for `apply_patch` / `derive_channel_count`
+//! - [`deserialize_params`] — for `apply_patch` / `derive_lane_count`
 //!   (optionally cache-aware, strips argument spans before lookup).
 
 use std::collections::HashMap;
@@ -36,7 +36,7 @@ fn get_params_cache() -> &'static Mutex<LruCache<(String, serde_json::Value), Ca
 // Public API
 // ---------------------------------------------------------------------------
 
-/// Deserialize params with optional LRU cache (for apply_patch / derive_channel_count).
+/// Deserialize params with optional LRU cache (for apply_patch / derive_lane_count).
 ///
 /// Strips argument spans before cache lookup so identical param values at
 /// different source positions share the same cache entry.
@@ -58,7 +58,7 @@ pub fn deserialize_params(
         if let Some(cached) = cache.get(&key) {
             return Ok(DeserializedParams {
                 params: cached.params.clone(),
-                channel_count: cached.channel_count,
+                lane_count: cached.lane_count,
                 f64_inputs: false,
             });
         }
@@ -83,7 +83,7 @@ pub fn deserialize_params(
 
     Ok(DeserializedParams {
         params: cached.params,
-        channel_count: cached.channel_count,
+        lane_count: cached.lane_count,
         f64_inputs: false,
     })
 }

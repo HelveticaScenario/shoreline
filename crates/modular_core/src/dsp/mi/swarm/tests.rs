@@ -1,12 +1,12 @@
 use super::*;
 use crate::dsp::mi::core::fixture::{harmonics, max_error, records};
 
-/// A channel seeded as `swarm.cc` seeds stmlib's generator.
-fn channel() -> Channel {
-    Channel {
+/// A lane seeded as `swarm.cc` seeds stmlib's generator.
+fn new_lane() -> Lane {
+    Lane {
         random: Random::new(0x21),
         seeded: true,
-        ..Channel::default()
+        ..Lane::default()
     }
 }
 
@@ -20,16 +20,16 @@ fn matches_plaits() {
     let (mut saw_actual, mut saw_expected) = (Vec::new(), Vec::new());
     let (mut sine_actual, mut sine_expected) = (Vec::new(), Vec::new());
     for (case, records) in records("swarm", 5 + 2).chunks(9600).enumerate() {
-        let mut ch = channel();
+        let mut lane = new_lane();
         let burst_mode = case == 3;
         for record in records {
-            ch.control(
+            lane.control(
                 [record[1], record[2], record[3]],
                 burst_mode,
                 record[4] > 0.5,
                 &state,
             );
-            let (saws, sines) = ch.step(record[0], &state);
+            let (saws, sines) = lane.step(record[0], &state);
             saw_actual.push(saws);
             saw_expected.push(record[5]);
             if case == 0 {
@@ -48,11 +48,11 @@ fn matches_plaits() {
 /// the saws and the sines.
 fn swarm(sample_rate: f32, hz: f32, knobs: [f32; 3], seconds: f32) -> (Vec<f32>, Vec<f32>) {
     let state = SwarmState::new(sample_rate);
-    let mut ch = channel();
+    let mut lane = new_lane();
     (0..(sample_rate * seconds) as usize)
         .map(|_| {
-            ch.control(knobs, false, false, &state);
-            ch.step(hz / sample_rate, &state)
+            lane.control(knobs, false, false, &state);
+            lane.step(hz / sample_rate, &state)
         })
         .unzip()
 }
@@ -121,12 +121,12 @@ fn runs_backward() {
 fn bursts_start_on_their_sample() {
     let state = SwarmState::new(48000.0);
     for offset in [0, 5, 11] {
-        let mut ch = channel();
+        let mut lane = new_lane();
         for n in 0..(1000 + offset) {
-            ch.control([2.5, 2.0, 2.0], true, n == 1000 + offset - 1, &state);
-            ch.step(0.003, &state);
+            lane.control([2.5, 2.0, 2.0], true, n == 1000 + offset - 1, &state);
+            lane.step(0.003, &state);
         }
-        for voice in &ch.voices {
+        for voice in &lane.voices {
             assert_eq!(voice.envelope_phase(), 0.5, "offset {offset}");
         }
     }
@@ -136,8 +136,8 @@ fn bursts_start_on_their_sample() {
 #[test]
 fn non_finite_knobs_hold() {
     let state = SwarmState::new(48000.0);
-    let mut held = channel();
-    let mut glitched = channel();
+    let mut held = new_lane();
+    let mut glitched = new_lane();
     for n in 0..2000 {
         let v = match n {
             1000 => f32::NAN,
@@ -161,7 +161,7 @@ fn non_finite_knobs_hold() {
 fn stays_finite() {
     for sample_rate in [2000.0, 8000.0, 44100.0, 96000.0] {
         let state = SwarmState::new(sample_rate);
-        let mut ch = channel();
+        let mut lane = new_lane();
         for n in 0..40000 {
             let f0 = match n % 500 {
                 100 => f32::NAN,
@@ -176,8 +176,8 @@ fn stays_finite() {
                 2.5 + 3.0 * (t * 1.3).sin(),
                 2.5 + 3.0 * (t * 0.7).sin(),
             ];
-            ch.control(knobs, n % 2 == 0, n % 977 == 0, &state);
-            let (saws, sines) = ch.step(f0, &state);
+            lane.control(knobs, n % 2 == 0, n % 977 == 0, &state);
+            let (saws, sines) = lane.step(f0, &state);
             assert!(
                 saws.is_finite() && sines.is_finite(),
                 "{sample_rate} Hz, sample {n}"
@@ -193,13 +193,13 @@ fn stays_finite() {
 fn grains_keep_time_at_any_rate() {
     let phases = |sample_rate: f32| {
         let state = SwarmState::new(sample_rate);
-        let mut ch = channel();
+        let mut lane = new_lane();
         // Through t = 1 s, so every rate has stepped the same 4001 ticks.
         for _ in 0..=sample_rate as usize {
-            ch.control([3.5, 2.0, 2.0], false, false, &state);
-            ch.step(0.001, &state);
+            lane.control([3.5, 2.0, 2.0], false, false, &state);
+            lane.step(0.001, &state);
         }
-        ch.voices.map(|v| v.envelope_phase())
+        lane.voices.map(|v| v.envelope_phase())
     };
     let reference = phases(48000.0);
     for sample_rate in [2000.0, 3000.0, 8000.0, 96000.0] {
@@ -218,14 +218,14 @@ fn grains_keep_time_at_any_rate() {
 #[test]
 fn saw_survives_stopping_on_a_wrap() {
     let state = SwarmState::new(48000.0);
-    let mut ch = channel();
+    let mut lane = new_lane();
     for f0 in [-0.25, -0.25, -0.25, -0.125, -0.125_000_01, 0.0] {
-        ch.control([2.5, 0.0, 2.5], false, false, &state);
-        ch.step(f0, &state);
+        lane.control([2.5, 0.0, 2.5], false, false, &state);
+        lane.step(f0, &state);
     }
     for n in 0..48000 {
-        ch.control([2.5, 0.0, 2.5], false, false, &state);
-        let (saws, sines) = ch.step(0.0, &state);
+        lane.control([2.5, 0.0, 2.5], false, false, &state);
+        let (saws, sines) = lane.step(0.0, &state);
         assert!(saws.is_finite() && sines.is_finite(), "sample {n}");
     }
 }

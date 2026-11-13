@@ -11,7 +11,7 @@ use std::sync::LazyLock;
 
 use super::components::{DIODE_IS, DIODE_NVT, zener_clamp};
 use super::curve::Curve;
-use super::lanes::{LANES, Lanes, clear_lane, f32x4};
+use super::simd::{SIMD_WIDTH, Simd, clear_element, f32x4};
 
 /// Drive transimpedance feedback resistor (R24), in parallel with the zener pair.
 const R_DRIVE_FB: f64 = 30.0e3;
@@ -75,25 +75,25 @@ fn wavefold(v: f64) -> f64 {
 /// midpoint, which equals the exact average within one linear segment.
 const ADAA_TOL: f64 = 1.0e-6;
 
-/// First-order ADAA memory for one curve, one lane per channel. Bit `l` of
-/// `stale` marks lane `l`'s `ad_prev` as out of date after a skipped sample; it
+/// First-order ADAA memory for one curve, one element per lane. Bit `l` of
+/// `stale` marks element `l`'s `ad_prev` as out of date after a skipped sample; it
 /// is rebuilt from `x_prev` on the next one.
 #[derive(Clone, Copy, Default)]
 struct CurveAdaa {
-    x_prev: [f64; LANES],
-    ad_prev: [f64; LANES],
+    x_prev: [f64; SIMD_WIDTH],
+    ad_prev: [f64; SIMD_WIDTH],
     stale: u8,
 }
 
 impl CurveAdaa {
     #[inline]
-    fn process(&mut self, curve: &Curve, lane: usize, x: f64) -> f64 {
-        let x_prev = self.x_prev[lane];
+    fn process(&mut self, curve: &Curve, element: usize, x: f64) -> f64 {
+        let x_prev = self.x_prev[element];
         let ad = curve.antiderivative(x);
-        let ad_prev = if self.stale & (1 << lane) != 0 {
+        let ad_prev = if self.stale & (1 << element) != 0 {
             curve.antiderivative(x_prev)
         } else {
-            self.ad_prev[lane]
+            self.ad_prev[element]
         };
         let dx = x - x_prev;
         let y = if dx.abs() < ADAA_TOL {
@@ -101,23 +101,23 @@ impl CurveAdaa {
         } else {
             (ad - ad_prev) / dx
         };
-        self.x_prev[lane] = x;
-        self.ad_prev[lane] = ad;
-        self.stale &= !(1 << lane);
+        self.x_prev[element] = x;
+        self.ad_prev[element] = ad;
+        self.stale &= !(1 << element);
         y
     }
 
-    /// Tracks `x` on lane `lane` while the curve's output is unused.
+    /// Tracks `x` on element `element` while the curve's output is unused.
     #[inline]
-    fn skip(&mut self, lane: usize, x: f64) {
-        self.x_prev[lane] = x;
-        self.stale |= 1 << lane;
+    fn skip(&mut self, element: usize, x: f64) {
+        self.x_prev[element] = x;
+        self.stale |= 1 << element;
     }
 
-    fn clear_lane(&mut self, lane: usize) {
-        self.x_prev[lane] = 0.0;
-        self.ad_prev[lane] = 0.0;
-        self.stale &= !(1 << lane);
+    fn clear_element(&mut self, element: usize) {
+        self.x_prev[element] = 0.0;
+        self.ad_prev[element] = 0.0;
+        self.stale &= !(1 << element);
     }
 }
 
@@ -128,7 +128,7 @@ const PRE_EMPHASIS: f32 = 0.125;
 /// First-order ADAA averages adjacent samples, a `cos(ω/2)` roll-off that at
 /// the engine rate takes audible treble off everything through the drive
 /// stage. This symmetric three-tap FIR, `1 + 2k(1 − cos ω)`, restores it ahead
-/// of the curves at the cost of one sample of delay. One lane per channel.
+/// of the curves at the cost of one sample of delay. One element per lane.
 #[derive(Clone, Copy, Default)]
 pub(super) struct PreEmphasis {
     x1: f32x4,
@@ -137,7 +137,7 @@ pub(super) struct PreEmphasis {
 
 impl PreEmphasis {
     #[inline]
-    pub(super) fn process<L: Lanes>(&mut self, x: L) -> L {
+    pub(super) fn process<L: Simd>(&mut self, x: L) -> L {
         let (x1, x2) = (L::load(&self.x1), L::load(&self.x2));
         let y = x1 + L::splat(PRE_EMPHASIS) * (L::splat(2.0) * x1 - x - x2);
         x1.store(&mut self.x2);
@@ -145,13 +145,13 @@ impl PreEmphasis {
         y
     }
 
-    pub(super) fn clear_lane(&mut self, lane: usize) {
-        clear_lane(&mut self.x1, lane);
-        clear_lane(&mut self.x2, lane);
+    pub(super) fn clear_element(&mut self, element: usize) {
+        clear_element(&mut self.x1, element);
+        clear_element(&mut self.x2, element);
     }
 }
 
-/// Drive-stage memory, one lane per channel.
+/// Drive-stage memory, one element per lane.
 #[derive(Clone, Copy, Default)]
 pub(super) struct DriveState {
     clip: CurveAdaa,
@@ -160,39 +160,39 @@ pub(super) struct DriveState {
 
 impl DriveState {
     /// The filter input for drive VCA outputs `x`: the clipped and folded
-    /// paths weighted by each lane's R80 crossfade gains `(clean, folded)`.
+    /// paths weighted by each element's R80 crossfade gains `(clean, folded)`.
     /// Each path keeps the sign of `x` because the stage's two inversions
     /// cancel. A path whose gain is zero on every one of the first `active`
-    /// lanes is skipped.
+    /// elements is skipped.
     #[inline]
-    pub(super) fn process<L: Lanes>(
+    pub(super) fn process<L: Simd>(
         &mut self,
         curves: &DriveCurves,
         x: L,
-        gains: &[(f32, f32); LANES],
+        gains: &[(f32, f32); SIMD_WIDTH],
         active: usize,
     ) -> L {
-        let x = x.to_lanes();
-        let mut y = [0.0; LANES];
-        for lane in 0..active.min(L::WIDTH) {
-            let (clean, folded) = gains[lane];
-            let x = x[lane] as f64;
+        let x = x.to_elements();
+        let mut y = [0.0; SIMD_WIDTH];
+        for element in 0..active.min(L::WIDTH) {
+            let (clean, folded) = gains[element];
+            let x = x[element] as f64;
             let mut path = |adaa: &mut CurveAdaa, curve: &Curve, gain: f32| {
                 if gain == 0.0 {
-                    adaa.skip(lane, x);
+                    adaa.skip(element, x);
                 } else {
-                    y[lane] += gain * adaa.process(curve, lane, x) as f32;
+                    y[element] += gain * adaa.process(curve, element, x) as f32;
                 }
             };
             path(&mut self.clip, &curves.clip, clean);
             path(&mut self.fold, &curves.fold, folded);
         }
-        L::from_lanes(y)
+        L::from_elements(y)
     }
 
-    pub(super) fn clear_lane(&mut self, lane: usize) {
-        self.clip.clear_lane(lane);
-        self.fold.clear_lane(lane);
+    pub(super) fn clear_element(&mut self, element: usize) {
+        self.clip.clear_element(element);
+        self.fold.clear_element(element);
     }
 }
 
@@ -253,9 +253,9 @@ mod tests {
         let mut gated = DriveState::default();
         for n in 0..400 {
             let x = input(n);
-            let reference = always.process(&CURVES, x, &[(0.5, 2.0); LANES], 1);
+            let reference = always.process(&CURVES, x, &[(0.5, 2.0); SIMD_WIDTH], 1);
             let fold_gain = if (100..200).contains(&n) { 0.0 } else { 2.0 };
-            let y = gated.process(&CURVES, x, &[(0.5, fold_gain); LANES], 1);
+            let y = gated.process(&CURVES, x, &[(0.5, fold_gain); SIMD_WIDTH], 1);
             if fold_gain != 0.0 {
                 assert_eq!(y, reference, "sample {n}");
             }
@@ -263,29 +263,33 @@ mod tests {
     }
 
     #[test]
-    fn lanes_match_a_single_channel() {
+    fn elements_match_a_single_lane() {
         prime();
-        let input = |n: usize, lane: usize| {
-            (3.0 + lane as f32) * (n as f32 * (0.03 + 0.02 * lane as f32)).sin()
+        let input = |n: usize, element: usize| {
+            (3.0 + element as f32) * (n as f32 * (0.03 + 0.02 * element as f32)).sin()
         };
         let gains = [(0.5, 2.0), (0.0, 1.0), (1.0, 0.0), (0.3, 0.3)];
         let mut group = DriveState::default();
-        let mut single = [DriveState::default(); LANES];
+        let mut single = [DriveState::default(); SIMD_WIDTH];
         for n in 0..400 {
             let y = group
                 .process(
                     &CURVES,
                     f32x4::new(std::array::from_fn(|l| input(n, l))),
                     &gains,
-                    LANES,
+                    SIMD_WIDTH,
                 )
                 .to_array();
-            for lane in 0..LANES {
-                let reference =
-                    single[lane].process(&CURVES, input(n, lane), &[gains[lane]; LANES], 1);
+            for element in 0..SIMD_WIDTH {
+                let reference = single[element].process(
+                    &CURVES,
+                    input(n, element),
+                    &[gains[element]; SIMD_WIDTH],
+                    1,
+                );
                 assert!(
-                    (y[lane] - reference).abs() < 1.0e-6,
-                    "sample {n} lane {lane}"
+                    (y[element] - reference).abs() < 1.0e-6,
+                    "sample {n} element {element}"
                 );
             }
         }

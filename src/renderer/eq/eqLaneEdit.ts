@@ -1,6 +1,6 @@
 /**
- * Source edits for the panel's channel-list controls: splitting the shared
- * list into per-channel copies, adding a copy of a channel's list, and
+ * Source edits for the panel's lane-list controls: splitting the shared
+ * list into per-lane copies, adding a copy of a lane's list, and
  * removing one (two remaining lists collapse back to the shared form).
  */
 import ts from 'typescript';
@@ -17,19 +17,19 @@ import {
 import {
     type EqSourceEditResult,
     appendResult,
-    isPerChannelLiteral,
+    isPerLaneLiteral,
     locateSections,
     removeElement,
 } from './eqSourceLocate';
 
-/** A change to the channel lists themselves. */
-export type EqChannelOp =
-    /** Shared list → two per-channel copies of it. */
+/** A change to the lane lists themselves. */
+export type EqLaneOp =
+    /** Shared list → two per-lane copies of it. */
     | { kind: 'split' }
-    /** Append a copy of channel list `from`. */
-    | { kind: 'addChannel'; from: number }
-    /** Remove channel list `index`; one remaining list becomes the shared form. */
-    | { kind: 'removeChannel'; index: number };
+    /** Append a copy of lane list `from`. */
+    | { kind: 'addLane'; from: number }
+    /** Remove lane list `index`; one remaining list becomes the shared form. */
+    | { kind: 'removeLane'; index: number };
 
 /** Shift every line after the first by `delta` indent units (±1). */
 function reindent(text: string, unit: string, delta: 1 | -1): string {
@@ -41,14 +41,14 @@ function reindent(text: string, unit: string, delta: 1 | -1): string {
 }
 
 /**
- * Compute the edit for a channel-list op. `listCount` is the number of
- * channel lists the panel holds, 0 for the shared form.
+ * Compute the edit for a lane-list op. `listCount` is the number of
+ * lane lists the panel holds, 0 for the shared form.
  */
-export function computeEqChannelEdit(
+export function computeEqLaneEdit(
     source: string,
     anchor: number,
     listCount: number,
-    op: EqChannelOp,
+    op: EqLaneOp,
     layout: CodeStyle,
 ): EqSourceEditResult {
     const found = locateSections(source, anchor);
@@ -56,12 +56,12 @@ export function computeEqChannelEdit(
         return found;
     }
     const { config, outer, sf } = found;
-    const perChannel = outer !== null && isPerChannelLiteral(outer);
+    const perLane = outer !== null && isPerLaneLiteral(outer);
     const unit = indentUnit(layout);
     const nl = eolOf(source);
 
     if (op.kind === 'split') {
-        if (perChannel || listCount !== 0) {
+        if (perLane || listCount !== 0) {
             return { ok: false, reason: 'stale' };
         }
         if (!outer) {
@@ -88,10 +88,10 @@ export function computeEqChannelEdit(
         };
     }
 
-    if (!outer || !perChannel || outer.elements.length !== listCount) {
+    if (!outer || !perLane || outer.elements.length !== listCount) {
         return { ok: false, reason: 'stale' };
     }
-    if (op.kind === 'addChannel') {
+    if (op.kind === 'addLane') {
         const from = outer.elements[op.from];
         if (!from || !ts.isArrayLiteralExpression(from)) {
             return { ok: false, reason: 'unsupported' };

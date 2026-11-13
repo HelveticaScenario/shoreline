@@ -2,9 +2,9 @@
 //! `$mi.hiHat`, the 808-style model, and `$mi.ringHat`, its ring-modulated
 //! variant.
 
-mod channel;
 mod hat_drum;
 mod hi_hat;
+mod lane;
 mod noise;
 mod ring_hat;
 

@@ -76,7 +76,7 @@ describe('BaseCollection.slice', () => {
 });
 
 describe('BaseCollection indexing and iteration', () => {
-    test('an index is a one-channel collection of that channel', () => {
+    test('an index is a one-lane collection of that lane', () => {
         const outs = makeOutputs(3);
         const col = new Collection(...outs);
         expect(col[1]).toBeInstanceOf(Collection);
@@ -85,13 +85,13 @@ describe('BaseCollection indexing and iteration', () => {
         expect(col[3]).toBeUndefined();
     });
 
-    test('a one-channel collection is its own channel 0', () => {
+    test('a one-lane collection is its own lane 0', () => {
         const col = new Collection(...makeOutputs(2));
         expect(col[0][0]).toBe(col[0]);
         expect([...col[0]]).toEqual([col[0]]);
     });
 
-    test("a root's channels and slices keep every output's same channels", () => {
+    test("a root's lanes and slices keep every output's same lanes", () => {
         const cv = new Collection(...makeOutputs(3));
         const gate = new Collection(
             ...Array.from(
@@ -145,14 +145,14 @@ describe('BaseCollection indexing and iteration', () => {
         expect(third).toBe(col[2]);
     });
 
-    test('a ranged channel stays ranged', () => {
+    test('a ranged lane stays ranged', () => {
         const outs = makeOutputs(2);
         const ranged = new CollectionWithRange(...outs);
         expect(ranged[1]).toBeInstanceOf(CollectionWithRange);
         expect(ranged[1].items).toEqual([outs[1]]);
     });
 
-    test('a deferred channel sets its own placeholder', () => {
+    test('a deferred lane sets its own placeholder', () => {
         const deferred = new DeferredCollection(
             ...Array.from(
                 { length: 2 },

@@ -4,8 +4,8 @@
 //! the per-module benches, these include cable reads, block-buffer copies and
 //! wrapper dispatch, so they track engine overhead as well as DSP cost.
 //!
-//! Each case runs at several channel counts; polyphonic cables connect one
-//! cable per channel.
+//! Each case runs at several lane counts; polyphonic cables connect one
+//! cable per lane.
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use modular_core::Patch;
@@ -17,20 +17,20 @@ use std::sync::Arc;
 
 const SR: f32 = 48000.0;
 const BLOCK: usize = 64;
-const CHANNELS: [usize; 4] = [1, 4, 8, 16];
+const LANES: [usize; 4] = [1, 4, 8, 16];
 
-fn poly(base: f32, channels: usize) -> Value {
+fn poly(base: f32, lanes: usize) -> Value {
     Value::Array(
-        (0..channels)
-            .map(|ch| json!(base + ch as f32 * 0.07))
+        (0..lanes)
+            .map(|lane| json!(base + lane as f32 * 0.07))
             .collect(),
     )
 }
 
-fn poly_cable(module: &str, port: &str, channels: usize) -> Value {
+fn poly_cable(module: &str, port: &str, lanes: usize) -> Value {
     Value::Array(
-        (0..channels)
-            .map(|ch| json!({ "type": "cable", "module": module, "port": port, "channel": ch }))
+        (0..lanes)
+            .map(|lane| json!({ "type": "cable", "module": module, "port": port, "lane": lane }))
             .collect(),
     )
 }
@@ -62,7 +62,7 @@ impl BenchPatch {
                         module_type.to_string(),
                         DeserializedParams {
                             params: cached.params,
-                            channel_count: cached.channel_count,
+                            lane_count: cached.lane_count,
                             f64_inputs: false,
                         },
                         mode,
@@ -92,11 +92,11 @@ impl BenchPatch {
 }
 
 /// `$saw` into a chain of 32 `$lpf`s at a constant cutoff.
-fn lpf_chain(channels: usize) -> BenchPatch {
+fn lpf_chain(lanes: usize) -> BenchPatch {
     let mut modules = vec![(
         "src".to_string(),
         "$saw",
-        json!({ "freq": poly(0.0, channels) }),
+        json!({ "freq": poly(0.0, lanes) }),
     )];
     for i in 0..32 {
         let prev = if i == 0 {
@@ -107,7 +107,7 @@ fn lpf_chain(channels: usize) -> BenchPatch {
         modules.push((
             format!("f{i}"),
             "$lpf",
-            json!({ "input": poly_cable(&prev, "output", channels), "cutoff": 2.0, "resonance": 1.0 }),
+            json!({ "input": poly_cable(&prev, "output", lanes), "cutoff": 2.0, "resonance": 1.0 }),
         ));
     }
     BenchPatch::new(modules)
@@ -115,24 +115,24 @@ fn lpf_chain(channels: usize) -> BenchPatch {
 
 /// `$saw` into a 50-stage `$apf` whose cutoff an audio-rate `$sine` sweeps,
 /// so its coefficients are recomputed every sample.
-fn apf_swept_modules(channels: usize) -> Vec<(String, &'static str, Value)> {
+fn apf_swept_modules(lanes: usize) -> Vec<(String, &'static str, Value)> {
     vec![
         (
             "src".to_string(),
             "$saw",
-            json!({ "freq": poly(0.0, channels) }),
+            json!({ "freq": poly(0.0, lanes) }),
         ),
         (
             "lfo".to_string(),
             "$sine",
-            json!({ "freq": poly(-2.0, channels) }),
+            json!({ "freq": poly(-2.0, lanes) }),
         ),
         (
             "apf".to_string(),
             "$apf",
             json!({
-                "input": poly_cable("src", "output", channels),
-                "cutoff": poly_cable("lfo", "output", channels),
+                "input": poly_cable("src", "output", lanes),
+                "cutoff": poly_cable("lfo", "output", lanes),
                 "stages": 50.0,
                 "resonance": 2.0,
             }),
@@ -140,22 +140,22 @@ fn apf_swept_modules(channels: usize) -> Vec<(String, &'static str, Value)> {
     ]
 }
 
-fn apf_swept(channels: usize) -> BenchPatch {
-    BenchPatch::new(apf_swept_modules(channels))
+fn apf_swept(lanes: usize) -> BenchPatch {
+    BenchPatch::new(apf_swept_modules(lanes))
 }
 
 /// [`apf_swept`] in Sample mode, as in a feedback cycle.
-fn apf_swept_sample(channels: usize) -> BenchPatch {
-    BenchPatch::with_mode(apf_swept_modules(channels), ProcessingMode::Sample)
+fn apf_swept_sample(lanes: usize) -> BenchPatch {
+    BenchPatch::with_mode(apf_swept_modules(lanes), ProcessingMode::Sample)
 }
 
 /// `$saw` into a chain of 32 `$amp`s with a constant factor: almost no DSP,
 /// so this measures per-module engine overhead.
-fn amp_chain(channels: usize) -> BenchPatch {
+fn amp_chain(lanes: usize) -> BenchPatch {
     let mut modules = vec![(
         "src".to_string(),
         "$saw",
-        json!({ "freq": poly(0.0, channels) }),
+        json!({ "freq": poly(0.0, lanes) }),
     )];
     for i in 0..32 {
         let prev = if i == 0 {
@@ -166,19 +166,19 @@ fn amp_chain(channels: usize) -> BenchPatch {
         modules.push((
             format!("s{i}"),
             "$amp",
-            json!({ "input": poly_cable(&prev, "output", channels), "factor": 4.0 }),
+            json!({ "input": poly_cable(&prev, "output", lanes), "factor": 4.0 }),
         ));
     }
     BenchPatch::new(modules)
 }
 
-/// [`amp_chain`] with one cable among the constant factor channels: inputs
+/// [`amp_chain`] with one cable among the constant factor lanes: inputs
 /// that cannot be read in place, so block modules copy them out slot by slot.
-fn amp_fallback(channels: usize) -> BenchPatch {
+fn amp_fallback(lanes: usize) -> BenchPatch {
     let mut modules = vec![(
         "src".to_string(),
         "$saw",
-        json!({ "freq": poly(0.0, channels) }),
+        json!({ "freq": poly(0.0, lanes) }),
     )];
     for i in 0..32 {
         let prev = if i == 0 {
@@ -186,12 +186,12 @@ fn amp_fallback(channels: usize) -> BenchPatch {
         } else {
             format!("s{}", i - 1)
         };
-        let mut factor: Vec<Value> = (0..channels).map(|_| json!(4.0)).collect();
-        factor[0] = json!({ "type": "cable", "module": "src", "port": "output", "channel": 0 });
+        let mut factor: Vec<Value> = (0..lanes).map(|_| json!(4.0)).collect();
+        factor[0] = json!({ "type": "cable", "module": "src", "port": "output", "lane": 0 });
         modules.push((
             format!("s{i}"),
             "$amp",
-            json!({ "input": poly_cable(&prev, "output", channels), "factor": factor }),
+            json!({ "input": poly_cable(&prev, "output", lanes), "factor": factor }),
         ));
     }
     BenchPatch::new(modules)
@@ -199,11 +199,11 @@ fn amp_fallback(channels: usize) -> BenchPatch {
 
 /// `$saw` into a chain of 32 `$remap`s with constant ranges: a cheap
 /// per-sample module reading several constant inputs.
-fn remap_chain(channels: usize) -> BenchPatch {
+fn remap_chain(lanes: usize) -> BenchPatch {
     let mut modules = vec![(
         "src".to_string(),
         "$saw",
-        json!({ "freq": poly(0.0, channels) }),
+        json!({ "freq": poly(0.0, lanes) }),
     )];
     for i in 0..32 {
         let prev = if i == 0 {
@@ -211,7 +211,7 @@ fn remap_chain(channels: usize) -> BenchPatch {
         } else {
             format!("r{}", i - 1)
         };
-        modules.push((format!("r{i}"), "$remap", json!({ "input": poly_cable(&prev, "output", channels), "inMin": -5.0, "inMax": 5.0, "outMin": -4.0, "outMax": 4.0 })));
+        modules.push((format!("r{i}"), "$remap", json!({ "input": poly_cable(&prev, "output", lanes), "inMin": -5.0, "inMax": 5.0, "outMin": -4.0, "outMax": 4.0 })));
     }
     BenchPatch::new(modules)
 }
@@ -219,46 +219,46 @@ fn remap_chain(channels: usize) -> BenchPatch {
 /// 160 cheap modules (`$remap`, `$clamp`, `$signal`, `$amp`) all
 /// reading one `$saw`: the shape of a large live patch, where per-module
 /// overhead and cache footprint add up.
-fn wide_mix_modules(channels: usize) -> Vec<(String, &'static str, Value)> {
+fn wide_mix_modules(lanes: usize) -> Vec<(String, &'static str, Value)> {
     let mut modules = vec![(
         "src".to_string(),
         "$saw",
-        json!({ "freq": poly(0.0, channels) }),
+        json!({ "freq": poly(0.0, lanes) }),
     )];
     for i in 0..160 {
         let ty = ["$remap", "$clamp", "$signal", "$amp"][i % 4];
         let params = match ty {
             "$remap" => {
-                json!({ "input": poly_cable("src", "output", channels), "inMin": -5.0, "inMax": 5.0, "outMin": -4.0, "outMax": 4.0 })
+                json!({ "input": poly_cable("src", "output", lanes), "inMin": -5.0, "inMax": 5.0, "outMin": -4.0, "outMax": 4.0 })
             }
             "$clamp" => {
-                json!({ "input": poly_cable("src", "output", channels), "min": -1.0, "max": 1.0 })
+                json!({ "input": poly_cable("src", "output", lanes), "min": -1.0, "max": 1.0 })
             }
-            "$signal" => json!({ "value": poly_cable("src", "output", channels) }),
-            _ => json!({ "input": poly_cable("src", "output", channels), "factor": 4.0 }),
+            "$signal" => json!({ "value": poly_cable("src", "output", lanes) }),
+            _ => json!({ "input": poly_cable("src", "output", lanes), "factor": 4.0 }),
         };
         modules.push((format!("m{i}"), ty, params));
     }
     modules
 }
 
-fn wide_mix(channels: usize) -> BenchPatch {
-    BenchPatch::new(wide_mix_modules(channels))
+fn wide_mix(lanes: usize) -> BenchPatch {
+    BenchPatch::new(wide_mix_modules(lanes))
 }
 
 /// [`wide_mix`] with every module in Sample mode.
-fn wide_mix_sample(channels: usize) -> BenchPatch {
-    BenchPatch::with_mode(wide_mix_modules(channels), ProcessingMode::Sample)
+fn wide_mix_sample(lanes: usize) -> BenchPatch {
+    BenchPatch::with_mode(wide_mix_modules(lanes), ProcessingMode::Sample)
 }
 
 /// 16 `$sine`s at constant pitches: LFOs and drones.
-fn sine_bank(channels: usize) -> BenchPatch {
+fn sine_bank(lanes: usize) -> BenchPatch {
     let modules = (0..16)
         .map(|i| {
             (
                 format!("s{i}"),
                 "$sine",
-                json!({ "freq": poly(i as f32 * 0.25 - 2.0, channels) }),
+                json!({ "freq": poly(i as f32 * 0.25 - 2.0, lanes) }),
             )
         })
         .collect();
@@ -266,19 +266,19 @@ fn sine_bank(channels: usize) -> BenchPatch {
 }
 
 /// 16 `$sine`s with audio-rate exponential FM from one `$saw`.
-fn sine_fm(channels: usize) -> BenchPatch {
+fn sine_fm(lanes: usize) -> BenchPatch {
     let mut modules = vec![(
         "src".to_string(),
         "$saw",
-        json!({ "freq": poly(-1.0, channels) }),
+        json!({ "freq": poly(-1.0, lanes) }),
     )];
     for i in 0..16 {
         modules.push((
             format!("s{i}"),
             "$sine",
             json!({
-                "freq": poly(i as f32 * 0.25 - 2.0, channels),
-                "fm": poly_cable("src", "output", channels),
+                "freq": poly(i as f32 * 0.25 - 2.0, lanes),
+                "fm": poly_cable("src", "output", lanes),
                 "fmMode": "exp",
             }),
         ));
@@ -288,30 +288,26 @@ fn sine_fm(channels: usize) -> BenchPatch {
 
 /// 8 copies of gate → `$adsr` → (`$saw` → `$lpf` with envelope cutoff →
 /// envelope VCA) → `$mix`.
-fn voices(channels: usize) -> BenchPatch {
+fn voices(lanes: usize) -> BenchPatch {
     let mut modules = Vec::new();
     for v in 0..8 {
         let id = |name: &str| format!("{name}{v}");
-        modules.push((
-            id("gate"),
-            "$pulse",
-            json!({ "freq": poly(-4.0, channels) }),
-        ));
+        modules.push((id("gate"), "$pulse", json!({ "freq": poly(-4.0, lanes) })));
         modules.push((
             id("env"),
             "$adsr",
             json!({
-                "gate": poly_cable(&id("gate"), "output", channels),
+                "gate": poly_cable(&id("gate"), "output", lanes),
                 "attack": 0.01, "decay": 0.2, "sustain": 2.0, "release": 0.3,
             }),
         ));
-        modules.push((id("osc"), "$saw", json!({ "freq": poly(-1.0, channels) })));
+        modules.push((id("osc"), "$saw", json!({ "freq": poly(-1.0, lanes) })));
         modules.push((
             id("lpf"),
             "$lpf",
             json!({
-                "input": poly_cable(&id("osc"), "output", channels),
-                "cutoff": poly_cable(&id("env"), "output", channels),
+                "input": poly_cable(&id("osc"), "output", lanes),
+                "cutoff": poly_cable(&id("env"), "output", lanes),
                 "resonance": 1.5,
             }),
         ));
@@ -319,25 +315,25 @@ fn voices(channels: usize) -> BenchPatch {
             id("vca"),
             "$amp",
             json!({
-                "input": poly_cable(&id("lpf"), "output", channels),
-                "factor": poly_cable(&id("env"), "output", channels),
+                "input": poly_cable(&id("lpf"), "output", lanes),
+                "factor": poly_cable(&id("env"), "output", lanes),
             }),
         ));
         modules.push((
             id("mix"),
             "$mix",
-            json!({ "inputs": [poly_cable(&id("vca"), "output", channels)] }),
+            json!({ "inputs": [poly_cable(&id("vca"), "output", lanes)] }),
         ));
     }
     BenchPatch::new(modules)
 }
 
 /// `$saw` into a chain of 8 `$comp`s with constant settings.
-fn comp_chain(channels: usize) -> BenchPatch {
+fn comp_chain(lanes: usize) -> BenchPatch {
     let mut modules = vec![(
         "src".to_string(),
         "$saw",
-        json!({ "freq": poly(0.0, channels) }),
+        json!({ "freq": poly(0.0, lanes) }),
     )];
     for i in 0..8 {
         let prev = if i == 0 {
@@ -349,7 +345,7 @@ fn comp_chain(channels: usize) -> BenchPatch {
             format!("c{i}"),
             "$comp",
             json!({
-                "input": poly_cable(&prev, if i == 0 { "output" } else { "sample" }, channels),
+                "input": poly_cable(&prev, if i == 0 { "output" } else { "sample" }, lanes),
                 "threshold": 2.0, "ratio": 4.0, "attack": 0.01, "release": 0.1,
                 "makeup": 1.0, "inputGain": 0.5, "outputGain": -0.5,
             }),
@@ -391,9 +387,9 @@ fn table_wav() -> Arc<WavData> {
     ))
 }
 
-/// 4 `$grains` clouds (≈ 2.5, 10, 30 and 60 active grains per channel), each
+/// 4 `$grains` clouds (≈ 2.5, 10, 30 and 60 active grains per lane), each
 /// gated by its own slow pulse.
-fn grains(channels: usize) -> BenchPatch {
+fn grains(lanes: usize) -> BenchPatch {
     let mut modules = Vec::new();
     for (i, (density, length)) in [(2.5, 1.0), (10.0, 1.0), (10.0, 3.0), (20.0, 3.0)]
         .iter()
@@ -403,15 +399,15 @@ fn grains(channels: usize) -> BenchPatch {
         modules.push((
             gate.clone(),
             "$pulse",
-            json!({ "freq": poly(-6.0, channels), "width": 4.5 }),
+            json!({ "freq": poly(-6.0, lanes), "width": 4.5 }),
         ));
         modules.push((
             format!("grains{i}"),
             "$grains",
             json!({
                 "wav": { "type": "wav_ref", "path": "noise", "channels": 1 },
-                "pitch": poly(0.0, channels),
-                "gate": poly_cable(&gate, "output", channels),
+                "pitch": poly(0.0, lanes),
+                "gate": poly_cable(&gate, "output", lanes),
                 "density": density,
                 "length": length,
             }),
@@ -421,21 +417,21 @@ fn grains(channels: usize) -> BenchPatch {
 }
 
 /// 4 `$granularSampler` clouds, triggered at 5, 20, 80 and 320 Hz.
-fn granular(channels: usize) -> BenchPatch {
+fn granular(lanes: usize) -> BenchPatch {
     let mut modules = Vec::new();
     for (i, rate) in [5.0f32, 20.0, 80.0, 320.0].iter().enumerate() {
         let trigger = format!("trigger{i}");
         modules.push((
             trigger.clone(),
             "$pulse",
-            json!({ "freq": poly((rate / 261.625_58).log2(), channels) }),
+            json!({ "freq": poly((rate / 261.625_58).log2(), lanes) }),
         ));
         modules.push((
             format!("grains{i}"),
             "$granularSampler",
             json!({
                 "wav": { "type": "wav_ref", "path": "noise", "channels": 1 },
-                "trigger": poly_cable(&trigger, "output", channels),
+                "trigger": poly_cable(&trigger, "output", lanes),
             }),
         ));
     }
@@ -444,7 +440,7 @@ fn granular(channels: usize) -> BenchPatch {
 
 /// A `$saw` through a `$clockedDelay` in each quality, following the root
 /// clock.
-fn clocked_delays(channels: usize) -> BenchPatch {
+fn clocked_delays(lanes: usize) -> BenchPatch {
     let mut modules = vec![
         (
             "ROOT_CLOCK".to_string(),
@@ -454,7 +450,7 @@ fn clocked_delays(channels: usize) -> BenchPatch {
         (
             "saw".to_string(),
             "$saw",
-            json!({ "freq": poly(0.0, channels) }),
+            json!({ "freq": poly(0.0, lanes) }),
         ),
     ];
     for quality in ["digital", "vintage", "cleanTape", "dirtyTape"] {
@@ -462,7 +458,7 @@ fn clocked_delays(channels: usize) -> BenchPatch {
             format!("delay_{quality}"),
             "$clockedDelay",
             json!({
-                "input": poly_cable("saw", "output", channels),
+                "input": poly_cable("saw", "output", lanes),
                 "quality": quality,
             }),
         ));
@@ -471,24 +467,24 @@ fn clocked_delays(channels: usize) -> BenchPatch {
 }
 
 /// 8 `$wavetable` oscillators: half at a fixed position, half scanned by an LFO.
-fn wavetables(channels: usize) -> BenchPatch {
+fn wavetables(lanes: usize) -> BenchPatch {
     let mut modules = vec![(
         "lfo".to_string(),
         "$sine",
-        json!({ "freq": poly(-5.0, channels) }),
+        json!({ "freq": poly(-5.0, lanes) }),
     )];
     for i in 0..8 {
         let position = if i % 2 == 0 {
             json!(2.0)
         } else {
-            poly_cable("lfo", "output", channels)
+            poly_cable("lfo", "output", lanes)
         };
         modules.push((
             format!("wt{i}"),
             "$wavetable",
             json!({
                 "wav": { "type": "wav_ref", "path": "table", "channels": 1 },
-                "pitch": poly(i as f32 * 0.3 - 1.0, channels),
+                "pitch": poly(i as f32 * 0.3 - 1.0, lanes),
                 "position": position,
             }),
         ));
@@ -498,12 +494,12 @@ fn wavetables(channels: usize) -> BenchPatch {
 
 /// 8 `$eq`s in series, 4 sections each: four at fixed settings, four with an
 /// LFO sweeping a peak.
-fn eqs(channels: usize) -> BenchPatch {
+fn eqs(lanes: usize) -> BenchPatch {
     let mut modules = vec![
         (
             "src".to_string(),
             "$saw",
-            json!({ "freq": poly(-1.0, channels) }),
+            json!({ "freq": poly(-1.0, lanes) }),
         ),
         ("lfo".to_string(), "$sine", json!({ "freq": -6.0 })),
     ];
@@ -513,13 +509,13 @@ fn eqs(channels: usize) -> BenchPatch {
         let sweep = if i % 2 == 0 {
             json!(1.0)
         } else {
-            json!([{ "type": "cable", "module": "lfo", "port": "output", "channel": 0 }])
+            json!([{ "type": "cable", "module": "lfo", "port": "output", "lane": 0 }])
         };
         modules.push((
             id.clone(),
             "$eq",
             json!({
-                "input": poly_cable(&prev, "output", channels),
+                "input": poly_cable(&prev, "output", lanes),
                 "sections": [
                     { "type": "lowShelf", "freq": -2.0, "gain": 3.0 },
                     { "type": "peak", "freq": sweep, "gain": -6.0, "q": 2.0 },
@@ -533,19 +529,19 @@ fn eqs(channels: usize) -> BenchPatch {
     BenchPatch::new(modules)
 }
 
-/// 16 `_videoTap`s, one per slot, each reading a channel of a `$saw`.
-fn video_taps(channels: usize) -> BenchPatch {
+/// 16 `_videoTap`s, one per slot, each reading a lane of a `$saw`.
+fn video_taps(lanes: usize) -> BenchPatch {
     let mut modules = vec![(
         "src".to_string(),
         "$saw",
-        json!({ "freq": poly(-1.0, channels) }),
+        json!({ "freq": poly(-1.0, lanes) }),
     )];
     for i in 0..16 {
         modules.push((
             format!("tap{i}"),
             "_videoTap",
             json!({
-                "input": [{ "type": "cable", "module": "src", "port": "output", "channel": i % channels }],
+                "input": [{ "type": "cable", "module": "src", "port": "output", "lane": i % lanes }],
                 "slot": i,
             }),
         ));
@@ -556,22 +552,22 @@ fn video_taps(channels: usize) -> BenchPatch {
 /// `$saw` into a chain of 32 `$erratic`s. With `modulated`, speed follows an
 /// `$sine` and a `$pulse` triggers the hold; otherwise every setting is a
 /// constant.
-fn erratic_chain(channels: usize, modulated: bool) -> BenchPatch {
+fn erratic_chain(lanes: usize, modulated: bool) -> BenchPatch {
     let mut modules = vec![
         (
             "src".to_string(),
             "$saw",
-            json!({ "freq": poly(0.0, channels) }),
+            json!({ "freq": poly(0.0, lanes) }),
         ),
         (
             "lfo".to_string(),
             "$sine",
-            json!({ "freq": poly(-4.0, channels) }),
+            json!({ "freq": poly(-4.0, lanes) }),
         ),
         (
             "gate".to_string(),
             "$pulse",
-            json!({ "freq": poly(-3.0, channels) }),
+            json!({ "freq": poly(-3.0, lanes) }),
         ),
     ];
     for i in 0..32 {
@@ -581,24 +577,24 @@ fn erratic_chain(channels: usize, modulated: bool) -> BenchPatch {
             format!("e{}", i - 1)
         };
         let mut params = json!({
-            "input": poly_cable(&prev, "output", channels),
+            "input": poly_cable(&prev, "output", lanes),
             "amount": 0.5, "speed": 2.5, "bias": 1.0,
         });
         if modulated {
-            params["speed"] = poly_cable("lfo", "output", channels);
-            params["trigger"] = poly_cable("gate", "output", channels);
+            params["speed"] = poly_cable("lfo", "output", lanes);
+            params["trigger"] = poly_cable("gate", "output", lanes);
         }
         modules.push((format!("e{i}"), "$erratic", params));
     }
     BenchPatch::new(modules)
 }
 
-fn erratic_constant(channels: usize) -> BenchPatch {
-    erratic_chain(channels, false)
+fn erratic_constant(lanes: usize) -> BenchPatch {
+    erratic_chain(lanes, false)
 }
 
-fn erratic_modulated(channels: usize) -> BenchPatch {
-    erratic_chain(channels, true)
+fn erratic_modulated(lanes: usize) -> BenchPatch {
+    erratic_chain(lanes, true)
 }
 
 type PatchBuilder = fn(usize) -> BenchPatch;
@@ -628,9 +624,9 @@ fn bench_patches(c: &mut Criterion) {
     ];
     for &(name, build) in cases {
         let mut group = c.benchmark_group(name);
-        for channels in CHANNELS {
-            let patch = build(channels);
-            group.bench_with_input(BenchmarkId::from_parameter(channels), &patch, |b, patch| {
+        for lanes in LANES {
+            let patch = build(lanes);
+            group.bench_with_input(BenchmarkId::from_parameter(lanes), &patch, |b, patch| {
                 b.iter(|| patch.process_block())
             });
         }

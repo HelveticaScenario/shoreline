@@ -16,10 +16,10 @@ use schemars::JsonSchema;
 use arrayvec::ArrayVec;
 
 use crate::{
-    MonoSignal,
+    LaneSum,
     dsp::utils::{GATE_HIGH_VOLTAGE, TempGate, TempGateState, min_gate_samples},
     param_errors::ModuleParamErrors,
-    poly::{MonoSignalExt, PORT_MAX_CHANNELS, PolyOutput},
+    poly::{LaneSumExt, PORT_MAX_LANES, PolyOutput},
 };
 
 use crate::module_category::ModuleCategory;
@@ -102,7 +102,7 @@ impl Default for VoiceState {
     }
 }
 
-fn default_channels() -> usize {
+fn default_lanes() -> usize {
     4
 }
 
@@ -124,7 +124,7 @@ fn default_ribbon() -> (f64, f64) {
 }
 
 #[params]
-#[derive(Clone, Deserr, ChannelCount, JsonSchema, Connect, Debug)]
+#[derive(Clone, Deserr, LaneCount, JsonSchema, Connect, Debug)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = seq_bake_ribbon -> ModuleParamErrors)]
 pub struct SeqParams {
@@ -136,28 +136,28 @@ pub struct SeqParams {
         range = (0.0, ..),
         control_range = (0.0, 1.0),
     )]
-    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
+    #[default_connection(module = RootClock, port = "playhead", lane = 0)]
     #[deserr(default)]
-    playhead: Option<MonoSignal>,
+    playhead: Option<LaneSum>,
     #[input(
         "groove shift of note starts, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
         type = control,
         control_range = (-5.0, 5.0),
     )]
-    #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
+    #[default_connection(module = RootClock, port = "grooveOffset", lane = 0)]
     #[deserr(default)]
-    groove: Option<MonoSignal>,
+    groove: Option<LaneSum>,
     #[input(
         "velocity held from each note start onto the `velocity` output. Follows the global groove, unless you set your own `playhead` or `groove`: then every note is full velocity until given a velocity too",
         type = control,
         control_range = (0.0, 5.0),
     )]
-    #[default_connection(module = RootClock, port = "grooveVelocity", channel = 0)]
+    #[default_connection(module = RootClock, port = "grooveVelocity", lane = 0)]
     #[deserr(default)]
-    velocity: Option<MonoSignal>,
+    velocity: Option<LaneSum>,
     #[input("number of voices; worked out from the pattern when unset", range = (1, 64))]
     #[deserr(default)]
-    pub channels: Option<usize>,
+    pub lanes: Option<usize>,
     #[input(
         "[offset, length] of the looped stretch of the pattern, in cycles; fractions are allowed"
     )]
@@ -172,7 +172,7 @@ pub struct SeqParams {
 }
 
 /// Struct-level `deserr` validate hook. Runs after every field (and its
-/// default) is deserialized but before channel-count derivation, so both
+/// default) is deserialized but before lane-count derivation, so both
 /// `pattern` and `ribbon` are present. Validates the ribbon bounds, then
 /// bakes the pattern's haps for the loop window `[offset, offset+length)`.
 fn seq_bake_ribbon(
@@ -211,24 +211,24 @@ fn seq_bake_ribbon(
     Ok(params)
 }
 
-/// Channel count derivation for Seq.
+/// Lane count derivation for Seq.
 ///
 /// Analyzes the baked ribbon window to determine maximum polyphony: the most
 /// non-rest haps sounding at once.
 ///
-/// This is called by TypeScript to derive channel count from params.
-/// Inside Seq::update(), we read params.channels directly (which TypeScript
+/// This is called by TypeScript to derive lane count from params.
+/// Inside Seq::update(), we read params.lanes directly (which TypeScript
 /// will have already set based on this analysis, or user explicitly set).
-pub fn seq_derive_channel_count(params: &SeqParams) -> usize {
-    // If channels was explicitly set (non-default), use that
-    if let Some(channels) = params.channels {
-        return channels.clamp(1, PORT_MAX_CHANNELS);
+pub fn seq_derive_lane_count(params: &SeqParams) -> usize {
+    // If lanes was explicitly set (non-default), use that
+    if let Some(lanes) = params.lanes {
+        return lanes.clamp(1, PORT_MAX_LANES);
     }
 
     // Otherwise, analyze pattern polyphony using cached haps
     let cached = params.pattern.cached_haps();
     if cached.is_empty() {
-        return default_channels();
+        return default_lanes();
     }
 
     const MAX_POLYPHONY: usize = 16;
@@ -447,7 +447,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "$cycle",
     docs = CYCLE_DOCS,
-    channels_derive = seq_derive_channel_count,
+    lanes_derive = seq_derive_lane_count,
     args(pattern),
     stateful,
     patch_update,
@@ -456,15 +456,15 @@ pub struct Seq {
     outputs: SeqOutputs,
     params: SeqParams,
     state: SeqState,
-    /// Per-channel voice state, one element per polyphonic channel. Sized to the
-    /// derived channel count by the `#[module]` macro and carried across patch
+    /// Per-lane voice state, one element per polyphonic lane. Sized to the
+    /// derived lane count by the `#[module]` macro and carried across patch
     /// updates by the macro's per-element state transfer.
-    channel_state: Box<[SeqChannel]>,
+    lane_state: Box<[SeqLane]>,
 }
 
-/// Per-channel sequencer state.
+/// Per-lane sequencer state.
 #[derive(Default)]
-struct SeqChannel {
+struct SeqLane {
     /// Per-voice playback state.
     voice: VoiceState,
     /// Last CV voltage — holds through rest periods and state transfers. Also
@@ -480,7 +480,7 @@ struct SeqChannel {
     glide_hold: Option<f32>,
 }
 
-impl SeqChannel {
+impl SeqLane {
     /// The pitch this voice sounds when no ramp drives it.
     fn held_cv(&self) -> f32 {
         self.glide_hold
@@ -494,7 +494,7 @@ impl SeqChannel {
     }
 }
 
-impl GlideVoice for SeqChannel {
+impl GlideVoice for SeqLane {
     fn ramp(&self) -> Option<&GlideRamp> {
         self.glide.as_ref()
     }
@@ -508,7 +508,7 @@ impl GlideVoice for SeqChannel {
     }
 
     fn held_cv(&self) -> f32 {
-        SeqChannel::held_cv(self)
+        SeqLane::held_cv(self)
     }
 
     fn claim(&mut self, ramp: GlideRamp) {
@@ -536,9 +536,9 @@ struct SeqState {
     /// from the current position).
     started: bool,
     /// Scratch buffer for voice release — reused each frame to avoid heap alloc
-    voices_to_release: ArrayVec<usize, PORT_MAX_CHANNELS>,
+    voices_to_release: ArrayVec<usize, PORT_MAX_LANES>,
     /// Scratch buffer for onset events awaiting voice allocation.
-    events_to_process: ArrayVec<PendingEvent, PORT_MAX_CHANNELS>,
+    events_to_process: ArrayVec<PendingEvent, PORT_MAX_LANES>,
     /// Pre-allocated DP scratch for nearest-value voice assignment. Boxed and
     /// built here (main thread) so the audio thread never allocates.
     assign: Box<AssignScratch>,
@@ -602,7 +602,7 @@ impl Seq {
             .params
             .playhead
             .as_ref()
-            .map_or(0.0, MonoSignal::get_value_f64);
+            .map_or(0.0, LaneSum::get_value_f64);
         let raw = self.state.groove_hold.apply(
             straight,
             straight + self.params.groove.value_or_zero() as f64,
@@ -610,7 +610,7 @@ impl Seq {
         let waiting = before_first_step(straight, raw);
         let velocity = self.params.velocity.value_or(GATE_HIGH_VOLTAGE);
         let hold = min_gate_samples(sample_rate);
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
         let (offset, length) = self.params.ribbon; // length > 0 (validated)
         // Fold the clock into the baked window. Clamp once for the window math
@@ -656,17 +656,17 @@ impl Seq {
         // the monotonic `straight` frame (two-sided, so a backward scrub also
         // frees), because `logical` wraps at the ribbon seam.
         self.state.voices_to_release.clear();
-        for i in 0..num_channels {
-            if let Some(cached) = self.channel_state[i].voice.cached_hap
+        for i in 0..num_lanes {
+            if let Some(cached) = self.lane_state[i].voice.cached_hap
                 && !cached.contains(straight)
             {
                 self.state.voices_to_release.push(i);
             }
         }
         for i in self.state.voices_to_release.iter().copied() {
-            self.channel_state[i].voice.active = false;
-            self.channel_state[i].voice.cached_hap = None;
-            self.channel_state[i]
+            self.lane_state[i].voice.active = false;
+            self.lane_state[i].voice.cached_hap = None;
+            self.lane_state[i]
                 .voice
                 .gate
                 .set_state(TempGateState::Low, TempGateState::Low, 0);
@@ -681,30 +681,30 @@ impl Seq {
             || raw_clamped - prev_raw >= length
             || (!lap_wrapped && logical < prev_logical);
         let step = (raw_clamped - prev_raw).abs();
-        for channel in &mut self.channel_state[..num_channels] {
-            if let Some(ramp) = channel.glide
+        for lane in &mut self.lane_state[..num_lanes] {
+            if let Some(ramp) = lane.glide
                 && !(ramp.in_range(raw_clamped, step)
                     && (!rescan_glides
                         || ramp.target_exists(base, self.params.pattern.cached_haps())))
             {
-                channel.glide_hold = Some(ramp.value_at(raw_clamped));
-                channel.glide = None;
+                lane.glide_hold = Some(ramp.value_at(raw_clamped));
+                lane.glide = None;
                 voices_changed = true;
             }
         }
 
         if self.params.pattern.pattern().is_none() {
-            for ch in 0..num_channels {
-                self.outputs.cv.set(ch, 0.0);
+            for lane in 0..num_lanes {
+                self.outputs.cv.set(lane, 0.0);
                 self.outputs
                     .velocity
-                    .set(ch, self.channel_state[ch].velocity);
+                    .set(lane, self.lane_state[lane].velocity);
                 self.outputs
                     .gate
-                    .set(ch, self.channel_state[ch].voice.gate.process());
+                    .set(lane, self.lane_state[lane].voice.gate.process());
                 self.outputs
                     .trig
-                    .set(ch, self.channel_state[ch].voice.trigger.process());
+                    .set(lane, self.lane_state[lane].voice.trigger.process());
             }
             return;
         }
@@ -756,8 +756,8 @@ impl Seq {
                     continue;
                 }
                 let hap_index = hap_index as u32;
-                let already_assigned = (0..num_channels).any(|i| {
-                    self.channel_state[i]
+                let already_assigned = (0..num_lanes).any(|i| {
+                    self.lane_state[i]
                         .voice
                         .cached_hap
                         .map(|existing| {
@@ -796,20 +796,20 @@ impl Seq {
         let n = self.state.events_to_process.len();
         voices_changed |= n > 0;
         if n > 0 {
-            let mut assigned: [Option<usize>; PORT_MAX_CHANNELS] = [None; PORT_MAX_CHANNELS];
+            let mut assigned: [Option<usize>; PORT_MAX_LANES] = [None; PORT_MAX_LANES];
             for (ei, event) in self.state.events_to_process.iter().enumerate() {
-                assigned[ei] = (0..num_channels).find(|&i| {
-                    self.channel_state[i]
+                assigned[ei] = (0..num_lanes).find(|&i| {
+                    self.lane_state[i]
                         .glide
                         .is_some_and(|ramp| ramp.targets(current_cycle, event.hap_index))
                 });
             }
-            let claimed = |channel: &SeqChannel| channel.glide.is_some();
+            let claimed = |lane: &SeqLane| lane.glide.is_some();
 
             // Tier 1: free voices.
-            let mut free: ArrayVec<usize, PORT_MAX_CHANNELS> = ArrayVec::new();
-            for i in 0..num_channels {
-                if !self.channel_state[i].voice.active && !claimed(&self.channel_state[i]) {
+            let mut free: ArrayVec<usize, PORT_MAX_LANES> = ArrayVec::new();
+            for i in 0..num_lanes {
+                if !self.lane_state[i].voice.active && !claimed(&self.lane_state[i]) {
                     free.push(i);
                 }
             }
@@ -823,7 +823,7 @@ impl Seq {
                     events_to_process,
                     &mut assigned,
                     &free,
-                    &self.channel_state,
+                    &self.lane_state,
                     assign,
                 );
             }
@@ -831,11 +831,11 @@ impl Seq {
             // Tier 2: voices past their grooved end, computed lazily only when
             // onsets remain unplaced.
             if (0..n).any(|ei| assigned[ei].is_none()) {
-                let mut ended: ArrayVec<usize, PORT_MAX_CHANNELS> = ArrayVec::new();
-                for i in 0..num_channels {
-                    if self.channel_state[i].voice.active
-                        && !claimed(&self.channel_state[i])
-                        && let Some(cached) = self.channel_state[i].voice.cached_hap
+                let mut ended: ArrayVec<usize, PORT_MAX_LANES> = ArrayVec::new();
+                for i in 0..num_lanes {
+                    if self.lane_state[i].voice.active
+                        && !claimed(&self.lane_state[i])
+                        && let Some(cached) = self.lane_state[i].voice.cached_hap
                         && raw >= cached.raw_end
                     {
                         ended.push(i);
@@ -850,7 +850,7 @@ impl Seq {
                     events_to_process,
                     &mut assigned,
                     &ended,
-                    &self.channel_state,
+                    &self.lane_state,
                     assign,
                 );
             }
@@ -858,12 +858,12 @@ impl Seq {
             // Tier 3: steal orphaned voices, computed lazily only when onsets
             // remain unplaced (the steady state never reaches here).
             if (0..n).any(|ei| assigned[ei].is_none()) {
-                let mut orphans: ArrayVec<usize, PORT_MAX_CHANNELS> = ArrayVec::new();
-                for i in 0..num_channels {
-                    if self.channel_state[i].voice.active
-                        && !claimed(&self.channel_state[i])
+                let mut orphans: ArrayVec<usize, PORT_MAX_LANES> = ArrayVec::new();
+                for i in 0..num_lanes {
+                    if self.lane_state[i].voice.active
+                        && !claimed(&self.lane_state[i])
                         && !assigned[..n].contains(&Some(i))
-                        && let Some(cached) = self.channel_state[i].voice.cached_hap
+                        && let Some(cached) = self.lane_state[i].voice.cached_hap
                         && self.voice_is_orphan(&cached)
                     {
                         orphans.push(i);
@@ -878,16 +878,16 @@ impl Seq {
                     events_to_process,
                     &mut assigned,
                     &orphans,
-                    &self.channel_state,
+                    &self.lane_state,
                     assign,
                 );
             }
 
             // Tier 4: claimed voices.
             if (0..n).any(|ei| assigned[ei].is_none()) {
-                let mut claimed_voices: ArrayVec<usize, PORT_MAX_CHANNELS> = ArrayVec::new();
-                for i in 0..num_channels {
-                    if claimed(&self.channel_state[i]) && !assigned[..n].contains(&Some(i)) {
+                let mut claimed_voices: ArrayVec<usize, PORT_MAX_LANES> = ArrayVec::new();
+                for i in 0..num_lanes {
+                    if claimed(&self.lane_state[i]) && !assigned[..n].contains(&Some(i)) {
                         claimed_voices.push(i);
                     }
                 }
@@ -900,7 +900,7 @@ impl Seq {
                     events_to_process,
                     &mut assigned,
                     &claimed_voices,
-                    &self.channel_state,
+                    &self.lane_state,
                     assign,
                 );
             }
@@ -913,14 +913,14 @@ impl Seq {
                     continue;
                 };
                 let event = self.state.events_to_process[ei];
-                self.channel_state[voice_idx].velocity = velocity;
-                if let Some(ramp) = self.channel_state[voice_idx].glide.take()
+                self.lane_state[voice_idx].velocity = velocity;
+                if let Some(ramp) = self.lane_state[voice_idx].glide.take()
                     && !ramp.targets(current_cycle, event.hap_index)
                 {
                     self.state.glides.push(ramp.target);
                 }
-                self.channel_state[voice_idx].glide_hold = None;
-                let voice = &mut self.channel_state[voice_idx].voice;
+                self.lane_state[voice_idx].glide_hold = None;
+                let voice = &mut self.lane_state[voice_idx].voice;
                 voice.cached_hap = Some(CachedHap {
                     hap_index: event.hap_index,
                     cached_cycle: current_cycle,
@@ -952,7 +952,7 @@ impl Seq {
                 length,
             },
             rescan_glides,
-            &mut self.channel_state[..num_channels],
+            &mut self.lane_state[..num_lanes],
             voices_changed,
         );
 
@@ -960,21 +960,23 @@ impl Seq {
     }
 
     fn write_voice_outputs(&mut self, raw: f64) {
-        for ch in 0..self.channel_count() {
-            let channel = &mut self.channel_state[ch];
-            if let Some(cached) = channel.voice.cached_hap
+        for lane_index in 0..self.lane_count() {
+            let lane = &mut self.lane_state[lane_index];
+            if let Some(cached) = lane.voice.cached_hap
                 && let Some(cv) = cached.get_cv()
             {
-                channel.last_cv = cv as f32;
+                lane.last_cv = cv as f32;
             }
-            let cv = match channel.glide {
+            let cv = match lane.glide {
                 Some(ramp) => ramp.value_at(raw),
-                None => channel.glide_hold.unwrap_or(channel.last_cv),
+                None => lane.glide_hold.unwrap_or(lane.last_cv),
             };
-            self.outputs.cv.set(ch, cv);
-            self.outputs.gate.set(ch, channel.voice.gate.process());
-            self.outputs.trig.set(ch, channel.voice.trigger.process());
-            self.outputs.velocity.set(ch, channel.velocity);
+            self.outputs.cv.set(lane_index, cv);
+            self.outputs.gate.set(lane_index, lane.voice.gate.process());
+            self.outputs
+                .trig
+                .set(lane_index, lane.voice.trigger.process());
+            self.outputs.velocity.set(lane_index, lane.velocity);
         }
     }
 }
@@ -989,9 +991,9 @@ struct PendingEvent {
 }
 
 /// Square dimension of the assignment DP table: one extra row/column for the
-/// empty prefix. Scales with `PORT_MAX_CHANNELS`, so a future channel bump
+/// empty prefix. Scales with `PORT_MAX_LANES`, so a future lane bump
 /// resizes the scratch automatically.
-const DP_DIM: usize = PORT_MAX_CHANNELS + 1;
+const DP_DIM: usize = PORT_MAX_LANES + 1;
 
 /// Pre-allocated scratch for the voice-assignment DP ([`assign_nearest`]). One
 /// decision bit per cell; boxed in `SeqState` and built on the main thread so
@@ -1021,32 +1023,32 @@ impl Default for AssignScratch {
 /// (`dp[i][j] = min(skip column j, match row i to column j + cost)`). The
 /// shorter side is fully matched; the longer side contributes a chosen subset.
 /// Runs in `O(E·V)` (plus an `O(N log N)` in-place sort), versus the cubic of a
-/// repeated global-nearest scan — cheap even at the max channel count.
+/// repeated global-nearest scan — cheap even at the max lane count.
 ///
 /// Onsets already placed (by an earlier tier) are skipped, so this is called
 /// once per tier (free, ended, then orphaned voices). Allocation-free: fixed
-/// `[_; PORT_MAX_CHANNELS]` stacks, an in-place `sort_unstable`, and the boxed
+/// `[_; PORT_MAX_LANES]` stacks, an in-place `sort_unstable`, and the boxed
 /// `scratch` decision table. Each candidate's previously-held value is read
-/// from `channel_state[voice].last_cv`.
+/// from `lane_state[voice].last_cv`.
 fn assign_nearest(
     events: &[PendingEvent],
-    assigned: &mut [Option<usize>; PORT_MAX_CHANNELS],
+    assigned: &mut [Option<usize>; PORT_MAX_LANES],
     candidates: &[usize],
-    channel_state: &[SeqChannel],
+    lane_state: &[SeqLane],
     scratch: &mut AssignScratch,
 ) {
     // Gather the unplaced onsets and the candidate voices as (value, index)
     // pairs. Index is the tie-break so the comparator is a total order, making
     // the allocation-free unstable sort deterministic.
-    let mut evs: ArrayVec<(f32, u32), PORT_MAX_CHANNELS> = ArrayVec::new();
+    let mut evs: ArrayVec<(f32, u32), PORT_MAX_LANES> = ArrayVec::new();
     for (ei, ev) in events.iter().enumerate() {
         if assigned[ei].is_none() {
             evs.push((ev.value.to_voltage().unwrap_or(0.0) as f32, ei as u32));
         }
     }
-    let mut cands: ArrayVec<(f32, u32), PORT_MAX_CHANNELS> = ArrayVec::new();
+    let mut cands: ArrayVec<(f32, u32), PORT_MAX_LANES> = ArrayVec::new();
     for &vidx in candidates {
-        cands.push((channel_state[vidx].last_cv, vidx as u32));
+        cands.push((lane_state[vidx].last_cv, vidx as u32));
     }
     if evs.is_empty() || cands.is_empty() {
         return;
@@ -1170,11 +1172,11 @@ impl crate::types::StatefulModule for Seq {
             return;
         };
         out.reset();
-        let num_channels = self.channel_count().clamp(1, PORT_MAX_CHANNELS);
+        let num_lanes = self.lane_count().clamp(1, PORT_MAX_LANES);
         let num_sources = self.params.pattern.per_source().len().max(1);
 
-        for channel in self.channel_state.iter().take(num_channels) {
-            let voice = &channel.voice;
+        for lane in self.lane_state.iter().take(num_lanes) {
+            let voice = &lane.voice;
             if let Some(cached) = voice.cached_hap
                 && !cached.is_rest()
                 && let Some(storage) = self.get_cycle_storage(cached.cached_cycle)
@@ -1213,7 +1215,7 @@ mod tests {
             playhead: None,
             groove: None,
             velocity: None,
-            channels: None,
+            lanes: None,
             ribbon,
             pattern_source: String::new(),
         }
@@ -1277,15 +1279,13 @@ mod tests {
         cands: &[usize],
         cv: &[(usize, f32)],
     ) -> Vec<Option<usize>> {
-        let mut channels: Vec<SeqChannel> = (0..PORT_MAX_CHANNELS)
-            .map(|_| SeqChannel::default())
-            .collect();
+        let mut lanes: Vec<SeqLane> = (0..PORT_MAX_LANES).map(|_| SeqLane::default()).collect();
         for &(i, v) in cv {
-            channels[i].last_cv = v;
+            lanes[i].last_cv = v;
         }
-        let mut assigned = [None; PORT_MAX_CHANNELS];
+        let mut assigned = [None; PORT_MAX_LANES];
         let mut scratch = AssignScratch::default();
-        assign_nearest(events, &mut assigned, cands, &channels, &mut scratch);
+        assign_nearest(events, &mut assigned, cands, &lanes, &mut scratch);
         assigned[..events.len()].to_vec()
     }
 

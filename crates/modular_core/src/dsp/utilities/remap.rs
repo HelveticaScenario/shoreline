@@ -12,7 +12,7 @@ use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 #[params(reads_bounds = remap_reads_bounds)]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RemapParams {
@@ -66,7 +66,7 @@ fn input_range(bounds: Bounds) -> (f32, f32) {
 }
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     in_min: SwapGlide,
     in_max: SwapGlide,
     out_min: SwapGlide,
@@ -108,7 +108,7 @@ const REMAP_DOCS: ModuleDocs = ModuleDocs {
 )]
 pub struct Remap {
     outputs: RemapOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: RemapParams,
 }
 
@@ -117,8 +117,8 @@ impl Remap {
     /// does.
     fn update(&mut self, sample_rate: f32) {
         let p = &self.params;
-        for i in 0..self.channel_count() {
-            let state = &mut self.channel_state[i];
+        for i in 0..self.lane_count() {
+            let state = &mut self.lane_state[i];
             let unset = if p.in_min.is_none() || p.in_max.is_none() {
                 input_range(p.input.get_bounds(i))
             } else {
@@ -172,47 +172,44 @@ impl Remap {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let glides = |signal: &Option<PolySignal>, glide: &SwapGlide, i: usize| {
             signal
                 .as_ref()
                 .is_some_and(|signal| glide.will_glide(signal.glide_mark(i)))
         };
-        let gliding = self.channel_state[..channels]
-            .iter()
-            .enumerate()
-            .any(|(i, cs)| {
-                glides(&p.in_min, &cs.in_min, i)
-                    || glides(&p.in_max, &cs.in_max, i)
-                    || cs.out_min.will_glide(p.out_min.glide_mark(i))
-                    || cs.out_max.will_glide(p.out_max.glide_mark(i))
-            });
+        let gliding = self.lane_state[..lanes].iter().enumerate().any(|(i, cs)| {
+            glides(&p.in_min, &cs.in_min, i)
+                || glides(&p.in_max, &cs.in_max, i)
+                || cs.out_min.will_glide(p.out_min.glide_mark(i))
+                || cs.out_max.will_glide(p.out_max.glide_mark(i))
+        });
         if gliding {
             return None;
         }
         // An unset input range reads the input's bounds, which hold still
         // over the range or send the slots to `update`.
         if (p.in_min.is_none() || p.in_max.is_none())
-            && (0..channels).any(|ch| p.input.block_bounds(range.clone(), ch).is_none())
+            && (0..lanes).any(|lane| p.input.block_bounds(range.clone(), lane).is_none())
         {
             return None;
         }
-        let unset = |ch: usize| {
+        let unset = |lane: usize| {
             input_range(
                 p.input
-                    .block_bounds(range.clone(), ch)
+                    .block_bounds(range.clone(), lane)
                     .unwrap_or(Bounds::UNBOUNDED),
             )
         };
         let mut scratch = Default::default();
-        let inputs = p.block_inputs(range.clone(), channels, &mut scratch)?;
+        let inputs = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         let (mut s_min, mut s_max) = (InputScratch::new(), InputScratch::new());
         let in_min = inputs.in_min.unwrap_or_else(|| {
-            block_input::constant_row(range.clone(), channels, &mut s_min, |ch| unset(ch).0)
+            block_input::constant_row(range.clone(), lanes, &mut s_min, |lane| unset(lane).0)
         });
         let in_max = inputs.in_max.unwrap_or_else(|| {
-            block_input::constant_row(range.clone(), channels, &mut s_max, |ch| unset(ch).1)
+            block_input::constant_row(range.clone(), lanes, &mut s_max, |lane| unset(lane).1)
         });
         let last = range.end - 1;
         block_input::map_bounds(
@@ -227,7 +224,7 @@ impl Remap {
             [inputs.input, in_min, in_max, inputs.out_min, inputs.out_max],
             |[x, in_min, in_max, out_min, out_max]| map_range(x, in_min, in_max, out_min, out_max),
         );
-        for (i, cs) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (i, cs) in self.lane_state[..lanes].iter_mut().enumerate() {
             let mark =
                 |signal: &Option<PolySignal>| signal.as_ref().unwrap_or(&p.input).glide_mark(i);
             cs.in_min.settle(in_min.row(last)[i], mark(&p.in_min));

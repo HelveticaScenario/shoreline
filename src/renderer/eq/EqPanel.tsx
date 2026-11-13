@@ -24,10 +24,10 @@ export const EQ_PANEL_HEIGHT = EQ_GRAPH_HEIGHT + 34;
 export interface EqPanelProps {
     /** The edited list's sections. */
     sections: EqSectionView[];
-    /** Every channel's list in the per-channel form, else null. */
-    channelLists: EqSectionView[][] | null;
-    /** Index of the edited list in `channelLists`. */
-    channel: number;
+    /** Every lane's list in the per-lane form, else null. */
+    laneLists: EqSectionView[][] | null;
+    /** Index of the edited list in `laneLists`. */
+    lane: number;
     /** Code-side section values diverging from the audio, index-aligned. */
     ghosts: (EqSectionView | null)[];
     selected: number | null;
@@ -41,7 +41,7 @@ export interface EqPanelProps {
     /** Calls back after each new spectrum frame; returns an unsubscribe. */
     subscribeFrames: (cb: () => void) => () => void;
     onSelect: (index: number | null) => void;
-    onChannel: (list: number) => void;
+    onLane: (list: number) => void;
     /** A gesture step (`move`) or its end (`commit`, flushes the code). */
     onChange: (
         index: number,
@@ -51,9 +51,9 @@ export interface EqPanelProps {
     ) => void;
     onAdd: (freqHz: number, gainDb: number) => void;
     onRemove: (index: number) => void;
-    /** Add a channel list copying the edited one (splits the shared form). */
-    onAddChannel: () => void;
-    onRemoveChannel: (list: number) => void;
+    /** Add a lane list copying the edited one (splits the shared form). */
+    onAddLane: () => void;
+    onRemoveLane: (list: number) => void;
     /** Write the audio's values over a section's code-only edits (`fields`,
      *  or all when null). */
     onRevert: (index: number, fields: (keyof EqSectionChange)[] | null) => void;
@@ -62,8 +62,8 @@ export interface EqPanelProps {
 export function EqPanel(props: EqPanelProps): React.ReactElement {
     const {
         sections,
-        channelLists,
-        channel,
+        laneLists,
+        lane,
         ghosts,
         selected,
         adaptiveQ,
@@ -73,12 +73,12 @@ export function EqPanel(props: EqPanelProps): React.ReactElement {
         spectrum,
         subscribeFrames,
         onSelect,
-        onChannel,
+        onLane,
         onChange,
         onAdd,
         onRemove,
-        onAddChannel,
-        onRemoveChannel,
+        onAddLane,
+        onRemoveLane,
         onRevert,
     } = props;
 
@@ -101,8 +101,8 @@ export function EqPanel(props: EqPanelProps): React.ReactElement {
 
     // Everything a redraw reads, so frame callbacks draw current state.
     const background = useMemo(
-        () => channelLists?.filter((_, i) => i !== channel) ?? [],
-        [channelLists, channel],
+        () => laneLists?.filter((_, i) => i !== lane) ?? [],
+        [laneLists, lane],
     );
     const drawStateRef = useRef({
         adaptiveQ,
@@ -253,18 +253,18 @@ export function EqPanel(props: EqPanelProps): React.ReactElement {
                 </div>
             </div>
             <EqToolbar
-                channel={channel}
-                channelLists={channelLists}
+                lane={lane}
+                laneLists={laneLists}
                 editable={editable}
                 ghosts={ghosts}
                 sections={sections}
                 selected={selected}
                 onAdd={onAdd}
-                onAddChannel={onAddChannel}
+                onAddLane={onAddLane}
                 onChange={onChange}
-                onChannel={onChannel}
+                onLane={onLane}
                 onRemove={onRemove}
-                onRemoveChannel={onRemoveChannel}
+                onRemoveLane={onRemoveLane}
                 onRevert={onRevert}
                 onSelect={onSelect}
             />

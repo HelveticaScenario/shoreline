@@ -1956,40 +1956,37 @@ pub fn validate_patch_graph(
 pub(crate) use params_cache::deserialize_params;
 
 #[napi(object)]
-pub struct DeriveChannelCountResult {
-    pub channel_count: Option<u32>,
-    pub errors: Option<Vec<DeriveChannelCountError>>,
+pub struct DeriveLaneCountResult {
+    pub lane_count: Option<u32>,
+    pub errors: Option<Vec<DeriveLaneCountError>>,
 }
 
 #[napi(object)]
-pub struct DeriveChannelCountError {
+pub struct DeriveLaneCountError {
     pub message: String,
     pub params: Vec<String>,
 }
 
-/// Derive the output channel count for a module from its params JSON.
+/// Derive the output lane count for a module from its params JSON.
 ///
-/// Returns a structured result with either the derived channel count or
+/// Returns a structured result with either the derived lane count or
 /// error information when deserialization fails.
 /// This uses the cache, so it also warms the cache for subsequent apply_patch calls.
 #[napi]
-pub fn derive_channel_count(
-    module_type: String,
-    params: serde_json::Value,
-) -> DeriveChannelCountResult {
+pub fn derive_lane_count(module_type: String, params: serde_json::Value) -> DeriveLaneCountResult {
     match deserialize_params(&module_type, params, true) {
-        Ok(d) => DeriveChannelCountResult {
-            channel_count: Some(d.channel_count as u32),
+        Ok(d) => DeriveLaneCountResult {
+            lane_count: Some(d.lane_count as u32),
             errors: None,
         },
         Err(e) => {
             let param_errors = e.into_errors();
-            DeriveChannelCountResult {
-                channel_count: None,
+            DeriveLaneCountResult {
+                lane_count: None,
                 errors: Some(
                     param_errors
                         .into_iter()
-                        .map(|err| DeriveChannelCountError {
+                        .map(|err| DeriveLaneCountError {
                             message: err.message,
                             params: if err.field.is_empty() {
                                 vec![]

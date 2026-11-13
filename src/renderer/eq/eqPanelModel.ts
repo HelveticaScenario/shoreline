@@ -27,7 +27,7 @@ export interface RawEqSection {
 
 export interface RawEqParams {
     input: unknown;
-    /** One list shared by every channel, or one list per channel; optional
+    /** One list shared by every lane, or one list per lane; optional
      *  in the code, always present once the panel holds the params. */
     sections: RawEqSection[] | RawEqSection[][];
     adaptiveQ?: boolean;
@@ -53,16 +53,16 @@ export interface EqSectionView {
     freqStyle: 'hz' | 'volts';
 }
 
-export function isPerChannel(params: RawEqParams): boolean {
+export function isPerLane(params: RawEqParams): boolean {
     return Array.isArray(params.sections[0]);
 }
 
 /**
- * The section lists, one per channel list; the shared form is a single list.
+ * The section lists, one per lane list; the shared form is a single list.
  * The lists are the params' own arrays, so mutating them edits the params.
  */
 export function sectionLists(params: RawEqParams): RawEqSection[][] {
-    return isPerChannel(params)
+    return isPerLane(params)
         ? (params.sections as RawEqSection[][])
         : [params.sections as RawEqSection[]];
 }

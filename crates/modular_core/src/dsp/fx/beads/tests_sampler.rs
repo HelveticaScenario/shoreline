@@ -13,10 +13,10 @@ fn wav_data(channels: Vec<Vec<f32>>, sample_rate: f32) -> HashMap<String, Arc<Wa
 /// One second of a 220 Hz sine per channel, at `sample_rate`.
 fn sine_wav(channels: usize, sample_rate: f32) -> HashMap<String, Arc<WavData>> {
     let n = sample_rate as usize;
-    let ch = (0..n)
+    let channel = (0..n)
         .map(|i| (std::f32::consts::TAU * 220.0 * i as f32 / sample_rate).sin() * 0.5)
         .collect::<Vec<_>>();
-    wav_data(vec![ch; channels], sample_rate)
+    wav_data(vec![channel; channels], sample_rate)
 }
 
 fn sampler_params(quality: GranularQuality, channels: usize) -> GranularSamplerParams {
@@ -48,15 +48,15 @@ fn construct(
     params: GranularSamplerParams,
     wav: &HashMap<String, Arc<WavData>>,
 ) -> GranularSampler {
-    let channels = sampler_channel_count(&params);
+    let lanes = sampler_lane_count(&params);
     let mut outputs = GranularSamplerOutputs::default();
-    outputs.set_all_channels(channels);
+    outputs.set_all_lanes(lanes);
     let mut m = GranularSampler {
         outputs,
         state: Default::default(),
         params,
-        channel_state: (0..channels).map(|_| Default::default()).collect(),
-        _channel_count: channels,
+        lane_state: (0..lanes).map(|_| Default::default()).collect(),
+        _lane_count: lanes,
         _block_index: Default::default(),
     };
     m.init(SR);
@@ -67,26 +67,26 @@ fn construct(
 /// Transfer `old`'s state into `new` as a patch update does.
 fn transfer(old: &mut GranularSampler, new: &mut GranularSampler) {
     std::mem::swap(&mut old.state, &mut new.state);
-    std::mem::swap(&mut old.channel_state, &mut new.channel_state);
+    std::mem::swap(&mut old.lane_state, &mut new.lane_state);
     new.on_patch_update();
 }
 
 fn buffer(m: &GranularSampler, voice: usize) -> &GrainBuffer {
-    &m.channel_state[voice].voice.granular.buffer
+    &m.lane_state[voice].voice.granular.buffer
 }
 
-/// Trigger every voice once at sample 1000 and return each output channel
+/// Trigger every voice once at sample 1000 and return each output lane
 /// over the following half second.
 fn play(m: &mut GranularSampler) -> Vec<Vec<f32>> {
-    let voices = m.channel_state.len();
+    let voices = m.lane_state.len();
     let mut out = vec![Vec::new(); voices];
     for n in 0..1000 + 24_000 {
         let level = if (1000..1010).contains(&n) { 5.0 } else { 0.0 };
         m.params.trigger = poly_volts(&vec![level; voices]);
         m.update(SR);
         if n >= 1000 {
-            for (ch, o) in out.iter_mut().enumerate() {
-                o.push(m.outputs.voices.get(ch));
+            for (lane, o) in out.iter_mut().enumerate() {
+                o.push(m.outputs.voices.get(lane));
             }
         }
     }
@@ -120,11 +120,11 @@ fn grains_play_deep_into_a_long_file() {
     // A minute at 48 kHz, silent except for its first second, where grains
     // at `time` 0 begin.
     let n = 60 * SR as usize;
-    let mut ch = vec![0.0; n];
-    for (i, x) in ch.iter_mut().take(SR as usize).enumerate() {
+    let mut lane = vec![0.0; n];
+    for (i, x) in lane.iter_mut().take(SR as usize).enumerate() {
         *x = (std::f32::consts::TAU * 220.0 * i as f32 / SR).sin() * 0.5;
     }
-    let wav = wav_data(vec![ch], SR);
+    let wav = wav_data(vec![lane], SR);
     let mut p = sampler_params(GranularQuality::Digital, 1);
     p.time = poly_volts(&[0.0]);
     let mut m = make(p, &wav);
@@ -139,7 +139,7 @@ fn voices_on_one_channel_share_its_buffer() {
     let mut p = sampler_params(GranularQuality::Digital, 1);
     p.trigger = poly_volts(&[0.0, 0.0, 0.0]);
     let m = make(p, &wav);
-    assert_eq!(m.channel_state.len(), 3);
+    assert_eq!(m.lane_state.len(), 3);
     assert!(buffer(&m, 0).shares_with(buffer(&m, 1)));
     assert!(buffer(&m, 0).shares_with(buffer(&m, 2)));
 }
@@ -171,7 +171,7 @@ fn each_voice_plays_its_own_channel_of_the_file() {
     let n = SR as usize;
     let wav = wav_data(vec![vec![0.5; n], vec![0.0; n]], SR);
     let mut m = make(sampler_params(GranularQuality::Digital, 2), &wav);
-    assert_eq!(m.channel_state.len(), 2);
+    assert_eq!(m.lane_state.len(), 2);
     let out = play(&mut m);
     assert!(rms(&out[0]) > 0.2, "left {}", rms(&out[0]));
     assert!(rms(&out[1]) < 1e-6, "right {}", rms(&out[1]));

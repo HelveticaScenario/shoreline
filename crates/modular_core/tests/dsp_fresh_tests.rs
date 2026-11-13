@@ -50,7 +50,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
         .unwrap_or_else(|e| panic!("params deserialization for '{module_type}' failed: {e}"));
     let deserialized = DeserializedParams {
         params: cached.params,
-        channel_count: cached.channel_count,
+        lane_count: cached.lane_count,
         f64_inputs: false,
     };
     constructors
@@ -96,7 +96,7 @@ impl Stepper {
     }
 }
 
-/// Advance N samples and collect the first channel of `output`.
+/// Advance N samples and collect the first lane of `output`.
 fn collect_samples(module: &dyn Sampleable, n: usize) -> Vec<f32> {
     let mut out = Vec::with_capacity(n);
     let mut s = Stepper::new();
@@ -107,18 +107,18 @@ fn collect_samples(module: &dyn Sampleable, n: usize) -> Vec<f32> {
     out
 }
 
-/// Collect N samples from a specific channel.
-fn collect_channel(module: &dyn Sampleable, channel: usize, n: usize) -> Vec<f32> {
+/// Collect N samples from a specific lane.
+fn collect_lane(module: &dyn Sampleable, lane: usize, n: usize) -> Vec<f32> {
     let mut out = Vec::with_capacity(n);
     let mut s = Stepper::new();
     for _ in 0..n {
         let slot = s.tick(module);
-        out.push(module.get_value_at(DEFAULT_PORT, channel, slot));
+        out.push(module.get_value_at(DEFAULT_PORT, lane, slot));
     }
     out
 }
 
-/// Advance N samples and return the final sample read from channel 0 of
+/// Advance N samples and return the final sample read from lane 0 of
 /// `DEFAULT_PORT`. Used by convergence tests that only care about the
 /// post-settling value.
 fn settle_and_read(module: &dyn Sampleable, n: usize) -> f32 {
@@ -177,11 +177,11 @@ fn sine_zero_frequency_is_dc() {
 fn sine_polyphonic() {
     let osc = make_module("$sine", "sine-1", json!({ "freq": [0.0, 1.0] }));
 
-    let _ch0 = collect_channel(osc.as_ref(), 0, 500);
-    // Reset for channel 1 read — we already stepped, so just read accumulated data
-    // Actually the module already computed both channels per tick.
-    // We need to re-check: collect_channel steps the module, so ch1 will be
-    // from subsequent samples. That's fine — we just want to verify both channels
+    let _ch0 = collect_lane(osc.as_ref(), 0, 500);
+    // Reset for lane 1 read — we already stepped, so just read accumulated data
+    // Actually the module already computed both lanes per tick.
+    // We need to re-check: collect_lane steps the module, so lane1 will be
+    // from subsequent samples. That's fine — we just want to verify both lanes
     // produce output.
 
     let osc2 = make_module("$sine", "sine-2", json!({ "freq": [0.0, 1.0] }));
@@ -198,12 +198,12 @@ fn sine_polyphonic() {
     let (mn0, mx0) = min_max(&ch0_samples);
     let (mn1, mx1) = min_max(&ch1_samples);
 
-    assert!(mx0 > 4.0, "ch0 should oscillate, peak={mx0}");
-    assert!(mn0 < -4.0, "ch0 should oscillate, trough={mn0}");
-    assert!(mx1 > 4.0, "ch1 should oscillate, peak={mx1}");
-    assert!(mn1 < -4.0, "ch1 should oscillate, trough={mn1}");
+    assert!(mx0 > 4.0, "lane0 should oscillate, peak={mx0}");
+    assert!(mn0 < -4.0, "lane0 should oscillate, trough={mn0}");
+    assert!(mx1 > 4.0, "lane1 should oscillate, peak={mx1}");
+    assert!(mn1 < -4.0, "lane1 should oscillate, trough={mn1}");
 
-    // ch1 at higher V/oct should have different frequency (different waveform shape
+    // lane1 at higher V/oct should have different frequency (different waveform shape
     // over same number of samples)
     let sum0: f32 = ch0_samples.iter().map(|x| x.abs()).sum();
     let sum1: f32 = ch1_samples.iter().map(|x| x.abs()).sum();
@@ -432,10 +432,10 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$curve" => json!({ "input": 0.0, "exp": 1.0 }),
         "$cycle" => json!({ "pattern": mini_payload("0") }),
         "$lpg" | "$slew" | "$hold" | "$motionFollower" | "$quantizer" | "$unison" | "$rising"
-        | "$falling" | "$stereoMix" | "$mixDown" => json!({ "input": 0.0 }),
+        | "$falling" | "$stereoMix" | "$setLanes" => json!({ "input": 0.0 }),
         "$pWarp" => json!({ "input": 0.0, "phase": { "type": "identity" } }),
         "$enosc" => json!({ "pitch": 0.0 }),
-        "$track" => json!({ "keyframes": [] }),
+        "$keyframes" => json!({ "keyframes": [] }),
         "$math" => json!({ "expression": "1+1" }),
         "$spread" => json!({ "min": -1.0, "max": 1.0, "count": 3 }),
         "$signal" => json!({ "value": 0.0 }),
@@ -459,10 +459,10 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
             json!({ "input": 0.0 })
         }
         "$bufRead" => {
-            json!({ "buffer": { "type": "buffer_ref", "module": "test-module", "port": "buffer", "channels": 1 }, "frame": 0.0 })
+            json!({ "buffer": { "type": "buffer_ref", "module": "test-module", "port": "buffer", "lanes": 1 }, "frame": 0.0 })
         }
         "$delayRead" => {
-            json!({ "buffer": { "type": "buffer_ref", "module": "test-module", "port": "buffer", "channels": 1 }, "time": 0.1 })
+            json!({ "buffer": { "type": "buffer_ref", "module": "test-module", "port": "buffer", "lanes": 1 }, "time": 0.1 })
         }
         "$grains" => {
             json!({ "pitch": 0.0, "wav": { "type": "wav_ref", "path": "test", "channels": 1 }, "gate": 0.0 })
@@ -529,7 +529,7 @@ fn all_constructors_produce_valid_modules() {
             .unwrap_or_else(|e| panic!("params deserialization for '{name}' failed: {e}"));
         let deserialized = DeserializedParams {
             params: cached.params,
-            channel_count: cached.channel_count,
+            lane_count: cached.lane_count,
             f64_inputs: false,
         };
         let module = constructor(
@@ -562,7 +562,7 @@ fn all_constructors_can_tick() {
             .unwrap_or_else(|e| panic!("params deserialization for '{name}' failed: {e}"));
         let deserialized = DeserializedParams {
             params: cached.params,
-            channel_count: cached.channel_count,
+            lane_count: cached.lane_count,
             f64_inputs: false,
         };
         let module = constructor(
@@ -647,7 +647,7 @@ fn from_graph_creates_patch_with_modules() {
     assert!(patch.sampleables.contains_key("HIDDEN_AUDIO_IN"));
 }
 
-/// Poly reads cycle past a port's width; the physical-channel read the audio
+/// Poly reads cycle past a port's width; the physical-lane read the audio
 /// device tap uses reports silence there instead.
 #[test]
 fn reads_cycle_past_port_width_unless_no_cycle() {
@@ -655,27 +655,29 @@ fn reads_cycle_past_port_width_unless_no_cycle() {
     module.start_block();
     module.ensure_processed();
 
-    assert_eq!(module.port_channels(DEFAULT_PORT), 2);
-    assert_eq!(module.port_channels("nonexistent"), 0);
+    assert_eq!(module.port_lanes(DEFAULT_PORT), 2);
+    assert_eq!(module.port_lanes("nonexistent"), 0);
 
     let cycling: Vec<f32> = (0..4)
-        .map(|ch| module.get_value_at(DEFAULT_PORT, ch, 0))
+        .map(|lane| module.get_value_at(DEFAULT_PORT, lane, 0))
         .collect();
     let physical: Vec<f32> = (0..4)
-        .map(|ch| module.get_value_at_no_cycle(DEFAULT_PORT, ch, 0))
+        .map(|lane| module.get_value_at_no_cycle(DEFAULT_PORT, lane, 0))
         .collect();
 
-    for (ch, (&cycled, &expected)) in cycling.iter().zip([1.0, 2.0, 1.0, 2.0].iter()).enumerate() {
+    for (lane, (&cycled, &expected)) in cycling.iter().zip([1.0, 2.0, 1.0, 2.0].iter()).enumerate()
+    {
         assert!(
             approx_eq(cycled, expected, 1e-4),
-            "cycling read of ch {ch} should be {expected}, got {cycled}"
+            "cycling read of lane {lane} should be {expected}, got {cycled}"
         );
     }
-    for (ch, (&physical, &expected)) in physical.iter().zip([1.0, 2.0, 0.0, 0.0].iter()).enumerate()
+    for (lane, (&physical, &expected)) in
+        physical.iter().zip([1.0, 2.0, 0.0, 0.0].iter()).enumerate()
     {
         assert!(
             approx_eq(physical, expected, 1e-4),
-            "non-cycling read of ch {ch} should be {expected}, got {physical}"
+            "non-cycling read of lane {lane} should be {expected}, got {physical}"
         );
     }
 
@@ -729,7 +731,7 @@ fn from_graph_cable_routing_sine_to_signal() {
             "sig",
             "$signal",
             json!({
-                "value": { "type": "cable", "module": "osc", "port": "output", "channel": 0 }
+                "value": { "type": "cable", "module": "osc", "port": "output", "lane": 0 }
             }),
         ),
     ]);
@@ -772,7 +774,7 @@ fn from_graph_multi_module_osc_to_filter_to_mix() {
             "filt",
             "$lpf",
             json!({
-                "input": { "type": "cable", "module": "osc", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "osc", "port": "output", "lane": 0 },
                 "cutoff": -2.0  // very low cutoff ≈ 65 Hz — should heavily attenuate
             }),
         ),
@@ -781,7 +783,7 @@ fn from_graph_multi_module_osc_to_filter_to_mix() {
             "$mix",
             json!({
                 "inputs": [
-                    [{ "type": "cable", "module": "filt", "port": "output", "channel": 0 }]
+                    [{ "type": "cable", "module": "filt", "port": "output", "lane": 0 }]
                 ]
             }),
         ),
@@ -797,7 +799,7 @@ fn from_graph_multi_module_osc_to_filter_to_mix() {
             "$mix",
             json!({
                 "inputs": [
-                    [{ "type": "cable", "module": "osc", "port": "output", "channel": 0 }]
+                    [{ "type": "cable", "module": "osc", "port": "output", "lane": 0 }]
                 ]
             }),
         ),
@@ -887,9 +889,9 @@ fn from_graph_process_frame_advances_all_modules() {
 fn chord_outputs_spec_voltages() {
     let module = make_module("$chord", "chord", json!({ "chord": "C3[maj7]" }));
     let slot = Stepper::new().tick(module.as_ref());
-    for (ch, semis) in [-12.0_f32, -8.0, -5.0, -1.0].iter().enumerate() {
-        let v = module.get_value_at("pitch", ch, slot);
-        assert!(approx_eq(v, semis / 12.0, 1e-5), "channel {ch}: {v}");
+    for (lane, semis) in [-12.0_f32, -8.0, -5.0, -1.0].iter().enumerate() {
+        let v = module.get_value_at("pitch", lane, slot);
+        assert!(approx_eq(v, semis / 12.0, 1e-5), "lane {lane}: {v}");
     }
 }
 
@@ -1066,7 +1068,7 @@ fn buffer_and_delay_read_pipeline() {
             "buf",
             "$buffer",
             json!({
-                "input": { "type": "cable", "module": "sig", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "sig", "port": "output", "lane": 0 },
                 "length": 0.1
             }),
         ),
@@ -1074,7 +1076,7 @@ fn buffer_and_delay_read_pipeline() {
             "delay",
             "$delayRead",
             json!({
-                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "channels": 1 },
+                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "lanes": 1 },
                 "time": 0.001
             }),
         ),
@@ -1103,7 +1105,7 @@ fn delay_reads_do_not_depend_on_block_size() {
     // alike only if every block size puts each sample at the same absolute
     // write position.
     let cable =
-        |module: &str| json!({ "type": "cable", "module": module, "port": "output", "channel": 0 });
+        |module: &str| json!({ "type": "cable", "module": module, "port": "output", "lane": 0 });
     let graph = make_graph(vec![
         ("src", "$saw", json!({ "freq": 0.0 })),
         ("lfo", "$sine", json!({ "freq": -4.0 })),
@@ -1126,7 +1128,7 @@ fn delay_reads_do_not_depend_on_block_size() {
             "delay",
             "$delayRead",
             json!({
-                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "channels": 1 },
+                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "lanes": 1 },
                 "time": cable("time"),
             }),
         ),
@@ -1195,7 +1197,7 @@ fn buffer_feedback_cycle_propagates_through_delay_read() {
             "feedback",
             "$amp",
             json!({
-                "input": { "type": "cable", "module": "delayRead", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "delayRead", "port": "output", "lane": 0 },
                 "factor": 4.0,
             }),
         ),
@@ -1204,8 +1206,8 @@ fn buffer_feedback_cycle_propagates_through_delay_read() {
             "$mix",
             json!({
                 "inputs": [
-                    { "type": "cable", "module": "src", "port": "output", "channel": 0 },
-                    { "type": "cable", "module": "feedback", "port": "output", "channel": 0 },
+                    { "type": "cable", "module": "src", "port": "output", "lane": 0 },
+                    { "type": "cable", "module": "feedback", "port": "output", "lane": 0 },
                 ],
             }),
         ),
@@ -1213,7 +1215,7 @@ fn buffer_feedback_cycle_propagates_through_delay_read() {
             "buf",
             "$buffer",
             json!({
-                "input": { "type": "cable", "module": "mix", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "mix", "port": "output", "lane": 0 },
                 "length": 0.05,
             }),
         ),
@@ -1221,7 +1223,7 @@ fn buffer_feedback_cycle_propagates_through_delay_read() {
             "delayRead",
             "$delayRead",
             json!({
-                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "channels": 1 },
+                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "lanes": 1 },
                 "time": 0.01,
             }),
         ),
@@ -1259,7 +1261,7 @@ fn delay_read_output_lags_behind_buffer_passthrough() {
             "buf",
             "$buffer",
             json!({
-                "input": { "type": "cable", "module": "osc", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "osc", "port": "output", "lane": 0 },
                 "length": 0.1
             }),
         ),
@@ -1267,7 +1269,7 @@ fn delay_read_output_lags_behind_buffer_passthrough() {
             "delay",
             "$delayRead",
             json!({
-                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "channels": 1 },
+                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "lanes": 1 },
                 "time": 0.005
             }),
         ),
@@ -1325,7 +1327,7 @@ fn transfer_state_from_preserves_wrapper_outputs_for_feedback_cycles() {
             "a",
             "$add",
             json!({
-                "input": { "type": "cable", "module": "b", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "b", "port": "output", "lane": 0 },
                 "offset": 1.0
             }),
         ),
@@ -1333,7 +1335,7 @@ fn transfer_state_from_preserves_wrapper_outputs_for_feedback_cycles() {
             "b",
             "$amp",
             json!({
-                "input": { "type": "cable", "module": "a", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "a", "port": "output", "lane": 0 },
                 "factor": 2.5,  // gain = 2.5/5.0 = 0.5 so it converges
             }),
         ),
@@ -1484,20 +1486,20 @@ fn clock_meter_change_keeps_beat_triggers_on_bar_grid() {
 
 #[test]
 fn supersaw_voice_state_transfers_intact_across_a_voice_count_change() {
-    // Supersaw's channel_state is a [voice][input_ch] matrix with a fixed row
+    // Supersaw's lane_state is a [voice][input_ch] matrix with a fixed row
     // stride, so the element-wise state transfer must keep every surviving
-    // voice's per-channel runtime state at its own coordinates when the
+    // voice's per-lane runtime state at its own coordinates when the
     // `voices` param changes: carried voices stay phase-continuous on the
     // transfer frame, and freshly added voices arrive with their zero-cross
     // mute armed (silent) instead of inheriting another voice's mid-cycle,
     // already-unmuted state.
     let supersaw_params = |voices: u32| {
         json!({
-            // Two-channel poly pitch (~C2): the matrix has more than one live
-            // column, so a stride mismatch would land channel >= 1 cells on
-            // the wrong (voice, channel) coordinates.
+            // Two-lane poly pitch (~C2): the matrix has more than one live
+            // column, so a stride mismatch would land lane >= 1 cells on
+            // the wrong (voice, lane) coordinates.
             "freq": [-2.0, -1.9],
-            "voices": voices,
+            "unison": voices,
             // Constant-high sync: its one rising edge (the trigger's first
             // sample) resets every voice to phase 0, so the carried voices'
             // phases at the transfer frame are fixed rather than seeded from
@@ -1540,9 +1542,9 @@ fn supersaw_voice_state_transfers_intact_across_a_voice_count_change() {
     // The added voices must be (near-)silent on the transfer frame: their mute
     // is armed and releases only at their own first rising zero crossing. A
     // seeded phase within one step below that crossing releases on this very
-    // frame, contributing at most one ramp step (2 * dt) per input channel, so
-    // the bound is that step summed over both channels at the highest detuned
-    // pitch, times the 5 / sqrt(2) channel-compensated gain (~0.02 V).
+    // frame, contributing at most one ramp step (2 * dt) per input lane, so
+    // the bound is that step summed over both lanes at the highest detuned
+    // pitch, times the 5 / sqrt(2) lane-compensated gain (~0.02 V).
     let max_hz = 261.63 * 2.0f32.powf(-1.9 + 0.09 / 12.0);
     let max_release_step = 2.0 * max_hz / SAMPLE_RATE;
     let fresh_bound = 2.0 * max_release_step * 5.0 / 2.0f32.sqrt();
@@ -1574,7 +1576,7 @@ fn cycle_ps_cv_holds_during_rest_after_state_transfer() {
     // After a patch update (state transfer), a scale-degree sequencer's CV
     // output HOLDS the last active voltage during a rest; it does not drop
     // to 0 V. The `Seq` runtime keeps
-    // `last_cv` per channel and only overwrites it while a voice is active;
+    // `last_cv` per lane and only overwrites it while a voice is active;
     // `transfer_state_from` swaps the whole `SeqState`, so the held voltage
     // carries across the rebuild.
     //
@@ -1661,8 +1663,8 @@ fn cycle_ps_cv_holds_during_rest_after_state_transfer() {
 #[test]
 fn tah_holds_voltage_across_state_transfer() {
     // A patch update reconstructs every module with empty outputs and carries
-    // only `state` / `channel_state` over. `$tah`'s held voltage must therefore
-    // live in per-channel state and be written to the output on every sample —
+    // only `state` / `lane_state` over. `$tah`'s held voltage must therefore
+    // live in per-lane state and be written to the output on every sample —
     // otherwise the held value collapses to 0 V for as long as the gate stays
     // high after the rebuild.
 
@@ -1965,12 +1967,12 @@ fn seq_highlight_survives_state_transfer_from_single_to_multi_source() {
     );
 }
 
-// ─── $track playhead boundaries ──────────────────────────────────────────────
+// ─── $keyframes playhead boundaries ──────────────────────────────────────────
 
-/// Helper: run the module past initial param smoothing, then read channel 0.
+/// Helper: run the module past initial param smoothing, then read lane 0.
 fn track_value_at(playhead: f32, keyframes: serde_json::Value) -> f32 {
     let m = make_module(
-        "$track",
+        "$keyframes",
         "track-1",
         json!({ "playhead": playhead, "keyframes": keyframes }),
     );
@@ -2515,15 +2517,15 @@ fn seq_ribbon_fractional_offset_window() {
 
 // ─── $cycle voice leading, edge-triggered onsets, new-pattern voice stealing ──
 
-/// Build a `$cycle` patch with optional explicit `channels` and `playhead`.
+/// Build a `$cycle` patch with optional explicit `lanes` and `playhead`.
 /// A `Some(playhead)` overrides the clock connection with a constant position
 /// (`Signal::Volts`, read with no smoothing), so a test can place the playhead
 /// arbitrarily — including moving it backward across rebuild+transfer steps.
-fn cycle_patch(pattern: Value, channels: Option<u64>, playhead: Option<f64>) -> Patch {
+fn cycle_patch(pattern: Value, lanes: Option<u64>, playhead: Option<f64>) -> Patch {
     let mut params = serde_json::Map::new();
     params.insert("pattern".to_string(), pattern);
-    if let Some(ch) = channels {
-        params.insert("channels".to_string(), json!(ch));
+    if let Some(lane) = lanes {
+        params.insert("lanes".to_string(), json!(lane));
     }
     if let Some(ph) = playhead {
         params.insert("playhead".to_string(), json!(ph));
@@ -2556,20 +2558,20 @@ fn transfer_into(new_patch: &Patch, old_patch: &Patch) {
     }
 }
 
-/// Read channel `ch` of `port` on the `seq` module at the current frame.
-fn seq_val(patch: &Patch, port: &str, ch: usize) -> f32 {
+/// Read lane `lane` of `port` on the `seq` module at the current frame.
+fn seq_val(patch: &Patch, port: &str, lane: usize) -> f32 {
     patch
         .sampleables
         .get("seq")
         .unwrap()
-        .get_value_at(port, ch, 0)
+        .get_value_at(port, lane, 0)
 }
 
 #[test]
 fn cycle_swap_does_not_fire_in_progress_note_until_its_onset() {
     // A new pattern's note whose window already contains the playhead at swap
     // time must NOT fire mid-window — even with a free voice available
-    // (channels=2). It fires only when the playhead next crosses its onset.
+    // (lanes=2). It fires only when the playhead next crosses its onset.
     // (Old level-detection would have triggered it immediately on the free voice.)
     let a = cycle_patch(mini_payload("c4"), Some(2), None);
     for _ in 0..120 {
@@ -2584,8 +2586,8 @@ fn cycle_swap_does_not_fire_in_progress_note_until_its_onset() {
     let mut onsets_cycle0 = 0;
     for _ in 0..100 {
         process_frame(&b);
-        for (ch, prev) in prev_hi.iter_mut().enumerate() {
-            let hi = seq_val(&b, "trig", ch) > 2.5;
+        for (lane, prev) in prev_hi.iter_mut().enumerate() {
+            let hi = seq_val(&b, "trig", lane) > 2.5;
             if hi && !*prev {
                 onsets_cycle0 += 1;
             }
@@ -2601,8 +2603,8 @@ fn cycle_swap_does_not_fire_in_progress_note_until_its_onset() {
     let mut onsets_cycle1 = 0;
     for _ in 0..200 {
         process_frame(&b);
-        for (ch, prev) in prev_hi.iter_mut().enumerate() {
-            let hi = seq_val(&b, "trig", ch) > 2.5;
+        for (lane, prev) in prev_hi.iter_mut().enumerate() {
+            let hi = seq_val(&b, "trig", lane) > 2.5;
             if hi && !*prev {
                 onsets_cycle1 += 1;
             }
@@ -2676,7 +2678,7 @@ fn cycle_onset_fires_on_backward_entry() {
 
 #[test]
 fn cycle_new_pattern_steals_orphaned_voice() {
-    // An old long note (`c3/4`, 4-cycle) holds the only voice (channels=1). After
+    // An old long note (`c3/4`, 4-cycle) holds the only voice (lanes=1). After
     // swapping to `e4 g4`, the new onsets — which the playhead crosses in cycle 1
     // — must STEAL the lingering c3 voice rather than be dropped. Without stealing
     // the old c3 (-1 V) would keep sounding for four cycles.
@@ -2722,37 +2724,37 @@ fn cycle_allocates_nearest_value_voice() {
     // Voice leading: `c4 c5, c5 c4` layers two mono lines so each half-cycle
     // boundary re-onsets one c4 and one c5. Nearest-value allocation keeps each
     // physical voice on its pitch across the boundary (the voice holding c4 takes
-    // the new c4, etc.), so one channel stays ~0 V and the other ~1 V throughout.
+    // the new c4, etc.), so one lane stays ~0 V and the other ~1 V throughout.
     // Round-robin would swap the lanes every half cycle.
     let patch = cycle_patch(mini_payload("c4 c5, c5 c4"), None, None);
 
-    let mut ch0 = [0f32; 2];
-    let mut ch1 = [0f32; 2];
+    let mut lane0 = [0f32; 2];
+    let mut lane1 = [0f32; 2];
     for s in 1..=180 {
         process_frame(&patch);
         if s == 60 {
             // first half-slot [0,0.5]
-            ch0[0] = seq_val(&patch, "cv", 0);
-            ch1[0] = seq_val(&patch, "cv", 1);
+            lane0[0] = seq_val(&patch, "cv", 0);
+            lane1[0] = seq_val(&patch, "cv", 1);
         }
         if s == 180 {
             // second half-slot [0.5,1]
-            ch0[1] = seq_val(&patch, "cv", 0);
-            ch1[1] = seq_val(&patch, "cv", 1);
+            lane0[1] = seq_val(&patch, "cv", 0);
+            lane1[1] = seq_val(&patch, "cv", 1);
         }
     }
     let near0 = |v: f32| v.abs() < 0.05;
     let near1 = |v: f32| (v - 1.0).abs() < 0.05;
-    let lane_a = near0(ch0[0]) && near0(ch0[1]) && near1(ch1[0]) && near1(ch1[1]);
-    let lane_b = near1(ch0[0]) && near1(ch0[1]) && near0(ch1[0]) && near0(ch1[1]);
+    let lane_a = near0(lane0[0]) && near0(lane0[1]) && near1(lane1[0]) && near1(lane1[1]);
+    let lane_b = near1(lane0[0]) && near1(lane0[1]) && near0(lane1[0]) && near0(lane1[1]);
     assert!(
         lane_a || lane_b,
         "each voice must keep its pitch across the boundary (no lane swap): \
-         ch0=[{},{}] ch1=[{},{}]",
-        ch0[0],
-        ch0[1],
-        ch1[0],
-        ch1[1]
+         lane0=[{},{}] lane1=[{},{}]",
+        lane0[0],
+        lane0[1],
+        lane1[0],
+        lane1[1]
     );
 }
 
@@ -2939,25 +2941,22 @@ fn shape_saturate_hard_clamps_to_rail() {
 }
 
 #[test]
-fn eq_sections_accept_shared_and_per_channel_forms() {
+fn eq_sections_accept_shared_and_per_lane_forms() {
     let deserializers = get_params_deserializers();
     let de = deserializers.get("$eq").unwrap();
     let shared = de(json!({ "input": 0.0, "sections": [{ "freq": "100hz", "gain": [1.0, 2.0] }] }))
         .expect("shared list; a poly gain sums to mono");
-    assert_eq!(
-        shared.channel_count, 1,
-        "mono section params add no channels"
-    );
+    assert_eq!(shared.lane_count, 1, "mono section params add no lanes");
 
     let per = de(json!({
         "input": 0.0,
         "sections": [[{ "freq": 0.0 }], [{ "freq": 1.0 }, { "type": "notch", "freq": 2.0 }], [{ "freq": 0.0 }]],
     }))
-    .expect("per-channel lists");
-    assert_eq!(per.channel_count, 3, "one channel per list");
+    .expect("per-lane lists");
+    assert_eq!(per.lane_count, 3, "one lane per list");
 
     let empty = de(json!({ "input": 0.0 })).expect("sections are optional");
-    assert_eq!(empty.channel_count, 1);
+    assert_eq!(empty.lane_count, 1);
     assert!(de(json!({ "input": 0.0, "sections": [[{ "freq": 0.0 }], []] })).is_ok());
     assert!(de(json!({ "input": 0.0, "sections": [[{ "bogus": 0.0 }]] })).is_err());
     assert!(de(json!({ "input": 0.0, "sections": { "freq": 0.0 } })).is_err());
@@ -2965,7 +2964,7 @@ fn eq_sections_accept_shared_and_per_channel_forms() {
 
 // ─── Groove ───────────────────────────────────────────────────────────────────
 
-/// Rising-edge sample indices of `port` channel 0 on module `id`, plus the
+/// Rising-edge sample indices of `port` lane 0 on module `id`, plus the
 /// velocity output read on each of those frames.
 fn groove_onsets(patch: &Patch, id: &str, frames: usize) -> Vec<(usize, f32)> {
     let module = patch.sampleables.get(id).unwrap();
@@ -2999,14 +2998,14 @@ fn cycle_follows_global_groove_and_zero_groove_opts_out() {
         (
             "swung",
             "$cycle",
-            json!({ "pattern": mini_payload("c4*16"), "channels": 1 }),
+            json!({ "pattern": mini_payload("c4*16"), "lanes": 1 }),
         ),
         (
             "straight",
             "$cycle",
             json!({
                 "pattern": mini_payload("c4*16"),
-                "channels": 1,
+                "lanes": 1,
                 "groove": 0.0,
             }),
         ),
@@ -3080,9 +3079,9 @@ fn groove_module_overrides_global_groove() {
             "$cycle",
             json!({
                 "pattern": mini_payload("c4*16"),
-                "channels": 1,
-                "groove": { "type": "cable", "module": "g", "port": "offset", "channel": 0 },
-                "velocity": { "type": "cable", "module": "g", "port": "velocity", "channel": 0 },
+                "lanes": 1,
+                "groove": { "type": "cable", "module": "g", "port": "offset", "lane": 0 },
+                "velocity": { "type": "cable", "module": "g", "port": "velocity", "lane": 0 },
             }),
         ),
     ]);
@@ -3123,7 +3122,7 @@ fn grooved_notes_keep_their_length() {
         (
             "seq",
             "$cycle",
-            json!({ "pattern": mini_payload("[~ c4]*8"), "channels": 1 }),
+            json!({ "pattern": mini_payload("[~ c4]*8"), "lanes": 1 }),
         ),
     ]);
     let patch = from_graph(&graph, SAMPLE_RATE, TEST_BLOCK_SIZE, &HashMap::new())
@@ -3300,7 +3299,7 @@ fn switching_to_a_later_groove_mid_play_never_replays_notes() {
         (
             "seq",
             "$cycle",
-            json!({ "pattern": mini_payload("[c4 ~ ~ ~]*16"), "channels": 1, "groove": 0.0 }),
+            json!({ "pattern": mini_payload("[c4 ~ ~ ~]*16"), "lanes": 1, "groove": 0.0 }),
         ),
     ]);
     let grooved = make_graph(vec![
@@ -3308,7 +3307,7 @@ fn switching_to_a_later_groove_mid_play_never_replays_notes() {
         (
             "seq",
             "$cycle",
-            json!({ "pattern": mini_payload("[c4 ~ ~ ~]*16"), "channels": 1 }),
+            json!({ "pattern": mini_payload("[c4 ~ ~ ~]*16"), "lanes": 1 }),
         ),
     ]);
     let before = from_graph(&straight, SAMPLE_RATE, TEST_BLOCK_SIZE, &HashMap::new())
@@ -3337,7 +3336,7 @@ fn late_first_step_waits_after_transport_start() {
         (
             "seq",
             "$cycle",
-            json!({ "pattern": mini_payload("c4*16"), "channels": 1 }),
+            json!({ "pattern": mini_payload("c4*16"), "lanes": 1 }),
         ),
         (
             "drums",
@@ -3386,7 +3385,7 @@ fn zero_delay_cycle_error(entry: &str, lag: usize) -> f32 {
             "feedback",
             "$amp",
             json!({
-                "input": { "type": "cable", "module": "reader", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "reader", "port": "output", "lane": 0 },
                 "factor": 0.0,
             }),
         ),
@@ -3395,8 +3394,8 @@ fn zero_delay_cycle_error(entry: &str, lag: usize) -> f32 {
             "$mix",
             json!({
                 "inputs": [
-                    { "type": "cable", "module": "src", "port": "output", "channel": 0 },
-                    { "type": "cable", "module": "feedback", "port": "output", "channel": 0 },
+                    { "type": "cable", "module": "src", "port": "output", "lane": 0 },
+                    { "type": "cable", "module": "feedback", "port": "output", "lane": 0 },
                 ],
             }),
         ),
@@ -3404,7 +3403,7 @@ fn zero_delay_cycle_error(entry: &str, lag: usize) -> f32 {
             "buf",
             "$buffer",
             json!({
-                "input": { "type": "cable", "module": "mix", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "mix", "port": "output", "lane": 0 },
                 "length": 0.01,
             }),
         ),
@@ -3412,7 +3411,7 @@ fn zero_delay_cycle_error(entry: &str, lag: usize) -> f32 {
             "reader",
             "$delayRead",
             json!({
-                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "channels": 1 },
+                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "lanes": 1 },
                 "time": 0.0,
             }),
         ),
@@ -3478,7 +3477,7 @@ fn ramp_delay_frames(
             "buf",
             "$buffer",
             json!({
-                "input": { "type": "cable", "module": "src", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "src", "port": "output", "lane": 0 },
                 "length": length,
             }),
         ),
@@ -3486,7 +3485,7 @@ fn ramp_delay_frames(
             "reader",
             "$delayRead",
             json!({
-                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "channels": 1 },
+                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "lanes": 1 },
                 "time": time,
             }),
         ),
@@ -3569,7 +3568,7 @@ fn feedback_loop_length_equals_delay_time() {
             "feedback",
             "$amp",
             json!({
-                "input": { "type": "cable", "module": "reader", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "reader", "port": "output", "lane": 0 },
                 "factor": 2.5,
             }),
         ),
@@ -3578,8 +3577,8 @@ fn feedback_loop_length_equals_delay_time() {
             "$mix",
             json!({
                 "inputs": [
-                    { "type": "cable", "module": "src", "port": "output", "channel": 0 },
-                    { "type": "cable", "module": "feedback", "port": "output", "channel": 0 },
+                    { "type": "cable", "module": "src", "port": "output", "lane": 0 },
+                    { "type": "cable", "module": "feedback", "port": "output", "lane": 0 },
                 ],
             }),
         ),
@@ -3587,7 +3586,7 @@ fn feedback_loop_length_equals_delay_time() {
             "buf",
             "$buffer",
             json!({
-                "input": { "type": "cable", "module": "mix", "port": "output", "channel": 0 },
+                "input": { "type": "cable", "module": "mix", "port": "output", "lane": 0 },
                 "length": 0.01,
             }),
         ),
@@ -3595,7 +3594,7 @@ fn feedback_loop_length_equals_delay_time() {
             "reader",
             "$delayRead",
             json!({
-                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "channels": 1 },
+                "buffer": { "type": "buffer_ref", "module": "buf", "port": "buffer", "lanes": 1 },
                 "time": 10.0 / SAMPLE_RATE as f64,
             }),
         ),
@@ -3719,7 +3718,7 @@ fn lpg_color_brightens_a_half_open_gate() {
                 "lpg",
                 "$lpg",
                 json!({
-                    "input": { "type": "cable", "module": "osc", "port": "output", "channel": 0 },
+                    "input": { "type": "cable", "module": "osc", "port": "output", "lane": 0 },
                     "level": 1.0,
                     "color": color,
                 }),
@@ -3744,13 +3743,13 @@ fn lpg_color_brightens_a_half_open_gate() {
     );
 }
 
-/// Largest sample-to-sample step over `n` samples of `channel`.
-fn max_step(module: &dyn Sampleable, channel: usize, n: usize, mut prev: f32) -> f32 {
+/// Largest sample-to-sample step over `n` samples of `lane`.
+fn max_step(module: &dyn Sampleable, lane: usize, n: usize, mut prev: f32) -> f32 {
     let mut s = Stepper::new();
     let mut step: f32 = 0.0;
     for _ in 0..n {
         let slot = s.tick(module);
-        let v = module.get_value_at(DEFAULT_PORT, channel, slot);
+        let v = module.get_value_at(DEFAULT_PORT, lane, slot);
         step = step.max((v - prev).abs());
         prev = v;
     }
@@ -3784,7 +3783,7 @@ fn lpg_crossfades_into_and_out_of_bypass() {
 }
 
 #[test]
-fn lpg_added_channels_do_not_ping_on_a_held_trigger() {
+fn lpg_added_lanes_do_not_ping_on_a_held_trigger() {
     let old = make_module(
         "$lpg",
         "lpg",
@@ -3798,9 +3797,9 @@ fn lpg_added_channels_do_not_ping_on_a_held_trigger() {
         json!({ "input": [1.0, 1.0, 1.0], "trigger": 5.0, "decay": 0.0 }),
     );
     new.transfer_state_from(old.as_ref(), &SameIds);
-    let (_, peak) = min_max(&collect_channel(new.as_ref(), 2, 4800));
+    let (_, peak) = min_max(&collect_lane(new.as_ref(), 2, 4800));
     assert!(
         peak < 1e-3,
-        "added channel pinged on a held trigger, peak {peak}"
+        "added lane pinged on a held trigger, peak {peak}"
     );
 }

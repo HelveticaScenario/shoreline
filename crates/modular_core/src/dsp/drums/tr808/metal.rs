@@ -7,8 +7,8 @@
 //! oscillators at their factory tuning.
 
 use super::circuit::{ACCENT_V, PULSE_V};
-use crate::dsp::drums::lanes::{Lanes, Mono, Real, c, lanewise};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState};
+use crate::dsp::drums::simd::{Mono, Real, Simd, c, elementwise};
 use crate::dsp::utils::rng::LcgRng;
 
 // The metal voices' trigger buffer, IC2a, puts out 0.824·V + 3.29 for a
@@ -91,15 +91,15 @@ impl MetalFilters {
     }
 }
 
-/// One channel's oscillators and filters.
+/// One lane's oscillators and filters.
 #[derive(Clone, Copy, Default)]
-pub struct MetalBank<L: Lanes = Mono> {
+pub struct MetalBank<L: Simd = Mono> {
     phases: [L::S; 6],
     net: MnaState<CAPS, L>,
     seeded: L::SM,
 }
 
-lanewise!(MetalBank {
+elementwise!(MetalBank {
     phases,
     net,
     seeded
@@ -114,7 +114,7 @@ fn high_time<S: Real<Elem = f32>>(x: S) -> S {
 impl MetalBank {
     /// Starts the oscillators at random phases, as the 808's run freely from
     /// power-on, unless they already are. The bank rides patch updates with
-    /// its channel, so a carried-over channel keeps its phases and a channel
+    /// its lane, so a carried-over lane keeps its phases and a lane
     /// added by an update gets its own.
     pub fn seed(&mut self, base: u64, stream: usize) {
         if self.seeded {
@@ -129,7 +129,7 @@ impl MetalBank {
     }
 }
 
-impl<L: Lanes> MetalBank<L> {
+impl<L: Simd> MetalBank<L> {
     /// Advances one sample, returning the upper and lower bands. Each
     /// oscillator drives the sum with its mean voltage over the sample,
     /// which keeps its edges' timing between samples.

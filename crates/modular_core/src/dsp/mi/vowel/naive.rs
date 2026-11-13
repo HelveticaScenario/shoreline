@@ -20,7 +20,7 @@ use crate::{
     poly::{PolyOutput, PolySignal, PolySignalExt},
 };
 
-use super::{Channel, Rates, Voice, update_channels};
+use super::{Lane, Rates, Voice, update_lanes};
 
 const FORMANTS: usize = 5;
 const PHONEMES: usize = 5;
@@ -188,7 +188,7 @@ impl Voice for NaiveSynth {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FormantVowelParams {
@@ -262,20 +262,20 @@ const FORMANT_VOWEL_DOCS: ModuleDocs = ModuleDocs {
 pub struct FormantVowel {
     outputs: FormantVowelOutputs,
     state: Rates,
-    channel_state: Box<[Channel<NaiveSynth>]>,
+    lane_state: Box<[Lane<NaiveSynth>]>,
     params: FormantVowelParams,
 }
 
 impl FormantVowel {
     fn init(&mut self, sample_rate: f32) {
         self.state = Rates::new(sample_rate);
-        for channel in self.channel_state.iter_mut() {
-            *channel = Channel::new(&self.state);
+        for lane in self.lane_state.iter_mut() {
+            *lane = Lane::new(&self.state);
         }
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        update_channels!(self, FormantVowelParams);
+        update_lanes!(self, FormantVowelParams);
     }
 }
 

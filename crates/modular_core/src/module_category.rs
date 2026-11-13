@@ -42,7 +42,7 @@ pub enum ModuleCategory {
     Drum,
     /// Playback of recorded audio and media files.
     Sampler,
-    /// Combining and panning channels.
+    /// Combining and panning lanes.
     Mixer,
     /// Arithmetic and range transforms on signals.
     Math,

@@ -95,7 +95,7 @@ import {
 import {
     drawOscilloscope,
     readScopeColors,
-    scopeBufferKeyFromChannel,
+    scopeBufferKeyFromLane,
     scopeBufferKeyToString,
 } from './app/oscilloscope';
 import { useEditorBuffers } from './app/hooks/useEditorBuffers';
@@ -1607,7 +1607,7 @@ function App() {
 
                     const scopeColors = readScopeColors();
 
-                    // For each scope canvas, collect its channels' data and draw
+                    // For each scope canvas, collect its lanes' data and draw
                     for (const [
                         ,
                         canvas,
@@ -1618,24 +1618,22 @@ function App() {
                         const rangeMax = parseFloat(
                             canvas.dataset.scopeRangeMax || '5',
                         );
-                        const channelKeysStr = canvas.dataset.scopeChannelKeys;
-                        if (!channelKeysStr) {
+                        const laneKeysStr = canvas.dataset.scopeLaneKeys;
+                        if (!laneKeysStr) {
                             continue;
                         }
 
-                        const channelKeys = JSON.parse(
-                            channelKeysStr,
-                        ) as string[];
-                        const channels: Float32Array[] = [];
+                        const laneKeys = JSON.parse(laneKeysStr) as string[];
+                        const lanes: Float32Array[] = [];
                         const readOffsets: number[] = [];
                         const triggerOffsets: number[] = [];
                         let globalMin = Infinity;
                         let globalMax = -Infinity;
 
-                        for (const chKey of channelKeys) {
-                            const entry = bufferMap.get(chKey);
+                        for (const laneKey of laneKeys) {
+                            const entry = bufferMap.get(laneKey);
                             if (entry) {
-                                channels.push(entry.data);
+                                lanes.push(entry.data);
                                 readOffsets.push(entry.stats.readOffset);
                                 triggerOffsets.push(entry.stats.triggerOffset);
                                 if (entry.stats.min < globalMin) {
@@ -1647,8 +1645,8 @@ function App() {
                             }
                         }
 
-                        if (channels.length > 0) {
-                            drawOscilloscope(channels, canvas, {
+                        if (lanes.length > 0) {
+                            drawOscilloscope(lanes, canvas, {
                                 colors: scopeColors,
                                 range: [rangeMin, rangeMax],
                                 stats: {
@@ -2004,19 +2002,19 @@ function App() {
                         continue;
                     }
 
-                    // Derive buffer keys for each channel in this scope
-                    const channelKeys = scope.channels.map((ch: any) =>
-                        scopeBufferKeyFromChannel(
-                            ch,
+                    // Derive buffer keys for each lane in this scope
+                    const laneKeys = scope.lanes.map((lane: any) =>
+                        scopeBufferKeyFromLane(
+                            lane,
                             scope.msPerFrame,
                             scope.triggerThreshold,
                         ),
                     );
 
-                    // Use first channel's key as the scope's identity
+                    // Use first lane's key as the scope's identity
                     const scopeKey =
-                        channelKeys.length > 0
-                            ? `scope:${i}:${channelKeys.join('+')}`
+                        laneKeys.length > 0
+                            ? `scope:${i}:${laneKeys.join('+')}`
                             : `scope:${i}:empty`;
 
                     const loc = (scope as any).sourceLocation as
@@ -2037,7 +2035,7 @@ function App() {
                             : null;
 
                     views.push({
-                        channelKeys,
+                        laneKeys,
                         decorationIndex: range ? decorationDescs.length : null,
                         file: activeBufferId,
                         key: scopeKey,

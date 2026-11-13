@@ -1,6 +1,6 @@
 //! `$eq` renders identically on the block and per-sample paths: fixed sections
 //! that settle on their first sample, swept sections that keep smoothing, a
-//! freq summed from several channels, per-channel lists, and more smoothing
+//! freq summed from several lanes, per-lane lists, and more smoothing
 //! sections than one block range resolves.
 
 mod block_common;
@@ -30,7 +30,7 @@ fn swept() -> Value {
 
 #[test]
 fn eq_paths_agree() {
-    let input = poly_cable("src", CHANNELS);
+    let input = poly_cable("src", LANES);
     check_paths_agree("$eq", json!({ "input": input, "sections": fixed() }));
     check_paths_agree("$eq", json!({ "input": input, "sections": swept() }));
     check_paths_agree(
@@ -53,7 +53,7 @@ fn allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$eq",
-            json!({ "input": poly_cable("src", CHANNELS), "sections": [fixed(), swept()] })
+            json!({ "input": poly_cable("src", LANES), "sections": [fixed(), swept()] })
         ),
         0
     );

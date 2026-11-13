@@ -13,7 +13,7 @@ use crate::poly::{PolyOutput, PolySignal};
 const MIN_HZ: f32 = 1e-4;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct HzParams {
@@ -55,7 +55,7 @@ pub struct Hz {
 
 impl Hz {
     fn update(&mut self, _sample_rate: f32) {
-        for i in 0..self.channel_count() {
+        for i in 0..self.lane_count() {
             let value = hz(self.params.input.get_value(i));
             self.outputs.sample.set(i, value);
         }
@@ -70,7 +70,7 @@ impl Hz {
         let mut scratch = Default::default();
         let inputs = self
             .params
-            .block_inputs(range.clone(), self.channel_count(), &mut scratch)?;
+            .block_inputs(range.clone(), self.lane_count(), &mut scratch)?;
         block_input::map(&mut outputs.sample, range, [inputs.input], |[f]| hz(f));
         Some(())
     }

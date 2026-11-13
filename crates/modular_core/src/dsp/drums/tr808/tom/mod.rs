@@ -21,9 +21,9 @@ use super::circuit::{
     decay_around, pulse_volts,
 };
 use crate::dsp::drums::analog::{Exp, VT, converged, high_pass, low_pass, one_pole_coeff, rc_hz};
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, Run};
 use crate::dsp::drums::input::{Cached, Hold};
-use crate::dsp::drums::lanes::{Lanes, Lanewise, Mask, Mono, Real, c, lanewise};
+use crate::dsp::drums::simd::{Elementwise, Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::dsp::utils::voct_to_hz;
@@ -89,7 +89,7 @@ const D56_DROP: f32 = 0.6;
 
 /// The circuit's state for one hit sequence.
 #[derive(Clone, Copy, Default)]
-struct Tom<L: Lanes = Mono> {
+struct Tom<L: Simd = Mono> {
     pulse: Pulse<L>,
     /// Voltage across the input coupling capacitor.
     c_in: L::S,
@@ -110,7 +110,7 @@ struct Tom<L: Lanes = Mono> {
     out_lp: L::S,
 }
 
-lanewise!(Tom {
+elementwise!(Tom {
     pulse,
     c_in,
     arms,
@@ -176,10 +176,10 @@ impl TomShared {
     }
 }
 
-/// One output channel: its voices, noise generator, and the bridged-T tuned
+/// One output lane: its voices, noise generator, and the bridged-T tuned
 /// for the current `freq` and `decay`.
 #[derive(Clone, Copy, Default)]
-struct Channel {
+struct Lane {
     voices: Voices<Tom>,
     noise: WhiteNoise,
     network: Cached<(f32, f32), Network>,
@@ -187,7 +187,7 @@ struct Channel {
 
 /// The settings for one sample.
 #[derive(Clone, Copy, Default)]
-struct TomControls<L: Lanes = Mono> {
+struct TomControls<L: Simd = Mono> {
     t: BridgedT<L>,
     /// The white noise generator's voltage. Gated noise keeps its generator
     /// running between hits, so the gate's first sample after a strike draws
@@ -197,16 +197,16 @@ struct TomControls<L: Lanes = Mono> {
     level: L::S,
 }
 
-lanewise!(TomControls { t, white, level });
+elementwise!(TomControls { t, white, level });
 
 /// The toms and congas at every width.
 struct TomDrum;
 
 impl Drum for TomDrum {
     type Shared = TomShared;
-    type Circuit<L: Lanes> = Tom<L>;
-    type Controls<L: Lanes> = TomControls<L>;
-    type Sources<L: Lanes> = ();
+    type Circuit<L: Simd> = Tom<L>;
+    type Controls<L: Simd> = TomControls<L>;
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = false;
 }
@@ -222,7 +222,7 @@ impl Fire for Tom {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Tom<L> {
+impl<L: Simd> Circuit<L> for Tom<L> {
     type Shared = TomShared;
     type Controls = TomControls<L>;
 
@@ -252,7 +252,7 @@ impl<L: Lanes> Circuit<L> for Tom<L> {
     }
 }
 
-impl<L: Lanes> Tom<L> {
+impl<L: Simd> Tom<L> {
     /// Advances the input network and bridged-T one sample, returning
     /// IC15's output.
     #[inline]
@@ -358,7 +358,7 @@ impl<L: Lanes> Tom<L> {
     }
 }
 
-/// A tom's per-sample-rate constants and its channel groups.
+/// A tom's per-sample-rate constants and its lane groups.
 #[derive(Default)]
 struct TomState {
     hold: Hold<1, 2>,

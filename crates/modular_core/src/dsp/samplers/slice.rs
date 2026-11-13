@@ -6,14 +6,14 @@ use deserr::{DeserializeError, ErrorKind, IntoValue, Sequence, ValueKind, ValueP
 use schemars::JsonSchema;
 
 use crate::{
-    poly::{MonoSignal, PORT_MAX_CHANNELS, PolySignal},
+    poly::{LaneSum, PORT_MAX_LANES, PolySignal},
     types::Signal,
 };
 
 /// Slice points plus the mono signal that picks which slice plays.
 ///
-/// Accepts either a bare Mono<Signal> (shorthand for `[[0], Mono<Signal>]` — one slice
-/// spanning the whole file) or a `[points, Mono<Signal>]` tuple. Points are
+/// Accepts either a bare LaneSum<Signal> (shorthand for `[[0], LaneSum<Signal>]` — one slice
+/// spanning the whole file) or a `[points, LaneSum<Signal>]` tuple. Points are
 /// fractions of the total WAV length; slice `i` runs from `points[i]` to the
 /// next point (or the end of the file for the last one). Points need not be
 /// sorted — a point at or past its successor yields a zero-length slice.
@@ -21,11 +21,11 @@ use crate::{
 pub(crate) struct SliceParam {
     /// Non-empty; every point finite and in [0, 1]. Enforced at deserialize.
     pub points: Vec<f64>,
-    pub signal: MonoSignal,
+    pub signal: LaneSum,
 }
 
 impl SliceParam {
-    fn from_mono(signal: MonoSignal) -> Self {
+    fn from_mono(signal: LaneSum) -> Self {
         Self {
             points: vec![0.0],
             signal,
@@ -50,7 +50,7 @@ impl<E: DeserializeError> deserr::Deserr<E> for SliceParam {
                 let mut iter = seq.into_iter();
                 let Some(first) = iter.next() else {
                     return Err(unexpected(
-                        "slice cannot be an empty array; pass a Mono<Signal> or [points, Mono<Signal>]"
+                        "slice cannot be an empty array; pass a LaneSum<Signal> or [points, LaneSum<Signal>]"
                             .to_string(),
                         location,
                     ));
@@ -60,7 +60,7 @@ impl<E: DeserializeError> deserr::Deserr<E> for SliceParam {
                     if len != 2 {
                         return Err(unexpected(
                             format!(
-                                "slice tuple must be [points, Mono<Signal>] (exactly 2 elements), got {len}"
+                                "slice tuple must be [points, LaneSum<Signal>] (exactly 2 elements), got {len}"
                             ),
                             location,
                         ));
@@ -84,7 +84,7 @@ impl<E: DeserializeError> deserr::Deserr<E> for SliceParam {
                             ));
                         }
                     }
-                    let signal = <MonoSignal as deserr::Deserr<E>>::deserialize_from_value(
+                    let signal = <LaneSum as deserr::Deserr<E>>::deserialize_from_value(
                         iter.next().expect("length checked above").into_value(),
                         location.push_index(1),
                     )?;
@@ -103,19 +103,19 @@ impl<E: DeserializeError> deserr::Deserr<E> for SliceParam {
                             location.push_index(i + 1),
                         )?);
                     }
-                    if signals.len() > PORT_MAX_CHANNELS {
+                    if signals.len() > PORT_MAX_LANES {
                         return Err(unexpected(
-                            format!("PolySignal cannot exceed {PORT_MAX_CHANNELS} channels"),
+                            format!("PolySignal cannot exceed {PORT_MAX_LANES} lanes"),
                             location,
                         ));
                     }
-                    Ok(Self::from_mono(MonoSignal::from_poly(PolySignal::poly(
+                    Ok(Self::from_mono(LaneSum::from_poly(PolySignal::poly(
                         &signals,
                     ))))
                 }
             }
             other => Ok(Self::from_mono(
-                <MonoSignal as deserr::Deserr<E>>::deserialize_from_value(other, location)?,
+                <LaneSum as deserr::Deserr<E>>::deserialize_from_value(other, location)?,
             )),
         }
     }
@@ -126,7 +126,7 @@ impl JsonSchema for SliceParam {
         Cow::Borrowed("SamplerSlice")
     }
 
-    // Inlined so the anyOf (with its MonoSignal $ref) sits directly on the
+    // Inlined so the anyOf (with its LaneSum $ref) sits directly on the
     // param property — patch validation scans property schemas for Signal
     // refs to know where cables can appear, and does not resolve $defs.
     fn inline_schema() -> bool {
@@ -134,7 +134,7 @@ impl JsonSchema for SliceParam {
     }
 
     fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        let mono = r#gen.subschema_for::<MonoSignal>();
+        let mono = r#gen.subschema_for::<LaneSum>();
         schemars::json_schema!({
             "anyOf": [
                 (mono.clone()),

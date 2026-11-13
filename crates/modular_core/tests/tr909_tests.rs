@@ -24,13 +24,13 @@ const RS: &str = "$tr909.rimShot";
 const CP: &str = "$tr909.clap";
 const ALL: [&str; 7] = [BD, SD, LT, MT, HT, RS, CP];
 
-/// The median peak of hits on a voice at rest: one on each of `channels`
-/// channels, which each draw their own noise, struck once and again after
+/// The median peak of hits on a voice at rest: one on each of `lanes`
+/// lanes, which each draw their own noise, struck once and again after
 /// the first hit has settled.
-fn median_hit_peak(module_type: &str, mut params: Value, channels: usize) -> f32 {
+fn median_hit_peak(module_type: &str, mut params: Value, lanes: usize) -> f32 {
     const BLOCK: usize = 64;
-    let clock = json!({ "type": "cable", "module": "clock", "port": "output", "channel": 0 });
-    params["trigger"] = json!(vec![clock; channels]);
+    let clock = json!({ "type": "cable", "module": "clock", "port": "output", "lane": 0 });
+    params["trigger"] = json!(vec![clock; lanes]);
     let modules = [
         ("clock", "$pulse", json!({ "freq": voct(1.0) })),
         ("drum", module_type, params),
@@ -47,7 +47,7 @@ fn median_hit_peak(module_type: &str, mut params: Value, channels: usize) -> f32
                     module_type.to_string(),
                     DeserializedParams {
                         params: cached.params,
-                        channel_count: cached.channel_count,
+                        lane_count: cached.lane_count,
                         f64_inputs: false,
                     },
                     ProcessingMode::Block,
@@ -59,7 +59,7 @@ fn median_hit_peak(module_type: &str, mut params: Value, channels: usize) -> f32
         .unwrap();
     patch.connect_all();
     let (clock, drum) = (&patch.sampleables["clock"], &patch.sampleables["drum"]);
-    let mut peaks = vec![0.0f32; channels];
+    let mut peaks = vec![0.0f32; lanes];
     let (mut edges, mut prev) = (0, 0.0);
     for _ in 0..(1.3 * SR) as usize / BLOCK {
         clock.start_block();
@@ -71,14 +71,14 @@ fn median_hit_peak(module_type: &str, mut params: Value, channels: usize) -> f32
             edges += (prev < 1.0 && gate >= 1.0) as usize;
             prev = gate;
             if edges == 2 {
-                for (ch, p) in peaks.iter_mut().enumerate() {
-                    *p = p.max(drum.get_value_at("output", ch, i).abs());
+                for (lane, p) in peaks.iter_mut().enumerate() {
+                    *p = p.max(drum.get_value_at("output", lane, i).abs());
                 }
             }
         }
     }
     peaks.sort_by(f32::total_cmp);
-    peaks[channels / 2]
+    peaks[lanes / 2]
 }
 
 /// Seconds at `t` of window `w`.
@@ -103,9 +103,9 @@ fn voices_are_silent_until_struck() {
 fn accent_doubles_the_level() {
     for voice in ALL {
         // Noise makes each kick, snare and clap peak differently.
-        let channels = if [BD, SD, CP].contains(&voice) { 8 } else { 1 };
-        let soft = median_hit_peak(voice, json!({ "accent": 0.0 }), channels);
-        let hard = median_hit_peak(voice, json!({ "accent": 5.0 }), channels);
+        let lanes = if [BD, SD, CP].contains(&voice) { 8 } else { 1 };
+        let soft = median_hit_peak(voice, json!({ "accent": 0.0 }), lanes);
+        let hard = median_hit_peak(voice, json!({ "accent": 5.0 }), lanes);
         assert!((soft - 5.0).abs() < 0.75, "{voice} {soft}");
         assert!((hard - 10.0).abs() < 1.5, "{voice} {hard}");
     }
@@ -308,7 +308,7 @@ fn cp_claps_several_times() {
 }
 
 #[test]
-fn channels_added_by_a_patch_update_get_their_own_noise() {
+fn lanes_added_by_a_patch_update_get_their_own_noise() {
     for voice in [BD, SD, LT, MT, HT, CP] {
         let old = make(voice, json!({ "trigger": 5.0 }), SR);
         old.on_patch_update();

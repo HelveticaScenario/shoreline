@@ -3,7 +3,7 @@
 //! Every `$unstable.shape.*` module is the same machine — glide the drive, normalize the
 //! signal into the shaper's `[-1, 1]` domain, optionally 2× oversample, apply a
 //! per-`mode` nonlinearity, fade in the onset, and scale back to modular level —
-//! differing only in the set of nonlinearities (the [`Shaper`] impl). Channels
+//! differing only in the set of nonlinearities (the [`Shaper`] impl). Lanes
 //! are processed one at a time in `f32`.
 
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
@@ -46,10 +46,10 @@ pub trait Shaper: Copy + Default {
     fn prime() {}
 }
 
-/// Per-channel runtime state: drive glide, onset fade, oversampling pair, and
-/// the shaper's own state. One instance per channel.
+/// Per-lane runtime state: drive glide, onset fade, oversampling pair, and
+/// the shaper's own state. One instance per lane.
 #[derive(Clone, Copy, Default)]
-pub struct ShapeChannel<S: Shaper> {
+pub struct ShapeLane<S: Shaper> {
     drive: SwapGlide,
     fade: FadeIn,
     up: Halfband2xUp,
@@ -57,7 +57,7 @@ pub struct ShapeChannel<S: Shaper> {
     shaper: S,
 }
 
-impl<S: Shaper> ShapeChannel<S> {
+impl<S: Shaper> ShapeLane<S> {
     #[inline]
     fn process(
         &mut self,
@@ -109,27 +109,27 @@ pub struct ShapeInputs<'a, M> {
     pub mode: M,
 }
 
-/// Run one sample across all channels of a `$unstable.shape.*` module: gather, shape,
+/// Run one sample across all lanes of a `$unstable.shape.*` module: gather, shape,
 /// scatter. This is the entire per-sample body every module shares.
 #[inline]
 pub fn run<S: Shaper>(
-    channels: usize,
+    lanes: usize,
     inputs: ShapeInputs<'_, S::Mode>,
     state: &ShapeModuleState,
-    channel_state: &mut [ShapeChannel<S>],
+    lane_state: &mut [ShapeLane<S>],
     out: &mut PolyOutput,
     sample_rate: f32,
 ) {
     let ShapeInputs { input, drive, mode } = inputs;
-    for (ch, cs) in channel_state[..channels].iter_mut().enumerate() {
+    for (lane, cs) in lane_state[..lanes].iter_mut().enumerate() {
         let y = cs.process(
-            input.get_value(ch),
-            drive.value_or(ch, 0.0),
-            drive.glide_mark(ch),
+            input.get_value(lane),
+            drive.value_or(lane, 0.0),
+            drive.glide_mark(lane),
             mode,
             state,
             sample_rate,
         );
-        out.set(ch, y);
+        out.set(lane, y);
     }
 }

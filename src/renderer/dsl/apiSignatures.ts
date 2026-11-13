@@ -8,7 +8,7 @@
  * their dotted path (`lpf`, `mi.chorus`). Audio and video values are separate
  * families, since their methods share names (`range`, `fold`) but not
  * parameters. A parameter accepts a signal when its type reaches `Signal`,
- * `Poly`, or `Mono`, or unions `number` with a module output type.
+ * `Poly`, or `LaneSum`, or unions `number` with a module output type.
  */
 import ts from 'typescript';
 

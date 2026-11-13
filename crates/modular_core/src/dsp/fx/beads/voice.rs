@@ -24,8 +24,8 @@ pub struct Voice {
     pub history: MonoHistory,
     /// Hardware-rate input for the current sample.
     pub input: f32,
-    /// Whether this voice is a channel of the audio input and so carries its
-    /// dry signal; wider voices replay a channel another voice also records.
+    /// Whether this voice is a lane of the audio input and so carries its
+    /// dry signal; wider voices replay a lane another voice also records.
     pub dry_source: bool,
     pub freeze: bool,
     pub freeze_schmitt: SchmittTrigger,

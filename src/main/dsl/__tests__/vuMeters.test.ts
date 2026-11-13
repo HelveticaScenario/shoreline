@@ -499,37 +499,37 @@ describe('gate chain compilation', () => {
     });
 });
 
-describe('$outLane', () => {
+describe('$trackTap', () => {
     /** The cable(s) feeding the `probe` $signal's value. */
     function probe(
         patch: PatchGraph,
-    ): { channel: number; module: string; port: string }[] {
+    ): { lane: number; module: string; port: string }[] {
         const source = moduleById(patch, 'probe').params.value;
         return (Array.isArray(source) ? source : [source]) as {
-            channel: number;
+            lane: number;
             module: string;
             port: string;
         }[];
     }
 
-    test('the lane is its post-gate stereo audio', () => {
+    test('the tap is its post-gate stereo audio', () => {
         const patch = execPatch(`
-            $signal($outLane('bass'), { id: 'probe' })
+            $signal($trackTap('bass'), { id: 'probe' })
             $saw('c2').out({ label: 'bass' })
         `);
         expect(probe(patch)).toHaveLength(2);
         const [left, right] = probe(patch);
-        expect(left).toMatchObject({ channel: 0 });
-        expect(right).toMatchObject({ channel: 1, module: left.module });
+        expect(left).toMatchObject({ lane: 0 });
+        expect(right).toMatchObject({ lane: 1, module: left.module });
         const gate = moduleById(patch, left.module);
         expect(gate.moduleType).toBe('$amp');
         expect(gate.params.factor).toMatchObject([{ module: '__vuSlew_bass' }]);
     });
 
-    test('a mono lane fills both channels', () => {
+    test('a mono out fills both lanes', () => {
         const patch = execPatch(`
             $saw('c2').outMono(0, { label: 'bass' })
-            $signal($outLane('bass'), { id: 'probe' })
+            $signal($trackTap('bass'), { id: 'probe' })
         `);
         const [left, right] = probe(patch);
         expect(right).toEqual(left);
@@ -537,7 +537,7 @@ describe('$outLane', () => {
 
     test('.active taps the mute/solo gate', () => {
         const patch = execPatch(`
-            $signal($outLane('bass').active, { id: 'probe' })
+            $signal($trackTap('bass').active, { id: 'probe' })
             $saw('c2').out({ label: 'bass' })
             $sine('c4').out({ label: 'lead', solo: true })
         `);
@@ -550,7 +550,7 @@ describe('$outLane', () => {
 
     test('.level and .pan tap the lifted controls', () => {
         const patch = execPatch(`
-            const bass = $outLane('bass')
+            const bass = $trackTap('bass')
             $saw('c2').out({ label: 'bass', gain: 3, pan: -2 })
             $signal(bass.level, { id: 'probe' })
             $signal(bass.pan, { id: 'panProbe' })
@@ -562,8 +562,8 @@ describe('$outLane', () => {
     });
 
     /**
-     * The `$signal` a lane control wraps a source in: the source's first
-     * channel, and the range the wrapper declares.
+     * The `$signal` a tap control wraps a source in: the source's first
+     * lane, and the range the wrapper declares.
      */
     function wrapped(patch: PatchGraph, cable: unknown) {
         const [{ module }] = (Array.isArray(cable) ? cable : [cable]) as {
@@ -580,8 +580,8 @@ describe('$outLane', () => {
             const g = $signal(4, { id: 'g' })
             const p = $signal(1, { id: 'p' })
             $saw('c2').out({ label: 'bass', gain: g, pan: p })
-            $signal($outLane('bass').level, { id: 'probe' })
-            $signal($outLane('bass').pan, { id: 'panProbe' })
+            $signal($trackTap('bass').level, { id: 'probe' })
+            $signal($trackTap('bass').pan, { id: 'panProbe' })
         `);
         expect(wrapped(patch, probe(patch))).toMatchObject({
             max: 10,
@@ -593,10 +593,10 @@ describe('$outLane', () => {
         ).toMatchObject({ max: 5, min: -5, value: { module: 'p' } });
     });
 
-    test('a mono lane pans center', () => {
+    test('a mono out pans center', () => {
         const patch = execPatch(`
             $saw('c2').outMono(0, { label: 'bass' })
-            $signal($outLane('bass').pan, { id: 'probe' })
+            $signal($trackTap('bass').pan, { id: 'probe' })
         `);
         expect(wrapped(patch, probe(patch)).value).toBe(0);
     });
@@ -613,7 +613,7 @@ describe('$outLane', () => {
 
     test('properties map from the ranges their controls declare', () => {
         const patch = execPatch(`
-            const bass = $outLane('bass')
+            const bass = $trackTap('bass')
             $saw('c2').out({ label: 'bass' })
             $signal(bass.active.range(-1, 1), { id: 'active' })
             $signal(bass.level.range(-1, 1), { id: 'level' })
@@ -647,7 +647,7 @@ describe('$outLane', () => {
     test('a ranged gain signal is tapped, lending .level its range', () => {
         const patch = execPatch(`
             $saw('c2').out({ label: 'bass', gain: $sine('1hz').range(1, 4) })
-            $signal($outLane('bass').level.range(-1, 1), { id: 'level' })
+            $signal($trackTap('bass').level.range(-1, 1), { id: 'level' })
         `);
         const level = remapParams(patch, 'level');
         expect(level).not.toHaveProperty('inMin');
@@ -658,7 +658,7 @@ describe('$outLane', () => {
     test('a sequenced gain reads its $cycle', () => {
         const patch = execPatch(`
             $saw('c2').out({ label: 'bass', gain: $p('1 4') })
-            $signal($outLane('bass').level, { id: 'probe' })
+            $signal($trackTap('bass').level, { id: 'probe' })
         `);
         const cycles = patch.modules.filter((m) => m.moduleType === '$cycle');
         expect(cycles).toHaveLength(1);
@@ -667,14 +667,14 @@ describe('$outLane', () => {
         });
     });
 
-    test('several gain channels read as the first', () => {
+    test('several gain lanes read as the first', () => {
         const patch = execPatch(`
             const a = $sine('1hz').range(1, 2)
             const b = $signal(4, { id: 'b' })
             $saw('c2').out({ label: 'bass', gain: [a, b] })
             $saw('c3').out({ label: 'mid', gain: $g1([b, a]) })
-            $signal($outLane('bass').level, { id: 'bassProbe' })
-            $signal($outLane('mid').level, { id: 'midProbe' })
+            $signal($trackTap('bass').level, { id: 'bassProbe' })
+            $signal($trackTap('mid').level, { id: 'midProbe' })
         `);
         const [first] = moduleById(patch, 'bassProbe').params.value as {
             module: string;
@@ -685,10 +685,10 @@ describe('$outLane', () => {
         ).toMatchObject({ module: 'b' });
     });
 
-    test('a mono lane taps its gain', () => {
+    test('a mono out taps its gain', () => {
         const patch = execPatch(`
             $saw('c2').outMono(0, { label: 'bass', gain: 2 })
-            $signal($outLane('bass').level, { id: 'probe' })
+            $signal($trackTap('bass').level, { id: 'probe' })
         `);
         expect(probe(patch)[0]).toMatchObject({ module: '__vuGain_bass' });
         expect(moduleById(patch, '__vuGain_bass').params.value).toBe(2);
@@ -698,7 +698,7 @@ describe('$outLane', () => {
         const patch = execPatch(`
             const gain = $deferred()
             $saw('c2').out({ label: 'bass', gain })
-            $signal($outLane('bass').level, { id: 'probe' })
+            $signal($trackTap('bass').level, { id: 'probe' })
             gain.set($signal(3, { id: 'g' }))
         `);
         expect(wrapped(patch, probe(patch)).value).toMatchObject({
@@ -710,7 +710,7 @@ describe('$outLane', () => {
         const patch = execPatch(`
             const gain = $deferred()
             $saw('c2').out({ label: 'bass', gain })
-            $signal($outLane('bass').level.range(-1, 1), { id: 'level' })
+            $signal($trackTap('bass').level.range(-1, 1), { id: 'level' })
             gain.set($sine('1hz').range(1, 4))
         `);
         const [cable] = remapParams(patch, 'level').input as {
@@ -719,9 +719,9 @@ describe('$outLane', () => {
         expect(moduleById(patch, cable.module).moduleType).toBe('$remap');
     });
 
-    test('a lane control can feed its own lane', () => {
+    test('a tap control can feed its own out', () => {
         const patch = execPatch(`
-            const bass = $outLane('bass')
+            const bass = $trackTap('bass')
             $saw('c2').amp(bass.level).out({ label: 'bass', gain: 3 })
         `);
         const amp = patch.modules.find(
@@ -730,14 +730,14 @@ describe('$outLane', () => {
         expect(amp.params.factor).toMatchObject([{ module: '__vuGain_bass' }]);
     });
 
-    test('taps of one lane share its sources', () => {
+    test('taps of one out share its sources', () => {
         const patch = execPatch(`
             const g = $signal(4, { id: 'g' })
             $saw('c2').out({ label: 'bass', gain: g })
             $saw('c3').out({ label: 'mid', gain: g })
-            $signal($outLane('bass').level, { id: 'one' })
-            $signal($outLane('bass').level, { id: 'two' })
-            $signal($outLane('mid').level, { id: 'three' })
+            $signal($trackTap('bass').level, { id: 'one' })
+            $signal($trackTap('bass').level, { id: 'two' })
+            $signal($trackTap('mid').level, { id: 'three' })
         `);
         const [one, two, three] = ['one', 'two', 'three'].map(
             (id) => moduleById(patch, id).params.value,
@@ -749,17 +749,17 @@ describe('$outLane', () => {
     test('a pattern gain plays through its $cycle', () => {
         const patch = execPatch(`
             $saw('c2').out({ label: 'bass', gain: $p('1 4') })
-            $signal($outLane('bass').level, { id: 'probe' })
+            $signal($trackTap('bass').level, { id: 'probe' })
         `);
         expect(
             patch.modules.filter((m) => m.moduleType === '$cycle').length,
         ).toBe(1);
     });
 
-    test('slices keep the lane properties', () => {
+    test('slices keep the tap properties', () => {
         const patch = execPatch(`
             $saw('c2').out({ label: 'bass' })
-            const [left] = $outLane('bass').chunk(1)
+            const [left] = $trackTap('bass').chunk(1)
             $signal(left.active, { id: 'probe' })
             $signal(left, { id: 'audio' })
         `);
@@ -767,14 +767,14 @@ describe('$outLane', () => {
         expect(moduleById(patch, 'audio').params.value).toHaveLength(1);
     });
 
-    test('a control driven by a lane tap meters the resolved source', () => {
+    test('a control driven by a tap meters the resolved source', () => {
         const patch = execPatch(`
             $saw('c2').out({ label: 'bass' })
-            $sine('c5').out({ label: 'lead', pan: $outLane('bass').pan })
+            $sine('c5').out({ label: 'lead', pan: $trackTap('bass').pan })
         `);
         const lead = vuMeters(patch).find((m) => m.key === 'lead')!;
         expect(lead.panSource).toEqual({
-            channel: 0,
+            lane: 0,
             moduleId: '__vuPan_bass',
             portName: 'output',
         });
@@ -784,12 +784,12 @@ describe('$outLane', () => {
         expect(() =>
             exec(`
                 $sine('c4').out({ label: 'lead' })
-                $signal($outLane('laed'), { id: 'probe' })
+                $signal($trackTap('laed'), { id: 'probe' })
             `),
         ).toThrow(/no out is labeled "laed"/);
     });
 
     test('an empty label throws', () => {
-        expect(() => exec(`$outLane('')`)).toThrow(/non-empty string/);
+        expect(() => exec(`$trackTap('')`)).toThrow(/non-empty string/);
     });
 });

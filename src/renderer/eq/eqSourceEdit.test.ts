@@ -143,8 +143,8 @@ describe('computeEqSourceEdit set', () => {
     });
 });
 
-describe('computeEqSourceEdit per-channel lists', () => {
-    const perChannel = `$eq(x, {
+describe('computeEqSourceEdit per-lane lists', () => {
+    const perLane = `$eq(x, {
     sections: [
         [{ freq: 0 }],
         [{ freq: 1 }, { freq: 2 }],
@@ -152,10 +152,10 @@ describe('computeEqSourceEdit per-channel lists', () => {
     ui: true,
 })`;
 
-    it('edits only the addressed channel list', () => {
+    it('edits only the addressed lane list', () => {
         const second = { count: 2, list: 1, listCount: 2 };
         expect(
-            run(perChannel, second, {
+            run(perLane, second, {
                 fields: { gain: num('3') },
                 index: 1,
                 kind: 'set',
@@ -163,32 +163,32 @@ describe('computeEqSourceEdit per-channel lists', () => {
         ).toContain(`[{ freq: 1 }, { freq: 2, gain: 3 }],`);
         expect(
             run(
-                perChannel,
+                perLane,
                 { count: 1, list: 0, listCount: 2 },
                 { fields: { freq: num('5') }, kind: 'add' },
             ),
         ).toContain(`[{ freq: 0 }, { freq: 5 }],`);
-        expect(run(perChannel, second, { index: 0, kind: 'remove' })).toContain(
+        expect(run(perLane, second, { index: 0, kind: 'remove' })).toContain(
             `[{ freq: 2 }],`,
         );
     });
 
-    it('reports a changed form or channel count as stale', () => {
+    it('reports a changed form or lane count as stale', () => {
         const op: EqSourceOp = {
             fields: { freq: num('1') },
             index: 0,
             kind: 'set',
         };
-        expect(result(perChannel, shared(2), op)).toEqual({
+        expect(result(perLane, shared(2), op)).toEqual({
             ok: false,
             reason: 'stale',
         });
         expect(
-            result(perChannel, { count: 1, list: 0, listCount: 3 }, op),
+            result(perLane, { count: 1, list: 0, listCount: 3 }, op),
         ).toEqual({ ok: false, reason: 'stale' });
     });
 
-    it('reports a non-literal channel list as unsupported', () => {
+    it('reports a non-literal lane list as unsupported', () => {
         expect(
             result(
                 `$eq(x, { sections: [[{ freq: 0 }], bands], ui: true })`,

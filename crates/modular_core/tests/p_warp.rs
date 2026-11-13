@@ -12,12 +12,12 @@ static GLOBAL: CountingAllocator = CountingAllocator;
 #[test]
 fn allocation_free() {
     let params = json!({
-        "input": poly_cable("src", CHANNELS),
+        "input": poly_cable("src", LANES),
         "phase": { "type": "pipe",
                    "first": { "type": "mirror", "amount": cable("lfo", 0) },
                    "second": { "type": "pipe",
                                "first": { "type": "feedback", "amount": 2.0 },
-                               "second": { "type": "pulsar", "amount": poly_cable("lfo", CHANNELS) } } },
+                               "second": { "type": "pulsar", "amount": poly_cable("lfo", LANES) } } },
         "freq": 0.0,
     });
     assert_eq!(allocations_while_rendering("$pWarp", params), 0);

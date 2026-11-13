@@ -2,9 +2,9 @@
 //! `$pulse` clock so its circuit spends the run in a mix of attacks, tails
 //! and rest, the way a pattern plays it.
 //!
-//! Prints the best of several runs as nanoseconds per sample per channel,
+//! Prints the best of several runs as nanoseconds per sample per lane,
 //! including the clock, which costs a few nanoseconds.
-//! `cargo bench --bench drums_bench [-- <filter> [channels,…]]`.
+//! `cargo bench --bench drums_bench [-- <filter> [lanes,…]]`.
 
 use std::time::Instant;
 
@@ -27,24 +27,24 @@ fn voices() -> Vec<String> {
         .collect()
 }
 
-/// A clock per channel at about 2 Hz, detuned so channels strike apart, with
-/// the accent swept across channels.
-fn patch(voice: &str, channels: usize) -> Patch {
+/// A clock per lane at about 2 Hz, detuned so lanes strike apart, with
+/// the accent swept across lanes.
+fn patch(voice: &str, lanes: usize) -> Patch {
     let clock = Value::Array(
-        (0..channels)
-            .map(|ch| json!(-7.0 + ch as f32 * 0.13))
+        (0..lanes)
+            .map(|lane| json!(-7.0 + lane as f32 * 0.13))
             .collect(),
     );
     let trigger = Value::Array(
-        (0..channels)
+        (0..lanes)
             .map(
-                |ch| json!({ "type": "cable", "module": "clock", "port": "output", "channel": ch }),
+                |lane| json!({ "type": "cable", "module": "clock", "port": "output", "lane": lane }),
             )
             .collect(),
     );
     let accent = Value::Array(
-        (0..channels)
-            .map(|ch| json!(5.0 * ch as f32 / channels.max(2) as f32))
+        (0..lanes)
+            .map(|lane| json!(5.0 * lane as f32 / lanes.max(2) as f32))
             .collect(),
     );
     let deserializers = get_params_deserializers();
@@ -70,7 +70,7 @@ fn patch(voice: &str, channels: usize) -> Patch {
                     module_type.to_string(),
                     DeserializedParams {
                         params: cached.params,
-                        channel_count: cached.channel_count,
+                        lane_count: cached.lane_count,
                         f64_inputs: false,
                     },
                     ProcessingMode::Block,
@@ -106,26 +106,23 @@ fn main() {
         .filter(|a| !a.starts_with("--"))
         .collect();
     let filter = args.first().cloned().unwrap_or_default();
-    let channels: Vec<usize> = match args.get(1) {
-        Some(list) => list
-            .split(',')
-            .map(|n| n.parse().expect("channels"))
-            .collect(),
+    let lanes: Vec<usize> = match args.get(1) {
+        Some(list) => list.split(',').map(|n| n.parse().expect("lanes")).collect(),
         None => vec![1, 4],
     };
     let samples = (SECS * SR) as usize / BLOCK * BLOCK;
     print!("{:<20}", "voice");
-    for ch in &channels {
-        print!("{:>14}", format!("ns/s/ch @{ch}"));
+    for lane in &lanes {
+        print!("{:>14}", format!("ns/s/lane @{lane}"));
     }
     println!();
-    let mut totals = vec![0.0; channels.len()];
+    let mut totals = vec![0.0; lanes.len()];
     for voice in voices().iter().filter(|v| v.contains(filter.as_str())) {
         print!("{voice:<20}");
-        for (i, &ch) in channels.iter().enumerate() {
-            let p = patch(voice, ch);
+        for (i, &lane) in lanes.iter().enumerate() {
+            let p = patch(voice, lane);
             let best = (0..RUNS).map(|_| run(&p)).fold(f64::INFINITY, f64::min);
-            let ns = best * 1e9 / samples as f64 / ch as f64;
+            let ns = best * 1e9 / samples as f64 / lane as f64;
             totals[i] += ns;
             print!("{ns:>14.1}");
         }

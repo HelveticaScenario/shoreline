@@ -32,7 +32,7 @@ fn graph(modules: Vec<(&str, &str, Value)>) -> PatchGraph {
 }
 
 fn cable(module: &str) -> Value {
-    json!({ "type": "cable", "module": module, "port": "output", "channel": 0 })
+    json!({ "type": "cable", "module": module, "port": "output", "lane": 0 })
 }
 
 /// A `$remap` whose output equals `out_max` (input sits at `in_max`), so the

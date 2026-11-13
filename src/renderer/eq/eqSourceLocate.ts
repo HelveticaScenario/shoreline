@@ -3,7 +3,7 @@
  * Each edit parses the current document and finds the call by the offset of
  * its callee — `$eq` itself, or the `eq` of a `.eq(...)` chain (the
  * panel's tracked anchor) — then the config object holding `ui` and its
- * `sections`: the array itself, or one channel's nested array.
+ * `sections`: the array itself, or one lane's nested array.
  */
 import ts from 'typescript';
 
@@ -25,9 +25,9 @@ export type FieldLiteral = (quote: string) => string;
 
 /** The section list an op addresses, with the shape the panel expects. */
 export interface EqListTarget {
-    /** Channel list index, or null for the shared (one-list) form. */
+    /** Lane list index, or null for the shared (one-list) form. */
     list: number | null;
-    /** Channel lists in the per-channel form (ignored when shared). */
+    /** Lane lists in the per-lane form (ignored when shared). */
     listCount: number;
     /** Sections in the addressed list before the op. */
     count: number;
@@ -118,7 +118,7 @@ export function locateSections(
     return { config, ok: true, outer, sf };
 }
 
-export function isPerChannelLiteral(outer: ts.ArrayLiteralExpression): boolean {
+export function isPerLaneLiteral(outer: ts.ArrayLiteralExpression): boolean {
     const first = outer.elements[0];
     return first !== undefined && ts.isArrayLiteralExpression(first);
 }
@@ -149,7 +149,7 @@ export function locate(
             return { ok: false, reason: 'unsupported' };
         }
         list = inner;
-    } else if (isPerChannelLiteral(outer)) {
+    } else if (isPerLaneLiteral(outer)) {
         return { ok: false, reason: 'stale' };
     }
     if (list.elements.length !== target.count) {

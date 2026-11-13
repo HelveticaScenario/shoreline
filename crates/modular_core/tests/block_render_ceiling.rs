@@ -22,7 +22,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
         .unwrap_or_else(|e| panic!("params deserialization for '{module_type}' failed: {e}"));
     let deserialized = DeserializedParams {
         params: cached.params,
-        channel_count: cached.channel_count,
+        lane_count: cached.lane_count,
         f64_inputs: false,
     };
     get_constructors()

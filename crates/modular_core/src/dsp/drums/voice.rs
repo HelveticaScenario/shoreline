@@ -1,9 +1,9 @@
 //! The scaffold every drum voice runs in: trigger detection with its accent
-//! sample, the trigger pulse as it plays out, and a channel's sounding and
+//! sample, the trigger pulse as it plays out, and a lane's sounding and
 //! cut-off circuits.
 
 use super::input::Input;
-use super::lanes::{Lanes, Mono, Real, c, lanewise};
+use super::simd::{Mono, Real, Simd, c, elementwise};
 use crate::dsp::utils::SchmittTrigger;
 
 /// How long a hit cut off by a restart takes to fade out under the next
@@ -17,22 +17,22 @@ pub struct Strike {
 }
 
 impl Strike {
-    /// The accent, 0–1, for a strike on this sample, sampling channel
-    /// `ch` of `accent` (0–5 V).
+    /// The accent, 0–1, for a strike on this sample, sampling lane
+    /// `lane` of `accent` (0–5 V).
     #[inline]
-    pub fn process(&mut self, trigger: f32, accent: impl Input, ch: usize) -> Option<f32> {
-        self.trigger.process(trigger).then(|| knob(accent.at(ch)))
+    pub fn process(&mut self, trigger: f32, accent: impl Input, lane: usize) -> Option<f32> {
+        self.trigger.process(trigger).then(|| knob(accent.at(lane)))
     }
 }
 
 /// A trigger pulse as it plays out: its voltage for the remaining samples.
 #[derive(Clone, Copy, Default)]
-pub struct Pulse<L: Lanes = Mono> {
+pub struct Pulse<L: Simd = Mono> {
     left: L::S,
     volts: L::S,
 }
 
-lanewise!(Pulse { left, volts });
+elementwise!(Pulse { left, volts });
 
 impl Pulse {
     pub fn fire(&mut self, volts: f32, samples: u32) {
@@ -41,7 +41,7 @@ impl Pulse {
     }
 }
 
-impl<L: Lanes> Pulse<L> {
+impl<L: Simd> Pulse<L> {
     pub fn active(&self) -> L::SM {
         self.left.gt(c(0.0))
     }
@@ -65,7 +65,7 @@ pub fn samples(secs: f32, sample_rate: f32) -> u32 {
     (secs * sample_rate).round().max(1.0) as u32
 }
 
-/// Per-sample-rate timing shared by every channel of a voice.
+/// Per-sample-rate timing shared by every lane of a voice.
 #[derive(Clone, Copy, Default)]
 pub struct Timing {
     /// The machine's trigger pulse.
@@ -88,8 +88,8 @@ impl Timing {
 
 /// A voice circuit's state through a sequence of hits, at width `L`. The
 /// default value is the circuit at rest.
-pub trait Circuit<L: Lanes = Mono>: Copy + Default {
-    /// Constants shared by every channel, fixed by the sample rate.
+pub trait Circuit<L: Simd = Mono>: Copy + Default {
+    /// Constants shared by every lane, fixed by the sample rate.
     type Shared;
     /// Settings read once per sample.
     type Controls;
@@ -101,7 +101,7 @@ pub trait Circuit<L: Lanes = Mono>: Copy + Default {
     fn step(&mut self, shared: &Self::Shared, controls: &Self::Controls) -> L::S;
 }
 
-/// Starting a hit, which happens one channel at a time.
+/// Starting a hit, which happens one lane at a time.
 pub trait Fire: Circuit {
     /// Starts a hit with `accent`, 0–1.
     fn fire(&mut self, accent: f32, shared: &Self::Shared);
@@ -137,7 +137,7 @@ pub fn rails(v: f32) -> f32 {
     }
 }
 
-/// One output channel: the strike detector, the sounding circuit, and a
+/// One output lane: the strike detector, the sounding circuit, and a
 /// cut-off one fading out under it, each with its accent trim less one.
 #[derive(Clone, Copy, Default)]
 pub struct Voices<C> {
@@ -159,14 +159,14 @@ impl<C: Fire> Voices<C> {
         &mut self,
         trigger: f32,
         accent: impl Input,
-        ch: usize,
+        lane: usize,
         restart: bool,
         fade_samples: u32,
         shared: &C::Shared,
         controls: &C::Controls,
     ) -> f32 {
         let trim = C::accent_trim(shared) - 1.0;
-        if let Some(accent) = self.strike.process(trigger, accent, ch) {
+        if let Some(accent) = self.strike.process(trigger, accent, lane) {
             if restart && !self.voice.settled() {
                 self.tail = self.voice;
                 self.tail_left = fade_samples;
@@ -203,11 +203,11 @@ impl<C: Fire> Voices<C> {
 /// A running peak of a voice's output, falling 60 dB in `QUIET_SECS`, so
 /// silence means silent for a while rather than a zero crossing.
 #[derive(Clone, Copy, Default)]
-pub struct Quiet<L: Lanes = Mono> {
+pub struct Quiet<L: Simd = Mono> {
     level: L::S,
 }
 
-lanewise!(Quiet { level });
+elementwise!(Quiet { level });
 
 const QUIET_SECS: f32 = 0.03;
 
@@ -216,7 +216,7 @@ pub fn quiet_fall(sample_rate: f32) -> f32 {
     (-std::f32::consts::LN_10 * 3.0 / (QUIET_SECS * sample_rate)).exp()
 }
 
-impl<L: Lanes> Quiet<L> {
+impl<L: Simd> Quiet<L> {
     /// Takes in a sample, with the peak falling by `fall` from
     /// [`quiet_fall`].
     #[inline]
@@ -233,13 +233,13 @@ impl<L: Lanes> Quiet<L> {
 /// A voice's output scale, set by each hit's accent. A hit on a sounding
 /// voice ramps it to the new scale, so the tail it rescales does not click.
 #[derive(Clone, Copy, Default)]
-pub struct Level<L: Lanes = Mono> {
+pub struct Level<L: Simd = Mono> {
     now: L::S,
     step: L::S,
     left: L::S,
 }
 
-lanewise!(Level { now, step, left });
+elementwise!(Level { now, step, left });
 
 impl Level {
     /// Moves to `target`, over `samples` while `sounding`, at once otherwise.
@@ -254,7 +254,7 @@ impl Level {
     }
 }
 
-impl<L: Lanes> Level<L> {
+impl<L: Simd> Level<L> {
     pub fn now(&self) -> L::S {
         self.now
     }

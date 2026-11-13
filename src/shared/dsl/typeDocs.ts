@@ -31,7 +31,7 @@ export interface TypeDocumentation {
 export const DSL_TYPE_NAMES = [
     'Signal',
     'Poly<Signal>',
-    'Mono<Signal>',
+    'LaneSum<Signal>',
     'Multi-output modules',
     'Pattern',
     'Collection',
@@ -52,18 +52,18 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         definition:
             'class extends Iterable<Collection> { length: number; [index]: Collection; ... }',
         description:
-            'A signal with chainable DSP methods: what every module returns, one channel per voice. ' +
-            'Group signals with the $c() helper function. Supports iteration, indexing, and spreading, each giving one-channel collections. ' +
-            'Methods operate on every channel.',
+            'A signal with chainable DSP methods: what every module returns, one lane per voice. ' +
+            'Group signals with the $c() helper function. Supports iteration, indexing, and spreading, each giving one-lane collections. ' +
+            'Methods operate on every lane.',
         examples: [
             "const osc = $sine('c4')",
             'osc.amp(2.5).out()                   // Chain methods',
             "$lpf(osc, 'c3', { q: 4 })            // Use as input to another module",
             '$c(osc1, osc2, osc3).amp(2.5).out()  // Halve all, send to output',
             'const voices = $c(osc1, osc2, osc3)',
-            'for (const v of voices) { ... }      // Iterate over one-channel collections',
+            'for (const v of voices) { ... }      // Iterate over one-lane collections',
             '[...voices]                          // Spread to array',
-            'voices[0]                            // Index access: a one-channel collection',
+            'voices[0]                            // Index access: a one-lane collection',
         ],
         methods: [
             {
@@ -71,7 +71,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                 signature:
                     "scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number]; split?: 'vertical' | 'horizontal' }): this",
                 description:
-                    "Add scope visualization for all outputs in the collection, overlaid on one scope. `split: 'vertical'` stacks one scope per channel; `split: 'horizontal'` fits them side by side.",
+                    "Add scope visualization for all outputs in the collection, overlaid on one scope. `split: 'vertical'` stacks one scope per lane; `split: 'horizontal'` fits them side by side.",
                 example: "$c(osc1, osc2).scope({ split: 'vertical' }).out()",
             },
             {
@@ -256,10 +256,10 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         seeAlso: ['Multi-output modules', 'Collection'],
     },
 
-    'Mono<Signal>': {
+    'LaneSum<Signal>': {
         definition: 'Signal | Signal[]',
         description:
-            'A signal input that accepts polyphonic connections but sums all channels down to a single mono value. ' +
+            'A signal input that accepts polyphonic connections but sums all lanes down to a single mono value. ' +
             'Takes what Poly<Signal> takes except a signal group: the module will not produce per-voice output from this parameter. ' +
             'Used for control parameters like tempo, stereo width, or math variables where a single combined value is needed.',
         examples: [
@@ -267,7 +267,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             '$stereoMix(osc, { width: lfo })                  // Width control summed to mono',
             '$math("x + y", { x: osc1, y: osc2 })            // Variables summed to single values',
         ],
-        name: 'Mono<Signal>',
+        name: 'LaneSum<Signal>',
         seeAlso: ['Signal', 'Poly<Signal>', 'Collection'],
     },
 
@@ -291,15 +291,15 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     'Poly<Signal>': {
         definition: 'Signal | Signal[] | SignalGroup',
         description:
-            'A potentially multi-channel signal. Can be an array of Signals for polyphonic patches; ' +
-            'every channel of every Collection in it becomes a voice. When used as input to a module, arrays are expanded to create multiple voices.',
+            'A potentially multi-lane signal. Can be an array of Signals for polyphonic patches; ' +
+            'every lane of every Collection in it becomes a voice. When used as input to a module, arrays are expanded to create multiple voices.',
         examples: [
             '$saw(["C3", "E3", "G3"])                // 3-voice chord',
-            '$saw([...$sine("1hz"), ...$sine("2hz")]) // Spread channels into voices',
+            '$saw([...$sine("1hz"), ...$sine("2hz")]) // Spread lanes into voices',
             '$mix([osc1, osc2, osc3])                // Several signals',
         ],
         name: 'Poly<Signal>',
-        seeAlso: ['Signal', 'Mono<Signal>', 'Collection'],
+        seeAlso: ['Signal', 'LaneSum<Signal>', 'Collection'],
     },
 
     Signal: {
@@ -314,7 +314,13 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             '$sine(lfo)            // Collection from another module',
         ],
         name: 'Signal',
-        seeAlso: ['Poly<Signal>', 'Mono<Signal>', 'Collection', 'Note', 'HZ'],
+        seeAlso: [
+            'Poly<Signal>',
+            'LaneSum<Signal>',
+            'Collection',
+            'Note',
+            'HZ',
+        ],
     },
 
     StereoOutOptions: {
@@ -337,7 +343,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         definition: outOptionsDefinition(MONO_OUT_OPTIONS),
         description:
             'Options for mono output routing via the outMono() method. ' +
-            'Controls the output channel, gain, and the VU meter label, mute, and solo.',
+            'Controls the output lane, gain, and the VU meter label, mute, and solo.',
         examples: [
             "$sine('c').outMono({ channel: 2 })              // Output on channel 2",
             "$sine('c').outMono({ channel: 2, gain: 2.5 })   // 50% gain",
@@ -403,10 +409,10 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Create a Collection holding the channels of every argument, in order. Collections support chainable DSP methods, indexing, and spreading.',
+            'Create a Collection holding the lanes of every argument, in order. Collections support chainable DSP methods, indexing, and spreading.',
         examples: [
             '$c(osc1, osc2).amp(0.5).out()',
-            '$c(osc1, osc2)[0]  // index access: a one-channel collection',
+            '$c(osc1, osc2)[0]  // index access: a one-lane collection',
         ],
         group: 'Helpers',
         name: '$c',
@@ -414,7 +420,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Create a CollectionWithRange holding the channels of every ranged argument. The range() method maps each from its own range.',
+            'Create a CollectionWithRange holding the lanes of every ranged argument. The range() method maps each from its own range.',
         examples: ['$r(lfo1, lfo2).range(0, 5).out()'],
         group: 'Helpers',
         name: '$r',
@@ -435,7 +441,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Tag a parameter value into signal group 1 (also $g2, $g3). Parameters in different groups multiply — the module gets the cartesian product of the group widths as voices — while parameters in the same group cycle together. Untagged parameters are group 0. Lower-numbered groups vary fastest. The product may not exceed 64 channels, and $gN must wrap the entire parameter value.',
+            'Tag a parameter value into signal group 1 (also $g2, $g3). Parameters in different groups multiply — the module gets the cartesian product of the group widths as voices — while parameters in the same group cycle together. Untagged parameters are group 0. Lower-numbered groups vary fastest. The product may not exceed 64 lanes, and $gN must wrap the entire parameter value.',
         examples: [
             '$sine($g1(["c3", "e3", "g3"]), { phaseOffset: $g2([0, 0.25]) }).out()\n// 3 x 2 = 6 voices',
         ],
@@ -557,11 +563,11 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         params: [
             {
                 name: 'gain',
-                type: 'Mono<Signal>',
+                type: 'LaneSum<Signal>',
                 description: 'Gain level (2.5 default, 5.0 unity)',
             },
         ],
-        signature: '$setOutputGain(gain: Mono<Signal>): void',
+        signature: '$setOutputGain(gain: LaneSum<Signal>): void',
     },
     // ---- Controls -----
     {
@@ -707,13 +713,13 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         name: '$deferred',
         params: [
             {
-                name: 'channels',
+                name: 'lanes',
                 type: 'number',
                 description: 'Number of deferred outputs (1-64, default 1)',
             },
         ],
         returns: 'DeferredCollection',
-        signature: '$deferred(channels?: number): DeferredCollection',
+        signature: '$deferred(lanes?: number): DeferredCollection',
     },
 
     {
@@ -739,23 +745,23 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Tap the out labeled `label`: a 2-channel Collection of its audio after gain and mute/solo, ' +
+            'Tap the out labeled `label`: a 2-lane Collection of its audio after gain and mute/solo, ' +
             'with `.active` (0–5V gate), `.level` (gain, 0–10), and `.pan` (-5–5) as ranged signals. ' +
             'Follows live VU-panel changes. The out may be declared after the tap; an undeclared label is an error.',
         examples: [
-            "$saw('c2').out({ label: 'bass' });\nconst bass = $outLane('bass');\n$sine('c5').gain(bass.level).out({ pan: bass.pan });\n$sine('g5').gain(bass.active).out();",
+            "$saw('c2').out({ label: 'bass' });\nconst bass = $trackTap('bass');\n$sine('c5').gain(bass.level).out({ pan: bass.pan });\n$sine('g5').gain(bass.active).out();",
         ],
         group: 'Advanced',
-        name: '$outLane',
+        name: '$trackTap',
         params: [
             {
                 name: 'label',
                 type: 'string',
-                description: 'Label of the out lane to follow',
+                description: 'Label of the out to follow',
             },
         ],
-        returns: 'OutLane',
-        signature: '$outLane(label: string): OutLane',
+        returns: 'TrackTap',
+        signature: '$trackTap(label: string): TrackTap',
     },
     {
         description:

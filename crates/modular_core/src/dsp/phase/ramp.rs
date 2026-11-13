@@ -11,7 +11,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct RampParams {
@@ -26,9 +26,9 @@ struct RampOutputs {
     sample: PolyOutput,
 }
 
-/// Per-channel phasor state
+/// Per-lane phasor state
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     phase: f32,
 }
 
@@ -53,24 +53,24 @@ const RAMP_DOCS: ModuleDocs = ModuleDocs {
 #[module(name = "$ramp", docs = RAMP_DOCS, args(freq))]
 pub struct Ramp {
     outputs: RampOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: RampParams,
 }
 
 impl Ramp {
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
         let inv_sample_rate = 1.0 / sample_rate;
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
 
-            let frequency = voct_to_hz(self.params.freq.get_value(ch));
+            let frequency = voct_to_hz(self.params.freq.get_value(lane));
             let phase_increment = frequency * inv_sample_rate;
 
             state.phase = wrap_phase(state.phase + phase_increment);
 
-            self.outputs.sample.set(ch, state.phase);
+            self.outputs.sample.set(lane, state.phase);
         }
     }
 }
@@ -86,15 +86,15 @@ mod tests {
         let params = RampParams {
             freq: PolySignal::mono(Signal::Volts(freq_volts)),
         };
-        let channels = params.freq.channels().max(1);
+        let lanes = params.freq.lanes().max(1);
         let mut outputs = RampOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         Ramp {
             params,
             outputs,
-            _channel_count: channels,
+            _lane_count: lanes,
             _block_index: Default::default(),
-            channel_state: vec![ChannelState::default(); channels].into_boxed_slice(),
+            lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
         }
     }
 
@@ -120,9 +120,9 @@ mod tests {
             ramp.update(48_000.0);
         }
         assert!(
-            ramp.channel_state[0].phase.is_finite(),
+            ramp.lane_state[0].phase.is_finite(),
             "phase {} must stay finite through a non-finite frequency",
-            ramp.channel_state[0].phase
+            ramp.lane_state[0].phase
         );
 
         ramp.params.freq = PolySignal::mono(Signal::Volts(0.0)); // C4

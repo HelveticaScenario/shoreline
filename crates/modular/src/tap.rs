@@ -2,7 +2,7 @@
 
 use modular_core::types::{PortView, Sampleable, SampleableMap};
 
-/// One channel of a module output port, resolved once per drained block so the
+/// One lane of a module output port, resolved once per drained block so the
 /// per-sample reads skip the id and port-name lookups.
 pub(crate) enum Tap<'a> {
     /// A Block-mode port read straight from its output buffer.
@@ -16,7 +16,7 @@ pub(crate) enum Tap<'a> {
     Module {
         module: &'a dyn Sampleable,
         port: &'a str,
-        channel: usize,
+        lane: usize,
     },
 }
 
@@ -30,28 +30,24 @@ impl<'a> Tap<'a> {
         sampleables: &'a SampleableMap,
         module_id: &str,
         port: &'a str,
-        channel: usize,
+        lane: usize,
     ) -> Option<Self> {
         let module = sampleables.get(module_id)?.as_ref();
         Some(match module.port_view(port) {
-            // An f64 port's channel starts with its nearest f32, which is
+            // An f64 port's lane starts with its nearest f32, which is
             // all a scope or meter needs.
             Some(PortView {
                 data,
-                channels,
                 lanes,
+                words,
                 processed,
             }) => Tap::View {
                 data,
-                stride: channels * lanes,
-                offset: (channel % channels) * lanes,
+                stride: lanes * words,
+                offset: (lane % lanes) * words,
                 processed,
             },
-            None => Tap::Module {
-                module,
-                port,
-                channel,
-            },
+            None => Tap::Module { module, port, lane },
         })
     }
 
@@ -70,11 +66,7 @@ impl<'a> Tap<'a> {
                 debug_assert!(index < (*processed).get());
                 *data.add(index * stride + offset)
             },
-            Tap::Module {
-                module,
-                port,
-                channel,
-            } => module.get_value_at(port, channel, index),
+            Tap::Module { module, port, lane } => module.get_value_at(port, lane, index),
         }
     }
 }

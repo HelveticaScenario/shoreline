@@ -10,10 +10,10 @@ pub const DEFAULT_DC_BLOCK_FC_HZ: f32 = 20.0;
 /// One-pole high-pass filter — `y[n] = x[n] - x[n-1] + R · y[n-1]`. Removes a
 /// constant offset (and sub-audio rumble) while passing audio-rate content.
 ///
-/// Holds the per-channel state (`prev_in`, `prev_out`). The feedback
+/// Holds the per-lane state (`prev_in`, `prev_out`). The feedback
 /// coefficient `R` is sample-rate-only, so compute it once in `init` with
 /// [`DcBlocker::coeff`] and pass it to [`DcBlocker::process`] each sample. This
-/// mirrors the [`FadeIn`](super::fade::FadeIn) split: mutable per-channel state
+/// mirrors the [`FadeIn`](super::fade::FadeIn) split: mutable per-lane state
 /// here, the sample-rate constant computed statically.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DcBlocker {

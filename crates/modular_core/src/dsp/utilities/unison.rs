@@ -3,20 +3,20 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt};
+use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
 
 fn default_count() -> usize {
     1
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct UnisonParams {
     #[input("pitch to fan out into detuned copies", type = pitch)]
     input: PolySignal,
-    #[input("number of detuned copies per input channel", range = (1, 64))]
+    #[input("number of detuned copies per input lane", range = (1, 64))]
     #[serde(default = "default_count")]
     #[deserr(default = default_count())]
     count: usize,
@@ -29,21 +29,21 @@ struct UnisonParams {
     spread: Option<PolySignal>,
 }
 
-/// Channels of the widest of `input`/`spread`. The two cycle against each other,
-/// so the narrower one repeats across the wider one's channels.
+/// Lanes of the widest of `input`/`spread`. The two cycle against each other,
+/// so the narrower one repeats across the wider one's lanes.
 ///
-/// `update` drives its loop from this and the channel count derives from it, so
-/// the two agree: every channel the module declares is a channel it writes.
-fn unison_poly_channels(input: &PolySignal, spread: &Option<PolySignal>) -> usize {
-    input.channels().max(spread.channel_count()).max(1)
+/// `update` drives its loop from this and the lane count derives from it, so
+/// the two agree: every lane the module declares is a lane it writes.
+fn unison_poly_lanes(input: &PolySignal, spread: &Option<PolySignal>) -> usize {
+    input.lanes().max(spread.lane_count()).max(1)
 }
 
-/// Custom channel count: max(input, spread) channels * count, clamped to 64.
+/// Custom lane count: max(input, spread) lanes * count, clamped to 64.
 #[allow(private_interfaces)]
-pub fn unison_derive_channel_count(params: &UnisonParams) -> usize {
-    let poly_channels = unison_poly_channels(&params.input, &params.spread);
-    let count = params.count.clamp(1, PORT_MAX_CHANNELS);
-    (poly_channels * count).min(PORT_MAX_CHANNELS)
+pub fn unison_derive_lane_count(params: &UnisonParams) -> usize {
+    let poly_lanes = unison_poly_lanes(&params.input, &params.spread);
+    let count = params.count.clamp(1, PORT_MAX_LANES);
+    (poly_lanes * count).min(PORT_MAX_LANES)
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -51,7 +51,7 @@ pub fn unison_derive_channel_count(params: &UnisonParams) -> usize {
 struct UnisonOutputs {
     #[output(
         "output",
-        "the detuned copies, each a full set of the input channels",
+        "the detuned copies, each a full set of the input lanes",
         type = cv,
         default
     )]
@@ -62,7 +62,7 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
     summary: "Detuned unison copies",
     description: "Turns each pitch into a stack of detuned copies for thick unison \
                   leads and supersaw-style pads. Each copy is a full set of the \
-                  input's channels, up to 64 channels in all.",
+                  input's lanes, up to 64 lanes in all.",
     categories: &[ModuleCategory::Pitch],
     sections: &[],
     examples: &[
@@ -85,7 +85,7 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$unison", docs = UNISON_DOCS, channels_derive = unison_derive_channel_count, args(input, count, spread))]
+#[module(name = "$unison", docs = UNISON_DOCS, lanes_derive = unison_derive_lane_count, args(input, count, spread))]
 pub struct Unison {
     outputs: UnisonOutputs,
     params: UnisonParams,
@@ -93,16 +93,16 @@ pub struct Unison {
 
 impl Unison {
     fn update(&mut self, _sample_rate: f32) {
-        let count = self.params.count.clamp(1, PORT_MAX_CHANNELS);
+        let count = self.params.count.clamp(1, PORT_MAX_LANES);
         let input = &self.params.input;
         let spread = &self.params.spread;
 
-        let poly_channels = unison_poly_channels(input, spread);
-        let output_channels = self.channel_count();
+        let poly_lanes = unison_poly_lanes(input, spread);
+        let output_lanes = self.lane_count();
 
-        for poly_ch in 0..poly_channels {
+        for poly_ch in 0..poly_lanes {
             // Both reads cycle, so whichever of the two is narrower repeats
-            // across the wider one's channels.
+            // across the wider one's lanes.
             let input_val = input.get_value(poly_ch);
             let spread_v = spread.value_or(poly_ch, 0.0).clamp(0.0, 10.0);
             // Exponential mapping: (spread_v / 10)^2 gives 0–1 V/Oct (0–1 octave)
@@ -110,8 +110,8 @@ impl Unison {
             let max_detune_voct = normalized * normalized;
 
             for voice in 0..count {
-                let out_ch = voice * poly_channels + poly_ch;
-                if out_ch >= output_channels {
+                let out_ch = voice * poly_lanes + poly_ch;
+                if out_ch >= output_lanes {
                     break;
                 }
 
@@ -135,15 +135,15 @@ mod tests {
     use super::*;
     use crate::types::{OutputStruct, Signal};
 
-    /// Create a Unison with params and properly initialize _channel_count and output channels.
+    /// Create a Unison with params and properly initialize _lane_count and output lanes.
     fn make_unison(params: UnisonParams) -> Unison {
-        let channels = unison_derive_channel_count(&params);
+        let lanes = unison_derive_lane_count(&params);
         let mut outputs = UnisonOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         Unison {
             params,
             outputs,
-            _channel_count: channels,
+            _lane_count: lanes,
             _block_index: Default::default(),
         }
     }
@@ -156,7 +156,7 @@ mod tests {
             spread: Some(PolySignal::mono(Signal::Volts(5.0))),
         });
         u.update(48000.0);
-        assert_eq!(u.outputs.sample.channels(), 1);
+        assert_eq!(u.outputs.sample.lanes(), 1);
         assert_eq!(u.outputs.sample.get(0), 1.0);
     }
 
@@ -169,7 +169,7 @@ mod tests {
             spread: None,
         });
         u.update(48000.0);
-        assert_eq!(u.outputs.sample.channels(), 3);
+        assert_eq!(u.outputs.sample.lanes(), 3);
         assert_eq!(u.outputs.sample.get(0), 2.0);
         assert_eq!(u.outputs.sample.get(1), 2.0);
         assert_eq!(u.outputs.sample.get(2), 2.0);
@@ -185,7 +185,7 @@ mod tests {
             spread: Some(PolySignal::mono(Signal::Volts(10.0))),
         });
         u.update(48000.0);
-        assert_eq!(u.outputs.sample.channels(), 3);
+        assert_eq!(u.outputs.sample.lanes(), 3);
         assert!((u.outputs.sample.get(0) - (-1.0)).abs() < 1e-6);
         assert!((u.outputs.sample.get(1) - 0.0).abs() < 1e-6);
         assert!((u.outputs.sample.get(2) - 1.0).abs() < 1e-6);
@@ -207,16 +207,16 @@ mod tests {
 
     #[test]
     fn test_poly_input_expansion() {
-        // 2-channel input, count=3 -> 6 output channels
+        // 2-lane input, count=3 -> 6 output lanes
         let mut u = make_unison(UnisonParams {
             input: PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(1.0)]),
             count: 3,
             spread: Some(PolySignal::mono(Signal::Volts(10.0))),
         });
         u.update(48000.0);
-        assert_eq!(u.outputs.sample.channels(), 6);
-        // Voices are interleaved: each voice spans both input channels.
-        // Voice 0 (-1.0 detune): input ch 0, input ch 1
+        assert_eq!(u.outputs.sample.lanes(), 6);
+        // Voices are interleaved: each voice spans both input lanes.
+        // Voice 0 (-1.0 detune): input lane 0, input lane 1
         assert!((u.outputs.sample.get(0) - (-1.0)).abs() < 1e-6);
         assert!((u.outputs.sample.get(1) - 0.0).abs() < 1e-6);
         // Voice 1 (no detune)
@@ -228,8 +228,8 @@ mod tests {
     }
 
     #[test]
-    fn test_clamp_to_max_channels() {
-        // 16-channel input, count=5 -> 80 desired, clamped to PORT_MAX_CHANNELS
+    fn test_clamp_to_max_lanes() {
+        // 16-lane input, count=5 -> 80 desired, clamped to PORT_MAX_LANES
         let input: Vec<Signal> = (0..16).map(|i| Signal::Volts(i as f32)).collect();
         let mut u = make_unison(UnisonParams {
             input: PolySignal::poly(&input),
@@ -237,63 +237,63 @@ mod tests {
             spread: None,
         });
         u.update(48000.0);
-        assert_eq!(u.outputs.sample.channels(), PORT_MAX_CHANNELS);
+        assert_eq!(u.outputs.sample.lanes(), PORT_MAX_LANES);
     }
 
     #[test]
-    fn test_channel_count_derivation() {
-        // 1 channel * 7 = 7
+    fn test_lane_count_derivation() {
+        // 1 lane * 7 = 7
         let params = UnisonParams {
             input: PolySignal::mono(Signal::Volts(0.0)),
             count: 7,
             spread: None,
         };
-        assert_eq!(unison_derive_channel_count(&params), 7);
+        assert_eq!(unison_derive_lane_count(&params), 7);
 
-        // 3 channels * 5 = 15
+        // 3 lanes * 5 = 15
         let params = UnisonParams {
             input: PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(0.0), Signal::Volts(0.0)]),
             count: 5,
             spread: None,
         };
-        assert_eq!(unison_derive_channel_count(&params), 15);
+        assert_eq!(unison_derive_lane_count(&params), 15);
 
-        // 3 channels * 6 = 18, within the PORT_MAX_CHANNELS cap
+        // 3 lanes * 6 = 18, within the PORT_MAX_LANES cap
         let params = UnisonParams {
             input: PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(0.0), Signal::Volts(0.0)]),
             count: 6,
             spread: None,
         };
-        assert_eq!(unison_derive_channel_count(&params), 18);
+        assert_eq!(unison_derive_lane_count(&params), 18);
     }
 
     #[test]
     fn test_spread_wider_than_input_cycles_the_input() {
         // Spread is the wider signal, so it sizes the output and the mono input
-        // repeats across its channels. Every declared channel must be written —
+        // repeats across its lanes. Every declared lane must be written —
         // an unwritten one would read as a silent 0 V forever.
         let params = UnisonParams {
             input: PolySignal::mono(Signal::Volts(0.0)),
             count: 2,
             spread: Some(PolySignal::poly(&[
-                Signal::Volts(10.0), // poly ch 0: 1.0 V/Oct detune
-                Signal::Volts(0.0),  // poly ch 1: no detune
-                Signal::Volts(10.0), // poly ch 2: 1.0 V/Oct detune
-                Signal::Volts(0.0),  // poly ch 3: no detune
+                Signal::Volts(10.0), // poly lane 0: 1.0 V/Oct detune
+                Signal::Volts(0.0),  // poly lane 1: no detune
+                Signal::Volts(10.0), // poly lane 2: 1.0 V/Oct detune
+                Signal::Volts(0.0),  // poly lane 3: no detune
             ])),
         };
-        assert_eq!(unison_derive_channel_count(&params), 8);
+        assert_eq!(unison_derive_lane_count(&params), 8);
 
         let mut u = make_unison(params);
         u.update(48000.0);
-        assert_eq!(u.outputs.sample.channels(), 8);
-        // The 0 V input is cycled into all four spread channels.
+        assert_eq!(u.outputs.sample.lanes(), 8);
+        // The 0 V input is cycled into all four spread lanes.
         let expected = [-1.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0];
-        for (ch, want) in expected.iter().enumerate() {
+        for (lane, want) in expected.iter().enumerate() {
             assert!(
-                (u.outputs.sample.get(ch) - want).abs() < 1e-6,
-                "channel {ch}: expected {want}, got {}",
-                u.outputs.sample.get(ch)
+                (u.outputs.sample.get(lane) - want).abs() < 1e-6,
+                "lane {lane}: expected {want}, got {}",
+                u.outputs.sample.get(lane)
             );
         }
     }
@@ -306,63 +306,63 @@ mod tests {
             count: 2,
             spread: Some(PolySignal::mono(Signal::Volts(10.0))),
         };
-        assert_eq!(unison_derive_channel_count(&params), 6);
+        assert_eq!(unison_derive_lane_count(&params), 6);
 
         let mut u = make_unison(params);
         u.update(48000.0);
-        assert_eq!(u.outputs.sample.channels(), 6);
-        // Every input channel gets the same ±1.0 V/Oct detune.
+        assert_eq!(u.outputs.sample.lanes(), 6);
+        // Every input lane gets the same ±1.0 V/Oct detune.
         let expected = [-1.0, 0.0, 1.0, 1.0, 2.0, 3.0];
-        for (ch, want) in expected.iter().enumerate() {
+        for (lane, want) in expected.iter().enumerate() {
             assert!(
-                (u.outputs.sample.get(ch) - want).abs() < 1e-6,
-                "channel {ch}: expected {want}, got {}",
-                u.outputs.sample.get(ch)
+                (u.outputs.sample.get(lane) - want).abs() < 1e-6,
+                "lane {lane}: expected {want}, got {}",
+                u.outputs.sample.get(lane)
             );
         }
     }
 
     #[test]
-    fn test_spread_cycles_across_input_channels() {
-        // 2-channel input, 2-channel spread with different values
+    fn test_spread_cycles_across_input_lanes() {
+        // 2-lane input, 2-lane spread with different values
         let mut u = make_unison(UnisonParams {
             input: PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(0.0)]),
             count: 2,
             spread: Some(PolySignal::poly(&[
-                Signal::Volts(10.0), // ch 0: 1.0 V/Oct detune
-                Signal::Volts(0.0),  // ch 1: 0.0 V/Oct detune
+                Signal::Volts(10.0), // lane 0: 1.0 V/Oct detune
+                Signal::Volts(0.0),  // lane 1: 0.0 V/Oct detune
             ])),
         });
         u.update(48000.0);
-        assert_eq!(u.outputs.sample.channels(), 4);
-        // Voice 0: input ch 0 (spread 10V) at -1.0, input ch 1 (spread 0V) at 0.0
+        assert_eq!(u.outputs.sample.lanes(), 4);
+        // Voice 0: input lane 0 (spread 10V) at -1.0, input lane 1 (spread 0V) at 0.0
         assert!((u.outputs.sample.get(0) - (-1.0)).abs() < 1e-6);
         assert!((u.outputs.sample.get(1) - 0.0).abs() < 1e-6);
-        // Voice 1: input ch 0 at +1.0, input ch 1 at 0.0
+        // Voice 1: input lane 0 at +1.0, input lane 1 at 0.0
         assert!((u.outputs.sample.get(2) - 1.0).abs() < 1e-6);
         assert!((u.outputs.sample.get(3) - 0.0).abs() < 1e-6);
     }
 
     #[test]
-    fn test_voices_interleave_input_channels() {
-        // 3-channel input, count=3 -> channel order 1 2 3 1 2 3 1 2 3
+    fn test_voices_interleave_input_lanes() {
+        // 3-lane input, count=3 -> lane order 1 2 3 1 2 3 1 2 3
         let mut u = make_unison(UnisonParams {
             input: PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(2.0), Signal::Volts(3.0)]),
             count: 3,
             spread: None,
         });
         u.update(48000.0);
-        assert_eq!(u.outputs.sample.channels(), 9);
+        assert_eq!(u.outputs.sample.lanes(), 9);
         let expected = [1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0];
-        for (ch, want) in expected.iter().enumerate() {
-            assert_eq!(u.outputs.sample.get(ch), *want, "channel {ch}");
+        for (lane, want) in expected.iter().enumerate() {
+            assert_eq!(u.outputs.sample.get(lane), *want, "lane {lane}");
         }
     }
 
     #[test]
     fn test_clamp_drops_highest_voices() {
-        // 16-channel input, count=5 -> 80 desired; the cap keeps 4 full voices,
-        // each a complete copy of the input channels.
+        // 16-lane input, count=5 -> 80 desired; the cap keeps 4 full voices,
+        // each a complete copy of the input lanes.
         let input: Vec<Signal> = (0..16).map(|i| Signal::Volts(i as f32)).collect();
         let mut u = make_unison(UnisonParams {
             input: PolySignal::poly(&input),
@@ -370,8 +370,12 @@ mod tests {
             spread: None,
         });
         u.update(48000.0);
-        for ch in 0..PORT_MAX_CHANNELS {
-            assert_eq!(u.outputs.sample.get(ch), (ch % 16) as f32, "channel {ch}");
+        for lane in 0..PORT_MAX_LANES {
+            assert_eq!(
+                u.outputs.sample.get(lane),
+                (lane % 16) as f32,
+                "lane {lane}"
+            );
         }
     }
 }

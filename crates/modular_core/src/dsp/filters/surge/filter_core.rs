@@ -3,7 +3,7 @@
 //! Every module is the same machine — normalize the ±5 V input into the filter's
 //! ±1 domain, run one Surge `FilterType` (a `mode` enum selects passband / slope /
 //! drive), and scale back — differing only in the DSP kernel (the [`Filter`] impl).
-//! Channels are processed one at a time in `f32`.
+//! Lanes are processed one at a time in `f32`.
 //!
 //! Coefficients are evaluated on a change-gated control-rate tick rather than every
 //! sample: at most once per [`COEFF_TICK`] samples, and only when the control input
@@ -58,7 +58,7 @@ pub fn voct_to_semitones_a440(voct: f32) -> f32 {
 pub trait Filter: Copy + Default {
     type Mode: Copy + PartialEq;
 
-    /// Extra per-channel state beyond the register block — the comb's delay line.
+    /// Extra per-lane state beyond the register block — the comb's delay line.
     /// `()` for kernels whose state fits the registers. Constructed by `Default`
     /// during module construction (main thread, so it may allocate).
     type Extra: Default;
@@ -96,12 +96,12 @@ pub trait Filter: Copy + Default {
     }
 }
 
-/// Per-channel runtime state: the coefficient glide (`C`/`tC`/`dC`/`N`), the change
+/// Per-lane runtime state: the coefficient glide (`C`/`tC`/`dC`/`N`), the change
 /// gate (`last_cutoff`/`last_reso`), the state registers `R`, the oversampling pair,
 /// the kernel's [`Filter::Extra`] state, and a frozen snapshot of the previous form
 /// used while crossfading.
 #[derive(Clone)]
-pub struct FilterChannel<E = ()> {
+pub struct FilterLane<E = ()> {
     c: [f32; N_COEFFS],
     tc: [f32; N_COEFFS],
     dc: [f32; N_COEFFS],
@@ -120,7 +120,7 @@ pub struct FilterChannel<E = ()> {
     fade_down: Halfband2xDown,
 }
 
-impl<E: Default> Default for FilterChannel<E> {
+impl<E: Default> Default for FilterLane<E> {
     fn default() -> Self {
         Self {
             c: [0.0; N_COEFFS],
@@ -142,7 +142,7 @@ impl<E: Default> Default for FilterChannel<E> {
     }
 }
 
-impl<E> FilterChannel<E> {
+impl<E> FilterLane<E> {
     /// Ease the live coefficients toward the raw target `n` (Surge XT's `FromDirect`).
     /// `steps` is how many `C += dC` advances happen before the next glide — one per
     /// `process` call between ticks — so the ramp lands on `tC` exactly at the tick.
@@ -207,7 +207,7 @@ impl<M> Default for FilterModuleState<M> {
 #[inline]
 pub fn on_patch_update<F: Filter>(
     state: &mut FilterModuleState<F::Mode>,
-    channel_state: &mut [FilterChannel<F::Extra>],
+    lane_state: &mut [FilterLane<F::Extra>],
     mode: F::Mode,
 ) {
     if let Some(old) = state.last_mode
@@ -216,13 +216,13 @@ pub fn on_patch_update<F: Filter>(
         if F::crossfade_on_mode_change() {
             state.fade_mode = Some(old);
             state.fade = FADE_SAMPLES;
-            for cs in channel_state.iter_mut() {
+            for cs in lane_state.iter_mut() {
                 cs.begin_fade();
             }
         } else {
             // Re-fire the change gate; the glide eases the coefficients to the
             // new mode's targets.
-            for cs in channel_state.iter_mut() {
+            for cs in lane_state.iter_mut() {
                 cs.last_cutoff = f32::NAN;
                 cs.last_reso = f32::NAN;
             }
@@ -264,17 +264,17 @@ pub struct FilterInputs<'a, M> {
     pub mode: M,
 }
 
-/// Run one sample across all channels of a `$unstable.filter.*` module: on the tick,
-/// change-gate + glide each channel's coefficients; every sample, normalize, run the
+/// Run one sample across all lanes of a `$unstable.filter.*` module: on the tick,
+/// change-gate + glide each lane's coefficients; every sample, normalize, run the
 /// kernel (optionally 2× oversampled, optionally crossfading a form change), and write
 /// the output.
 #[inline]
 pub fn run<F: Filter>(
-    channels: usize,
+    lanes: usize,
     inputs: FilterInputs<'_, F::Mode>,
     sample_rate: f32,
     state: &mut FilterModuleState<F::Mode>,
-    channel_state: &mut [FilterChannel<F::Extra>],
+    lane_state: &mut [FilterLane<F::Extra>],
     out: &mut PolyOutput,
 ) {
     let FilterInputs {
@@ -294,9 +294,9 @@ pub fn run<F: Filter>(
     let steps = COEFF_TICK as f32 * if oversample { 2.0 } else { 1.0 };
 
     if state.tick == 0 {
-        for (ch, cs) in channel_state[..channels].iter_mut().enumerate() {
-            let cutoff_v = cutoff.get_value(ch);
-            let reso = (resonance.value_or(ch, 0.0) / 5.0).clamp(0.0, 1.0);
+        for (lane, cs) in lane_state[..lanes].iter_mut().enumerate() {
+            let cutoff_v = cutoff.get_value(lane);
+            let reso = (resonance.value_or(lane, 0.0) / 5.0).clamp(0.0, 1.0);
             if changed(cutoff_v, cs.last_cutoff) || changed(reso, cs.last_reso) {
                 let freq_semi = voct_to_semitones_a440(cutoff_v);
                 cs.n = F::coeffs(mode, freq_semi, reso, rate);
@@ -318,8 +318,8 @@ pub fn run<F: Filter>(
     };
 
     let inv_level = 1.0 / AUDIO_LEVEL;
-    for (ch, cs) in channel_state[..channels].iter_mut().enumerate() {
-        let x = input.get_value(ch) * inv_level;
+    for (lane, cs) in lane_state[..lanes].iter_mut().enumerate() {
+        let x = input.get_value(lane) * inv_level;
         let new_y = process_sample::<F>(
             mode,
             x,
@@ -349,7 +349,7 @@ pub fn run<F: Filter>(
         } else {
             new_y
         };
-        out.set(ch, y * AUDIO_LEVEL);
+        out.set(lane, y * AUDIO_LEVEL);
     }
 
     if fading {
@@ -423,9 +423,9 @@ pub mod test_util {
         let n = 48_000usize;
         for &mode in modes {
             let mut state = FilterModuleState::default();
-            let mut ch = vec![FilterChannel::<F::Extra>::default()];
+            let mut lane = vec![FilterLane::<F::Extra>::default()];
             let mut out = PolyOutput::mono(0.0);
-            on_patch_update::<F>(&mut state, &mut ch, mode);
+            on_patch_update::<F>(&mut state, &mut lane, mode);
             let reso = Some(PolySignal::mono(Signal::Volts(5.0)));
             for i in 0..n {
                 let t = i as f32 / sr;
@@ -443,7 +443,7 @@ pub mod test_util {
                     },
                     sr,
                     &mut state,
-                    &mut ch,
+                    &mut lane,
                     &mut out,
                 );
                 let y = out.get(0);

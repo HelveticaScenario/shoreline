@@ -125,7 +125,7 @@ impl PlaitsEngine {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
@@ -251,8 +251,8 @@ struct PlaitsOutputs {
     aux: PolyOutput,
 }
 
-/// Per-channel voice state
-struct PlaitsChannelState {
+/// Per-lane voice state
+struct PlaitsLaneState {
     voice: Voice<'static>,
     main_buffer: [f32; BLOCK_SIZE],
     aux_buffer: [f32; BLOCK_SIZE],
@@ -274,7 +274,7 @@ struct PlaitsChannelState {
     trigger_latch: bool,
 }
 
-impl Default for PlaitsChannelState {
+impl Default for PlaitsLaneState {
     fn default() -> Self {
         let mut voice = Voice::new(BLOCK_SIZE, ENGINE_SAMPLE_RATE);
         voice.init();
@@ -403,8 +403,8 @@ pub struct Plaits {
     outputs: PlaitsOutputs,
     params: PlaitsParams,
     state: PlaitsState,
-    /// One heavy Plaits voice per active channel; built in `init`.
-    channel_state: Box<[PlaitsChannelState]>,
+    /// One heavy Plaits voice per active lane; built in `init`.
+    lane_state: Box<[PlaitsLaneState]>,
 }
 
 /// Module-level state for the Plaits module.
@@ -427,14 +427,14 @@ impl Plaits {
     /// Called once at construction time by the macro-generated constructor.
     fn init(&mut self, sample_rate: f32) {
         self.state.sample_rate = sample_rate;
-        let num_channels = self.channel_count().max(1);
-        self.channel_state = (0..num_channels)
+        let num_lanes = self.lane_count().max(1);
+        self.lane_state = (0..num_lanes)
             .map(|_| {
                 let mut voice = Voice::new(BLOCK_SIZE, sample_rate);
                 voice.init();
-                PlaitsChannelState {
+                PlaitsLaneState {
                     voice,
-                    ..PlaitsChannelState::default()
+                    ..PlaitsLaneState::default()
                 }
             })
             .collect::<Vec<_>>()
@@ -442,14 +442,14 @@ impl Plaits {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count().max(1);
+        let num_lanes = self.lane_count().max(1);
 
         // Track triggers on every sample to catch short pulses
         // Triggers can be as short as 1 sample, so we need to detect rising edges
         // and latch them until the next block render.
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
-            let trigger_val = self.params.trigger.value_or(ch, 0.0);
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
+            let trigger_val = self.params.trigger.value_or(lane, 0.0);
 
             // Detect rising edge using Schmitt trigger for noise immunity
             if state.trigger_schmitt.process(trigger_val) {
@@ -460,22 +460,22 @@ impl Plaits {
 
         // Render when buffer is exhausted
         if self.state.buffer_pos >= BLOCK_SIZE {
-            self.render_block(num_channels, sample_rate);
+            self.render_block(num_lanes, sample_rate);
             self.state.buffer_pos = 0;
         }
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
             // Output scaling: Plaits outputs ±1.0, scale to ±5V (inverted to match hardware)
             let main = -state.main_buffer[self.state.buffer_pos] * 5.0;
             let aux = -state.aux_buffer[self.state.buffer_pos] * 5.0;
 
-            self.outputs.main.set(ch, main);
-            self.outputs.aux.set(ch, aux);
+            self.outputs.main.set(lane, main);
+            self.outputs.aux.set(lane, aux);
 
             state.mix.update(
-                self.params.mix.value_or(ch, 0.0).clamp(0.0, 5.0),
-                self.params.mix.glide_mark(ch),
+                self.params.mix.value_or(lane, 0.0).clamp(0.0, 5.0),
+                self.params.mix.glide_mark(lane),
                 sample_rate,
             );
 
@@ -483,56 +483,56 @@ impl Plaits {
 
             self.outputs
                 .mix
-                .set(ch, (main * (mix - 1.0).abs()) + (aux * mix))
+                .set(lane, (main * (mix - 1.0).abs()) + (aux * mix))
         }
 
         self.state.buffer_pos += 1;
     }
 
-    fn render_block(&mut self, num_channels: usize, sample_rate: f32) {
+    fn render_block(&mut self, num_lanes: usize, sample_rate: f32) {
         let block_rate = sample_rate / BLOCK_SIZE as f32;
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
 
             state.harmonics.update(
-                self.params.harmonics.value_or(ch, 0.0).clamp(-5.0, 5.0),
-                self.params.harmonics.glide_mark(ch),
+                self.params.harmonics.value_or(lane, 0.0).clamp(-5.0, 5.0),
+                self.params.harmonics.glide_mark(lane),
                 block_rate,
             );
             state.timbre.update(
-                self.params.timbre.value_or(ch, 0.0).clamp(-5.0, 5.0),
-                self.params.timbre.glide_mark(ch),
+                self.params.timbre.value_or(lane, 0.0).clamp(-5.0, 5.0),
+                self.params.timbre.glide_mark(lane),
                 block_rate,
             );
             state.morph.update(
-                self.params.morph.value_or(ch, 0.0).clamp(-5.0, 5.0),
-                self.params.morph.glide_mark(ch),
+                self.params.morph.value_or(lane, 0.0).clamp(-5.0, 5.0),
+                self.params.morph.glide_mark(lane),
                 block_rate,
             );
             state.lpg_color.update(
-                self.params.lpg_color.value_or(ch, 2.5).clamp(0.0, 5.0),
-                self.params.lpg_color.glide_mark(ch),
+                self.params.lpg_color.value_or(lane, 2.5).clamp(0.0, 5.0),
+                self.params.lpg_color.glide_mark(lane),
                 block_rate,
             );
             state.lpg_decay.update(
-                self.params.lpg_decay.value_or(ch, 2.5).clamp(0.0, 5.0),
-                self.params.lpg_decay.glide_mark(ch),
+                self.params.lpg_decay.value_or(lane, 2.5).clamp(0.0, 5.0),
+                self.params.lpg_decay.glide_mark(lane),
                 block_rate,
             );
 
             state.timbre_amt.update(
-                self.params.timbre_amt.value_or(ch, 0.0),
-                self.params.timbre_amt.glide_mark(ch),
+                self.params.timbre_amt.value_or(lane, 0.0),
+                self.params.timbre_amt.glide_mark(lane),
                 block_rate,
             );
             state.fm_amt.update(
-                self.params.fm_amt.value_or(ch, 0.0),
-                self.params.fm_amt.glide_mark(ch),
+                self.params.fm_amt.value_or(lane, 0.0),
+                self.params.fm_amt.glide_mark(lane),
                 block_rate,
             );
             state.morph_amt.update(
-                self.params.morph_amt.value_or(ch, 0.0),
-                self.params.morph_amt.glide_mark(ch),
+                self.params.morph_amt.value_or(lane, 0.0),
+                self.params.morph_amt.glide_mark(lane),
                 block_rate,
             );
 
@@ -540,7 +540,7 @@ impl Plaits {
             let engine_index = self.params.engine.to_index();
 
             let patch = Patch {
-                note: voct_to_midi(self.params.freq.get_value(ch)),
+                note: voct_to_midi(self.params.freq.get_value(lane)),
                 harmonics: ((*state.harmonics + 5.0) / 10.0).clamp(0.0, 1.0),
                 timbre: ((*state.timbre + 5.0) / 10.0).clamp(0.0, 1.0),
                 morph: ((*state.morph + 5.0) / 10.0).clamp(0.0, 1.0),
@@ -555,7 +555,7 @@ impl Plaits {
 
             // Build the Modulations struct
             // FM: ±5V range, scaled to ±1.0 then multiplied by ~6 (VCV convention)
-            let fm_val = self.params.fm.value_or(ch, 0.0);
+            let fm_val = self.params.fm.value_or(lane, 0.0);
             let fm_mod = fm_val / 5.0 * 6.0;
 
             // Use latched trigger value to ensure short triggers aren't missed
@@ -563,7 +563,7 @@ impl Plaits {
             let trigger_mod = if state.trigger_latch { 1.0 } else { 0.0 };
 
             // Level: 0-5V scaled to 0-1
-            let level_val = self.params.level.value_or(ch, 0.0);
+            let level_val = self.params.level.value_or(lane, 0.0);
             let level_mod = (level_val / 8.0).clamp(0.0, 1.0);
 
             // Shoreline merges Plaits' knob + CV jack into a single port per

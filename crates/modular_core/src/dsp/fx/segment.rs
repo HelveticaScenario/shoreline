@@ -14,7 +14,7 @@ use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 use crate::types::SwapGlide;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SegmentParams {
@@ -46,7 +46,7 @@ struct SegmentOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     amount: SwapGlide,
 }
 
@@ -66,24 +66,24 @@ const SEGMENT_DOCS: ModuleDocs = ModuleDocs {
 #[module(name = "$segment", docs = SEGMENT_DOCS, args(input, amount))]
 pub struct Segment {
     outputs: SegmentOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: SegmentParams,
 }
 
 impl Segment {
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
         let freq_connected = !self.params.freq.is_disconnected();
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
 
-            let input = self.params.input.get_value(ch);
-            let amount_raw = self.params.amount.get_value(ch);
+            let input = self.params.input.get_value(lane);
+            let amount_raw = self.params.amount.get_value(lane);
 
             state
                 .amount
-                .update(amount_raw, self.params.amount.glide_mark(ch), sample_rate);
+                .update(amount_raw, self.params.amount.glide_mark(lane), sample_rate);
             let amount = *state.amount;
 
             // Normalize amount from [0, 5] to [0, 1] for table lookup
@@ -91,7 +91,7 @@ impl Segment {
 
             // Apply anti-aliasing when freq is connected
             let amount_norm = if freq_connected {
-                let freq_hz = voct_to_hz(self.params.freq.value_or_zero(ch));
+                let freq_hz = voct_to_hz(self.params.freq.value_or_zero(lane));
                 aa_segment(freq_hz / sample_rate, amount_norm)
             } else {
                 amount_norm
@@ -104,7 +104,7 @@ impl Segment {
             let shaped = interpolate_segment(input_norm, amount_norm);
 
             // Scale back to output range
-            self.outputs.sample.set(ch, shaped * 5.0);
+            self.outputs.sample.set(lane, shaped * 5.0);
         }
     }
 }

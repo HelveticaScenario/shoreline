@@ -89,16 +89,16 @@ export interface ParamDescriptor {
      */
     isPolySignalInput?: boolean;
     /**
-     * Summing input (MonoSignal): accepts a polyphonic connection but
-     * collapses all channels into one value, so it never contributes to a
-     * module's channel count. MonoSignal reuses PolySignal's schema body —
+     * Summing input (LaneSum): accepts a polyphonic connection but
+     * collapses all lanes into one value, so it never contributes to a
+     * module's lane count. LaneSum reuses PolySignal's schema body —
      * only the $defs name tells them apart.
      */
-    isMonoSignalInput?: boolean;
+    isLaneSumInput?: boolean;
     /**
      * Scale input (ScaleSignal): a poly signal of note pitches, or a spec
-     * string the factory rewrites into a `$chord` module. Its channels form one
-     * shared set of notes, so it never contributes to a module's channel count
+     * string the factory rewrites into a `$chord` module. Its lanes form one
+     * shared set of notes, so it never contributes to a module's lane count
      * and takes no part in `$g` signal-group expansion.
      */
     isScaleSignalInput?: boolean;
@@ -391,7 +391,7 @@ function isBufferParamSchema(root: JsonSchema, schema: JsonSchema): boolean {
         return false;
     }
 
-    // Heuristic: check for the buffer_ref shape { type: "buffer_ref", module, port, channels }
+    // Heuristic: check for the buffer_ref shape { type: "buffer_ref", module, port, lanes }
     const typeSchema = resolved.properties?.type
         ? resolveAndMerge(root, resolved.properties.type)
         : null;
@@ -401,16 +401,15 @@ function isBufferParamSchema(root: JsonSchema, schema: JsonSchema): boolean {
     const portSchema = resolved.properties?.port
         ? resolveAndMerge(root, resolved.properties.port)
         : null;
-    const channelsSchema = resolved.properties?.channels
-        ? resolveAndMerge(root, resolved.properties.channels)
+    const lanesSchema = resolved.properties?.lanes
+        ? resolveAndMerge(root, resolved.properties.lanes)
         : null;
 
     return (
         extractTypeTag(typeSchema ?? {}) === 'buffer_ref' &&
         moduleSchema?.type === 'string' &&
         portSchema?.type === 'string' &&
-        (channelsSchema?.type === 'integer' ||
-            channelsSchema?.type === 'number')
+        (lanesSchema?.type === 'integer' || lanesSchema?.type === 'number')
     );
 }
 
@@ -538,11 +537,11 @@ export function processModuleSchema(
 
             const signalMeta = signalParamsByName.get(name);
 
-            const isMonoSignalInput = referencesDef(s, 'MonoSignal');
+            const isLaneSumInput = referencesDef(s, 'LaneSum');
             const isScaleSignalInput = referencesDef(s, 'ScaleSignal');
             const isWavInput = referencesDef(s, 'Wav');
             const isPolySignalInput =
-                !isMonoSignalInput &&
+                !isLaneSumInput &&
                 !isScaleSignalInput &&
                 (referencesDef(s, 'PolySignal') ||
                     inferredKind === 'polySignal');
@@ -554,7 +553,7 @@ export function processModuleSchema(
                 name,
                 optional: !required.has(name),
                 ...(isPolySignalInput && { isPolySignalInput }),
-                ...(isMonoSignalInput && { isMonoSignalInput }),
+                ...(isLaneSumInput && { isLaneSumInput }),
                 ...(isScaleSignalInput && { isScaleSignalInput }),
                 ...(isWavInput && { isWavInput }),
                 ...(signalMeta && {

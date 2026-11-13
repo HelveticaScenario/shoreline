@@ -13,7 +13,7 @@ import {
     type RawEqSection,
     decodeSection,
     encodeChange,
-    isPerChannel,
+    isPerLane,
     sectionLists,
 } from './eqPanelModel';
 import {
@@ -43,14 +43,14 @@ export function editable(ctx: EqPanelContext, panel: PanelRuntime): boolean {
 
 /** The list being edited — the params' own array. */
 function editedList(panel: PanelRuntime): RawEqSection[] {
-    return sectionLists(panel.params)[panel.channel] ?? [];
+    return sectionLists(panel.params)[panel.lane] ?? [];
 }
 
 /** The edited list's source shape, `count` sections long. */
 function editedTarget(panel: PanelRuntime, count: number): EqListTarget {
     return {
         count,
-        list: isPerChannel(panel.params) ? panel.channel : null,
+        list: isPerLane(panel.params) ? panel.lane : null,
         listCount: sectionLists(panel.params).length,
     };
 }
@@ -183,8 +183,8 @@ export function changeSection(
     const view = decodeSection(raw);
     const q = quantizeChange(view, change);
     if (hasKeys(q)) {
-        applyChange(panel, panel.channel, index, q, codeOnly);
-        logChange(ctx, panel, panel.channel, index, q, codeOnly);
+        applyChange(panel, panel.lane, index, q, codeOnly);
+        logChange(ctx, panel, panel.lane, index, q, codeOnly);
         if (!codeOnly) {
             scheduleEngine(ctx, panel);
         }
@@ -192,7 +192,7 @@ export function changeSection(
     if (editable(ctx, panel)) {
         queueCode(
             panel,
-            sectionKey(panel.channel, index),
+            sectionKey(panel.lane, index),
             encodeChange(q, view.freqStyle),
         );
         if (phase === 'commit') {
@@ -214,7 +214,7 @@ export function revertSection(
     index: number,
     fields: (keyof EqSectionChange)[] | null,
 ): void {
-    const key = sectionKey(panel.channel, index);
+    const key = sectionKey(panel.lane, index);
     const ghost = panel.ghosts.get(key);
     const raw = editedList(panel)[index];
     if (!ghost || !raw || !editable(ctx, panel)) {
@@ -239,7 +239,7 @@ export function revertSection(
     if (!hasKeys(ghost)) {
         panel.ghosts.delete(key);
     }
-    logChange(ctx, panel, panel.channel, index, revert, true);
+    logChange(ctx, panel, panel.lane, index, revert, true);
     queueCode(panel, key, encodeChange(revert, view.freqStyle));
     flushCode(ctx, panel, true);
     ctx.render(panel);
@@ -333,7 +333,7 @@ export function removeSection(
     const ghosts = new Map<string, CodeGhost>();
     for (const [key, g] of panel.ghosts) {
         const at = parseSectionKey(key);
-        if (at.list !== panel.channel) {
+        if (at.list !== panel.lane) {
             ghosts.set(key, g);
         } else if (at.index !== index) {
             ghosts.set(

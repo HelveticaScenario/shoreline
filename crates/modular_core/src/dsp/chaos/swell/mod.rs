@@ -34,7 +34,7 @@ const TOLERANCE: f32 = 1e-5;
 const MAX_ITERATIONS: usize = 8;
 
 /// Keeps `hash_bipolar`'s seed half disjoint from its index half, so no seed
-/// reproduces another seed's (or channel's) waves.
+/// reproduces another seed's (or lane's) waves.
 const SEED_SALT: u64 = 0x5EED;
 
 fn default_waves() -> usize {
@@ -42,7 +42,7 @@ fn default_waves() -> usize {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(
     rename_all = camelCase,
@@ -87,7 +87,7 @@ struct SwellParams {
     #[deserr(default = default_waves())]
     waves: usize,
     #[input(
-        "picks the sea: each seed, and each channel, places the waves at different frequencies and directions"
+        "picks the sea: each seed, and each lane, places the waves at different frequencies and directions"
     )]
     #[serde(default)]
     #[deserr(default)]
@@ -154,7 +154,7 @@ struct Wave {
 }
 
 #[derive(Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     waves: [Wave; MAX_WAVES],
     /// Wave slots in play: the `waves` param plus any still fading out.
     span: usize,
@@ -171,7 +171,7 @@ struct ChannelState {
     height_scale: f32,
 }
 
-impl Default for ChannelState {
+impl Default for LaneState {
     fn default() -> Self {
         Self {
             waves: [Wave::default(); MAX_WAVES],
@@ -192,18 +192,18 @@ struct Surface {
     lean: [f32; 2],
 }
 
-impl ChannelState {
+impl LaneState {
     /// Place each wave in the spectrum and pick its heading. Wave 0 is the
     /// dominant swell: at `freq`, travelling along +x.
     ///
-    /// A new channel brings its waves in at full strength with every crest
+    /// A new lane brings its waves in at full strength with every crest
     /// aligned, so the sea starts on a full swell. Waves a later update adds
     /// start at scattered phases and fade in, so they do not arrive as one
     /// extra crest.
-    fn scatter(&mut self, seed: u32, channel: usize, count: usize) {
+    fn scatter(&mut self, seed: u32, lane: usize, count: usize) {
         let salted = (u64::from(seed) << 32) | SEED_SALT;
         for (i, wave) in self.waves.iter_mut().enumerate() {
-            let index = ((channel * MAX_WAVES + i) * 3) as u64;
+            let index = ((lane * MAX_WAVES + i) * 3) as u64;
             if i > 0 {
                 wave.place = (hash_bipolar(salted, index) * 0.5 + 0.5) as f32;
                 wave.heading = hash_bipolar(salted, index + 1) as f32;
@@ -375,33 +375,33 @@ const SWELL_DOCS: ModuleDocs = ModuleDocs {
 pub struct Swell {
     outputs: SwellOutputs,
     params: SwellParams,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
 }
 
 impl Swell {
     fn update(&mut self, sample_rate: f32) {
         let count = self.params.waves;
-        for ch in 0..self.channel_count() {
-            let cycles = voct_to_hz(self.params.freq.get_value(ch)) / sample_rate;
-            let q = (self.params.steepness.value_or(ch, DEFAULT_STEEPNESS) * STEEPNESS_PER_VOLT)
+        for lane in 0..self.lane_count() {
+            let cycles = voct_to_hz(self.params.freq.get_value(lane)) / sample_rate;
+            let q = (self.params.steepness.value_or(lane, DEFAULT_STEEPNESS) * STEEPNESS_PER_VOLT)
                 .clamp(0.0, MAX_STEEPNESS);
-            let chop = self.params.chop.value_or(ch, DEFAULT_CHOP);
-            let spread = self.params.spread.value_or(ch, DEFAULT_SPREAD);
+            let chop = self.params.chop.value_or(lane, DEFAULT_CHOP);
+            let spread = self.params.spread.value_or(lane, DEFAULT_SPREAD);
 
-            let state = &mut self.channel_state[ch];
+            let state = &mut self.lane_state[lane];
             state.advance(count, cycles, chop, spread);
             let surface = state.solve(q);
 
             // A single wave's slope peaks at 1/√(1 − q²); scaling by its
             // reciprocal keeps the lean near ±5V at every steepness.
             let lean_volts = -5.0 * (1.0 - q * q).sqrt();
-            self.outputs.height.set(ch, surface.height * 5.0);
+            self.outputs.height.set(lane, surface.height * 5.0);
             self.outputs
                 .tilt
-                .set(ch, (surface.lean[0] * lean_volts).clamp(-5.0, 5.0));
+                .set(lane, (surface.lean[0] * lean_volts).clamp(-5.0, 5.0));
             self.outputs
                 .roll
-                .set(ch, (surface.lean[1] * lean_volts).clamp(-5.0, 5.0));
+                .set(lane, (surface.lean[1] * lean_volts).clamp(-5.0, 5.0));
         }
     }
 }
@@ -411,8 +411,8 @@ impl crate::types::PatchUpdateHandler for Swell {
     /// solution carry over, so the sea keeps moving through a patch update.
     fn on_patch_update(&mut self) {
         let (seed, count) = (self.params.seed, self.params.waves);
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
-            state.scatter(seed, ch, count);
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
+            state.scatter(seed, lane, count);
         }
     }
 }

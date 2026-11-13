@@ -9,12 +9,12 @@ use crate::utils::unwrap_attr;
 /// Parsed module attribute data
 struct ModuleAttr {
     name: LitStr,
-    channels: Option<u8>,
-    channels_param: Option<LitStr>,
-    channels_param_default: Option<u8>,
-    /// Custom function to derive channel count from params struct.
+    lanes: Option<u8>,
+    lanes_param: Option<LitStr>,
+    lanes_param_default: Option<u8>,
+    /// Custom function to derive lane count from params struct.
     /// The function must have signature: fn(&ParamsStruct) -> Option<usize>
-    channels_derive: Option<syn::Path>,
+    lanes_derive: Option<syn::Path>,
     /// Path to the module's `crate::module_docs::ModuleDocs` const.
     docs: syn::Path,
 }
@@ -41,7 +41,7 @@ impl syn::parse::Parse for ArgAttr {
 /// #[module(
 ///     name = "$sine",
 ///     docs = SINE_DOCS,
-///     channels = 2,
+///     lanes = 2,
 ///     args(freq, engine),
 ///     stateful,
 ///     patch_update,
@@ -64,10 +64,10 @@ pub struct ModuleAttrArgs {
 impl syn::parse::Parse for ModuleAttrArgs {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut name: Option<LitStr> = None;
-        let mut channels: Option<u8> = None;
-        let mut channels_param: Option<LitStr> = None;
-        let mut channels_param_default: Option<u8> = None;
-        let mut channels_derive: Option<syn::Path> = None;
+        let mut lanes: Option<u8> = None;
+        let mut lanes_param: Option<LitStr> = None;
+        let mut lanes_param_default: Option<u8> = None;
+        let mut lanes_derive: Option<syn::Path> = None;
         let mut args: Vec<ArgAttr> = Vec::new();
         let mut docs: Option<syn::Path> = None;
         let mut stateful = false;
@@ -85,32 +85,32 @@ impl syn::parse::Parse for ModuleAttrArgs {
                     input.parse::<Token![=]>()?;
                     name = Some(input.parse()?);
                 }
-                "channels" => {
+                "lanes" => {
                     input.parse::<Token![=]>()?;
                     let lit: syn::LitInt = input.parse()?;
                     let n: u8 = lit.base10_parse()?;
-                    // Must match modular_core::poly::PORT_MAX_CHANNELS
+                    // Must match modular_core::poly::PORT_MAX_LANES
                     const MAX: u8 = 64;
                     if !(1..=MAX).contains(&n) {
                         return Err(syn::Error::new(
                             lit.span(),
-                            format!("channels must be between 1 and {MAX}, got {n}"),
+                            format!("lanes must be between 1 and {MAX}, got {n}"),
                         ));
                     }
-                    channels = Some(n);
+                    lanes = Some(n);
                 }
-                "channels_param" => {
+                "lanes_param" => {
                     input.parse::<Token![=]>()?;
-                    channels_param = Some(input.parse()?);
+                    lanes_param = Some(input.parse()?);
                 }
-                "channels_param_default" => {
+                "lanes_param_default" => {
                     input.parse::<Token![=]>()?;
                     let lit: syn::LitInt = input.parse()?;
-                    channels_param_default = Some(lit.base10_parse()?);
+                    lanes_param_default = Some(lit.base10_parse()?);
                 }
-                "channels_derive" => {
+                "lanes_derive" => {
                     input.parse::<Token![=]>()?;
-                    channels_derive = Some(input.parse()?);
+                    lanes_derive = Some(input.parse()?);
                 }
                 "args" => {
                     let content;
@@ -149,8 +149,8 @@ impl syn::parse::Parse for ModuleAttrArgs {
                         ident.span(),
                         format!(
                             "Unknown module attribute '{other}'. Expected one of: \
-                             name, docs, channels, channels_param, \
-                             channels_param_default, channels_derive, args, \
+                             name, docs, lanes, lanes_param, \
+                             lanes_param_default, lanes_derive, args, \
                              stateful, patch_update, has_init, has_prepare_resources, clock_sync, block, \
                              experimental"
                         ),
@@ -181,10 +181,10 @@ impl syn::parse::Parse for ModuleAttrArgs {
         Ok(ModuleAttrArgs {
             module: ModuleAttr {
                 name,
-                channels,
-                channels_param,
-                channels_param_default,
-                channels_derive,
+                lanes,
+                lanes_param,
+                lanes_param_default,
+                lanes_derive,
                 docs,
             },
             args,
@@ -207,11 +207,11 @@ impl syn::parse::Parse for ModuleAttrArgs {
 /// #[module(
 ///     name = "$sine",
 ///     docs = SINE_DOCS,                        // the module's ModuleDocs const
-///     // Channel count configuration (at most one):
-///     // channels = 2,                         // hardcoded
-///     // channels_param = "channels",           // read from param field
-///     // channels_param_default = 1,            // default when param absent
-///     // channels_derive = my_derive_fn,        // custom function
+///     // Lane count configuration (at most one):
+///     // lanes = 2,                         // hardcoded
+///     // lanes_param = "lanes",           // read from param field
+///     // lanes_param_default = 1,            // default when param absent
+///     // lanes_derive = my_derive_fn,        // custom function
 ///     //
 ///     // Positional DSL arguments (optional):
 ///     // args(freq, engine),
@@ -231,11 +231,11 @@ impl syn::parse::Parse for ModuleAttrArgs {
 ///
 /// The struct **must** have a field named `outputs` whose type derives `Outputs`,
 /// and a field named `params` whose type derives `Deserialize`, `JsonSchema`,
-/// `Connect`, and `ChannelCount`.
+/// `Connect`, and `LaneCount`.
 ///
 /// Module structs do **not** need to derive `Default`. The proc macro generates
 /// per-field initialization in the constructor: `params` comes from deserialization,
-/// `_channel_count` from the computed channel count, and all other fields use
+/// `_lane_count` from the computed lane count, and all other fields use
 /// `Default::default()` on their individual types.
 pub fn module_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr_args = syn::parse_macro_input!(attr as ModuleAttrArgs);
@@ -251,14 +251,14 @@ pub fn module_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
             && !a.path().is_ident("has_prepare_resources")
     });
 
-    // Inject `_channel_count: usize` field into the struct so that
-    // `self.channel_count()` can return a precomputed value set by the
+    // Inject `_lane_count: usize` field into the struct so that
+    // `self.lane_count()` can return a precomputed value set by the
     // main thread via the constructor.
     if let Data::Struct(ref mut data_struct) = ast.data
         && let Fields::Named(ref mut fields) = data_struct.fields
     {
         let field: syn::Field = syn::parse_quote! {
-            pub _channel_count: usize
+            pub _lane_count: usize
         };
         fields.named.push(field);
     }
@@ -306,21 +306,21 @@ fn impl_module_macro_attr(
     }
     let docs_path = &attr_args.module.docs;
 
-    // Store channels info for channel_count generation
-    let hardcoded_channels = attr_args.module.channels;
-    let channels_param_name = attr_args.module.channels_param.clone();
-    let channels_param_default_val = attr_args.module.channels_param_default;
-    let channels_derive_fn = &attr_args.module.channels_derive;
+    // Store lanes info for lane_count generation
+    let hardcoded_lanes = attr_args.module.lanes;
+    let lanes_param_name = attr_args.module.lanes_param.clone();
+    let lanes_param_default_val = attr_args.module.lanes_param_default;
+    let lanes_derive_fn = &attr_args.module.lanes_derive;
 
-    let module_channels = match attr_args.module.channels {
+    let module_lanes = match attr_args.module.lanes {
         Some(n) => quote! { Some(#n) },
         None => quote! { None },
     };
-    let module_channels_param = match &attr_args.module.channels_param {
+    let module_lanes_param = match &attr_args.module.lanes_param {
         Some(s) => quote! { Some(#s.to_string()) },
         None => quote! { None },
     };
-    let module_channels_param_default = match attr_args.module.channels_param_default {
+    let module_lanes_param_default = match attr_args.module.lanes_param_default {
         Some(n) => quote! { Some(#n) },
         None => quote! { None },
     };
@@ -367,7 +367,7 @@ fn impl_module_macro_attr(
         }
     }
 
-    let (outputs_ty, module_field_inits, has_state_field, has_channel_state_field): (
+    let (outputs_ty, module_field_inits, has_state_field, has_lane_state_field): (
         Type,
         Vec<TokenStream2>,
         bool,
@@ -406,55 +406,49 @@ fn impl_module_macro_attr(
                     .named
                     .iter()
                     .any(|f| f.ident.as_ref().map(|i| i == "state").unwrap_or(false));
-                let has_channel_state = fields.named.iter().any(|f| {
-                    f.ident
-                        .as_ref()
-                        .map(|i| i == "channel_state")
-                        .unwrap_or(false)
-                });
+                let has_lane_state = fields
+                    .named
+                    .iter()
+                    .any(|f| f.ident.as_ref().map(|i| i == "lane_state").unwrap_or(false));
 
                 // Generate per-field initialization for the inner module struct.
                 // - `params` → use deserialized params
-                // - `_channel_count` → use deserialized channel count
+                // - `_lane_count` → use deserialized lane count
                 // - `outputs` and `state` → use Default::default()
-                // - `channel_state` → a boxed slice of `channel_count` default
-                //   elements (per-channel state, sized to the patch's channels)
+                // - `lane_state` → a boxed slice of `lane_count` default
+                //   elements (per-lane state, sized to the patch's lanes)
                 // - other fields → error
                 let field_inits: Vec<TokenStream2> = fields
-                        .named
-                        .iter()
-                        .map(|f| {
-                            let field_name = f.ident.as_ref().unwrap();
-                            let field_name_str = field_name.to_string();
-                            match field_name_str.as_str() {
-                                "params" => Ok(quote! { params: *concrete_params }),
-                                "_channel_count" => {
-                                    Ok(quote! { _channel_count: deserialized.channel_count })
-                                }
-                                "_block_index" => Ok(quote! { _block_index: Default::default() }),
-                                "outputs" | "state" => {
-                                    Ok(quote! { #field_name: Default::default() })
-                                }
-                                "channel_state" => Ok(quote! {
-                                    channel_state: (0..deserialized.channel_count)
-                                        .map(|_| ::core::default::Default::default())
-                                        .collect::<::std::vec::Vec<_>>()
-                                        .into_boxed_slice()
-                                }),
-                                other => Err(syn::Error::new(
-                                    field_name.span(),
-                                    format!(
-                                        "Module struct field `{other}` is not allowed. Only \
-                                     `state`, `channel_state`, `outputs`, and `params` are permitted.",
-                                    ),
-                                )),
-                            }
-                        })
-                        .collect::<Result<Vec<_>, _>>()?
-                        .into_iter()
-                        .collect();
+                    .named
+                    .iter()
+                    .map(|f| {
+                        let field_name = f.ident.as_ref().unwrap();
+                        let field_name_str = field_name.to_string();
+                        match field_name_str.as_str() {
+                            "params" => Ok(quote! { params: *concrete_params }),
+                            "_lane_count" => Ok(quote! { _lane_count: deserialized.lane_count }),
+                            "_block_index" => Ok(quote! { _block_index: Default::default() }),
+                            "outputs" | "state" => Ok(quote! { #field_name: Default::default() }),
+                            "lane_state" => Ok(quote! {
+                                lane_state: (0..deserialized.lane_count)
+                                    .map(|_| ::core::default::Default::default())
+                                    .collect::<::std::vec::Vec<_>>()
+                                    .into_boxed_slice()
+                            }),
+                            other => Err(syn::Error::new(
+                                field_name.span(),
+                                format!(
+                                    "Module struct field `{other}` is not allowed. Only \
+                                     `state`, `lane_state`, `outputs`, and `params` are permitted.",
+                                ),
+                            )),
+                        }
+                    })
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .collect();
 
-                (outputs_ty, field_inits, has_state, has_channel_state)
+                (outputs_ty, field_inits, has_state, has_lane_state)
             }
             Fields::Unnamed(_) | Fields::Unit => {
                 return Err(syn::Error::new(
@@ -597,7 +591,7 @@ fn impl_module_macro_attr(
 
     // Generate transfer_state_from body.
     //
-    // `state` (module-level, non-per-channel) is always carried over with a
+    // `state` (module-level, non-per-lane) is always carried over with a
     // swap — it is the same size in both modules.
     let state_transfer = if has_state_field {
         quote! {
@@ -606,20 +600,20 @@ fn impl_module_macro_attr(
     } else {
         quote! {}
     };
-    // `channel_state` (per-channel) carries over the overlapping channels:
+    // `lane_state` (per-lane) carries over the overlapping lanes:
     // equal lengths swap the whole boxed slice (O(1) pointer swap); otherwise
-    // the first `min(old, new)` channels are swapped element-wise and the
+    // the first `min(old, new)` lanes are swapped element-wise and the
     // surplus keeps its freshly-initialised value. Neither path allocates or
     // clones on the audio thread.
-    let channel_state_transfer = if has_channel_state_field {
+    let lane_state_transfer = if has_lane_state_field {
         quote! {
-            let new_len = new_inner.channel_state.len();
-            let old_len = old_inner.channel_state.len();
+            let new_len = new_inner.lane_state.len();
+            let old_len = old_inner.lane_state.len();
             if new_len == old_len {
-                std::mem::swap(&mut new_inner.channel_state, &mut old_inner.channel_state);
+                std::mem::swap(&mut new_inner.lane_state, &mut old_inner.lane_state);
             } else {
                 let n = new_len.min(old_len);
-                new_inner.channel_state[..n].swap_with_slice(&mut old_inner.channel_state[..n]);
+                new_inner.lane_state[..n].swap_with_slice(&mut old_inner.lane_state[..n]);
             }
         }
     } else {
@@ -627,34 +621,30 @@ fn impl_module_macro_attr(
     };
     let transfer_state_body = quote! {
         #state_transfer
-        #channel_state_transfer
+        #lane_state_transfer
     };
 
-    // Generate the channel count derivation function name
-    let channel_count_fn_name = format_ident!(
-        "__{}_derive_channel_count",
+    // Generate the lane count derivation function name
+    let lane_count_fn_name = format_ident!(
+        "__{}_derive_lane_count",
         name.to_string().to_case(Case::Snake)
     );
 
-    // Generate the core channel count implementation that works with typed params.
-    let channel_count_fn_impl = if let Some(custom_fn) = channels_derive_fn {
+    // Generate the core lane count implementation that works with typed params.
+    let lane_count_fn_impl = if let Some(custom_fn) = lanes_derive_fn {
         quote! {
             #[inline]
-            fn #channel_count_fn_name(params: &#params_struct_name) -> usize {
+            fn #lane_count_fn_name(params: &#params_struct_name) -> usize {
                 #custom_fn(params)
             }
         }
     } else {
-        match (
-            hardcoded_channels,
-            &channels_param_name,
-            channels_param_default_val,
-        ) {
+        match (hardcoded_lanes, &lanes_param_name, lanes_param_default_val) {
             (Some(n), _, _) => {
                 let n = n as usize;
                 quote! {
                     #[inline]
-                    fn #channel_count_fn_name(_params: &#params_struct_name) -> usize {
+                    fn #lane_count_fn_name(_params: &#params_struct_name) -> usize {
                         #n
                     }
                 }
@@ -666,10 +656,10 @@ fn impl_module_macro_attr(
                         let default = default as usize;
                         quote! {
                             #[inline]
-                            fn #channel_count_fn_name(params: &#params_struct_name) -> usize {
+                            fn #lane_count_fn_name(params: &#params_struct_name) -> usize {
                                 let param_value = params.#param_ident;
                                 if param_value > 0 {
-                                    param_value.clamp(1, crate::poly::PORT_MAX_CHANNELS)
+                                    param_value.clamp(1, crate::poly::PORT_MAX_LANES)
                                 } else {
                                     #default
                                 }
@@ -679,8 +669,8 @@ fn impl_module_macro_attr(
                     None => {
                         quote! {
                             #[inline]
-                            fn #channel_count_fn_name(params: &#params_struct_name) -> usize {
-                                params.#param_ident.clamp(1, crate::poly::PORT_MAX_CHANNELS)
+                            fn #lane_count_fn_name(params: &#params_struct_name) -> usize {
+                                params.#param_ident.clamp(1, crate::poly::PORT_MAX_LANES)
                             }
                         }
                     }
@@ -689,11 +679,11 @@ fn impl_module_macro_attr(
             (None, None, _) => {
                 quote! {
                     #[inline]
-                    fn #channel_count_fn_name(params: &#params_struct_name) -> usize {
+                    fn #lane_count_fn_name(params: &#params_struct_name) -> usize {
                         use crate::types::PolySignalFields;
                         let fields = params.poly_signal_fields();
                         let refs: Vec<&crate::poly::PolySignal> = fields.into_iter().collect();
-                        crate::poly::PolySignal::max_channels(&refs).max(1) as usize
+                        crate::poly::PolySignal::max_lanes(&refs).max(1) as usize
                     }
                 }
             }
@@ -743,8 +733,8 @@ fn impl_module_macro_attr(
             // `update`. Feedback cycles (Sample mode) run `update` one slot at
             // a time, so each read sees the cycle's previous slot.
             let mut step = if block {
-                let channels = unsafe { (*self.module.get())._channel_count.max(1) };
-                (crate::block_input::SCRATCH_LEN / channels).max(1)
+                let lanes = unsafe { (*self.module.get())._lane_count.max(1) };
+                (crate::block_input::SCRATCH_LEN / lanes).max(1)
             } else {
                 0
             };
@@ -774,16 +764,16 @@ fn impl_module_macro_attr(
     };
 
     let generated = quote! {
-        // Generated core channel count function (used by derive_channel_count and initial default)
+        // Generated core lane count function (used by derive_lane_count and initial default)
         // IMPORTANT: This function should never be called within the audio thread.
         // It may be computationally expensive. It should only be called in non-audio-thread contexts.
-        #channel_count_fn_impl
+        #lane_count_fn_impl
 
         impl #impl_generics #name #ty_generics #where_clause {
-            /// Returns the precomputed channel count set during construction.
+            /// Returns the precomputed lane count set during construction.
             #[inline]
-            pub fn channel_count(&self) -> usize {
-                self._channel_count
+            pub fn lane_count(&self) -> usize {
+                self._lane_count
             }
 
             /// Returns the current sample slot index within the block being
@@ -836,7 +826,7 @@ fn impl_module_macro_attr(
             /// each pre-allocated to `block_size` samples. `ensure_processed_to`
             /// writes the inner module's per-sample outputs into slot `i`
             /// after each `inner.update`, and downstream cables read from it
-            /// via `get_value_at(port_idx, ch, index)`.
+            /// via `get_value_at(port_idx, lane, index)`.
             ///
             /// Allocated once at construction; never resized on the audio
             /// thread.
@@ -952,22 +942,22 @@ fn impl_module_macro_attr(
                 self.index.get()
             }
 
-            fn get_value_at(&self, port: &str, ch: usize, index: usize) -> f32 {
+            fn get_value_at(&self, port: &str, lane: usize, index: usize) -> f32 {
                 let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
                     return 0.0;
                 };
                 let slot = self.readable_slot(index);
                 let outputs = unsafe { &*self.block_outputs.get() };
-                outputs.get_at(port_idx, ch, slot)
+                outputs.get_at(port_idx, lane, slot)
             }
 
-            fn get_value_at_f64(&self, port: &str, ch: usize, index: usize) -> f64 {
+            fn get_value_at_f64(&self, port: &str, lane: usize, index: usize) -> f64 {
                 let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
                     return 0.0;
                 };
                 let slot = self.readable_slot(index);
                 let outputs = unsafe { &*self.block_outputs.get() };
-                outputs.get_at_f64(port_idx, ch, slot)
+                outputs.get_at_f64(port_idx, lane, slot)
             }
 
             fn port_view(&self, port: &str) -> Option<crate::types::PortView> {
@@ -976,25 +966,25 @@ fn impl_module_macro_attr(
                 }
                 let port_idx = <#block_outputs_ty>::port_index(port)?;
                 let outputs = unsafe { &*self.block_outputs.get() };
-                let (data, channels, lanes) = outputs.data_at(port_idx)?;
-                if channels == 0 {
+                let (data, lanes, words) = outputs.data_at(port_idx)?;
+                if lanes == 0 {
                     return None;
                 }
                 Some(crate::types::PortView {
                     data,
-                    channels,
                     lanes,
+                    words,
                     processed: &self.index,
                 })
             }
 
-            fn get_bounds_at(&self, port: &str, ch: usize, index: usize) -> crate::bounds::Bounds {
+            fn get_bounds_at(&self, port: &str, lane: usize, index: usize) -> crate::bounds::Bounds {
                 let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
                     return crate::bounds::Bounds::UNBOUNDED;
                 };
                 let slot = self.readable_slot(index);
                 let outputs = unsafe { &*self.block_outputs.get() };
-                outputs.get_bounds_at(port_idx, ch, slot)
+                outputs.get_bounds_at(port_idx, lane, slot)
             }
 
             fn port_bounds(&self, port: &str) -> crate::bounds::PortBounds {
@@ -1064,12 +1054,12 @@ fn impl_module_macro_attr(
                 }
             }
 
-            fn port_channels(&self, port: &str) -> usize {
+            fn port_lanes(&self, port: &str) -> usize {
                 let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
                     return 0;
                 };
                 let outputs = unsafe { &*self.block_outputs.get() };
-                outputs.channels_at(port_idx)
+                outputs.lanes_at(port_idx)
             }
 
             fn get_module_type(&self) -> &str {
@@ -1120,10 +1110,10 @@ fn impl_module_macro_attr(
                     }
                     let new_inner = unsafe { &mut *self.module.get() };
                     let old_inner = unsafe { &mut *old_typed.module.get() };
-                    // Block-sized output buffers and per-channel state are sized
-                    // to the module's channel count, so they can only be moved
+                    // Block-sized output buffers and per-lane state are sized
+                    // to the module's lane count, so they can only be moved
                     // between modules of the same count.
-                    let same_channels = new_inner._channel_count == old_inner._channel_count;
+                    let same_lanes = new_inner._lane_count == old_inner._lane_count;
                     #transfer_state_body
                     let generation = old_typed.glide_generation.get().wrapping_add(1);
                     self.glide_generation.set(generation);
@@ -1144,10 +1134,10 @@ fn impl_module_macro_attr(
                     // Without this swap the "second" module in a cycle would
                     // see zeros from the freshly-constructed wrapper and
                     // inject a one-sample discontinuity into the feedback loop.
-                    // Skipped on a channel-count or precision change: the
+                    // Skipped on a lane-count or precision change: the
                     // buffers differ in layout, and the fresh wrapper's buffer
                     // is the correct one.
-                    if same_channels {
+                    if same_lanes {
                         unsafe {
                             let new_block_outputs = &mut *self.block_outputs.get();
                             let old_block_outputs = &mut *old_typed.block_outputs.get();
@@ -1174,12 +1164,12 @@ fn impl_module_macro_attr(
                 ))?;
 
             // Construct inner module with per-field initialization.
-            // `params` comes from deserialization, `_channel_count` from computed channel count,
+            // `params` comes from deserialization, `_lane_count` from computed lane count,
             // all other fields use Default::default().
             let mut inner = #name #static_ty_generics {
                 #(#module_field_inits),*
             };
-            crate::types::OutputStruct::set_all_channels(&mut inner.outputs, deserialized.channel_count);
+            crate::types::OutputStruct::set_all_lanes(&mut inner.outputs, deserialized.lane_count);
             crate::types::OutputStruct::make_f64_outputs(&mut inner.outputs, deserialized.f64_inputs);
             // Fill `#[default_connection]` inputs here, on the main thread:
             // the audio-thread `connect` must stay allocation-free, so it only
@@ -1191,7 +1181,7 @@ fn impl_module_macro_attr(
                 sample_rate,
                 module: std::cell::UnsafeCell::new(inner),
                 index: std::cell::Cell::new(0),
-                block_outputs: std::cell::UnsafeCell::new(<#block_outputs_ty>::new(_block_size, deserialized.channel_count, deserialized.f64_inputs)),
+                block_outputs: std::cell::UnsafeCell::new(<#block_outputs_ty>::new(_block_size, deserialized.lane_count, deserialized.f64_inputs)),
                 glide_generation: std::cell::Cell::new(0),
                 block_size: _block_size,
                 mode: _mode,
@@ -1213,10 +1203,10 @@ fn impl_module_macro_attr(
             fn install_params_deserializer(map: &mut std::collections::HashMap<String, crate::params::ParamsDeserializer>) {
                 fn deserializer(params: serde_json::Value) -> std::result::Result<crate::params::CachedParams, crate::param_errors::ModuleParamErrors> {
                     let parsed: #params_struct_name = deserr::deserialize::<_, _, crate::param_errors::ModuleParamErrors>(params)?;
-                    let channel_count = #channel_count_fn_name(&parsed);
+                    let lane_count = #lane_count_fn_name(&parsed);
                     Ok(crate::params::CachedParams {
                         params: Box::new(parsed),
-                        channel_count,
+                        lane_count,
                     })
                 }
                 map.insert(Self::MODULE_TYPE.into(), deserializer as crate::params::ParamsDeserializer);
@@ -1238,9 +1228,9 @@ fn impl_module_macro_attr(
                     positional_args: vec![
                         #(#positional_args_exprs),*
                     ],
-                    channels: #module_channels,
-                    channels_param: #module_channels_param,
-                    channels_param_default: #module_channels_param_default,
+                    lanes: #module_lanes,
+                    lanes_param: #module_lanes_param,
+                    lanes_param_default: #module_lanes_param_default,
                     experimental: #experimental,
                     declared_range: <#params_struct_name as crate::types::BoundsInputs>::DECLARED_RANGE
                         .map(|(min, max)| vec![min.to_string(), max.to_string()]),

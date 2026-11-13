@@ -42,8 +42,8 @@ export interface ScopeView {
     key: string;
     file: string;
     range: [number, number];
-    channelKeys: string[];
-    /** Draw each channel on its own canvas, arranged this way; null overlays them on one. */
+    laneKeys: string[];
+    /** Draw each lane on its own canvas, arranged this way; null overlays them on one. */
     split: ScopeSplit | null;
     /**
      * Index of this view's tracked range in the scope decoration collection,

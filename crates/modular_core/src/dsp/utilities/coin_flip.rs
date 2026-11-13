@@ -8,7 +8,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CoinFlipParams {
@@ -34,7 +34,7 @@ struct CoinFlipOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct CoinFlipChannelState {
+struct CoinFlipLaneState {
     rng: LcgRng,
     seeded: bool,
     input: SchmittTrigger,
@@ -42,7 +42,7 @@ struct CoinFlipChannelState {
     heads: bool,
 }
 
-impl CoinFlipChannelState {
+impl CoinFlipLaneState {
     /// Advance one sample and return the `(heads, tails)` voltages.
     /// `probability` is read only on a rising edge.
     #[inline]
@@ -92,31 +92,31 @@ const COIN_FLIP_DOCS: ModuleDocs = ModuleDocs {
 pub struct CoinFlip {
     outputs: CoinFlipOutputs,
     params: CoinFlipParams,
-    channel_state: Box<[CoinFlipChannelState]>,
+    lane_state: Box<[CoinFlipLaneState]>,
 }
 
 impl CoinFlip {
     fn update(&mut self, _sample_rate: f32) {
-        for ch in 0..self.channel_count() {
-            let (heads, tails) = self.channel_state[ch]
-                .step(self.params.input.get_value(ch), || {
-                    self.params.probability.value_or(ch, 2.5)
+        for lane in 0..self.lane_count() {
+            let (heads, tails) = self.lane_state[lane]
+                .step(self.params.input.get_value(lane), || {
+                    self.params.probability.value_or(lane, 2.5)
                 });
-            self.outputs.heads.set(ch, heads);
-            self.outputs.tails.set(ch, tails);
+            self.outputs.heads.set(lane, heads);
+            self.outputs.tails.set(lane, tails);
         }
     }
 }
 
 impl crate::types::PatchUpdateHandler for CoinFlip {
-    /// Seeds each unseeded channel off the module's stable heap address. The
-    /// per-channel `seeded` flag rides `transfer_state_from`, so a running
-    /// channel keeps its sequence across patch updates.
+    /// Seeds each unseeded lane off the module's stable heap address. The
+    /// per-lane `seeded` flag rides `transfer_state_from`, so a running
+    /// lane keeps its sequence across patch updates.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
             if !state.seeded {
-                state.rng.seed(base, ch);
+                state.rng.seed(base, lane);
                 state.seeded = true;
             }
         }
@@ -138,14 +138,14 @@ mod tests {
     }
 
     fn make(params: CoinFlipParams) -> CoinFlip {
-        let channels = __coin_flip_derive_channel_count(&params);
+        let lanes = __coin_flip_derive_lane_count(&params);
         let mut outputs = CoinFlipOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         let mut m = CoinFlip {
             params,
             outputs,
-            channel_state: vec![CoinFlipChannelState::default(); channels].into_boxed_slice(),
-            _channel_count: channels,
+            lane_state: vec![CoinFlipLaneState::default(); lanes].into_boxed_slice(),
+            _lane_count: lanes,
             _block_index: Default::default(),
         };
         crate::dsp::utils::rng::TEST_SEED_BASE.set(Some(0x5eed));
@@ -155,23 +155,23 @@ mod tests {
     }
 
     /// Fire `n` two-sample triggers, each followed by two low samples, and
-    /// return per-channel counts of `(heads, tails)` rising edges.
+    /// return per-lane counts of `(heads, tails)` rising edges.
     fn flip(m: &mut CoinFlip, n: usize) -> Vec<(usize, usize)> {
-        let channels = m.channel_count();
-        let mut counts = vec![(0, 0); channels];
-        let mut prev = vec![(0.0, 0.0); channels];
+        let lanes = m.lane_count();
+        let mut counts = vec![(0, 0); lanes];
+        let mut prev = vec![(0.0, 0.0); lanes];
         for i in 0..n * 4 {
             m.params.input = volts(if i % 4 < 2 { 5.0 } else { 0.0 });
             m.update(SR);
-            for ch in 0..channels {
-                let now = (m.outputs.heads.get(ch), m.outputs.tails.get(ch));
+            for lane in 0..lanes {
+                let now = (m.outputs.heads.get(lane), m.outputs.tails.get(lane));
                 assert!(
                     now.0 == 0.0 || now.1 == 0.0,
-                    "both outputs high on channel {ch}"
+                    "both outputs high on lane {lane}"
                 );
-                counts[ch].0 += usize::from(now.0 > prev[ch].0);
-                counts[ch].1 += usize::from(now.1 > prev[ch].1);
-                prev[ch] = now;
+                counts[lane].0 += usize::from(now.0 > prev[lane].0);
+                counts[lane].1 += usize::from(now.1 > prev[lane].1);
+                prev[lane] = now;
             }
         }
         counts
@@ -237,17 +237,17 @@ mod tests {
     }
 
     #[test]
-    fn channels_flip_independently() {
+    fn lanes_flip_independently() {
         let mut m = make(params(PolySignal::poly(&vec![Signal::Volts(2.5); 4])));
-        let channels = m.channel_count();
-        let mut outcomes = vec![Vec::new(); channels];
+        let lanes = m.lane_count();
+        let mut outcomes = vec![Vec::new(); lanes];
         for _ in 0..64 {
-            for (ch, &(heads, _)) in flip(&mut m, 1).iter().enumerate() {
-                outcomes[ch].push(heads);
+            for (lane, &(heads, _)) in flip(&mut m, 1).iter().enumerate() {
+                outcomes[lane].push(heads);
             }
         }
-        for (a, b) in (0..channels).flat_map(|a| (a + 1..channels).map(move |b| (a, b))) {
-            assert_ne!(outcomes[a], outcomes[b], "channels {a} and {b} match");
+        for (a, b) in (0..lanes).flat_map(|a| (a + 1..lanes).map(move |b| (a, b))) {
+            assert_ne!(outcomes[a], outcomes[b], "lanes {a} and {b} match");
         }
     }
 }

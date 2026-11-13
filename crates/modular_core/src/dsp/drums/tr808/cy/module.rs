@@ -8,7 +8,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cy808Params {
@@ -87,7 +87,7 @@ pub struct Cy808 {
     outputs: Cy808Outputs,
     params: Cy808Params,
     state: CyState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
 }
 
 #[derive(Default)]
@@ -99,7 +99,7 @@ struct CyState {
 }
 
 #[derive(Clone, Copy, Default)]
-struct Channel {
+struct Lane {
     voices: Voices<Cymbal>,
     bank: MetalBank,
 }
@@ -127,7 +127,7 @@ impl Cy808 {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -137,11 +137,11 @@ impl Cy808 {
         ];
         let out = &mut self.outputs.sample;
         self.state.tick(
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             p.hold,
             inputs,
-            |ch, v| out.set(ch, v),
+            |lane, v| out.set(lane, v),
         );
     }
 
@@ -151,7 +151,7 @@ impl Cy808 {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Cy808ParamsBlockInputs {
@@ -159,16 +159,16 @@ impl Cy808 {
             accent,
             decay,
             tone,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot(
             &mut outputs.sample,
             range,
             [trigger, accent, decay, tone],
             |inputs, mut slot| {
                 self.state
-                    .tick(channel_state, p.restart, p.hold, inputs, |ch, v| {
-                        slot.set(ch, v)
+                    .tick(lane_state, p.restart, p.hold, inputs, |lane, v| {
+                        slot.set(lane, v)
                     })
             },
         );
@@ -177,20 +177,18 @@ impl Cy808 {
 }
 
 impl CyState {
-    /// Runs one sample of every channel on its `[trigger, accent, decay,
+    /// Runs one sample of every lane on its `[trigger, accent, decay,
     /// tone]`, handing `out` each one's output.
     #[inline(always)]
     fn tick<I: Input>(
         &mut self,
-        channels: &mut [Channel],
+        lanes: &mut [Lane],
         restart: bool,
         hold: bool,
         [trigger, accent, decay, tone]: [I; 4],
         mut out: impl FnMut(usize, f32),
     ) {
-        let [decay, tone] = self
-            .hold
-            .apply(hold, channels.len(), [trigger], [decay, tone]);
+        let [decay, tone] = self.hold.apply(hold, lanes.len(), [trigger], [decay, tone]);
         let trigger = Held::Live(trigger);
         let run = Run {
             accent,
@@ -204,13 +202,13 @@ impl CyState {
             tone,
             filters: &self.filters,
         };
-        self.groups.run(&inputs, channels, &run, |ch, v| {
-            out(ch, rails(v * OUTPUT_GAIN))
+        self.groups.run(&inputs, lanes, &run, |lane, v| {
+            out(lane, rails(v * OUTPUT_GAIN))
         });
     }
 }
 
-/// The inputs every channel of the cymbal reads.
+/// The inputs every lane of the cymbal reads.
 struct CyInputs<'a, I> {
     trigger: I,
     decay: I,
@@ -219,11 +217,11 @@ struct CyInputs<'a, I> {
 }
 
 impl<I: Input> CyInputs<'_, I> {
-    /// Channel `ch`'s decay and tone conductances.
+    /// Lane `lane`'s decay and tone conductances.
     #[inline]
-    fn pots(&self, ch: usize) -> (f32, [f32; 2]) {
-        let decay = knob(self.decay.at(ch));
-        let tone = knob(self.tone.at(ch));
+    fn pots(&self, lane: usize) -> (f32, [f32; 2]) {
+        let decay = knob(self.decay.at(lane));
+        let tone = knob(self.tone.at(lane));
         (
             1.0 / (R93 + VR2 * decay),
             [pot(VR4, tone), pot(VR4, 1.0 - tone)],
@@ -231,31 +229,31 @@ impl<I: Input> CyInputs<'_, I> {
     }
 }
 
-impl<I: Input> ChannelInputs<CymbalDrum> for CyInputs<'_, I> {
-    type Channel = Channel;
+impl<I: Input> LaneInputs<CymbalDrum> for CyInputs<'_, I> {
+    type Lane = Lane;
 
-    fn voices(channel: &mut Channel) -> &mut Voices<Cymbal> {
-        &mut channel.voices
+    fn voices(lane: &mut Lane) -> &mut Voices<Cymbal> {
+        &mut lane.voices
     }
 
     #[inline(always)]
-    fn inputs(&self, ch: usize, cs: &mut Channel) -> (f32, CymbalControls) {
+    fn inputs(&self, lane: usize, cs: &mut Lane) -> (f32, CymbalControls) {
         let (high, low) = cs.bank.step(self.filters);
-        let (decay, tone) = self.pots(ch);
+        let (decay, tone) = self.pots(lane);
         let controls = CymbalControls {
             high,
             low,
             decay,
             tone,
         };
-        (self.trigger.at(ch), controls)
+        (self.trigger.at(lane), controls)
     }
 
     #[inline]
-    fn group_inputs<L: Lanes>(
+    fn group_inputs<L: Simd>(
         &self,
         first: usize,
-        members: &mut [Channel],
+        members: &mut [Lane],
         bank: &mut MetalBank<L>,
         triggers: &mut [f32; QUAD],
     ) -> CymbalControls<L> {
@@ -265,35 +263,35 @@ impl<I: Input> ChannelInputs<CymbalDrum> for CyInputs<'_, I> {
             low,
             ..Default::default()
         };
-        for (lane, trigger) in triggers.iter_mut().take(members.len()).enumerate() {
-            let ch = first + lane;
-            *trigger = self.trigger.at(ch);
-            let (decay, tone) = self.pots(ch);
-            controls.decay.set_lane(lane, &decay);
-            controls.tone.set_lane(lane, &tone);
+        for (element, trigger) in triggers.iter_mut().take(members.len()).enumerate() {
+            let lane = first + element;
+            *trigger = self.trigger.at(lane);
+            let (decay, tone) = self.pots(lane);
+            controls.decay.set_element(element, &decay);
+            controls.tone.set_element(element, &tone);
         }
         controls
     }
 
-    fn load_sources<L: Lanes>(cs: &mut Channel, lane: usize, bank: &mut MetalBank<L>) {
-        bank.set_lane(lane, &cs.bank);
+    fn load_sources<L: Simd>(cs: &mut Lane, element: usize, bank: &mut MetalBank<L>) {
+        bank.set_element(element, &cs.bank);
     }
 
-    fn unload_sources<L: Lanes>(cs: &mut Channel, lane: usize, bank: &MetalBank<L>) {
-        cs.bank = bank.lane(lane);
+    fn unload_sources<L: Simd>(cs: &mut Lane, element: usize, bank: &MetalBank<L>) {
+        cs.bank = bank.element(element);
     }
 }
 
 impl crate::types::PatchUpdateHandler for Cy808 {
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, cs) in self.channel_state.iter_mut().enumerate() {
-            cs.bank.seed(base, ch);
+        for (lane, cs) in self.lane_state.iter_mut().enumerate() {
+            cs.bank.seed(base, lane);
         }
-        let count = self.channel_count();
+        let count = self.lane_count();
         self.state
             .groups
-            .layout::<CyInputs<&[f32]>>(&mut self.channel_state, count);
+            .layout::<CyInputs<&[f32]>>(&mut self.lane_state, count);
     }
 }
 

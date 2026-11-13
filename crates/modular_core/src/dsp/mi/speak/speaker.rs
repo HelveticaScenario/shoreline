@@ -89,7 +89,7 @@ pub struct Speaker {
     /// The noise of unvoiced frames, as Plaits draws its global generator.
     pub(super) random: Random,
     /// Whether `random` has its per-instance seed. Transfers with the
-    /// channel, so a patch update never reseeds it.
+    /// lane, so a patch update never reseeds it.
     pub(super) seeded: bool,
     synth: LpcSynth,
     clock: LpcClock,
@@ -139,11 +139,11 @@ impl Default for Speaker {
 }
 
 impl Speaker {
-    /// Seeds the noise for channel `ch` of the instance with seed `base`,
+    /// Seeds the noise for lane `lane` of the instance with seed `base`,
     /// unless it has its seed.
-    pub(super) fn seed(&mut self, base: u64, ch: usize) {
+    pub(super) fn seed(&mut self, base: u64, lane: usize) {
         if !self.seeded {
-            let unit = (hash_bipolar(base, ch as u64) + 1.0) * 0.5;
+            let unit = (hash_bipolar(base, lane as u64) + 1.0) * 0.5;
             self.random = Random::new((unit * f64::from(u32::MAX)) as u32);
             self.seeded = true;
         }

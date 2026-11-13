@@ -32,7 +32,7 @@ macro_rules! shape_module {
     ) => {
         paste::paste! {
             #[params]
-            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, LaneCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
@@ -61,7 +61,7 @@ macro_rules! shape_module {
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::shape::shape_core::ShapeModuleState,
-                channel_state: ::std::boxed::Box<[crate::dsp::shape::shape_core::ShapeChannel<$Shaper>]>,
+                lane_state: ::std::boxed::Box<[crate::dsp::shape::shape_core::ShapeLane<$Shaper>]>,
                 params: [<$Struct Params>],
             }
 
@@ -72,16 +72,16 @@ macro_rules! shape_module {
                 }
 
                 fn update(&mut self, sample_rate: f32) {
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     crate::dsp::shape::shape_core::run(
-                        channels,
+                        lanes,
                         crate::dsp::shape::shape_core::ShapeInputs {
                             input: &self.params.input,
                             drive: &self.params.drive,
                             mode: self.params.mode,
                         },
                         &self.state,
-                        &mut self.channel_state,
+                        &mut self.lane_state,
                         &mut self.outputs.sample,
                         sample_rate,
                     );
@@ -100,7 +100,7 @@ macro_rules! shape_module {
     ) => {
         paste::paste! {
             #[params]
-            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, LaneCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
@@ -127,7 +127,7 @@ macro_rules! shape_module {
             pub struct $Struct {
                 outputs: [<$Struct Outputs>],
                 state: crate::dsp::shape::shape_core::ShapeModuleState,
-                channel_state: ::std::boxed::Box<[crate::dsp::shape::shape_core::ShapeChannel<$Shaper>]>,
+                lane_state: ::std::boxed::Box<[crate::dsp::shape::shape_core::ShapeLane<$Shaper>]>,
                 params: [<$Struct Params>],
             }
 
@@ -138,16 +138,16 @@ macro_rules! shape_module {
                 }
 
                 fn update(&mut self, sample_rate: f32) {
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     crate::dsp::shape::shape_core::run(
-                        channels,
+                        lanes,
                         crate::dsp::shape::shape_core::ShapeInputs {
                             input: &self.params.input,
                             drive: &self.params.drive,
                             mode: (),
                         },
                         &self.state,
-                        &mut self.channel_state,
+                        &mut self.lane_state,
                         &mut self.outputs.sample,
                         sample_rate,
                     );
