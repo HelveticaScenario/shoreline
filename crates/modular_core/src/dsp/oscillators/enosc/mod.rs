@@ -86,7 +86,7 @@ fn default_count() -> usize {
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct EnoscParams {
-    #[input("pitch of the scale's first note; every voice moves with it", type = pitch)]
+    #[input("pitch of the scale's first note; every voice moves with it", type = pitch, fold)]
     pitch: PolySignal,
     #[input("the scale the voices sit on, built with `$enosc.scale.*`; every semitone if omitted")]
     #[deserr(default)]
@@ -96,6 +96,7 @@ struct EnoscParams {
         type = control,
         default = 0.0,
         control_range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     root: Option<PolySignal>,
@@ -104,6 +105,7 @@ struct EnoscParams {
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     spread: Option<PolySignal>,
@@ -112,6 +114,7 @@ struct EnoscParams {
         type = control,
         default = 1.5,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     detune: Option<PolySignal>,
@@ -120,10 +123,11 @@ struct EnoscParams {
         type = control,
         default = 4.33,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     crossfade: Option<PolySignal>,
-    #[input("cross-FM depth", type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input("cross-FM depth", type = control, default = 0.0, range = (0.0, 5.0), fold)]
     #[deserr(default)]
     cross_fm: Option<PolySignal>,
     #[input("how each voice's cross FM reaches the others")]
@@ -135,19 +139,20 @@ struct EnoscParams {
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     balance: Option<PolySignal>,
     #[input("phase warp applied to every oscillator before its sine, built with `$phase.*`")]
     #[deserr(default)]
     phase: Option<PhaseWarp>,
-    #[input("wavefold amount", type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input("wavefold amount", type = control, default = 0.0, range = (0.0, 5.0), fold)]
     #[deserr(default)]
     fold: Option<PolySignal>,
-    #[input("Chebyshev waveshaping amount", type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input("Chebyshev waveshaping amount", type = control, default = 0.0, range = (0.0, 5.0), fold)]
     #[deserr(default)]
     cheby: Option<PolySignal>,
-    #[input("triangle-segment waveshaping amount", type = control, default = 0.0, range = (0.0, 5.0))]
+    #[input("triangle-segment waveshaping amount", type = control, default = 0.0, range = (0.0, 5.0), fold)]
     #[deserr(default)]
     segment: Option<PolySignal>,
     #[input("order of the fold (f), cheby (c) and segment (s) warps, e.g. \"fcs\" or \"scf\"")]

@@ -139,14 +139,14 @@ impl Default for GrainsState {
 struct GrainsParams {
     #[input(
         "pitch of new grains: 0 plays at the file's own speed, each volt an octave",
-        type = pitch
-    )]
+        type = pitch, fold)]
     pitch: PolySignal,
     #[input("the WAV file to granulate")]
     wav: Wav,
     #[input(
         "grains spawn while high; each new gate restarts the `loopCount` tally",
         type = gate,
+        fold,
     )]
     gate: PolySignal,
     #[input(
@@ -154,6 +154,7 @@ struct GrainsParams {
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     start: Option<PolySignal>,
@@ -163,6 +164,7 @@ struct GrainsParams {
         default = 1.0,
         range = (0.01, ..),
         control_range = (0.01, 10.0),
+        fold,
     )]
     #[deserr(default)]
     length: Option<PolySignal>,
@@ -171,6 +173,7 @@ struct GrainsParams {
         type = control,
         default = 2.5,
         range = (0.0001, 100.0),
+        fold,
     )]
     #[deserr(default)]
     density: Option<PolySignal>,
@@ -179,6 +182,7 @@ struct GrainsParams {
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     direction_bias: Option<PolySignal>,

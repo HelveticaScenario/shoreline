@@ -38,6 +38,7 @@ struct SamplerParams {
     #[input(
         "starts the selected slice playing; `mode` sets what the gate does after that",
         type = gate,
+        fold,
     )]
     gate: LaneSum,
     #[input(
@@ -45,6 +46,7 @@ struct SamplerParams {
         type = control,
         default = 1.0,
         control_range = (-4.0, 4.0),
+        fold,
     )]
     #[deserr(default)]
     speed: Option<LaneSum>,

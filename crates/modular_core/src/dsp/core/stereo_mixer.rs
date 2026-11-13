@@ -16,12 +16,13 @@ use schemars::JsonSchema;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct StereoMixerParams {
-    #[input("the signal to place in the stereo field; a stereo lane is folded to mono first", type = audio)]
+    #[input("the signal to place in the stereo field; a stereo lane is folded to mono first", type = audio, fold)]
     input: PairSignal,
     #[input(
         "pan position of each lane: -5 left, 0 centre, +5 right",
         type = control,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     pan: Option<PolySignal>,
@@ -30,6 +31,7 @@ struct StereoMixerParams {
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     width: Option<LaneSum>,
@@ -115,11 +117,12 @@ impl StereoMixer {
             &mut self.lane_state[..p.input.lanes()],
             width,
             |lane| p.input.get_folded(lane),
-            // Each lane's pan is its left side's: lane `l` side `c` is
+            // Each lane's pan is its sides' average: lane `l` side `c` is
             // lane `l * 2 + c`.
             |lane, glide| {
                 glide.follow(
-                    p.pan.value_or_zero(lane * 2).clamp(-5.0, 5.0),
+                    (0.5 * (p.pan.value_or_zero(lane * 2) + p.pan.value_or_zero(lane * 2 + 1)))
+                        .clamp(-5.0, 5.0),
                     p.pan.glide_mark(lane * 2),
                     sample_rate,
                 )
@@ -175,7 +178,7 @@ impl StereoMixer {
                 lane_state,
                 width_at(i),
                 |lane| 0.5 * (input[lane * 2] + input[lane * 2 + 1]),
-                |lane, _| pan[lane * 2].clamp(-5.0, 5.0),
+                |lane, _| (0.5 * (pan[lane * 2] + pan[lane * 2 + 1])).clamp(-5.0, 5.0),
             );
             let out = outputs.sample.slot_mut(i);
             out[0] = sanitize(left);
@@ -184,8 +187,9 @@ impl StereoMixer {
         let last = range.end - 1;
         width_glide.settle(width_at(last), p.width.glide_mark());
         for (lane, state) in lane_state.iter_mut().enumerate() {
+            let row = pan.row(last);
             state.pan.settle(
-                pan.row(last)[lane * 2].clamp(-5.0, 5.0),
+                (0.5 * (row[lane * 2] + row[lane * 2 + 1])).clamp(-5.0, 5.0),
                 p.pan.glide_mark(lane * 2),
             );
         }

@@ -3068,6 +3068,10 @@ pub struct SignalParamSchema {
     /// constant (`#[input(…, bounds = constant)]`).
     #[serde(default)]
     pub bounds_need_constant: bool,
+    /// Whether a stereo or file-derived module reads this input folded to
+    /// `(L + R) / 2` (`#[input(…, fold)]`). A mono module folds every input.
+    #[serde(default)]
+    pub fold: bool,
 }
 
 /// The kind of voltage a signal input reads, named in `#[input(type = …)]`.
