@@ -2490,7 +2490,12 @@ describe('WAV paths and $wavMeta', () => {
         expect(
             findModules(result.patch, '$sampler')[0].params.wav.channels,
         ).toBe(2);
-        expect(result.patch.scopes[0].lanes.length).toBe(1);
+        // One lane, which a file can make stereo, so its scope draws both
+        // sides.
+        expect(result.patch.scopes[0].lanes).toMatchObject([
+            { lane: 0 },
+            { lane: 0, side: 1 },
+        ]);
     });
 
     test('$sampler chained with amp and scope', () => {

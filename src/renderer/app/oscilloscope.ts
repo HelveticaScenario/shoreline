@@ -4,7 +4,7 @@ export const scopeBufferKeyToString = (key: ScopeBufferKey): string => {
     const trigger = key.triggerThreshold
         ? `${key.triggerThreshold[0]}:${key.triggerThreshold[1]}`
         : 'none';
-    return `:module:${key.moduleId}:${key.portName}:${key.lane}:${key.msPerFrame}:${trigger}`;
+    return `:module:${key.moduleId}:${key.portName}:${key.lane}:${key.side ?? 0}:${key.msPerFrame}:${trigger}`;
 };
 
 export const scopeBufferKeyFromLane = (
@@ -15,7 +15,7 @@ export const scopeBufferKeyFromLane = (
     const trigger = triggerThreshold
         ? `${triggerThreshold[0]}:${triggerThreshold[1]}`
         : 'none';
-    return `:module:${lane.moduleId}:${lane.portName}:${lane.lane}:${msPerFrame}:${trigger}`;
+    return `:module:${lane.moduleId}:${lane.portName}:${lane.lane}:${lane.side ?? 0}:${msPerFrame}:${trigger}`;
 };
 
 export interface ScopeColors {

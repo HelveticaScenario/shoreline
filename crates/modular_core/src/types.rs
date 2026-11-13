@@ -3068,10 +3068,15 @@ pub struct SignalParamSchema {
     /// constant (`#[input(…, bounds = constant)]`).
     #[serde(default)]
     pub bounds_need_constant: bool,
-    /// Whether a stereo or file-derived module reads this input folded to
-    /// `(L + R) / 2` (`#[input(…, fold)]`). A mono module folds every input.
+    /// Whether the module reads this input folded to `(L + R) / 2`: marked
+    /// `#[input(…, fold)]` on a stereo or file-derived module, and every
+    /// input of a mono module but those that read both sides.
     #[serde(default)]
     pub fold: bool,
+    /// Whether the input reads both sides of each stereo lane itself (a
+    /// `PairSignal`).
+    #[serde(default)]
+    pub reads_sides: bool,
 }
 
 /// The kind of voltage a signal input reads, named in `#[input(type = …)]`.
@@ -3430,6 +3435,10 @@ pub struct ScopeLane {
     pub module_id: String,
     pub port_name: String,
     pub lane: u32,
+    /// The side of a stereo lane to read; unset reads its left side, and a
+    /// mono lane reads the same either way.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub side: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -3439,6 +3448,9 @@ pub struct ScopeBufferKey {
     pub module_id: String,
     pub port_name: String,
     pub lane: u32,
+    /// As [`ScopeLane::side`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub side: Option<u32>,
     pub ms_per_frame: u32,
     pub trigger_threshold: Option<(i32, ScopeMode)>,
 }

@@ -700,6 +700,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         let carries_bounds = parsed.carries_bounds;
         let bounds_need_constant = parsed.bounds_need_constant;
         let fold = parsed.fold;
+        let reads_sides = crate::utils::is_pair_signal_type(&field.ty);
         let declared_default = match &parsed.default {
             Some((DocumentedDefault::Number(n), _)) => Some(n.value),
             _ => None,
@@ -739,6 +740,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                 carries_bounds: #carries_bounds,
                 bounds_need_constant: #bounds_need_constant,
                 fold: #fold,
+                reads_sides: #reads_sides,
             }
         });
         if is_option_poly_signal_type(&field.ty) {
