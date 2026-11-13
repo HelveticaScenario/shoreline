@@ -101,6 +101,7 @@ fn every_dsl_ranged_output_has_a_range_in_the_engine() {
                         params: cached.params,
                         lane_count: cached.lane_count,
                         f64_inputs: false,
+                        channels: 1,
                     },
                     ProcessingMode::Block,
                 )

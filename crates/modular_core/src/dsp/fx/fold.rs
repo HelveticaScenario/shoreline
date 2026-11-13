@@ -167,6 +167,7 @@ mod tests {
             },
             outputs,
             _lane_count: 1,
+            _channels: 1,
             _block_index: Default::default(),
             state: FoldState::default(),
             lane_state: vec![LaneState::default(); 1].into_boxed_slice(),

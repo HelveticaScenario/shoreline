@@ -61,7 +61,7 @@ const CLOCK_DIVIDER_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$clockDivider",
+    name = "$clockDivider", stereo = mono,
     docs = CLOCK_DIVIDER_DOCS,
     args(input, division)
 )]

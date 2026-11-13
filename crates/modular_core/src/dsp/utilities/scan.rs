@@ -59,7 +59,7 @@ const SCAN_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$scan", docs = SCAN_DOCS, args(length, distance, trigger))]
+#[module(name = "$scan", stereo = mono, docs = SCAN_DOCS, args(length, distance, trigger))]
 pub struct Scan {
     params: ScanParams,
     outputs: ScanOutputs,
@@ -155,6 +155,7 @@ mod tests {
             },
             outputs,
             _lane_count: 1,
+            _channels: 1,
             _block_index: Default::default(),
             lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         }
@@ -293,6 +294,7 @@ mod tests {
             },
             outputs,
             _lane_count: 2,
+            _channels: 1,
             _block_index: Default::default(),
             lane_state: vec![LaneState::default(); 2].into_boxed_slice(),
         };

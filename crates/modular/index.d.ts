@@ -584,6 +584,8 @@ export interface ModuleSchema {
    * still change between releases. Always serialized, like `buffer_outputs`.
    */
   experimental: boolean
+  /** How the module's lanes carry stereo (`#[module(stereo = …)]`). */
+  stereo: StereoMode
   /**
    * The two optional params, `[min, max]`, that bound the module's
    * `bounds = input` outputs when both are set, whatever its inputs
@@ -754,6 +756,20 @@ export interface SignalParamSchema {
    */
   boundsNeedConstant: boolean
 }
+
+/** How a module's lanes carry stereo, from `#[module(stereo = …)]`. */
+export type StereoMode = /**
+ * Stereo when any input it reads lane by lane is stereo: the module then
+ * runs one lane per side and each reads its own side of every input.
+ */
+'lift'|
+/** Always mono: every input folds a stereo producer to `(L + R) / 2`. */
+'mono'|
+/**
+ * Always stereo whatever its inputs: the module writes both sides of
+ * each lane itself.
+ */
+'stereo';
 
 /** One VU meter's loudness snapshot, joined to its `VuMeterSpec` by `module_id`. */
 export interface VuMeterFrame {

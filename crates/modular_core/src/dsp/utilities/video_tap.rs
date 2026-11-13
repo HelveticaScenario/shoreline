@@ -124,7 +124,7 @@ const VIDEO_TAP_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "_videoTap", docs = VIDEO_TAP_DOCS, args(input, slot), block)]
+#[module(name = "_videoTap", stereo = mono, docs = VIDEO_TAP_DOCS, args(input, slot), block)]
 pub struct VideoTap {
     outputs: VideoTapOutputs,
     params: VideoTapParams,
@@ -192,6 +192,7 @@ mod tests {
             },
             outputs,
             _lane_count: 1,
+            _channels: 1,
             _block_index: Default::default(),
         }
     }

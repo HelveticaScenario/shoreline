@@ -52,6 +52,7 @@ fn build_noise(params: NoiseParams) -> Noise {
             .collect::<Vec<_>>()
             .into_boxed_slice(),
         _lane_count: lanes,
+        _channels: 1,
         _block_index: Default::default(),
     };
     n.init(SR);

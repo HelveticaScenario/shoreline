@@ -49,6 +49,17 @@ impl Bounds {
         Self::new(value, value)
     }
 
+    /// The bounds of the average of two signals that swing together, such
+    /// as a stereo pair's sides: starts and ends averaged, so the direction
+    /// of the swing is kept.
+    #[inline]
+    pub fn midpoint(self, other: Self) -> Self {
+        Self::new(
+            0.5 * (self.start + other.start),
+            0.5 * (self.end + other.end),
+        )
+    }
+
     #[inline]
     pub fn is_bounded(self) -> bool {
         self.start.is_finite() && self.end.is_finite()
@@ -155,6 +166,16 @@ unsafe impl Send for PortBounds {}
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn midpoint_keeps_the_direction_of_the_swing() {
+        let falling = Bounds::new(5.0, 0.0);
+        assert_eq!(
+            falling.midpoint(Bounds::new(3.0, 1.0)),
+            Bounds::new(4.0, 0.5)
+        );
+        assert_eq!(falling.midpoint(Bounds::UNBOUNDED).start, f32::NEG_INFINITY);
+    }
+
     use super::*;
 
     #[test]

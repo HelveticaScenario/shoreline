@@ -96,6 +96,38 @@ pub fn schema() -> Vec<ModuleSchema> {
     .concat()
 }
 
+/// A module type's stereo mode and the output ports whose channels follow
+/// the module's. Fixed-width and single-value outputs stay mono.
+pub struct StereoLayout {
+    pub mode: crate::types::StereoMode,
+    pub following_ports: std::collections::HashSet<String>,
+}
+
+/// [`StereoLayout`] of every module type, from the schemas.
+pub fn stereo_layouts() -> &'static HashMap<String, StereoLayout> {
+    static LAYOUTS: LazyLock<HashMap<String, StereoLayout>> = LazyLock::new(|| {
+        schema()
+            .into_iter()
+            .map(|module| {
+                let following_ports = module
+                    .outputs
+                    .into_iter()
+                    .filter(|output| output.polyphonic && output.lanes.is_none())
+                    .map(|output| output.name)
+                    .collect();
+                (
+                    module.name,
+                    StereoLayout {
+                        mode: module.stereo,
+                        following_ports,
+                    },
+                )
+            })
+            .collect()
+    });
+    &LAYOUTS
+}
+
 /// Each module type's outputs that are not plain f32, by port name.
 pub fn output_precisions() -> &'static HashMap<String, HashMap<String, OutputPrecision>> {
     static PRECISIONS: LazyLock<HashMap<String, HashMap<String, OutputPrecision>>> =

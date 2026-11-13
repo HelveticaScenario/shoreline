@@ -115,7 +115,7 @@ const MEDIA_AUDIO_DOCS: ModuleDocs = ModuleDocs {
     examples: &[],
 };
 
-#[module(name = "_mediaAudio", docs = MEDIA_AUDIO_DOCS, lanes_derive = media_audio_derive_lane_count, args(wav), has_init, patch_update)]
+#[module(name = "_mediaAudio", stereo = mono, docs = MEDIA_AUDIO_DOCS, lanes_derive = media_audio_derive_lane_count, args(wav), has_init, patch_update)]
 pub struct MediaAudio {
     params: MediaAudioParams,
     outputs: MediaAudioOutputs,
@@ -217,6 +217,7 @@ mod tests {
                 params: cached.params,
                 lane_count: cached.lane_count,
                 f64_inputs: false,
+                channels: 1,
             },
             1,
             crate::types::ProcessingMode::Block,

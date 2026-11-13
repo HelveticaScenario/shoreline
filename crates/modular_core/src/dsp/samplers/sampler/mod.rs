@@ -180,7 +180,7 @@ const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$sampler", docs = SAMPLER_DOCS, lanes_derive = sampler_derive_lane_count, args(wav, gate), has_init, patch_update)]
+#[module(name = "$sampler", stereo = mono, docs = SAMPLER_DOCS, lanes_derive = sampler_derive_lane_count, args(wav, gate), has_init, patch_update)]
 pub struct Sampler {
     params: SamplerParams,
     outputs: SamplerOutputs,

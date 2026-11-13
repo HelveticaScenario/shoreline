@@ -506,6 +506,7 @@ mod tests {
             outputs,
             lane_state: vec![ErraticLaneState::default(); lanes].into_boxed_slice(),
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
         };
         m.on_patch_update();

@@ -59,6 +59,7 @@ pub struct ModuleAttrArgs {
     clock_sync: bool,
     block: bool,
     experimental: bool,
+    stereo: Option<Ident>,
 }
 
 impl syn::parse::Parse for ModuleAttrArgs {
@@ -77,6 +78,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
         let mut clock_sync = false;
         let mut block = false;
         let mut experimental = false;
+        let mut stereo: Option<Ident> = None;
 
         while !input.is_empty() {
             let ident: Ident = input.parse()?;
@@ -144,6 +146,17 @@ impl syn::parse::Parse for ModuleAttrArgs {
                 "experimental" => {
                     experimental = true;
                 }
+                "stereo" => {
+                    input.parse::<Token![=]>()?;
+                    let mode: Ident = input.parse()?;
+                    if mode != "mono" && mode != "stereo" {
+                        return Err(syn::Error::new(
+                            mode.span(),
+                            "stereo must be `mono` or `stereo`; a module lifts by default",
+                        ));
+                    }
+                    stereo = Some(mode);
+                }
                 other => {
                     return Err(syn::Error::new(
                         ident.span(),
@@ -152,7 +165,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
                              name, docs, lanes, lanes_param, \
                              lanes_param_default, lanes_derive, args, \
                              stateful, patch_update, has_init, has_prepare_resources, clock_sync, block, \
-                             experimental"
+                             experimental, stereo"
                         ),
                     ));
                 }
@@ -195,6 +208,7 @@ impl syn::parse::Parse for ModuleAttrArgs {
             clock_sync,
             block,
             experimental,
+            stereo,
         })
     }
 }
@@ -259,6 +273,10 @@ pub fn module_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         let field: syn::Field = syn::parse_quote! {
             pub _lane_count: usize
+        };
+        fields.named.push(field);
+        let field: syn::Field = syn::parse_quote! {
+            pub _channels: usize
         };
         fields.named.push(field);
     }
@@ -427,6 +445,7 @@ fn impl_module_macro_attr(
                         match field_name_str.as_str() {
                             "params" => Ok(quote! { params: *concrete_params }),
                             "_lane_count" => Ok(quote! { _lane_count: deserialized.lane_count }),
+                            "_channels" => Ok(quote! { _channels: deserialized.channels }),
                             "_block_index" => Ok(quote! { _block_index: Default::default() }),
                             "outputs" | "state" => Ok(quote! { #field_name: Default::default() }),
                             "lane_state" => Ok(quote! {
@@ -504,6 +523,11 @@ fn impl_module_macro_attr(
 
     let is_stateful = attr_args.stateful;
     let experimental = attr_args.experimental;
+    let stereo_mode = match attr_args.stereo.as_ref().map(|i| i.to_string()).as_deref() {
+        Some("mono") => quote! { crate::types::StereoMode::Mono },
+        Some(_) => quote! { crate::types::StereoMode::Stereo },
+        None => quote! { crate::types::StereoMode::Lift },
+    };
 
     // Editor-state publishing. Only stateful modules opt in; they write their
     // live state into a pre-allocated, type-erased slot on the audio thread
@@ -603,13 +627,25 @@ fn impl_module_macro_attr(
     // `lane_state` (per-lane) carries over the overlapping lanes:
     // equal lengths swap the whole boxed slice (O(1) pointer swap); otherwise
     // the first `min(old, new)` lanes are swapped element-wise and the
-    // surplus keeps its freshly-initialised value. Neither path allocates or
-    // clones on the audio thread.
+    // surplus keeps its freshly-initialised value. When the channels per lane
+    // change, lane `l` side `c` takes old lane `l` side `c`, and a side the
+    // old module lacked starts fresh. No path allocates or clones on the audio
+    // thread.
     let lane_state_transfer = if has_lane_state_field {
         quote! {
             let new_len = new_inner.lane_state.len();
             let old_len = old_inner.lane_state.len();
-            if new_len == old_len {
+            let new_channels = new_inner._channels.max(1);
+            let old_channels = old_inner._channels.max(1);
+            if new_channels != old_channels {
+                for k in 0..new_len {
+                    let side = k % new_channels;
+                    let j = (k / new_channels) * old_channels + side;
+                    if side < old_channels && j < old_len {
+                        std::mem::swap(&mut new_inner.lane_state[k], &mut old_inner.lane_state[j]);
+                    }
+                }
+            } else if new_len == old_len {
                 std::mem::swap(&mut new_inner.lane_state, &mut old_inner.lane_state);
             } else {
                 let n = new_len.min(old_len);
@@ -774,6 +810,14 @@ fn impl_module_macro_attr(
             #[inline]
             pub fn lane_count(&self) -> usize {
                 self._lane_count
+            }
+
+            /// Channels per lane, set during construction: 1, or 2 when the
+            /// module is stereo. Lane `l` side `c` is lane `l * channels + c`
+            /// of [`lane_count`](Self::lane_count).
+            #[inline]
+            pub fn channels(&self) -> usize {
+                self._channels
             }
 
             /// Returns the current sample slot index within the block being
@@ -1062,6 +1106,15 @@ fn impl_module_macro_attr(
                 outputs.lanes_at(port_idx)
             }
 
+            fn port_channels(&self, port: &str) -> usize {
+                match <#block_outputs_ty>::port_index(port) {
+                    Some(port_idx) if <#block_outputs_ty>::follows_lanes(port_idx) => {
+                        unsafe { (*self.module.get())._channels.max(1) }
+                    }
+                    _ => 1,
+                }
+            }
+
             fn get_module_type(&self) -> &str {
                 <#name as crate::types::Module>::MODULE_TYPE
             }
@@ -1113,7 +1166,8 @@ fn impl_module_macro_attr(
                     // Block-sized output buffers and per-lane state are sized
                     // to the module's lane count, so they can only be moved
                     // between modules of the same count.
-                    let same_lanes = new_inner._lane_count == old_inner._lane_count;
+                    let same_lanes = new_inner._lane_count == old_inner._lane_count
+                        && new_inner._channels == old_inner._channels;
                     #transfer_state_body
                     let generation = old_typed.glide_generation.get().wrapping_add(1);
                     self.glide_generation.set(generation);
@@ -1232,6 +1286,7 @@ fn impl_module_macro_attr(
                     lanes_param: #module_lanes_param,
                     lanes_param_default: #module_lanes_param_default,
                     experimental: #experimental,
+                    stereo: #stereo_mode,
                     declared_range: <#params_struct_name as crate::types::BoundsInputs>::DECLARED_RANGE
                         .map(|(min, max)| vec![min.to_string(), max.to_string()]),
                     bounding_param: <#params_struct_name as crate::types::BoundsInputs>::BOUNDING_PARAM

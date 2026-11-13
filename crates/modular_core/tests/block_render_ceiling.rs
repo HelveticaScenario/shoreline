@@ -24,6 +24,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
         params: cached.params,
         lane_count: cached.lane_count,
         f64_inputs: false,
+        channels: 1,
     };
     get_constructors()
         .get(module_type)

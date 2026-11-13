@@ -299,7 +299,7 @@ const REVERB2_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$unstable.reverb2",
+    name = "$unstable.reverb2", stereo = mono,
     docs = REVERB2_DOCS,
     lanes = 2,
     has_init,
@@ -617,6 +617,7 @@ mod tests {
             params: cached.params,
             lane_count: cached.lane_count,
             f64_inputs: false,
+            channels: 1,
         };
         constructors.get("$unstable.reverb2").unwrap()(
             "test-reverb2",
@@ -681,6 +682,7 @@ mod tests {
                 modulation: None,
             },
             _lane_count: 2,
+            _channels: 1,
             _block_index: Default::default(),
         };
         m.init(SAMPLE_RATE);

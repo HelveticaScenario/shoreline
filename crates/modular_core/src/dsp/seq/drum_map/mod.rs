@@ -246,7 +246,7 @@ const DRUM_MAP_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$drumMap", docs = DRUM_MAP_DOCS, args(), patch_update)]
+#[module(name = "$drumMap", stereo = mono, docs = DRUM_MAP_DOCS, args(), patch_update)]
 pub struct DrumMap {
     outputs: DrumMapOutputs,
     params: DrumMapParams,

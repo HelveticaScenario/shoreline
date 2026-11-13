@@ -49,6 +49,7 @@ fn median_hit_peak(module_type: &str, mut params: Value, lanes: usize) -> f32 {
                         params: cached.params,
                         lane_count: cached.lane_count,
                         f64_inputs: false,
+                        channels: 1,
                     },
                     ProcessingMode::Block,
                 )

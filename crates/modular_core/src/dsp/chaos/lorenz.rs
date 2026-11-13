@@ -269,6 +269,7 @@ mod tests {
             state: LorenzState::default(),
             lane_state: Box::default(),
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
         };
         l.init(48000.0);
@@ -342,6 +343,7 @@ mod tests {
             state: LorenzState::default(),
             lane_state: Box::default(),
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
         };
         l.init(48000.0);

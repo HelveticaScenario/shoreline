@@ -97,6 +97,7 @@ impl WellKnownModule {
             resolved: None,
             port: port.into(),
             lane,
+            fold: false,
             index_ptr: std::ptr::null(),
             view: None,
             bounds: crate::bounds::PortBounds::Unbounded,
@@ -361,6 +362,13 @@ pub trait Sampleable: MessageHandler + Send {
     fn port_lanes(&self, _port: &str) -> usize {
         crate::PORT_MAX_LANES
     }
+    /// Channels per lane port `port` carries: lane `l` side `c` is physical
+    /// lane `l * channels + c` of [`port_lanes`](Self::port_lanes). Only
+    /// readers outside the patch's own cables need it, such as scopes, which
+    /// address lanes as the DSL counts them.
+    fn port_channels(&self, _port: &str) -> usize {
+        1
+    }
     /// Write the module's live editor state into `out` (its type-erased
     /// [`ModuleLiveState`](crate::module_state::ModuleLiveState); only modules
     /// that publish state override this: `$cycle` and `$eq`). Runs on
@@ -476,7 +484,15 @@ impl GlideMark {
 
     #[inline]
     pub(crate) fn changed(&self) -> bool {
-        self.changed & (1 << (self.lane % self.lanes)) != 0
+        self.changed & Self::bit(self.lane % self.lanes) != 0
+    }
+
+    /// Lane `lane`'s bit in a changed-lanes mask. A signal read side by side
+    /// can be wider than the mask, and its lanes from 63 on share the last
+    /// bit, so a change to any of them counts for all.
+    #[inline]
+    pub(crate) fn bit(lane: usize) -> u64 {
+        1 << lane.min(63)
     }
 }
 
@@ -623,6 +639,29 @@ pub trait Connect {
     /// the audio thread during the swap, so it must not allocate. Containers
     /// pair items by position; leaf types are no-op.
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds);
+
+    /// Like [`collect_cables`](Self::collect_cables), but only the inputs a
+    /// module reads lane by lane: the ones that make a lifted module stereo.
+    /// An input read as one value (a [`LaneSum`](crate::poly::LaneSum) or a
+    /// bare [`Signal`]) folds its producer instead and is left out.
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>);
+
+    /// Rewrite every cable to the physical lane it reads once the patch's
+    /// channels are settled (see [`LaneExpansion`]). Main thread, before
+    /// construction; may allocate. Containers forward; leaf types are no-op.
+    fn expand_lanes(&mut self, expansion: &LaneExpansion);
+}
+
+/// How a module's inputs map onto their producers' physical lanes once each
+/// output's channels are settled. A port stores `lanes * channels` values per
+/// slot, lane `l` side `c` at `l * channels + c`.
+pub struct LaneExpansion<'a> {
+    /// Channels of the module reading the inputs: each of its lanes becomes
+    /// this many physical lanes, one per side, and each reads its own side of
+    /// a stereo producer. A mono module reads a stereo producer folded.
+    pub channels: usize,
+    /// Channels of a producer's output port, by module and port.
+    pub producer: &'a dyn Fn(&str, &str) -> usize,
 }
 
 /// Maps a module id in the incoming patch to the id the same module had in
@@ -651,7 +690,9 @@ macro_rules! impl_connect_noop {
             fn apply_default_connections(&mut self) {}
             fn connect(&mut self, _patch: &Patch) {}
             fn collect_cables(&self, _sink: &mut Vec<CableSource>) {}
+            fn collect_lane_cables(&self, _sink: &mut Vec<CableSource>) {}
             fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {}
+            fn expand_lanes(&mut self, _expansion: &crate::types::LaneExpansion) {}
             fn mark_glides(&mut self, _old: Option<&Self>, _generation: u64, _ids: &dyn PreviousIds) {}
         })*
     };
@@ -681,9 +722,19 @@ impl<T: Connect> Connect for Vec<T> {
             item.collect_cables(sink);
         }
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        for item in self {
+            item.collect_lane_cables(sink);
+        }
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for item in self {
             item.inject_index_ptr(ptr);
+        }
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        for item in self {
+            item.expand_lanes(expansion);
         }
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
@@ -709,9 +760,19 @@ impl<T: Connect> Connect for Option<T> {
             inner.collect_cables(sink);
         }
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        if let Some(inner) = self {
+            inner.collect_lane_cables(sink);
+        }
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         if let Some(inner) = self {
             inner.inject_index_ptr(ptr);
+        }
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        if let Some(inner) = self {
+            inner.expand_lanes(expansion);
         }
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
@@ -731,8 +792,14 @@ impl<T: Connect> Connect for Box<T> {
     fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         (**self).collect_cables(sink);
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        (**self).collect_lane_cables(sink);
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         (**self).inject_index_ptr(ptr);
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        (**self).expand_lanes(expansion);
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
         (**self).mark_glides(old.map(|o| &**o), generation, ids);
@@ -755,9 +822,19 @@ impl<T: Connect, const N: usize> Connect for [T; N] {
             item.collect_cables(sink);
         }
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        for item in self {
+            item.collect_lane_cables(sink);
+        }
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for item in self {
             item.inject_index_ptr(ptr);
+        }
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        for item in self {
+            item.expand_lanes(expansion);
         }
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
@@ -783,9 +860,19 @@ impl<V: Connect> Connect for std::collections::HashMap<String, V> {
             v.collect_cables(sink);
         }
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        for v in self.values() {
+            v.collect_lane_cables(sink);
+        }
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for v in self.values_mut() {
             v.inject_index_ptr(ptr);
+        }
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        for v in self.values_mut() {
+            v.expand_lanes(expansion);
         }
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
@@ -811,9 +898,19 @@ impl<V: Connect> Connect for std::collections::BTreeMap<String, V> {
             v.collect_cables(sink);
         }
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        for v in self.values() {
+            v.collect_lane_cables(sink);
+        }
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for v in self.values_mut() {
             v.inject_index_ptr(ptr);
+        }
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        for v in self.values_mut() {
+            v.expand_lanes(expansion);
         }
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
@@ -834,8 +931,14 @@ impl<T1: Connect> Connect for (T1,) {
     fn collect_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_cables(sink);
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        self.0.collect_lane_cables(sink);
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        self.0.expand_lanes(expansion);
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
         self.0.mark_glides(old.map(|o| &o.0), generation, ids);
@@ -855,9 +958,17 @@ impl<T1: Connect, T2: Connect> Connect for (T1, T2) {
         self.0.collect_cables(sink);
         self.1.collect_cables(sink);
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        self.0.collect_lane_cables(sink);
+        self.1.collect_lane_cables(sink);
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
         self.1.inject_index_ptr(ptr);
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        self.0.expand_lanes(expansion);
+        self.1.expand_lanes(expansion);
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
         self.0.mark_glides(old.map(|o| &o.0), generation, ids);
@@ -881,10 +992,20 @@ impl<T1: Connect, T2: Connect, T3: Connect> Connect for (T1, T2, T3) {
         self.1.collect_cables(sink);
         self.2.collect_cables(sink);
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        self.0.collect_lane_cables(sink);
+        self.1.collect_lane_cables(sink);
+        self.2.collect_lane_cables(sink);
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
         self.1.inject_index_ptr(ptr);
         self.2.inject_index_ptr(ptr);
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        self.0.expand_lanes(expansion);
+        self.1.expand_lanes(expansion);
+        self.2.expand_lanes(expansion);
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
         self.0.mark_glides(old.map(|o| &o.0), generation, ids);
@@ -912,11 +1033,23 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect> Connect for (T1, T2, T3
         self.2.collect_cables(sink);
         self.3.collect_cables(sink);
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        self.0.collect_lane_cables(sink);
+        self.1.collect_lane_cables(sink);
+        self.2.collect_lane_cables(sink);
+        self.3.collect_lane_cables(sink);
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
         self.1.inject_index_ptr(ptr);
         self.2.inject_index_ptr(ptr);
         self.3.inject_index_ptr(ptr);
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        self.0.expand_lanes(expansion);
+        self.1.expand_lanes(expansion);
+        self.2.expand_lanes(expansion);
+        self.3.expand_lanes(expansion);
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
         self.0.mark_glides(old.map(|o| &o.0), generation, ids);
@@ -950,12 +1083,26 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect, T5: Connect> Connect
         self.3.collect_cables(sink);
         self.4.collect_cables(sink);
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        self.0.collect_lane_cables(sink);
+        self.1.collect_lane_cables(sink);
+        self.2.collect_lane_cables(sink);
+        self.3.collect_lane_cables(sink);
+        self.4.collect_lane_cables(sink);
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
         self.1.inject_index_ptr(ptr);
         self.2.inject_index_ptr(ptr);
         self.3.inject_index_ptr(ptr);
         self.4.inject_index_ptr(ptr);
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        self.0.expand_lanes(expansion);
+        self.1.expand_lanes(expansion);
+        self.2.expand_lanes(expansion);
+        self.3.expand_lanes(expansion);
+        self.4.expand_lanes(expansion);
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
         self.0.mark_glides(old.map(|o| &o.0), generation, ids);
@@ -1379,7 +1526,13 @@ impl Connect for Wav {
     fn collect_cables(&self, _sink: &mut Vec<CableSource>) {
         // Wav references a file path, not a module — no graph edge.
     }
+    fn collect_lane_cables(&self, _sink: &mut Vec<CableSource>) {
+        // Wav references a file path, not a module — no graph edge.
+    }
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {
+        // No cables — nothing to back-point.
+    }
+    fn expand_lanes(&mut self, _expansion: &crate::types::LaneExpansion) {
         // No cables — nothing to back-point.
     }
     fn mark_glides(&mut self, _old: Option<&Self>, _generation: u64, _ids: &dyn PreviousIds) {}
@@ -1977,7 +2130,18 @@ impl Connect for Buffer {
             port: self.source_port.clone(),
         });
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
+        // `source_module` is a producer dependency, equivalent to a cable.
+        sink.push(CableSource {
+            module: self.source_module.clone(),
+            port: self.source_port.clone(),
+        });
+    }
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {
+        // Buffer reads `BufferData` directly via cached pointer, not via a
+        // sample-indexed cable. No back-pointer needed.
+    }
+    fn expand_lanes(&mut self, _expansion: &crate::types::LaneExpansion) {
         // Buffer reads `BufferData` directly via cached pointer, not via a
         // sample-indexed cable. No back-pointer needed.
     }
@@ -2031,6 +2195,9 @@ pub enum Signal {
         port: String,
         /// Which lane of the output to read (0-indexed)
         lane: usize,
+        /// Read the average of `lane` and the lane after it, a stereo
+        /// producer's two sides, as one mono value.
+        fold: bool,
         /// Back-pointer to the consumer wrapper's per-block sample-index
         /// counter, populated during `connect()`. Read at sample-time to
         /// know which slot of the upstream's `BlockPort` to fetch.
@@ -2095,6 +2262,16 @@ impl CableView {
         }
     }
 
+    /// The view of the lane `side` lanes after this one, in the same row.
+    #[inline]
+    fn side(self, side: usize) -> Self {
+        let words = if self.f64 { 2 } else { 1 };
+        Self {
+            offset: self.offset + side * words,
+            ..self
+        }
+    }
+
     /// Like [`read`](Self::read), at full precision from an f64 port.
     #[inline]
     fn read_f64(&self, index: usize) -> Option<f64> {
@@ -2155,6 +2332,7 @@ impl PolyCableView {
             let Signal::Cable {
                 view: Some(view),
                 resolved: Some(source),
+                fold: false,
                 ..
             } = signal
             else {
@@ -2211,6 +2389,7 @@ impl Signal {
             resolved: None,
             port: port.into(),
             lane,
+            fold: false,
             index_ptr: std::ptr::null(),
             view: None,
             bounds: crate::bounds::PortBounds::Unbounded,
@@ -2265,6 +2444,7 @@ impl<'de> Deserialize<'de> for Signal {
                     resolved: None,
                     port,
                     lane,
+                    fold: false,
                     index_ptr: std::ptr::null(),
                     view: None,
                     bounds: crate::bounds::PortBounds::Unbounded,
@@ -2363,6 +2543,7 @@ impl<E: DeserializeError> deserr::Deserr<E> for Signal {
                             resolved: None,
                             port,
                             lane,
+                            fold: false,
                             index_ptr: std::ptr::null(),
                             view: None,
                             bounds: crate::bounds::PortBounds::Unbounded,
@@ -2436,33 +2617,8 @@ impl Signal {
     pub fn get_value(&self) -> f32 {
         match self {
             Signal::Volts(v) => *v,
-            Signal::Cable {
-                resolved,
-                port,
-                lane,
-                index_ptr,
-                view,
-                ..
-            } => match resolved {
-                Some(ptr) => {
-                    // `index_ptr` is null until the consumer wrapper's
-                    // `connect()` injects it. Pre-injection (or after a
-                    // disconnect) we fall back to slot 0, which matches the
-                    // old per-sample behaviour for block_size=1.
-                    let index = if index_ptr.is_null() {
-                        0
-                    } else {
-                        unsafe { (*(*index_ptr)).get() }
-                    };
-                    // An already-computed slot is a plain load; otherwise the
-                    // upstream wrapper renders up to it.
-                    if let Some(value) = view.and_then(|v| v.read(index)) {
-                        return value;
-                    }
-                    unsafe { ptr.as_ref() }.get_value_at(port, *lane, index)
-                }
-                None => 0.0,
-            },
+            Signal::Cable { fold: true, .. } => 0.5 * (self.cable_value(0) + self.cable_value(1)),
+            Signal::Cable { .. } => self.cable_value(0),
         }
     }
 
@@ -2471,66 +2627,111 @@ impl Signal {
     pub fn get_value_f64(&self) -> f64 {
         match self {
             Signal::Volts(v) => *v as f64,
-            Signal::Cable {
-                resolved,
-                port,
-                lane,
-                index_ptr,
-                view,
-                ..
-            } => match resolved {
-                Some(ptr) => {
-                    let index = if index_ptr.is_null() {
-                        0
-                    } else {
-                        unsafe { (*(*index_ptr)).get() }
-                    };
-                    if let Some(value) = view.and_then(|v| v.read_f64(index)) {
-                        return value;
-                    }
-                    unsafe { ptr.as_ref() }.get_value_at_f64(port, *lane, index)
-                }
-                None => 0.0,
-            },
+            Signal::Cable { fold: true, .. } => {
+                0.5 * (self.cable_value_f64(0) + self.cable_value_f64(1))
+            }
+            Signal::Cable { .. } => self.cable_value_f64(0),
         }
+    }
+
+    /// The consumer's current slot: `index_ptr` is null until the consumer
+    /// wrapper's `connect()` injects it, and slot 0 stands in until then.
+    #[inline]
+    fn slot(index_ptr: *const std::cell::Cell<usize>) -> usize {
+        if index_ptr.is_null() {
+            0
+        } else {
+            unsafe { (*index_ptr).get() }
+        }
+    }
+
+    /// A cable's value at lane `lane + side` of its producer.
+    #[inline]
+    fn cable_value(&self, side: usize) -> f32 {
+        let Signal::Cable {
+            resolved: Some(ptr),
+            port,
+            lane,
+            index_ptr,
+            view,
+            ..
+        } = self
+        else {
+            return 0.0;
+        };
+        let index = Self::slot(*index_ptr);
+        // An already-computed slot is a plain load; otherwise the upstream
+        // wrapper renders up to it.
+        if let Some(value) = view.and_then(|v| v.side(side).read(index)) {
+            return value;
+        }
+        unsafe { ptr.as_ref() }.get_value_at(port, *lane + side, index)
+    }
+
+    /// Like [`cable_value`](Self::cable_value), at full precision.
+    #[inline]
+    fn cable_value_f64(&self, side: usize) -> f64 {
+        let Signal::Cable {
+            resolved: Some(ptr),
+            port,
+            lane,
+            index_ptr,
+            view,
+            ..
+        } = self
+        else {
+            return 0.0;
+        };
+        let index = Self::slot(*index_ptr);
+        if let Some(value) = view.and_then(|v| v.side(side).read_f64(index)) {
+            return value;
+        }
+        unsafe { ptr.as_ref() }.get_value_at_f64(port, *lane + side, index)
     }
 }
 
 impl Signal {
     /// The bounds of the value [`get_value`](Self::get_value) reads, at the
-    /// same slot: a constant holds still, and a cable reads its producer's.
+    /// same slot: a constant holds still, a cable reads its producer's, and
+    /// a fold averages its two sides' (see [`Bounds::midpoint`]).
     pub fn get_bounds(&self) -> crate::bounds::Bounds {
-        use crate::bounds::{Bounds, PortBounds};
+        use crate::bounds::Bounds;
         match self {
             Signal::Volts(v) => Bounds::point(*v),
-            Signal::Cable {
-                resolved,
-                port,
-                lane,
-                index_ptr,
-                bounds,
-                ..
-            } => {
-                let Some(ptr) = resolved else {
-                    return Bounds::point(0.0);
-                };
-                let index = if index_ptr.is_null() {
-                    0
-                } else {
-                    unsafe { (*(*index_ptr)).get() }
-                };
-                match *bounds {
-                    PortBounds::Unbounded => Bounds::UNBOUNDED,
-                    PortBounds::Fixed(fixed) => fixed,
-                    // SAFETY: as `CableView::read`: `index < processed <=
-                    // block_size` keeps the read inside the producer's buffer.
-                    PortBounds::Stored { store, processed }
-                        if index < unsafe { (*processed).get() } =>
-                    unsafe { (*store).at(index, *lane) },
-                    PortBounds::Stored { .. } | PortBounds::Live { .. } => {
-                        unsafe { ptr.as_ref() }.get_bounds_at(port, *lane, index)
-                    }
-                }
+            Signal::Cable { fold: true, .. } => self.cable_bounds(0).midpoint(self.cable_bounds(1)),
+            Signal::Cable { .. } => self.cable_bounds(0),
+        }
+    }
+
+    /// A cable's bounds at lane `lane + side` of its producer.
+    fn cable_bounds(&self, side: usize) -> crate::bounds::Bounds {
+        use crate::bounds::{Bounds, PortBounds};
+        let Signal::Cable {
+            resolved,
+            port,
+            lane,
+            index_ptr,
+            bounds,
+            ..
+        } = self
+        else {
+            return Bounds::UNBOUNDED;
+        };
+        let Some(ptr) = resolved else {
+            return Bounds::point(0.0);
+        };
+        let lane = *lane + side;
+        let index = Self::slot(*index_ptr);
+        match *bounds {
+            PortBounds::Unbounded => Bounds::UNBOUNDED,
+            PortBounds::Fixed(fixed) => fixed,
+            // SAFETY: as `CableView::read`: `index < processed <=
+            // block_size` keeps the read inside the producer's buffer.
+            PortBounds::Stored { store, processed } if index < unsafe { (*processed).get() } => unsafe {
+                (*store).at(index, lane)
+            },
+            PortBounds::Stored { .. } | PortBounds::Live { .. } => {
+                unsafe { ptr.as_ref() }.get_bounds_at(port, lane, index)
             }
         }
     }
@@ -2542,35 +2743,51 @@ impl Signal {
         &self,
         range: std::ops::Range<usize>,
     ) -> Option<crate::bounds::Bounds> {
-        use crate::bounds::{Bounds, PortBounds};
+        use crate::bounds::Bounds;
         match self {
             Signal::Volts(v) => Some(Bounds::point(*v)),
-            Signal::Cable {
-                resolved,
-                lane,
-                bounds,
-                ..
-            } => {
-                let Some(ptr) = resolved else {
-                    return Some(Bounds::point(0.0));
-                };
-                match *bounds {
-                    PortBounds::Unbounded => Some(Bounds::UNBOUNDED),
-                    PortBounds::Fixed(fixed) => Some(fixed),
-                    // SAFETY: as `PolyCableView::rendered_to`, then reads below
-                    // `processed`, inside the producer's buffer.
-                    PortBounds::Stored { store, processed }
-                    | PortBounds::Live { store, processed } => unsafe {
-                        if (*processed).get() < range.end {
-                            ptr.as_ref().ensure_processed_to(range.end);
-                        }
-                        if (*processed).get() < range.end || range.is_empty() {
-                            return None;
-                        }
-                        (*store).uniform(range, *lane)
-                    },
-                }
+            Signal::Cable { fold: true, .. } => {
+                let left = self.cable_uniform_bounds(range.clone(), 0)?;
+                let right = self.cable_uniform_bounds(range, 1)?;
+                Some(left.midpoint(right))
             }
+            Signal::Cable { .. } => self.cable_uniform_bounds(range, 0),
+        }
+    }
+
+    /// [`uniform_bounds`](Self::uniform_bounds) of a cable's lane `lane + side`.
+    fn cable_uniform_bounds(
+        &self,
+        range: std::ops::Range<usize>,
+        side: usize,
+    ) -> Option<crate::bounds::Bounds> {
+        use crate::bounds::{Bounds, PortBounds};
+        let Signal::Cable {
+            resolved,
+            lane,
+            bounds,
+            ..
+        } = self
+        else {
+            return None;
+        };
+        let Some(ptr) = resolved else {
+            return Some(Bounds::point(0.0));
+        };
+        match *bounds {
+            PortBounds::Unbounded => Some(Bounds::UNBOUNDED),
+            PortBounds::Fixed(fixed) => Some(fixed),
+            // SAFETY: as `PolyCableView::rendered_to`, then reads below
+            // `processed`, inside the producer's buffer.
+            PortBounds::Stored { store, processed } | PortBounds::Live { store, processed } => unsafe {
+                if (*processed).get() < range.end {
+                    ptr.as_ref().ensure_processed_to(range.end);
+                }
+                if (*processed).get() < range.end || range.is_empty() {
+                    return None;
+                }
+                (*store).uniform(range, *lane + side)
+            },
         }
     }
 }
@@ -2641,11 +2858,27 @@ impl Connect for Signal {
             });
         }
     }
+    fn collect_lane_cables(&self, _sink: &mut Vec<CableSource>) {}
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         // Cable reads from upstream's BlockPort at sample index *ptr — store
         // the back-pointer so `get_value(lane)` knows which slot to fetch.
         if let Signal::Cable { index_ptr, .. } = self {
             *index_ptr = ptr;
+        }
+    }
+    fn expand_lanes(&mut self, expansion: &LaneExpansion) {
+        // A bare signal is read as one value, so a stereo producer folds.
+        if let Signal::Cable {
+            module,
+            port,
+            lane,
+            fold,
+            ..
+        } = self
+        {
+            let producer = (expansion.producer)(module, port);
+            *lane *= producer;
+            *fold = producer == 2;
         }
     }
     fn mark_glides(&mut self, _old: Option<&Self>, _generation: u64, _ids: &dyn PreviousIds) {}
@@ -2660,22 +2893,28 @@ impl PartialEq for Box<dyn Sampleable> {
 impl Signal {
     /// Whether this signal, in the incoming patch, reads the same source as
     /// `old` did in the outgoing one: the same constant, or a cable from the
-    /// same module (across renames), port and lane.
+    /// same module (across renames), port and lane, folded or not.
     pub(crate) fn same_source(&self, old: &Signal, ids: &dyn PreviousIds) -> bool {
         match (self, old) {
             (Signal::Volts(a), Signal::Volts(b)) => a.to_bits() == b.to_bits(),
             (
                 Signal::Cable {
-                    module, port, lane, ..
+                    module,
+                    port,
+                    lane,
+                    fold,
+                    ..
                 },
                 Signal::Cable {
                     module: old_module,
                     port: old_port,
                     lane: old_lane,
+                    fold: old_fold,
                     ..
                 },
             ) => {
                 lane == old_lane
+                    && fold == old_fold
                     && port == old_port
                     && ids.previous(module) == Some(old_module.as_str())
             }
@@ -2820,6 +3059,22 @@ pub enum OutputType {
     Cv,
     Gate,
     Trig,
+}
+
+/// How a module's lanes carry stereo, from `#[module(stereo = …)]`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[napi(string_enum = "lowercase")]
+pub enum StereoMode {
+    /// Stereo when any input it reads lane by lane is stereo: the module then
+    /// runs one lane per side and each reads its own side of every input.
+    #[default]
+    Lift,
+    /// Always mono: every input folds a stereo producer to `(L + R) / 2`.
+    Mono,
+    /// Always stereo whatever its inputs: the module writes both sides of
+    /// each lane itself.
+    Stereo,
 }
 
 /// The precision of an output's values, named in `#[output(precision = …)]`.
@@ -3079,6 +3334,9 @@ pub struct ModuleSchema {
     /// still change between releases. Always serialized, like `buffer_outputs`.
     #[serde(default)]
     pub experimental: bool,
+    /// How the module's lanes carry stereo (`#[module(stereo = …)]`).
+    #[serde(default)]
+    pub stereo: StereoMode,
     /// The two optional params, `[min, max]`, that bound the module's
     /// `bounds = input` outputs when both are set, whatever its inputs
     /// (`#[params(declares_range = …)]`).

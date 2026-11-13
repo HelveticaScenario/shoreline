@@ -42,7 +42,9 @@ impl Connect for Arc<MathCompiled> {
     fn apply_default_connections(&mut self) {}
     fn connect(&mut self, _patch: &crate::Patch) {}
     fn collect_cables(&self, _sink: &mut Vec<crate::types::CableSource>) {}
+    fn collect_lane_cables(&self, _sink: &mut Vec<crate::types::CableSource>) {}
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {}
+    fn expand_lanes(&mut self, _expansion: &crate::types::LaneExpansion) {}
     fn mark_glides(
         &mut self,
         _old: Option<&Self>,
@@ -276,6 +278,7 @@ mod tests {
             },
             state: MathState::default(),
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
         }
     }

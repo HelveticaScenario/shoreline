@@ -185,7 +185,7 @@ const BEADS_REVERB_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$reverb",
+    name = "$reverb", stereo = mono,
     docs = BEADS_REVERB_DOCS,
     lanes = 2,
     has_init,
@@ -275,6 +275,7 @@ pub(super) mod tests {
                 tone: volts(tone),
             },
             _lane_count: 2,
+            _channels: 1,
             _block_index: Default::default(),
         };
         m.init(sample_rate);

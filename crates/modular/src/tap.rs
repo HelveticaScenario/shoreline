@@ -33,6 +33,9 @@ impl<'a> Tap<'a> {
         lane: usize,
     ) -> Option<Self> {
         let module = sampleables.get(module_id)?.as_ref();
+        // `lane` counts lanes as the DSL does; a stereo lane is read on its
+        // left side.
+        let lane = lane * module.port_channels(port);
         Some(match module.port_view(port) {
             // An f64 port's lane starts with its nearest f32, which is
             // all a scope or meter needs.

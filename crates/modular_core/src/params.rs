@@ -35,6 +35,10 @@ pub trait CloneableParams: Send + 'static {
     /// find the modules that read f64 outputs, without requiring the audio
     /// thread to know the params type.
     fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>);
+    /// See [`Connect::collect_lane_cables`](crate::types::Connect::collect_lane_cables).
+    fn collect_lane_cables(&self, sink: &mut Vec<crate::types::CableSource>);
+    /// See [`Connect::expand_lanes`](crate::types::Connect::expand_lanes).
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion);
 }
 
 impl<T: Clone + Send + 'static + crate::types::Connect> CloneableParams for T {
@@ -46,6 +50,12 @@ impl<T: Clone + Send + 'static + crate::types::Connect> CloneableParams for T {
     }
     fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
         <T as crate::types::Connect>::collect_cables(self, sink)
+    }
+    fn collect_lane_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
+        <T as crate::types::Connect>::collect_lane_cables(self, sink)
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        <T as crate::types::Connect>::expand_lanes(self, expansion)
     }
 }
 
@@ -71,6 +81,10 @@ pub struct DeserializedParams {
     /// makes its `precision = inherit` outputs f64. Set by the patch's
     /// precision analysis before construction.
     pub f64_inputs: bool,
+    /// Channels per lane: 1 for mono, 2 for stereo. Settled by the patch
+    /// before construction, which multiplies `lane_count` by it, so a lifted
+    /// module runs one lane per side.
+    pub channels: usize,
 }
 
 /// Cached portion of deserialized params (excludes argument spans).

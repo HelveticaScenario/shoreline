@@ -63,7 +63,7 @@ const HOLD_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$hold", docs = HOLD_DOCS, args(input, time))]
+#[module(name = "$hold", stereo = mono, docs = HOLD_DOCS, args(input, time))]
 pub struct Hold {
     outputs: HoldOutputs,
     params: HoldParams,
@@ -128,6 +128,7 @@ mod tests {
             },
             outputs,
             _lane_count: 1,
+            _channels: 1,
             _block_index: Default::default(),
             lane_state: vec![HoldLaneState::default(); 1].into_boxed_slice(),
         }

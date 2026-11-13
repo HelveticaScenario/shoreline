@@ -64,6 +64,7 @@ impl BenchPatch {
                             params: cached.params,
                             lane_count: cached.lane_count,
                             f64_inputs: false,
+                            channels: 1,
                         },
                         mode,
                     )

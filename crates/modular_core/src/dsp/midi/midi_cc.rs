@@ -69,7 +69,7 @@ const MIDI_CC_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$midiCC", docs = MIDI_CC_DOCS, args())]
+#[module(name = "$midiCC", stereo = mono, docs = MIDI_CC_DOCS, args())]
 pub struct MidiCc {
     outputs: MidiCcOutputs,
     params: MidiCcParams,

@@ -52,6 +52,7 @@ fn build(
                     params: cached.params,
                     lane_count: cached.lane_count,
                     f64_inputs: f64_inputs.contains(id),
+                    channels: 1,
                 },
                 mode,
             )

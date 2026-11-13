@@ -30,7 +30,7 @@ struct SupersawParams {
     #[input("oscillator pitch", type = pitch)]
     freq: PolySignal,
     #[input(
-        "number of detuned saws stacked per note; each is its own output lane",
+        "number of detuned saws stacked per note, spread across the stereo field",
         range = (1, 64),
     )]
     #[serde(default = "default_unison")]
@@ -74,21 +74,15 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SupersawOutputs {
-    #[output("output", "the stacked saws, one lane per voice", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the stacked saws, one stereo lane per note", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
-}
-
-/// Custom lane count: voices clamped to [1, PORT_MAX_LANES].
-#[allow(private_interfaces)]
-pub fn supersaw_derive_lane_count(params: &SupersawParams) -> usize {
-    params.unison.clamp(1, PORT_MAX_LANES)
 }
 
 const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
     summary: "Detuned saw stack",
     description: "A stack of detuned sawtooths for huge trance leads, pads and \
-                  chords. Each saw comes out on its own lane, ready to spread \
-                  across stereo with `$stereoMix` or `$setLanes`.",
+                  chords. Each note is one stereo lane, its saws spread from left to \
+                  right.",
     categories: &[ModuleCategory::Oscillator],
     sections: &[],
     examples: &[
@@ -111,16 +105,17 @@ const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$supersaw", docs = SUPERSAW_DOCS, lanes_derive = supersaw_derive_lane_count, has_init, patch_update, args(freq), block)]
+#[module(name = "$supersaw", stereo = stereo, docs = SUPERSAW_DOCS, has_init, patch_update, args(freq), block)]
 pub struct Supersaw {
     outputs: SupersawOutputs,
     params: SupersawParams,
     state: SupersawState,
-    /// Per-voice state for matrix mixing: a `voices * PORT_MAX_LANES` matrix
-    /// indexed as `[voice * PORT_MAX_LANES + input_ch]`. The row stride is
-    /// the fixed `PORT_MAX_LANES`, never the voice count, so the
-    /// element-wise state transfer keeps every surviving voice's cells at the
-    /// same coordinates when the `unison` param changes; only the voice
+    /// Every saw's state: a `voices * PORT_MAX_LANES` matrix indexed as
+    /// `[voice * PORT_MAX_LANES + lane]`, where lane `2n + c` is side `c` of
+    /// note `n`. Each side runs its own saws from its own side's inputs. The
+    /// row stride is the fixed `PORT_MAX_LANES`, never the voice count, so
+    /// the element-wise state transfer keeps every surviving voice's cells at
+    /// the same coordinates when the `unison` param changes; only the voice
     /// dimension grows or shrinks.
     lane_state: Box<[VoiceState]>,
 }
@@ -149,17 +144,20 @@ struct SupersawState {
     rng: LcgRng,
     /// Voice count clamped to [1, PORT_MAX_LANES]. Derived from params.
     voices: usize,
-    /// Lane count of the freq input. Derived from params.
-    input_lanes: usize,
     /// Reciprocal of the sample rate.
     inv_sample_rate: f32,
-    /// Output gain, compensated for input lane count.
+    /// Per-saw gain: 5 V over the square root of the voice count, so a stack
+    /// of uncorrelated saws keeps its loudness whatever the voice count.
     gain: f32,
     /// Per-voice interpolation factor for symmetric detuning.
     voice_t: [f32; PORT_MAX_LANES],
-    /// Per-input-lane edge detector for the sync input.
+    /// Per-voice gain into each side, `[side][voice]`: the voices spread from
+    /// left to right with equal-power panning that keeps a centred voice at
+    /// unity.
+    pan: [[f32; PORT_MAX_LANES]; 2],
+    /// Per-lane edge detector for the sync input.
     sync_schmitt: [SchmittTrigger; PORT_MAX_LANES],
-    /// Per-input-lane previous sync sample, for subsample edge interpolation.
+    /// Per-lane previous sync sample, for subsample edge interpolation.
     sync_prev: [f32; PORT_MAX_LANES],
 }
 
@@ -171,10 +169,10 @@ impl Default for SupersawState {
         Self {
             rng: LcgRng::default(),
             voices: 1,
-            input_lanes: 1,
             inv_sample_rate: 0.0,
             gain: 0.0,
             voice_t: [0.0; PORT_MAX_LANES],
+            pan: [[0.0; PORT_MAX_LANES]; 2],
             sync_schmitt: [SchmittTrigger::default(); PORT_MAX_LANES],
             sync_prev: [0.0; PORT_MAX_LANES],
         }
@@ -214,18 +212,23 @@ impl Supersaw {
         // indices across a voice-count change — the element-wise transfer then
         // carries surviving voices intact while added voices keep the fresh
         // seeding below.
-        let voices = self.lane_count().max(1);
+        let voices = self.params.unison.clamp(1, PORT_MAX_LANES);
         self.lane_state = vec![VoiceState::default(); voices * PORT_MAX_LANES].into_boxed_slice();
         // Seed each fresh voice and arm its zero-cross mute. prev_out is the
         // naive saw at the seeded phase so the mute holds until the output
         // genuinely crosses zero (it would release immediately if left at 0).
         // For carried-over voices these values are overwritten by
         // `transfer_state_from`, keeping an already-sounding voice un-muted.
+        // A note's two sides start from the same phases, so with the same
+        // inputs on both they run identical saws.
         let gate_open = !self.params.wait_for_zero_cross;
-        for cell in self.lane_state.iter_mut() {
-            cell.phase = self.state.rng.next_unit();
-            cell.gate_open = gate_open;
-            cell.prev_out = 2.0 * cell.phase - 1.0;
+        for note in self.lane_state.chunks_mut(2) {
+            let phase = self.state.rng.next_unit();
+            for cell in note {
+                cell.phase = phase;
+                cell.gate_open = gate_open;
+                cell.prev_out = 2.0 * phase - 1.0;
+            }
         }
     }
 
@@ -234,13 +237,8 @@ impl Supersaw {
     /// so these reflect the current params — not a transferred predecessor's.
     fn configure(&mut self) {
         let voices = self.params.unison.clamp(1, PORT_MAX_LANES);
-        let input_lanes = self.params.freq.lanes().max(1);
-
         self.state.voices = voices;
-        self.state.input_lanes = input_lanes;
-
-        // Gain: 5V range, compensated for input lane count
-        self.state.gain = 5.0 / (input_lanes as f32).sqrt();
+        self.state.gain = 5.0 / (voices as f32).sqrt();
 
         // Voice interpolation factor (precompute per voice)
         // Interleaved ordering: first half of voices gets even detune positions,
@@ -256,46 +254,53 @@ impl Supersaw {
             } else {
                 0.5 // centered, offset will be 0
             };
+            // Voices spread from left to right in this order, so each side
+            // holds one of the two halves of the detune spread.
+            let p = if voices > 1 {
+                v as f32 / (voices - 1) as f32
+            } else {
+                0.5
+            };
+            self.state.pan[0][v] = (2.0 * (1.0 - p)).sqrt();
+            self.state.pan[1][v] = (2.0 * p).sqrt();
         }
     }
 
     fn update(&mut self, _sample_rate: f32) {
         let voices = self.state.voices;
-        let input_lanes = self.state.input_lanes;
+        let lanes = self.lane_count();
         let p = &self.params;
 
-        // Detect sync once per input lane (the master edge resets every
-        // detuned voice of that lane together) and record the subsample
-        // crossing for the PolyBLEP correction.
+        // Detect sync once per lane (the master edge resets every detuned
+        // voice of that lane together) and record the subsample crossing for
+        // the PolyBLEP correction.
         let mut sync_frac = [None; PORT_MAX_LANES];
         if let Some(sync) = &p.sync {
-            for (input_ch, frac) in sync_frac[..input_lanes].iter_mut().enumerate() {
-                *frac = self.state.sync_edge(input_ch, sync.get_value(input_ch));
+            for (lane, frac) in sync_frac[..lanes].iter_mut().enumerate() {
+                *frac = self.state.sync_edge(lane, sync.get_value(lane));
             }
         }
-        let mut base_freq = [0.0f32; PORT_MAX_LANES];
-        let mut detune = [0.0f32; PORT_MAX_LANES];
-        for input_ch in 0..input_lanes {
-            let pitch = p.freq.get_value(input_ch);
-            let fm = p.fm.value_or(input_ch, 0.0);
-            base_freq[input_ch] = apply_fm(pitch, fm, p.fm_mode);
-            detune[input_ch] = p.detune.value_or(input_ch, SupersawParams::DETUNE_DEFAULT);
-        }
-
-        for voice in 0..voices {
+        for (lane, &frac) in sync_frac.iter().enumerate().take(lanes) {
+            let pitch = p.freq.get_value(lane);
+            let fm = p.fm.value_or(lane, 0.0);
+            let base_freq = apply_fm(pitch, fm, p.fm_mode);
+            let detune = p.detune.value_or(lane, SupersawParams::DETUNE_DEFAULT);
+            let pan = &self.state.pan[lane % 2];
             let mut accum = 0.0f32;
-            for input_ch in 0..input_lanes {
+            for (voice, (&voice_t, &gain)) in
+                self.state.voice_t.iter().zip(pan).enumerate().take(voices)
+            {
                 let dt = voice_increment(
                     voices,
-                    self.state.voice_t[voice],
-                    base_freq[input_ch],
-                    detune[input_ch],
+                    voice_t,
+                    base_freq,
+                    detune,
                     self.state.inv_sample_rate,
                 );
-                let cell = &mut self.lane_state[voice * PORT_MAX_LANES + input_ch];
-                accum += cell.step(dt, sync_frac[input_ch]);
+                let cell = &mut self.lane_state[voice * PORT_MAX_LANES + lane];
+                accum += cell.step(dt, frac) * gain;
             }
-            self.outputs.sample.set(voice, accum * self.state.gain);
+            self.outputs.sample.set(lane, accum * self.state.gain);
         }
     }
 
@@ -306,7 +311,7 @@ impl Supersaw {
         _sample_rate: f32,
     ) -> Option<()> {
         let voices = self.state.voices;
-        let input_lanes = self.state.input_lanes;
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let SupersawParamsBlockInputs {
@@ -314,26 +319,23 @@ impl Supersaw {
             detune,
             fm,
             sync,
-        } = p.block_inputs(range.clone(), input_lanes, &mut scratch)?;
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
 
-        // Each voice's phase increment, `[voice * input_lanes + input_ch]`.
-        // Held pitch, FM and detune fill it once for the whole range.
+        // Each voice's phase increment, `[voice * lanes + lane]`. Held pitch,
+        // FM and detune fill it once for the whole range.
         let mut increments = [0.0f32; PORT_MAX_LANES * PORT_MAX_LANES];
         let held = freq.is_constant() && fm.is_constant() && detune.is_constant();
         let (voice_t, inv_sample_rate) = (self.state.voice_t, self.state.inv_sample_rate);
         let fill = |increments: &mut [f32], i: usize| {
             let (freq, fm, detune) = (freq.row(i), fm.row(i), detune.row(i));
-            let mut base_freq = [0.0f32; PORT_MAX_LANES];
-            for (base, (&pitch, &fm)) in base_freq.iter_mut().zip(freq.iter().zip(fm)) {
-                *base = apply_fm(pitch, fm, p.fm_mode);
-            }
-            for voice in 0..voices {
-                for input_ch in 0..input_lanes {
-                    increments[voice * input_lanes + input_ch] = voice_increment(
+            for lane in 0..lanes {
+                let base_freq = apply_fm(freq[lane], fm[lane], p.fm_mode);
+                for voice in 0..voices {
+                    increments[voice * lanes + lane] = voice_increment(
                         voices,
                         voice_t[voice],
-                        base_freq[input_ch],
-                        detune[input_ch],
+                        base_freq,
+                        detune[lane],
                         inv_sample_rate,
                     );
                 }
@@ -349,17 +351,18 @@ impl Supersaw {
             }
             let mut sync_frac = [None; PORT_MAX_LANES];
             if let Some(sync) = &sync {
-                for (input_ch, &v) in sync.row(i).iter().enumerate() {
-                    sync_frac[input_ch] = self.state.sync_edge(input_ch, v);
+                for (lane, &v) in sync.row(i).iter().enumerate() {
+                    sync_frac[lane] = self.state.sync_edge(lane, v);
                 }
             }
             let out = outputs.sample.slot_mut(i);
-            for (voice, out) in out.iter_mut().enumerate().take(voices) {
-                let cells = &mut self.lane_state[voice * PORT_MAX_LANES..][..input_lanes];
-                let voice_increments = &increments[voice * input_lanes..][..input_lanes];
+            for (lane, out) in out.iter_mut().enumerate().take(lanes) {
+                let pan = &self.state.pan[lane % 2];
                 let mut accum = 0.0f32;
-                for ((cell, &dt), &frac) in cells.iter_mut().zip(voice_increments).zip(&sync_frac) {
-                    accum += cell.step(dt, frac);
+                for voice in 0..voices {
+                    let dt = increments[voice * lanes + lane];
+                    let cell = &mut self.lane_state[voice * PORT_MAX_LANES + lane];
+                    accum += cell.step(dt, sync_frac[lane]) * pan[voice];
                 }
                 *out = sanitize(accum * self.state.gain);
             }
@@ -369,20 +372,20 @@ impl Supersaw {
 }
 
 impl SupersawState {
-    /// Register sync input `v` for `input_ch`; on a rising edge, returns the
+    /// Register sync input `v` for `lane`; on a rising edge, returns the
     /// subsample position of the crossing.
     #[inline(always)]
-    fn sync_edge(&mut self, input_ch: usize, v: f32) -> Option<f32> {
-        let edge = self.sync_schmitt[input_ch]
+    fn sync_edge(&mut self, lane: usize, v: f32) -> Option<f32> {
+        let edge = self.sync_schmitt[lane]
             .process(v)
-            .then(|| sync_edge_fraction(self.sync_prev[input_ch], v));
-        self.sync_prev[input_ch] = v;
+            .then(|| sync_edge_fraction(self.sync_prev[lane], v));
+        self.sync_prev[lane] = v;
         edge
     }
 }
 
 /// Phase increment of a voice at detune position `voice_t` (of `voices`) for
-/// an input lane at `base_freq` Hz with `detune` semitones of spread.
+/// a lane at `base_freq` Hz with `detune` semitones of spread.
 #[inline(always)]
 fn voice_increment(
     voices: usize,
@@ -460,237 +463,165 @@ message_handlers!(impl Supersaw {});
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{OutputStruct, Signal};
+    use crate::types::{Connect, LaneExpansion, OutputStruct, Signal};
 
-    /// Create a Supersaw with params and properly initialize lane count and output lanes.
-    /// Mirrors the production lifecycle: `init` (seeds phases, captures sample rate)
-    /// then `on_patch_update` (computes param-derived constants), both of which the
-    /// `#[module]` macro invokes in production.
-    fn make_supersaw(params: SupersawParams) -> Supersaw {
+    fn params(freq: PolySignal, unison: usize, detune: f32) -> SupersawParams {
+        SupersawParams {
+            freq,
+            unison,
+            detune: Some(PolySignal::mono(Signal::Volts(detune))),
+            fm: None,
+            fm_mode: FmMode::default(),
+            sync: None,
+            wait_for_zero_cross: false,
+        }
+    }
+
+    /// A Supersaw built as a patch builds it: inputs laid out side by side,
+    /// one lane per side of each note, then `init` and `on_patch_update`.
+    fn make_supersaw(mut params: SupersawParams) -> Supersaw {
         use crate::types::PatchUpdateHandler;
-        let lanes = supersaw_derive_lane_count(&params);
+        let lanes = params.freq.lanes() * 2;
+        params.expand_lanes(&LaneExpansion {
+            channels: 2,
+            producer: &|_, _| 1,
+        });
         let mut outputs = SupersawOutputs::default();
         outputs.set_all_lanes(lanes);
         let mut s = Supersaw {
             params,
             outputs,
             _lane_count: lanes,
+            _channels: 2,
             _block_index: Default::default(),
             state: SupersawState::default(),
             lane_state: Box::default(),
         };
-        // Mirror the production lifecycle: init() allocates and seeds the phase
-        // matrix; on_patch_update() computes the param-derived constants that
-        // update() reads from state.
         s.init(48000.0);
         s.on_patch_update();
         s
     }
 
-    #[test]
-    fn test_single_voice_output() {
-        let mut s = make_supersaw(SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 1,
-            detune: None,
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
-        });
-        // Run several samples to get past initialization
-        for _ in 0..100 {
-            s.update(48000.0);
-        }
-        let val = s.outputs.sample.get(0);
-        // Single voice should produce output in ±5V range
-        assert!(val.abs() <= 5.01, "Output {val} should be within ±5V");
+    fn mono(v: f32) -> PolySignal {
+        PolySignal::mono(Signal::Volts(v))
     }
 
     #[test]
-    fn test_lane_count_equals_voices() {
-        let params = SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 7,
-            detune: None,
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
-        };
-        assert_eq!(supersaw_derive_lane_count(&params), 7);
+    fn each_note_is_one_stereo_lane() {
+        let s = make_supersaw(params(
+            PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(1.0), Signal::Volts(2.0)]),
+            7,
+            0.18,
+        ));
+        assert_eq!(s.lane_count(), 6);
     }
 
     #[test]
-    fn test_output_bounded() {
-        let mut s = make_supersaw(SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 5,
-            detune: None,
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
-        });
+    fn voices_clamp_to_the_port() {
+        assert_eq!(
+            make_supersaw(params(mono(0.0), 100, 0.18)).state.voices,
+            PORT_MAX_LANES
+        );
+        assert_eq!(make_supersaw(params(mono(0.0), 0, 0.18)).state.voices, 1);
+    }
+
+    #[test]
+    fn gain_follows_the_voice_count() {
+        assert_eq!(make_supersaw(params(mono(0.0), 4, 0.18)).state.gain, 2.5);
+        assert_eq!(make_supersaw(params(mono(0.0), 1, 0.18)).state.gain, 5.0);
+    }
+
+    #[test]
+    fn output_stays_bounded() {
+        let mut s = make_supersaw(params(mono(0.0), 5, 0.18));
         for _ in 0..1000 {
             s.update(48000.0);
+            for lane in 0..2 {
+                let v = s.outputs.sample.get(lane);
+                assert!(v.is_finite() && v.abs() <= 10.0, "lane {lane}: {v}");
+            }
         }
-        for lane in 0..5 {
-            let val = s.outputs.sample.get(lane);
-            assert!(
-                val.abs() <= 5.5,
-                "Lane {lane} output {val} should be bounded"
+    }
+
+    #[test]
+    fn a_single_voice_sits_in_the_centre() {
+        let mut s = make_supersaw(params(mono(0.0), 1, 0.0));
+        s.lane_state[0].phase = 0.75;
+        s.lane_state[1].phase = 0.75;
+        s.update(48000.0);
+        let (left, right) = (s.outputs.sample.get(0), s.outputs.sample.get(1));
+        assert_eq!(left, right);
+        assert!(left > 0.0);
+    }
+
+    #[test]
+    fn voices_spread_from_left_to_right() {
+        // Two voices: the first hard left, the second hard right.
+        let mut s = make_supersaw(params(mono(0.0), 2, 0.0));
+        for lane in 0..2 {
+            s.lane_state[lane].phase = 0.75;
+            s.lane_state[PORT_MAX_LANES + lane].phase = 0.25;
+        }
+        s.update(48000.0);
+        let (left, right) = (s.outputs.sample.get(0), s.outputs.sample.get(1));
+        assert!(left > 0.0 && right < 0.0, "left {left}, right {right}");
+    }
+
+    #[test]
+    fn a_notes_sides_start_together_and_voices_apart() {
+        let s = make_supersaw(params(mono(0.0), 4, 0.0));
+        let phases: Vec<f32> = (0..4)
+            .map(|v| s.lane_state[v * PORT_MAX_LANES].phase)
+            .collect();
+        assert!(
+            phases.windows(2).any(|w| w[0] != w[1]),
+            "voices start apart"
+        );
+        for v in 0..4 {
+            assert_eq!(
+                s.lane_state[v * PORT_MAX_LANES].phase,
+                s.lane_state[v * PORT_MAX_LANES + 1].phase
             );
         }
     }
 
     #[test]
-    fn test_voices_clamped_to_max() {
-        let params = SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 100,
-            detune: None,
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
+    fn detune_spreads_the_voices() {
+        let run = |detune: f32| {
+            let mut s = make_supersaw(params(mono(0.0), 3, detune));
+            for cell in s.lane_state.iter_mut() {
+                cell.phase = 0.25;
+            }
+            for _ in 0..100 {
+                s.update(48000.0);
+            }
+            (
+                s.lane_state[0].phase,
+                s.lane_state[2 * PORT_MAX_LANES].phase,
+            )
         };
-        assert_eq!(supersaw_derive_lane_count(&params), PORT_MAX_LANES);
-
-        let params_zero = SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 0,
-            detune: None,
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
-        };
-        assert_eq!(supersaw_derive_lane_count(&params_zero), 1);
+        let (a, b) = run(0.0);
+        assert_eq!(a, b);
+        let (a, b) = run(2.0);
+        assert_ne!(a, b);
     }
 
     #[test]
-    fn test_detune_affects_pitch() {
-        // With detune=0, all voices should be identical (same phase progression)
-        let mut s_no_detune = make_supersaw(SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 3,
-            detune: Some(PolySignal::mono(Signal::Volts(0.0))),
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
-        });
-        // Force known phases (overwrite whatever init set)
-        for i in 0..s_no_detune.lane_state.len() {
-            s_no_detune.lane_state[i].phase = 0.25;
-        }
-
-        let mut s_detune = make_supersaw(SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 3,
-            detune: Some(PolySignal::mono(Signal::Volts(2.0))),
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
-        });
-        for i in 0..s_detune.lane_state.len() {
-            s_detune.lane_state[i].phase = 0.25;
-        }
-
-        // Run both for several samples
+    fn a_stereo_pitch_detunes_one_side_against_the_other() {
+        let mut s = make_supersaw(params(mono(0.0), 1, 0.0));
+        s.params.freq = PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(1.0)]);
         for _ in 0..100 {
-            s_no_detune.update(48000.0);
-            s_detune.update(48000.0);
+            s.update(48000.0);
         }
-
-        // With no detune, voice 0 and voice 2 should be the same
-        let v0_no = s_no_detune.outputs.sample.get(0);
-        let v2_no = s_no_detune.outputs.sample.get(2);
-        assert!(
-            (v0_no - v2_no).abs() < 1e-6,
-            "No-detune voices should be equal: {v0_no} vs {v2_no}"
-        );
-
-        // With detune, voice 0 and voice 2 should differ
-        let v0_det = s_detune.outputs.sample.get(0);
-        let v2_det = s_detune.outputs.sample.get(2);
-        assert!(
-            (v0_det - v2_det).abs() > 1e-6,
-            "Detuned voices should differ: {v0_det} vs {v2_det}"
-        );
-    }
-
-    #[test]
-    fn test_random_phases_differ() {
-        let mut s = make_supersaw(SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 4,
-            detune: Some(PolySignal::mono(Signal::Volts(0.0))),
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
-        });
-        // Trigger phase initialization via init()
-        s.init(48000.0);
-
-        // Check that at least some initial phases differ
-        // (statistically extremely unlikely all 4 are identical)
-        let phases: Vec<f32> = (0..4)
-            .map(|v| s.lane_state[v * PORT_MAX_LANES].phase)
-            .collect();
-        let all_same = phases.windows(2).all(|w| (w[0] - w[1]).abs() < 1e-10);
-        assert!(!all_same, "Random phases should not all be identical");
-    }
-
-    #[test]
-    fn test_matrix_mixing_mono_input() {
-        // Mono input with 3 voices -> 3 output lanes
-        let mut s = make_supersaw(SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 3,
-            detune: Some(PolySignal::mono(Signal::Volts(0.0))),
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
-        });
-        // Force known phases, zero detune -> all voices should produce identical output
-        for i in 0..s.lane_state.len() {
-            s.lane_state[i].phase = 0.5;
-        }
-        s.update(48000.0);
-
-        let v0 = s.outputs.sample.get(0);
-        let v1 = s.outputs.sample.get(1);
-        let v2 = s.outputs.sample.get(2);
-        // With zero detune and same initial phase, all voices should be identical
-        assert!(
-            (v0 - v1).abs() < 1e-6,
-            "Same phase, no detune: voices should match: {v0} vs {v1}"
-        );
-        assert!(
-            (v1 - v2).abs() < 1e-6,
-            "Same phase, no detune: voices should match: {v1} vs {v2}"
-        );
+        assert_ne!(s.lane_state[0].phase, s.lane_state[1].phase);
     }
 
     #[test]
     fn hard_sync_resets_all_voice_phases() {
         let mut s = make_supersaw(SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 3,
-            detune: Some(PolySignal::mono(Signal::Volts(1.0))),
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: Some(PolySignal::mono(Signal::Volts(0.0))),
-            wait_for_zero_cross: false,
+            sync: Some(mono(0.0)),
+            ..params(mono(0.0), 3, 1.0)
         });
-
-        // Advance so every voice phase is clearly non-zero and the sync edge
-        // detector is armed low.
         for _ in 0..50 {
             s.update(48000.0);
         }
@@ -699,16 +630,16 @@ mod tests {
             .any(|p| p.abs() > 1e-3);
         assert!(advanced, "voice phases should have advanced before sync");
 
-        // Drive a rising edge on the sync input.
-        s.params.sync = Some(PolySignal::mono(Signal::Volts(5.0)));
+        s.params.sync = Some(mono(5.0));
         s.update(48000.0);
-
         for voice in 0..3 {
-            let p = s.lane_state[voice * PORT_MAX_LANES].phase;
-            assert!(
-                p.abs() < 1e-6,
-                "voice {voice} phase {p} should reset to 0 on hard sync"
-            );
+            for side in 0..2 {
+                let p = s.lane_state[voice * PORT_MAX_LANES + side].phase;
+                assert!(
+                    p.abs() < 1e-6,
+                    "voice {voice} side {side} phase {p} should reset"
+                );
+            }
         }
     }
 
@@ -717,28 +648,16 @@ mod tests {
         // A fast master sync against a slower slave fires resets constantly,
         // exercising the PolyBLEP correction + carry every few samples.
         let mut s = make_supersaw(SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(-1.0)),
-            unison: 5,
-            detune: Some(PolySignal::mono(Signal::Volts(0.3))),
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: Some(PolySignal::mono(Signal::Volts(0.0))),
-            wait_for_zero_cross: false,
+            sync: Some(mono(0.0)),
+            ..params(mono(-1.0), 5, 0.3)
         });
-
-        // Toggle the sync input low/high every few samples to generate edges.
         for i in 0..2000 {
             let high = (i / 7) % 2 == 0;
-            s.params.sync = Some(PolySignal::mono(Signal::Volts(if high {
-                5.0
-            } else {
-                0.0
-            })));
+            s.params.sync = Some(mono(if high { 5.0 } else { 0.0 }));
             s.update(48000.0);
-            for voice in 0..5 {
-                let v = s.outputs.sample.get(voice);
-                assert!(v.is_finite(), "output must stay finite, got {v}");
-                assert!(v.abs() <= 6.0, "output {v} should stay bounded near ±5V");
+            for lane in 0..2 {
+                let v = s.outputs.sample.get(lane);
+                assert!(v.is_finite() && v.abs() <= 10.0, "lane {lane}: {v}");
             }
         }
     }
@@ -748,15 +667,9 @@ mod tests {
         // A fresh voice that does not start on a zero crossing is held silent
         // until its saw crosses zero, then releases on a near-zero sample.
         let mut s = make_supersaw(SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 1,
-            detune: Some(PolySignal::mono(Signal::Volts(0.0))),
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
             wait_for_zero_cross: true,
+            ..params(mono(0.0), 1, 0.0)
         });
-        // Force a known non-zero start: saw = 2*0.25 - 1 = -0.5, mute armed.
         s.lane_state[0].phase = 0.25;
         s.lane_state[0].prev_out = -0.5;
         s.lane_state[0].gate_open = false;
@@ -778,58 +691,6 @@ mod tests {
             out[release].abs() < 0.5,
             "release sample {} should be near zero (click-free)",
             out[release]
-        );
-    }
-
-    #[test]
-    fn test_gain_compensation() {
-        // With 4 input lanes, gain should be 5.0 / sqrt(4) = 2.5
-        // With 1 input lane, gain should be 5.0 / sqrt(1) = 5.0
-        // A single voice with single input: a saw at mid-phase should give ~0 * 5.0
-        let mut s1 = make_supersaw(SupersawParams {
-            freq: PolySignal::mono(Signal::Volts(0.0)),
-            unison: 1,
-            detune: Some(PolySignal::mono(Signal::Volts(0.0))),
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
-        });
-        // Set phase to 0.75 -> naive saw = 2*0.75 - 1 = 0.5
-        s1.lane_state[0].phase = 0.75;
-        s1.update(48000.0);
-        let val_mono = s1.outputs.sample.get(0);
-
-        // With 4 input lanes, each contributing the same signal
-        let mut s4 = make_supersaw(SupersawParams {
-            freq: PolySignal::poly(&[
-                Signal::Volts(0.0),
-                Signal::Volts(0.0),
-                Signal::Volts(0.0),
-                Signal::Volts(0.0),
-            ]),
-            unison: 1,
-            detune: Some(PolySignal::mono(Signal::Volts(0.0))),
-            fm: None,
-            fm_mode: FmMode::default(),
-            sync: None,
-            wait_for_zero_cross: false,
-        });
-        // Set all 4 input lane phases identically. Voice 0's row starts at
-        // flat index 0, so lane `input_ch` sits at `input_ch`.
-        for input_ch in 0..4 {
-            s4.lane_state[input_ch].phase = 0.75;
-        }
-        s4.update(48000.0);
-        let val_quad = s4.outputs.sample.get(0);
-
-        // val_quad should be 4 saws * (5/sqrt(4)) = 4 * saw * 2.5
-        // val_mono should be 1 saw * 5.0
-        // So val_quad / val_mono ≈ (4 * 2.5) / (1 * 5.0) = 2.0
-        let ratio = val_quad / val_mono;
-        assert!(
-            (ratio - 2.0).abs() < 0.1,
-            "Gain compensation ratio should be ~2.0, got {ratio}"
         );
     }
 }

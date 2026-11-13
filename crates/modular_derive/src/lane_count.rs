@@ -19,6 +19,9 @@ pub fn impl_lane_count_macro(ast: &DeriveInput) -> TokenStream {
                     if is_poly_signal_type(&field.ty) {
                         // Bare PolySignal: always present, push reference directly
                         Some(quote! { fields.push(&self.#field_ident); })
+                    } else if crate::utils::is_pair_signal_type(&field.ty) {
+                        // PairSignal: its lanes, read side by side
+                        Some(quote! { fields.push(self.#field_ident.poly()); })
                     } else if is_option_poly_signal_type(&field.ty) {
                         // Option<PolySignal>: only push if Some (None contributes 0 lanes)
                         Some(quote! {

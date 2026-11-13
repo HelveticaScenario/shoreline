@@ -69,7 +69,7 @@ const KEYFRAMES_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$keyframes", docs = KEYFRAMES_DOCS, args(keyframes), lanes_derive = derive_keyframes_lane_count)]
+#[module(name = "$keyframes", stereo = mono, docs = KEYFRAMES_DOCS, args(keyframes), lanes_derive = derive_keyframes_lane_count)]
 pub struct Keyframes {
     outputs: KeyframesOutputs,
     params: KeyframesParams,

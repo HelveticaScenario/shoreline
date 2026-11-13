@@ -213,7 +213,8 @@
       }
     ],
     "positionalArgs": [],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$swell",
@@ -442,7 +443,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$signal",
@@ -578,6 +580,7 @@
       }
     ],
     "experimental": false,
+    "stereo": "lift",
     "declaredRange": [
       "min",
       "max"
@@ -745,7 +748,8 @@
         "name": "inputs"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$setLanes",
@@ -904,7 +908,495 @@
       }
     ],
     "lanesParam": "lanes",
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
+  },
+  {
+    "name": "$stereo",
+    "docs": {
+      "summary": "Join two sides into stereo",
+      "description": "Makes a stereo signal from a left and a right signal, lane by lane. A stereo input is folded to mono first.",
+      "categories": [
+        "mixer"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Two sines a fifth apart",
+          "code": "$stereo($sine('c3'), $sine('g3')).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "StereoParams",
+      "type": "object",
+      "properties": {
+        "left": {
+          "description": "the left side",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "right": {
+          "description": "the right side",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "left",
+        "right"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the stereo signal",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "left",
+        "description": "the left side",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      },
+      {
+        "name": "right",
+        "description": "the right side",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "left"
+      },
+      {
+        "name": "right"
+      }
+    ],
+    "experimental": false,
+    "stereo": "stereo"
+  },
+  {
+    "name": "$mono",
+    "docs": {
+      "summary": "Fold stereo to mono",
+      "description": "Averages the two sides of each lane, `(L + R) / 2`. A mono signal passes unchanged.",
+      "categories": [
+        "mixer"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "A stereo pair as one voice",
+          "code": "$mono($stereo($sine('c3'), $saw('c3'))).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MonoParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the signal to fold",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "each lane's sides averaged",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the signal to fold",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      }
+    ],
+    "experimental": false,
+    "stereo": "mono"
+  },
+  {
+    "name": "$left",
+    "docs": {
+      "summary": "Left side of stereo",
+      "description": "The left side of each lane, as a mono signal. A mono signal passes unchanged.",
+      "categories": [
+        "mixer"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Swap the sides",
+          "code": "const pair = $stereo($sine('c3'), $saw('c3'))\n$stereo($right(pair), $left(pair)).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SideParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the stereo signal",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "one side of each lane",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the stereo signal",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      }
+    ],
+    "experimental": false,
+    "stereo": "mono"
+  },
+  {
+    "name": "$right",
+    "docs": {
+      "summary": "Right side of stereo",
+      "description": "The right side of each lane, as a mono signal. A mono signal passes unchanged.",
+      "categories": [
+        "mixer"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Only the right side",
+          "code": "$right($stereo($sine('c3'), $saw('c3'))).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SideParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the stereo signal",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "one side of each lane",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the stereo signal",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      }
+    ],
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$stereoMix",
@@ -1080,7 +1572,8 @@
       }
     ],
     "lanes": 2,
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "_clock",
@@ -1313,7 +1806,8 @@
       }
     ],
     "lanes": 1,
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$tr808.kick",
@@ -1534,7 +2028,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.snare",
@@ -1751,7 +2246,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.rimShot",
@@ -1922,7 +2418,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.claves",
@@ -2116,7 +2613,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.cowbell",
@@ -2291,7 +2789,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.clap",
@@ -2438,7 +2937,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.maracas",
@@ -2585,7 +3085,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.cymbal",
@@ -2783,7 +3284,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.hiHat",
@@ -3021,7 +3523,8 @@
         "name": "closed"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.lowTom",
@@ -3215,7 +3718,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.midTom",
@@ -3409,7 +3913,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.highTom",
@@ -3603,7 +4108,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.lowConga",
@@ -3797,7 +4303,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.midConga",
@@ -3991,7 +4498,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr808.highConga",
@@ -4185,7 +4693,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr909.kick",
@@ -4425,7 +4934,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr909.snare",
@@ -4642,7 +5152,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr909.rimShot",
@@ -4789,7 +5300,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr909.clap",
@@ -4936,7 +5448,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr909.lowTom",
@@ -5130,7 +5643,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr909.midTom",
@@ -5324,7 +5838,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tr909.highTom",
@@ -5518,7 +6033,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$comp",
@@ -5881,7 +6397,8 @@
         "name": "input"
       }
     ],
-    "experimental": true
+    "experimental": true,
+    "stereo": "lift"
   },
   {
     "name": "$xover",
@@ -6065,7 +6582,8 @@
         "name": "input"
       }
     ],
-    "experimental": true
+    "experimental": true,
+    "stereo": "lift"
   },
   {
     "name": "$fold",
@@ -6228,7 +6746,8 @@
         "name": "amount"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$cheby",
@@ -6391,7 +6910,8 @@
         "name": "amount"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$dattorro",
@@ -6658,7 +7178,8 @@
       }
     ],
     "lanes": 2,
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$overdrive",
@@ -6854,7 +7375,8 @@
         "name": "drive"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$filterDC",
@@ -6971,7 +7493,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$plate",
@@ -7192,7 +7715,8 @@
       }
     ],
     "lanes": 2,
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$quantNoise",
@@ -7373,7 +7897,8 @@
         "name": "amount"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.reverb",
@@ -7642,7 +8167,8 @@
       }
     ],
     "lanes": 2,
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$unstable.reverb2",
@@ -7911,7 +8437,8 @@
       }
     ],
     "lanes": 2,
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$segment",
@@ -8069,7 +8596,8 @@
         "name": "amount"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$reverb",
@@ -8309,7 +8837,8 @@
       }
     ],
     "lanes": 2,
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$granular",
@@ -8719,7 +9248,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$granularSampler",
@@ -9082,7 +9612,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$wowFlutter",
@@ -9264,7 +9795,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$clockedDelay",
@@ -9631,7 +10163,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$sine",
@@ -9838,7 +10371,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$saw",
@@ -10073,7 +10607,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$pulse",
@@ -10326,7 +10861,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$pSine",
@@ -10448,7 +10984,8 @@
         "name": "phase"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$pSaw",
@@ -10593,7 +11130,8 @@
         "name": "phase"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$pPulse",
@@ -10761,7 +11299,8 @@
         "name": "phase"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$noise",
@@ -10994,7 +11533,8 @@
         "name": "color"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$macro",
@@ -11640,13 +12180,14 @@
         "name": "engine"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$supersaw",
     "docs": {
       "summary": "Detuned saw stack",
-      "description": "A stack of detuned sawtooths for huge trance leads, pads and chords. Each saw comes out on its own lane, ready to spread across stereo with `$stereoMix` or `$setLanes`.",
+      "description": "A stack of detuned sawtooths for huge trance leads, pads and chords. Each note is one stereo lane, its saws spread from left to right.",
       "categories": [
         "oscillator"
       ],
@@ -11672,7 +12213,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "unison": {
-          "description": "number of detuned saws stacked per note; each is its own output lane",
+          "description": "number of detuned saws stacked per note, spread across the stereo field",
           "type": "integer",
           "format": "uint",
           "minimum": 1,
@@ -11809,7 +12350,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the stacked saws, one lane per voice",
+        "description": "the stacked saws, one stereo lane per note",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -11859,7 +12400,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "stereo"
   },
   {
     "name": "$enosc",
@@ -12789,7 +13331,8 @@
         "name": "scale"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$wavetable",
@@ -13229,7 +13772,8 @@
         "name": "position"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$lpf",
@@ -13392,7 +13936,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$apf",
@@ -13611,7 +14156,8 @@
         "name": "cutoff"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$hpf",
@@ -13773,7 +14319,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$bpf",
@@ -13935,7 +14482,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$jup6f",
@@ -14133,7 +14681,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$lpg",
@@ -14345,7 +14894,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$multimode",
@@ -14626,7 +15176,8 @@
         "name": "mode"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$eq",
@@ -14879,7 +15430,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.lp",
@@ -15085,7 +15637,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.hp",
@@ -15291,7 +15844,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.bp",
@@ -15507,7 +16061,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.notch",
@@ -15708,7 +16263,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.ap",
@@ -15869,7 +16425,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.legacyLadder",
@@ -16060,7 +16617,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.diodeLadder",
@@ -16251,7 +16809,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.vintageLadder",
@@ -16442,7 +17001,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.k35Lp",
@@ -16638,7 +17198,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.k35Hp",
@@ -16834,7 +17395,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.obxd2Lp",
@@ -17015,7 +17577,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.obxd2Bp",
@@ -17196,7 +17759,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.obxd2Hp",
@@ -17377,7 +17941,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.obxd2Notch",
@@ -17558,7 +18123,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.obxd4",
@@ -17754,7 +18320,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.xpander",
@@ -18000,7 +18567,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.cutoffWarpLp",
@@ -18197,7 +18765,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.cutoffWarpHp",
@@ -18394,7 +18963,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.cutoffWarpBp",
@@ -18591,7 +19161,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.cutoffWarpNotch",
@@ -18788,7 +19359,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.cutoffWarpAp",
@@ -18985,7 +19557,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.resWarpLp",
@@ -19177,7 +19750,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.resWarpHp",
@@ -19369,7 +19943,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.resWarpBp",
@@ -19561,7 +20136,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.resWarpNotch",
@@ -19753,7 +20329,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.resWarpAp",
@@ -19945,7 +20522,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.tripole",
@@ -20147,7 +20725,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.fastSvf",
@@ -20348,7 +20927,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.sah",
@@ -20509,7 +21089,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.filter.comb",
@@ -20710,7 +21291,8 @@
         "name": "resonance"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$pWarp",
@@ -21025,7 +21607,8 @@
         "name": "phase"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$ramp",
@@ -21145,7 +21728,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$addHz",
@@ -21279,7 +21863,8 @@
         "name": "offset"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$adsr",
@@ -21538,7 +22123,8 @@
         "name": "gate"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$add",
@@ -21672,7 +22258,8 @@
         "name": "offset"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$sub",
@@ -21806,7 +22393,8 @@
         "name": "offset"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mul",
@@ -21940,7 +22528,8 @@
         "name": "factor"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$div",
@@ -22074,7 +22663,8 @@
         "name": "divisor"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$exp",
@@ -22209,7 +22799,8 @@
         "name": "exponent"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$round",
@@ -22330,7 +22921,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$floor",
@@ -22447,7 +23039,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$ceil",
@@ -22564,7 +23157,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$bufRead",
@@ -22720,7 +23314,8 @@
         "name": "frame"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$buffer",
@@ -22843,7 +23438,8 @@
         "name": "length"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$chord",
@@ -23072,7 +23668,8 @@
         "name": "chord"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$clamp",
@@ -23234,6 +23831,7 @@
       }
     ],
     "experimental": false,
+    "stereo": "lift",
     "declaredRange": [
       "min",
       "max"
@@ -23385,7 +23983,8 @@
         "name": "division"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$coinFlip",
@@ -23542,7 +24141,8 @@
         "name": "probability"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$scan",
@@ -23718,7 +24318,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$curve",
@@ -23854,7 +24455,8 @@
         "name": "exp"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$delayRead",
@@ -24014,7 +24616,8 @@
         "name": "time"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$erratic",
@@ -24299,6 +24902,7 @@
       }
     ],
     "experimental": false,
+    "stereo": "lift",
     "boundingParam": {
       "name": "mode",
       "values": [
@@ -24449,7 +25053,8 @@
         "name": "time"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$slew",
@@ -24613,7 +25218,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$rising",
@@ -24732,7 +25338,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$falling",
@@ -24851,7 +25458,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$math",
@@ -25041,7 +25649,8 @@
         "name": "expression"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$motionFollower",
@@ -25291,7 +25900,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mulHz",
@@ -25427,7 +26037,8 @@
         "name": "factor"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "_hz",
@@ -25547,7 +26158,8 @@
         "name": "input"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$remap",
@@ -25750,7 +26362,8 @@
         "name": "inMax"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$sah",
@@ -25886,7 +26499,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$tah",
@@ -26018,7 +26632,8 @@
         "name": "gate"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$perc",
@@ -26163,7 +26778,8 @@
         "name": "trigger"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$quantizer",
@@ -26358,7 +26974,8 @@
         "name": "scale"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$amp",
@@ -26493,7 +27110,8 @@
         "name": "factor"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "_crossfade",
@@ -26645,7 +27263,8 @@
         "name": "mix"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$gain",
@@ -26780,7 +27399,8 @@
         "name": "level"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "_smoothControl",
@@ -26850,6 +27470,7 @@
       }
     ],
     "experimental": false,
+    "stereo": "mono",
     "declaredRange": [
       "min",
       "max"
@@ -27026,7 +27647,8 @@
       }
     ],
     "lanesParam": "count",
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$unison",
@@ -27183,7 +27805,8 @@
         "name": "spread"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "_videoTap",
@@ -27311,7 +27934,8 @@
         "name": "slot"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$wrap",
@@ -27469,7 +28093,8 @@
         "name": "max"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$cycle",
@@ -29912,7 +30537,8 @@
         "name": "pattern"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$keyframes",
@@ -30108,7 +30734,8 @@
         "name": "keyframes"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$step",
@@ -30271,7 +30898,8 @@
         "name": "next"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$drumMap",
@@ -30658,7 +31286,8 @@
       }
     ],
     "positionalArgs": [],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$groove",
@@ -30910,7 +31539,8 @@
         "name": "template"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$midiCV",
@@ -31115,7 +31745,8 @@
     "signalParams": [],
     "positionalArgs": [],
     "lanesParam": "lanes",
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$midiCC",
@@ -31195,7 +31826,8 @@
     "bufferOutputs": [],
     "signalParams": [],
     "positionalArgs": [],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$mi.additive",
@@ -31450,7 +32082,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.chorus",
@@ -31631,7 +32264,8 @@
       }
     ],
     "lanes": 2,
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$mi.divideDown",
@@ -31820,7 +32454,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.formant",
@@ -32047,7 +32682,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.hiHat",
@@ -32323,7 +32959,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.ringHat",
@@ -32599,7 +33236,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.kick",
@@ -32921,7 +33559,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.synthKick",
@@ -33244,7 +33883,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.modal",
@@ -33549,7 +34189,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.particles",
@@ -33814,7 +34455,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.phaseDistortion",
@@ -34054,7 +34696,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.sixOp",
@@ -34353,7 +34996,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.snare",
@@ -34629,7 +35273,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.synthSnare",
@@ -34905,7 +35550,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.speak",
@@ -35238,7 +35884,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.string",
@@ -35543,7 +36190,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.swarm",
@@ -35807,7 +36455,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.twoOp",
@@ -36053,7 +36702,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.formantVowel",
@@ -36290,7 +36940,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.samVowel",
@@ -36527,7 +37178,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.lpcVowel",
@@ -36764,7 +37416,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.waveTerrain",
@@ -37010,7 +37663,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.waveshaper",
@@ -37256,7 +37910,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$mi.zOsc",
@@ -37487,7 +38142,8 @@
         "name": "freq"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$grains",
@@ -37800,7 +38456,8 @@
         "name": "gate"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "_mediaAudio",
@@ -37895,7 +38552,8 @@
         "name": "wav"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$sampler",
@@ -38140,7 +38798,8 @@
         "name": "gate"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "mono"
   },
   {
     "name": "$unstable.shape.saturate",
@@ -38323,7 +38982,8 @@
         "name": "drive"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.shape.harmonic",
@@ -38536,7 +39196,8 @@
         "name": "drive"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.shape.rectify",
@@ -38714,7 +39375,8 @@
         "name": "drive"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.shape.fold",
@@ -38902,7 +39564,8 @@
         "name": "drive"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.shape.fuzz",
@@ -39085,7 +39748,8 @@
         "name": "drive"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.shape.trigonometric",
@@ -39298,7 +39962,8 @@
         "name": "drive"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.shape.digital",
@@ -39443,7 +40108,8 @@
         "name": "drive"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   },
   {
     "name": "$unstable.shape.sine",
@@ -39588,6 +40254,7 @@
         "name": "drive"
       }
     ],
-    "experimental": false
+    "experimental": false,
+    "stereo": "lift"
   }
 ]

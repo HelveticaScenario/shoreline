@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    `$supersaw` makes one stereo lane per note, its `unison` saws spread from left to right, instead of one lane per saw. A chord stays one lane per note, and filters after it run on each side.
+
+    ```js
+    // before: seven lanes, spread by the out
+    $supersaw('a3', { unison: 7 }).out({ width: 5 })
+    // after: one stereo lane
+    $supersaw('a3', { unison: 7 }).out()
+    ```
+time: 2026-11-13T02:33:31.208084-05:00

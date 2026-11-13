@@ -85,7 +85,7 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$unison", docs = UNISON_DOCS, lanes_derive = unison_derive_lane_count, args(input, count, spread))]
+#[module(name = "$unison", stereo = mono, docs = UNISON_DOCS, lanes_derive = unison_derive_lane_count, args(input, count, spread))]
 pub struct Unison {
     outputs: UnisonOutputs,
     params: UnisonParams,
@@ -144,6 +144,7 @@ mod tests {
             params,
             outputs,
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
         }
     }

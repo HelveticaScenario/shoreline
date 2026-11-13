@@ -61,6 +61,7 @@ fn build_unconnected_patch(modules: Vec<(&str, &str, serde_json::Value)>) -> Pat
                 params: cached.params,
                 lane_count: cached.lane_count,
                 f64_inputs: false,
+                channels: 1,
             },
             ProcessingMode::Block,
         ));
