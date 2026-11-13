@@ -832,19 +832,19 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         })
         .collect();
 
-    let bounded_mask_terms: Vec<_> = outputs
+    let settled_mask_terms: Vec<_> = outputs
         .iter()
         .enumerate()
         .map(|(i, o)| match o.bounds {
             BoundsDecl::Unbounded => quote! {},
             BoundsDecl::Fixed(..) | BoundsDecl::Params => quote! { | (1u64 << #i) },
-            BoundsDecl::Input => quote! { | if inputs_bounded { 1u64 << #i } else { 0 } },
+            BoundsDecl::Input => quote! { | if inputs_settled { 1u64 << #i } else { 0 } },
         })
         .collect();
-    let inputs_bounded_param = if outputs.iter().any(|o| o.bounds == BoundsDecl::Input) {
-        quote! { inputs_bounded }
+    let inputs_settled_param = if outputs.iter().any(|o| o.bounds == BoundsDecl::Input) {
+        quote! { inputs_settled }
     } else {
-        quote! { _inputs_bounded }
+        quote! { _inputs_settled }
     };
 
     let lanes_at_arms: Vec<_> = outputs
@@ -1097,10 +1097,11 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 }
             }
 
-            /// The ports bounded in a patch where the module's tagged inputs
-            /// are bounded or not, as bits by port index.
-            pub fn bounded_mask(#inputs_bounded_param: bool) -> u64 {
-                0u64 #(#bounded_mask_terms)*
+            /// The ports bounded, or ranged, in a patch where the module's
+            /// `bounds = input` outputs are (`inputs_settled`) or not, as bits
+            /// by port index: a fixed range and one the params set always are.
+            pub fn settled_mask(#inputs_settled_param: bool) -> u64 {
+                0u64 #(#settled_mask_terms)*
             }
 
         }

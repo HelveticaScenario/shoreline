@@ -305,7 +305,7 @@ describe('.wet', () => {
     test('throws on a signal that was not chained', () => {
         expect(() => execPatch('$saw(0).wet(2).out()')).toThrow(/\.wet\(\)/);
         expect(() =>
-            execPatch('$saw(0).lpf("100hz").erratic(1).wet(2).out()'),
+            execPatch('$saw(0).lpf("100hz").range(0, 1, -5, 5).wet(2).out()'),
         ).toThrow(/\.wet\(\)/);
     });
 });

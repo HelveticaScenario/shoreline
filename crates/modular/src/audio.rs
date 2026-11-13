@@ -1509,7 +1509,7 @@ impl AudioState {
             modules.into_iter().map(|m| (m.id.clone(), m)).collect();
 
         // Build the complete next scope membership: one fresh buffer per
-        // desired per-channel key (a key includes the scope's config, so a
+        // desired per-lane key (a key includes the scope's config, so a
         // config change is a new key). At apply time the audio thread moves
         // each carried-over key's live buffer state into this map and swaps it
         // in wholesale, so the resulting membership is exactly this update's
@@ -5168,6 +5168,16 @@ mod tests {
                 "$remap",
                 serde_json::json!({ "input": cable("read"), "outMin": 0.0, "outMax": 1.0 }),
             ),
+            module(
+                "wander",
+                "$erratic",
+                serde_json::json!({ "input": cable("saw"), "amount": 1.0 }),
+            ),
+            module(
+                "wander_reader",
+                "$remap",
+                serde_json::json!({ "input": cable("wander"), "outMin": 0.0, "outMax": 1.0 }),
+            ),
         ];
         let graph = PatchGraph {
             modules: graph_modules.clone(),
@@ -5214,6 +5224,29 @@ mod tests {
         };
         assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::point(2.0));
         assert_eq!(rebuilt("unread"), modular_core::bounds::Bounds::UNBOUNDED);
+
+        // A rebuilt `$erratic` settles its unset mode as the patch did: its
+        // input is ranged, so it blends within the saw's range.
+        let deserialized = crate::params_cache::deserialize_params(
+            "$erratic",
+            serde_json::json!({ "input": cable("saw"), "amount": 2.0 }),
+            false,
+        )
+        .unwrap();
+        let wander = modular_core::dsp::get_constructors()["$erratic"](
+            "wander",
+            44_100.0,
+            deserialized,
+            1,
+            modular_core::types::ProcessingMode::Block,
+        )
+        .unwrap();
+        state.settle_rebuilt("wander", wander.as_ref());
+        wander.ensure_processed_to(1);
+        assert_eq!(
+            wander.get_bounds_at("output", 0, 0),
+            modular_core::bounds::Bounds::new(-5.0, 5.0)
+        );
 
         // A newer patch waiting for the next bar changes nothing: the rebuilt
         // module lands in the patch that is playing.

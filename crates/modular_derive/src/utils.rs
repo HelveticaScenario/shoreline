@@ -28,6 +28,19 @@ pub fn is_type(ty: &Type, is_type_fn: fn(&Type) -> bool) -> bool {
     false
 }
 
+/// The `T` of an `Option<T>`.
+pub fn option_inner(ty: &Type) -> Option<&Type> {
+    if let Type::Path(type_path) = ty
+        && let Some(last) = type_path.path.segments.last()
+        && last.ident == "Option"
+        && let syn::PathArguments::AngleBracketed(args) = &last.arguments
+        && let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first()
+    {
+        return Some(inner_ty);
+    }
+    None
+}
+
 /// Check if a type is exactly PolySignal (for default_connection code generation)
 pub fn is_poly_signal_type(ty: &Type) -> bool {
     match ty {

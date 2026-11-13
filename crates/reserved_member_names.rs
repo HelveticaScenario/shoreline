@@ -21,7 +21,6 @@ const RESERVED_MEMBER_NAMES: &[&str] = &[
     "lane",
     "slice",
     "chunk",
-    "erratic",
     "scope",
     "out",
     "outMono",

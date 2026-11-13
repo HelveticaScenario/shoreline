@@ -644,14 +644,14 @@ describe('$trackTap', () => {
         });
     });
 
-    test('a gain signal maps from its own range through the wrapper', () => {
+    test('a ranged gain signal is tapped, lending .level its range', () => {
         const patch = execPatch(`
             $saw('c2').out({ label: 'bass', gain: $sine('1hz').range(1, 4) })
             $signal($trackTap('bass').level.range(-1, 1), { id: 'level' })
         `);
         const level = remapParams(patch, 'level');
         expect(level).not.toHaveProperty('inMin');
-        const cable = wrapped(patch, level.input).value as { module: string };
+        const [cable] = level.input as { module: string }[];
         expect(moduleById(patch, cable.module).moduleType).toBe('$remap');
     });
 
@@ -676,11 +676,9 @@ describe('$trackTap', () => {
             $signal($trackTap('bass').level, { id: 'bassProbe' })
             $signal($trackTap('mid').level, { id: 'midProbe' })
         `);
-        const bass = wrapped(
-            patch,
-            moduleById(patch, 'bassProbe').params.value,
-        );
-        const first = bass.value as { module: string };
+        const [first] = moduleById(patch, 'bassProbe').params.value as {
+            module: string;
+        }[];
         expect(moduleById(patch, first.module).moduleType).toBe('$remap');
         expect(
             wrapped(patch, moduleById(patch, 'midProbe').params.value).value,
@@ -706,6 +704,19 @@ describe('$trackTap', () => {
         expect(wrapped(patch, probe(patch)).value).toMatchObject({
             module: 'g',
         });
+    });
+
+    test('a deferred ranged gain lends .level its range', () => {
+        const patch = execPatch(`
+            const gain = $deferred()
+            $saw('c2').out({ label: 'bass', gain })
+            $signal($trackTap('bass').level.range(-1, 1), { id: 'level' })
+            gain.set($sine('1hz').range(1, 4))
+        `);
+        const [cable] = remapParams(patch, 'level').input as {
+            module: string;
+        }[];
+        expect(moduleById(patch, cable.module).moduleType).toBe('$remap');
     });
 
     test('a tap control can feed its own out', () => {

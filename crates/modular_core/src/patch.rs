@@ -4,6 +4,7 @@
 //! connected audio modules. The patch contains sampleable modules and tracks
 //! that can be processed to generate audio.
 
+use crate::bounds::Settled;
 use crate::dsp::core::audio_in::AudioIn;
 use crate::types::{
     CableSource, Message, MessageTag, ROOT_ID, ROOT_OUTPUT_PORT, Sampleable, SampleableMap, WavData,
@@ -23,26 +24,67 @@ pub struct Patch {
     pub bounds: PatchBounds,
 }
 
-/// Which outputs of a patch are bounded, and which have their bounds read.
+/// Which outputs of a patch are bounded and ranged so far, as bits by port
+/// index per module, while the patch is settled.
+#[derive(Default)]
+struct SettledMasks<'a> {
+    bounded: HashMap<&'a str, u64>,
+    ranged: HashMap<&'a str, u64>,
+}
+
+/// [`SettledMasks`] read by port name, through `index`.
+struct MaskView<'a> {
+    masks: &'a SettledMasks<'a>,
+    index: &'a dyn Fn(&str, &str) -> Option<usize>,
+}
+
+impl MaskView<'_> {
+    fn has(&self, masks: &HashMap<&str, u64>, module: &str, port: &str) -> bool {
+        (self.index)(module, port)
+            .is_some_and(|i| masks.get(module).is_some_and(|mask| mask & (1 << i) != 0))
+    }
+}
+
+impl Settled for MaskView<'_> {
+    fn bounded(&self, module: &str, port: &str) -> bool {
+        self.has(&self.masks.bounded, module, port)
+    }
+
+    fn ranged(&self, module: &str, port: &str) -> bool {
+        self.has(&self.masks.ranged, module, port)
+    }
+}
+
+/// Which outputs of a patch are bounded and ranged, and which have their
+/// bounds read.
 #[derive(Clone, Debug, Default)]
 pub struct PatchBounds {
-    /// The bounded outputs, as `(module, port)`.
-    pub bounded: std::collections::HashSet<(String, String)>,
+    /// The bounded outputs, as `(module, port)`, each with whether it is
+    /// ranged: its bounds swing.
+    pub outputs: HashMap<(String, String), bool>,
     /// The outputs whose bounds are read, as bits by port index per module;
     /// those whose module computes them store them.
     pub read: HashMap<String, u64>,
 }
 
-impl PatchBounds {
-    pub fn is_bounded(&self, module: &str, port: &str) -> bool {
-        self.bounded
-            .contains(&(module.to_string(), port.to_string()))
+impl Settled for PatchBounds {
+    fn bounded(&self, module: &str, port: &str) -> bool {
+        self.outputs
+            .contains_key(&(module.to_string(), port.to_string()))
     }
 
+    fn ranged(&self, module: &str, port: &str) -> bool {
+        self.outputs
+            .get(&(module.to_string(), port.to_string()))
+            .is_some_and(|&ranged| ranged)
+    }
+}
+
+impl PatchBounds {
     /// Settle a module rebuilt on its own, under the same id, as its
     /// predecessor was settled. Main thread, before it is shipped.
     pub fn settle_rebuilt(&self, id: &str, module: &dyn Sampleable) {
-        module.settle_params(&|producer, port| self.is_bounded(producer, port));
+        module.settle_params(self);
         module.make_bounded(self.read.get(id).copied().unwrap_or(0));
     }
 }
@@ -155,13 +197,15 @@ impl Patch {
     /// Settle which outputs carry bounds and give them their storage.
     ///
     /// An output is bounded when its range or params bound it, or when every
-    /// input its bounds come from is bounded; growing the set until nothing
-    /// joins takes the least such set, so a feedback cycle that only feeds
-    /// itself never becomes bounded. A bounded output stores its bounds only
-    /// when something reads them: a module that reads an input's bounds for
-    /// itself, or a read output whose bounds come from it. Each module then
-    /// settles the choices it makes from which of its inputs are bounded. The
-    /// result is left in [`bounds`](Self::bounds).
+    /// input its bounds come from is bounded; it is ranged as well when one
+    /// of those inputs is ranged rather than constant. Growing both sets
+    /// together until nothing joins takes the least such sets, so a feedback
+    /// cycle that only feeds itself never becomes bounded. A bounded output
+    /// stores its bounds only when something reads them: a module that reads
+    /// an input's bounds for itself, or a read output whose bounds come from
+    /// it. Each module then settles the choices it makes from which of its
+    /// inputs are bounded or ranged. The result is left in
+    /// [`bounds`](Self::bounds).
     ///
     /// Main thread, once the modules are constructed and before
     /// [`connect_all`](Self::connect_all): it replaces the storage cables
@@ -172,43 +216,49 @@ impl Patch {
                 .get(module)
                 .and_then(|producer| producer.port_index(port))
         };
-        let mut bounded: HashMap<&str, u64> = HashMap::new();
+        let mut masks = SettledMasks::default();
         loop {
             let mut grew = false;
             for (id, module) in &self.sampleables {
-                let mask = module.bounded_outputs(&|producer, port| {
-                    index(producer, port).is_some_and(|i| {
-                        bounded
-                            .get(producer)
-                            .is_some_and(|mask| mask & (1 << i) != 0)
-                    })
-                });
-                let entry = bounded.entry(id.as_str()).or_default();
-                if mask & !*entry != 0 {
-                    *entry |= mask;
-                    grew = true;
+                let settled = MaskView {
+                    masks: &masks,
+                    index: &index,
+                };
+                let bounded = module.bounded_outputs(&settled);
+                let ranged = module.ranged_outputs(&settled) & bounded;
+                for (set, mask) in [(&mut masks.bounded, bounded), (&mut masks.ranged, ranged)] {
+                    let entry = set.entry(id.as_str()).or_default();
+                    if mask & !*entry != 0 {
+                        *entry |= mask;
+                        grew = true;
+                    }
                 }
             }
             if !grew {
                 break;
             }
         }
-        let bounded_ports: std::collections::HashSet<(String, String)> = bounded
+        let outputs = masks
+            .bounded
             .iter()
-            .flat_map(|(id, mask)| {
+            .flat_map(|(id, &mask)| {
+                let ranged = masks.ranged.get(id).copied().unwrap_or(0);
                 let names = self.sampleables[*id].port_names();
                 names
                     .iter()
                     .enumerate()
                     .filter(move |(i, _)| mask & (1 << i) != 0)
-                    .map(move |(_, port)| (id.to_string(), port.to_string()))
+                    .map(move |(i, port)| {
+                        ((id.to_string(), port.to_string()), ranged & (1 << i) != 0)
+                    })
             })
             .collect();
-        let is_bounded = |module: &str, port: &str| {
-            bounded_ports.contains(&(module.to_string(), port.to_string()))
+        let mut settled = PatchBounds {
+            outputs,
+            read: HashMap::new(),
         };
         for module in self.sampleables.values() {
-            module.settle_params(&is_bounded);
+            module.settle_params(&settled);
         }
         let mut stored: HashMap<String, u64> = HashMap::new();
         let mut queue: Vec<CableSource> = self
@@ -221,7 +271,8 @@ impl Patch {
                 continue;
             };
             let bit = 1u64 << i;
-            if bounded
+            if masks
+                .bounded
                 .get(source.module.as_str())
                 .is_none_or(|mask| mask & bit == 0)
             {
@@ -237,10 +288,8 @@ impl Patch {
         for (id, module) in &self.sampleables {
             module.make_bounded(stored.get(id).copied().unwrap_or(0));
         }
-        self.bounds = PatchBounds {
-            bounded: bounded_ports,
-            read: stored,
-        };
+        settled.read = stored;
+        self.bounds = settled;
     }
 
     /// Resolve every module's cable pointers, then notify each that the patch is

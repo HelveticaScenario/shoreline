@@ -59,8 +59,18 @@ function buildFixture() {
             min: -1,
         }),
         div: chain(lfo(), 'div', 4),
-        erraticBlend: lfo().erratic(2),
-        erraticClamp: flipped().erratic(2, { mode: 'clamp' }),
+        erraticBlend: chain(lfo(), 'erratic', 2),
+        erraticClamp: chain(flipped(), 'erratic', 2, { mode: 'clamp' }),
+        clampOverConstant: factory('$clamp')(3, { max: 10, min: 0 }),
+        clampCableLimits: factory('$clamp')(unranged(), {
+            max: (factory('$sine')('7hz') as Collection).range(2, 3, -5, 5),
+            min: (factory('$sine')('5hz') as Collection).range(-3, -2, -5, 5),
+        }),
+        polyErratic: chain(
+            (factory('$sine')(['1hz', '3hz']) as Collection).range(0, 2, -5, 5),
+            'erratic',
+            2,
+        ),
         exp: chain(lfo(), 'exp', 2),
         flipped: flipped(),
         floor: chain(flipped(), 'floor'),
@@ -105,6 +115,16 @@ function buildFixture() {
     expect(factory('$slew')([lfo().items[0], 3])).not.toBeInstanceOf(
         CollectionWithRange,
     );
+    // A constant or an unranged signal has no range for an unset mode to
+    // blend within, and a clamp or blend over one holds it within ±5
+    // without giving it a range.
+    for (const options of [{}, { mode: 'clamp' }, { mode: 'blend' }]) {
+        for (const receiver of [builder.$c('c3'), unranged()]) {
+            expect(chain(receiver, 'erratic', 2, options)).not.toBeInstanceOf(
+                CollectionWithRange,
+            );
+        }
+    }
 
     const { modules } = builder.toPatch();
 

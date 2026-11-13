@@ -429,18 +429,18 @@ mod tests {
     /// Build a WavData containing `n_frames` sine-wave frames of `size`
     /// samples each.
     fn make_wav(size: usize, n_frames: usize) -> Arc<WavData> {
-        let mut lane = Vec::with_capacity(size * n_frames);
+        let mut channel = Vec::with_capacity(size * n_frames);
         for f in 0..n_frames {
             // Vary the waveform per frame: frame 0 = sine, frame 1 = cosine,
             // frame 2 = inverted sine, etc.
             let phase_offset = f as f32 * TAU * 0.25;
             for i in 0..size {
                 let p = TAU * (i as f32 / size as f32) + phase_offset;
-                lane.push(p.sin());
+                channel.push(p.sin());
             }
         }
         Arc::new(WavData::new(
-            SampleBuffer::from_samples(vec![lane], 48000.0),
+            SampleBuffer::from_samples(vec![channel], 48000.0),
             Some(size),
         ))
     }

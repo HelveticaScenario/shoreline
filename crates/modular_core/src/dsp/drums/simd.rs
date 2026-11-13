@@ -288,7 +288,7 @@ impl Simd for Mono {
 }
 
 /// A group's state seen one element at a time, as the [`Mono`] form of the
-/// same state. Hits start, and lanes move between widths, a element at a
+/// same state. Hits start, and lanes move between widths, an element at a
 /// time.
 pub trait Elementwise {
     type Element;

@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    `$clock.playhead` is a single channel counting bars (2.5 is halfway through the third bar), and stays sample-accurate however long a song runs. It used to be two channels: the position within the bar and the count of bars. An onset that falls exactly on a sample may now fire one sample later.
+    `$clock.playhead` is a single lane counting bars (2.5 is halfway through the third bar), and stays sample-accurate however long a song runs. It used to be two lanes: the position within the bar and the count of bars. An onset that falls exactly on a sample may now fire one sample later.
 
     ```js
     // before: position within the bar

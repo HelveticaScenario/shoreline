@@ -18,6 +18,7 @@ pub mod glide_curve;
 pub mod groove;
 pub mod highlight;
 pub mod interval_value;
+pub mod keyframes;
 #[expect(
     clippy::module_inception,
     reason = "`$seq` shares the name of its directory"
@@ -25,7 +26,6 @@ pub mod interval_value;
 pub mod seq;
 pub mod seq_value;
 pub mod step;
-pub mod keyframes;
 
 pub use highlight::{SeqHighlightMeta, SeqHighlightState, seq_state_builder};
 pub use interval_value::IntervalValue;

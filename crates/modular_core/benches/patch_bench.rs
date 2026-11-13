@@ -549,7 +549,7 @@ fn video_taps(lanes: usize) -> BenchPatch {
     BenchPatch::new(modules)
 }
 
-/// `$saw` into a chain of 32 `_erratic`s. With `modulated`, speed follows an
+/// `$saw` into a chain of 32 `$erratic`s. With `modulated`, speed follows an
 /// `$sine` and a `$pulse` triggers the hold; otherwise every setting is a
 /// constant.
 fn erratic_chain(lanes: usize, modulated: bool) -> BenchPatch {
@@ -584,7 +584,7 @@ fn erratic_chain(lanes: usize, modulated: bool) -> BenchPatch {
             params["speed"] = poly_cable("lfo", "output", lanes);
             params["trigger"] = poly_cable("gate", "output", lanes);
         }
-        modules.push((format!("e{i}"), "_erratic", params));
+        modules.push((format!("e{i}"), "$erratic", params));
     }
     BenchPatch::new(modules)
 }

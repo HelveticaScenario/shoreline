@@ -429,13 +429,23 @@ impl PolySignal {
         self.lanes[if lane < len { lane } else { lane % len }].uniform_bounds(range)
     }
 
-    /// Whether this input is bounded in a patch whose bounded outputs
-    /// `is_bounded(module, port)` names: every lane a constant or a cable
-    /// from a bounded output. Main thread, while the patch is analysed.
-    pub fn statically_bounded(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
+    /// Whether this input is bounded in a patch as `settled` so far: every
+    /// lane a constant or a cable from a bounded output. Main thread,
+    /// while the patch is analysed.
+    pub fn statically_bounded(&self, settled: &dyn crate::bounds::Settled) -> bool {
         self.lanes.iter().all(|signal| match signal {
             Signal::Volts(_) => true,
-            Signal::Cable { module, port, .. } => is_bounded(module, port),
+            Signal::Cable { module, port, .. } => settled.bounded(module, port),
+        })
+    }
+
+    /// Whether this input has a range in a patch as `settled` so far: every
+    /// lane a cable from a ranged output. A constant holds still, so it
+    /// has none. Main thread, while the patch is analysed.
+    pub fn statically_ranged(&self, settled: &dyn crate::bounds::Settled) -> bool {
+        self.lanes.iter().all(|signal| match signal {
+            Signal::Volts(_) => false,
+            Signal::Cable { module, port, .. } => settled.ranged(module, port),
         })
     }
 

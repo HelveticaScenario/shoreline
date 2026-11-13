@@ -4,12 +4,13 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
-use crate::bounds::Bounds;
+use crate::bounds::{Bounds, Settled};
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{CatmullRom, SchmittState, SchmittTrigger};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::types::BoundsInputs;
 
 /// Top of the speed curve, in Hz. `speed = 5` itself draws a fresh point every
 /// sample at any engine rate, so held values are uniform.
@@ -56,11 +57,7 @@ enum ErraticMode {
     Blend,
 }
 
-#[params(
-    bounded_when = erratic_bounded,
-    reads_bounds = erratic_reads_bounds,
-    settles = erratic_settle
-)]
+#[params(reads_bounds = erratic_reads_bounds, settles = erratic_settle)]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
@@ -115,7 +112,8 @@ struct ErraticParams {
     #[deserr(default)]
     max: Option<PolySignal>,
     #[input(
-        "how the random value moves the input; unset, blend when the input has a range and shift when not"
+        "how the random value moves the input; unset, blend when the input has a range and shift when not",
+        bounding = (Clamp, Blend),
     )]
     #[serde(default)]
     #[deserr(default)]
@@ -173,24 +171,15 @@ struct ErraticLaneState {
     held: (f32, f32),
 }
 
-/// The mode an unset `mode` takes: blend when the input has a range (a
-/// bounded input that is not a fixed voltage), and shift when not.
-fn unset_mode(p: &ErraticParams, is_bounded: &dyn Fn(&str, &str) -> bool) -> ErraticMode {
-    if p.input.statically_bounded(is_bounded) && !p.input.is_constant() {
-        ErraticMode::Blend
-    } else {
-        ErraticMode::Shift
-    }
-}
-
-/// Clamped and blended variation stays within the range; a shift can carry
-/// the input anywhere.
-fn erratic_bounded(p: &ErraticParams, is_bounded: &dyn Fn(&str, &str) -> bool) -> bool {
-    p.mode.unwrap_or_else(|| unset_mode(p, is_bounded)) != ErraticMode::Shift
-}
-
-fn erratic_settle(p: &mut ErraticParams, is_bounded: &dyn Fn(&str, &str) -> bool) {
-    p.settled_mode = Some(p.mode.unwrap_or_else(|| unset_mode(p, is_bounded)));
+/// An unset `mode` blends when the input has a range and shifts when not.
+fn erratic_settle(p: &mut ErraticParams, settled: &dyn Settled) {
+    p.settled_mode = Some(p.mode.unwrap_or_else(|| {
+        if p.inputs_bounded(settled) {
+            ErraticMode::Blend
+        } else {
+            ErraticMode::Shift
+        }
+    }));
 }
 
 /// An unset `min` or `max` follows the input's range.
@@ -328,26 +317,32 @@ const ERRATIC_DOCS: ModuleDocs = ModuleDocs {
     summary: "Wandering random variation",
     description: "Adds a wandering random variation to a signal, shifting it or \
                   pulling it toward random values within its range, for movement that \
-                  never quite repeats. Backs the `.erratic()` signal method, which \
-                  takes the range from a ranged signal.",
+                  never quite repeats. Clamped or blended, a signal with a range keeps \
+                  it, and one without stays within -5 to 5.",
     categories: &[ModuleCategory::Random, ModuleCategory::Modulation],
     sections: &[],
-    examples: &[DocExample {
-        title: "Tremolo that changes depth each beat",
-        code: r#"
-            $saw('c3')
-              .amp(
-                $sine('4hz')
-                  .range(2, 5)
-                  .erratic(2, { trigger: $clock._beatTrigger }),
-              )
-              .out()
-        "#,
-    }],
+    examples: &[
+        DocExample {
+            title: "Tremolo that changes depth each beat",
+            code: r#"
+                $saw('c3')
+                  .amp(
+                    $sine('4hz')
+                      .range(2, 5)
+                      .erratic(2, { trigger: $clock._beatTrigger }),
+                  )
+                  .out()
+            "#,
+        },
+        DocExample {
+            title: "Pitch that drifts",
+            code: "$sine($c('a3').erratic(0.1, { speed: 1.5 })).out()",
+        },
+    ],
 };
 
 #[module(
-    name = "_erratic",
+    name = "$erratic",
     docs = ERRATIC_DOCS,
     patch_update,
     args(input, amount),

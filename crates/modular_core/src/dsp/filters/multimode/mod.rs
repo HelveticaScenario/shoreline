@@ -303,7 +303,7 @@ impl crate::types::PatchUpdateHandler for Multimode {
             }
         }
         // Lanes new to this patch start from rest, as they would in a fresh
-        // module, rather than from a element that ran dead before.
+        // module, rather than from an element that ran dead before.
         for lane in old.min(lanes)..lanes {
             self.lane_state[lane / SIMD_WIDTH].clear_element(lane % SIMD_WIDTH);
         }

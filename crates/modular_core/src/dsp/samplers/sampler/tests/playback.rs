@@ -300,13 +300,16 @@ fn lane_count_clamps_to_port_max() {
     let de = deserializers
         .get("$sampler")
         .expect("no params deserializer for $sampler");
-    for (lanes, want) in [(65535, PORT_MAX_LANES), (0, 1)] {
+    for (channels, want) in [(65535, PORT_MAX_LANES), (0, 1)] {
         let cached = de(json!({
-            "wav": { "type": "wav_ref", "path": "test", "channels": lanes },
+            "wav": { "type": "wav_ref", "path": "test", "channels": channels },
             "gate": 0.0,
         }))
         .expect("params should deserialize");
-        assert_eq!(cached.lane_count, want, "lane count for a {lanes}-lane wav");
+        assert_eq!(
+            cached.lane_count, want,
+            "lane count for a {channels}-channel wav"
+        );
     }
 }
 

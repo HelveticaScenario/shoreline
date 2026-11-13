@@ -90,6 +90,17 @@ fn clamp(x: f32, min: Option<f32>, max: Option<f32>) -> f32 {
     }
 }
 
+/// The output's bounds: the input's clamped, or the limits themselves when
+/// both are set and the clamped bounds hold still, as over a constant.
+#[inline(always)]
+fn clamped_bounds(input: Bounds, min: Option<f32>, max: Option<f32>) -> Bounds {
+    let clamped = input.map(|x| clamp(x, min, max));
+    match (min, max) {
+        (Some(min), Some(max)) if !clamped.swings() => Bounds::new(min, max),
+        _ => clamped,
+    }
+}
+
 impl Clamp {
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
@@ -100,7 +111,7 @@ impl Clamp {
             let max = p.max.as_ref().map(|max| max.get_value(i));
             out.set(i, clamp(p.input.get_value(i), min, max));
             if out.stores_bounds() {
-                out.set_bounds(i, p.input.get_bounds(i).map(|x| clamp(x, min, max)));
+                out.set_bounds(i, clamped_bounds(p.input.get_bounds(i), min, max));
             }
         }
     }
@@ -137,7 +148,7 @@ impl Clamp {
             input_bounds(lane).end
         });
         let bounds = |start: f32, end: f32, min: Option<f32>, max: Option<f32>| {
-            Some(Bounds::new(start, end).map(|x| clamp(x, min, max)))
+            Some(clamped_bounds(Bounds::new(start, end), min, max))
         };
         match (inputs.min, inputs.max) {
             (Some(min), Some(max)) => {

@@ -2687,12 +2687,12 @@ describe('$setLanes', () => {
         const patch = execPatch(
             '$saw($spread(0, 5, 3)).setLanes(2).scope().out()',
         );
-        const setLaness = findModules(patch, '$setLanes');
-        expect(setLaness.length).toBe(1);
-        expect(setLaness[0].params.lanes).toBe(2);
+        const setLanesModules = findModules(patch, '$setLanes');
+        expect(setLanesModules.length).toBe(1);
+        expect(setLanesModules[0].params.lanes).toBe(2);
         // The collection's 3 lanes arrive as the single poly `input`.
-        expect(Array.isArray(setLaness[0].params.input)).toBe(true);
-        expect((setLaness[0].params.input as unknown[]).length).toBe(3);
+        expect(Array.isArray(setLanesModules[0].params.input)).toBe(true);
+        expect((setLanesModules[0].params.input as unknown[]).length).toBe(3);
         // Output lane count is the fold-down target.
         expect(patch.scopes[0].lanes.length).toBe(2);
     });

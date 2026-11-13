@@ -6,6 +6,17 @@
 //! is settled when the patch is built (see [`BoundsKind`]); an unbounded
 //! output stores nothing and reads [`Bounds::UNBOUNDED`].
 
+/// What a patch's analysis has settled about its outputs, as the bounds
+/// rules of its modules ask it. Main thread, while the patch is built.
+pub trait Settled {
+    /// Whether `module`'s `port` carries bounds.
+    fn bounded(&self, module: &str, port: &str) -> bool;
+
+    /// Whether `module`'s `port` carries a range: bounds that swing, rather
+    /// than ones constants alone hold still.
+    fn ranged(&self, module: &str, port: &str) -> bool;
+}
+
 /// The values a signal takes at the start and end of its swing, in that
 /// order: a signal remapped to `(5, 0)` falls as its source rises, and a
 /// reader mapping from these bounds maps 5 to its own start.

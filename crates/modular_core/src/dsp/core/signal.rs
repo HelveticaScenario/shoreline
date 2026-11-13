@@ -18,13 +18,11 @@ use crate::types::SwapGlide;
 struct SignalParams {
     #[input("the signal or value to pass on", type = audio, bounds)]
     value: PolySignal,
-    #[input(
-        "bottom of the range the signal sweeps when its value has none of its own; set with max"
-    )]
+    #[input("bottom of the range the signal declares, whatever its value; set with max")]
     #[serde(default)]
     #[deserr(default)]
     min: Option<f32>,
-    #[input("top of the range the signal sweeps when its value has none of its own; set with min")]
+    #[input("top of the range the signal declares, whatever its value; set with min")]
     #[serde(default)]
     #[deserr(default)]
     max: Option<f32>,
@@ -42,16 +40,6 @@ impl SignalParams {
     /// The range `min` and `max` declare, when both are set.
     fn declared(&self) -> Option<Bounds> {
         Some(Bounds::new(self.min?, self.max?))
-    }
-}
-
-/// The output's bounds: the value's range, or the declared one for a value
-/// that holds still or has none.
-#[inline(always)]
-fn output_bounds(value: Bounds, declared: Option<Bounds>) -> Bounds {
-    match declared {
-        Some(declared) if !value.swings() => declared,
-        _ => value,
     }
 }
 
@@ -99,8 +87,11 @@ impl Signal {
                 // Mid-glide the output is the input offset by what remains
                 // of the glide; the bounds carry the same offset.
                 let offset = v - input;
-                let bounds = value.get_bounds(i).map(|x| x + offset);
-                out.set_bounds(i, output_bounds(bounds, self.params.declared()));
+                let bounds = self
+                    .params
+                    .declared()
+                    .unwrap_or_else(|| value.get_bounds(i).map(|x| x + offset));
+                out.set_bounds(i, bounds);
             }
         }
     }
@@ -121,10 +112,7 @@ impl Signal {
         let input = value.block_input(range.clone(), lanes, &mut scratch)?;
         let declared = self.params.declared();
         outputs.sample.fill_bounds_with(range.clone(), |lane| {
-            Some(output_bounds(
-                value.block_bounds(range.clone(), lane)?,
-                declared,
-            ))
+            declared.or_else(|| value.block_bounds(range.clone(), lane))
         })?;
         value.settle_glides(glides, input.row(range.end - 1));
         block_input::map(&mut outputs.sample, range, [input], |[x]| x);

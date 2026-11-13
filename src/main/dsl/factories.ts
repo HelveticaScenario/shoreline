@@ -280,7 +280,7 @@ export class DSLContext {
         }
 
         // Register factories with the builder for internal use (late binding)
-        // This allows GraphBuilder methods like .range() and .erratic() to use factories
+        // This allows GraphBuilder methods like .range() to use factories
         const factoryMap = new Map<string, FactoryFunction>();
         for (const schema of schemas) {
             factoryMap.set(

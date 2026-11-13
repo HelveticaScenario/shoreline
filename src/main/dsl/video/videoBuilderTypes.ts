@@ -12,7 +12,7 @@ import {
 } from '../GraphBuilder';
 import { VideoOutput } from './VideoOutput';
 
-/** An audio signal a video input reads: its channels, which the engine sums to one. */
+/** An audio signal a video input reads: its lanes, which the engine sums to one. */
 export type AudioSignal = AnyCollection;
 
 /**
@@ -32,7 +32,7 @@ export interface VideoGraphHost {
     constantSignal(value: number | string): AudioSignal;
     /**
      * Publishes `signal` to tap slot `slot`, as the engine's `_videoTap`
-     * module, which sums its channels to one.
+     * module, which sums its lanes to one.
      */
     publishTap(signal: AudioSignal, slot: number): void;
     /**

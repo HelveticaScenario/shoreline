@@ -733,24 +733,6 @@ interface MonoOutOptions {
 ${renderOutOptionsMembers(MONO_OUT_OPTIONS)}
 }
 
-/** Options for \`.erratic()\` on a signal without a known range */
-interface ErraticOptions {
-  /** Rising edge samples and holds the current random value */
-  trigger?: Poly<Signal>;
-  /** How fast the variation wanders: 0 = frozen, 5 = a fresh value every sample (default 2) */
-  speed?: Poly<Signal>;
-  /** Leans the variation upward (positive) or downward (negative); ±5 makes it one-sided (default 0) */
-  bias?: Poly<Signal>;
-  /** Draw a random depth per value: low amounts mostly stay near the input with rare big jumps, high amounts mostly jump (default false) */
-  sparse?: boolean;
-}
-
-/** Options for \`.erratic()\` on a ranged signal */
-interface RangedErraticOptions extends ErraticOptions {
-  /** \`'blend'\` moves toward a random value in the range (the default); \`'clamp'\` adds a random offset and clamps to the range; \`'shift'\` adds it unclamped */
-  mode?: 'clamp' | 'shift' | 'blend';
-}
-
 /**
  * Every signal in a patch: an ordered set of lanes, one voice each, with
  * chainable DSP methods. Indexing and iteration give one-lane collections
@@ -786,17 +768,6 @@ class BaseCollection {
    * @param size Lanes per chunk (a positive integer)
    */
   chunk(size: number): this[];
-
-  /**
-   * Apply a wandering random shift of up to ±\`amount\` V. Each lane
-   * wanders independently.
-   * @param amount Depth (0–5) as {@link Poly<Signal>}
-   * @param options Trigger, speed, bias, and sparse ({@link ErraticOptions})
-   * @returns The shifted {@link Collection} for chaining
-   * @example $sine($c('a3').erratic(1 / 12, { speed: 1.5 })).out()  // drift up to a semitone either way
-   * @example $sine($c('c3', 'g3').erratic(1 / 12)).out()  // each voice drifts on its own
-   */
-  erratic(amount: Poly<Signal>, options?: ErraticOptions): Collection;
 
   /**
    * Add scope visualization for all lanes, overlaid on one scope unless \`split\` is set.
@@ -960,6 +931,8 @@ class Collection extends BaseCollection {
  * @see {@link $r} - helper to create CollectionWithRange
  */
 class CollectionWithRange extends BaseCollection {
+  /** Sets a ranged collection apart from one whose range is unknown. */
+  #ranged: true;
   protected constructor();
 
   /**
@@ -974,21 +947,6 @@ class CollectionWithRange extends BaseCollection {
    * @example $sine("1hz").range(0, 5).range(5, 0)  // flipped
    */
   override range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin?: Poly<Signal>, inMax?: Poly<Signal>): CollectionWithRange;
-
-  /**
-   * Randomly vary each lane within its range. By default it wanders toward
-   * random values in the range, \`amount\` 5 reaching all the way; see
-   * \`mode\` for a shift, clamped or not. The result keeps the range unless it
-   * shifts unclamped.
-   * @param amount Depth (0–5) as {@link Poly<Signal>}
-   * @param options Trigger, speed, bias, mode, and sparse ({@link RangedErraticOptions})
-   * @returns A {@link CollectionWithRange} with the same ranges
-   * @example $saw('c3').amp($sine('4hz').range(2, 5).erratic(2, { trigger: $clock._beatTrigger })).out()
-   * @example $saw('c3').amp($sine('4hz').range(0, 5).erratic(5, { mode: 'blend', sparse: true, speed: 5, trigger: $clock._beatTrigger })).out()  // usually a new level each beat, sometimes close to the sine
-   * @example $saw($c('c3', 'e3')).amp($sine(['4hz', '5hz']).range(2, 5).erratic(2, { speed: 3 })).out()  // each voice's tremolo wanders on its own
-   */
-  override erratic(amount: Poly<Signal>, options?: RangedErraticOptions & { mode?: 'clamp' | 'blend' }): CollectionWithRange;
-  override erratic(amount: Poly<Signal>, options: RangedErraticOptions & { mode: 'shift' }): Collection;
 }
 
 /**
@@ -1574,7 +1532,7 @@ declare const $phase: {
 };
 
 /**
- * A video signal: a color with an alpha at every pixel, each lane in the
+ * A video signal: a color with an alpha at every pixel, each channel in the
  * range 0..1. Generators such as \`$v.osc\`, \`$v.noise\` and \`$v.shape\`
  * make gray signals; \`$v.hsv\`, \`$v.solid\`, \`$v.image\` and others
  * make colors. Display one with \`$v.out\`. Where a module wants a number,
@@ -1582,11 +1540,11 @@ declare const $phase: {
  */
 interface VideoSignal {
     readonly __videoSignal: true;
-    /** The red lane as a gray signal. */
+    /** The red channel as a gray signal. */
     readonly r: VideoSignal;
-    /** The green lane as a gray signal. */
+    /** The green channel as a gray signal. */
     readonly g: VideoSignal;
-    /** The blue lane as a gray signal. */
+    /** The blue channel as a gray signal. */
     readonly b: VideoSignal;
     /** The alpha as a gray signal. */
     readonly a: VideoSignal;
@@ -1724,17 +1682,12 @@ function getOutputType(output: { name: string; bounds?: string }): string {
 /**
  * The positional params `moduleSchema`'s output takes its range from, each
  * mapped to whether it must hold a constant, when its output can be ranged
- * by them: a single `bounds = input` output, the module's own test stated in
- * its schema, and the first positional among the tagged params, every one
- * positional. `null` otherwise.
+ * by them: a single `bounds = input` output, and the first positional among
+ * the tagged params, every one positional. `null` otherwise.
  */
 function rangedParams(moduleSchema: Schema): Map<string, boolean> | null {
     const outputs = moduleSchema.outputs ?? [];
-    if (
-        outputs.length !== 1 ||
-        outputs[0].bounds !== 'input' ||
-        moduleSchema.customBounds
-    ) {
+    if (outputs.length !== 1 || outputs[0].bounds !== 'input') {
         return null;
     }
     const tagged = new Map(
@@ -1754,14 +1707,16 @@ function rangedParams(moduleSchema: Schema): Map<string, boolean> | null {
 
 /**
  * `args` typed for a ranged result: `receiver` ranged, the other params
- * `tagged` names ranged or constant, or constant where they must be.
+ * `tagged` names ranged or constant, or constant where they must be, and a
+ * bounding param, if set, to the values that keep the range.
  */
 function rangedArgs(
+    moduleSchema: Schema,
     args: string[],
     tagged: Map<string, boolean>,
     receiver: string | null,
 ): string[] {
-    return args.map((arg) => {
+    const typed = args.map((arg) => {
         const name = arg.match(/^(\w+)\??:/)?.[1];
         if (!name || !tagged.has(name)) {
             return arg;
@@ -1774,6 +1729,16 @@ function rangedArgs(
                   : 'OrArray<RangedSignal>';
         return `${name}${arg.includes('?:') ? '?' : ''}: ${type}`;
     });
+    const bounding = moduleSchema.boundingParam;
+    if (!bounding) {
+        return typed;
+    }
+    return withConfig(typed, (config) =>
+        config.replace(
+            new RegExp(`\\b${bounding.name}\\?: [^;}]+`),
+            `${bounding.name}?: ${valuesType(bounding.values)}`,
+        ),
+    );
 }
 
 /**
@@ -1790,13 +1755,15 @@ function renderRangedChainMethod(
         return null;
     }
     const { args, doc } = chainSignature(moduleSchema, indent);
-    const ranged = rangedArgs(args, tagged, null);
+    const ranged = rangedArgs(moduleSchema, args, tagged, null);
     const lines = [
         ...doc,
         `${indent}${chainMethodName(moduleSchema.name)}(${ranged.join(', ')}): CollectionWithRange;`,
     ];
+    // The ranged overload already covers a declared range while the receiver
+    // is the declaring module's only tagged param, as for `$clamp`.
     if (ranged.some((arg, i) => arg !== args[i])) {
-        lines.push(...renderChainMethod(moduleSchema, indent));
+        lines.push(...renderChainMethod(moduleSchema, indent, false));
     }
     return lines;
 }
@@ -2094,10 +2061,23 @@ function buildSignature(
     return { args, docLines };
 }
 
+/** The literal type of `values`, quoted as the schema's enums render. */
+function valuesType(values: string[]): string {
+    return values.map((value) => JSON.stringify(value)).join(' | ');
+}
+
+/** `args` with the trailing config arg passed through `edit`. */
+function withConfig(
+    args: string[],
+    edit: (config: string) => string,
+): string[] {
+    return [...args.slice(0, -1), edit(args[args.length - 1])];
+}
+
 /**
- * The args of `moduleSchema`'s overload for a range it declares: with both
- * declaring params given, its output is ranged whatever its input. `null`
- * for a module that declares none.
+ * The args of `moduleSchema`'s overload for the range it declares with both
+ * declaring params given, whatever its input. `null` for a module that
+ * declares none.
  */
 function declaredRangeArgs(
     moduleSchema: Schema,
@@ -2107,12 +2087,16 @@ function declaredRangeArgs(
     if (!declared) {
         return null;
     }
-    const config = args[args.length - 1];
-    let ranged = config.replace(/^config\?:/, 'config:');
-    for (const name of declared) {
-        ranged = ranged.replace(new RegExp(`\\b${name}\\?:`), `${name}:`);
-    }
-    return [...args.slice(0, -1), ranged];
+    return withConfig(args, (config) => {
+        let required = config.replace(/^config\?:/, 'config:');
+        for (const name of declared) {
+            required = required.replace(
+                new RegExp(`\\b${name}\\?:`),
+                `${name}:`,
+            );
+        }
+        return required;
+    });
 }
 
 /**
@@ -2144,12 +2128,16 @@ function chainSignature(
 
 /**
  * Render the chain method of `moduleSchema`, with the overload for a range
- * it declares first.
+ * it declares first unless `withDeclared` is false.
  *
  * Only called on schemas passing `qualifiesForChain`, which guarantees
  * `chainMethodName` yields a valid TS identifier for the interface member.
  */
-function renderChainMethod(moduleSchema: Schema, indent: string): string[] {
+function renderChainMethod(
+    moduleSchema: Schema,
+    indent: string,
+    withDeclared = true,
+): string[] {
     const methodName = chainMethodName(moduleSchema.name);
     const { args, doc } = chainSignature(moduleSchema, indent);
     // The chain interfaces sit outside the module's namespace, so a
@@ -2160,7 +2148,7 @@ function renderChainMethod(moduleSchema: Schema, indent: string): string[] {
             : getFactoryReturnType(moduleSchema);
     const lines: string[] = [];
     const declared = declaredRangeArgs(moduleSchema, args);
-    if (declared) {
+    if (declared && withDeclared) {
         lines.push(
             ...doc,
             `${indent}${methodName}(${declared.join(', ')}): CollectionWithRange;`,
@@ -2202,7 +2190,7 @@ function renderFactoryFunction(
         const receiver = moduleSchema.positionalArgs[0].name;
         lines.push(
             ...overload(
-                rangedArgs(args, tagged, receiver),
+                rangedArgs(moduleSchema, args, tagged, receiver),
                 'CollectionWithRange',
             ),
         );

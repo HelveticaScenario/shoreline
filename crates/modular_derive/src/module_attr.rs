@@ -1007,19 +1007,28 @@ fn impl_module_macro_attr(
                 <#block_outputs_ty>::PORT_NAMES
             }
 
-            fn settle_params(&self, is_bounded: &dyn Fn(&str, &str) -> bool) {
+            fn settle_params(&self, settled: &dyn crate::bounds::Settled) {
                 // SAFETY: as `bounded_outputs`.
                 let params = unsafe { &mut (*self.module.get()).params };
-                crate::types::BoundsInputs::settle(params, is_bounded);
+                crate::types::BoundsInputs::settle(params, settled);
             }
 
-            fn bounded_outputs(&self, is_bounded: &dyn Fn(&str, &str) -> bool) -> u64 {
+            fn bounded_outputs(&self, settled: &dyn crate::bounds::Settled) -> u64 {
                 // SAFETY: main thread, before the module is shipped to the
                 // audio thread; nothing else holds the inner module.
                 let module = unsafe { &*self.module.get() };
-                <#block_outputs_ty>::bounded_mask(crate::types::BoundsInputs::inputs_bounded(
+                <#block_outputs_ty>::settled_mask(crate::types::BoundsInputs::inputs_bounded(
                     &module.params,
-                    is_bounded,
+                    settled,
+                ))
+            }
+
+            fn ranged_outputs(&self, settled: &dyn crate::bounds::Settled) -> u64 {
+                // SAFETY: as `bounded_outputs`.
+                let module = unsafe { &*self.module.get() };
+                <#block_outputs_ty>::settled_mask(crate::types::BoundsInputs::inputs_ranged(
+                    &module.params,
+                    settled,
                 ))
             }
 
@@ -1223,9 +1232,13 @@ fn impl_module_macro_attr(
                     lanes_param: #module_lanes_param,
                     lanes_param_default: #module_lanes_param_default,
                     experimental: #experimental,
-                    custom_bounds: <#params_struct_name as crate::types::BoundsInputs>::CUSTOM_TEST,
                     declared_range: <#params_struct_name as crate::types::BoundsInputs>::DECLARED_RANGE
                         .map(|(min, max)| vec![min.to_string(), max.to_string()]),
+                    bounding_param: <#params_struct_name as crate::types::BoundsInputs>::BOUNDING_PARAM
+                        .map(|(name, values)| crate::types::BoundingParam {
+                            name: name.to_string(),
+                            values: values.iter().map(|v| v.to_string()).collect(),
+                        }),
                 }
             }
         }
