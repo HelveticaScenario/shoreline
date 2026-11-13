@@ -166,9 +166,8 @@ fn mono_and_split_pass_a_mono_signal_unchanged() {
 }
 
 #[test]
-fn a_single_value_param_folds_a_stereo_signal() {
-    // `$slew`'s input is read lane by lane, so the module lifts; `$keyframes`
-    // reads its playhead as one value, so it stays mono and folds.
+fn a_mono_module_folds_a_stereo_lane_sum() {
+    // `$keyframes` is a mono module, so its playhead folds a stereo signal.
     let patch = build(&[
         ("a", "$signal", signal(json!(0.25))),
         ("b", "$signal", signal(json!(0.75))),
@@ -394,4 +393,57 @@ fn set_lanes_folds_each_side_on_its_own() {
     ])
     .unwrap();
     assert_eq!(step(&patch, "fold"), [3.0, 30.0]);
+}
+
+#[test]
+fn a_stereo_lane_sum_makes_a_lifted_module_stereo() {
+    // A mono input with a stereo band frequency: each side filters with its
+    // own side's frequency.
+    let patch = build(&[
+        ("in", "$signal", signal(json!(1.0))),
+        ("lo", "$signal", signal(json!(-3.0))),
+        ("hi", "$signal", signal(json!(3.0))),
+        (
+            "freq",
+            "$stereo",
+            json!({ "left": cable("lo", 0), "right": cable("hi", 0) }),
+        ),
+        (
+            "eq",
+            "$eq",
+            json!({
+                "input": cable("in", 0),
+                "sections": [{ "type": "lowShelf", "freq": cable("freq", 0), "gain": 12.0 }],
+            }),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(patch.sampleables["eq"].port_lanes("output"), 2);
+    let mut out = Vec::new();
+    for _ in 0..48 {
+        out = step(&patch, "eq");
+    }
+    assert_ne!(out[0], out[1], "{out:?}");
+}
+
+#[test]
+fn a_lane_sum_sums_each_side_on_its_own() {
+    // Two stereo lanes into `$wowFlutter`'s speed: the module is stereo and
+    // a mono input passes through both sides.
+    let patch = build(&[
+        ("in", "$signal", signal(json!(1.0))),
+        ("a", "$signal", signal(json!([1.0, 2.0]))),
+        (
+            "speed",
+            "$stereo",
+            json!({ "left": [cable("a", 0), cable("a", 1)], "right": [cable("a", 1), cable("a", 0)] }),
+        ),
+        (
+            "wf",
+            "$wowFlutter",
+            json!({ "input": cable("in", 0), "speed": [cable("speed", 0), cable("speed", 1)] }),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(patch.sampleables["wf"].port_lanes("output"), 2);
 }
