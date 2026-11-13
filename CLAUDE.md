@@ -111,10 +111,10 @@ Examples: `supersaw` — `init` seeds phases + `inv_sample_rate` (sr-only); `on_
 `yarn build-native-alloc` builds the rust code with a runtime allocation detector compiled in (`--features=alloc-detector` on `crates/modular`). It installs a `#[global_allocator]` that flags any heap allocation/deallocation made on the audio thread and writes a warning to **stderr** — the `rust`-labelled stream in the `concurrently` output — naming the offending module and the call site, e.g.:
 
 ```
-[alloc-detector] AUDIO-THREAD ALLOC in module "$mi.kick-1" — 16 bytes (×20330 since last report). Move allocation out of process()/update() into init()/on_patch_update() (see CLAUDE.md lifecycle rules).
-[alloc-detector]     at with_capacity<u8> (library/alloc/src/vec/mod.rs:524)
-[alloc-detector]     at update (crates/modular_core/src/dsp/mi/kick/analog.rs:235)
-[alloc-detector]     at process_all_modules_to (crates/modular/src/audio.rs:2322)
+[alloc-detector] AUDIO-THREAD ALLOC in module "osc_3" — 48 bytes (×127 since last report). Move allocation out of process()/update() into init()/on_patch_update() (see CLAUDE.md lifecycle rules).
+[alloc-detector]     at with_capacity<f32> (library/alloc/src/vec/mod.rs:524)
+[alloc-detector]     at update (crates/modular_core/src/dsp/<category>/<module>.rs:<line>)
+[alloc-detector]     at process_all_modules_to (crates/modular/src/audio.rs:<line>)
 ```
 
 Use it to verify the "no heap allocation on the audio thread" rule above. Notes:

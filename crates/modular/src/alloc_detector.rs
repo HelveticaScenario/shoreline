@@ -219,7 +219,9 @@ fn record_event(size: usize, is_dealloc: bool) {
 
 /// Record the current stack's return addresses into `frames` if this callback
 /// has stack budget left, returning how many were written (0 when out of
-/// budget). Only walks the stack: no allocation, no locks, no symbol lookup.
+/// budget). Only walks the stack: no allocation and no symbol lookup. On Linux
+/// the unwinder looks up each frame through the dynamic loader, which takes the
+/// loader's lock, so a `dlopen` on another thread can briefly stall the walk.
 #[inline]
 fn capture_stack(frames: &mut [usize; MAX_FRAMES]) -> u8 {
     let budget = STACK_BUDGET.with(|c| c.get());
@@ -231,8 +233,8 @@ fn capture_stack(frames: &mut [usize; MAX_FRAMES]) -> u8 {
     // SAFETY: the unsynchronized walk skips `backtrace`'s global lock, which
     // the logger holds for as long as a symbol lookup takes. The lock
     // serializes symbol lookup; the unwinders it would also guard here
-    // (libunwind on Unix, `RtlVirtualUnwind` on 64-bit Windows) keep no
-    // shared state, so walking alongside a resolve is sound.
+    // (`_Unwind_Backtrace` on Unix, `RtlVirtualUnwind` on 64-bit Windows) are
+    // thread-safe, so walking alongside a resolve is sound.
     unsafe {
         backtrace::trace_unsynchronized(|frame| {
             frames[count] = frame.ip() as usize;
@@ -262,6 +264,9 @@ fn spawn_logger(consumer: Consumer<AllocEvent>) {
     }
 }
 
+/// An offender: its module id bytes and length, and whether it deallocates.
+type OffenderKey = ([u8; MODULE_ID_CAP], u8, bool);
+
 /// Per-offender accumulation between reports.
 #[derive(Default)]
 struct Offender {
@@ -285,9 +290,6 @@ struct Totals {
 /// One resolved call site: its printed frames, outermost last.
 struct Stack {
     lines: Vec<String>,
-    /// Whether the full stack has been printed; later reports print only its
-    /// innermost workspace frame.
-    printed: bool,
 }
 
 /// Resolved stacks, deduplicated by their printed frames, so raw stacks that
@@ -317,7 +319,6 @@ impl Stacks {
         } else if self.stacks.len() < MAX_STACKS {
             self.stacks.push(Stack {
                 lines: lines.clone(),
-                printed: false,
             });
             self.by_lines.insert(lines, self.stacks.len() - 1);
             Some(self.stacks.len() - 1)
@@ -333,22 +334,20 @@ impl Stacks {
         index
     }
 
-    /// Print stack `index` under its report line: in full the first time, then
-    /// just the innermost workspace frame.
-    fn print(&mut self, index: usize) {
-        let stack = &mut self.stacks[index];
-        if stack.printed {
-            let site = stack
-                .lines
-                .iter()
-                .find(|line| line.contains(" (crates/"))
-                .unwrap_or(&stack.lines[0]);
-            eprintln!("[alloc-detector]     at {site} (stack above)");
-        } else {
-            for line in &stack.lines {
+    /// Print stack `index` under its report line: in full, or as just its
+    /// innermost workspace frame once the same offender has shown it.
+    fn print(&self, index: usize, in_full: bool) {
+        let lines = &self.stacks[index].lines;
+        if in_full {
+            for line in lines {
                 eprintln!("[alloc-detector]     at {line}");
             }
-            stack.printed = true;
+        } else {
+            let site = lines
+                .iter()
+                .find(|line| line.contains(" (crates/"))
+                .unwrap_or(&lines[0]);
+            eprintln!("[alloc-detector]     at {site} (stack above)");
         }
     }
 }
@@ -379,10 +378,15 @@ fn resolve_stack(frames: &[usize]) -> Vec<String> {
             });
         });
     }
+    // The global-allocator shims by exact name: other `__rust_` symbols, such
+    // as `__rust_begin_short_backtrace` at the base of a std thread, are callers.
     let is_allocator = |r: &Resolved| {
         r.file.ends_with("alloc_detector.rs")
             || r.file.contains("/backtrace-")
-            || r.name.starts_with("__rust_")
+            || matches!(
+                r.name.as_str(),
+                "__rust_alloc" | "__rust_dealloc" | "__rust_realloc" | "__rust_alloc_zeroed"
+            )
             || r.name.starts_with("__rdl_")
     };
     let start = resolved.iter().rposition(is_allocator).map_or(0, |i| i + 1);
@@ -406,20 +410,40 @@ fn resolve_stack(frames: &[usize]) -> Vec<String> {
     lines
 }
 
-/// `name` with long generic arguments elided.
+/// `name` with its generic arguments elided when it is long. A `<` right after
+/// a name opens generic arguments; any other opens a qualified path such as
+/// `<Vec<T> as Drop>::drop`, which is kept.
 fn short_name(name: &str) -> String {
-    match name.find('<') {
-        Some(i) if name.len() > 48 => format!("{}<…>", &name[..i]),
-        _ => name.to_string(),
+    if name.len() <= 48 {
+        return name.to_string();
     }
+    let mut out = String::with_capacity(name.len());
+    let mut skip_depth = 0usize;
+    let mut prev = ' ';
+    for c in name.chars() {
+        if skip_depth > 0 {
+            match c {
+                '<' => skip_depth += 1,
+                '>' => skip_depth -= 1,
+                _ => {}
+            }
+        } else if c == '<' && (prev.is_alphanumeric() || matches!(prev, '_' | '}')) {
+            out.push_str("<…>");
+            skip_depth = 1;
+        } else {
+            out.push(c);
+        }
+        prev = c;
+    }
+    out
 }
 
-/// `path` relative to the workspace, the toolchain's `library/` for the
-/// standard library, or the registry for dependencies.
+/// `path` with `/` separators, relative to the workspace, the toolchain's
+/// `library/` for the standard library, or the registry for dependencies.
 fn short_path(path: &str) -> String {
-    let workspace = env!("CARGO_MANIFEST_DIR")
-        .strip_suffix("crates/modular")
-        .unwrap_or("");
+    let path = &path.replace('\\', "/");
+    let workspace = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    let workspace = workspace.strip_suffix("crates/modular").unwrap_or("");
     if let Some(i) = path.find("/rustlib/src/rust/library/") {
         return path[i + "/rustlib/src/rust/".len()..].to_string();
     }
@@ -451,8 +475,11 @@ fn logger_loop(mut consumer: Consumer<AllocEvent>) {
     let drain_interval = Duration::from_millis(200);
     let report_interval = Duration::from_millis(1000);
 
-    let mut offenders: HashMap<([u8; MODULE_ID_CAP], u8, bool), Offender> = HashMap::new();
+    let mut offenders: HashMap<OffenderKey, Offender> = HashMap::new();
     let mut stacks = Stacks::default();
+    // (offender, stack) pairs whose stack has been printed in full.
+    let mut shown: std::collections::HashSet<(OffenderKey, usize)> =
+        std::collections::HashSet::new();
     let mut last_report = Instant::now();
     let mut last_totals = Totals::default();
 
@@ -471,7 +498,8 @@ fn logger_loop(mut consumer: Consumer<AllocEvent>) {
         }
 
         if last_report.elapsed() >= report_interval {
-            for ((id_bytes, id_len, is_dealloc), offender) in offenders.iter_mut() {
+            for (key, offender) in offenders.iter_mut() {
+                let (id_bytes, id_len, is_dealloc) = key;
                 if offender.pending == 0 {
                     continue;
                 }
@@ -493,7 +521,10 @@ fn logger_loop(mut consumer: Consumer<AllocEvent>) {
                     );
                 }
                 for index in offender.stacks.drain(..) {
-                    stacks.print(index);
+                    if shown.len() >= MAX_STACKS * 16 {
+                        shown.clear();
+                    }
+                    stacks.print(index, shown.insert((*key, index)));
                 }
                 offender.pending = 0;
             }

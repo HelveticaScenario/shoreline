@@ -38,12 +38,15 @@ function linkDsym(dsymDest) {
         'dsymutil',
         [join(crateDir, nodeFile), '-o', dsymDest],
         // dsymutil warns about every object it cannot open (C++ objects from
-        // build-script temp dirs); those frames resolve to function names only.
-        { stdio: ['ignore', 'inherit', 'ignore'] },
+        // build-script temp dirs; those frames resolve to function names only),
+        // so its stderr is shown only when it fails.
+        { stdio: ['ignore', 'inherit', 'pipe'], encoding: 'utf8' },
     );
     if (result.status !== 0) {
         console.warn(
-            '[copy-debuginfo] dsymutil failed; stacks resolve without a dSYM',
+            `[copy-debuginfo] dsymutil failed; stacks resolve without a dSYM\n${
+                result.error?.message ?? result.stderr
+            }`,
         );
         return;
     }
