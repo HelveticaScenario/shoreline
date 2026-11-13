@@ -694,6 +694,8 @@ export interface ScopeBufferKey {
   moduleId: string
   portName: string
   lane: number
+  /** As [`ScopeLane::side`]. */
+  side?: number
   msPerFrame: number
   triggerThreshold?: [number, ScopeMode]
 }
@@ -702,6 +704,11 @@ export interface ScopeLane {
   moduleId: string
   portName: string
   lane: number
+  /**
+   * The side of a stereo lane to read; unset reads its left side, and a
+   * mono lane reads the same either way.
+   */
+  side?: number
 }
 
 export type ScopeMode =  'Wait'|
@@ -760,10 +767,16 @@ export interface SignalParamSchema {
    */
   boundsNeedConstant: boolean
   /**
-   * Whether a stereo or file-derived module reads this input folded to
-   * `(L + R) / 2` (`#[input(…, fold)]`). A mono module folds every input.
+   * Whether the module reads this input folded to `(L + R) / 2`: marked
+   * `#[input(…, fold)]` on a stereo or file-derived module, and every
+   * input of a mono module but those that read both sides.
    */
   fold: boolean
+  /**
+   * Whether the input reads both sides of each stereo lane itself (a
+   * `PairSignal`).
+   */
+  readsSides: boolean
 }
 
 /** How a module's lanes carry stereo, from `#[module(stereo = …)]`. */

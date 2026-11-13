@@ -1023,6 +1023,7 @@ registerIPCHandler(
                 video,
                 videoPreviews,
                 outputResolutions,
+                folds,
             } = executePatchScript(source, schemas, {
                 inputChannels: synth.inputChannels(),
                 mediaExists: (relative) =>
@@ -1094,6 +1095,7 @@ registerIPCHandler(
                 interpolationResolutions: interpolationResolutionsRecord,
                 moduleIdRemap,
                 outputResolutions,
+                folds,
                 sliders,
                 sourceLocationMap: sourceLocationRecord,
                 success: true,

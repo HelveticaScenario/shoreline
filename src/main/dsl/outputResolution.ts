@@ -9,6 +9,7 @@ import type { ModuleSchema } from '@modular/core';
 import {
     chooseOutput,
     elementSlot,
+    type FoldRecord,
     type OutputClass,
     type OutputResolutionRecord,
     type ResolvableOutput,
@@ -73,7 +74,25 @@ export type CallSlot = [slot: string, value: unknown, inputClass: OutputClass];
  */
 export class OutputResolver {
     readonly records: OutputResolutionRecord[] = [];
+    readonly folds: FoldRecord[] = [];
     private inCall = false;
+
+    /**
+     * Note that the value at `slot` of the call at `site` folds; a module a
+     * call builds out of sight notes nothing.
+     */
+    fold(site: CallSite | undefined, slot: string): void {
+        if (!this.inCall) {
+            this.noteFold(site, slot);
+        }
+    }
+
+    /** Note a fold at a call site the caller knows is the user's own. */
+    noteFold(site: CallSite | undefined, slot: string): void {
+        if (site) {
+            this.folds.push({ column: site.column, line: site.line, slot });
+        }
+    }
 
     /**
      * The output `value` contributes to an input of class `inputClass`;

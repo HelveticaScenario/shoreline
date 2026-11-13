@@ -31,15 +31,17 @@ impl<'a> Tap<'a> {
         module_id: &str,
         port: &'a str,
         lane: usize,
+        side: usize,
     ) -> Option<Self> {
         let module = sampleables.get(module_id)?.as_ref();
-        // `lane` counts lanes as the DSL does; a stereo lane is read on its
-        // left side.
+        // `lane` counts lanes as the DSL does; a mono lane reads the same on
+        // either side.
+        let channels = module.port_channels(port);
         Self::resolve_physical(
             sampleables,
             module_id,
             port,
-            lane * module.port_channels(port),
+            lane * channels + side.min(channels - 1),
         )
     }
 

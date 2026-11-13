@@ -1,6 +1,7 @@
 /**
  * Monaco's TypeScript worker, extended with the DSL's signal-site collector
- * so output-resolution hints reuse the program the editor already keeps warm,
+ * so output-resolution and fold hints reuse the program the editor already
+ * keeps warm,
  * and with the extract and inline refactors Monaco's code actions leave out.
  */
 
@@ -9,6 +10,7 @@ import { typescript as ts } from 'monaco-editor/esm/vs/language/typescript/lib/t
 import { TypeScriptWorker } from 'monaco-editor/esm/vs/language/typescript/tsWorker.js';
 import {
     collectSignalSites,
+    collectValueSites,
     type SignalSite,
     type SignalSiteTables,
 } from '../../../shared/dsl/signalSites';
@@ -35,6 +37,24 @@ class DslTypeScriptWorker extends TypeScriptWorker {
             return [];
         }
         return collectSignalSites(
+            ts,
+            sourceFile,
+            program.getTypeChecker(),
+            tables,
+        );
+    }
+
+    /** Every signal value, for the fold hints. */
+    async getValueSites(
+        fileName: string,
+        tables: SignalSiteTables,
+    ): Promise<SignalSite[]> {
+        const program = this.getLanguageService().getProgram();
+        const sourceFile = program?.getSourceFile(fileName);
+        if (!program || !sourceFile) {
+            return [];
+        }
+        return collectValueSites(
             ts,
             sourceFile,
             program.getTypeChecker(),
@@ -82,7 +102,10 @@ class DslTypeScriptWorker extends TypeScriptWorker {
 /** The methods the renderer calls on the worker beyond Monaco's own. */
 export type DslTypeScriptWorkerApi = Pick<
     DslTypeScriptWorker,
-    'getSignalSites' | 'getLocalRefactors' | 'getLocalRefactorEdits'
+    | 'getSignalSites'
+    | 'getValueSites'
+    | 'getLocalRefactors'
+    | 'getLocalRefactorEdits'
 >;
 
 self.onmessage = () => {

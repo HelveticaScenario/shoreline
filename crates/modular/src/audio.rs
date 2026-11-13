@@ -1552,6 +1552,7 @@ impl AudioState {
                     module_id: lane.module_id.clone(),
                     port_name: lane.port_name.clone(),
                     lane: lane.lane,
+                    side: lane.side,
                     ms_per_frame: scope.ms_per_frame,
                     trigger_threshold: scope.trigger_threshold,
                 })
@@ -2375,6 +2376,7 @@ impl AudioProcessor {
                         &key.module_id,
                         &key.port_name,
                         key.lane as usize,
+                        key.side.unwrap_or(0) as usize,
                     ) {
                         buffer.push_block(range.clone(), |i| tap.get(i));
                     }
@@ -2386,6 +2388,7 @@ impl AudioProcessor {
                     &key.module_id,
                     &key.port_name,
                     key.lane as usize,
+                    key.side.unwrap_or(0) as usize,
                 )
                 .map(|tap| tap.get(i))
             }),
@@ -2411,6 +2414,7 @@ impl AudioProcessor {
                             &src.module_id,
                             &src.port_name,
                             src.lane as usize,
+                            src.side.unwrap_or(0) as usize,
                         )
                         .map(|tap| tap.get(last))
                     })
@@ -4865,6 +4869,7 @@ mod tests {
             module_id: module_id.into(),
             port_name: "output".into(),
             lane: 0,
+            side: None,
             ms_per_frame: 100,
             trigger_threshold: None,
         }
@@ -4988,6 +4993,7 @@ mod tests {
             module_id: id.into(),
             port_name: "output".into(),
             lane,
+            side: None,
             ms_per_frame: 10,
             trigger_threshold: trigger,
         };
@@ -5018,6 +5024,7 @@ mod tests {
                 module_id: "smp".into(),
                 port_name: "output".into(),
                 lane: 0,
+                side: None,
             }),
             gain_source: None,
         };

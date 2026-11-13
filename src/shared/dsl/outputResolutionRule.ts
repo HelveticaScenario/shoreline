@@ -95,3 +95,14 @@ export interface OutputResolutionRecord {
     slot: string;
     output: string;
 }
+
+/**
+ * A value the run found reaching an input that folds stereo to mono while it
+ * may be stereo, at the call and slot an `OutputResolutionRecord` names: the
+ * editor writes `.mono()` after it.
+ */
+export interface FoldRecord {
+    line: number;
+    column: number;
+    slot: string;
+}

@@ -75,7 +75,7 @@ export interface SignalSite {
  */
 export function siteOfRecord(
     sites: readonly SignalSite[],
-    record: OutputResolutionRecord,
+    record: Pick<OutputResolutionRecord, 'line' | 'column' | 'slot'>,
 ): SignalSite | undefined {
     const column =
         record.line === 1
@@ -111,6 +111,30 @@ export function collectSignalSites(
     sourceFile: TS.SourceFile,
     checker: TS.TypeChecker,
     tables: SignalSiteTables,
+): SignalSite[] {
+    return collectSites(ts, sourceFile, checker, tables, false);
+}
+
+/**
+ * Every value a module call or chain method reads as a signal, root or not,
+ * for the runtime's fold records to find: `output` is the root's output where
+ * the type checker names one, otherwise null.
+ */
+export function collectValueSites(
+    ts: typeof TS,
+    sourceFile: TS.SourceFile,
+    checker: TS.TypeChecker,
+    tables: SignalSiteTables,
+): SignalSite[] {
+    return collectSites(ts, sourceFile, checker, tables, true);
+}
+
+function collectSites(
+    ts: typeof TS,
+    sourceFile: TS.SourceFile,
+    checker: TS.TypeChecker,
+    tables: SignalSiteTables,
+    everyValue: boolean,
 ): SignalSite[] {
     const sites: SignalSite[] = [];
 
@@ -187,12 +211,12 @@ export function collectSignalSites(
         output: Resolved,
         insertable: boolean,
     ): void => {
-        if (output !== undefined) {
+        if (everyValue || output !== undefined) {
             sites.push({
                 ...call,
                 end: value.getEnd(),
                 insertable,
-                output,
+                output: output ?? null,
                 slot,
                 start: value.getStart(sourceFile),
             });

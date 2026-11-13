@@ -57,6 +57,7 @@ import { bindControls } from './app/controlBinding';
 import { performanceControls } from './app/performanceControls';
 import { formatPath } from './components/monaco/monacoHelpers';
 import { ControlAnchors, createControlAnchors } from './app/controlAnchors';
+import { applyFolds } from './components/monaco/foldHints';
 import { applyRuntimeResolutions } from './components/monaco/outputResolutionHints';
 import { extractControls, resolveControls } from './dsl/extractControls';
 import type { ResolvedControls } from './dsl/extractControls';
@@ -1981,6 +1982,7 @@ function App() {
                         patchCodeValue,
                         result.outputResolutions ?? [],
                     );
+                    void applyFolds(model, patchCodeValue, result.folds ?? []);
                 }
 
                 const previewAnchors = editorInstance
