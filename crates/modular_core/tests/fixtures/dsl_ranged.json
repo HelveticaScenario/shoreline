@@ -1906,9 +1906,9 @@
             }
         },
         {
-            "id": "$stereoMix-1",
+            "id": "$pan-1",
             "idIsExplicit": false,
-            "moduleType": "$stereoMix",
+            "moduleType": "$pan",
             "params": {
                 "input": [
                     {
@@ -1926,7 +1926,39 @@
                         "type": "cable"
                     }
                 ],
-                "width": 0
+                "spread": 0
+            }
+        },
+        {
+            "id": "$setLanes-1",
+            "idIsExplicit": false,
+            "moduleType": "$setLanes",
+            "params": {
+                "input": [
+                    {
+                        "lane": 0,
+                        "module": "$pan-1",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "lanes": 1
+            }
+        },
+        {
+            "id": "$mul-2",
+            "idIsExplicit": false,
+            "moduleType": "$mul",
+            "params": {
+                "input": [
+                    {
+                        "lane": 0,
+                        "module": "$setLanes-1",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "factor": 0.7071067811865476
             }
         },
         {
@@ -1937,13 +1969,7 @@
                 "input": [
                     {
                         "lane": 0,
-                        "module": "$stereoMix-1",
-                        "port": "output",
-                        "type": "cable"
-                    },
-                    {
-                        "lane": 1,
-                        "module": "$stereoMix-1",
+                        "module": "$mul-2",
                         "port": "output",
                         "type": "cable"
                     }
@@ -1997,12 +2023,6 @@
                         "module": "__vuTap_lifted",
                         "port": "output",
                         "type": "cable"
-                    },
-                    {
-                        "lane": 1,
-                        "module": "__vuTap_lifted",
-                        "port": "output",
-                        "type": "cable"
                     }
                 ],
                 "factor": [
@@ -2016,9 +2036,39 @@
             }
         },
         {
-            "id": "$stereoMix-2",
+            "id": "$left-1",
             "idIsExplicit": false,
-            "moduleType": "$stereoMix",
+            "moduleType": "$left",
+            "params": {
+                "input": [
+                    {
+                        "lane": 0,
+                        "module": "$amp-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$right-1",
+            "idIsExplicit": false,
+            "moduleType": "$right",
+            "params": {
+                "input": [
+                    {
+                        "lane": 0,
+                        "module": "$amp-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$pan-2",
+            "idIsExplicit": false,
+            "moduleType": "$pan",
             "params": {
                 "input": [
                     {
@@ -2036,7 +2086,39 @@
                         "type": "cable"
                     }
                 ],
-                "width": 0
+                "spread": 0
+            }
+        },
+        {
+            "id": "$setLanes-2",
+            "idIsExplicit": false,
+            "moduleType": "$setLanes",
+            "params": {
+                "input": [
+                    {
+                        "lane": 0,
+                        "module": "$pan-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "lanes": 1
+            }
+        },
+        {
+            "id": "$mul-3",
+            "idIsExplicit": false,
+            "moduleType": "$mul",
+            "params": {
+                "input": [
+                    {
+                        "lane": 0,
+                        "module": "$setLanes-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "factor": 0.7071067811865476
             }
         },
         {
@@ -2047,13 +2129,7 @@
                 "input": [
                     {
                         "lane": 0,
-                        "module": "$stereoMix-2",
-                        "port": "output",
-                        "type": "cable"
-                    },
-                    {
-                        "lane": 1,
-                        "module": "$stereoMix-2",
+                        "module": "$mul-3",
                         "port": "output",
                         "type": "cable"
                     }
@@ -2107,18 +2183,42 @@
                         "module": "__vuTap_wrapped",
                         "port": "output",
                         "type": "cable"
-                    },
-                    {
-                        "lane": 1,
-                        "module": "__vuTap_wrapped",
-                        "port": "output",
-                        "type": "cable"
                     }
                 ],
                 "factor": [
                     {
                         "lane": 0,
                         "module": "__vuSlew_wrapped",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$left-2",
+            "idIsExplicit": false,
+            "moduleType": "$left",
+            "params": {
+                "input": [
+                    {
+                        "lane": 0,
+                        "module": "$amp-3",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "$right-2",
+            "idIsExplicit": false,
+            "moduleType": "$right",
+            "params": {
+                "input": [
+                    {
+                        "lane": 0,
+                        "module": "$amp-3",
                         "port": "output",
                         "type": "cable"
                     }
@@ -2134,13 +2234,13 @@
                     [
                         {
                             "lane": 0,
-                            "module": "$amp-2",
+                            "module": "$left-1",
                             "port": "output",
                             "type": "cable"
                         },
                         {
-                            "lane": 1,
-                            "module": "$amp-2",
+                            "lane": 0,
+                            "module": "$right-1",
                             "port": "output",
                             "type": "cable"
                         }
@@ -2148,13 +2248,13 @@
                     [
                         {
                             "lane": 0,
-                            "module": "$amp-3",
+                            "module": "$left-2",
                             "port": "output",
                             "type": "cable"
                         },
                         {
-                            "lane": 1,
-                            "module": "$amp-3",
+                            "lane": 0,
+                            "module": "$right-2",
                             "port": "output",
                             "type": "cable"
                         }
@@ -2600,7 +2700,7 @@
             ]
         },
         {
-            "label": "lifted.pan",
+            "label": "lifted.panning",
             "outputs": [
                 {
                     "lane": 0,
@@ -2630,7 +2730,7 @@
             ]
         },
         {
-            "label": "wrapped.pan",
+            "label": "wrapped.panning",
             "outputs": [
                 {
                     "lane": 0,

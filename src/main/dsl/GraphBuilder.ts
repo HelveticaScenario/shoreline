@@ -149,8 +149,8 @@ export interface StereoOutOptions {
     gain?: PolySignal;
     /** Pan position (-5 = left, 0 = center, +5 = right). Default 0 */
     pan?: PolySignal;
-    /** Stereo width/spread (0 = no spread, 5 = full spread). Default 0 */
-    width?: Signal;
+    /** How far the lanes fan out across the stereo field (0 = none, 5 = edge to edge). Default 0 */
+    spread?: Signal;
     /** Label shown on this output's VU meter. Must be unique across outs */
     label?: string;
     /** Silence this output. It is still metered; its VU meter greys out */
@@ -190,7 +190,7 @@ export interface StereoOutGroup extends OutGroupVuState {
     outputs: ModuleOutput[];
     gain?: PolySignal;
     pan?: PolySignal;
-    width?: PolySignal;
+    spread?: PolySignal;
 }
 
 /** Internal storage for a mono output group */
@@ -421,7 +421,7 @@ export class BaseCollection<T extends ModuleOutput> {
      * @param options.baseChannel - Base output channel (0-62, default 0)
      * @param options.gain - Output gain
      * @param options.pan - Pan position (-5 = left, 0 = center, +5 = right)
-     * @param options.width - Stereo width/spread (0 = no spread, 5 = full spread, default 0)
+     * @param options.spread - How far the lanes fan out across the stereo field (0 = none, 5 = edge to edge, default 0)
      * @param options.label - Label shown on this output's VU meter
      * @param options.mute - Silence this output (still metered)
      * @param options.solo - When any output is soloed, only soloed outputs are audible
@@ -1039,7 +1039,12 @@ export class GraphBuilder implements ChainHost {
 
         const signalFactory = this.getFactory('$signal');
         const mixFactory = this.getFactory('$mix');
-        const stereoMixerFactory = this.getFactory('$stereoMix');
+        const panFactory = this.getFactory('$pan');
+        const setLanesFactory = this.getFactory('$setLanes');
+        const mulFactory = this.getFactory('$mul');
+        const monoFactory = this.getFactory('$mono');
+        const leftFactory = this.getFactory('$left');
+        const rightFactory = this.getFactory('$right');
         const ampFactory = this.getFactory('$amp');
         const gainFactory = this.getFactory('$gain');
         const slewFactory = this.getFactory('$slew');
@@ -1180,18 +1185,23 @@ export class GraphBuilder implements ChainHost {
 
                     // Group mix, then the gain stage — the tap: the meter
                     // reads post-gain, pre-mute like a post-fader DAW meter.
+                    // A stereo out pans its lanes and sums them into one
+                    // stereo lane. `$pan` keeps a centred lane at unity, so
+                    // the sum is taken down 3 dB to sit as a centred mono
+                    // out always has. A mono out sums its lanes folded.
                     const mixSignals: ModuleOutput[] =
                         group.type === 'stereo'
-                            ? stereoMixerFactory(group.outputs, {
-                                  pan: panSource,
-                                  width: group.width ?? 0,
-                              }).items
-                            : [
-                                  stereoMixerFactory(group.outputs, {
-                                      pan: -5,
-                                      width: 0,
-                                  }).items[0],
-                              ];
+                            ? mulFactory(
+                                  setLanesFactory(
+                                      panFactory(group.outputs, panSource, {
+                                          spread: group.spread ?? 0,
+                                      }),
+                                      1,
+                                  ),
+                                  Math.SQRT1_2,
+                              ).items
+                            : setLanesFactory(monoFactory(group.outputs), 1)
+                                  .items;
 
                     let outputSignals: ModuleOutput[] = gainFactory(
                         mixSignals,
@@ -1319,8 +1329,15 @@ export class GraphBuilder implements ChainHost {
                         channelCollection.push(0);
                     }
 
-                    // Add the actual output signals
-                    channelCollection.push(...outputSignals);
+                    // A stereo out's sides go to its two device channels.
+                    if (group.type === 'stereo') {
+                        channelCollection.push(
+                            ...leftFactory(outputSignals).items,
+                            ...rightFactory(outputSignals).items,
+                        );
+                    } else {
+                        channelCollection.push(...outputSignals);
+                    }
 
                     allChannelCollections.push(channelCollection);
                 }
@@ -1422,7 +1439,7 @@ export class GraphBuilder implements ChainHost {
                     active: control(out.active, GATE_RANGE),
                     audio: out.audio,
                     level: control(out.level, OUT_GAIN_RANGE),
-                    pan: control(out.pan, OUT_PAN_RANGE),
+                    panning: control(out.pan, OUT_PAN_RANGE),
                 };
                 outSources.set(label, sources);
             }
@@ -1661,7 +1678,7 @@ export class GraphBuilder implements ChainHost {
             solo: options.solo === true,
             sourceLocation,
             type: 'stereo',
-            width: options.width,
+            spread: options.spread,
         };
 
         const existing = this.outGroups.get(baseChannel) ?? [];

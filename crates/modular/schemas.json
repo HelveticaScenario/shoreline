@@ -1399,10 +1399,562 @@
     "stereo": "mono"
   },
   {
+    "name": "$mid",
+    "docs": {
+      "summary": "Mid of a stereo signal",
+      "description": "The mid of each lane, `(L + R) / 2`, as a mono signal: what both sides share. Pair it with `$side` and rebuild with `$fromMidSide`.",
+      "categories": [
+        "mixer"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Narrow a stereo signal",
+          "code": "const wide = $stereo($saw('c3'), $saw('g3'))\n$fromMidSide($mid(wide), $side(wide).mul(0.5)).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MonoParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the signal to fold",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "each lane's sides averaged",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the signal to fold",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      }
+    ],
+    "experimental": false,
+    "stereo": "mono"
+  },
+  {
+    "name": "$side",
+    "docs": {
+      "summary": "Side of a stereo signal",
+      "description": "The side of each lane, `(L - R) / 2`, as a mono signal: what makes it wide. A mono signal's side is silent.",
+      "categories": [
+        "mixer"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Only the width",
+          "code": "$side($stereo($saw('c3'), $saw('g3'))).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SideParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the stereo signal",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "one side of each lane",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the stereo signal",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      }
+    ],
+    "experimental": false,
+    "stereo": "mono"
+  },
+  {
+    "name": "$fromMidSide",
+    "docs": {
+      "summary": "Stereo from mid and side",
+      "description": "Rebuilds a stereo signal from its mid and side, lane by lane: `L = mid + side`, `R = mid - side`. A stereo input is folded to mono first.",
+      "categories": [
+        "mixer"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Widen a stereo signal",
+          "code": "const pair = $stereo($saw('c3'), $saw('c3').mul(0.8))\n$fromMidSide($mid(pair), $side(pair).mul(2)).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "FromMidSideParams",
+      "type": "object",
+      "properties": {
+        "mid": {
+          "description": "what both sides share",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "side": {
+          "description": "what makes the signal wide",
+          "$ref": "#/$defs/PolySignal"
+        }
+      },
+      "required": [
+        "mid",
+        "side"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the stereo signal: mid plus side on the left, mid minus side on the right",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "mid",
+        "description": "what both sides share",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      },
+      {
+        "name": "side",
+        "description": "what makes the signal wide",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "mid"
+      },
+      {
+        "name": "side"
+      }
+    ],
+    "experimental": false,
+    "stereo": "stereo"
+  },
+  {
+    "name": "$pan",
+    "docs": {
+      "summary": "Place lanes in the stereo field",
+      "description": "Pans each lane, with equal-power gains that keep a centred lane at its level. A stereo lane moves as a whole: panning right carries its left side across. Raise `spread` to fan the lanes of a chord out from the centre.",
+      "categories": [
+        "mixer"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Chord fanned across the stereo field",
+          "code": "$pan($saw($chord('C3[m9]')), 0, { spread: 4 }).out()"
+        },
+        {
+          "title": "An autopanned bass",
+          "code": "$pan($saw('c2'), $sine('0.2hz').range(-3, 3)).out()"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "PanParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the signal to place in the stereo field",
+          "$ref": "#/$defs/PolySignal"
+        },
+        "pan": {
+          "description": "where each lane sits: -5 left, 0 centre, +5 right",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "spread": {
+          "description": "how far the lanes fan out around their pan positions, the first to the left and the last to the right",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "LaneSum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "each lane placed in the stereo field",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the signal to place in the stereo field",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      },
+      {
+        "name": "pan",
+        "description": "where each lane sits: -5 left, 0 centre, +5 right",
+        "paramType": "control",
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "controlMin": -5.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      },
+      {
+        "name": "spread",
+        "description": "how far the lanes fan out around their pan positions, the first to the left and the last to the right",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false
+      }
+    ],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "pan"
+      }
+    ],
+    "experimental": false,
+    "stereo": "stereo"
+  },
+  {
     "name": "$stereoMix",
     "docs": {
-      "summary": "Stereo panner and spreader",
-      "description": "Places a signal in the stereo field and puts out left and right. Give each lane its own `pan`, or raise `width` to fan the voices of a chord out from the centre.",
+      "summary": "Stereo panner and spreader, deprecated",
+      "description": "Deprecated: use `$pan` and sum the lanes with `$setLanes(…, 1)`. Places each lane in the stereo field and sums them into one stereo lane. Give each lane its own `pan`, or raise `width` to fan the voices of a chord out from the centre.",
       "categories": [
         "mixer"
       ],
@@ -1420,7 +1972,7 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "the signal to place in the stereo field",
+          "description": "the signal to place in the stereo field; a stereo lane is folded to mono first",
           "$ref": "#/$defs/PolySignal"
         },
         "pan": {
@@ -1525,7 +2077,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo mix: left on lane 0, right on lane 1",
+        "description": "the stereo mix, one stereo lane",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -1537,7 +2089,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "the signal to place in the stereo field",
+        "description": "the signal to place in the stereo field; a stereo lane is folded to mono first",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -1571,9 +2123,9 @@
         "name": "input"
       }
     ],
-    "lanes": 2,
+    "lanes": 1,
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "stereo"
   },
   {
     "name": "_clock",

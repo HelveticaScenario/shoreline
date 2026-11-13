@@ -219,10 +219,10 @@ describe('pan lifting', () => {
         const meter = vuMeters(patch)[0];
         expect(meter.pan).toBe(0);
         expect(meter.panModuleId).toBe('__vuPan_lead');
-        // The stereo mixer's pan input is cabled from the lifted signal.
+        // The out's `$pan` is cabled from the lifted signal.
         const mixers = patch.modules.filter(
             (m) =>
-                m.moduleType === '$stereoMix' &&
+                m.moduleType === '$pan' &&
                 JSON.stringify(m.params.pan ?? '').includes('__vuPan_lead'),
         );
         expect(mixers).toHaveLength(1);
@@ -512,27 +512,25 @@ describe('$trackTap', () => {
         }[];
     }
 
-    test('the tap is its post-gate stereo audio', () => {
+    test('the tap is its post-gate audio, one lane', () => {
         const patch = execPatch(`
             $signal($trackTap('bass'), { id: 'probe' })
             $saw('c2').out({ label: 'bass' })
         `);
-        expect(probe(patch)).toHaveLength(2);
-        const [left, right] = probe(patch);
-        expect(left).toMatchObject({ lane: 0 });
-        expect(right).toMatchObject({ lane: 1, module: left.module });
-        const gate = moduleById(patch, left.module);
+        expect(probe(patch)).toHaveLength(1);
+        const [lane] = probe(patch);
+        expect(lane).toMatchObject({ lane: 0 });
+        const gate = moduleById(patch, lane.module);
         expect(gate.moduleType).toBe('$amp');
         expect(gate.params.factor).toMatchObject([{ module: '__vuSlew_bass' }]);
     });
 
-    test('a mono out fills both lanes', () => {
+    test('a mono out taps one lane', () => {
         const patch = execPatch(`
             $saw('c2').outMono(0, { label: 'bass' })
             $signal($trackTap('bass'), { id: 'probe' })
         `);
-        const [left, right] = probe(patch);
-        expect(right).toEqual(left);
+        expect(probe(patch)).toHaveLength(1);
     });
 
     test('.active taps the mute/solo gate', () => {
@@ -548,12 +546,12 @@ describe('$trackTap', () => {
         expect(moduleById(patch, '__vuMute_bass').params.value).toBe(0);
     });
 
-    test('.level and .pan tap the lifted controls', () => {
+    test('.level and .panning tap the lifted controls', () => {
         const patch = execPatch(`
             const bass = $trackTap('bass')
             $saw('c2').out({ label: 'bass', gain: 3, pan: -2 })
             $signal(bass.level, { id: 'probe' })
-            $signal(bass.pan, { id: 'panProbe' })
+            $signal(bass.panning, { id: 'panProbe' })
         `);
         expect(probe(patch)[0]).toMatchObject({ module: '__vuGain_bass' });
         expect(moduleById(patch, 'panProbe').params.value).toMatchObject([
@@ -581,7 +579,7 @@ describe('$trackTap', () => {
             const p = $signal(1, { id: 'p' })
             $saw('c2').out({ label: 'bass', gain: g, pan: p })
             $signal($trackTap('bass').level, { id: 'probe' })
-            $signal($trackTap('bass').pan, { id: 'panProbe' })
+            $signal($trackTap('bass').panning, { id: 'panProbe' })
         `);
         expect(wrapped(patch, probe(patch))).toMatchObject({
             max: 10,
@@ -596,7 +594,7 @@ describe('$trackTap', () => {
     test('a mono out pans center', () => {
         const patch = execPatch(`
             $saw('c2').outMono(0, { label: 'bass' })
-            $signal($trackTap('bass').pan, { id: 'probe' })
+            $signal($trackTap('bass').panning, { id: 'probe' })
         `);
         expect(wrapped(patch, probe(patch)).value).toBe(0);
     });
@@ -617,7 +615,7 @@ describe('$trackTap', () => {
             $saw('c2').out({ label: 'bass' })
             $signal(bass.active.range(-1, 1), { id: 'active' })
             $signal(bass.level.range(-1, 1), { id: 'level' })
-            $signal(bass.pan.range(-1, 1), { id: 'pan' })
+            $signal(bass.panning.range(-1, 1), { id: 'pan' })
         `);
         const sources = {
             active: '__vuMute_bass',
@@ -770,7 +768,7 @@ describe('$trackTap', () => {
     test('a control driven by a tap meters the resolved source', () => {
         const patch = execPatch(`
             $saw('c2').out({ label: 'bass' })
-            $sine('c5').out({ label: 'lead', pan: $trackTap('bass').pan })
+            $sine('c5').out({ label: 'lead', pan: $trackTap('bass').panning })
         `);
         const lead = vuMeters(patch).find((m) => m.key === 'lead')!;
         expect(lead.panSource).toEqual({

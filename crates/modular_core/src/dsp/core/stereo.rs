@@ -201,3 +201,125 @@ impl Right {
 }
 
 message_handlers!(impl Right {});
+
+type MidParams = MonoParams;
+
+const MID_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Mid of a stereo signal",
+    description: "The mid of each lane, `(L + R) / 2`, as a mono signal: what both sides \
+                  share. Pair it with `$side` and rebuild with `$fromMidSide`.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Narrow a stereo signal",
+        code: r#"
+            const wide = $stereo($saw('c3'), $saw('g3'))
+            $fromMidSide($mid(wide), $side(wide).mul(0.5)).out()
+        "#,
+    }],
+};
+
+#[module(name = "$mid", docs = MID_DOCS, args(input), stereo = mono)]
+pub struct Mid {
+    outputs: MonoOutputs,
+    params: MidParams,
+}
+
+impl Mid {
+    fn update(&mut self, _sample_rate: f32) {
+        for lane in 0..self.lane_count() {
+            self.outputs
+                .sample
+                .set(lane, self.params.input.get_value(lane));
+        }
+    }
+}
+
+message_handlers!(impl Mid {});
+
+type SideOfParams = SideParams;
+
+const SIDE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Side of a stereo signal",
+    description: "The side of each lane, `(L - R) / 2`, as a mono signal: what makes it wide. \
+                  A mono signal's side is silent.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Only the width",
+        code: "$side($stereo($saw('c3'), $saw('g3'))).out()",
+    }],
+};
+
+#[module(name = "$side", docs = SIDE_DOCS, args(input), stereo = mono)]
+pub struct SideOf {
+    outputs: SideOutputs,
+    params: SideOfParams,
+}
+
+impl SideOf {
+    fn update(&mut self, _sample_rate: f32) {
+        for lane in 0..self.lane_count() {
+            let input = &self.params.input;
+            self.outputs.sample.set(
+                lane,
+                0.5 * (input.get_value(lane, 0) - input.get_value(lane, 1)),
+            );
+        }
+    }
+}
+
+message_handlers!(impl SideOf {});
+
+#[params]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
+#[serde(rename_all = "camelCase")]
+#[deserr(rename_all = camelCase, deny_unknown_fields)]
+struct FromMidSideParams {
+    #[input("what both sides share", type = audio)]
+    mid: PairSignal,
+    #[input("what makes the signal wide", type = audio)]
+    side: PairSignal,
+}
+
+#[derive(Outputs, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct FromMidSideOutputs {
+    #[output("output", "the stereo signal: mid plus side on the left, mid minus side on the right", type = cv, default)]
+    sample: PolyOutput,
+}
+
+const FROM_MID_SIDE_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Stereo from mid and side",
+    description: "Rebuilds a stereo signal from its mid and side, lane by lane: \
+                  `L = mid + side`, `R = mid - side`. A stereo input is folded to mono first.",
+    categories: &[ModuleCategory::Mixer],
+    sections: &[],
+    examples: &[DocExample {
+        title: "Widen a stereo signal",
+        code: r#"
+            const pair = $stereo($saw('c3'), $saw('c3').mul(0.8))
+            $fromMidSide($mid(pair), $side(pair).mul(2)).out()
+        "#,
+    }],
+};
+
+#[module(name = "$fromMidSide", docs = FROM_MID_SIDE_DOCS, args(mid, side), stereo = stereo)]
+pub struct FromMidSide {
+    outputs: FromMidSideOutputs,
+    params: FromMidSideParams,
+}
+
+impl FromMidSide {
+    fn update(&mut self, _sample_rate: f32) {
+        // Lane `l` side `c` is lane `l * 2 + c`.
+        for lane in 0..self.lane_count() / 2 {
+            let mid = self.params.mid.get_folded(lane);
+            let side = self.params.side.get_folded(lane);
+            self.outputs.sample.set(lane * 2, mid + side);
+            self.outputs.sample.set(lane * 2 + 1, mid - side);
+        }
+    }
+}
+
+message_handlers!(impl FromMidSide {});

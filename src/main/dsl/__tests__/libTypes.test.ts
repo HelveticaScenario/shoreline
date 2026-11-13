@@ -73,7 +73,7 @@ describe('generated DSL lib', () => {
                 $sine($clock._tempo.div(60)).out();
                 const tap = $trackTap('bass');
                 tap[0].level.range(0, 1);
-                for (const c of tap) c.pan.range(-1, 1);
+                for (const c of tap) c.panning.range(-1, 1);
                 const seq = $p('[c4,e4] [g4,b4]');
                 $perc(seq[1]).out();
                 $perc(seq[1]._trig).out();

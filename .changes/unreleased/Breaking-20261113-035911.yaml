@@ -1,0 +1,15 @@
+kind: Breaking
+body: |-
+    `.out()` plays stereo lanes in stereo, and its `width` option is now `spread`, matching `$pan`. `$input` gives stereo lanes, pairing input channels 1 and 2, 3 and 4, and so on; `$inputMono` gives one lane per channel as `$input` did. `$trackTap` (formerly `$outLane`) gives one lane, stereo for a stereo out, and its `pan` is `panning`. `$stereoMix` is deprecated in favour of `$pan` and `$setLanes`, and gives one stereo lane.
+
+    ```js
+    // before
+    $saw($chord('C3[m7]')).out({ width: 5 })
+    $input[1].outMono(0)
+    $signal($outLane('bass').pan)
+    // after
+    $saw($chord('C3[m7]')).out({ spread: 5 })
+    $inputMono[1].outMono(0)
+    $signal($trackTap('bass').panning)
+    ```
+time: 2026-11-13T03:59:11.655372-05:00

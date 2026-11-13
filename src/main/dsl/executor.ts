@@ -162,12 +162,12 @@ function wavMeta(info: LoadedWav) {
 export interface DSLExecutionOptions {
     sampleRate?: number;
     /**
-     * Channel count of the audio input device, which is how wide `$input` is
-     * built. Read at execution time, so a device swap reaches `$input` on the
-     * next run of the patch. Clamped to 1..PORT_MAX_LANES, and defaults to
-     * the maximum for callers with no device to report — `$input` never
-     * truncates silently, it only narrows when a host says how wide the
-     * device is.
+     * Channel count of the audio input device, which is how wide `$inputMono`
+     * is built (and `$input`, in pairs). Read at execution time, so a device
+     * swap reaches them on the next run of the patch. Clamped to
+     * 1..PORT_MAX_LANES, and defaults to the maximum for callers with no
+     * device to report — the inputs never truncate silently, they only narrow
+     * when a host says how wide the device is.
      */
     inputChannels?: number;
     /** Whether a workspace-relative path names an existing file, for media errors. */
@@ -252,6 +252,26 @@ export function executePatchScript(
         })),
         { id: 'ROOT_INPUT' },
     );
+
+    // `$input` pairs the device channels into stereo lanes, (0, 1), (2, 3), …,
+    // with an odd last channel on both sides. It is built on first read, so a
+    // patch that never reads it runs no `$stereo`.
+    const stereo = context.namespaceTree['$stereo'];
+    if (typeof stereo !== 'function') {
+        throw new Error(
+            'DSL execution error: "$stereo" module not found in schemas',
+        );
+    }
+    let stereoInput: unknown;
+    const readStereoInput = () => {
+        if (stereoInput === undefined) {
+            const channels = [...rootInput];
+            const left = channels.filter((_, i) => i % 2 === 0);
+            const right = left.map((_, i) => channels[2 * i + 1] ?? left[i]);
+            stereoInput = stereo(left, right, { id: 'ROOT_INPUT_STEREO' });
+        }
+        return stereoInput;
+    };
 
     // Create functions to set global tempo and output gain
     const builder = context.getBuilder();
@@ -955,7 +975,7 @@ export function executePatchScript(
         $wavMeta,
         // Built-in modules
         $clock,
-        $input: rootInput,
+        $inputMono: rootInput,
     };
 
     // Console.log(dslGlobals);
@@ -1003,6 +1023,10 @@ export function executePatchScript(
             ...dslGlobals,
             console,
             structuredClone,
+        });
+        Object.defineProperty(sandbox, '$input', {
+            enumerable: true,
+            get: readStereoInput,
         });
         // The sandbox is its own realm: array literals in the patch script use
         // the sandbox's Array.prototype, so pipe() must be installed there too

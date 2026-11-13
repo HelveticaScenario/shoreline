@@ -35,7 +35,24 @@ impl<'a> Tap<'a> {
         let module = sampleables.get(module_id)?.as_ref();
         // `lane` counts lanes as the DSL does; a stereo lane is read on its
         // left side.
-        let lane = lane * module.port_channels(port);
+        Self::resolve_physical(
+            sampleables,
+            module_id,
+            port,
+            lane * module.port_channels(port),
+        )
+    }
+
+    /// Like [`resolve`](Self::resolve), at physical lane `lane` of the port,
+    /// where lane `l` side `c` is `l * channels + c`: a stereo out's meter
+    /// reads its two sides as lanes 0 and 1.
+    pub(crate) fn resolve_physical(
+        sampleables: &'a SampleableMap,
+        module_id: &str,
+        port: &'a str,
+        lane: usize,
+    ) -> Option<Self> {
+        let module = sampleables.get(module_id)?.as_ref();
         Some(match module.port_view(port) {
             // An f64 port's lane starts with its nearest f32, which is
             // all a scope or meter needs.
