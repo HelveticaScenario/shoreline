@@ -9,7 +9,7 @@
 //! of the network; the system matrix is inverted once per combination of
 //! switch states, so a sample costs one matrix-vector product.
 
-use super::simd::{Lanewise, Mask, Mono, Real, Simd, c};
+use super::simd::{Elementwise, Mask, Mono, Real, Simd, c};
 
 /// Ground, as a node index.
 pub const GROUND: usize = usize::MAX;
@@ -84,19 +84,19 @@ impl<const C: usize, L: Simd> Default for MnaState<C, L> {
     }
 }
 
-impl<const C: usize, L: Simd> Lanewise for MnaState<C, L> {
-    type Lane = MnaState<C>;
+impl<const C: usize, L: Simd> Elementwise for MnaState<C, L> {
+    type Element = MnaState<C>;
     #[inline]
-    fn lane(&self, lane: usize) -> MnaState<C> {
+    fn element(&self, element: usize) -> MnaState<C> {
         MnaState {
-            v: self.v.lane(lane),
-            i: self.i.lane(lane),
+            v: self.v.element(element),
+            i: self.i.element(element),
         }
     }
     #[inline]
-    fn set_lane(&mut self, lane: usize, value: &MnaState<C>) {
-        self.v.set_lane(lane, &value.v);
-        self.i.set_lane(lane, &value.i);
+    fn set_element(&mut self, element: usize, value: &MnaState<C>) {
+        self.v.set_element(element, &value.v);
+        self.i.set_element(element, &value.i);
     }
 }
 
@@ -289,12 +289,12 @@ impl<const N: usize, const C: usize, const S: usize, const K: usize> Mna<N, C, S
         x
     }
 
-    /// Adds `current` times column `j` of each lane's inverse for `closed`
+    /// Adds `current` times column `j` of each element's inverse for `closed`
     /// to `x`.
     #[inline]
     fn add_gathered<L: Simd>(&self, x: &mut [L::S; N], closed: L::Closed, j: usize, current: L::S) {
         for (i, xi) in x.iter_mut().enumerate() {
-            let m = L::gather(|lane| self.inverse[L::closed_lane(closed, lane)][j][i]);
+            let m = L::gather(|element| self.inverse[L::closed_element(closed, element)][j][i]);
             *xi = m.mul_add(current, *xi);
         }
     }
@@ -304,7 +304,7 @@ impl<const N: usize, const C: usize, const S: usize, const K: usize> Mna<N, C, S
     pub fn impedance<L: Simd>(&self, closed: L::Closed, a: usize, b: usize) -> L::S {
         match L::uniform(closed) {
             Some(k) => L::S::splat(self.inverse[k][b][a]),
-            None => L::gather(|lane| self.inverse[L::closed_lane(closed, lane)][b][a]),
+            None => L::gather(|element| self.inverse[L::closed_element(closed, element)][b][a]),
         }
     }
 

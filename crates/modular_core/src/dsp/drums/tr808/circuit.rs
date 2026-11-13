@@ -1,7 +1,7 @@
 //! Building blocks shared by the TR-808 voice models: the common trigger
 //! pulse, the noise generator, and discretised analog filters.
 
-use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::knob;
 use crate::dsp::utils::rng::LcgRng;
 
@@ -102,14 +102,14 @@ pub struct BiquadState<L: Simd = Mono> {
     s2: L::S,
 }
 
-lanewise!(BiquadState { s1, s2 });
+elementwise!(BiquadState { s1, s2 });
 
 impl<L: Simd> BiquadState<L> {
     pub fn settled(&self) -> L::SM {
         self.s1.abs().lt(c(SILENCE)) & self.s2.abs().lt(c(SILENCE))
     }
 
-    /// `a` in the lanes of `mask`, `b` in the others.
+    /// `a` in the elements of `mask`, `b` in the others.
     #[inline]
     pub fn select(mask: L::SM, a: Self, b: Self) -> Self {
         Self {
@@ -175,7 +175,7 @@ pub struct BridgedT<L: Simd = Mono> {
     pub g_fb: L::S,
 }
 
-lanewise!(BridgedT {
+elementwise!(BridgedT {
     c_a,
     c_b,
     r_bridge,
@@ -189,7 +189,7 @@ pub struct Arms<L: Simd = Mono> {
     pub b: L::S,
 }
 
-lanewise!(Arms { a, b });
+elementwise!(Arms { a, b });
 
 impl<L: Simd> Arms<L> {
     pub fn settled(&self) -> L::SM {

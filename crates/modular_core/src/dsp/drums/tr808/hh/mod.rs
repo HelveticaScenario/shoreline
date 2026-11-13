@@ -17,7 +17,7 @@ use super::metal::metal_pulse;
 use super::swing::{SwingState, vca};
 use crate::dsp::drums::analog::{Exp, Junction, VT, converged};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState, Switch};
-use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing};
 
 mod module;
@@ -256,7 +256,7 @@ pub struct Closed<L: Simd = Mono> {
     quiet: Quiet<L>,
 }
 
-lanewise!(Closed {
+elementwise!(Closed {
     pulse,
     net,
     base,
@@ -283,7 +283,7 @@ pub struct ClosedControls<L: Simd = Mono> {
     pub q23: L::S,
 }
 
-lanewise!(ClosedControls { band, q23 });
+elementwise!(ClosedControls { band, q23 });
 
 /// The cut control's parts for `volts`, -5–5 V with 0 V stock: Q23's base
 /// conductance, and the resistance it drains C62 through. Stock drives Q23

@@ -1,7 +1,7 @@
 //! The triangle VCO the 909's kick and snare share: an integrator between a
 //! comparator's two thresholds.
 
-use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 
 /// One triangle VCO: the integrator's voltage and the comparator's state.
 #[derive(Clone, Copy, Default)]
@@ -11,7 +11,7 @@ pub struct Vco<L: Simd = Mono> {
     pub rising: L::SM,
 }
 
-lanewise!(Vco { tri, rising });
+elementwise!(Vco { tri, rising });
 
 impl<L: Simd> Vco<L> {
     /// Advances `dt` at slope `slope` V/s, reflecting off the comparator's

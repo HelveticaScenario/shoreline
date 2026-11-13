@@ -19,7 +19,7 @@ pub struct Open<L: Simd = Mono> {
     quiet: Quiet<L>,
 }
 
-lanewise!(Open {
+elementwise!(Open {
     pulse,
     c60,
     q22_vbe,
@@ -45,7 +45,7 @@ pub struct OpenControls<L: Simd = Mono> {
     pub drain: L::S,
 }
 
-lanewise!(OpenControls {
+elementwise!(OpenControls {
     band,
     decay,
     q23,

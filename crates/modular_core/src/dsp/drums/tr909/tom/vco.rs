@@ -7,7 +7,7 @@ pub(super) struct Vco<L: Simd = Mono> {
     pub(super) rising: L::SM,
 }
 
-lanewise!(Vco { tri, rising });
+elementwise!(Vco { tri, rising });
 
 impl<L: Simd> Vco<L> {
     /// Advances `dt` rising at `up` V/s and falling at `down` V/s,
@@ -35,7 +35,7 @@ impl<L: Simd> Vco<L> {
         }
     }
 
-    /// `a` in the lanes of `mask`, `b` in the others.
+    /// `a` in the elements of `mask`, `b` in the others.
     #[inline]
     pub(super) fn select(mask: L::SM, a: Self, b: Self) -> Self {
         Self {
@@ -58,7 +58,7 @@ pub(super) struct Clipper<L: Simd = Mono> {
     diodes: Junction<L>,
 }
 
-lanewise!(Clipper {
+elementwise!(Clipper {
     collector,
     emitter,
     ce,
@@ -68,7 +68,7 @@ lanewise!(Clipper {
 impl<L: Simd> Clipper<L> {
     /// Solves VCO-1 at `vi` through R102 into Q18's collector, its emitter
     /// through R103 onto the diodes, and R104 on to Q19's collector near
-    /// ground, with Q18's base current `ib`, in the lanes of `on`; the
+    /// ground, with Q18's base current `ib`, in the elements of `on`; the
     /// others keep their nodes. Returns the current into R104.
     #[inline(always)]
     pub(super) fn solve(&mut self, on: L::DM, vi: L::D, ib: L::D) -> L::D {

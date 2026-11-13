@@ -161,17 +161,17 @@ pub struct Multimode {
 #[derive(Default)]
 struct MultimodeState {
     sample_rate: f32,
-    /// Channel count the groups' lanes were last set up for.
+    /// Channel count the groups' elements were last set up for.
     channels: usize,
 }
 
 /// `read(channel)` for the first `active` channels from `base`, 0 for dead
-/// lanes.
+/// elements.
 #[inline]
-fn lanes(base: usize, active: usize, read: impl Fn(usize) -> f32) -> [f32; SIMD_WIDTH] {
-    std::array::from_fn(|lane| {
-        if lane < active {
-            read(base + lane)
+fn elements(base: usize, active: usize, read: impl Fn(usize) -> f32) -> [f32; SIMD_WIDTH] {
+    std::array::from_fn(|element| {
+        if element < active {
+            read(base + element)
         } else {
             0.0
         }
@@ -186,8 +186,8 @@ impl Multimode {
         self.state.sample_rate = sample_rate;
         let base = seed_base(self);
         for (group, state) in self.channel_state.iter_mut().enumerate() {
-            for (lane, noise) in state.noise.iter_mut().enumerate() {
-                noise.seed(base, group * SIMD_WIDTH + lane);
+            for (element, noise) in state.noise.iter_mut().enumerate() {
+                noise.seed(base, group * SIMD_WIDTH + element);
             }
         }
     }
@@ -208,19 +208,19 @@ impl Multimode {
         let write =
             |outputs: &mut MultimodeOutputs, base: usize, active: usize, out: GroupOutputs| {
                 let [sample, lp, bp, hp] = out;
-                for lane in 0..active {
-                    let ch = base + lane;
-                    outputs.sample.set(ch, sample[lane]);
-                    outputs.lp.set(ch, lp[lane]);
-                    outputs.bp.set(ch, bp[lane]);
-                    outputs.hp.set(ch, hp[lane]);
+                for element in 0..active {
+                    let ch = base + element;
+                    outputs.sample.set(ch, sample[element]);
+                    outputs.lp.set(ch, lp[element]);
+                    outputs.bp.set(ch, bp[element]);
+                    outputs.hp.set(ch, hp[element]);
                 }
             };
-        // A single channel runs on lane 0 alone, without three dead lanes.
+        // A single channel runs on element 0 alone, without three dead elements.
         if channels == 1 {
             let state = &mut self.channel_state[0];
             update_controls::<f32>(&mut state.controls, &ControlInputs::read(p, 0, 1), 1, rate);
-            let input = lanes(0, 1, |ch| p.input.get_value(ch));
+            let input = elements(0, 1, |ch| p.input.get_value(ch));
             let out = step::<f32>(state, input, 1, high_res, tables);
             write(outputs, 0, 1, out);
             return;
@@ -234,9 +234,9 @@ impl Multimode {
             let base = group * SIMD_WIDTH;
             let active = (channels - base).min(SIMD_WIDTH);
             let controls = ControlInputs::read(p, base, active);
-            let input = lanes(base, active, |ch| p.input.get_value(ch));
+            let input = elements(base, active, |ch| p.input.get_value(ch));
             let group = (active, high_res, rate, tables);
-            // A group's one live channel runs on lane 0 as well.
+            // A group's one live channel runs on element 0 as well.
             let out = if active == 1 {
                 process_group::<f32>(state, &controls, input, group)
             } else {
@@ -268,7 +268,7 @@ impl Multimode {
             let base = group * SIMD_WIDTH;
             let active = (channels - base).min(SIMD_WIDTH);
             let group = (base, active, high_res, rate, tables);
-            // A group's one live channel runs on lane 0, as in `update`.
+            // A group's one live channel runs on element 0, as in `update`.
             if active == 1 {
                 process_block_group::<f32>(state, &inputs, outputs, range.clone(), group);
             } else {
@@ -288,10 +288,10 @@ impl crate::types::PatchUpdateHandler for Multimode {
             group.configure(rate);
         }
         // A group with one live channel keeps that channel's four output
-        // downsamplers in one downsampler's lanes; a group moving between one
+        // downsamplers in one downsampler's elements; a group moving between one
         // live channel and several transposes them. A group that comes back
         // with one live channel starts all four from rest, since clearing its
-        // lane alone would leave the other three outputs' history.
+        // element alone would leave the other three outputs' history.
         let live =
             |count: usize, group: usize| count.saturating_sub(group * SIMD_WIDTH).min(SIMD_WIDTH);
         for (group, state) in self.channel_state.iter_mut().enumerate() {
@@ -303,12 +303,12 @@ impl crate::types::PatchUpdateHandler for Multimode {
             }
         }
         // Channels new to this patch start from rest, as they would in a fresh
-        // module, rather than from a lane that ran dead before.
+        // module, rather than from a element that ran dead before.
         for ch in old.min(channels)..channels {
-            self.channel_state[ch / SIMD_WIDTH].clear_lane(ch % SIMD_WIDTH);
+            self.channel_state[ch / SIMD_WIDTH].clear_element(ch % SIMD_WIDTH);
         }
-        // A new channel count changes which lanes are dead; recomputing every
-        // law sets them to follow lane 0 again.
+        // A new channel count changes which elements are dead; recomputing every
+        // law sets them to follow element 0 again.
         if old != channels {
             for group in self.channel_state.iter_mut().take(groups) {
                 group.controls.clear();

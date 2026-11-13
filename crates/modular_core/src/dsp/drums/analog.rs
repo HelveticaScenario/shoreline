@@ -1,6 +1,6 @@
 //! Discretised analog building blocks shared by the drum voices.
 
-use super::simd::{Mask, Mono, Real, Simd, c, lanewise};
+use super::simd::{Mask, Mono, Real, Simd, c, elementwise};
 
 /// Thermal voltage at room temperature.
 pub const VT: f32 = 0.025_85;
@@ -59,7 +59,7 @@ pub struct Exp<L: Simd = Mono> {
     steps: L::D,
 }
 
-lanewise!(Exp { arg, value, steps });
+elementwise!(Exp { arg, value, steps });
 
 impl<L: Simd> Default for Exp<L> {
     fn default() -> Self {
@@ -102,13 +102,13 @@ impl<L: Simd> Exp<L> {
         }
     }
 
-    /// [`Self::at`] in the lanes of `mask`; the others keep `self`.
+    /// [`Self::at`] in the elements of `mask`; the others keep `self`.
     #[inline]
     pub fn at_where(self, mask: L::DM, x: L::D, scale: f64) -> Self {
         Self::select(mask, self.at(x, scale), self)
     }
 
-    /// `a` in the lanes of `mask`, `b` in the others.
+    /// `a` in the elements of `mask`, `b` in the others.
     #[inline]
     pub fn select(mask: L::DM, a: Self, b: Self) -> Self {
         Self {
@@ -119,8 +119,8 @@ impl<L: Simd> Exp<L> {
     }
 }
 
-/// `exp` of `arg` in the lanes of `far`, `taylor` in the others: a group
-/// whose lanes differ. Out of line and cold, so the compiler cannot hoist
+/// `exp` of `arg` in the elements of `far`, `taylor` in the others: a group
+/// whose elements differ. Out of line and cold, so the compiler cannot hoist
 /// the `exp` into every step.
 #[cold]
 #[inline(never)]
@@ -136,4 +136,4 @@ pub struct Junction<L: Simd = Mono> {
     pub e: Exp<L>,
 }
 
-lanewise!(Junction { v, e });
+elementwise!(Junction { v, e });

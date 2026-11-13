@@ -263,7 +263,7 @@ impl ZenerTables {
         }
     }
 
-    /// Capacitance of the pair with `v` across it, per lane. The
+    /// Capacitance of the pair with `v` across it, per element. The
     /// reverse-biased junction's depletion layer widens with voltage, so it
     /// falls from 100 pF at 0 V to about 55 pF at 4.5 V; past the table it
     /// holds its last value.

@@ -23,7 +23,7 @@ use super::circuit::{
 use crate::dsp::drums::analog::{Exp, VT, converged, high_pass, low_pass, one_pole_coeff, rc_hz};
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
 use crate::dsp::drums::input::{Cached, Hold};
-use crate::dsp::drums::simd::{Lanewise, Mask, Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Elementwise, Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::dsp::utils::voct_to_hz;
@@ -110,7 +110,7 @@ struct Tom<L: Simd = Mono> {
     out_lp: L::S,
 }
 
-lanewise!(Tom {
+elementwise!(Tom {
     pulse,
     c_in,
     arms,
@@ -197,7 +197,7 @@ struct TomControls<L: Simd = Mono> {
     level: L::S,
 }
 
-lanewise!(TomControls { t, white, level });
+elementwise!(TomControls { t, white, level });
 
 /// The toms and congas at every width.
 struct TomDrum;

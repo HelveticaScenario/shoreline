@@ -37,7 +37,7 @@ pub(super) fn chain() -> &'static Curve {
 
 /// Output voltages for `v`, the mode VCAs' output expressed as the voltage it
 /// would develop across R173 (the amp inverts). The chain is evaluated on the
-/// first `active` lanes that reach it.
+/// first `active` elements that reach it.
 #[inline(always)]
 pub(super) fn output_amp<L: Simd>(chain: &Curve, v: L, active: usize) -> L {
     let x = L::splat(-OUTPUT_GAIN) * v;
@@ -47,11 +47,11 @@ pub(super) fn output_amp<L: Simd>(chain: &Curve, v: L, active: usize) -> L {
     if conducting == 0 {
         return x;
     }
-    let mut lanes = x.to_lanes();
-    for lane in (0..active).filter(|&lane| conducting & (1 << lane) != 0) {
-        lanes[lane] = chain.eval(lanes[lane] as f64) as f32;
+    let mut elements = x.to_elements();
+    for element in (0..active).filter(|&element| conducting & (1 << element) != 0) {
+        elements[element] = chain.eval(elements[element] as f64) as f32;
     }
-    L::from_lanes(lanes)
+    L::from_elements(elements)
 }
 
 /// Limits decimated outputs to the op-amp's swing.

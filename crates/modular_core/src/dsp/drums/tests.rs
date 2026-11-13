@@ -270,10 +270,10 @@ fn channels_keep_sounding_as_updates_regroup_them() {
 
 mod parking {
     //! A circuit that settles within a few samples, struck on a schedule,
-    //! so its lanes settle, park and strike again while others ring.
+    //! so its elements settle, park and strike again while others ring.
 
     use super::super::group::{ALONE, ChannelInputs, Drum, Groups, Run};
-    use super::super::simd::{Mono, Real, Simd, c, lanewise};
+    use super::super::simd::{Mono, Real, Simd, c, elementwise};
     use super::super::voice::{Circuit, Fire, Voices};
 
     #[derive(Clone, Copy, Default)]
@@ -282,7 +282,7 @@ mod parking {
         phase: L::S,
     }
 
-    lanewise!(Ring { level, phase });
+    elementwise!(Ring { level, phase });
 
     impl Fire for Ring {
         fn fire(&mut self, accent: f32, _: &()) {
@@ -391,7 +391,7 @@ mod parking {
     }
 
     #[test]
-    fn settled_lanes_park_and_strike_again_as_alone() {
+    fn settled_elements_park_and_strike_again_as_alone() {
         check::<true, true>();
         check::<true, false>();
         check::<false, true>();

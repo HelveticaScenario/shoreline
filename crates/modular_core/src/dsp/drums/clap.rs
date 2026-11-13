@@ -13,7 +13,7 @@
 
 use super::analog::VT;
 use super::mna::{GROUND, Mna, MnaBuilder, MnaState, Switch};
-use super::simd::{Mono, Real, Simd, c, lanewise};
+use super::simd::{Mono, Real, Simd, c, elementwise};
 
 const RAIL: f32 = 15.0;
 const BETA: f32 = 300.0;
@@ -131,7 +131,7 @@ pub struct Envelope<L: Simd = Mono> {
     q71_base: L::S,
 }
 
-lanewise!(Envelope {
+elementwise!(Envelope {
     net,
     oc,
     ob,

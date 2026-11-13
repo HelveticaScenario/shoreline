@@ -21,7 +21,7 @@ use super::vco::Vco;
 use crate::dsp::drums::analog::Junction;
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
 use crate::dsp::drums::mna::{DC_STEP, GROUND, Mna, MnaBuilder, MnaState, STIFF, Switch};
-use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::poly::{PolyOutput, PolySignal};
@@ -172,7 +172,7 @@ struct Kick<L: Simd = Mono> {
     quiet: Quiet<L>,
 }
 
-lanewise!(Kick {
+elementwise!(Kick {
     trigger,
     accent,
     c9,
@@ -227,7 +227,7 @@ struct KickControls<L: Simd = Mono> {
     noise: L::S,
 }
 
-lanewise!(KickControls {
+elementwise!(KickControls {
     rate,
     sweep,
     decay,

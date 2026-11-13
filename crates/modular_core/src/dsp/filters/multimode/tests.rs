@@ -375,8 +375,8 @@ both_resolutions! {
         }
     }
 
-    fn each_lane_matches_a_single_channel(high_res: bool) {
-        // Five channels: a full group of four, then one beside three dead lanes.
+    fn each_element_matches_a_single_channel(high_res: bool) {
+        // Five channels: a full group of four, then one beside three dead elements.
         let settings = [
             (220.0, 0.0, 0.0),
             (1_000.0, 3.0, 2.5),
@@ -404,7 +404,7 @@ both_resolutions! {
                     (&poly.outputs.hp, &mono.outputs.hp),
                 ];
                 for (a, b) in pairs {
-                    // The lanes' noise generators are seeded per channel.
+                    // The elements' noise generators are seeded per channel.
                     let (a, b) = (a.get(ch), b.get(0));
                     assert!((a - b).abs() < 1.0e-3, "sample {n} channel {ch}: {a} vs {b}");
                 }
@@ -451,7 +451,7 @@ both_resolutions! {
     }
 
     fn channels_added_by_a_patch_update_start_from_rest(high_res: bool) {
-        // Three self-oscillating channels leave the group's fourth lane dead.
+        // Three self-oscillating channels leave the group's fourth element dead.
         let mut old = make_channels(high_res, &[(440.0, 5.0, 0.0); 3]);
         free_run(&mut old, 1.0);
         let mut new = make_channels(high_res, &[(440.0, 5.0, 0.0); 4]);

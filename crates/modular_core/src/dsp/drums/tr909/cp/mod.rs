@@ -17,7 +17,7 @@ use crate::dsp::drums::analog::Junction;
 use crate::dsp::drums::clap::{Envelope, EnvelopeNetwork, ota_current};
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
 use crate::dsp::drums::mna::{DC_STEP, GROUND, Mna, MnaBuilder, MnaState, STIFF};
-use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Level, Pulse, Quiet, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::poly::{PolyOutput, PolySignal};
@@ -139,7 +139,7 @@ struct Clap<L: Simd = Mono> {
     quiet: Quiet<L>,
 }
 
-lanewise!(Clap {
+elementwise!(Clap {
     trigger,
     accent,
     level,

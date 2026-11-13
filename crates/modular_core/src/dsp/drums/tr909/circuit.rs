@@ -61,7 +61,7 @@ impl TransistorVca {
         self.base_current_where(!L::DM::default(), volts, ohms, base)
     }
 
-    /// [`Self::base_current`] in the lanes of `on`; the others draw none
+    /// [`Self::base_current`] in the elements of `on`; the others draw none
     /// and keep their junction.
     #[inline(always)]
     pub fn base_current_where<L: Simd>(
@@ -200,7 +200,7 @@ pub const DIODE: f64 = 1.0 / DIODE_NVT;
 impl Shaper {
     /// Solves the diode node `d` and the collector node `vc` for the
     /// triangle at `vi` and the VCA's base current `ib`, by Newton from
-    /// their last values, in the lanes of `on`; the others keep their
+    /// their last values, in the elements of `on`; the others keep their
     /// nodes. Returns the VCA's emitter current.
     #[inline]
     pub fn solve<L: Simd>(
@@ -214,7 +214,7 @@ impl Shaper {
         self.solve_with(on, d, vc, vi, c(0.0), 0.0, ib)
     }
 
-    /// [`Self::solve`] in the lanes where `ib` turns the transistor on; the
+    /// [`Self::solve`] in the elements where `ib` turns the transistor on; the
     /// others pass nothing.
     #[inline(always)]
     pub fn solve_gated<L: Simd>(
@@ -231,7 +231,7 @@ impl Shaper {
         L::D::select(on, self.solve(on, d, vc, vi, ib), c(0.0))
     }
 
-    /// [`Self::solve_with`] in the lanes where `ib` turns the transistor on;
+    /// [`Self::solve_with`] in the elements where `ib` turns the transistor on;
     /// the others pass nothing.
     #[allow(clippy::too_many_arguments)]
     #[inline(always)]
@@ -304,7 +304,7 @@ impl Shaper {
 
 /// Solves `vca`'s collector node `vc`, fed from the open-circuit voltage
 /// `open` through `ohms`, with `r_load` to ground and base current `ib`, in
-/// the lanes of `on`; the others keep their node. Returns the emitter
+/// the elements of `on`; the others keep their node. Returns the emitter
 /// current and the current drawn from the source.
 #[inline(always)]
 pub fn vca_port<L: Simd>(
@@ -339,7 +339,7 @@ pub fn vca_port<L: Simd>(
     (vca.currents(ib, k).emitter, (open - v) * g_source)
 }
 
-/// [`vca_port`] in the lanes where `ib` turns the transistor on; in the
+/// [`vca_port`] in the elements where `ib` turns the transistor on; in the
 /// others it passes nothing, and the source sees only `ohms` and `r_load`.
 #[inline(always)]
 pub fn vca_port_gated<L: Simd>(

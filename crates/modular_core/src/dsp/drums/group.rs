@@ -10,7 +10,7 @@
 //! the new groups from them.
 
 use super::input::Input;
-use super::simd::{Lanewise, Mask, Mono, Real, Simd, X2, X4, c};
+use super::simd::{Elementwise, Mask, Mono, Real, Simd, X2, X4, c};
 use super::voice::{Circuit, Fire, Level, Voices, under};
 use crate::poly::PORT_MAX_CHANNELS;
 
@@ -35,18 +35,18 @@ fn groups<D: Drum>(channels: usize, mut each: impl FnMut(usize, usize, Width)) {
         return;
     }
     for first in (0..channels).step_by(QUAD) {
-        let lanes = (channels - first).min(QUAD);
-        if lanes > 2 && D::RUNS_IN_QUADS {
-            each(first, lanes, Width::Quad);
-        } else if lanes > 1 && D::RUNS_IN_PAIRS {
+        let elements = (channels - first).min(QUAD);
+        if elements > 2 && D::RUNS_IN_QUADS {
+            each(first, elements, Width::Quad);
+        } else if elements > 1 && D::RUNS_IN_PAIRS {
             each(first, 2, Width::Pair);
-            match lanes {
+            match elements {
                 4 => each(first + 2, 2, Width::Pair),
                 3 => each(first + 2, 1, Width::One),
                 _ => {}
             }
         } else {
-            for ch in first..first + lanes {
+            for ch in first..first + elements {
                 each(ch, 1, Width::One);
             }
         }
@@ -65,9 +65,9 @@ pub trait Drum: 'static {
     /// Constants shared by every channel, fixed by the sample rate.
     type Shared;
     type Circuit<L: Simd>: Circuit<L, Shared = Self::Shared, Controls = Self::Controls<L>>
-        + Lanewise<Lane = Self::Circuit<Mono>>;
+        + Elementwise<Element = Self::Circuit<Mono>>;
     /// Settings read once per sample.
-    type Controls<L: Simd>: Default + Lanewise<Lane = Self::Controls<Mono>>;
+    type Controls<L: Simd>: Default + Elementwise<Element = Self::Controls<Mono>>;
     /// State a group runs every sample for its channels besides their
     /// circuits, such as the sources the settings come from. Each channel
     /// holds its own, in the [`Mono`] form, while it runs alone.
@@ -91,7 +91,7 @@ pub trait ChannelInputs<D: Drum> {
 
     /// The triggers and settings of a group of channels, `members`, from
     /// `first` on, with the group's `sources`; by default each channel's
-    /// [`Self::inputs`], lane by lane.
+    /// [`Self::inputs`], element by element.
     #[inline]
     fn group_inputs<L: Simd>(
         &self,
@@ -101,10 +101,10 @@ pub trait ChannelInputs<D: Drum> {
         triggers: &mut [f32; QUAD],
     ) -> D::Controls<L> {
         let mut controls = D::Controls::<L>::default();
-        for (lane, channel) in members.iter_mut().enumerate() {
-            let (trigger, lane_controls) = self.inputs(first + lane, channel);
-            triggers[lane] = trigger;
-            controls.set_lane(lane, &lane_controls);
+        for (element, channel) in members.iter_mut().enumerate() {
+            let (trigger, element_controls) = self.inputs(first + element, channel);
+            triggers[element] = trigger;
+            controls.set_element(element, &element_controls);
         }
         controls
     }
@@ -114,7 +114,7 @@ pub trait ChannelInputs<D: Drum> {
     fn stepped(_channel: &mut Self::Channel) {}
 
     /// Reads a group's sounding circuits, `voice`, after they step, with
-    /// `sounding` marking the lanes of `members` they sound for.
+    /// `sounding` marking the elements of `members` they sound for.
     #[inline]
     fn group_stepped<L: Simd>(
         _members: &mut [Self::Channel],
@@ -123,20 +123,20 @@ pub trait ChannelInputs<D: Drum> {
     ) {
     }
 
-    /// Moves `channel`'s sources into lane `lane` of a group's.
+    /// Moves `channel`'s sources into element `element` of a group's.
     #[inline]
     fn load_sources<L: Simd>(
         _channel: &mut Self::Channel,
-        _lane: usize,
+        _element: usize,
         _sources: &mut D::Sources<L>,
     ) {
     }
 
-    /// Moves lane `lane` of a group's sources back into `channel`.
+    /// Moves element `element` of a group's sources back into `channel`.
     #[inline]
     fn unload_sources<L: Simd>(
         _channel: &mut Self::Channel,
-        _lane: usize,
+        _element: usize,
         _sources: &D::Sources<L>,
     ) {
     }
@@ -196,16 +196,16 @@ where
     /// Lays out `count` channels, gathering each channel's state from where
     /// the last layout left it.
     pub fn layout<A: ChannelInputs<D>>(&mut self, channels: &mut [A::Channel], count: usize) {
-        groups::<D>(self.channels, |first, lanes, width| {
-            let kept = &mut channels[first.min(count)..(first + lanes).min(count)];
+        groups::<D>(self.channels, |first, elements, width| {
+            let kept = &mut channels[first.min(count)..(first + elements).min(count)];
             match width {
                 Width::One => {}
                 Width::Pair => self.pairs[first / 2].unload::<A>(kept),
                 Width::Quad => self.quads[first / QUAD].unload::<A>(kept),
             }
         });
-        groups::<D>(count, |first, lanes, width| {
-            let members = &mut channels[first..first + lanes];
+        groups::<D>(count, |first, elements, width| {
+            let members = &mut channels[first..first + elements];
             match width {
                 Width::One => {}
                 Width::Pair => self.pairs[first / 2].load::<A>(members),
@@ -225,8 +225,8 @@ where
         run: &Run<D, I>,
         mut out: impl FnMut(usize, f32),
     ) {
-        groups::<D>(channels.len(), |first, lanes, width| {
-            let members = &mut channels[first..first + lanes];
+        groups::<D>(channels.len(), |first, elements, width| {
+            let members = &mut channels[first..first + elements];
             match width {
                 Width::One => {
                     let channel = &mut members[0];
@@ -251,9 +251,9 @@ where
 }
 
 /// A group's circuits at width `L`: the sounding circuits and the cut-off
-/// ones fading out under them. A lane whose circuit settles is parked: its
+/// ones fading out under them. A element whose circuit settles is parked: its
 /// channel's [`Voices`] holds the circuit as it settled, as a channel
-/// running alone would, while the lane runs on unheard, and the channel's
+/// running alone would, while the element runs on unheard, and the channel's
 /// next hit starts from the parked circuit.
 struct VoiceGroup<L: Simd, D: Drum> {
     voice: D::Circuit<L>,
@@ -281,34 +281,34 @@ impl<L: Simd, D: Drum> VoiceGroup<L, D>
 where
     D::Circuit<Mono>: Fire,
 {
-    /// Takes up the circuits of `members`, one channel per lane. Lanes past
+    /// Takes up the circuits of `members`, one channel per element. Elements past
     /// them rest.
     fn load<A: ChannelInputs<D>>(&mut self, members: &mut [A::Channel]) {
         *self = Self::default();
-        for (lane, channel) in members.iter_mut().enumerate() {
-            A::load_sources(channel, lane, &mut self.sources);
+        for (element, channel) in members.iter_mut().enumerate() {
+            A::load_sources(channel, element, &mut self.sources);
             let v = A::voices(channel);
-            self.voice.set_lane(lane, &v.voice);
-            self.tail.set_lane(lane, &v.tail);
-            self.trim.set_lane(lane, &v.trim);
-            self.tail_trim.set_lane(lane, &v.tail_trim);
+            self.voice.set_element(element, &v.voice);
+            self.tail.set_element(element, &v.tail);
+            self.trim.set_element(element, &v.trim);
+            self.tail_trim.set_element(element, &v.tail_trim);
             if !v.voice.settled() {
-                self.parked &= !(1 << lane);
+                self.parked &= !(1 << element);
             }
         }
     }
 
-    /// Hands each lane's circuits back to its channel in `members`.
+    /// Hands each element's circuits back to its channel in `members`.
     fn unload<A: ChannelInputs<D>>(&self, members: &mut [A::Channel]) {
-        for (lane, channel) in members.iter_mut().enumerate() {
-            A::unload_sources(channel, lane, &self.sources);
+        for (element, channel) in members.iter_mut().enumerate() {
+            A::unload_sources(channel, element, &self.sources);
             let v = A::voices(channel);
-            if self.parked & (1 << lane) == 0 {
-                v.voice = self.voice.lane(lane);
+            if self.parked & (1 << element) == 0 {
+                v.voice = self.voice.element(element);
             }
-            v.tail = self.tail.lane(lane);
-            v.trim = self.trim.lane(lane);
-            v.tail_trim = self.tail_trim.lane(lane);
+            v.tail = self.tail.element(element);
+            v.trim = self.trim.element(element);
+            v.tail_trim = self.tail_trim.element(element);
         }
     }
 
@@ -328,43 +328,47 @@ where
         let trim = <D::Circuit<Mono> as Fire>::accent_trim(run.shared) - 1.0;
         let mut triggers = [0.0; QUAD];
         let mut controls = adapter.group_inputs(first, members, &mut self.sources, &mut triggers);
-        for (lane, channel) in members.iter_mut().enumerate() {
+        for (element, channel) in members.iter_mut().enumerate() {
             let v = A::voices(channel);
-            let Some(accent) = v.strike.process(triggers[lane], run.accent, first + lane) else {
+            let Some(accent) = v
+                .strike
+                .process(triggers[element], run.accent, first + element)
+            else {
                 continue;
             };
-            let mut circuit = if self.parked & (1 << lane) != 0 {
+            let mut circuit = if self.parked & (1 << element) != 0 {
                 v.voice
             } else {
-                self.voice.lane(lane)
+                self.voice.element(element)
             };
             if run.restart && !circuit.settled() {
-                self.tail.set_lane(lane, &circuit);
-                self.tail_trim.set_lane(lane, &self.trim.lane(lane).now());
+                self.tail.set_element(element, &circuit);
+                self.tail_trim
+                    .set_element(element, &self.trim.element(element).now());
                 v.tail_left = run.fade_samples;
                 circuit = Default::default();
             }
             if trim != 0.0 {
-                let mut lane_trim = self.trim.lane(lane);
-                lane_trim.set(trim * accent, !circuit.settled(), run.fade_samples);
-                self.trim.set_lane(lane, &lane_trim);
+                let mut element_trim = self.trim.element(element);
+                element_trim.set(trim * accent, !circuit.settled(), run.fade_samples);
+                self.trim.set_element(element, &element_trim);
             }
             circuit.fire(accent, run.shared);
-            self.voice.set_lane(lane, &circuit);
-            self.parked &= !(1 << lane);
+            self.voice.set_element(element, &circuit);
+            self.parked &= !(1 << element);
         }
-        // Lanes past the group's channels follow its first, so they run on
+        // Elements past the group's channels follow its first, so they run on
         // settings a channel could have.
-        let first_controls = controls.lane(0);
-        for lane in members.len()..L::WIDTH {
-            controls.set_lane(lane, &first_controls);
+        let first_controls = controls.element(0);
+        for element in members.len()..L::WIDTH {
+            controls.set_element(element, &first_controls);
         }
 
         let settled = self.voice.settled().bits() & live & !self.parked;
         if settled != 0 {
-            for (lane, channel) in members.iter_mut().enumerate() {
-                if settled & (1 << lane) != 0 {
-                    A::voices(channel).voice = self.voice.lane(lane);
+            for (element, channel) in members.iter_mut().enumerate() {
+                if settled & (1 << element) != 0 {
+                    A::voices(channel).voice = self.voice.element(element);
                 }
             }
             self.parked |= settled;
@@ -382,11 +386,11 @@ where
         }
         let mut tails = 0;
         let mut fade = c::<L::S>(0.0);
-        for (lane, channel) in members.iter_mut().enumerate() {
+        for (element, channel) in members.iter_mut().enumerate() {
             let v = A::voices(channel);
             if v.tail_left > 0 {
-                tails |= 1 << lane;
-                fade.set_lane(lane, &(v.tail_left as f32 / run.fade_samples as f32));
+                tails |= 1 << element;
+                fade.set_element(element, &(v.tail_left as f32 / run.fade_samples as f32));
                 v.tail_left -= 1;
             }
         }
@@ -397,8 +401,8 @@ where
             }
             y = L::S::select(L::mask(tails), under(y, tail), y);
         }
-        for lane in 0..members.len() {
-            out(first + lane, y.lane(lane));
+        for element in 0..members.len() {
+            out(first + element, y.element(element));
         }
     }
 }

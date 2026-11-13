@@ -18,7 +18,7 @@ use super::metal::{MetalBank, MetalFilters, metal_pulse};
 use super::swing::{SwingState, vca};
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, QUAD, Run};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState, STIFF, Switch};
-use crate::dsp::drums::simd::{Lanewise, Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Elementwise, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::poly::{PolyOutput, PolySignal};
@@ -137,7 +137,7 @@ struct Cymbal<L: Simd = Mono> {
     quiet: Quiet<L>,
 }
 
-lanewise!(Cymbal {
+elementwise!(Cymbal {
     pulse,
     smooth,
     env,
@@ -177,7 +177,7 @@ struct CymbalControls<L: Simd = Mono> {
     tone: [L::S; 2],
 }
 
-lanewise!(CymbalControls {
+elementwise!(CymbalControls {
     high,
     low,
     decay,

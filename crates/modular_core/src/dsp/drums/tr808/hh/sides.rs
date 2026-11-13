@@ -5,7 +5,7 @@
 use super::*;
 use crate::dsp::drums::group::{ChannelInputs, Drum, QUAD};
 use crate::dsp::drums::input::{Cached, Input};
-use crate::dsp::drums::simd::Lanewise;
+use crate::dsp::drums::simd::Elementwise;
 use crate::dsp::drums::tr808::metal::{MetalBank, MetalFilters};
 use crate::dsp::drums::voice::{Voices, knob};
 
@@ -100,11 +100,11 @@ impl<I: Input> ChannelInputs<ClosedHat> for ClosedSide<'_, I> {
     ) -> ClosedControls<L> {
         let (band, _) = bank.step(self.filters);
         let mut q23 = c::<L::S>(0.0);
-        for (lane, cs) in members.iter_mut().enumerate() {
-            let ch = first + lane;
-            triggers[lane] = self.trigger.at(ch);
-            cs.band = band.lane(lane);
-            q23.set_lane(lane, &self.cut(ch, cs));
+        for (element, cs) in members.iter_mut().enumerate() {
+            let ch = first + element;
+            triggers[element] = self.trigger.at(ch);
+            cs.band = band.element(element);
+            q23.set_element(element, &self.cut(ch, cs));
         }
         ClosedControls { band, q23 }
     }
@@ -117,21 +117,21 @@ impl<I: Input> ChannelInputs<ClosedHat> for ClosedSide<'_, I> {
     #[inline]
     fn group_stepped<L: Simd>(members: &mut [Channel], voice: &Closed<L>, sounding: u32) {
         let q23 = voice.q23();
-        for (lane, cs) in members.iter_mut().enumerate() {
-            cs.q23 = if sounding & (1 << lane) != 0 {
-                q23.lane(lane)
+        for (element, cs) in members.iter_mut().enumerate() {
+            cs.q23 = if sounding & (1 << element) != 0 {
+                q23.element(element)
             } else {
                 0.0
             };
         }
     }
 
-    fn load_sources<L: Simd>(cs: &mut Channel, lane: usize, bank: &mut MetalBank<L>) {
-        bank.set_lane(lane, &cs.bank);
+    fn load_sources<L: Simd>(cs: &mut Channel, element: usize, bank: &mut MetalBank<L>) {
+        bank.set_element(element, &cs.bank);
     }
 
-    fn unload_sources<L: Simd>(cs: &mut Channel, lane: usize, bank: &MetalBank<L>) {
-        cs.bank = bank.lane(lane);
+    fn unload_sources<L: Simd>(cs: &mut Channel, element: usize, bank: &MetalBank<L>) {
+        cs.bank = bank.element(element);
     }
 }
 

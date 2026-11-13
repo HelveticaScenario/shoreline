@@ -265,22 +265,22 @@ impl<I: Input> ChannelInputs<CymbalDrum> for CyInputs<'_, I> {
             low,
             ..Default::default()
         };
-        for (lane, trigger) in triggers.iter_mut().take(members.len()).enumerate() {
-            let ch = first + lane;
+        for (element, trigger) in triggers.iter_mut().take(members.len()).enumerate() {
+            let ch = first + element;
             *trigger = self.trigger.at(ch);
             let (decay, tone) = self.pots(ch);
-            controls.decay.set_lane(lane, &decay);
-            controls.tone.set_lane(lane, &tone);
+            controls.decay.set_element(element, &decay);
+            controls.tone.set_element(element, &tone);
         }
         controls
     }
 
-    fn load_sources<L: Simd>(cs: &mut Channel, lane: usize, bank: &mut MetalBank<L>) {
-        bank.set_lane(lane, &cs.bank);
+    fn load_sources<L: Simd>(cs: &mut Channel, element: usize, bank: &mut MetalBank<L>) {
+        bank.set_element(element, &cs.bank);
     }
 
-    fn unload_sources<L: Simd>(cs: &mut Channel, lane: usize, bank: &MetalBank<L>) {
-        cs.bank = bank.lane(lane);
+    fn unload_sources<L: Simd>(cs: &mut Channel, element: usize, bank: &MetalBank<L>) {
+        cs.bank = bank.element(element);
     }
 }
 

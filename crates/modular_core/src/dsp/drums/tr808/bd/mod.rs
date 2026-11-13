@@ -18,7 +18,7 @@ use super::circuit::{DIODE_DROP, SILENCE, T60_TO_RATE, VSAT, decay_secs, pulse_v
 use super::levels;
 use crate::dsp::drums::analog::{high_pass, low_pass, one_pole_coeff};
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
-use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Timing, Voices, knob};
 use crate::dsp::utils::voct_to_hz;
 use crate::poly::{PolyOutput, PolySignal};
@@ -104,7 +104,7 @@ struct Kick<L: Simd = Mono> {
     output_hp: L::S,
 }
 
-lanewise!(Kick {
+elementwise!(Kick {
     pulse,
     shaper,
     c38,
@@ -237,7 +237,7 @@ struct KickControls<L: Simd = Mono> {
     level: L::S,
 }
 
-lanewise!(KickControls {
+elementwise!(KickControls {
     c,
     a,
     g,

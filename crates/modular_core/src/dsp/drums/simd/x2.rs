@@ -7,21 +7,21 @@ use std::ops::{
 
 use wide::{f32x4, f64x2};
 
-use super::vector::{broadcast_f32x4, broadcast_f64x2, switch_lanes, vector};
-use super::{Lanewise, Mask, Real, Simd};
+use super::vector::{broadcast_f32x4, broadcast_f64x2, switch_elements, vector};
+use super::{Elementwise, Mask, Real, Simd};
 
 /// Two channels.
 #[derive(Clone, Copy, Default)]
 pub struct X2;
 
-/// Two `f32` lanes in the low half of a 128-bit vector.
+/// Two `f32` elements in the low half of a 128-bit vector.
 #[derive(Clone, Copy, Default)]
 pub struct F32x2(f32x4);
 
 #[derive(Clone, Copy, Default)]
 pub struct F64x2(f64x2);
 
-/// Lane flags as all-ones or all-zeros lanes of their values.
+/// Element flags as all-ones or all-zeros elements of their values.
 #[derive(Clone, Copy, Default)]
 pub struct M32x2(f32x4);
 
@@ -58,7 +58,7 @@ impl Simd for X2 {
         M32x2::from_bits(m.bits())
     }
 
-    switch_lanes!(M32x2, 2);
+    switch_elements!(M32x2, 2);
 
     #[inline(always)]
     fn gather(f: impl Fn(usize) -> f32) -> F32x2 {

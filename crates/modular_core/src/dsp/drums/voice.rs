@@ -3,7 +3,7 @@
 //! cut-off circuits.
 
 use super::input::Input;
-use super::simd::{Mono, Real, Simd, c, lanewise};
+use super::simd::{Mono, Real, Simd, c, elementwise};
 use crate::dsp::utils::SchmittTrigger;
 
 /// How long a hit cut off by a restart takes to fade out under the next
@@ -32,7 +32,7 @@ pub struct Pulse<L: Simd = Mono> {
     volts: L::S,
 }
 
-lanewise!(Pulse { left, volts });
+elementwise!(Pulse { left, volts });
 
 impl Pulse {
     pub fn fire(&mut self, volts: f32, samples: u32) {
@@ -207,7 +207,7 @@ pub struct Quiet<L: Simd = Mono> {
     level: L::S,
 }
 
-lanewise!(Quiet { level });
+elementwise!(Quiet { level });
 
 const QUIET_SECS: f32 = 0.03;
 
@@ -239,7 +239,7 @@ pub struct Level<L: Simd = Mono> {
     left: L::S,
 }
 
-lanewise!(Level { now, step, left });
+elementwise!(Level { now, step, left });
 
 impl Level {
     /// Moves to `target`, over `samples` while `sounding`, at once otherwise.

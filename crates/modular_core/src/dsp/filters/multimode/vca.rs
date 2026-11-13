@@ -2,7 +2,7 @@
 //! harmonic from mismatched emitter resistances in the cell's NPN and PNP
 //! halves, which vanishes at unity gain.
 
-use super::simd::{Simd, f32x4, set_lane};
+use super::simd::{Simd, f32x4, set_element};
 
 /// Second-harmonic coefficient, per ampere of input current, fitted to the
 /// datasheet's class-A 0.15 % THD at ±20 dB.
@@ -24,7 +24,7 @@ impl Gain {
     }
 }
 
-/// A group's four [`Gain`]s, one per lane.
+/// A group's four [`Gain`]s, one per element.
 #[derive(Clone, Copy, Default)]
 pub(super) struct GainX4 {
     gain: f32x4,
@@ -32,9 +32,9 @@ pub(super) struct GainX4 {
 }
 
 impl GainX4 {
-    pub(super) fn set(&mut self, lane: usize, g: &Gain) {
-        set_lane(&mut self.gain, lane, g.gain);
-        set_lane(&mut self.hd2, lane, g.hd2);
+    pub(super) fn set(&mut self, element: usize, g: &Gain) {
+        set_element(&mut self.gain, element, g.gain);
+        set_element(&mut self.hd2, element, g.hd2);
     }
 
     #[inline]

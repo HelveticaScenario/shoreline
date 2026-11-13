@@ -1,13 +1,13 @@
 //! One circuit, several widths. Each drum circuit is written once over
 //! [`Simd`] and runs as [`Mono`], one channel in `f32` and `f64`, or as
-//! [`X2`] or [`X4`], two or four channels at once in vectors. Every lane of
+//! [`X2`] or [`X4`], two or four channels at once in vectors. Every element of
 //! a vector circuit computes exactly what a `Mono` circuit computes for its
 //! channel: the same operations in the same order with the same rounding,
 //! so a channel sounds the same whichever width it runs at.
 //!
 //! Branches become masks: a vector circuit computes both sides where its
-//! lanes disagree and selects per lane, and runs a loop until every lane is
-//! done, holding the lanes that finish first.
+//! elements disagree and selects per element, and runs a loop until every element is
+//! done, holding the elements that finish first.
 
 use std::ops::{
     Add, AddAssign, BitAnd, BitOr, Div, DivAssign, Mul, MulAssign, Neg, Not, Sub, SubAssign,
@@ -20,17 +20,17 @@ mod x4;
 pub use x2::X2;
 pub use x4::X4;
 
-/// Per-lane flags: a `bool` for [`Mono`].
+/// Per-element flags: a `bool` for [`Mono`].
 pub trait Mask:
     Copy + Default + BitAnd<Output = Self> + BitOr<Output = Self> + Not<Output = Self>
 {
     fn any(self) -> bool;
     fn all(self) -> bool;
-    /// Bit `l` set where lane `l`'s flag is.
+    /// Bit `l` set where element `l`'s flag is.
     fn bits(self) -> u32;
 
-    /// `self & f()`, calling `f` only while some lane is set, as `&&` does
-    /// for one lane.
+    /// `self & f()`, calling `f` only while some element is set, as `&&` does
+    /// for one element.
     #[inline(always)]
     fn and_then(self, f: impl FnOnce() -> Self) -> Self {
         if self.any() { self & f() } else { self }
@@ -52,8 +52,8 @@ impl Mask for bool {
     }
 }
 
-/// A value per lane: `f32` or `f64` for [`Mono`]. Arithmetic takes either
-/// another value or a plain number, which applies to every lane.
+/// A value per element: `f32` or `f64` for [`Mono`]. Arithmetic takes either
+/// another value or a plain number, which applies to every element.
 pub trait Real:
     Copy
     + Default
@@ -75,7 +75,7 @@ pub trait Real:
     + MulAssign<Self::Elem>
     + DivAssign<Self::Elem>
 {
-    /// The number in each lane.
+    /// The number in each element.
     type Elem: Copy;
     type Mask: Mask;
 
@@ -89,7 +89,7 @@ pub trait Real:
     fn clamp(self, lo: Self, hi: Self) -> Self;
     fn abs(self) -> Self;
     fn floor(self) -> Self;
-    /// As [`sanitize`](crate::dsp::utils::sanitize): non-finite lanes
+    /// As [`sanitize`](crate::dsp::utils::sanitize): non-finite elements
     /// become 0.
     fn sanitize(self) -> Self;
     /// As `f32::fract`: `self` less its integer part.
@@ -98,13 +98,13 @@ pub trait Real:
     fn gt(self, rhs: Self) -> Self::Mask;
     fn ge(self, rhs: Self) -> Self::Mask;
     fn select(mask: Self::Mask, if_true: Self, if_false: Self) -> Self;
-    /// `f` applied lane by lane.
+    /// `f` applied element by element.
     fn map(self, f: impl Fn(Self::Elem) -> Self::Elem) -> Self;
-    /// `f` applied to the lanes in `mask`; the others keep `keep`'s.
+    /// `f` applied to the elements in `mask`; the others keep `keep`'s.
     fn map_where(self, mask: Self::Mask, keep: Self, f: impl Fn(Self::Elem) -> Self::Elem) -> Self;
 }
 
-/// `value` in every lane, its type taken from where it goes:
+/// `value` in every element, its type taken from where it goes:
 /// `x.max(c(0.0))`.
 #[inline(always)]
 pub fn c<R: Real>(value: R::Elem) -> R {
@@ -202,11 +202,11 @@ scalar_real!(f64);
 /// How wide a circuit runs: its single- and double-precision values, their
 /// masks, and which of a network's switches are closed.
 pub trait Simd: Copy + Default + 'static {
-    type S: Real<Elem = f32, Mask = Self::SM> + Lanewise<Lane = f32>;
-    type D: Real<Elem = f64, Mask = Self::DM> + Lanewise<Lane = f64>;
-    type SM: Mask + Lanewise<Lane = bool>;
-    type DM: Mask + Lanewise<Lane = bool>;
-    /// Per lane, the index of the combination of switches closed in a
+    type S: Real<Elem = f32, Mask = Self::SM> + Elementwise<Element = f32>;
+    type D: Real<Elem = f64, Mask = Self::DM> + Elementwise<Element = f64>;
+    type SM: Mask + Elementwise<Element = bool>;
+    type DM: Mask + Elementwise<Element = bool>;
+    /// Per element, the index of the combination of switches closed in a
     /// network: bit `s` for switch `s`.
     type Closed: Copy;
     /// Channels at once.
@@ -218,15 +218,15 @@ pub trait Simd: Copy + Default + 'static {
     fn narrow_mask(m: Self::DM) -> Self::SM;
     /// The switch combination with switch `s` closed where `closed[s]` is.
     fn closed<const S: usize>(closed: [Self::SM; S]) -> Self::Closed;
-    /// The combination every lane has, if they agree.
+    /// The combination every element has, if they agree.
     fn uniform(closed: Self::Closed) -> Option<usize>;
-    /// Lane `lane`'s combination.
-    fn closed_lane(closed: Self::Closed, lane: usize) -> usize;
+    /// Element `element`'s combination.
+    fn closed_element(closed: Self::Closed, element: usize) -> usize;
     /// Where switch `s` is closed.
     fn switch_on(closed: Self::Closed, s: usize) -> Self::SM;
-    /// A value gathered lane by lane from `f`.
+    /// A value gathered element by element from `f`.
     fn gather(f: impl Fn(usize) -> f32) -> Self::S;
-    /// Lane `l` set where bit `l` of `bits` is.
+    /// Element `l` set where bit `l` of `bits` is.
     fn mask(bits: u32) -> Self::SM;
 }
 
@@ -270,7 +270,7 @@ impl Simd for Mono {
         Some(closed)
     }
     #[inline(always)]
-    fn closed_lane(closed: usize, _lane: usize) -> usize {
+    fn closed_element(closed: usize, _element: usize) -> usize {
         closed
     }
     #[inline(always)]
@@ -287,62 +287,62 @@ impl Simd for Mono {
     }
 }
 
-/// A group's state seen one lane at a time, as the [`Mono`] form of the
-/// same state. Hits start, and channels move between widths, a lane at a
+/// A group's state seen one element at a time, as the [`Mono`] form of the
+/// same state. Hits start, and channels move between widths, a element at a
 /// time.
-pub trait Lanewise {
-    type Lane;
-    fn lane(&self, lane: usize) -> Self::Lane;
-    fn set_lane(&mut self, lane: usize, value: &Self::Lane);
+pub trait Elementwise {
+    type Element;
+    fn element(&self, element: usize) -> Self::Element;
+    fn set_element(&mut self, element: usize, value: &Self::Element);
 }
 
-macro_rules! scalar_lanewise {
+macro_rules! scalar_elementwise {
     ($($t:ty),*) => {$(
-        impl Lanewise for $t {
-            type Lane = $t;
+        impl Elementwise for $t {
+            type Element = $t;
             #[inline(always)]
-            fn lane(&self, _lane: usize) -> $t {
+            fn element(&self, _element: usize) -> $t {
                 *self
             }
             #[inline(always)]
-            fn set_lane(&mut self, _lane: usize, value: &$t) {
+            fn set_element(&mut self, _element: usize, value: &$t) {
                 *self = *value;
             }
         }
     )*};
 }
 
-scalar_lanewise!(f32, f64, bool, ());
+scalar_elementwise!(f32, f64, bool, ());
 
-impl<T: Lanewise, const N: usize> Lanewise for [T; N] {
-    type Lane = [T::Lane; N];
+impl<T: Elementwise, const N: usize> Elementwise for [T; N] {
+    type Element = [T::Element; N];
     #[inline]
-    fn lane(&self, lane: usize) -> Self::Lane {
-        std::array::from_fn(|k| self[k].lane(lane))
+    fn element(&self, element: usize) -> Self::Element {
+        std::array::from_fn(|k| self[k].element(element))
     }
     #[inline]
-    fn set_lane(&mut self, lane: usize, value: &Self::Lane) {
+    fn set_element(&mut self, element: usize, value: &Self::Element) {
         for (v, x) in self.iter_mut().zip(value) {
-            v.set_lane(lane, x);
+            v.set_element(element, x);
         }
     }
 }
 
-/// Implements [`Lanewise`] for `$ty<L>` over the listed fields, which must
+/// Implements [`Elementwise`] for `$ty<L>` over the listed fields, which must
 /// be all of them: the [`Mono`] form's literal names every field.
-macro_rules! lanewise {
+macro_rules! elementwise {
     ($ty:ident { $($field:ident),* $(,)? }) => {
-        impl<L: $crate::dsp::drums::simd::Simd> $crate::dsp::drums::simd::Lanewise for $ty<L> {
-            type Lane = $ty<$crate::dsp::drums::simd::Mono>;
+        impl<L: $crate::dsp::drums::simd::Simd> $crate::dsp::drums::simd::Elementwise for $ty<L> {
+            type Element = $ty<$crate::dsp::drums::simd::Mono>;
             #[inline]
-            fn lane(&self, lane: usize) -> Self::Lane {
-                $ty { $($field: $crate::dsp::drums::simd::Lanewise::lane(&self.$field, lane)),* }
+            fn element(&self, element: usize) -> Self::Element {
+                $ty { $($field: $crate::dsp::drums::simd::Elementwise::element(&self.$field, element)),* }
             }
             #[inline]
-            fn set_lane(&mut self, lane: usize, value: &Self::Lane) {
-                $($crate::dsp::drums::simd::Lanewise::set_lane(&mut self.$field, lane, &value.$field);)*
+            fn set_element(&mut self, element: usize, value: &Self::Element) {
+                $($crate::dsp::drums::simd::Elementwise::set_element(&mut self.$field, element, &value.$field);)*
             }
         }
     };
 }
-pub(crate) use lanewise;
+pub(crate) use elementwise;

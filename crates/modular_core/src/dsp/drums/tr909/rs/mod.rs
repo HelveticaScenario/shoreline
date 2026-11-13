@@ -16,7 +16,7 @@ use crate::dsp::drums::analog::Junction;
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
 use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState, STIFF};
-use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing, Voices, rails};
 use crate::poly::{PolyOutput, PolySignal};
 
@@ -156,7 +156,7 @@ struct Rim<L: Simd = Mono> {
     quiet: Quiet<L>,
 }
 
-lanewise!(Rim {
+elementwise!(Rim {
     trigger,
     accent,
     env,

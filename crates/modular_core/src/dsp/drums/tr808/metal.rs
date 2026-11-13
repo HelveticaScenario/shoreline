@@ -8,7 +8,7 @@
 
 use super::circuit::{ACCENT_V, PULSE_V};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState};
-use crate::dsp::drums::simd::{Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Mono, Real, Simd, c, elementwise};
 use crate::dsp::utils::rng::LcgRng;
 
 // The metal voices' trigger buffer, IC2a, puts out 0.824·V + 3.29 for a
@@ -99,7 +99,7 @@ pub struct MetalBank<L: Simd = Mono> {
     seeded: L::SM,
 }
 
-lanewise!(MetalBank {
+elementwise!(MetalBank {
     phases,
     net,
     seeded

@@ -13,7 +13,7 @@
 
 use crate::dsp::drums::analog::{Exp, Junction, VT, converged};
 use crate::dsp::drums::mna::{Mna, MnaState};
-use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 
 /// The 2SC945's saturation current and forward current gain.
 const IS: f64 = 10.0e-15;
@@ -50,7 +50,7 @@ pub struct SwingState<L: Simd = Mono> {
     saturated: Junction<L>,
 }
 
-lanewise!(SwingState {
+elementwise!(SwingState {
     couple_v,
     couple_i,
     vbe,
