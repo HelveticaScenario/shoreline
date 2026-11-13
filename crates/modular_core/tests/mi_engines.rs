@@ -246,6 +246,7 @@ fn render(port: &Port, samples: usize) -> Vec<f32> {
                         params: cached.params,
                         lane_count: cached.lane_count,
                         f64_inputs: false,
+                        channels: 1,
                     },
                     ProcessingMode::Block,
                 )

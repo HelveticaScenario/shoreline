@@ -94,3 +94,15 @@ pub fn is_signal_type(ty: &Type) -> bool {
         _ => false,
     }
 }
+
+/// A `PairSignal`, the input type that reads a stereo producer side by side.
+pub fn is_pair_signal_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        return type_path
+            .path
+            .segments
+            .last()
+            .is_some_and(|seg| seg.ident == "PairSignal");
+    }
+    false
+}

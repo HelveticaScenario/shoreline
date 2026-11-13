@@ -445,7 +445,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$cycle",
+    name = "$cycle", stereo = mono,
     docs = CYCLE_DOCS,
     lanes_derive = seq_derive_lane_count,
     args(pattern),

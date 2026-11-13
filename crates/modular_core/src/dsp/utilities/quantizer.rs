@@ -39,8 +39,14 @@ impl Connect for ScaleSignal {
     fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
         self.0.collect_cables(sink);
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
+        self.0.collect_lane_cables(sink);
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        self.0.expand_lanes(expansion);
     }
     fn mark_glides(
         &mut self,
@@ -230,7 +236,7 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$quantizer", docs = QUANTIZER_DOCS, lanes_derive = quantizer_derive_lane_count, args(input, scale))]
+#[module(name = "$quantizer", stereo = mono, docs = QUANTIZER_DOCS, lanes_derive = quantizer_derive_lane_count, args(input, scale))]
 pub struct Quantizer {
     outputs: QuantizerOutputs,
     params: QuantizerParams,
@@ -334,6 +340,7 @@ mod tests {
             state: QuantizerState::default(),
             lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
         }
     }

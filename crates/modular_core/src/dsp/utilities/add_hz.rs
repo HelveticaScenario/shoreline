@@ -123,6 +123,7 @@ mod tests {
             },
             outputs,
             _lane_count: 1,
+            _channels: 1,
             _block_index: Default::default(),
             lane_state: Box::new([SwapGlide::default()]),
         }

@@ -55,7 +55,7 @@ const SPREAD_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$spread",
+    name = "$spread", stereo = mono,
     docs = SPREAD_DOCS,
     lanes_param = "count",
     args(min, max, count)

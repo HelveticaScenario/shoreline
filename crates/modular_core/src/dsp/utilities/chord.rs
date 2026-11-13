@@ -198,7 +198,7 @@ const CHORD_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$chord", docs = CHORD_DOCS, lanes_derive = chord_derive_lane_count, args(chord))]
+#[module(name = "$chord", stereo = mono, docs = CHORD_DOCS, lanes_derive = chord_derive_lane_count, args(chord))]
 pub struct Chord {
     outputs: ChordOutputs,
     params: ChordParams,
@@ -272,6 +272,7 @@ mod tests {
             outputs,
             state: ChordState::default(),
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
         }
     }

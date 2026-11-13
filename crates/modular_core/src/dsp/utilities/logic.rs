@@ -82,7 +82,7 @@ const RISING_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$rising", docs = RISING_DOCS, args(input))]
+#[module(name = "$rising", stereo = mono, docs = RISING_DOCS, args(input))]
 pub struct RisingEdgeDetector {
     outputs: RisingEdgeDetectorOutputs,
     params: RisingEdgeDetectorParams,
@@ -130,7 +130,7 @@ const FALLING_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$falling", docs = FALLING_DOCS, args(input))]
+#[module(name = "$falling", stereo = mono, docs = FALLING_DOCS, args(input))]
 pub struct FallingEdgeDetector {
     outputs: FallingEdgeDetectorOutputs,
     params: FallingEdgeDetectorParams,

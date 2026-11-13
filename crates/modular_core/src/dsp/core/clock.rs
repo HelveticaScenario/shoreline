@@ -98,7 +98,7 @@ const CLOCK_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "_clock",
+    name = "_clock", stereo = mono,
     docs = CLOCK_DOCS,
     lanes = 1,
     args(tempo, numerator, denominator),
@@ -465,6 +465,7 @@ impl Default for Clock {
             state: ClockState::default(),
             params: ClockParams::default(),
             _lane_count: 1,
+            _channels: 1,
             _block_index: Default::default(),
         }
     }

@@ -305,11 +305,40 @@ impl crate::types::Connect for PolySignal {
             signal.collect_cables(sink);
         }
     }
+    fn collect_lane_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
+        // Read lane by lane, so every cable counts (a bare `Signal` folds).
+        self.collect_cables(sink);
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for signal in self.lanes.iter_mut() {
             signal.inject_index_ptr(ptr);
         }
         self.cable = PolyCableView::resolve(&self.lanes);
+    }
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        // Lane `l` side `c` of the reader is physical lane `l * channels + c`,
+        // so cycling over the expanded lanes cycles the logical ones.
+        let channels = expansion.channels;
+        let mut lanes = Vec::with_capacity(self.lanes.len() * channels);
+        for signal in self.lanes.iter() {
+            for side in 0..channels {
+                let mut signal = signal.clone();
+                if let Signal::Cable {
+                    module,
+                    port,
+                    lane,
+                    fold,
+                    ..
+                } = &mut signal
+                {
+                    let producer = (expansion.producer)(module, port);
+                    *lane = *lane * producer + side.min(producer - 1);
+                    *fold = channels < producer;
+                }
+                lanes.push(signal);
+            }
+        }
+        *self = Self::from_lanes(lanes.into_boxed_slice());
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
         self.glide_generation = generation;
@@ -621,9 +650,37 @@ impl JsonSchema for PolySignal {
 /// Disconnected inputs are represented as `Option<LaneSum>` at the param level.
 ///
 /// For polyphony propagation, LaneSum is treated as a single lane.
-#[derive(Clone, Debug, Connect)]
+#[derive(Clone, Debug)]
 pub struct LaneSum {
     inner: PolySignal,
+}
+
+// Hand-written: a LaneSum reads one value for the whole module, so it folds a
+// stereo producer and never makes the module stereo.
+impl crate::types::Connect for LaneSum {
+    fn apply_default_connections(&mut self) {
+        self.inner.apply_default_connections();
+    }
+    fn connect(&mut self, patch: &crate::Patch) {
+        self.inner.connect(patch);
+    }
+    fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
+        self.inner.collect_cables(sink);
+    }
+    fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
+        self.inner.inject_index_ptr(ptr);
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        self.inner
+            .mark_glides(old.map(|o| &o.inner), generation, ids);
+    }
+    fn collect_lane_cables(&self, _sink: &mut Vec<crate::types::CableSource>) {}
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        self.inner.expand_lanes(&crate::types::LaneExpansion {
+            channels: 1,
+            producer: expansion.producer,
+        });
+    }
 }
 
 impl LaneSum {
@@ -723,6 +780,113 @@ impl JsonSchema for LaneSum {
 
     fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
         // Reuse PolySignal's schema
+        PolySignal::json_schema(r#gen)
+    }
+}
+
+// =============================================================================
+// PairSignal - a polyphonic input read one side at a time
+// =============================================================================
+
+/// A polyphonic input read side by side: both sides of a stereo producer,
+/// and a mono producer on both. It never makes its module stereo, so a
+/// module that splits or joins stereo reads its sides through it. The DSL
+/// sees it as a `PolySignal`.
+#[derive(Clone, Debug)]
+pub struct PairSignal {
+    inner: PolySignal,
+    /// Set once [`expand_lanes`](crate::types::Connect::expand_lanes) has
+    /// laid each lane out as two sides.
+    paired: bool,
+}
+
+impl PairSignal {
+    /// The input's lanes.
+    pub fn lanes(&self) -> usize {
+        if self.paired {
+            self.inner.lanes() / 2
+        } else {
+            self.inner.lanes()
+        }
+    }
+
+    /// Side `side` (0 left, 1 right) of lane `lane`, cycling lanes.
+    #[inline]
+    pub fn get_value(&self, lane: usize, side: usize) -> f32 {
+        self.inner.get_value(lane * 2 + side)
+    }
+}
+
+impl crate::types::Connect for PairSignal {
+    fn apply_default_connections(&mut self) {
+        self.inner.apply_default_connections();
+    }
+    fn connect(&mut self, patch: &crate::Patch) {
+        self.inner.connect(patch);
+    }
+    fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
+        self.inner.collect_cables(sink);
+    }
+    fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
+        self.inner.inject_index_ptr(ptr);
+    }
+    fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
+        self.inner
+            .mark_glides(old.map(|o| &o.inner), generation, ids);
+    }
+    fn collect_lane_cables(&self, _sink: &mut Vec<crate::types::CableSource>) {}
+    fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+        self.inner.expand_lanes(&crate::types::LaneExpansion {
+            channels: 2,
+            producer: expansion.producer,
+        });
+        self.paired = true;
+    }
+}
+
+impl Serialize for PairSignal {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.inner.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for PairSignal {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(PairSignal {
+            inner: PolySignal::deserialize(deserializer)?,
+            paired: false,
+        })
+    }
+}
+
+impl<E: DeserializeError> deserr::Deserr<E> for PairSignal {
+    fn deserialize_from_value<V: IntoValue>(
+        value: deserr::Value<V>,
+        location: ValuePointerRef<'_>,
+    ) -> Result<Self, E> {
+        Ok(PairSignal {
+            inner: PolySignal::deserialize_from_value(value, location)?,
+            paired: false,
+        })
+    }
+}
+
+impl JsonSchema for PairSignal {
+    fn schema_name() -> Cow<'static, str> {
+        PolySignal::schema_name()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        PolySignal::schema_id()
+    }
+
+    fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
         PolySignal::json_schema(r#gen)
     }
 }

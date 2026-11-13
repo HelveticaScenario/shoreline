@@ -68,7 +68,7 @@ const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$delayRead", docs = DELAY_READ_DOCS, lanes_derive = delay_read_derive_lane_count, args(buffer, time))]
+#[module(name = "$delayRead", stereo = mono, docs = DELAY_READ_DOCS, lanes_derive = delay_read_derive_lane_count, args(buffer, time))]
 pub struct DelayRead {
     outputs: DelayReadOutputs,
     params: DelayReadParams,

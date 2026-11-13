@@ -84,7 +84,7 @@ const COIN_FLIP_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$coinFlip",
+    name = "$coinFlip", stereo = mono,
     docs = COIN_FLIP_DOCS,
     patch_update,
     args(input, probability)
@@ -146,6 +146,7 @@ mod tests {
             outputs,
             lane_state: vec![CoinFlipLaneState::default(); lanes].into_boxed_slice(),
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
         };
         crate::dsp::utils::rng::TEST_SEED_BASE.set(Some(0x5eed));

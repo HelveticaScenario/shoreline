@@ -52,6 +52,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
         params: cached.params,
         lane_count: cached.lane_count,
         f64_inputs: false,
+        channels: 1,
     };
     constructors
         .get(module_type)
@@ -432,7 +433,10 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$curve" => json!({ "input": 0.0, "exp": 1.0 }),
         "$cycle" => json!({ "pattern": mini_payload("0") }),
         "$lpg" | "$slew" | "$hold" | "$motionFollower" | "$quantizer" | "$unison" | "$rising"
-        | "$falling" | "$stereoMix" | "$setLanes" => json!({ "input": 0.0 }),
+        | "$falling" | "$stereoMix" | "$setLanes" | "$mono" | "$left" | "$right" => {
+            json!({ "input": 0.0 })
+        }
+        "$stereo" => json!({ "left": 0.0, "right": 0.0 }),
         "$pWarp" => json!({ "input": 0.0, "phase": { "type": "identity" } }),
         "$enosc" => json!({ "pitch": 0.0 }),
         "$keyframes" => json!({ "keyframes": [] }),
@@ -531,6 +535,7 @@ fn all_constructors_produce_valid_modules() {
             params: cached.params,
             lane_count: cached.lane_count,
             f64_inputs: false,
+            channels: 1,
         };
         let module = constructor(
             &format!("test-{name}"),
@@ -564,6 +569,7 @@ fn all_constructors_can_tick() {
             params: cached.params,
             lane_count: cached.lane_count,
             f64_inputs: false,
+            channels: 1,
         };
         let module = constructor(
             &format!("test-{name}"),

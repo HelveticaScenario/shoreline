@@ -111,7 +111,7 @@ const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$supersaw", docs = SUPERSAW_DOCS, lanes_derive = supersaw_derive_lane_count, has_init, patch_update, args(freq), block)]
+#[module(name = "$supersaw", stereo = mono, docs = SUPERSAW_DOCS, lanes_derive = supersaw_derive_lane_count, has_init, patch_update, args(freq), block)]
 pub struct Supersaw {
     outputs: SupersawOutputs,
     params: SupersawParams,
@@ -475,6 +475,7 @@ mod tests {
             params,
             outputs,
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
             state: SupersawState::default(),
             lane_state: Box::default(),

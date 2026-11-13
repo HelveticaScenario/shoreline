@@ -227,7 +227,7 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$dattorro",
+    name = "$dattorro", stereo = mono,
     docs = DATTORRO_DOCS,
     lanes = 2,
     has_init,
@@ -510,6 +510,7 @@ mod tests {
             params: cached.params,
             lane_count: cached.lane_count,
             f64_inputs: false,
+            channels: 1,
         };
         constructors.get("$dattorro").unwrap()(
             "test-dattorro",
@@ -571,6 +572,7 @@ mod tests {
                 modulation: None,
             },
             _lane_count: 2,
+            _channels: 1,
             _block_index: Default::default(),
         };
         m.init(SAMPLE_RATE);

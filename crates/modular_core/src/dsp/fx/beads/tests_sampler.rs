@@ -57,6 +57,7 @@ fn construct(
         params,
         lane_state: (0..lanes).map(|_| Default::default()).collect(),
         _lane_count: lanes,
+        _channels: 1,
         _block_index: Default::default(),
     };
     m.init(SR);

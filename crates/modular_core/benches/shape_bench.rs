@@ -22,6 +22,7 @@ fn make(module: &str, params: serde_json::Value, lanes: usize) -> Box<dyn Sample
         params: cached.params,
         lane_count: lanes,
         f64_inputs: false,
+        channels: 1,
     };
     get_constructors()[module]("bench", SR, deserialized, BLOCK, ProcessingMode::Block)
         .expect("construct")

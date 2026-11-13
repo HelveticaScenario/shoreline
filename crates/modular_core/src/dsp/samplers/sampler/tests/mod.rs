@@ -25,6 +25,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
         params: cached.params,
         lane_count: cached.lane_count,
         f64_inputs: false,
+        channels: 1,
     };
     constructors
         .get(module_type)
@@ -132,6 +133,7 @@ fn make_direct(params_json: serde_json::Value, wav_data: Arc<WavData>) -> Sample
         outputs,
         state: SamplerState::default(),
         _lane_count: 1,
+        _channels: 1,
         _block_index: Default::default(),
     };
     sampler.init(SAMPLE_RATE);

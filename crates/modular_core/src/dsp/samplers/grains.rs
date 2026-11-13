@@ -251,7 +251,7 @@ const GRAINS_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$grains",
+    name = "$grains", stereo = mono,
     docs = GRAINS_DOCS,
     lanes_derive = grains_derive_lane_count,
     args(pitch, wav, gate),
@@ -647,6 +647,7 @@ mod tests {
             params: cached.params,
             lane_count: cached.lane_count,
             f64_inputs: false,
+            channels: 1,
         };
         constructors
             .get(module_type)
@@ -1050,6 +1051,7 @@ mod tests {
             state: GrainsState::default(),
             lane_state: vec![GrainLane::default()].into_boxed_slice(),
             _lane_count: 1,
+            _channels: 1,
             _block_index: Default::default(),
         };
         grains.init(SAMPLE_RATE);

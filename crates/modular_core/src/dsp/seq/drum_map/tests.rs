@@ -32,6 +32,7 @@ fn make_fresh(params: DrumMapParams) -> DrumMap {
         params,
         outputs,
         _lane_count: lanes,
+        _channels: 1,
         _block_index: Default::default(),
         state: DrumMapState::default(),
         lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),

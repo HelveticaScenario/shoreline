@@ -73,7 +73,7 @@ const SMOOTH_CONTROL_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "_smoothControl",
+    name = "_smoothControl", stereo = mono,
     docs = SMOOTH_CONTROL_DOCS,
     has_init,
     patch_update,
@@ -149,6 +149,7 @@ mod tests {
             outputs,
             state: SmoothControlState::default(),
             _lane_count: 1,
+            _channels: 1,
             _block_index: Default::default(),
         };
         s.init(SR);

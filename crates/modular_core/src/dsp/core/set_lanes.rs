@@ -59,7 +59,7 @@ const SET_LANES_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$setLanes",
+    name = "$setLanes", stereo = mono,
     docs = SET_LANES_DOCS,
     lanes_param = "lanes",
     args(input, lanes),
@@ -299,6 +299,7 @@ mod tests {
             params,
             outputs,
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
             lane_state: Box::default(),
         };

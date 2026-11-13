@@ -144,6 +144,7 @@ mod tests {
                 octave: false,
             },
             _lane_count: 1,
+            _channels: 1,
             _block_index: Default::default(),
         };
         module.outputs.sample.set_lanes(1);
@@ -161,6 +162,7 @@ mod tests {
                 octave: true,
             },
             _lane_count: 1,
+            _channels: 1,
             _block_index: Default::default(),
         };
         module.outputs.sample.set_lanes(1);

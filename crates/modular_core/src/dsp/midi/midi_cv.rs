@@ -161,7 +161,7 @@ const MIDI_CV_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$midiCV",
+    name = "$midiCV", stereo = mono,
     docs = MIDI_CV_DOCS,
     lanes_param = "lanes",
     args()

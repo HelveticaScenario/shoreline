@@ -377,6 +377,17 @@ pub fn impl_connect_macro(ast: &DeriveInput) -> TokenStream {
         }
     };
 
+    // Both walk the same fields as their siblings, so they are those bodies
+    // with the method (and argument) renamed.
+    let collect_lane_cables_body = rename_idents(
+        collect_cables_body.clone(),
+        &[("collect_cables", "collect_lane_cables")],
+    );
+    let expand_lanes_body = rename_idents(
+        inject_index_body.clone(),
+        &[("inject_index_ptr", "expand_lanes"), ("ptr", "expansion")],
+    );
+
     let generated = quote! {
         impl crate::types::Connect for #name {
             fn apply_default_connections(&mut self) {
@@ -391,6 +402,12 @@ pub fn impl_connect_macro(ast: &DeriveInput) -> TokenStream {
             fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
                 #inject_index_body
             }
+            fn collect_lane_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
+                #collect_lane_cables_body
+            }
+            fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
+                #expand_lanes_body
+            }
             #[allow(unused_variables)]
             fn mark_glides(
                 &mut self,
@@ -404,4 +421,25 @@ pub fn impl_connect_macro(ast: &DeriveInput) -> TokenStream {
     };
 
     generated.into()
+}
+
+/// `tokens` with every identifier named in `renames` replaced, inside groups too.
+fn rename_idents(tokens: TokenStream2, renames: &[(&str, &str)]) -> TokenStream2 {
+    use proc_macro2::{Group, TokenTree};
+    tokens
+        .into_iter()
+        .map(|tree| match tree {
+            TokenTree::Ident(ident) => match renames.iter().find(|(from, _)| ident == from) {
+                Some((_, to)) => TokenTree::Ident(Ident::new(to, ident.span())),
+                None => TokenTree::Ident(ident),
+            },
+            TokenTree::Group(group) => {
+                let mut renamed =
+                    Group::new(group.delimiter(), rename_idents(group.stream(), renames));
+                renamed.set_span(group.span());
+                TokenTree::Group(renamed)
+            }
+            other => other,
+        })
+        .collect()
 }

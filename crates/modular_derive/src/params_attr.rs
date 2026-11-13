@@ -291,6 +291,7 @@ fn is_signal_field(ty: &Type) -> bool {
         || is_mono_signal_type(ty)
         || is_option_poly_signal_type(ty)
         || is_option_mono_signal_type(ty)
+        || crate::utils::is_pair_signal_type(ty)
 }
 
 const NUMERIC_TYPES: &[&str] = &[

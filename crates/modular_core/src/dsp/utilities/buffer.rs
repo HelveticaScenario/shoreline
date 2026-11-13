@@ -232,7 +232,7 @@ const BUFFER_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$buffer",
+    name = "$buffer", stereo = mono,
     docs = BUFFER_DOCS,
     has_init,
     args(input, length)
@@ -370,7 +370,7 @@ const BUF_READ_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$bufRead", docs = BUF_READ_DOCS, lanes_derive = buf_read_derive_lane_count, args(buffer, frame))]
+#[module(name = "$bufRead", stereo = mono, docs = BUF_READ_DOCS, lanes_derive = buf_read_derive_lane_count, args(buffer, frame))]
 pub struct BufRead {
     outputs: BufReadOutputs,
     params: BufReadParams,
@@ -469,6 +469,7 @@ mod tests {
             params,
             outputs,
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
         }
     }
@@ -535,6 +536,7 @@ mod tests {
             params: cached.params,
             lane_count: cached.lane_count,
             f64_inputs: false,
+            channels: 1,
         };
         constructors
             .get(module_type)

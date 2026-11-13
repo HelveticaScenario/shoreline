@@ -182,6 +182,8 @@ impl Patch {
         block_size: usize,
     ) -> Result<(), String> {
         let constructors = crate::dsp::get_constructors();
+        let mut modules: Vec<_> = modules.into_iter().collect();
+        settle_channels(&mut modules)?;
         for (id, module_type, params, mode) in modules {
             let constructor = constructors
                 .get(&module_type)
@@ -304,6 +306,100 @@ impl Patch {
             module.on_patch_update();
         }
     }
+}
+
+/// Settle every module's channels per lane and map its inputs onto their
+/// producers' physical lanes, before construction.
+///
+/// A `stereo` module is stereo and a `mono` one mono. A lifted module is
+/// stereo when any input it reads lane by lane comes from a stereo output, so
+/// the analysis grows from the stereo modules until nothing changes; a
+/// feedback cycle with no stereo source stays mono. An output follows its
+/// module's channels unless it has a fixed width or a single value. Each
+/// module's lane count then counts sides, and its inputs are rewritten by
+/// [`Connect::expand_lanes`](crate::types::Connect::expand_lanes).
+fn settle_channels(
+    modules: &mut [(
+        String,
+        String,
+        crate::params::DeserializedParams,
+        crate::types::ProcessingMode,
+    )],
+) -> Result<(), String> {
+    use crate::types::StereoMode;
+    let layouts = crate::dsp::stereo_layouts();
+    let types: HashMap<String, String> = modules
+        .iter()
+        .map(|(id, module_type, ..)| (id.clone(), module_type.clone()))
+        .collect();
+    let mode = |id: &str| {
+        types
+            .get(id)
+            .and_then(|module_type| layouts.get(module_type))
+            .map_or(StereoMode::Mono, |layout| layout.mode)
+    };
+    let mut channels: HashMap<String, usize> = modules
+        .iter()
+        .map(|(id, ..)| {
+            (
+                id.clone(),
+                if mode(id) == StereoMode::Stereo { 2 } else { 1 },
+            )
+        })
+        .collect();
+    let lane_cables: Vec<(String, Vec<crate::types::CableSource>)> = modules
+        .iter()
+        .filter(|(id, ..)| mode(id) == StereoMode::Lift)
+        .map(|(id, _, params, _)| {
+            let mut sink = Vec::new();
+            params.params.collect_lane_cables(&mut sink);
+            (id.clone(), sink)
+        })
+        .collect();
+    let producer = |channels: &HashMap<String, usize>, module: &str, port: &str| {
+        let follows = types
+            .get(module)
+            .and_then(|module_type| layouts.get(module_type))
+            .is_some_and(|layout| layout.following_ports.contains(port));
+        if follows {
+            channels.get(module).copied().unwrap_or(1)
+        } else {
+            1
+        }
+    };
+    loop {
+        let mut grew = false;
+        for (id, cables) in &lane_cables {
+            let stereo = cables
+                .iter()
+                .any(|cable| producer(&channels, &cable.module, &cable.port) == 2);
+            if stereo && channels[id] == 1 {
+                channels.insert(id.clone(), 2);
+                grew = true;
+            }
+        }
+        if !grew {
+            break;
+        }
+    }
+    let producer_channels = |module: &str, port: &str| producer(&channels, module, port);
+    for (id, _, params, _) in modules.iter_mut() {
+        let module_channels = channels[id.as_str()];
+        let lanes = params.lane_count.max(1);
+        if lanes * module_channels > crate::poly::PORT_MAX_LANES {
+            return Err(format!(
+                "{id} is stereo with {lanes} lanes, more than the {} a stereo signal can carry",
+                crate::poly::PORT_MAX_LANES / module_channels
+            ));
+        }
+        params.params.expand_lanes(&crate::types::LaneExpansion {
+            channels: module_channels,
+            producer: &producer_channels,
+        });
+        params.lane_count *= module_channels;
+        params.channels = module_channels;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

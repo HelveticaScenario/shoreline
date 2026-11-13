@@ -175,6 +175,7 @@ mod tests {
             },
             lane_state: (0..lanes).map(|_| Line::default()).collect(),
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
         };
         m.init(sample_rate);

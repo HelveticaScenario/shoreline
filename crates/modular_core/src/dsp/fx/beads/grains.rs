@@ -172,7 +172,7 @@ const GRANULAR_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$granular",
+    name = "$granular", stereo = mono,
     docs = GRANULAR_DOCS,
     has_init,
     patch_update,

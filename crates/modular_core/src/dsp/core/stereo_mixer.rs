@@ -68,7 +68,7 @@ const STEREO_MIX_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$stereoMix",
+    name = "$stereoMix", stereo = mono,
     docs = STEREO_MIX_DOCS,
     lanes = 2,
     args(input),
@@ -257,6 +257,7 @@ mod tests {
             state: StereoMixerState::default(),
             lane_state: Box::default(),
             _lane_count: 2,
+            _channels: 1,
             _block_index: Default::default(),
         };
         m.init(48000.0);

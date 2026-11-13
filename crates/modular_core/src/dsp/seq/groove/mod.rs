@@ -126,7 +126,7 @@ const GROOVE_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$groove", docs = GROOVE_DOCS, args(template))]
+#[module(name = "$groove", stereo = mono, docs = GROOVE_DOCS, args(template))]
 pub struct Groove {
     outputs: GrooveOutputs,
     params: GrooveParams,

@@ -81,7 +81,7 @@ const STEP_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$step", docs = STEP_DOCS, lanes_derive = step_derive_lane_count, args(steps, next))]
+#[module(name = "$step", stereo = mono, docs = STEP_DOCS, lanes_derive = step_derive_lane_count, args(steps, next))]
 pub struct Step {
     outputs: StepOutputs,
     params: StepParams,

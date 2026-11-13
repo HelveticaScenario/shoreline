@@ -55,6 +55,7 @@ fn construct(params: GranularParams, sample_rate: f32) -> Granular {
         params,
         lane_state: (0..lanes).map(|_| Default::default()).collect(),
         _lane_count: lanes,
+        _channels: 1,
         _block_index: Default::default(),
     };
     m.init(sample_rate);

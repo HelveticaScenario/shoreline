@@ -75,7 +75,7 @@ const CHORUS_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$mi.chorus",
+    name = "$mi.chorus", stereo = mono,
     docs = CHORUS_DOCS,
     lanes = 2,
     has_init,

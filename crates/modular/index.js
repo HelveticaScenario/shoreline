@@ -575,7 +575,7 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { Synthesizer, cpuSupportsBuild, deriveLaneCount, getReservedMemberNames, MAX_VIDEO_TAPS, QueuedTrigger, validatePatchGraph, VIDEO_HISTORY_LEN, BoundsKind, ModuleCategory, OutputPrecision, OutputType, ParamType, ScopeMode, ScopeSplit } = nativeBinding
+const { Synthesizer, cpuSupportsBuild, deriveLaneCount, getReservedMemberNames, MAX_VIDEO_TAPS, QueuedTrigger, validatePatchGraph, VIDEO_HISTORY_LEN, BoundsKind, ModuleCategory, OutputPrecision, OutputType, ParamType, ScopeMode, ScopeSplit, StereoMode } = nativeBinding
 export { Synthesizer }
 export { cpuSupportsBuild }
 export { deriveLaneCount }
@@ -591,3 +591,4 @@ export { OutputType }
 export { ParamType }
 export { ScopeMode }
 export { ScopeSplit }
+export { StereoMode }

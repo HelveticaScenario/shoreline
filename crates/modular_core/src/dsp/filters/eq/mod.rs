@@ -129,7 +129,7 @@ const EQ_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$eq", docs = EQ_DOCS, lanes_derive = eq_derive_lane_count, patch_update, stateful, args(input), block)]
+#[module(name = "$eq", stereo = mono, docs = EQ_DOCS, lanes_derive = eq_derive_lane_count, patch_update, stateful, args(input), block)]
 pub struct ParametricEq {
     outputs: ParametricEqOutputs,
     state: ParametricEqState,
@@ -394,6 +394,7 @@ mod tests {
             },
             outputs,
             _lane_count: lanes,
+            _channels: 1,
             _block_index: Default::default(),
             state: ParametricEqState::default(),
             lane_state: vec![ParametricEqLane::default(); lanes].into_boxed_slice(),

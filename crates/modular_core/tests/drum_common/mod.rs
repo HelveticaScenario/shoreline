@@ -33,6 +33,7 @@ pub fn make(module_type: &str, params: Value, sample_rate: f32) -> Box<dyn Sampl
             params: cached.params,
             lane_count: cached.lane_count,
             f64_inputs: false,
+            channels: 1,
         },
         1,
         ProcessingMode::Block,
@@ -100,6 +101,7 @@ pub fn render_clocks(
                         params: cached.params,
                         lane_count: cached.lane_count,
                         f64_inputs: false,
+                        channels: 1,
                     },
                     ProcessingMode::Block,
                 )
