@@ -55,7 +55,7 @@ const SPREAD_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$spread", stereo = mono,
+    name = "$spread",
     docs = SPREAD_DOCS,
     lanes_param = "count",
     args(min, max, count)
@@ -67,18 +67,23 @@ pub struct Spread {
 
 impl Spread {
     fn update(&mut self, _sample_rate: f32) {
-        let count = self.lane_count().max(1);
-        let min_val = self.params.min.get_value();
-        let max_val = self.params.max.get_value();
-        let bias = self.params.bias.value_or(0.0);
+        // Lane `i` of `count` sits at `i / (count - 1)`; a stereo lane's sides
+        // share its position and take their own side of `min`, `max` and
+        // `bias`.
+        let channels = self.channels();
+        let count = (self.lane_count() / channels).max(1);
+        for lane in 0..self.lane_count() {
+            let (i, side) = (lane / channels, lane % channels);
+            let min_val = self.params.min.get_side(side);
+            let max_val = self.params.max.get_side(side);
+            let bias = self.params.bias.side_or(side, 0.0);
 
-        // Compute the power curve exponent from bias.
-        // bias = 0 → exponent = 1 (linear)
-        // bias > 0 → exponent < 1 (values shift toward max)
-        // bias < 0 → exponent > 1 (values shift toward min)
-        let exponent = (2.0_f32).powf(-bias);
+            // Compute the power curve exponent from bias.
+            // bias = 0 → exponent = 1 (linear)
+            // bias > 0 → exponent < 1 (values shift toward max)
+            // bias < 0 → exponent > 1 (values shift toward min)
+            let exponent = (2.0_f32).powf(-bias);
 
-        for i in 0..count {
             let t = if count == 1 {
                 0.5_f32
             } else {
@@ -89,7 +94,7 @@ impl Spread {
             let t_biased = t.powf(exponent);
 
             let value = min_val + (max_val - min_val) * t_biased;
-            self.outputs.sample.set(i, value);
+            self.outputs.sample.set(lane, value);
         }
     }
 }

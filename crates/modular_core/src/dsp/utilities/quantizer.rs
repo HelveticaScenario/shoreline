@@ -236,7 +236,7 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$quantizer", stereo = mono, docs = QUANTIZER_DOCS, lanes_derive = quantizer_derive_lane_count, args(input, scale))]
+#[module(name = "$quantizer", docs = QUANTIZER_DOCS, lanes_derive = quantizer_derive_lane_count, args(input, scale))]
 pub struct Quantizer {
     outputs: QuantizerOutputs,
     params: QuantizerParams,
@@ -249,17 +249,22 @@ impl Quantizer {
         let num_lanes = self.lane_count();
         let hold_samples = min_gate_samples(sample_rate);
 
-        // Collect the active scale notes once; every lane snaps to the same set.
+        // Collect the active scale notes once per side; every lane snaps to
+        // its side's set. Note `i`'s side `c` is lane `i * channels + c` of
+        // `scale` and `gate`.
+        let channels = self.channels();
         let scale = self.params.scale.as_ref().map(|s| &s.0);
         let gate = self.params.gate.as_ref();
-        let note_count = match (scale, gate) {
+        let note_lanes = match (scale, gate) {
             (Some(scale), _) => scale.lanes(),
             (None, Some(gate)) => gate.lanes(),
             (None, None) => 0,
-        };
-        let mut notes = ArrayVec::<f64, PORT_MAX_LANES>::new();
-        let mut any_active = false;
-        for i in 0..note_count {
+        }
+        .min(PORT_MAX_LANES);
+        let mut notes = [ArrayVec::<f64, PORT_MAX_LANES>::new(), ArrayVec::new()];
+        let mut any_active = [false; 2];
+        for i in 0..note_lanes {
+            let side = i % channels;
             let active = match gate {
                 Some(gate) => {
                     self.state.gate_triggers[i]
@@ -268,15 +273,16 @@ impl Quantizer {
                 }
                 None => true,
             };
-            any_active |= active;
+            any_active[side] |= active;
             if let (true, Some(scale)) = (active, scale) {
                 let v = scale.get_value(i) as f64;
-                notes.push(v - v.floor());
+                notes[side].push(v - v.floor());
             }
         }
-        let hold = gate.is_some() && !any_active;
 
         for lane in 0..num_lanes {
+            let side = lane % channels;
+            let (notes, hold) = (&notes[side], gate.is_some() && !any_active[side]);
             let input = self.params.input.get_value(lane) as f64;
             let offset = self.params.offset.value_or_zero(lane) as f64;
             let combined = input + offset;
@@ -289,7 +295,7 @@ impl Quantizer {
             } else {
                 let quantized = match scale {
                     Some(_) => snap_with_hysteresis(combined, state.prev_quantized, |x| {
-                        snap_to_notes(x, &notes)
+                        snap_to_notes(x, notes)
                     }),
                     None => snap_with_hysteresis(combined, state.prev_quantized, snap_to_semitone),
                 };
