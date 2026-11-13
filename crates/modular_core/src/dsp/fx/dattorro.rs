@@ -11,7 +11,7 @@ use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
 use crate::types::SwapGlide;
 
 // ─── Dattorro delay lengths (reference sample rate: 29761 Hz) ────────────────
@@ -82,10 +82,10 @@ fn scale_delay_f(ref_samples: f32, sample_rate: f32, size: f32) -> f32 {
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct DattorroParams {
     #[input(
-        "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+        "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         type = audio,
     )]
-    input: PolySignal,
+    input: PairSignal,
     #[input(
         "how long the tail rings: -5 shortest, +5 almost endless",
         type = control,
@@ -227,9 +227,9 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$dattorro", stereo = mono,
+    name = "$dattorro", stereo = stereo,
     docs = DATTORRO_DOCS,
-    lanes = 2,
+    lanes = 1,
     has_init,
     args(input)
 )]
@@ -301,8 +301,6 @@ impl Dattorro {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let num_input_lanes = self.params.input.lanes();
-
         // ── Read parameters ──────────────────────────────────────────────
 
         // Map bipolar -5..5 to algorithm coefficients (clamped for safety)
@@ -357,23 +355,9 @@ impl Dattorro {
         let mod_v = self.params.modulation.value_or(0.0);
         let mod_excursion = mod_v * self.state.mod_excursion_scale;
 
-        // ── Sum input lanes to stereo ─────────────────────────────────
+        // ── Sum each side over the lanes ─────────────────────────────────
 
-        let mut left_in = 0.0f32;
-        let mut right_in = 0.0f32;
-        for lane in 0..num_input_lanes {
-            let sample = self.params.input.get_value(lane);
-            if lane % 2 == 0 {
-                left_in += sample;
-            } else {
-                right_in += sample;
-            }
-        }
-        // With an odd lane count the final lane has no stereo partner,
-        // so feed it to both sides (a mono input drives left and right equally).
-        if num_input_lanes % 2 == 1 {
-            right_in += self.params.input.get_value(num_input_lanes - 1);
-        }
+        let [left_in, right_in] = self.params.input.sum_sides();
 
         // ── Predelay ─────────────────────────────────────────────────────
 
@@ -506,11 +490,13 @@ mod tests {
         let deserializers = get_params_deserializers();
         let deserializer = deserializers.get("$dattorro").unwrap();
         let cached = deserializer(params).unwrap();
+        // Built as a patch builds a stereo module: one lane of two sides. An
+        // `input` of `[L, R]` is read as that lane's two sides.
         let deserialized = DeserializedParams {
             params: cached.params,
-            lane_count: cached.lane_count,
+            lane_count: cached.lane_count * 2,
             f64_inputs: false,
-            channels: 1,
+            channels: 2,
         };
         constructors.get("$dattorro").unwrap()(
             "test-dattorro",
@@ -563,7 +549,7 @@ mod tests {
             outputs,
             state: Default::default(),
             params: super::DattorroParams {
-                input: PolySignal::mono(Signal::Volts(f32::NAN)),
+                input: PolySignal::mono(Signal::Volts(f32::NAN)).into(),
                 decay: None,
                 damping: None,
                 size: None,
@@ -572,7 +558,7 @@ mod tests {
                 modulation: None,
             },
             _lane_count: 2,
-            _channels: 1,
+            _channels: 2,
             _block_index: Default::default(),
         };
         m.init(SAMPLE_RATE);
@@ -580,7 +566,7 @@ mod tests {
             m.update(SAMPLE_RATE);
         }
 
-        m.params.input = PolySignal::mono(Signal::Volts(1.0));
+        m.params.input = PolySignal::mono(Signal::Volts(1.0)).into();
         let mut energy = 0.0f32;
         for _ in 0..48000 {
             m.update(SAMPLE_RATE);

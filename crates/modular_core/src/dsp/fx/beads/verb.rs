@@ -3,12 +3,12 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
 
 use super::chain::{BlockClock, POT_LP};
 use super::primitives::{Frame, Limiter};
 use super::reverb::{Reverb, ReverbSettings};
-use super::{FULL_SCALE_VOLTS, fold_input, unit};
+use super::{FULL_SCALE_VOLTS, unit};
 use crate::dsp::utils::sanitize;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
@@ -101,10 +101,10 @@ impl OutputStage {
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BeadsReverbParams {
     #[input(
-        "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+        "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         type = audio,
     )]
-    input: PolySignal,
+    input: PairSignal,
     #[input(
         "how much reverb you hear and how long it rings: 0 dry, 5 most",
         type = control,
@@ -185,9 +185,9 @@ const BEADS_REVERB_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$reverb", stereo = mono,
+    name = "$reverb", stereo = stereo,
     docs = BEADS_REVERB_DOCS,
-    lanes = 2,
+    lanes = 1,
     has_init,
     args(input, amount)
 )]
@@ -208,7 +208,8 @@ impl BeadsReverb {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let input = fold_input(&self.params.input);
+        let [left, right] = self.params.input.sum_sides();
+        let input = Frame::new(sanitize(left), sanitize(right)) * (1.0 / FULL_SCALE_VOLTS);
         let params = &self.params;
         let BeadsReverbState {
             stage,
@@ -242,6 +243,7 @@ message_handlers!(impl BeadsReverb {});
 #[cfg(test)]
 pub(super) mod tests {
     use super::*;
+    use crate::poly::PolySignal;
     use crate::types::{OutputStruct, Signal};
 
     const SR: f32 = 48000.0;
@@ -269,7 +271,7 @@ pub(super) mod tests {
             outputs,
             state: BeadsReverbState::default(),
             params: BeadsReverbParams {
-                input: PolySignal::mono(Signal::Volts(0.0)),
+                input: PolySignal::mono(Signal::Volts(0.0)).into(),
                 amount: volts(reverb),
                 size: volts(size),
                 tone: volts(tone),
@@ -283,7 +285,7 @@ pub(super) mod tests {
     }
 
     pub fn step(m: &mut BeadsReverb, input: f32) -> (f32, f32) {
-        m.params.input = PolySignal::mono(Signal::Volts(input));
+        m.params.input = PolySignal::mono(Signal::Volts(input)).into();
         m.update(SR);
         (m.outputs.sample.get(0), m.outputs.sample.get(1))
     }

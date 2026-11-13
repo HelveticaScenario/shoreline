@@ -1,0 +1,13 @@
+kind: Breaking
+body: |-
+    `$unstable.reverb`, `$unstable.reverb2`, `$dattorro`, `$plate`, `$reverb` and `$mi.chorus` take and give stereo lanes. Each side of the input feeds that side of the effect, and the output is one stereo lane instead of a left lane and a right lane. A pair of lanes is no longer read as left and right, so join them with `$stereo` first.
+
+    ```js
+    // before
+    const wet = $plate([$saw('c3'), $saw('g3')])
+    $signal(wet[1]).outMono(1)
+    // after
+    const wet = $plate($stereo($saw('c3'), $saw('g3')))
+    $right(wet).outMono(1)
+    ```
+time: 2026-11-13T03:38:40.279756-05:00

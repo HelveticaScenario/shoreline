@@ -1,5 +1,5 @@
 use super::ensemble::{Ensemble, EnsembleRates};
-use super::{fold_to_stereo, hold_knobs};
+use super::hold_knobs;
 use crate::dsp::mi::core::fixture::records;
 
 /// Replays `chorus.f32` (Plaits' ensemble, a sample at a time) on a stereo
@@ -122,20 +122,6 @@ fn sides_cross_through_one_tap() {
             "{sample_rate} Hz: right {right_peak}"
         );
     }
-}
-
-/// A poly input folds to stereo: even lanes left, odd right, an odd last
-/// lane to both, a non-finite sample as 0.
-#[test]
-fn input_folds_to_stereo() {
-    let values = [1.0, 10.0, 100.0, f32::NAN, 1000.0];
-    let fold = |lanes| fold_to_stereo(lanes, |lane| values[lane]);
-    assert_eq!(fold(0), (0.0, 0.0));
-    assert_eq!(fold(1), (1.0, 1.0));
-    assert_eq!(fold(2), (1.0, 10.0));
-    assert_eq!(fold(3), (101.0, 110.0));
-    assert_eq!(fold(4), (101.0, 10.0));
-    assert_eq!(fold(5), (1101.0, 1010.0));
 }
 
 /// The knobs map 0–5 V to 0–1, clamped, and a NaN or infinite knob holds the
