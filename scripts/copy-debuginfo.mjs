@@ -4,7 +4,8 @@
 // file:line in production panic logs.
 //
 // macOS:   target/<triple>/release/libmodular.dylib.dSYM
-//          → crates/modular/<name>.node.dSYM (inner DWARF renamed)
+//          → crates/modular/<name>.node.dSYM (inner DWARF renamed); with
+//          `--dsymutil` and no bundle from cargo, one is linked instead
 // Windows: target/<triple>/release/modular.pdb
 //          → crates/modular/<name>.node.pdb
 // Linux:   no-op — DWARF is embedded in the `.so` by cargo's default
@@ -17,12 +18,37 @@ import {
     renameSync,
     rmSync,
 } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(here);
 const crateDir = join(repoRoot, 'crates', 'modular');
+
+/**
+ * Link a dSYM for the `.node` from the object files its debug map names, for
+ * builds without one from cargo (macOS release builds default to unpacked
+ * debug info). `--dsymutil` asks for this: the alloc-detector build resolves
+ * call sites at runtime, and read straight from the objects of an LTO build,
+ * inlined frames resolve to the wrong files.
+ */
+function linkDsym(dsymDest) {
+    const result = spawnSync(
+        'dsymutil',
+        [join(crateDir, nodeFile), '-o', dsymDest],
+        // dsymutil warns about every object it cannot open (C++ objects from
+        // build-script temp dirs); those frames resolve to function names only.
+        { stdio: ['ignore', 'inherit', 'ignore'] },
+    );
+    if (result.status !== 0) {
+        console.warn(
+            '[copy-debuginfo] dsymutil failed; stacks resolve without a dSYM',
+        );
+        return;
+    }
+    console.log(`[copy-debuginfo] linked ${dsymDest}`);
+}
 
 const nodeFile = readdirSync(crateDir).find(
     (f) => f.startsWith('shoreline.') && f.endsWith('.node'),
@@ -43,15 +69,18 @@ if (process.platform === 'darwin') {
         'release',
     );
     const dsymSrc = join(tripleDir, 'libmodular.dylib.dSYM');
+    const dsymDest = join(crateDir, `${nodeFile}.dSYM`);
+    // A bundle left by an earlier build describes a different binary.
+    rmSync(dsymDest, { recursive: true, force: true });
     if (!existsSync(dsymSrc)) {
+        if (process.argv.includes('--dsymutil')) {
+            linkDsym(dsymDest);
+            process.exit(0);
+        }
         console.warn(`[copy-debuginfo] no dSYM at ${dsymSrc}, skipping`);
         process.exit(0);
     }
 
-    const dsymDest = join(crateDir, `${nodeFile}.dSYM`);
-    if (existsSync(dsymDest)) {
-        rmSync(dsymDest, { recursive: true, force: true });
-    }
     cpSync(dsymSrc, dsymDest, { recursive: true, dereference: true });
 
     // std::backtrace (via backtrace-rs) looks for the inner DWARF file at
