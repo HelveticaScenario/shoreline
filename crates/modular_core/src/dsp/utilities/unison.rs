@@ -85,7 +85,7 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$unison", stereo = mono, docs = UNISON_DOCS, lanes_derive = unison_derive_lane_count, args(input, count, spread))]
+#[module(name = "$unison", docs = UNISON_DOCS, lanes_derive = unison_derive_lane_count, args(input, count, spread))]
 pub struct Unison {
     outputs: UnisonOutputs,
     params: UnisonParams,
@@ -97,32 +97,39 @@ impl Unison {
         let input = &self.params.input;
         let spread = &self.params.spread;
 
-        let poly_lanes = unison_poly_lanes(input, spread);
+        // Copy `voice` of lane `l` is lane `voice * poly_lanes + l`; a stereo
+        // lane's sides are copied side by side.
+        let channels = self.channels();
+        let poly_lanes = unison_poly_lanes(input, spread) / channels;
         let output_lanes = self.lane_count();
 
         for poly_ch in 0..poly_lanes {
-            // Both reads cycle, so whichever of the two is narrower repeats
-            // across the wider one's lanes.
-            let input_val = input.get_value(poly_ch);
-            let spread_v = spread.value_or(poly_ch, 0.0).clamp(0.0, 10.0);
-            // Exponential mapping: (spread_v / 10)^2 gives 0–1 V/Oct (0–1 octave)
-            let normalized = spread_v / 10.0;
-            let max_detune_voct = normalized * normalized;
+            for side in 0..channels {
+                // Both reads cycle, so whichever of the two is narrower
+                // repeats across the wider one's lanes.
+                let input_val = input.get_value(poly_ch * channels + side);
+                let spread_v = spread
+                    .value_or(poly_ch * channels + side, 0.0)
+                    .clamp(0.0, 10.0);
+                // Exponential mapping: (spread_v / 10)^2 gives 0–1 V/Oct (0–1 octave)
+                let normalized = spread_v / 10.0;
+                let max_detune_voct = normalized * normalized;
 
-            for voice in 0..count {
-                let out_ch = voice * poly_lanes + poly_ch;
-                if out_ch >= output_lanes {
-                    break;
+                for voice in 0..count {
+                    let out_ch = (voice * poly_lanes + poly_ch) * channels + side;
+                    if out_ch >= output_lanes {
+                        break;
+                    }
+
+                    let offset = if count > 1 {
+                        // Symmetric fan-out: -max_detune to +max_detune
+                        max_detune_voct * (2.0 * voice as f32 / (count - 1) as f32 - 1.0)
+                    } else {
+                        0.0
+                    };
+
+                    self.outputs.sample.set(out_ch, input_val + offset);
                 }
-
-                let offset = if count > 1 {
-                    // Symmetric fan-out: -max_detune to +max_detune
-                    max_detune_voct * (2.0 * voice as f32 / (count - 1) as f32 - 1.0)
-                } else {
-                    0.0
-                };
-
-                self.outputs.sample.set(out_ch, input_val + offset);
             }
         }
     }

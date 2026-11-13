@@ -166,8 +166,8 @@ fn mono_and_split_pass_a_mono_signal_unchanged() {
 }
 
 #[test]
-fn a_mono_module_folds_a_stereo_lane_sum() {
-    // `$keyframes` is a mono module, so its playhead folds a stereo signal.
+fn a_stereo_playhead_plays_each_side_at_its_own_position() {
+    // `$keyframes` reads its playhead as a lane sum: stereo, each side its own.
     let patch = build(&[
         ("a", "$signal", signal(json!(0.25))),
         ("b", "$signal", signal(json!(0.75))),
@@ -183,7 +183,7 @@ fn a_mono_module_folds_a_stereo_lane_sum() {
         ),
     ])
     .unwrap();
-    assert_eq!(step(&patch, "kf"), [2.0]);
+    assert_eq!(step(&patch, "kf"), [1.0, 3.0]);
 }
 
 #[test]
@@ -446,4 +446,60 @@ fn a_lane_sum_sums_each_side_on_its_own() {
     ])
     .unwrap();
     assert_eq!(patch.sampleables["wf"].port_lanes("output"), 2);
+}
+
+#[test]
+fn unison_copies_each_side_of_a_stereo_lane() {
+    let patch = build(&[
+        ("l", "$signal", signal(json!(0.0))),
+        ("r", "$signal", signal(json!(1.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        (
+            "u",
+            "$unison",
+            json!({ "input": cable("st", 0), "count": 2 }),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(step(&patch, "u"), [0.0, 1.0, 0.0, 1.0]);
+}
+
+#[test]
+fn spread_places_a_stereo_lane_by_its_logical_position() {
+    let patch = build(&[
+        ("lo", "$signal", signal(json!(0.0))),
+        ("hi", "$signal", signal(json!(1.0))),
+        (
+            "min",
+            "$stereo",
+            json!({ "left": cable("lo", 0), "right": cable("hi", 0) }),
+        ),
+        (
+            "s",
+            "$spread",
+            json!({ "min": cable("min", 0), "max": 4.0, "count": 2 }),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(step(&patch, "s"), [0.0, 1.0, 4.0, 4.0]);
+}
+
+#[test]
+fn quantizer_snaps_each_side() {
+    let patch = build(&[
+        ("l", "$signal", signal(json!(0.0))),
+        ("r", "$signal", signal(json!(1.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        ("q", "$quantizer", json!({ "input": cable("st", 0) })),
+    ])
+    .unwrap();
+    assert_eq!(step(&patch, "q"), [0.0, 1.0]);
 }

@@ -63,7 +63,7 @@ const HOLD_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$hold", stereo = mono, docs = HOLD_DOCS, args(input, time))]
+#[module(name = "$hold", docs = HOLD_DOCS, args(input, time))]
 pub struct Hold {
     outputs: HoldOutputs,
     params: HoldParams,
