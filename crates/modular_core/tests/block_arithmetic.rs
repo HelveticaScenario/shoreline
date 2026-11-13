@@ -48,11 +48,7 @@ fn operations_with_a_cable_operand() {
     for (module, operand, f) in OPS {
         check_module(
             module,
-            params(
-                operand,
-                poly_cable("src", CHANNELS),
-                poly_cable("lfo", CHANNELS),
-            ),
+            params(operand, poly_cable("src", LANES), poly_cable("lfo", LANES)),
             |src, lfo| elementwise(src, lfo, f),
         );
     }
@@ -60,15 +56,15 @@ fn operations_with_a_cable_operand() {
 
 #[test]
 fn operations_with_constant_operands() {
-    const VALUES: [f32; CHANNELS] = [0.5, -2.0, 3.0, 0.25];
+    const VALUES: [f32; LANES] = [0.5, -2.0, 3.0, 0.25];
     for (module, operand, f) in OPS {
         check_module(
             module,
-            params(operand, poly_cable("src", CHANNELS), json!(VALUES)),
+            params(operand, poly_cable("src", LANES), json!(VALUES)),
             |src, _| {
                 src.iter()
                     .enumerate()
-                    .map(|(k, &x)| silenced(f(x, VALUES[k % CHANNELS])))
+                    .map(|(k, &x)| silenced(f(x, VALUES[k % LANES])))
                     .collect()
             },
         );
@@ -80,10 +76,10 @@ fn a_mono_input_spreads_across_a_poly_operand() {
     for (module, operand, f) in OPS {
         check_module(
             module,
-            params(operand, cable("src", 1), poly_cable("lfo", CHANNELS)),
+            params(operand, cable("src", 1), poly_cable("lfo", LANES)),
             |src, lfo| {
                 (0..src.len())
-                    .map(|k| silenced(f(src[k / CHANNELS * CHANNELS + 1], lfo[k])))
+                    .map(|k| silenced(f(src[k / LANES * LANES + 1], lfo[k])))
                     .collect()
             },
         );
@@ -94,7 +90,7 @@ fn a_mono_input_spreads_across_a_poly_operand() {
 fn division_by_zero_outputs_zero() {
     check_module(
         "$div",
-        params("divisor", poly_cable("src", CHANNELS), json!(0.0)),
+        params("divisor", poly_cable("src", LANES), json!(0.0)),
         |src, _| vec![0.0; src.len()],
     );
 }
@@ -110,7 +106,7 @@ fn whole_quotients_are_exact() {
         ),
         |src, _| {
             (0..src.len())
-                .map(|k| [-63.0, 7.0, 3.0, 1.0][k % CHANNELS])
+                .map(|k| [-63.0, 7.0, 3.0, 1.0][k % LANES])
                 .collect()
         },
     );
@@ -131,7 +127,7 @@ fn zero_to_any_power_is_zero() {
 fn a_negative_exponent_holds_at_zero() {
     check_module(
         "$exp",
-        params("exponent", poly_cable("src", CHANNELS), json!(-2.0)),
+        params("exponent", poly_cable("src", LANES), json!(-2.0)),
         |src, _| src.iter().map(|&x| x.signum()).collect(),
     );
 }
@@ -141,7 +137,7 @@ fn roundings() {
     for (module, f) in ROUNDINGS {
         check_module(
             module,
-            json!({ "input": poly_cable("src", CHANNELS) }),
+            json!({ "input": poly_cable("src", LANES) }),
             |src, _| src.iter().map(|&x| f(x)).collect(),
         );
     }
@@ -152,18 +148,18 @@ fn paths_agree() {
     for (module, operand, _) in OPS {
         check_paths_agree(
             module,
-            params(operand, poly_cable("src", CHANNELS), cable("lfo", 1)),
+            params(operand, poly_cable("src", LANES), cable("lfo", 1)),
         );
     }
     for (module, _) in ROUNDINGS {
-        check_paths_agree(module, json!({ "input": poly_cable("src", CHANNELS) }));
+        check_paths_agree(module, json!({ "input": poly_cable("src", LANES) }));
     }
 }
 
 #[test]
 fn swap_agrees_through_an_operand_glide() {
     for (module, operand, _) in OPS {
-        let input = poly_cable("src", CHANNELS);
+        let input = poly_cable("src", LANES);
         check_swap_agrees(
             module,
             params(operand, input.clone(), json!(1.5)),
@@ -176,7 +172,7 @@ fn swap_agrees_through_an_operand_glide() {
 fn a_divisor_edited_across_zero_glides_through_silence() {
     // From 2 to -2 the reciprocal glides from 0.5 to -0.5, so no sample is
     // louder than either end.
-    let input = poly_cable("src", CHANNELS);
+    let input = poly_cable("src", LANES);
     check_swap_agrees(
         "$div",
         params("divisor", input.clone(), json!(2.0)),
@@ -208,13 +204,13 @@ fn allocation_free() {
     for (module, operand, _) in OPS {
         let params = params(
             operand,
-            poly_cable("src", CHANNELS),
+            poly_cable("src", LANES),
             json!([cable("lfo", 0), 2.0]),
         );
         assert_eq!(allocations_while_rendering(module, params), 0);
     }
     for (module, _) in ROUNDINGS {
-        let params = json!({ "input": poly_cable("src", CHANNELS) });
+        let params = json!({ "input": poly_cable("src", LANES) });
         assert_eq!(allocations_while_rendering(module, params), 0);
     }
 }
@@ -232,7 +228,7 @@ fn bounds_map_through_a_fixed_operand() {
         assert_eq!(module, name);
         let rendered = check_bounds_agree(
             module,
-            params(operand, poly_cable("src", CHANNELS), json!(2.0)),
+            params(operand, poly_cable("src", LANES), json!(2.0)),
         );
         assert!(
             rendered.iter().all(|&b| b == bounds),
@@ -247,11 +243,7 @@ fn bounds_span_a_swinging_operand() {
     for (module, operand, _) in OPS.into_iter().filter(|(module, ..)| *module != "$div") {
         check_bounds_agree(
             module,
-            params(
-                operand,
-                poly_cable("src", CHANNELS),
-                poly_cable("lfo", CHANNELS),
-            ),
+            params(operand, poly_cable("src", LANES), poly_cable("lfo", LANES)),
         );
     }
 }
@@ -264,8 +256,8 @@ fn a_swinging_divisor_leaves_the_quotient_unbounded() {
         "$div",
         params(
             "divisor",
-            poly_cable("src", CHANNELS),
-            poly_cable("lfo", CHANNELS),
+            poly_cable("src", LANES),
+            poly_cable("lfo", LANES),
         ),
     );
     assert!(
@@ -275,7 +267,7 @@ fn a_swinging_divisor_leaves_the_quotient_unbounded() {
     );
     let by_zero = check_bounds_agree(
         "$div",
-        params("divisor", poly_cable("src", CHANNELS), json!(0.0)),
+        params("divisor", poly_cable("src", LANES), json!(0.0)),
     );
     assert!(by_zero.iter().all(|&b| b == Bounds::point(0.0)));
 }
@@ -283,6 +275,6 @@ fn a_swinging_divisor_leaves_the_quotient_unbounded() {
 #[test]
 fn rounding_bounds_agree() {
     for (module, _) in ROUNDINGS {
-        check_bounds_agree(module, json!({ "input": poly_cable("src", CHANNELS) }));
+        check_bounds_agree(module, json!({ "input": poly_cable("src", LANES) }));
     }
 }

@@ -4,7 +4,7 @@ use deserr::{DeserializeError, Deserr, ErrorKind, IntoValue, Sequence, ValuePoin
 use schemars::JsonSchema;
 
 use crate::param_errors::ModuleParamErrors;
-use crate::poly::{LaneSum, PORT_MAX_CHANNELS, PolySignal};
+use crate::poly::{LaneSum, PORT_MAX_LANES, PolySignal};
 
 pub const MAX_EQ_SECTIONS: usize = 8;
 pub const DEFAULT_Q: f32 = std::f32::consts::FRAC_1_SQRT_2;
@@ -65,12 +65,12 @@ pub struct EqSection {
     pub q: Option<LaneSum>,
 }
 
-/// The section chain: one list shared by every channel, or one list per
-/// channel (channel `c` uses list `c % len`).
+/// The section chain: one list shared by every lane, or one list per
+/// lane (lane `c` uses list `c % len`).
 #[derive(Clone, Connect)]
 pub enum EqSections {
     Shared(Vec<EqSection>),
-    PerChannel(Vec<Vec<EqSection>>),
+    PerLane(Vec<Vec<EqSection>>),
 }
 
 impl Default for EqSections {
@@ -79,7 +79,7 @@ impl Default for EqSections {
     }
 }
 
-/// A sequence whose first element is itself a sequence is the per-channel
+/// A sequence whose first element is itself a sequence is the per-lane
 /// form; anything else is one shared list.
 impl<E: DeserializeError> Deserr<E> for EqSections {
     fn deserialize_from_value<V: IntoValue>(
@@ -90,7 +90,7 @@ impl<E: DeserializeError> Deserr<E> for EqSections {
             return Err(deserr::take_cf_content(E::error::<V>(
                 None,
                 ErrorKind::Unexpected {
-                    msg: "sections must be an array of sections, or an array of section arrays (one per channel)"
+                    msg: "sections must be an array of sections, or an array of section arrays (one per lane)"
                         .to_string(),
                 },
                 location,
@@ -105,7 +105,7 @@ impl<E: DeserializeError> Deserr<E> for EqSections {
                     location.push_index(i),
                 )?);
             }
-            Ok(EqSections::PerChannel(lists))
+            Ok(EqSections::PerLane(lists))
         } else {
             let mut list = Vec::with_capacity(items.len());
             for (i, item) in items.into_iter().enumerate() {
@@ -130,21 +130,21 @@ impl JsonSchema for EqSections {
         #[allow(dead_code)]
         enum EqSectionsSchema {
             Shared(Vec<EqSection>),
-            PerChannel(Vec<Vec<EqSection>>),
+            PerLane(Vec<Vec<EqSection>>),
         }
         EqSectionsSchema::json_schema(r#gen)
     }
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_eq_params -> ModuleParamErrors)]
 pub struct ParametricEqParams {
     #[input("the sound to EQ", type = audio)]
     pub input: PolySignal,
     #[input(
-        "up to 8 bands, or one list of bands per channel; with none the sound passes through unchanged"
+        "up to 8 bands, or one list of bands per lane; with none the sound passes through unchanged"
     )]
     #[serde(default)]
     #[deserr(default)]
@@ -195,11 +195,11 @@ fn validate_eq_params(
     };
     match &params.sections {
         EqSections::Shared(list) => check(list, "sections".to_string(), &mut err),
-        EqSections::PerChannel(lists) => {
-            if lists.len() > PORT_MAX_CHANNELS {
+        EqSections::PerLane(lists) => {
+            if lists.len() > PORT_MAX_LANES {
                 err.add(
                     "sections".to_string(),
-                    format!("must have at most {PORT_MAX_CHANNELS} channel lists"),
+                    format!("must have at most {PORT_MAX_LANES} lane lists"),
                 );
             }
             for (i, list) in lists.iter().enumerate() {
@@ -210,15 +210,15 @@ fn validate_eq_params(
     if err.is_empty() { Ok(params) } else { Err(err) }
 }
 
-/// Channels follow the input, widened to the number of per-channel lists.
-/// Section params are mono and never add channels.
-pub fn eq_derive_channel_count(params: &ParametricEqParams) -> usize {
-    let input = PolySignal::max_channels(&[&params.input]);
+/// Lanes follow the input, widened to the number of per-lane lists.
+/// Section params are mono and never add lanes.
+pub fn eq_derive_lane_count(params: &ParametricEqParams) -> usize {
+    let input = PolySignal::max_lanes(&[&params.input]);
     let lists = match &params.sections {
         EqSections::Shared(_) => 1,
-        EqSections::PerChannel(lists) => lists.len(),
+        EqSections::PerLane(lists) => lists.len(),
     };
-    input.max(lists).clamp(1, PORT_MAX_CHANNELS)
+    input.max(lists).clamp(1, PORT_MAX_LANES)
 }
 
 #[cfg(test)]
@@ -280,9 +280,9 @@ mod tests {
         for n in [0, 1, MAX_EQ_SECTIONS] {
             assert!(validate_eq_params(params(EqSections::Shared(list(n))), origin).is_ok());
         }
-        let per = EqSections::PerChannel(vec![list(2), list(MAX_EQ_SECTIONS + 1)]);
+        let per = EqSections::PerLane(vec![list(2), list(MAX_EQ_SECTIONS + 1)]);
         assert!(validate_eq_params(params(per), origin).is_err());
-        let per = EqSections::PerChannel(vec![list(0), list(MAX_EQ_SECTIONS)]);
+        let per = EqSections::PerLane(vec![list(0), list(MAX_EQ_SECTIONS)]);
         assert!(validate_eq_params(params(per), origin).is_ok());
     }
 }

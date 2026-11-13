@@ -1,4 +1,4 @@
-//! Every channel of a drum sounds the same whether it runs alone or in a
+//! Every lane of a drum sounds the same whether it runs alone or in a
 //! group, whether it runs by block or sample by sample, and keeps sounding
 //! across patch updates that regroup it.
 
@@ -34,39 +34,27 @@ fn voices() -> Vec<String> {
 /// input resolves.
 #[derive(Clone, Copy, Debug)]
 enum Wiring {
-    /// A clock cable per channel, and a constant accent per channel.
+    /// A clock cable per lane, and a constant accent per lane.
     Poly,
-    /// One clock cable across every channel.
+    /// One clock cable across every lane.
     Broadcast,
     /// An accent mixing cables and constants.
     Mixed,
 }
 
-/// A drum of `channels` channels struck by a clock per channel, fast enough
-/// that hits run into each other, with the accent varying across channels;
+/// A drum of `lanes` lanes struck by a clock per lane, fast enough
+/// that hits run into each other, with the accent varying across lanes;
 /// the hi-hat's open hat is struck by a second clock.
-fn patch(voice: &str, channels: usize, restart: bool) -> Patch {
-    wired(
-        voice,
-        channels,
-        restart,
-        Wiring::Poly,
-        ProcessingMode::Block,
-    )
+fn patch(voice: &str, lanes: usize, restart: bool) -> Patch {
+    wired(voice, lanes, restart, Wiring::Poly, ProcessingMode::Block)
 }
 
 /// [`patch`], wired by `wiring`, with the drum running in `mode`.
-fn wired(
-    voice: &str,
-    channels: usize,
-    restart: bool,
-    wiring: Wiring,
-    mode: ProcessingMode,
-) -> Patch {
-    let per_channel = |f: &dyn Fn(usize) -> Value| Value::Array((0..channels).map(f).collect());
-    let channel = |module: &str, ch: usize| json!({ "type": "cable", "module": module, "port": "output", "channel": ch });
-    let cable = |module: &str| per_channel(&|ch| channel(module, ch));
-    let accent = |ch: usize| json!([0.0, 5.0, 2.0, 3.7, 1.0, 4.4][ch % 6]);
+fn wired(voice: &str, lanes: usize, restart: bool, wiring: Wiring, mode: ProcessingMode) -> Patch {
+    let per_lane = |f: &dyn Fn(usize) -> Value| Value::Array((0..lanes).map(f).collect());
+    let cable_at = |module: &str, lane: usize| json!({ "type": "cable", "module": module, "port": "output", "lane": lane });
+    let cable = |module: &str| per_lane(&|lane| cable_at(module, lane));
+    let accent = |lane: usize| json!([0.0, 5.0, 2.0, 3.7, 1.0, 4.4][lane % 6]);
     let trigger = if voice == "$tr808.hiHat" {
         "closed"
     } else {
@@ -74,18 +62,18 @@ fn wired(
     };
     let mut params = json!({
         trigger: cable("clock"),
-        "accent": per_channel(&accent),
+        "accent": per_lane(&accent),
         "restart": restart,
     });
     match wiring {
         Wiring::Poly => {}
-        Wiring::Broadcast => params[trigger] = channel("clock", 0),
+        Wiring::Broadcast => params[trigger] = cable_at("clock", 0),
         Wiring::Mixed => {
-            params["accent"] = per_channel(&|ch| {
-                if ch % 2 == 0 {
-                    channel("close", ch)
+            params["accent"] = per_lane(&|lane| {
+                if lane % 2 == 0 {
+                    cable_at("close", lane)
                 } else {
-                    accent(ch)
+                    accent(lane)
                 }
             })
         }
@@ -97,13 +85,13 @@ fn wired(
         (
             "clock",
             "$pulse",
-            json!({ "freq": per_channel(&|ch| json!(-1.3 + 0.17 * ch as f32)) }),
+            json!({ "freq": per_lane(&|lane| json!(-1.3 + 0.17 * lane as f32)) }),
             ProcessingMode::Block,
         ),
         (
             "close",
             "$pulse",
-            json!({ "freq": per_channel(&|ch| json!(-2.1 + 0.23 * ch as f32)) }),
+            json!({ "freq": per_lane(&|lane| json!(-2.1 + 0.23 * lane as f32)) }),
             ProcessingMode::Block,
         ),
         ("drum", voice, params, mode),
@@ -119,7 +107,7 @@ fn wired(
                     module_type.to_string(),
                     DeserializedParams {
                         params: cached.params,
-                        channel_count: cached.channel_count,
+                        lane_count: cached.lane_count,
                         f64_inputs: false,
                     },
                     mode,
@@ -140,7 +128,7 @@ fn start(patch: &Patch) {
     }
 }
 
-/// `blocks` blocks of every channel's output, appended to `out`.
+/// `blocks` blocks of every lane's output, appended to `out`.
 fn render(patch: &Patch, blocks: usize, out: &mut [Vec<f32>]) {
     render_by(patch, blocks, &[BLOCK], out);
 }
@@ -158,18 +146,18 @@ fn render_by(patch: &Patch, blocks: usize, steps: &[usize], out: &mut [Vec<f32>]
                 patch.sampleables[id].ensure_processed_to(step);
             }
         }
-        for (ch, samples) in out.iter_mut().enumerate() {
+        for (lane, samples) in out.iter_mut().enumerate() {
             samples
-                .extend((0..BLOCK).map(|i| patch.sampleables["drum"].get_value_at(&port, ch, i)));
+                .extend((0..BLOCK).map(|i| patch.sampleables["drum"].get_value_at(&port, lane, i)));
         }
     }
 }
 
-/// `blocks` blocks of every channel of a fresh drum.
-fn fresh(voice: &str, channels: usize, restart: bool, blocks: usize) -> Vec<Vec<f32>> {
-    let patch = patch(voice, channels, restart);
+/// `blocks` blocks of every lane of a fresh drum.
+fn fresh(voice: &str, lanes: usize, restart: bool, blocks: usize) -> Vec<Vec<f32>> {
+    let patch = patch(voice, lanes, restart);
     start(&patch);
-    let mut out = vec![Vec::new(); channels];
+    let mut out = vec![Vec::new(); lanes];
     render(&patch, blocks, &mut out);
     out
 }
@@ -179,22 +167,22 @@ fn same_bits(a: &[f32], b: &[f32]) -> bool {
 }
 
 #[test]
-fn channels_sound_the_same_alone_and_in_groups() {
+fn lanes_sound_the_same_alone_and_in_groups() {
     let voices = voices();
     TEST_SEED_BASE.set(Some(0x5eed));
     for voice in voices.iter().map(String::as_str) {
-        for channels in [2, 3, 6] {
+        for lanes in [2, 3, 6] {
             for restart in [false, true] {
-                let grouped = fresh(voice, channels, restart, 20);
+                let grouped = fresh(voice, lanes, restart, 20);
                 ALONE.set(true);
-                let alone = fresh(voice, channels, restart, 20);
+                let alone = fresh(voice, lanes, restart, 20);
                 ALONE.set(false);
-                for (ch, (g, a)) in grouped.iter().zip(&alone).enumerate() {
+                for (lane, (g, a)) in grouped.iter().zip(&alone).enumerate() {
                     assert!(
                         same_bits(g, a),
-                        "{voice} channel {ch} of {channels}, restart {restart}"
+                        "{voice} lane {lane} of {lanes}, restart {restart}"
                     );
-                    assert!(g.iter().any(|v| *v != 0.0), "{voice} channel {ch} silent");
+                    assert!(g.iter().any(|v| *v != 0.0), "{voice} lane {lane} silent");
                 }
             }
         }
@@ -205,25 +193,25 @@ fn channels_sound_the_same_alone_and_in_groups() {
 fn block_and_sample_paths_agree() {
     let voices = voices();
     TEST_SEED_BASE.set(Some(0x5eed));
-    let run = |voice, channels, wiring, mode, steps: &[usize]| {
-        let patch = wired(voice, channels, true, wiring, mode);
+    let run = |voice, lanes, wiring, mode, steps: &[usize]| {
+        let patch = wired(voice, lanes, true, wiring, mode);
         start(&patch);
-        let mut out = vec![Vec::new(); channels];
+        let mut out = vec![Vec::new(); lanes];
         render_by(&patch, 8, steps, &mut out);
         out
     };
     for voice in voices.iter().map(String::as_str) {
-        for channels in [1, 3, 6] {
+        for lanes in [1, 3, 6] {
             for wiring in [Wiring::Poly, Wiring::Broadcast, Wiring::Mixed] {
-                let by_sample = run(voice, channels, wiring, ProcessingMode::Sample, &[BLOCK]);
+                let by_sample = run(voice, lanes, wiring, ProcessingMode::Sample, &[BLOCK]);
                 for steps in [&[BLOCK][..], &[1, 10, 11, 40, BLOCK]] {
-                    let by_block = run(voice, channels, wiring, ProcessingMode::Block, steps);
-                    for (ch, (b, s)) in by_block.iter().zip(&by_sample).enumerate() {
+                    let by_block = run(voice, lanes, wiring, ProcessingMode::Block, steps);
+                    for (lane, (b, s)) in by_block.iter().zip(&by_sample).enumerate() {
                         assert!(
                             same_bits(b, s),
-                            "{voice} channel {ch} of {channels}, {wiring:?}, steps {steps:?}"
+                            "{voice} lane {lane} of {lanes}, {wiring:?}, steps {steps:?}"
                         );
-                        assert!(b.iter().any(|v| *v != 0.0), "{voice} channel {ch} silent");
+                        assert!(b.iter().any(|v| *v != 0.0), "{voice} lane {lane} silent");
                     }
                 }
             }
@@ -232,7 +220,7 @@ fn block_and_sample_paths_agree() {
 }
 
 #[test]
-fn channels_keep_sounding_as_updates_regroup_them() {
+fn lanes_keep_sounding_as_updates_regroup_them() {
     let voices = voices();
     TEST_SEED_BASE.set(Some(0x5eed));
     const COUNTS: [usize; 5] = [6, 4, 1, 2, 6];
@@ -241,7 +229,7 @@ fn channels_keep_sounding_as_updates_regroup_them() {
         let whole = fresh(voice, 6, false, BLOCKS * COUNTS.len());
         let mut old = patch(voice, COUNTS[0], false);
         start(&old);
-        // A channel sounds on unbroken from the start until an update drops
+        // A lane sounds on unbroken from the start until an update drops
         // it.
         let mut kept = COUNTS[0];
         for (segment, &count) in COUNTS.iter().enumerate() {
@@ -258,10 +246,10 @@ fn channels_keep_sounding_as_updates_regroup_them() {
             let mut out = vec![Vec::new(); count];
             render(&old, BLOCKS, &mut out);
             let span = segment * BLOCKS * BLOCK..(segment + 1) * BLOCKS * BLOCK;
-            for (ch, samples) in out.iter().enumerate().take(kept) {
+            for (lane, samples) in out.iter().enumerate().take(kept) {
                 assert!(
-                    same_bits(samples, &whole[ch][span.clone()]),
-                    "{voice} channel {ch} through {COUNTS:?}, segment {segment}"
+                    same_bits(samples, &whole[lane][span.clone()]),
+                    "{voice} lane {lane} through {COUNTS:?}, segment {segment}"
                 );
             }
         }
@@ -272,7 +260,7 @@ mod parking {
     //! A circuit that settles within a few samples, struck on a schedule,
     //! so its elements settle, park and strike again while others ring.
 
-    use super::super::group::{ALONE, ChannelInputs, Drum, Groups, Run};
+    use super::super::group::{ALONE, Drum, Groups, LaneInputs, Run};
     use super::super::simd::{Mono, Real, Simd, c, elementwise};
     use super::super::voice::{Circuit, Fire, Voices};
 
@@ -316,29 +304,29 @@ mod parking {
         const RUNS_IN_PAIRS: bool = P;
     }
 
-    /// Strikes channel `ch` on samples where `strikes(sample, ch)`.
+    /// Strikes lane `lane` on samples where `strikes(sample, lane)`.
     struct Script {
         sample: usize,
     }
 
-    fn strikes(sample: usize, ch: usize) -> bool {
-        (sample + 3 * ch) % (7 + 5 * ch) < 2
+    fn strikes(sample: usize, lane: usize) -> bool {
+        (sample + 3 * lane) % (7 + 5 * lane) < 2
     }
 
-    impl<const Q: bool, const P: bool> ChannelInputs<RingDrum<Q, P>> for Script {
-        type Channel = Voices<Ring>;
+    impl<const Q: bool, const P: bool> LaneInputs<RingDrum<Q, P>> for Script {
+        type Lane = Voices<Ring>;
 
-        fn voices(channel: &mut Voices<Ring>) -> &mut Voices<Ring> {
-            channel
+        fn voices(lane: &mut Voices<Ring>) -> &mut Voices<Ring> {
+            lane
         }
 
-        fn inputs(&self, ch: usize, _: &mut Voices<Ring>) -> (f32, f32) {
-            let trigger = if strikes(self.sample, ch) { 5.0 } else { 0.0 };
-            (trigger, 0.11 + 0.07 * ch as f32)
+        fn inputs(&self, lane: usize, _: &mut Voices<Ring>) -> (f32, f32) {
+            let trigger = if strikes(self.sample, lane) { 5.0 } else { 0.0 };
+            (trigger, 0.11 + 0.07 * lane as f32)
         }
     }
 
-    /// Every channel's output over `samples` samples, the channel count
+    /// Every lane's output over `samples` samples, the lane count
     /// changing to each of `counts` in turn.
     fn run<const Q: bool, const P: bool>(
         restart: bool,
@@ -353,22 +341,22 @@ mod parking {
             shared: &(),
         };
         let mut groups = Groups::<RingDrum<Q, P>>::new();
-        let mut channels = vec![Voices::<Ring>::default(); 6];
+        let mut lanes = vec![Voices::<Ring>::default(); 6];
         let mut out = vec![Vec::new(); 6];
         let mut last = 0;
         for (segment, &count) in counts.iter().enumerate() {
-            // As a patch update does, channels past the last count start
+            // As a patch update does, lanes past the last count start
             // afresh.
-            channels[last..].fill(Voices::default());
-            groups.layout::<Script>(&mut channels, count);
+            lanes[last..].fill(Voices::default());
+            groups.layout::<Script>(&mut lanes, count);
             last = count;
             for sample in segment * samples..(segment + 1) * samples {
                 let mut values = [0.0; 6];
-                groups.run(&Script { sample }, &mut channels[..count], &run, |ch, v| {
-                    values[ch] = v;
+                groups.run(&Script { sample }, &mut lanes[..count], &run, |lane, v| {
+                    values[lane] = v;
                 });
-                for (ch, samples) in out.iter_mut().enumerate() {
-                    samples.push(values[ch]);
+                for (lane, samples) in out.iter_mut().enumerate() {
+                    samples.push(values[lane]);
                 }
             }
         }

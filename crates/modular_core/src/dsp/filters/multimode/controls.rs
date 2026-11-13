@@ -104,7 +104,7 @@ fn mode_gains(mode: f32) -> (vca::Gain, vca::Gain) {
     (gain(MODE_OFFSET_A), gain(MODE_OFFSET_B))
 }
 
-/// One sample's control inputs for a group's live channels, 0 in dead elements.
+/// One sample's control inputs for a group's live lanes, 0 in dead elements.
 pub(super) struct ControlInputs {
     cutoff: [f32; SIMD_WIDTH],
     resonance: [f32; SIMD_WIDTH],
@@ -114,14 +114,14 @@ pub(super) struct ControlInputs {
 }
 
 impl ControlInputs {
-    /// The current sample's controls for the `active` channels from `base`.
+    /// The current sample's controls for the `active` lanes from `base`.
     #[inline(always)]
     pub(super) fn read(p: &MultimodeParams, base: usize, active: usize) -> Self {
         let option = |signal: &Option<PolySignal>, default: f32| {
-            elements(base, active, |ch| signal.value_or(ch, default))
+            elements(base, active, |lane| signal.value_or(lane, default))
         };
         Self {
-            cutoff: elements(base, active, |ch| p.cutoff.get_value(ch)),
+            cutoff: elements(base, active, |lane| p.cutoff.get_value(lane)),
             resonance: option(&p.resonance, MultimodeParams::RESONANCE_DEFAULT),
             mode: option(&p.mode, MultimodeParams::MODE_DEFAULT),
             drive: option(&p.drive, MultimodeParams::DRIVE_DEFAULT),
@@ -129,7 +129,7 @@ impl ControlInputs {
         }
     }
 
-    /// Slot `i`'s controls for the `active` channels from `base`.
+    /// Slot `i`'s controls for the `active` lanes from `base`.
     #[inline(always)]
     pub(super) fn row(
         inputs: &MultimodeParamsBlockInputs,
@@ -147,7 +147,7 @@ impl ControlInputs {
     }
 }
 
-/// Slot `i` of `input` for the `active` channels from `base`, 0 for dead
+/// Slot `i` of `input` for the `active` lanes from `base`, 0 for dead
 /// elements.
 #[inline(always)]
 pub(super) fn row(input: &BlockInput, i: usize, base: usize, active: usize) -> [f32; SIMD_WIDTH] {

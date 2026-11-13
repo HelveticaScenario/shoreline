@@ -36,7 +36,7 @@ pub fn from_graph(
             module_state.module_type.clone(),
             DeserializedParams {
                 params: cached.params,
-                channel_count: cached.channel_count,
+                lane_count: cached.lane_count,
                 f64_inputs: false,
             },
             mode,

@@ -271,7 +271,7 @@ describe('polyphony', () => {
         expect(findModules(patch, '$saw').length).toBe(1);
     });
 
-    test('an output with fixed channels keeps them on a wider module', () => {
+    test('an output with fixed lanes keeps them on a wider module', () => {
         const patch = execPatch(`
             const cloud = $granular(0, 0, { freq: ['c4', 'e4', 'g4'] })
             $sine(cloud._voices).out()
@@ -307,7 +307,7 @@ describe('collections', () => {
         expect(findModules(patch, '$saw').length).toBe(1);
     });
 
-    test('$c with noise (ranged channels, no spread needed)', () => {
+    test('$c with noise (ranged lanes, no spread needed)', () => {
         const patch = execPatch('$c($noise("white"), $noise("pink")).out()');
         expect(findModules(patch, '$noise').length).toBe(2);
     });
@@ -389,9 +389,9 @@ describe('chaining methods', () => {
         const patch = execPatch('$sine("C4").scope().out()');
         expect(findModules(patch, '$sine').length).toBe(1);
         expect(patch.scopes.length).toBeGreaterThan(0);
-        expect(patch.scopes[0].channels).toBeDefined();
-        expect(patch.scopes[0].channels.length).toBe(1);
-        expect(patch.scopes[0].channels[0].channel).toBe(0);
+        expect(patch.scopes[0].lanes).toBeDefined();
+        expect(patch.scopes[0].lanes.length).toBe(1);
+        expect(patch.scopes[0].lanes[0].lane).toBe(0);
     });
 
     test('.scope() with config', () => {
@@ -402,15 +402,15 @@ describe('chaining methods', () => {
         const scope = patch.scopes[0];
         expect(scope.msPerFrame).toBe(100);
         expect(scope.range).toEqual([-10, 10]);
-        expect(scope.channels.length).toBe(1);
+        expect(scope.lanes.length).toBe(1);
     });
 
-    test('.scope() on collection captures all channels', () => {
+    test('.scope() on collection captures all lanes', () => {
         const patch = execPatch('$sine(["C4", "E4"]).scope().out()');
         expect(patch.scopes.length).toBe(1);
-        expect(patch.scopes[0].channels.length).toBe(2);
-        expect(patch.scopes[0].channels[0].channel).toBe(0);
-        expect(patch.scopes[0].channels[1].channel).toBe(1);
+        expect(patch.scopes[0].lanes.length).toBe(2);
+        expect(patch.scopes[0].lanes[0].lane).toBe(0);
+        expect(patch.scopes[0].lanes[1].lane).toBe(1);
     });
 
     test('.scope() split mode is carried on the scope entry', () => {
@@ -419,7 +419,7 @@ describe('chaining methods', () => {
         );
         expect(patch.scopes).toHaveLength(1);
         expect(patch.scopes[0].split).toBe('horizontal');
-        expect(patch.scopes[0].channels).toHaveLength(2);
+        expect(patch.scopes[0].lanes).toHaveLength(2);
         expect(execPatch('$sine("C4").scope().out()').scopes[0].split).toBe(
             undefined,
         );
@@ -428,14 +428,14 @@ describe('chaining methods', () => {
         ).toThrow(/split/);
     });
 
-    test('.scope() on indexed output captures single channel', () => {
+    test('.scope() on indexed output captures single lane', () => {
         const patch = execPatch('$sine(["C4", "E4"])[1].scope().out()');
         expect(patch.scopes.length).toBe(1);
-        expect(patch.scopes[0].channels.length).toBe(1);
-        expect(patch.scopes[0].channels[0].channel).toBe(1);
+        expect(patch.scopes[0].lanes.length).toBe(1);
+        expect(patch.scopes[0].lanes[0].lane).toBe(1);
     });
 
-    test('a ranged channel .range() remaps', () => {
+    test('a ranged lane .range() remaps', () => {
         const patch = execPatch('$sine("C4")[0].range("C3", "C5").out()');
         expect(findModules(patch, '$sine').length).toBe(1);
         expect(findModules(patch, '$remap').length).toBeGreaterThan(0);
@@ -526,7 +526,7 @@ describe('sequencing', () => {
         ).toEqual({ start: 3, end: 10 });
     });
 
-    test('a channel of a sequence feeds each input its fitting output', () => {
+    test('a lane of a sequence feeds each input its fitting output', () => {
         const patch = execPatch(`
             const seq = $p('[c4,e4] [g4,b4]');
             $sine(seq[1]).amp($perc(seq[1])).out();
@@ -535,10 +535,10 @@ describe('sequencing', () => {
         const [sine] = findModules(patch, '$sine');
         const [perc] = findModules(patch, '$perc');
         expect(sine.params.freq).toMatchObject([
-            { channel: 1, module: cycle.id, port: 'cv' },
+            { lane: 1, module: cycle.id, port: 'cv' },
         ]);
         expect(perc.params.trigger).toMatchObject([
-            { channel: 1, module: cycle.id, port: 'trig' },
+            { lane: 1, module: cycle.id, port: 'trig' },
         ]);
     });
 
@@ -575,9 +575,11 @@ describe('sequencing', () => {
         );
     });
 
-    test('$track with keyframes', () => {
-        const patch = execPatch('$track([[$hz(440), 0], [$hz(880), 1]]).out()');
-        expect(findModules(patch, '$track').length).toBe(1);
+    test('$keyframes with keyframes', () => {
+        const patch = execPatch(
+            '$keyframes([[$hz(440), 0], [$hz(880), 1]]).out()',
+        );
+        expect(findModules(patch, '$keyframes').length).toBe(1);
     });
 
     test('$cycle($p.s(...)) builds a scale-degree pattern', () => {
@@ -592,7 +594,7 @@ describe('sequencing', () => {
 
     test('$cycle($p.arrange(...)) builds an arrangement end-to-end', () => {
         // Round-trips the ArrangePattern wire payload through the native
-        // deserializer (via deriveChannelCount) — a clean build proves Rust
+        // deserializer (via deriveLaneCount) — a clean build proves Rust
         // accepted it through from_arrange_payload.
         const patch = execPatch(
             '$cycle($p.arrange([2, $p.s("0 2 4", "C(major)")], [2, $p.s("0 2 4", "A(min)")])).out()',
@@ -629,7 +631,7 @@ describe('sequencing', () => {
 
     test('$p.arrange surfaces a Rust validation error from a section', () => {
         // A non-integer scale degree inside a section is rejected by the
-        // native deserializer (round-tripped via deriveChannelCount).
+        // native deserializer (round-tripped via deriveLaneCount).
         expect(() =>
             execPatch('$cycle($p.arrange([2, $p.s("1.5", "C(major)")])).out()'),
         ).toThrow(/IntervalValue requires integer scale degrees/);
@@ -1144,7 +1146,7 @@ describe('utilities', () => {
 
     test('$quantizer takes a signal scale and a gate', () => {
         const patch = execPatch(
-            'const midi = $midiCV({ channels: 4 })\n' +
+            'const midi = $midiCV({ lanes: 4 })\n' +
                 '$quantizer($sine("1hz"), midi, { gate: midi._gate }).out()',
         );
         expect(findModules(patch, '$chord').length).toBe(0);
@@ -1221,7 +1223,7 @@ describe('deferred signals', () => {
         expect(findModules(patch, '$slew').length).toBe(1);
     });
 
-    test('$deferred with multiple channels', () => {
+    test('$deferred with multiple lanes', () => {
         const source = `
             const fb = $deferred(2)
             fb.set($sine(["C4", "E4"]))
@@ -1243,7 +1245,7 @@ describe('deferred signals', () => {
         ).toThrow(/Unset DeferredModuleOutput used in a scope/);
     });
 
-    test('DeferredCollection.set lifts a bare number into one $signal shared by all channels', () => {
+    test('DeferredCollection.set lifts a bare number into one $signal shared by all lanes', () => {
         const patch = execPatch(
             'const fb = $deferred(2)\n$sine(fb).out()\nfb.set(2.5)',
         );
@@ -1766,10 +1768,10 @@ describe('built-in modules', () => {
     });
 
     test('$input is as wide as the reported input device', () => {
-        const rootInputWidth = (channels: number | undefined): number => {
+        const rootInputWidth = (lanes: number | undefined): number => {
             const patch = executePatchScript('$input[0].out()', schemas, {
                 ...DEFAULT_EXECUTION_OPTIONS,
-                inputChannels: channels,
+                inputChannels: lanes,
             }).patch;
             const source = patch.modules.find((m) => m.id === 'ROOT_INPUT')!
                 .params.value as unknown[];
@@ -1782,7 +1784,7 @@ describe('built-in modules', () => {
         // device wider than the engine is clamped to it.
         expect(rootInputWidth(undefined)).toBe(64);
         expect(rootInputWidth(128)).toBe(64);
-        // A device reporting no inputs still leaves one readable channel.
+        // A device reporting no inputs still leaves one readable lane.
         expect(rootInputWidth(0)).toBe(1);
     });
 });
@@ -2108,7 +2110,7 @@ describe('$cross', () => {
         const patch = execPatch(
             "$sine(['c', 'e']).amp($cross(2, $sine('0.25hz').range(0, 1))).out()",
         );
-        const track = findModules(patch, '$track')[0];
+        const track = findModules(patch, '$keyframes')[0];
         expect(track.params.keyframes).toEqual([
             [[5, 0], 0],
             [[0, 5], 1],
@@ -2329,7 +2331,7 @@ describe('$delay', () => {
         expect(findModules(patch, '$delayRead').length).toBe(2);
     });
 
-    test('slices and channels of a delay keep its buffer', () => {
+    test('slices and lanes of a delay keep its buffer', () => {
         const patch = execPatch(
             'const d = $delay($sine(["C4", "E4"]), 0.25)\n$delayRead(d[1].buffer, 0.5).out()\n$delayRead(d.slice(0, 1).buffer, 0.75).out()',
         );
@@ -2342,17 +2344,17 @@ describe('$delay', () => {
     });
 
     test('sizes the feedback path to the widest polysignal param', () => {
-        // The $buffer's input channel count reflects the feedback width.
+        // The $buffer's input lane count reflects the feedback width.
         const bufWidth = (patch: PatchGraph) =>
             (findModules(patch, '$buffer')[0].params.input as unknown[]).length;
 
-        // mono input/time/feedback → 1 channel
+        // mono input/time/feedback → 1 lane
         expect(bufWidth(execPatch('$delay($sine("C4"), 0.25).out()'))).toBe(1);
-        // a 3-channel `time` widens the feedback path to 3
+        // a 3-lane `time` widens the feedback path to 3
         expect(
             bufWidth(execPatch('$delay($sine("C4"), [0.1, 0.2, 0.3]).out()')),
         ).toBe(3);
-        // a 4-channel `feedback` widens it to 4
+        // a 4-lane `feedback` widens it to 4
         expect(
             bufWidth(
                 execPatch(
@@ -2363,15 +2365,15 @@ describe('$delay', () => {
     });
 
     test('broadcasts a narrower input across the feedback width', () => {
-        // mono input + 2-channel `time`: both channels must be fed the dry
-        // signal, else the extra channel is silent (pure feedback from
+        // mono input + 2-lane `time`: both lanes must be fed the dry
+        // signal, else the extra lane is silent (pure feedback from
         // silence, since $mix does not cycle a narrower input group).
         const patch = execPatch('$delay($sine("C4"), [0.2, 0.5]).out()');
         const buffer = findModules(patch, '$buffer')[0];
         const mixId = (buffer.params.input as Array<{ module: string }>)[0]
             .module;
         const mix = patch.modules.find((m) => m.id === mixId)!;
-        // inputs = [dryGroup, feedbackGroup]; both broadcast to the 2-ch width
+        // inputs = [dryGroup, feedbackGroup]; both broadcast to the 2-lane width
         const groups = mix.params.inputs as unknown[][];
         expect(groups[0].length).toBe(2);
         expect(groups[1].length).toBe(2);
@@ -2467,14 +2469,14 @@ describe('WAV paths and $wavMeta', () => {
         expect(sampler[0].params.speed).toBe(0.5);
     });
 
-    test('$sampler with stereo wav sets correct channel count', () => {
+    test('$sampler with stereo wav sets correct lane count', () => {
         const result = execWithWavs(
             '$sampler("/wavs/tables/boom.wav", $pulse("2hz")).scope().out()',
         );
         expect(
             findModules(result.patch, '$sampler')[0].params.wav.channels,
         ).toBe(2);
-        expect(result.patch.scopes[0].channels.length).toBe(2);
+        expect(result.patch.scopes[0].lanes.length).toBe(2);
     });
 
     test('$sampler chained with amp and scope', () => {
@@ -2678,49 +2680,49 @@ describe('$phase helpers', () => {
     });
 });
 
-// ─── $mixDown fold-down ────────────────────────────────────────────────────────
+// ─── $setLanes fold-down ────────────────────────────────────────────────────────
 
-describe('$mixDown', () => {
-    test('.mixDown(2) on a 3-voice spread builds one $mixDown folding 3→2', () => {
+describe('$setLanes', () => {
+    test('.setLanes(2) on a 3-voice spread builds one $setLanes folding 3→2', () => {
         const patch = execPatch(
-            '$saw($spread(0, 5, 3)).mixDown(2).scope().out()',
+            '$saw($spread(0, 5, 3)).setLanes(2).scope().out()',
         );
-        const mixDowns = findModules(patch, '$mixDown');
-        expect(mixDowns.length).toBe(1);
-        expect(mixDowns[0].params.channels).toBe(2);
-        // The collection's 3 channels arrive as the single poly `input`.
-        expect(Array.isArray(mixDowns[0].params.input)).toBe(true);
-        expect((mixDowns[0].params.input as unknown[]).length).toBe(3);
-        // Output channel count is the fold-down target.
-        expect(patch.scopes[0].channels.length).toBe(2);
+        const setLaness = findModules(patch, '$setLanes');
+        expect(setLaness.length).toBe(1);
+        expect(setLaness[0].params.lanes).toBe(2);
+        // The collection's 3 lanes arrive as the single poly `input`.
+        expect(Array.isArray(setLaness[0].params.input)).toBe(true);
+        expect((setLaness[0].params.input as unknown[]).length).toBe(3);
+        // Output lane count is the fold-down target.
+        expect(patch.scopes[0].lanes.length).toBe(2);
     });
 
-    test('$mixDown(src, 2) factory form matches the chain form', () => {
+    test('$setLanes(src, 2) factory form matches the chain form', () => {
         const patch = execPatch(
-            '$mixDown($saw($spread(0, 5, 3)), 2).scope().out()',
+            '$setLanes($saw($spread(0, 5, 3)), 2).scope().out()',
         );
-        expect(findModules(patch, '$mixDown').length).toBe(1);
-        expect(patch.scopes[0].channels.length).toBe(2);
+        expect(findModules(patch, '$setLanes').length).toBe(1);
+        expect(patch.scopes[0].lanes.length).toBe(2);
     });
 
-    test('.mixDown() defaults to mono', () => {
+    test('.setLanes() defaults to mono', () => {
         const patch = execPatch(
-            '$saw($spread(0, 5, 3)).mixDown().scope().out()',
+            '$saw($spread(0, 5, 3)).setLanes().scope().out()',
         );
-        expect(findModules(patch, '$mixDown').length).toBe(1);
-        expect(patch.scopes[0].channels.length).toBe(1);
+        expect(findModules(patch, '$setLanes').length).toBe(1);
+        expect(patch.scopes[0].lanes.length).toBe(1);
     });
 
-    test('.mixDown(2, { mode }) sets how channels combine', () => {
+    test('.setLanes(2, { mode }) sets how lanes combine', () => {
         const patch = execPatch(
-            '$saw($spread(0, 5, 3)).mixDown(2, { mode: "average" }).scope().out()',
+            '$saw($spread(0, 5, 3)).setLanes(2, { mode: "average" }).scope().out()',
         );
-        expect(findModules(patch, '$mixDown')[0].params.mode).toBe('average');
+        expect(findModules(patch, '$setLanes')[0].params.mode).toBe('average');
     });
 
-    test('.mixDown(2) pans a single channel to stereo center', () => {
-        const patch = execPatch('$saw("c4").mixDown(2).scope().out()');
-        expect(findModules(patch, '$mixDown').length).toBe(1);
-        expect(patch.scopes[0].channels.length).toBe(2);
+    test('.setLanes(2) pans a single lane to stereo center', () => {
+        const patch = execPatch('$saw("c4").setLanes(2).scope().out()');
+        expect(findModules(patch, '$setLanes').length).toBe(1);
+        expect(patch.scopes[0].lanes.length).toBe(2);
     });
 });

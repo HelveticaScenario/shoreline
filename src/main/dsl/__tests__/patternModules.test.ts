@@ -324,7 +324,7 @@ describe('a pattern as a collection', () => {
         `);
         expect(cycles(patch)).toHaveLength(1);
         const [saw] = patch.modules.filter((m) => m.moduleType === '$saw');
-        expect(saw.params.freq).toMatchObject([{ channel: 2, port: 'cv' }]);
+        expect(saw.params.freq).toMatchObject([{ lane: 2, port: 'cv' }]);
     });
 
     test('.add and .sub on a scale pattern are signal arithmetic', () => {

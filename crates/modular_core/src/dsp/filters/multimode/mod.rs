@@ -1,4 +1,4 @@
-//! `$multimode` — one channel of Mutable Instruments Blades, modelled from its
+//! `$multimode` — one lane of Mutable Instruments Blades, modelled from its
 //! published schematic (blades_v40).
 //!
 //! Signal path: drive VCA → zener-clamped transimpedance amp → clean/wavefolded
@@ -35,7 +35,7 @@ use group::{GroupOutputs, GroupState, Tables, process_block_group, process_group
 use simd::{HalfbandDown, SIMD_WIDTH, f32x4};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MultimodeParams {
@@ -109,7 +109,7 @@ struct MultimodeOutputs {
 
 const MULTIMODE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Blades-style multimode filter",
-    description: "A circuit model of one channel of Mutable Instruments Blades: a filter that \
+    description: "A circuit model of one lane of Mutable Instruments Blades: a filter that \
                   morphs from lowpass through bandpass to highpass, after a drive stage that \
                   soft-clips or wavefolds. It self-oscillates into a sine, takes audio-rate \
                   cutoff modulation for FM, and is DC-coupled, so it can shape CV too.",
@@ -154,18 +154,18 @@ const MULTIMODE_DOCS: ModuleDocs = ModuleDocs {
 pub struct Multimode {
     outputs: MultimodeOutputs,
     state: MultimodeState,
-    channel_state: Box<[GroupState]>,
+    lane_state: Box<[GroupState]>,
     params: MultimodeParams,
 }
 
 #[derive(Default)]
 struct MultimodeState {
     sample_rate: f32,
-    /// Channel count the groups' elements were last set up for.
-    channels: usize,
+    /// Lane count the groups' elements were last set up for.
+    lanes: usize,
 }
 
-/// `read(channel)` for the first `active` channels from `base`, 0 for dead
+/// `read(lane)` for the first `active` lanes from `base`, 0 for dead
 /// elements.
 #[inline]
 fn elements(base: usize, active: usize, read: impl Fn(usize) -> f32) -> [f32; SIMD_WIDTH] {
@@ -185,7 +185,7 @@ impl Multimode {
         output::prime();
         self.state.sample_rate = sample_rate;
         let base = seed_base(self);
-        for (group, state) in self.channel_state.iter_mut().enumerate() {
+        for (group, state) in self.lane_state.iter_mut().enumerate() {
             for (element, noise) in state.noise.iter_mut().enumerate() {
                 noise.seed(base, group * SIMD_WIDTH + element);
             }
@@ -201,7 +201,7 @@ impl Multimode {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let (rate, high_res) = (self.core_rate(), self.params.high_res);
         let tables = Tables::get();
         let (p, outputs) = (&self.params, &mut self.outputs);
@@ -209,34 +209,34 @@ impl Multimode {
             |outputs: &mut MultimodeOutputs, base: usize, active: usize, out: GroupOutputs| {
                 let [sample, lp, bp, hp] = out;
                 for element in 0..active {
-                    let ch = base + element;
-                    outputs.sample.set(ch, sample[element]);
-                    outputs.lp.set(ch, lp[element]);
-                    outputs.bp.set(ch, bp[element]);
-                    outputs.hp.set(ch, hp[element]);
+                    let lane = base + element;
+                    outputs.sample.set(lane, sample[element]);
+                    outputs.lp.set(lane, lp[element]);
+                    outputs.bp.set(lane, bp[element]);
+                    outputs.hp.set(lane, hp[element]);
                 }
             };
-        // A single channel runs on element 0 alone, without three dead elements.
-        if channels == 1 {
-            let state = &mut self.channel_state[0];
+        // A single lane runs on element 0 alone, without three dead elements.
+        if lanes == 1 {
+            let state = &mut self.lane_state[0];
             update_controls::<f32>(&mut state.controls, &ControlInputs::read(p, 0, 1), 1, rate);
-            let input = elements(0, 1, |ch| p.input.get_value(ch));
+            let input = elements(0, 1, |lane| p.input.get_value(lane));
             let out = step::<f32>(state, input, 1, high_res, tables);
             write(outputs, 0, 1, out);
             return;
         }
         for (group, state) in self
-            .channel_state
+            .lane_state
             .iter_mut()
-            .take(channels.div_ceil(SIMD_WIDTH))
+            .take(lanes.div_ceil(SIMD_WIDTH))
             .enumerate()
         {
             let base = group * SIMD_WIDTH;
-            let active = (channels - base).min(SIMD_WIDTH);
+            let active = (lanes - base).min(SIMD_WIDTH);
             let controls = ControlInputs::read(p, base, active);
-            let input = elements(base, active, |ch| p.input.get_value(ch));
+            let input = elements(base, active, |lane| p.input.get_value(lane));
             let group = (active, high_res, rate, tables);
-            // A group's one live channel runs on element 0 as well.
+            // A group's one live lane runs on element 0 as well.
             let out = if active == 1 {
                 process_group::<f32>(state, &controls, input, group)
             } else {
@@ -252,23 +252,23 @@ impl Multimode {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let (rate, high_res) = (self.core_rate(), self.params.high_res);
         let tables = Tables::get();
         let mut scratch = Default::default();
         let inputs = self
             .params
-            .block_inputs(range.clone(), channels, &mut scratch)?;
+            .block_inputs(range.clone(), lanes, &mut scratch)?;
         for (group, state) in self
-            .channel_state
+            .lane_state
             .iter_mut()
-            .take(channels.div_ceil(SIMD_WIDTH))
+            .take(lanes.div_ceil(SIMD_WIDTH))
             .enumerate()
         {
             let base = group * SIMD_WIDTH;
-            let active = (channels - base).min(SIMD_WIDTH);
+            let active = (lanes - base).min(SIMD_WIDTH);
             let group = (base, active, high_res, rate, tables);
-            // A group's one live channel runs on element 0, as in `update`.
+            // A group's one live lane runs on element 0, as in `update`.
             if active == 1 {
                 process_block_group::<f32>(state, &inputs, outputs, range.clone(), group);
             } else {
@@ -282,39 +282,39 @@ impl Multimode {
 impl crate::types::PatchUpdateHandler for Multimode {
     fn on_patch_update(&mut self) {
         let rate = self.core_rate();
-        let (old, channels) = (self.state.channels, self.channel_count());
-        let groups = channels.div_ceil(SIMD_WIDTH);
-        for group in self.channel_state.iter_mut().take(groups) {
+        let (old, lanes) = (self.state.lanes, self.lane_count());
+        let groups = lanes.div_ceil(SIMD_WIDTH);
+        for group in self.lane_state.iter_mut().take(groups) {
             group.configure(rate);
         }
-        // A group with one live channel keeps that channel's four output
+        // A group with one live lane keeps that lane's four output
         // downsamplers in one downsampler's elements; a group moving between one
-        // live channel and several transposes them. A group that comes back
-        // with one live channel starts all four from rest, since clearing its
+        // live lane and several transposes them. A group that comes back
+        // with one live lane starts all four from rest, since clearing its
         // element alone would leave the other three outputs' history.
         let live =
             |count: usize, group: usize| count.saturating_sub(group * SIMD_WIDTH).min(SIMD_WIDTH);
-        for (group, state) in self.channel_state.iter_mut().enumerate() {
-            let (before, after) = (live(old, group), live(channels, group));
+        for (group, state) in self.lane_state.iter_mut().enumerate() {
+            let (before, after) = (live(old, group), live(lanes, group));
             if before != 0 && after != 0 && (before == 1) != (after == 1) {
                 HalfbandDown::transpose(&mut state.down);
             } else if before == 0 && after == 1 {
                 state.down = Default::default();
             }
         }
-        // Channels new to this patch start from rest, as they would in a fresh
+        // Lanes new to this patch start from rest, as they would in a fresh
         // module, rather than from a element that ran dead before.
-        for ch in old.min(channels)..channels {
-            self.channel_state[ch / SIMD_WIDTH].clear_element(ch % SIMD_WIDTH);
+        for lane in old.min(lanes)..lanes {
+            self.lane_state[lane / SIMD_WIDTH].clear_element(lane % SIMD_WIDTH);
         }
-        // A new channel count changes which elements are dead; recomputing every
+        // A new lane count changes which elements are dead; recomputing every
         // law sets them to follow element 0 again.
-        if old != channels {
-            for group in self.channel_state.iter_mut().take(groups) {
+        if old != lanes {
+            for group in self.lane_state.iter_mut().take(groups) {
                 group.controls.clear();
             }
         }
-        self.state.channels = channels;
+        self.state.lanes = lanes;
     }
 }
 

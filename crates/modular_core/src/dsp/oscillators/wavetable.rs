@@ -28,12 +28,12 @@ use crate::{
         phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState, ResolvedWarp},
         utils::{SchmittTrigger, sanitize},
     },
-    poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
+    poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
     types::{Wav, WavData},
 };
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
@@ -90,9 +90,9 @@ struct WavetableOscOutputs {
     sample: PolyOutput,
 }
 
-/// Per-channel oscillator state.
+/// Per-lane oscillator state.
 #[derive(Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     /// Phase accumulator in `[0, 1)`.
     phase: f64,
     /// Edge detector for the sync input.
@@ -116,7 +116,7 @@ struct ChannelState {
     warp_glides: PhaseWarpGlides,
 }
 
-impl Default for ChannelState {
+impl Default for LaneState {
     fn default() -> Self {
         Self {
             phase: 0.0,
@@ -133,9 +133,9 @@ impl Default for ChannelState {
     }
 }
 
-/// Derive the channel count from the maximum of `pitch` and (optional)
-/// `position`. Clamped to `[1, PORT_MAX_CHANNELS]`.
-impl ChannelState {
+/// Derive the lane count from the maximum of `pitch` and (optional)
+/// `position`. Clamped to `[1, PORT_MAX_LANES]`.
+impl LaneState {
     /// Track `pitch` and `fm`, recomputing the frequency and mipmap level only
     /// when they change.
     #[inline(always)]
@@ -150,7 +150,7 @@ impl ChannelState {
 
     /// One output sample (±5 V) at `position` (0–5 V across the frames), then
     /// advance the phase. `warp` reshapes the read phase with its stage values
-    /// already resolved for this channel; `sync` is this sample's sync input,
+    /// already resolved for this lane; `sync` is this sample's sync input,
     /// if connected.
     #[inline(always)]
     #[allow(clippy::too_many_arguments)]
@@ -240,24 +240,20 @@ impl ChannelState {
 }
 
 #[allow(private_interfaces)]
-pub fn wavetable_derive_channel_count(params: &WavetableOscParams) -> usize {
-    let pitch_ch = params.pitch.channels();
-    let pos_ch = params.position.as_ref().map(|p| p.channels()).unwrap_or(0);
-    let fm_ch = params.fm.as_ref().map(|f| f.channels()).unwrap_or(0);
-    let phase_ch = params.phase.as_ref().map(|t| t.channels()).unwrap_or(0);
-    let sync_ch = params.sync.as_ref().map(|s| s.channels()).unwrap_or(0);
-    let offset_ch = params
-        .phase_offset
-        .as_ref()
-        .map(|o| o.channels())
-        .unwrap_or(0);
+pub fn wavetable_derive_lane_count(params: &WavetableOscParams) -> usize {
+    let pitch_ch = params.pitch.lanes();
+    let pos_ch = params.position.as_ref().map(|p| p.lanes()).unwrap_or(0);
+    let fm_ch = params.fm.as_ref().map(|f| f.lanes()).unwrap_or(0);
+    let phase_ch = params.phase.as_ref().map(|t| t.lanes()).unwrap_or(0);
+    let sync_ch = params.sync.as_ref().map(|s| s.lanes()).unwrap_or(0);
+    let offset_ch = params.phase_offset.as_ref().map(|o| o.lanes()).unwrap_or(0);
     pitch_ch
         .max(pos_ch)
         .max(fm_ch)
         .max(phase_ch)
         .max(sync_ch)
         .max(offset_ch)
-        .clamp(1, PORT_MAX_CHANNELS)
+        .clamp(1, PORT_MAX_LANES)
 }
 
 const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
@@ -294,7 +290,7 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
 
 #[module(
     name = "$wavetable", docs = WAVETABLE_DOCS,
-    channels_derive = wavetable_derive_channel_count,
+    lanes_derive = wavetable_derive_lane_count,
     args(pitch, wav, position),
     has_prepare_resources,
     patch_update,
@@ -303,44 +299,46 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
 pub struct WavetableOsc {
     params: WavetableOscParams,
     outputs: WavetableOscOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
 }
 
 impl WavetableOsc {
     fn update(&mut self, sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let Some(prepared) = self.params.prepared.as_ref().filter(|p| p.is_playable()) else {
             // Silent fallback — prepared mipmap is missing (wav unloaded / empty).
-            for ch in 0..channels {
-                self.outputs.sample.set(ch, 0.0);
+            for lane in 0..lanes {
+                self.outputs.sample.set(lane, 0.0);
             }
             return;
         };
         let inv_sr = 1.0 / sample_rate as f64;
         let p = &self.params;
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
             state.tune(
                 prepared,
-                p.pitch.get_value(ch),
-                p.fm.value_or(ch, 0.0),
+                p.pitch.get_value(lane),
+                p.fm.value_or(lane, 0.0),
                 p.fm_mode,
             );
-            let resolved = p
-                .phase
-                .as_ref()
-                .map(|warp| (warp, warp.resolve(ch, sample_rate, &mut state.warp_glides)));
+            let resolved = p.phase.as_ref().map(|warp| {
+                (
+                    warp,
+                    warp.resolve(lane, sample_rate, &mut state.warp_glides),
+                )
+            });
             let sample = state.step(
                 prepared,
                 sample_rate,
                 inv_sr,
                 p.position
-                    .value_or(ch, WavetableOscParams::POSITION_DEFAULT),
+                    .value_or(lane, WavetableOscParams::POSITION_DEFAULT),
                 p.phase_offset
-                    .value_or(ch, WavetableOscParams::PHASE_OFFSET_DEFAULT),
+                    .value_or(lane, WavetableOscParams::PHASE_OFFSET_DEFAULT),
                 resolved.as_ref().map(|(warp, resolved)| (*warp, resolved)),
-                p.sync.as_ref().map(|sync| sync.get_value(ch)),
+                p.sync.as_ref().map(|sync| sync.get_value(lane)),
             );
-            self.outputs.sample.set(ch, sample);
+            self.outputs.sample.set(lane, sample);
         }
     }
 
@@ -363,7 +361,7 @@ impl WavetableOsc {
             }
             return Some(());
         };
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let mut scratch = Default::default();
         let WavetableOscParamsBlockInputs {
             pitch,
@@ -371,26 +369,23 @@ impl WavetableOsc {
             fm,
             sync,
             phase_offset: offset,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         let inv_sr = 1.0 / sample_rate as f64;
         for i in range {
             let (pitch, fm, position, offset) =
                 (pitch.row(i), fm.row(i), position.row(i), offset.row(i));
             let sync = sync.as_ref().map(|sync| sync.row(i));
-            let slots = out
-                .slot_mut(i)
-                .iter_mut()
-                .zip(self.channel_state.iter_mut());
-            for (ch, (out, state)) in slots.enumerate() {
-                state.tune(prepared, pitch[ch], fm[ch], p.fm_mode);
+            let slots = out.slot_mut(i).iter_mut().zip(self.lane_state.iter_mut());
+            for (lane, (out, state)) in slots.enumerate() {
+                state.tune(prepared, pitch[lane], fm[lane], p.fm_mode);
                 let sample = state.step(
                     prepared,
                     sample_rate,
                     inv_sr,
-                    position[ch],
-                    offset[ch],
+                    position[lane],
+                    offset[lane],
                     None,
-                    sync.map(|sync| sync[ch]),
+                    sync.map(|sync| sync[lane]),
                 );
                 *out = sanitize(sample);
             }
@@ -417,7 +412,7 @@ impl crate::types::PatchUpdateHandler for WavetableOsc {
     fn on_patch_update(&mut self) {
         // The cached frequency and level also depend on `fmMode` and the table,
         // either of which a patch update can change.
-        for state in self.channel_state.iter_mut() {
+        for state in self.lane_state.iter_mut() {
             state.last_pitch = f32::NAN;
         }
     }
@@ -434,32 +429,32 @@ mod tests {
     /// Build a WavData containing `n_frames` sine-wave frames of `size`
     /// samples each.
     fn make_wav(size: usize, n_frames: usize) -> Arc<WavData> {
-        let mut ch = Vec::with_capacity(size * n_frames);
+        let mut lane = Vec::with_capacity(size * n_frames);
         for f in 0..n_frames {
             // Vary the waveform per frame: frame 0 = sine, frame 1 = cosine,
             // frame 2 = inverted sine, etc.
             let phase_offset = f as f32 * TAU * 0.25;
             for i in 0..size {
                 let p = TAU * (i as f32 / size as f32) + phase_offset;
-                ch.push(p.sin());
+                lane.push(p.sin());
             }
         }
         Arc::new(WavData::new(
-            SampleBuffer::from_samples(vec![ch], 48000.0),
+            SampleBuffer::from_samples(vec![lane], 48000.0),
             Some(size),
         ))
     }
 
     fn make_osc(params: WavetableOscParams) -> WavetableOsc {
-        let channels = wavetable_derive_channel_count(&params);
+        let lanes = wavetable_derive_lane_count(&params);
         let mut outputs = WavetableOscOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
 
         WavetableOsc {
             params,
             outputs,
-            channel_state: vec![ChannelState::default(); channels].into_boxed_slice(),
-            _channel_count: channels,
+            lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
+            _lane_count: lanes,
             _block_index: Default::default(),
         }
     }
@@ -490,12 +485,12 @@ mod tests {
         params.prepared = Some(PreparedWavetable::from_wav_data(&make_wav(256, 1), 48000.0));
         let mut osc = make_osc(params);
         osc.update(48000.0);
-        assert_eq!(osc.channel_state[0].freq, apply_fm(0.0, 0.5, FmMode::Exp));
+        assert_eq!(osc.lane_state[0].freq, apply_fm(0.0, 0.5, FmMode::Exp));
 
         osc.params.fm_mode = FmMode::Lin;
         osc.on_patch_update();
         osc.update(48000.0);
-        assert_eq!(osc.channel_state[0].freq, apply_fm(0.0, 0.5, FmMode::Lin));
+        assert_eq!(osc.lane_state[0].freq, apply_fm(0.0, 0.5, FmMode::Lin));
         assert_ne!(
             apply_fm(0.0, 0.5, FmMode::Lin),
             apply_fm(0.0, 0.5, FmMode::Exp)

@@ -9,16 +9,16 @@ use crate::{
     Wav,
     dsp::utils::SchmittTrigger,
     param_errors::ModuleParamErrors,
-    poly::{LaneSum, LaneSumExt, PORT_MAX_CHANNELS, PolyOutput},
+    poly::{LaneSum, LaneSumExt, PORT_MAX_LANES, PolyOutput},
 };
 
 mod looping;
 mod voice;
 
-/// Output width follows the WAV, capped at the port-wide channel limit — a
+/// Output width follows the WAV, capped at the port-wide lane limit — a
 /// WAV header can claim any u16 channel count.
-fn sampler_derive_channel_count(params: &SamplerParams) -> usize {
-    params.wav.channel_count().clamp(1, PORT_MAX_CHANNELS)
+fn sampler_derive_lane_count(params: &SamplerParams) -> usize {
+    params.wav.channel_count().clamp(1, PORT_MAX_LANES)
 }
 
 fn default_fade() -> f64 {
@@ -29,7 +29,7 @@ fn default_fade() -> f64 {
 const MAX_FADE_MS: f64 = 1000.0;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = sampler_validate_params -> ModuleParamErrors)]
 struct SamplerParams {
@@ -180,7 +180,7 @@ const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$sampler", docs = SAMPLER_DOCS, channels_derive = sampler_derive_channel_count, args(wav, gate), has_init, patch_update)]
+#[module(name = "$sampler", docs = SAMPLER_DOCS, lanes_derive = sampler_derive_lane_count, args(wav, gate), has_init, patch_update)]
 pub struct Sampler {
     params: SamplerParams,
     outputs: SamplerOutputs,
@@ -196,12 +196,12 @@ impl Sampler {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let frame_count = self.params.wav.frame_count();
 
         if !self.params.wav.is_loaded() || frame_count == 0 {
-            for ch in 0..channels {
-                self.outputs.sample.set(ch, 0.0);
+            for lane in 0..lanes {
+                self.outputs.sample.set(lane, 0.0);
             }
             return;
         }
@@ -261,15 +261,15 @@ impl Sampler {
         let any_rel = self.state.rels.iter().any(|r| r.active);
 
         if !self.state.playing && !any_rel {
-            for ch in 0..channels {
-                self.outputs.sample.set(ch, 0.0);
+            for lane in 0..lanes {
+                self.outputs.sample.set(lane, 0.0);
             }
             return;
         }
 
         let wav = &self.params.wav;
-        for ch in 0..channels {
-            let samples = wav.channel(ch);
+        for lane in 0..lanes {
+            let samples = wav.channel(lane);
             let mut value = 0.0;
             if self.state.playing {
                 // Expected range of wav is -1.0 to 1.0, multiply by 5 to get to oscillator level
@@ -280,7 +280,7 @@ impl Sampler {
                     value += rel.voice.read(samples) * 5.0 * gain;
                 }
             }
-            self.outputs.sample.set(ch, value);
+            self.outputs.sample.set(lane, value);
         }
 
         // Advance positions, compensating for sample rate difference (ratio

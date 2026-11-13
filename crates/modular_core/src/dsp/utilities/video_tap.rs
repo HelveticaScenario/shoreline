@@ -77,7 +77,7 @@ pub fn read_video_since(slot: usize, since: Option<u32>) -> Option<VideoTapChunk
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = video_tap_validate_params -> ModuleParamErrors)]
 struct VideoTapParams {
@@ -149,7 +149,7 @@ impl VideoTap {
     ) -> Option<()> {
         let mut scratch = InputScratch::new();
         let poly = self.params.input.poly();
-        let input = poly.block_input(range.clone(), poly.channels(), &mut scratch)?;
+        let input = poly.block_input(range.clone(), poly.lanes(), &mut scratch)?;
         let slot = self.params.slot.min(MAX_VIDEO_TAPS - 1);
         let ring = &VIDEO_HISTORY[slot];
         let mut head = VIDEO_HEADS[slot].load(Ordering::Relaxed);
@@ -184,14 +184,14 @@ mod tests {
 
     fn make(slot: usize, volts: f32) -> VideoTap {
         let mut outputs = VideoTapOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         VideoTap {
             params: VideoTapParams {
                 input: LaneSum::from_poly(PolySignal::mono(Signal::Volts(volts))),
                 slot,
             },
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
         }
     }

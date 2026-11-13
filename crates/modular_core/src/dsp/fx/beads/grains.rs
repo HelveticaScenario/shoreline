@@ -1,5 +1,5 @@
 //! `$granular`: Beads' grain voices on a live input, with a stereo mix and
-//! one output channel per voice.
+//! one output lane per voice.
 
 use deserr::Deserr;
 use schemars::JsonSchema;
@@ -21,12 +21,12 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct GranularParams {
     #[input(
-        "signal to record; each channel gets its own voice",
+        "signal to record; each lane gets its own voice",
         type = audio,
     )]
     input: PolySignal,
@@ -123,14 +123,14 @@ struct GranularParams {
 struct GranularOutputs {
     #[output(
         "stereo",
-        "stereo mix of every voice, as left and right channels",
+        "stereo mix of every voice, as left and right lanes",
         type = cv,
         default,
         range = (-5.0, 5.0),
-        channels = 2
+        lanes = 2
     )]
     sample: PolyOutput,
-    #[output("voices", "each voice on its own channel, mono", type = cv, range = (-5.0, 5.0))]
+    #[output("voices", "each voice on its own lane, mono", type = cv, range = (-5.0, 5.0))]
     voices: PolyOutput,
 }
 
@@ -182,8 +182,8 @@ pub struct Granular {
     outputs: GranularOutputs,
     state: GranularState,
     params: GranularParams,
-    /// One voice per channel of the widest input.
-    channel_state: Box<[GrainsVoice]>,
+    /// One voice per lane of the widest input.
+    lane_state: Box<[GrainsVoice]>,
 }
 
 impl Granular {
@@ -195,11 +195,11 @@ impl Granular {
         self.state.chain.allocate();
         let media = self.params.quality.media();
         let silence = silent_buffer(media);
-        for voice in self.channel_state.iter_mut() {
+        for voice in self.lane_state.iter_mut() {
             voice.allocate();
             voice.voice.granular.buffer = silence.clone();
         }
-        self.params.fresh = Some(FreshBuffers::allocate(self.channel_state.len(), media));
+        self.params.fresh = Some(FreshBuffers::allocate(self.lane_state.len(), media));
         let state = &mut self.state;
         state.engine_sample_rate = sample_rate;
         state.resampler.allocate(sample_rate);
@@ -210,7 +210,7 @@ impl Granular {
     fn configure(&mut self, media: Media) {
         let state = &mut self.state;
         state.media = media;
-        state.chain.configure(media, &mut self.channel_state);
+        state.chain.configure(media, &mut self.lane_state);
         state
             .resampler
             .configure(state.engine_sample_rate, media.sample_rate());
@@ -227,7 +227,7 @@ impl Granular {
     fn update(&mut self, _sample_rate: f32) {
         let params = &self.params;
         let state = &mut self.state;
-        let voices = &mut self.channel_state;
+        let voices = &mut self.lane_state;
 
         let index = state.resampler.input_index();
         let converts = state.resampler.converts();
@@ -285,17 +285,19 @@ impl Granular {
                 .voices
                 .set(i, tap.read(&v.output) * FULL_SCALE_VOLTS);
         }
-        for (ch, h) in chain.stereo.iter().enumerate() {
-            self.outputs.sample.set(ch, tap.read(h) * FULL_SCALE_VOLTS);
+        for (lane, h) in chain.stereo.iter().enumerate() {
+            self.outputs
+                .sample
+                .set(lane, tap.read(h) * FULL_SCALE_VOLTS);
         }
     }
 }
 
 impl PatchUpdateHandler for Granular {
     fn on_patch_update(&mut self) {
-        let channels = self.params.input.channels();
-        for (i, v) in self.channel_state.iter_mut().enumerate() {
-            v.voice.dry_source = i < channels;
+        let lanes = self.params.input.lanes();
+        for (i, v) in self.lane_state.iter_mut().enumerate() {
+            v.voice.dry_source = i < lanes;
         }
         // A quality change clears every voice, and a voice new to this
         // module still holds the silent stand-in: both take a fresh buffer,
@@ -304,7 +306,7 @@ impl PatchUpdateHandler for Granular {
         let media = self.params.quality.media();
         let reconfigure = media != self.state.media;
         if let Some(fresh) = &mut self.params.fresh {
-            for (i, v) in self.channel_state.iter_mut().enumerate() {
+            for (i, v) in self.lane_state.iter_mut().enumerate() {
                 if fresh.hand_out(i, &mut v.voice.granular.buffer, reconfigure) && !reconfigure {
                     v.configure(media);
                 }

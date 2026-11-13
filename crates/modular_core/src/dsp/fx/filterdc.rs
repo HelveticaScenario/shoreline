@@ -9,7 +9,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FilterDcParams {
@@ -25,7 +25,7 @@ struct FilterDcOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     /// One-pole high-pass state — `y[n] = x[n] - x[n-1] + R · y[n-1]`.
     dc_blocker: DcBlocker,
 }
@@ -54,7 +54,7 @@ const FILTER_DC_DOCS: ModuleDocs = ModuleDocs {
 pub struct FilterDc {
     outputs: FilterDcOutputs,
     state: FilterDcState,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: FilterDcParams,
 }
 
@@ -68,14 +68,14 @@ impl FilterDc {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
         let dc_coeff = self.state.dc_block_coeff;
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
-            let input = self.params.input.get_value(ch);
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
+            let input = self.params.input.get_value(lane);
             let out = state.dc_blocker.process(input, dc_coeff);
-            self.outputs.sample.set(ch, out);
+            self.outputs.sample.set(lane, out);
         }
     }
 }
@@ -89,16 +89,16 @@ mod tests {
 
     fn make(input: f32) -> FilterDc {
         let mut outputs = FilterDcOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         let mut filter = FilterDc {
             params: FilterDcParams {
                 input: PolySignal::mono(Signal::Volts(input)),
             },
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
             state: FilterDcState::default(),
-            channel_state: vec![ChannelState::default(); 1].into_boxed_slice(),
+            lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         };
         filter.init(48000.0);
         filter

@@ -1,4 +1,4 @@
-//! A group of four channels: its state, and the signal path run one sample at a
+//! A group of four lanes: its state, and the signal path run one sample at a
 //! time or over a block.
 
 use std::ops::Range;
@@ -46,8 +46,8 @@ impl Tables {
     }
 }
 
-/// Four channels' state, one element each; group `g` holds channels `4g..4g + 4`
-/// and lives in `channel_state[g]`. With `highRes` the whole circuit runs at
+/// Four lanes' state, one element each; group `g` holds lanes `4g..4g + 4`
+/// and lives in `lane_state[g]`. With `highRes` the whole circuit runs at
 /// twice the engine rate, and the four outputs are decimated separately.
 #[derive(Default, Clone, Copy)]
 pub(super) struct GroupState {
@@ -83,7 +83,7 @@ impl GroupState {
         }
     }
 
-    /// Returns element `element` to rest, as a fresh channel starts. Its noise
+    /// Returns element `element` to rest, as a fresh lane starts. Its noise
     /// generator keeps its seed.
     pub(super) fn clear_element(&mut self, element: usize) {
         let c = &mut self.controls;
@@ -164,7 +164,7 @@ fn morph<L: Simd>(lp: L, bp: L, hp: L, (gain_a, gain_b): &(GainX4, GainX4)) -> L
 /// One sample's `[output, lp, bp, hp]` for a group's elements.
 pub(super) type GroupOutputs = [[f32; SIMD_WIDTH]; 4];
 
-/// One sample for the `active` channels of group `state`, kept out of line so
+/// One sample for the `active` lanes of group `state`, kept out of line so
 /// `update` carries one inlined copy.
 #[inline(never)]
 pub(super) fn process_group<L: Simd>(
@@ -177,7 +177,7 @@ pub(super) fn process_group<L: Simd>(
     step::<L>(state, input, active, high_res, tables)
 }
 
-/// Slots `range` for the `active` channels of group `state`, from channel
+/// Slots `range` for the `active` lanes of group `state`, from lane
 /// `base`, read from `inputs` and written to `outputs`. Controls held over the
 /// range update once.
 #[inline(never)]
@@ -242,7 +242,7 @@ pub(super) fn step<L: Simd>(
         let (even, odd) = state.up.process(x);
         let even = state.tick(even, &fold, tables, active);
         let odd = state.tick(odd, &fold, tables, active);
-        // A lone channel decimates its four outputs as one downsampler's elements.
+        // A lone lane decimates its four outputs as one downsampler's elements.
         if L::WIDTH == 1 {
             let pack = |o: [L; 4]| f32x4::new(o.map(|v| v.to_elements()[0]));
             let y = state.down[0].process(pack(even), pack(odd)).to_array();

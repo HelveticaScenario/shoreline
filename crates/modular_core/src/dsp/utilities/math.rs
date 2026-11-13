@@ -89,7 +89,7 @@ impl<E: DeserializeError> deserr::Deserr<E> for MathExpressionParam {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, ChannelCount, Connect)]
+#[derive(Clone, Deserr, JsonSchema, LaneCount, Connect)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MathParams {
@@ -142,7 +142,7 @@ impl Default for MathState {
 const MATH_DOCS: ModuleDocs = ModuleDocs {
     summary: "Formula on signals",
     description: "Evaluates a formula every sample, for any transformation no other \
-                  module offers. It runs once per channel, as wide as its widest \
+                  module offers. It runs once per lane, as wide as its widest \
                   input.",
     categories: &[ModuleCategory::Math],
     sections: &[DocSection {
@@ -203,18 +203,18 @@ impl Math {
             }
         }
 
-        for ch in 0..self.channel_count() {
-            let value = self.eval(ch).unwrap_or(0.0) as f32;
+        for lane in 0..self.lane_count() {
+            let value = self.eval(lane).unwrap_or(0.0) as f32;
             // PolyOutput::set sanitizes non-finite results, so an expression
             // like 0/0 puts 0.0 on the cable rather than NaN.
-            self.outputs.output.set(ch, value);
+            self.outputs.output.set(lane, value);
         }
     }
 
-    fn eval(&mut self, ch: usize) -> std::result::Result<f64, fasteval::Error> {
-        let x = self.params.x.value_or_zero(ch) as f64;
-        let y = self.params.y.value_or_zero(ch) as f64;
-        let z = self.params.z.value_or_zero(ch) as f64;
+    fn eval(&mut self, lane: usize) -> std::result::Result<f64, fasteval::Error> {
+        let x = self.params.x.value_or_zero(lane) as f64;
+        let y = self.params.y.value_or_zero(lane) as f64;
+        let z = self.params.z.value_or_zero(lane) as f64;
         let t = self.state.phase as f64 + self.state.loop_index as f64;
 
         let mut cb = |name: &str, args: Vec<f64>| -> Option<f64> {
@@ -262,10 +262,10 @@ mod tests {
 
     const SR: f32 = 48_000.0;
 
-    fn make(expression: &str, channels: usize, params: [Option<PolySignal>; 3]) -> Math {
+    fn make(expression: &str, lanes: usize, params: [Option<PolySignal>; 3]) -> Math {
         let [x, y, z] = params;
         let mut outputs = MathOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         Math {
             outputs,
             params: MathParams {
@@ -275,7 +275,7 @@ mod tests {
                 z,
             },
             state: MathState::default(),
-            _channel_count: channels,
+            _lane_count: lanes,
             _block_index: Default::default(),
         }
     }
@@ -286,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn evaluates_expression_per_channel() {
+    fn evaluates_expression_per_lane() {
         // The module is as wide as its widest input; narrower inputs cycle.
         let mut m = make("x * 2 + y", 2, [poly(&[1.0, 3.0]), poly(&[10.0]), None]);
         m.update(SR);

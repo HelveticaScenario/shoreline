@@ -19,7 +19,7 @@ function isTuple(schema: JsonSchema): boolean {
 /**
  * Build a mapper that rewrites the signal positions of a param whose schema
  * nests signals inside arrays, tuples and unions (`$mix.inputs`,
- * `$track.keyframes`, …). Returns null when the schema holds no signal.
+ * `$keyframes.keyframes`, …). Returns null when the schema holds no signal.
  */
 export function buildSignalMapper(
     schema: JsonSchema,

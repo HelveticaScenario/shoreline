@@ -10,13 +10,13 @@ import type { editor } from 'monaco-editor';
 
 import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import type { DSLExecuteResult } from '../../shared/ipcTypes';
-import { scopeBufferKeyFromChannel } from '../app/oscilloscope';
+import { scopeBufferKeyFromLane } from '../app/oscilloscope';
 import type { CodeStyle } from '../dsl/listEdits';
 import { EqLivePoller } from './eqLivePoller';
 import { renderEqPanel } from './eqPanelRender';
 import { cancelTimers, flushCode } from './eqCodeWriter';
-import { type EqSectionView, isPerChannel, sectionLists } from './eqPanelModel';
-import { addChannel, removeChannel, selectChannel } from './eqChannelOps';
+import { type EqSectionView, isPerLane, sectionLists } from './eqPanelModel';
+import { addLane, removeLane, selectLane } from './eqLaneOps';
 import {
     addSection,
     changeSection,
@@ -167,14 +167,14 @@ export class EqPanelController implements EqPanelContext {
             }
             const panel = prev ?? this.newPanel(def);
             const lists = sectionLists(params);
-            const channel = panel.channel < lists.length ? panel.channel : 0;
+            const lane = panel.lane < lists.length ? panel.lane : 0;
             const sameShape = shapeOf(panel.params) === shapeOf(params);
             const since = [...panel.changeLog.values()].filter(
                 (c) => c.seq > setup.stagedSeq,
             );
             const structureSince = panel.structureSeq > setup.stagedSeq;
             Object.assign(panel, {
-                channel,
+                lane,
                 def,
                 ghosts: new Map(),
                 index,
@@ -182,14 +182,14 @@ export class EqPanelController implements EqPanelContext {
                 params,
                 selected:
                     panel.selected !== null &&
-                    channel === panel.channel &&
-                    panel.selected < lists[channel].length
+                    lane === panel.lane &&
+                    panel.selected < lists[lane].length
                         ? panel.selected
                         : null,
-                spectrumKeys: def.spectrum.channels.map((ch) =>
-                    scopeBufferKeyFromChannel(
+                spectrumKeys: def.spectrum.lanes.map((spectrumLane) =>
+                    scopeBufferKeyFromLane(
                         {
-                            channel: ch,
+                            lane: spectrumLane,
                             moduleId: def.spectrum.moduleId,
                             portName: def.spectrum.portName,
                         },
@@ -235,7 +235,7 @@ export class EqPanelController implements EqPanelContext {
             if (!panel.zone) {
                 continue;
             }
-            const entry = frames.get(panel.spectrumKeys[panel.channel] ?? '');
+            const entry = frames.get(panel.spectrumKeys[panel.lane] ?? '');
             if (!entry) {
                 continue;
             }
@@ -265,13 +265,13 @@ export class EqPanelController implements EqPanelContext {
     snapshot(): {
         key: string;
         lists: EqSectionView[][];
-        perChannel: boolean;
+        perLane: boolean;
         visible: boolean;
     }[] {
         return [...this.panels.values()].map((p) => ({
             key: p.def.key,
             lists: shownLists(p),
-            perChannel: isPerChannel(p.params),
+            perLane: isPerLane(p.params),
             visible: p.zone !== null,
         }));
     }
@@ -322,8 +322,8 @@ export class EqPanelController implements EqPanelContext {
                     this.ifCurrent(panel, () =>
                         addSection(this, panel, freqHz, gainDb),
                     ),
-                onAddChannel: () =>
-                    this.ifCurrent(panel, () => addChannel(this, panel)),
+                onAddLane: () =>
+                    this.ifCurrent(panel, () => addLane(this, panel)),
                 onChange: (index, change, phase, codeOnly) =>
                     this.ifCurrent(panel, () =>
                         changeSection(
@@ -335,18 +335,14 @@ export class EqPanelController implements EqPanelContext {
                             codeOnly,
                         ),
                     ),
-                onChannel: (list) =>
-                    this.ifCurrent(panel, () =>
-                        selectChannel(this, panel, list),
-                    ),
+                onLane: (list) =>
+                    this.ifCurrent(panel, () => selectLane(this, panel, list)),
                 onRemove: (index) =>
                     this.ifCurrent(panel, () =>
                         removeSection(this, panel, index),
                     ),
-                onRemoveChannel: (list) =>
-                    this.ifCurrent(panel, () =>
-                        removeChannel(this, panel, list),
-                    ),
+                onRemoveLane: (list) =>
+                    this.ifCurrent(panel, () => removeLane(this, panel, list)),
                 onRevert: (index, fields) =>
                     this.ifCurrent(panel, () =>
                         revertSection(this, panel, index, fields),
@@ -362,7 +358,7 @@ export class EqPanelController implements EqPanelContext {
                 },
             },
             changeLog: new Map(),
-            channel: 0,
+            lane: 0,
             codeTimer: null,
             def,
             engineFrame: null,

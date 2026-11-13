@@ -21,7 +21,7 @@ use super::circuit::{
     decay_around, pulse_volts,
 };
 use crate::dsp::drums::analog::{Exp, VT, converged, high_pass, low_pass, one_pole_coeff, rc_hz};
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, Run};
 use crate::dsp::drums::input::{Cached, Hold};
 use crate::dsp::drums::simd::{Elementwise, Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Timing, Voices};
@@ -176,10 +176,10 @@ impl TomShared {
     }
 }
 
-/// One output channel: its voices, noise generator, and the bridged-T tuned
+/// One output lane: its voices, noise generator, and the bridged-T tuned
 /// for the current `freq` and `decay`.
 #[derive(Clone, Copy, Default)]
-struct Channel {
+struct Lane {
     voices: Voices<Tom>,
     noise: WhiteNoise,
     network: Cached<(f32, f32), Network>,
@@ -358,7 +358,7 @@ impl<L: Simd> Tom<L> {
     }
 }
 
-/// A tom's per-sample-rate constants and its channel groups.
+/// A tom's per-sample-rate constants and its lane groups.
 #[derive(Default)]
 struct TomState {
     hold: Hold<1, 2>,

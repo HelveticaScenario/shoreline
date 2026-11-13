@@ -4,12 +4,12 @@ use schemars::JsonSchema;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
-    dsp::filters::resonant_svf::{self, Response, SvfChannel, SvfFilterState},
+    dsp::filters::resonant_svf::{self, Response, SvfFilterState, SvfLane},
     poly::{PolyOutput, PolySignal},
 };
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct HighpassFilterParams {
@@ -72,23 +72,23 @@ const HPF_DOCS: ModuleDocs = ModuleDocs {
 pub struct HighpassFilter {
     outputs: HighpassFilterOutputs,
     state: SvfFilterState,
-    channel_state: Box<[SvfChannel]>,
+    lane_state: Box<[SvfLane]>,
     params: HighpassFilterParams,
 }
 
 impl HighpassFilter {
     fn update(&mut self, sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         resonant_svf::run(
             Response::Highpass,
-            channels,
+            lanes,
             &self.params.input,
             &self.params.cutoff,
             &self.params.resonance,
             0.0,
             sample_rate,
             &mut self.state,
-            &mut self.channel_state,
+            &mut self.lane_state,
             &mut self.outputs.sample,
         );
     }
@@ -100,7 +100,7 @@ impl crate::types::PatchUpdateHandler for HighpassFilter {
             &self.params.cutoff,
             &self.params.resonance,
             &mut self.state,
-            &mut self.channel_state,
+            &mut self.lane_state,
         );
     }
 }

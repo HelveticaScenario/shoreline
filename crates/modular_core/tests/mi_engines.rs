@@ -232,7 +232,7 @@ fn render(port: &Port, samples: usize) -> Vec<f32> {
             json!({ "freq": (hz / 261.625_57).log2() }),
         ));
         modules[0].2["trigger"] =
-            json!({ "type": "cable", "module": "clock", "port": "output", "channel": 0 });
+            json!({ "type": "cable", "module": "clock", "port": "output", "lane": 0 });
     }
     let mut patch = Patch::new();
     patch
@@ -244,7 +244,7 @@ fn render(port: &Port, samples: usize) -> Vec<f32> {
                     module.to_string(),
                     DeserializedParams {
                         params: cached.params,
-                        channel_count: cached.channel_count,
+                        lane_count: cached.lane_count,
                         f64_inputs: false,
                     },
                     ProcessingMode::Block,

@@ -1,4 +1,4 @@
-//! Two channels at once: each double-precision value in one 128-bit
+//! Two lanes at once: each double-precision value in one 128-bit
 //! register, as the scalar code's are in one register each.
 
 use std::ops::{
@@ -10,7 +10,7 @@ use wide::{f32x4, f64x2};
 use super::vector::{broadcast_f32x4, broadcast_f64x2, switch_elements, vector};
 use super::{Elementwise, Mask, Real, Simd};
 
-/// Two channels.
+/// Two lanes.
 #[derive(Clone, Copy, Default)]
 pub struct X2;
 

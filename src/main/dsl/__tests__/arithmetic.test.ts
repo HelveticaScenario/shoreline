@@ -147,13 +147,13 @@ describe('rounding methods', () => {
         },
     );
 
-    test('a ranged channel rounds ranged', () => {
+    test('a ranged lane rounds ranged', () => {
         const out = chain(sine('1hz').range(0.4, 7.6, -5, 5)[0], 'round');
 
         expect(out).toBeInstanceOf(CollectionWithRange);
     });
 
-    test('rounding a collection rounds every channel at once', () => {
+    test('rounding a collection rounds every lane at once', () => {
         const out = chain(
             builder.getFactory('$sine')(['1hz', '2hz']),
             'ceil',

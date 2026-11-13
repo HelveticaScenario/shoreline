@@ -84,13 +84,13 @@ fn block_inputs(ast: &DeriveInput) -> syn::Result<TokenStream2> {
         let scratch = format_ident!("scratch_{}", scratches.len());
         let resolution = if is_poly_signal_type(&field.ty) {
             field_decls.push(quote! { pub #ident: crate::block_input::BlockInput<'a> });
-            quote! { self.#ident.block_input(range.clone(), channels, #scratch)? }
+            quote! { self.#ident.block_input(range.clone(), lanes, #scratch)? }
         } else if is_option_poly_signal_type(&field.ty) {
             if is_optional(field)? {
                 field_decls.push(quote! { pub #ident: Option<crate::block_input::BlockInput<'a>> });
                 quote! {
                     match &self.#ident {
-                        Some(signal) => Some(signal.block_input(range.clone(), channels, #scratch)?),
+                        Some(signal) => Some(signal.block_input(range.clone(), lanes, #scratch)?),
                         None => None,
                     }
                 }
@@ -101,7 +101,7 @@ fn block_inputs(ast: &DeriveInput) -> syn::Result<TokenStream2> {
                 field_decls.push(quote! { pub #ident: crate::block_input::BlockInput<'a> });
                 quote! {
                     crate::block_input::OptionBlockInput::block_input_or(
-                        &self.#ident, range.clone(), channels, Self::#default_name, #scratch,
+                        &self.#ident, range.clone(), lanes, Self::#default_name, #scratch,
                     )?
                 }
             }
@@ -136,8 +136,8 @@ fn block_inputs(ast: &DeriveInput) -> syn::Result<TokenStream2> {
         }
 
         impl #name {
-            /// Resolve every signal input for slots `range` across `channels`
-            /// channels, in field order. A disconnected input reads as its
+            /// Resolve every signal input for slots `range` across `lanes`
+            /// lanes, in field order. A disconnected input reads as its
             /// `#[input(default)]` (the generated `<FIELD>_DEFAULT`), or as
             /// `None` when marked
             /// `#[block_input(optional)]`. `None` when any input declines.
@@ -145,7 +145,7 @@ fn block_inputs(ast: &DeriveInput) -> syn::Result<TokenStream2> {
             #vis fn block_inputs<'a>(
                 &'a self,
                 range: ::std::ops::Range<usize>,
-                channels: usize,
+                lanes: usize,
                 scratch: &'a mut [crate::block_input::InputScratch; #count],
             ) -> Option<#inputs_name<'a>> {
                 let [#(#scratches,)*] = scratch;

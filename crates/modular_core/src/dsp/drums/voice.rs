@@ -1,5 +1,5 @@
 //! The scaffold every drum voice runs in: trigger detection with its accent
-//! sample, the trigger pulse as it plays out, and a channel's sounding and
+//! sample, the trigger pulse as it plays out, and a lane's sounding and
 //! cut-off circuits.
 
 use super::input::Input;
@@ -17,11 +17,11 @@ pub struct Strike {
 }
 
 impl Strike {
-    /// The accent, 0–1, for a strike on this sample, sampling channel
-    /// `ch` of `accent` (0–5 V).
+    /// The accent, 0–1, for a strike on this sample, sampling lane
+    /// `lane` of `accent` (0–5 V).
     #[inline]
-    pub fn process(&mut self, trigger: f32, accent: impl Input, ch: usize) -> Option<f32> {
-        self.trigger.process(trigger).then(|| knob(accent.at(ch)))
+    pub fn process(&mut self, trigger: f32, accent: impl Input, lane: usize) -> Option<f32> {
+        self.trigger.process(trigger).then(|| knob(accent.at(lane)))
     }
 }
 
@@ -65,7 +65,7 @@ pub fn samples(secs: f32, sample_rate: f32) -> u32 {
     (secs * sample_rate).round().max(1.0) as u32
 }
 
-/// Per-sample-rate timing shared by every channel of a voice.
+/// Per-sample-rate timing shared by every lane of a voice.
 #[derive(Clone, Copy, Default)]
 pub struct Timing {
     /// The machine's trigger pulse.
@@ -89,7 +89,7 @@ impl Timing {
 /// A voice circuit's state through a sequence of hits, at width `L`. The
 /// default value is the circuit at rest.
 pub trait Circuit<L: Simd = Mono>: Copy + Default {
-    /// Constants shared by every channel, fixed by the sample rate.
+    /// Constants shared by every lane, fixed by the sample rate.
     type Shared;
     /// Settings read once per sample.
     type Controls;
@@ -101,7 +101,7 @@ pub trait Circuit<L: Simd = Mono>: Copy + Default {
     fn step(&mut self, shared: &Self::Shared, controls: &Self::Controls) -> L::S;
 }
 
-/// Starting a hit, which happens one channel at a time.
+/// Starting a hit, which happens one lane at a time.
 pub trait Fire: Circuit {
     /// Starts a hit with `accent`, 0–1.
     fn fire(&mut self, accent: f32, shared: &Self::Shared);
@@ -137,7 +137,7 @@ pub fn rails(v: f32) -> f32 {
     }
 }
 
-/// One output channel: the strike detector, the sounding circuit, and a
+/// One output lane: the strike detector, the sounding circuit, and a
 /// cut-off one fading out under it, each with its accent trim less one.
 #[derive(Clone, Copy, Default)]
 pub struct Voices<C> {
@@ -159,14 +159,14 @@ impl<C: Fire> Voices<C> {
         &mut self,
         trigger: f32,
         accent: impl Input,
-        ch: usize,
+        lane: usize,
         restart: bool,
         fade_samples: u32,
         shared: &C::Shared,
         controls: &C::Controls,
     ) -> f32 {
         let trim = C::accent_trim(shared) - 1.0;
-        if let Some(accent) = self.strike.process(trigger, accent, ch) {
+        if let Some(accent) = self.strike.process(trigger, accent, lane) {
             if restart && !self.voice.settled() {
                 self.tail = self.voice;
                 self.tail_left = fade_samples;

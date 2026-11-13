@@ -12,7 +12,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::types::{DeviceName, MidiControlChange, MidiControlChange14Bit};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MidiCcParams {

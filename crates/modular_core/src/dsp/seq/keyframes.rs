@@ -9,14 +9,14 @@ use crate::types::InterpolationType;
 use crate::{LaneSum, PolyOutput};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
-struct TrackParams {
+struct KeyframesParams {
     #[input("[value, position] pairs, positions from 0 to 1 in ascending order")]
     keyframes: Vec<(PolySignal, f32)>,
     #[input("position along the keyframes", type = control, range = (0.0, 1.0))]
-    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
+    #[default_connection(module = RootClock, port = "playhead", lane = 0)]
     #[deserr(default)]
     playhead: Option<LaneSum>,
     #[input("curve shape between neighbouring keyframes")]
@@ -25,18 +25,18 @@ struct TrackParams {
     interpolation_type: InterpolationType,
 }
 
-fn derive_track_channel_count(params: &TrackParams) -> usize {
+fn derive_keyframes_lane_count(params: &KeyframesParams) -> usize {
     params
         .keyframes
         .iter()
-        .map(|(sig, _)| sig.channels())
+        .map(|(sig, _)| sig.lanes())
         .max()
         .unwrap_or(0)
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct TrackOutputs {
+struct KeyframesOutputs {
     #[output(
         "output",
         "the value at the current position, curved between keyframes",
@@ -46,7 +46,7 @@ struct TrackOutputs {
     sample: PolyOutput,
 }
 
-const TRACK_DOCS: ModuleDocs = ModuleDocs {
+const KEYFRAMES_DOCS: ModuleDocs = ModuleDocs {
     summary: "Keyframed automation curve",
     description: "Draws a curve through `[value, position]` keyframes and plays it along the \
                   bar, for automation that rises and falls at set points: a filter that opens \
@@ -56,7 +56,7 @@ const TRACK_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Filter that opens and closes each bar",
         code: r#"
-            const cutoff = $track(
+            const cutoff = $keyframes(
               [
                 ['c3', 0],
                 ['c6', 0.75],
@@ -69,33 +69,33 @@ const TRACK_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$track", docs = TRACK_DOCS, args(keyframes), channels_derive = derive_track_channel_count)]
-pub struct Track {
-    outputs: TrackOutputs,
-    params: TrackParams,
+#[module(name = "$keyframes", docs = KEYFRAMES_DOCS, args(keyframes), lanes_derive = derive_keyframes_lane_count)]
+pub struct Keyframes {
+    outputs: KeyframesOutputs,
+    params: KeyframesParams,
 }
 
-impl Track {
+impl Keyframes {
     fn update(&mut self, _sample_rate: f32) {
         let t = self.params.playhead.value_or_zero().clamp(0.0, 1.0);
-        let channel_count = self.channel_count();
+        let lane_count = self.lane_count();
 
-        for channel in 0..channel_count {
+        for lane in 0..lane_count {
             // Single keyframe: always return its value
             if self.params.keyframes.len() == 1 {
                 self.outputs
                     .sample
-                    .set(channel, self.params.keyframes[0].0.get_value(channel));
+                    .set(lane, self.params.keyframes[0].0.get_value(lane));
             }
             // Clamp to first/last keyframe times
             let first = &self.params.keyframes[0];
             if t <= first.1 {
-                self.outputs.sample.set(channel, first.0.get_value(channel));
+                self.outputs.sample.set(lane, first.0.get_value(lane));
                 continue;
             }
             let last = self.params.keyframes.last().unwrap();
             if t >= last.1 {
-                self.outputs.sample.set(channel, last.0.get_value(channel));
+                self.outputs.sample.set(lane, last.0.get_value(lane));
                 continue;
             }
 
@@ -114,15 +114,15 @@ impl Track {
             let curr = &self.params.keyframes[idx];
             let next = &self.params.keyframes[idx + 1];
 
-            let curr_value = curr.0.get_value(channel);
-            let next_value = next.0.get_value(channel);
+            let curr_value = curr.0.get_value(lane);
+            let next_value = next.0.get_value(lane);
 
             let time_range = (next.1 - curr.1).max(f32::EPSILON);
             let mut local_t = (t - curr.1) / time_range;
             local_t = local_t.clamp(0.0, 1.0);
 
             self.outputs.sample.set(
-                channel,
+                lane,
                 apply_easing_interpolation(
                     self.params.interpolation_type,
                     curr_value,
@@ -220,4 +220,4 @@ fn apply_easing_interpolation(
     }
 }
 
-message_handlers!(impl Track {});
+message_handlers!(impl Keyframes {});

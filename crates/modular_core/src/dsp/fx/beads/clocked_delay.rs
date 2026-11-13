@@ -27,32 +27,32 @@ const DEFAULT_BAR_LENGTH: f32 = 4.0;
 const MIN_BARS: f32 = 1e-3;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ClockedDelayParams {
-    #[input("signal to delay; each channel gets its own delay", type = audio)]
+    #[input("signal to delay; each lane gets its own delay", type = audio)]
     input: PolySignal,
     /// Transport playhead in bars, setting the tempo and the phase of the
     /// repeats' windows.
-    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
+    #[default_connection(module = RootClock, port = "playhead", lane = 0)]
     #[deserr(skip)]
     #[schemars(skip)]
     playhead: Option<LaneSum>,
     /// Transport tempo in BPM, timing the delay until the playhead moves.
-    #[default_connection(module = RootClock, port = "tempo", channel = 0)]
+    #[default_connection(module = RootClock, port = "tempo", lane = 0)]
     #[deserr(skip)]
     #[schemars(skip)]
     bpm: Option<LaneSum>,
     /// Transport bar length in quarter notes, with `bpm` timing the delay
     /// until the playhead moves.
-    #[default_connection(module = RootClock, port = "barLength", channel = 0)]
+    #[default_connection(module = RootClock, port = "barLength", lane = 0)]
     #[deserr(skip)]
     #[schemars(skip)]
     bar_length: Option<LaneSum>,
     /// Global groove position minus the playhead, in bars, which
     /// `grooveAmount` applies to the repeats' windows.
-    #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
+    #[default_connection(module = RootClock, port = "grooveOffset", lane = 0)]
     #[deserr(skip)]
     #[schemars(skip)]
     groove: Option<LaneSum>,
@@ -145,7 +145,7 @@ struct ClockedDelayParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ClockedDelayOutputs {
-    #[output("output", "the input mixed with its repeats, one channel per delay", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the input mixed with its repeats, one lane per delay", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -273,8 +273,8 @@ pub struct ClockedDelay {
     outputs: ClockedDelayOutputs,
     state: ClockedDelayState,
     params: ClockedDelayParams,
-    /// One delay per channel of the widest input.
-    channel_state: Box<[DelayVoice]>,
+    /// One delay per lane of the widest input.
+    lane_state: Box<[DelayVoice]>,
 }
 
 impl ClockedDelay {
@@ -285,11 +285,11 @@ impl ClockedDelay {
         super::primitives::warm_tables();
         let media = self.params.quality.media();
         let silence = silent_buffer(media);
-        for voice in self.channel_state.iter_mut() {
+        for voice in self.lane_state.iter_mut() {
             voice.allocate();
             voice.buffer = silence.clone();
         }
-        self.params.fresh = Some(FreshBuffers::allocate(self.channel_state.len(), media));
+        self.params.fresh = Some(FreshBuffers::allocate(self.lane_state.len(), media));
         self.state.engine_sample_rate = sample_rate;
         self.state.resampler.allocate(sample_rate);
         self.configure(media);
@@ -298,7 +298,7 @@ impl ClockedDelay {
     fn configure(&mut self, media: Media) {
         let state = &mut self.state;
         state.media = media;
-        state.chain.configure(media, &mut self.channel_state);
+        state.chain.configure(media, &mut self.lane_state);
         state
             .resampler
             .configure(state.engine_sample_rate, media.sample_rate());
@@ -324,7 +324,7 @@ impl ClockedDelay {
     fn update(&mut self, _sample_rate: f32) {
         let params = &self.params;
         let state = &mut self.state;
-        let voices = &mut self.channel_state;
+        let voices = &mut self.lane_state;
 
         let position = params.playhead.as_ref().map_or(0.0, LaneSum::get_value_f64);
         state.tempo.update(position);
@@ -386,7 +386,7 @@ impl PatchUpdateHandler for ClockedDelay {
         let media = self.params.quality.media();
         let reconfigure = media != self.state.media;
         if let Some(fresh) = &mut self.params.fresh {
-            for (i, v) in self.channel_state.iter_mut().enumerate() {
+            for (i, v) in self.lane_state.iter_mut().enumerate() {
                 if fresh.hand_out(i, &mut v.buffer, reconfigure) && !reconfigure {
                     v.configure(media);
                 }

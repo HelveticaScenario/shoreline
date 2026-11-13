@@ -36,7 +36,7 @@ const SHAPERS: [&[i16; 257]; 5] = [
 ];
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct WaveshaperParams {
@@ -121,7 +121,7 @@ const WAVESHAPER_DOCS: ModuleDocs = ModuleDocs {
 pub struct Waveshaper {
     outputs: WaveshaperOutputs,
     state: WaveshaperState,
-    channel_state: Box<[Voice]>,
+    lane_state: Box<[Voice]>,
     params: WaveshaperParams,
 }
 
@@ -283,33 +283,33 @@ impl Waveshaper {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
-        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, WaveshaperParams::FM_DEFAULT),
+                p.freq.get_value(lane),
+                p.fm.value_or(lane, WaveshaperParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
             let knobs = Knobs {
                 shape: (
-                    p.shape.value_or(ch, WaveshaperParams::SHAPE_DEFAULT),
-                    p.shape.glide_mark(ch),
+                    p.shape.value_or(lane, WaveshaperParams::SHAPE_DEFAULT),
+                    p.shape.glide_mark(lane),
                 ),
                 fold: (
-                    p.fold.value_or(ch, WaveshaperParams::FOLD_DEFAULT),
-                    p.fold.glide_mark(ch),
+                    p.fold.value_or(lane, WaveshaperParams::FOLD_DEFAULT),
+                    p.fold.glide_mark(lane),
                 ),
                 asymmetry: (
                     p.asymmetry
-                        .value_or(ch, WaveshaperParams::ASYMMETRY_DEFAULT),
-                    p.asymmetry.glide_mark(ch),
+                        .value_or(lane, WaveshaperParams::ASYMMETRY_DEFAULT),
+                    p.asymmetry.glide_mark(lane),
                 ),
             };
             let controls = voice.control(f0, knobs, &self.state);
             let (out, overtones) = voice.step(controls);
-            self.outputs.sample.set(ch, OUTPUT_GAIN * out);
-            self.outputs.overtones.set(ch, OVERTONES_GAIN * overtones);
+            self.outputs.sample.set(lane, OUTPUT_GAIN * out);
+            self.outputs.overtones.set(lane, OVERTONES_GAIN * overtones);
         }
     }
 }

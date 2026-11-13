@@ -116,7 +116,7 @@ impl Patch {
         Ok(())
     }
 
-    /// Get the output sample from the root module (channel 0, slot 0).
+    /// Get the output sample from the root module (lane 0, slot 0).
     pub fn get_output(&self) -> f32 {
         self.sampleables
             .get(&*ROOT_ID)

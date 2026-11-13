@@ -23,7 +23,7 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
         .unwrap_or_else(|e| panic!("params deserialization for '{module_type}' failed: {e}"));
     let deserialized = DeserializedParams {
         params: cached.params,
-        channel_count: cached.channel_count,
+        lane_count: cached.lane_count,
         f64_inputs: false,
     };
     constructors
@@ -126,12 +126,12 @@ fn make_direct(params_json: serde_json::Value, wav_data: Arc<WavData>) -> Sample
     patch.wav_data.insert("test".to_string(), wav_data);
     params.connect(&patch);
     let mut outputs = SamplerOutputs::default();
-    outputs.set_all_channels(1);
+    outputs.set_all_lanes(1);
     let mut sampler = Sampler {
         params,
         outputs,
         state: SamplerState::default(),
-        _channel_count: 1,
+        _lane_count: 1,
         _block_index: Default::default(),
     };
     sampler.init(SAMPLE_RATE);

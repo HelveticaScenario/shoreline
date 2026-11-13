@@ -1,6 +1,6 @@
-//! Four channels at a time. A group of four channels runs as one `f32x4` per
+//! Four lanes at a time. A group of four lanes runs as one `f32x4` per
 //! signal; the few parts with no vector form run per element, on the active elements
-//! only. Elements past the channel count are dead: they compute on silence and
+//! only. Elements past the lane count are dead: they compute on silence and
 //! never reach an output.
 
 pub(super) use wide::f32x4;
@@ -12,7 +12,7 @@ use crate::dsp::utils::{
     sanitize,
 };
 
-/// Channels per group.
+/// Lanes per group.
 pub(super) const SIMD_WIDTH: usize = 4;
 
 /// Every element set to `value`, broadcast in a register so that no use lowers to
@@ -34,8 +34,8 @@ fn broadcast(value: f32) -> f32x4 {
 }
 
 /// The value type the filter computes with, so one kernel serves both widths:
-/// `f32x4` runs a whole group and `f32` runs element 0 alone, a single-channel
-/// module's one channel, without paying for three dead elements. State is stored
+/// `f32x4` runs a whole group and `f32` runs element 0 alone, a single-lane
+/// module's one lane, without paying for three dead elements. State is stored
 /// as `f32x4` either way.
 pub(super) trait Simd:
     Copy
@@ -346,7 +346,7 @@ impl OnePole {
 }
 
 /// The inputs a control law was last derived from, per element: each element
-/// recomputes when its input's bits change, as `Cached` does for one channel.
+/// recomputes when its input's bits change, as `Cached` does for one lane.
 #[derive(Clone, Copy, Default)]
 pub(super) struct ElementCache {
     bits: [Option<u32>; SIMD_WIDTH],

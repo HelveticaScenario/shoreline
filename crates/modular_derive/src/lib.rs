@@ -3,9 +3,9 @@ extern crate quote;
 extern crate syn;
 
 mod block_inputs;
-mod channel_count;
 mod connect;
 mod enum_tag;
+mod lane_count;
 mod message_handlers;
 mod module_attr;
 mod outputs;
@@ -47,13 +47,13 @@ pub fn connect_macro_derive(input: TokenStream) -> TokenStream {
     connect::impl_connect_macro(&ast)
 }
 
-#[proc_macro_derive(ChannelCount)]
-pub fn channel_count_macro_derive(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(LaneCount)]
+pub fn lane_count_macro_derive(input: TokenStream) -> TokenStream {
     let ast: DeriveInput = match syn::parse(input) {
         Ok(v) => v,
         Err(e) => return e.to_compile_error().into(),
     };
-    channel_count::impl_channel_count_macro(&ast)
+    lane_count::impl_lane_count_macro(&ast)
 }
 
 #[proc_macro_derive(BlockInputs, attributes(block_input))]

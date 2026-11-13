@@ -21,7 +21,7 @@ const BUTTERWORTH_Q: f32 = std::f32::consts::FRAC_1_SQRT_2;
 // ── Params & Outputs ─────────────────────────────────────────────────────────
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CrossoverParams {
@@ -120,10 +120,10 @@ impl CrossoverPoint {
     }
 }
 
-// ── Per-channel state ────────────────────────────────────────────────────────
+// ── Per-lane state ────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Default)]
-struct ChannelState {
+struct LaneState {
     /// LOW band: LR4 lowpass at the low/mid point.
     low_lp: Lr4State,
     /// MID band: LR4 highpass at the low/mid point, then LR4 lowpass at the
@@ -161,37 +161,37 @@ const XOVER_DOCS: ModuleDocs = ModuleDocs {
 #[module(name = "$xover", docs = XOVER_DOCS, args(input), experimental)]
 pub struct Crossover {
     outputs: CrossoverOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: CrossoverParams,
 }
 
 impl Crossover {
     fn update(&mut self, sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
 
-        for ch in 0..channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..lanes {
+            let state = &mut self.lane_state[lane];
 
-            let input = self.params.input.get_value(ch);
+            let input = self.params.input.get_value(lane);
 
             // ── Read crossover frequencies ───────────────────────────────
             let low_mid_voct = self
                 .params
                 .low_mid_freq
-                .value_or(ch, CrossoverParams::LOW_MID_FREQ_DEFAULT);
+                .value_or(lane, CrossoverParams::LOW_MID_FREQ_DEFAULT);
             let mid_high_voct = self
                 .params
                 .mid_high_freq
-                .value_or(ch, CrossoverParams::MID_HIGH_FREQ_DEFAULT);
+                .value_or(lane, CrossoverParams::MID_HIGH_FREQ_DEFAULT);
 
             state.low_mid.refresh(
                 low_mid_voct,
-                self.params.low_mid_freq.glide_mark(ch),
+                self.params.low_mid_freq.glide_mark(lane),
                 sample_rate,
             );
             state.mid_high.refresh(
                 mid_high_voct,
-                self.params.mid_high_freq.glide_mark(ch),
+                self.params.mid_high_freq.glide_mark(lane),
                 sample_rate,
             );
 
@@ -208,10 +208,10 @@ impl Crossover {
             let high_band = state.high_hp.process(x, &state.mid_high.hp);
 
             // ── Write outputs ───────────────────────────────────────────
-            self.outputs.sample.set(ch, input);
-            self.outputs.low.set(ch, low_band);
-            self.outputs.mid.set(ch, mid_band);
-            self.outputs.high.set(ch, high_band);
+            self.outputs.sample.set(lane, input);
+            self.outputs.low.set(lane, low_band);
+            self.outputs.mid.set(lane, mid_band);
+            self.outputs.high.set(lane, high_band);
         }
     }
 }

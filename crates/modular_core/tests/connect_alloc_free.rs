@@ -59,7 +59,7 @@ fn build_unconnected_patch(modules: Vec<(&str, &str, serde_json::Value)>) -> Pat
             module_type.to_string(),
             DeserializedParams {
                 params: cached.params,
-                channel_count: cached.channel_count,
+                lane_count: cached.lane_count,
                 f64_inputs: false,
             },
             ProcessingMode::Block,
@@ -96,7 +96,7 @@ fn connect_all_with_default_connections_is_allocation_free() {
         ),
         (
             "track",
-            "$track",
+            "$keyframes",
             json!({ "keyframes": [[0.0, 0.0], [10.0, 1.0]] }),
         ),
         (

@@ -13,7 +13,7 @@ const C4_HZ: f32 = 261.625_58;
 
 fn cases() -> [Value; 2] {
     [
-        json!({ "input": poly_cable("src", CHANNELS) }),
+        json!({ "input": poly_cable("src", LANES) }),
         json!({ "input": cable("src", 2) }),
     ]
 }
@@ -22,7 +22,7 @@ fn cases() -> [Value; 2] {
 fn converts_hz_to_voct() {
     check_module(
         "_hz",
-        json!({ "input": poly_cable("src", CHANNELS) }),
+        json!({ "input": poly_cable("src", LANES) }),
         |src, _| src.iter().map(|&f| (f.max(1e-4) / C4_HZ).log2()).collect(),
     );
 }

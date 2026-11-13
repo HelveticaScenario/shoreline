@@ -104,29 +104,29 @@ fn grain_params(
     }
 }
 
-/// Channel `ch` of an audio input in hardware units.
+/// Lane `lane` of an audio input in hardware units.
 #[inline]
-fn input_value(input: &PolySignal, ch: usize) -> f32 {
-    sanitize(input.get_value(ch)) * (1.0 / FULL_SCALE_VOLTS)
+fn input_value(input: &PolySignal, lane: usize) -> f32 {
+    sanitize(input.get_value(lane)) * (1.0 / FULL_SCALE_VOLTS)
 }
 
-/// Fold a poly input to stereo in hardware units: even channels feed the left
-/// side and odd channels the right; with an odd channel count the last
-/// channel feeds both.
+/// Fold a poly input to stereo in hardware units: even lanes feed the left
+/// side and odd lanes the right; with an odd lane count the last
+/// lane feeds both.
 fn fold_input(input: &PolySignal) -> Frame {
-    let channels = input.channels();
+    let lanes = input.lanes();
     let mut l = 0.0;
     let mut r = 0.0;
-    for ch in 0..channels {
-        let v = input.get_value(ch);
-        if ch % 2 == 0 {
+    for lane in 0..lanes {
+        let v = input.get_value(lane);
+        if lane % 2 == 0 {
             l += v;
         } else {
             r += v;
         }
     }
-    if channels % 2 == 1 {
-        r += input.get_value(channels - 1);
+    if lanes % 2 == 1 {
+        r += input.get_value(lanes - 1);
     }
     Frame::new(sanitize(l), sanitize(r)) * (1.0 / FULL_SCALE_VOLTS)
 }

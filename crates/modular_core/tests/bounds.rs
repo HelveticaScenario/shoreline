@@ -14,7 +14,7 @@ const BLOCK_SIZE: usize = 64;
 const BLOCKS: usize = 4;
 
 fn cable(module: &str) -> Value {
-    json!({ "type": "cable", "module": module, "port": "output", "channel": 0 })
+    json!({ "type": "cable", "module": module, "port": "output", "lane": 0 })
 }
 
 /// `modules`, each read by a `$remap` that maps it from its own range, so
@@ -56,7 +56,7 @@ fn build_unread(modules: &[(String, &str, Value, ProcessingMode)]) -> Patch {
                     module_type.to_string(),
                     DeserializedParams {
                         params: cached.params,
-                        channel_count: cached.channel_count,
+                        lane_count: cached.lane_count,
                         f64_inputs: false,
                     },
                     *mode,

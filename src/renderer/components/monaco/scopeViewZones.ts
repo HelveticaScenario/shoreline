@@ -130,15 +130,15 @@ export function createScopeViewZones({
             };
         }
 
-        // A split view draws one canvas per channel, each registered under its
+        // A split view draws one canvas per lane, each registered under its
         // own key so the render loop treats it as an independent scope.
         const canvasSpecs =
-            view.split && view.channelKeys.length > 1
-                ? view.channelKeys.map((channelKey, i) => ({
-                      channelKeys: [channelKey],
+            view.split && view.laneKeys.length > 1
+                ? view.laneKeys.map((laneKey, i) => ({
+                      laneKeys: [laneKey],
                       key: `${view.key}#${i}`,
                   }))
-                : [{ channelKeys: view.channelKeys, key: view.key }];
+                : [{ laneKeys: view.laneKeys, key: view.key }];
         const stacked = view.split === 'vertical';
         const count = canvasSpecs.length;
         const zoneHeight = stacked
@@ -178,7 +178,7 @@ export function createScopeViewZones({
             canvas.dataset.scopeKey = spec.key;
             canvas.dataset.scopeRangeMin = String(view.range[0]);
             canvas.dataset.scopeRangeMax = String(view.range[1]);
-            canvas.dataset.scopeChannelKeys = JSON.stringify(spec.channelKeys);
+            canvas.dataset.scopeLaneKeys = JSON.stringify(spec.laneKeys);
 
             // Seed the backing store from the editor content width; the canvas
             // is still detached here so its own clientWidth is 0.

@@ -14,7 +14,7 @@ fn video_tap_paths_agree() {
     check_paths_agree("_videoTap", json!({ "input": cable("src", 1), "slot": 40 }));
     check_paths_agree(
         "_videoTap",
-        json!({ "input": poly_cable("src", CHANNELS), "slot": 41 }),
+        json!({ "input": poly_cable("src", LANES), "slot": 41 }),
     );
 }
 
@@ -23,7 +23,7 @@ fn allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "_videoTap",
-            json!({ "input": poly_cable("lfo", CHANNELS), "slot": 42 })
+            json!({ "input": poly_cable("lfo", LANES), "slot": 42 })
         ),
         0
     );

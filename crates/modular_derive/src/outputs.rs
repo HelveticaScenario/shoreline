@@ -157,7 +157,7 @@ struct OutputAttr {
     output_type: OutputType,
     is_default: bool,
     range: Option<(f64, f64)>,
-    channels: Option<u32>,
+    lanes: Option<u32>,
     value_precision: ValuePrecision,
     bounds: BoundsDecl,
 }
@@ -178,8 +178,8 @@ struct OutputField {
     output_type: OutputType,
     is_default: bool,
     range: Option<(f64, f64)>,
-    /// Fixed channel count of a `PolyOutput`, independent of the module's.
-    channels: Option<u32>,
+    /// Fixed lane count of a `PolyOutput`, independent of the module's.
+    lanes: Option<u32>,
     value_precision: ValuePrecision,
     bounds: BoundsDecl,
 }
@@ -189,7 +189,7 @@ struct OutputField {
 /// - #[output("name", "description", type = cv)]
 /// - #[output("name", "description", type = gate, default)]
 /// - #[output("name", "description", type = cv, range = (-1.0, 1.0))]
-/// - #[output("name", "description", type = cv, channels = 2)]
+/// - #[output("name", "description", type = cv, lanes = 2)]
 /// - #[output("name", "description", type = cv, precision = f64)]
 /// - #[output("name", "description", type = cv, bounds = input)]
 ///
@@ -206,7 +206,7 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
         output_type: OutputType,
         is_default: bool,
         range: Option<(f64, f64)>,
-        channels: Option<u32>,
+        lanes: Option<u32>,
         value_precision: ValuePrecision,
         bounds: BoundsDecl,
     }
@@ -224,7 +224,7 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
             let mut output_type: Option<OutputType> = None;
             let mut is_default = false;
             let mut range: Option<(f64, f64)> = None;
-            let mut channels: Option<u32> = None;
+            let mut lanes: Option<u32> = None;
             let mut value_precision = ValuePrecision::F32;
             let mut bounds: Option<(BoundsDecl, Span)> = None;
             while input.peek(Token![,]) {
@@ -252,14 +252,14 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                         content.parse::<Token![,]>()?;
                         let max: syn::LitFloat = content.parse()?;
                         range = Some((min.base10_parse()?, max.base10_parse()?));
-                    } else if ident == "channels" {
+                    } else if ident == "lanes" {
                         input.parse::<Token![=]>()?;
                         let n: syn::LitInt = input.parse()?;
                         let value: u32 = n.base10_parse()?;
                         if value == 0 {
-                            return Err(syn::Error::new(n.span(), "channels must be at least 1"));
+                            return Err(syn::Error::new(n.span(), "lanes must be at least 1"));
                         }
-                        channels = Some(value);
+                        lanes = Some(value);
                     } else if ident == "precision" {
                         input.parse::<Token![=]>()?;
                         value_precision = ValuePrecision::parse(&Ident::parse_any(input)?)?;
@@ -271,7 +271,7 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                         return Err(syn::Error::new(
                             ident.span(),
                             format!(
-                                "Unknown output attribute '{}'. Expected 'type', 'default', 'range', 'channels', 'precision' or 'bounds'",
+                                "Unknown output attribute '{}'. Expected 'type', 'default', 'range', 'lanes', 'precision' or 'bounds'",
                                 ident
                             ),
                         ));
@@ -318,7 +318,7 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
                 output_type,
                 is_default,
                 range,
-                channels,
+                lanes,
                 value_precision,
                 bounds,
             })
@@ -333,7 +333,7 @@ fn parse_output_attr(tokens: TokenStream2) -> syn::Result<OutputAttr> {
         output_type: parsed.output_type,
         is_default: parsed.is_default,
         range: parsed.range,
-        channels: parsed.channels,
+        lanes: parsed.lanes,
         value_precision: parsed.value_precision,
         bounds: parsed.bounds,
     })
@@ -412,10 +412,10 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                         .map(|d| quote!(#d.to_string()))
                         .unwrap_or(quote!("".to_string()));
 
-                    if output_attr.channels.is_some() && precision != OutputPrecision::PolySignal {
+                    if output_attr.lanes.is_some() && precision != OutputPrecision::PolySignal {
                         return syn::Error::new(
                             f.span(),
-                            "`channels` applies only to PolyOutput fields",
+                            "`lanes` applies only to PolyOutput fields",
                         )
                         .to_compile_error()
                         .into();
@@ -448,7 +448,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                         output_type: output_attr.output_type,
                         is_default: output_attr.is_default,
                         range: output_attr.range,
-                        channels: output_attr.channels,
+                        lanes: output_attr.lanes,
                         value_precision: output_attr.value_precision,
                         bounds: output_attr.bounds,
                     });
@@ -560,7 +560,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 Some((_, max)) => quote! { Some(#max) },
                 None => quote! { None },
             };
-            let channels = match o.channels {
+            let lanes = match o.lanes {
                 Some(n) => quote! { Some(#n) },
                 None => quote! { None },
             };
@@ -575,7 +575,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                     default: #is_default,
                     min_value: #min_value,
                     max_value: #max_value,
-                    channels: #channels,
+                    lanes: #lanes,
                     precision: #precision,
                     bounds: #bounds,
                 }
@@ -583,17 +583,17 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         })
         .collect();
 
-    let set_channels_stmts: Vec<_> = outputs
+    let set_lanes_stmts: Vec<_> = outputs
         .iter()
         .filter(|o| o.precision == OutputPrecision::PolySignal)
         .map(|o| {
             let field_name = &o.field_name;
-            match o.channels {
+            match o.lanes {
                 Some(n) => {
                     let n = n as usize;
-                    quote! { self.#field_name.set_channels(#n); }
+                    quote! { self.#field_name.set_lanes(#n); }
                 }
-                None => quote! { self.#field_name.set_channels(channels); },
+                None => quote! { self.#field_name.set_lanes(lanes); },
             }
         })
         .collect();
@@ -649,8 +649,8 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         }
 
         impl crate::types::OutputStruct for #name {
-            fn set_all_channels(&mut self, channels: usize) {
-                #(#set_channels_stmts)*
+            fn set_all_lanes(&mut self, lanes: usize) {
+                #(#set_lanes_stmts)*
             }
 
             fn make_f64_outputs(&mut self, #inherit_param: bool) {
@@ -687,9 +687,9 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         })
         .collect();
 
-    // Each port is sized to its true width: f32 outputs are mono (1 channel,
+    // Each port is sized to its true width: f32 outputs are mono (1 lane,
     // broadcast to consumers via cycling-on-read), PolyOutput ports get their
-    // fixed `channels` or else the module's derived channel count.
+    // fixed `lanes` or else the module's derived lane count.
     let block_new_inits: Vec<_> = outputs
         .iter()
         .map(|o| {
@@ -699,12 +699,12 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                     quote! { crate::block_port::BlockPort::new(block_size, 1) }
                 }
                 OutputPrecision::PolySignal => {
-                    let width = match o.channels {
+                    let width = match o.lanes {
                         Some(n) => {
                             let n = n as usize;
                             quote! { #n }
                         }
-                        None => quote! { channel_count },
+                        None => quote! { lane_count },
                     };
                     match o.value_precision {
                         ValuePrecision::F32 => quote! {
@@ -759,9 +759,9 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .map(|(i, o)| {
             let field_name = &o.field_name;
             if o.value_precision == ValuePrecision::F32 {
-                quote! { #i => self.#field_name.get_f32_port(index, ch), }
+                quote! { #i => self.#field_name.get_f32_port(index, lane), }
             } else {
-                quote! { #i => self.#field_name.get(index, ch), }
+                quote! { #i => self.#field_name.get(index, lane), }
             }
         })
         .collect();
@@ -771,7 +771,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .enumerate()
         .map(|(i, o)| {
             let field_name = &o.field_name;
-            quote! { #i => self.#field_name.get_f64(index, ch), }
+            quote! { #i => self.#field_name.get_f64(index, lane), }
         })
         .collect();
 
@@ -799,7 +799,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                     quote! { #i => crate::bounds::Bounds::new(#min, #max), }
                 }
                 BoundsDecl::Params | BoundsDecl::Input => {
-                    quote! { #i => self.#field_name.bounds_at(index, ch), }
+                    quote! { #i => self.#field_name.bounds_at(index, lane), }
                 }
             }
         })
@@ -820,7 +820,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 }
                 BoundsDecl::Params | BoundsDecl::Input => quote! {
                     #i => match self.#field_name.bounds_store() {
-                        Some(_) if self.#field_name.channels() == 0 => {
+                        Some(_) if self.#field_name.lanes() == 0 => {
                             crate::bounds::PortBounds::Unbounded
                         }
                         Some(store) if live => crate::bounds::PortBounds::Live { store, processed },
@@ -847,12 +847,12 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         quote! { _inputs_bounded }
     };
 
-    let channels_at_arms: Vec<_> = outputs
+    let lanes_at_arms: Vec<_> = outputs
         .iter()
         .enumerate()
         .map(|(i, o)| {
             let field_name = &o.field_name;
-            quote! { #i => self.#field_name.channels(), }
+            quote! { #i => self.#field_name.lanes(), }
         })
         .collect();
 
@@ -864,7 +864,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
             quote! {
                 #i => Some((
                     self.#field_name.as_ptr(),
-                    self.#field_name.channels(),
+                    self.#field_name.lanes(),
                     self.#field_name.words(),
                 )),
             }
@@ -878,8 +878,8 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
             match o.precision {
                 OutputPrecision::F32 => quote! {
                     // f32 output is mono: write the single value to the port's
-                    // one channel. Consumers on any channel read it back via
-                    // BlockPort::get's cycling (`ch % 1 == 0`), preserving the
+                    // one lane. Consumers on any lane read it back via
+                    // BlockPort::get's cycling (`lane % 1 == 0`), preserving the
                     // mono-broadcast semantics downstream cables rely on.
                     self.#field_name.set_f32_port(slot, 0, inner.#field_name);
                 },
@@ -887,25 +887,25 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                     {
                         let poly = &inner.#field_name;
                         if self.#field_name.words() == 2 {
-                            for ch in 0..self.#field_name.channels() {
-                                self.#field_name.set_f64(slot, ch, poly.get_cycling_f64(ch));
+                            for lane in 0..self.#field_name.lanes() {
+                                self.#field_name.set_f64(slot, lane, poly.get_cycling_f64(lane));
                             }
                         } else {
-                            for ch in 0..self.#field_name.channels() {
-                                self.#field_name.set_f32_port(slot, ch, poly.get_cycling(ch));
+                            for lane in 0..self.#field_name.lanes() {
+                                self.#field_name.set_f32_port(slot, lane, poly.get_cycling(lane));
                             }
                         }
                     }
                 },
                 OutputPrecision::PolySignal => quote! {
                     {
-                        // Write each of this port's channels. `get_cycling`
+                        // Write each of this port's lanes. `get_cycling`
                         // fills the port even when the producer is narrower
                         // than the port width; reads at higher consumer
-                        // channels wrap via BlockPort::get's modulo.
+                        // lanes wrap via BlockPort::get's modulo.
                         let poly = &inner.#field_name;
-                        for ch in 0..self.#field_name.channels() {
-                            self.#field_name.set_f32_port(slot, ch, poly.get_cycling(ch));
+                        for lane in 0..self.#field_name.lanes() {
+                            self.#field_name.set_f32_port(slot, lane, poly.get_cycling(lane));
                         }
                     }
                 },
@@ -955,7 +955,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
 
     let block_generated = quote! {
         /// Generated block-output buffer for #name.
-        /// One `BlockPort` per output port; indexed `data[sample_index][channel]`.
+        /// One `BlockPort` per output port; indexed `data[sample_index][lane]`.
         pub struct #block_outputs_name {
             #(#block_fields,)*
         }
@@ -970,11 +970,11 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
             /// The `bounds = input` ports, as bits by port index.
             pub const INPUT_BOUNDED_PORTS: u64 = 0u64 #(#input_bounded_terms)*;
 
-            /// Allocate all ports for the given block size and channel count.
+            /// Allocate all ports for the given block size and lane count.
             /// Call only on the main thread. f32 ports are mono; PolyOutput
-            /// ports are sized to `channel_count`. `inherit` makes the
+            /// ports are sized to `lane_count`. `inherit` makes the
             /// `precision = inherit` ports f64.
-            pub fn new(block_size: usize, channel_count: usize, #inherit_param: bool) -> Self {
+            pub fn new(block_size: usize, lane_count: usize, #inherit_param: bool) -> Self {
                 Self {
                     #(#block_new_inits,)*
                 }
@@ -1004,7 +1004,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
             /// result. String lookup on the audio thread is exactly the cost
             /// this design avoids.
             #[inline]
-            pub fn get_at(&self, port_idx: usize, ch: usize, index: usize) -> f32 {
+            pub fn get_at(&self, port_idx: usize, lane: usize, index: usize) -> f32 {
                 match port_idx {
                     #(#get_at_arms)*
                     _ => 0.0,
@@ -1013,7 +1013,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
 
             /// Like [`get_at`](Self::get_at), at full precision from an f64 port.
             #[inline]
-            pub fn get_at_f64(&self, port_idx: usize, ch: usize, index: usize) -> f64 {
+            pub fn get_at_f64(&self, port_idx: usize, lane: usize, index: usize) -> f64 {
                 match port_idx {
                     #(#get_at_f64_arms)*
                     _ => 0.0,
@@ -1021,24 +1021,24 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
             }
 
             /// Whether every port has the same precision as `other`'s, so
-            /// two buffers of the same channel count can be swapped.
+            /// two buffers of the same lane count can be swapped.
             pub fn same_layout(&self, other: &Self) -> bool {
                 true #(#same_layout_terms)*
             }
 
-            /// True channel width of a port, by index from [`port_index`] (a
-            /// stale or out-of-range index returns 0). Reads at `ch >= width`
-            /// cycle back over the port's channels, so a consumer that must
+            /// True lane width of a port, by index from [`port_index`] (a
+            /// stale or out-of-range index returns 0). Reads at `lane >= width`
+            /// cycle back over the port's lanes, so a consumer that must
             /// not cycle checks this first.
             #[inline]
-            pub fn channels_at(&self, port_idx: usize) -> usize {
+            pub fn lanes_at(&self, port_idx: usize) -> usize {
                 match port_idx {
-                    #(#channels_at_arms)*
+                    #(#lanes_at_arms)*
                     _ => 0,
                 }
             }
 
-            /// A port's data pointer, channel width and words per channel, by
+            /// A port's data pointer, lane width and words per lane, by
             /// index from [`port_index`]; `None` for an out-of-range index.
             #[inline]
             pub fn data_at(&self, port_idx: usize) -> Option<(*const f32, usize, usize)> {
@@ -1073,10 +1073,10 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 #(#block_make_bounded_stmts)*
             }
 
-            /// The bounds of a port at `(index, ch)`, by index from
+            /// The bounds of a port at `(index, lane)`, by index from
             /// [`port_index`](Self::port_index).
             #[inline]
-            pub fn get_bounds_at(&self, port_idx: usize, ch: usize, index: usize) -> crate::bounds::Bounds {
+            pub fn get_bounds_at(&self, port_idx: usize, lane: usize, index: usize) -> crate::bounds::Bounds {
                 match port_idx {
                     #(#get_bounds_at_arms)*
                     _ => crate::bounds::Bounds::UNBOUNDED,

@@ -14,7 +14,7 @@ use crate::types::SwapGlide;
 const MIN_HZ: f32 = 1e-4;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct AddHzParams {
@@ -56,7 +56,7 @@ const ADD_HZ_DOCS: ModuleDocs = ModuleDocs {
 pub struct AddHz {
     outputs: AddHzOutputs,
     params: AddHzParams,
-    channel_state: Box<[SwapGlide]>,
+    lane_state: Box<[SwapGlide]>,
 }
 
 /// The V/Oct pitch `voct` moved by `offset` Hz.
@@ -68,12 +68,9 @@ fn add_hz(voct: f32, offset: f32) -> f32 {
 impl AddHz {
     fn update(&mut self, sample_rate: f32) {
         let offset = &self.params.offset;
-        for i in 0..self.channel_count() {
-            let offset_value = self.channel_state[i].follow(
-                offset.get_value(i),
-                offset.glide_mark(i),
-                sample_rate,
-            );
+        for i in 0..self.lane_count() {
+            let offset_value =
+                self.lane_state[i].follow(offset.get_value(i), offset.glide_mark(i), sample_rate);
             let value = add_hz(self.params.input.get_value(i), offset_value);
             self.outputs.sample.set(i, value);
         }
@@ -85,8 +82,8 @@ impl AddHz {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
-        let glides = &mut self.channel_state[..channels];
+        let lanes = self.lane_count();
+        let glides = &mut self.lane_state[..lanes];
         let offset = &self.params.offset;
         if offset.glides_pending(glides) {
             return None;
@@ -95,8 +92,8 @@ impl AddHz {
         let input = self
             .params
             .input
-            .block_input(range.clone(), channels, &mut s0)?;
-        let offset_input = offset.block_input(range.clone(), channels, &mut s1)?;
+            .block_input(range.clone(), lanes, &mut s0)?;
+        let offset_input = offset.block_input(range.clone(), lanes, &mut s1)?;
         offset.settle_glides(glides, offset_input.row(range.end - 1));
         block_input::map(
             &mut outputs.sample,
@@ -118,16 +115,16 @@ mod tests {
 
     fn make(input_voct: f32, offset_hz: f32) -> AddHz {
         let mut outputs = AddHzOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         AddHz {
             params: AddHzParams {
                 input: PolySignal::mono(Signal::Volts(input_voct)),
                 offset: PolySignal::mono(Signal::Volts(offset_hz)),
             },
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
-            channel_state: Box::new([SwapGlide::default()]),
+            lane_state: Box::new([SwapGlide::default()]),
         }
     }
 

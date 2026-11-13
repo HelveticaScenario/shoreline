@@ -29,13 +29,13 @@ export interface EqPanelDef {
      */
     zoneLocation?: { line: number; column: number };
     /**
-     * Headless scopes feeding the panel's spectrum: output channel 0 for a
-     * shared section list, or channel i for per-channel list i.
+     * Headless scopes feeding the panel's spectrum: output lane 0 for a
+     * shared section list, or lane i for per-lane list i.
      */
     spectrum: {
         moduleId: string;
         portName: string;
-        channels: number[];
+        lanes: number[];
         msPerFrame: number;
     };
 }

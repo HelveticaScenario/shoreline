@@ -46,48 +46,48 @@ pub(crate) struct CutoffResonance {
 }
 
 impl CutoffResonance {
-    /// Glides both params at channel `ch` and returns their current values.
+    /// Glides both params at lane `lane` and returns their current values.
     #[inline]
     pub(crate) fn update(
         &mut self,
         cutoff: &PolySignal,
         resonance: &Option<PolySignal>,
         default_resonance: f32,
-        ch: usize,
+        lane: usize,
         sample_rate: f32,
     ) -> (f32, f32) {
         self.cutoff
-            .update(cutoff.get_value(ch), cutoff.glide_mark(ch), sample_rate);
+            .update(cutoff.get_value(lane), cutoff.glide_mark(lane), sample_rate);
         self.resonance.update(
-            resonance.value_or(ch, default_resonance),
-            resonance.glide_mark(ch),
+            resonance.value_or(lane, default_resonance),
+            resonance.glide_mark(lane),
             sample_rate,
         );
         (*self.cutoff, *self.resonance)
     }
 }
 
-/// Whether cutoff and resonance are both monophonic, so every channel can
+/// Whether cutoff and resonance are both monophonic, so every lane can
 /// share one set of coefficients.
 pub(crate) fn params_mono(cutoff: &PolySignal, resonance: &Option<PolySignal>) -> bool {
     cutoff.is_monophonic() && resonance.as_ref().is_none_or(|s| s.is_monophonic())
 }
 
-/// When an edit switches between the shared and per-channel coefficient
+/// When an edit switches between the shared and per-lane coefficient
 /// paths, the newly active path takes over the other's glide state, so it
 /// continues from what was actually playing.
 pub(crate) fn hand_over<'a>(
     mono: bool,
     was_mono: bool,
     shared: &mut CutoffResonance,
-    mut per_channel: impl Iterator<Item = &'a mut CutoffResonance>,
+    mut per_lane: impl Iterator<Item = &'a mut CutoffResonance>,
 ) {
     if mono && !was_mono {
-        if let Some(first) = per_channel.next() {
+        if let Some(first) = per_lane.next() {
             *shared = *first;
         }
     } else if !mono && was_mono {
-        for glides in per_channel {
+        for glides in per_lane {
             *glides = *shared;
         }
     }
@@ -121,12 +121,12 @@ impl CoeffCache {
         cutoff: &PolySignal,
         resonance: &Option<PolySignal>,
         default_resonance: f32,
-        ch: usize,
+        lane: usize,
         sample_rate: f32,
     ) {
         let (c, r) = self
             .glides
-            .update(cutoff, resonance, default_resonance, ch, sample_rate);
+            .update(cutoff, resonance, default_resonance, lane, sample_rate);
         if changed(c, self.last_cutoff) || changed(r, self.last_resonance) {
             self.coeffs = compute_coeffs(response, c, r, sample_rate);
             self.last_cutoff = c;
@@ -136,7 +136,7 @@ impl CoeffCache {
 }
 
 #[derive(Clone, Copy, Default)]
-pub struct SvfChannel {
+pub struct SvfLane {
     ic1: f32,
     ic2: f32,
     cache: CoeffCache,
@@ -147,7 +147,7 @@ pub struct SvfChannel {
 #[derive(Default)]
 pub struct SvfFilterState {
     mono: CoeffCache,
-    /// Whether the current params use `mono` instead of the per-channel caches.
+    /// Whether the current params use `mono` instead of the per-lane caches.
     mono_path: bool,
 }
 
@@ -157,14 +157,14 @@ pub fn on_patch_update(
     cutoff: &PolySignal,
     resonance: &Option<PolySignal>,
     state: &mut SvfFilterState,
-    channel_state: &mut [SvfChannel],
+    lane_state: &mut [SvfLane],
 ) {
     let mono = params_mono(cutoff, resonance);
     hand_over(
         mono,
         state.mono_path,
         &mut state.mono.glides,
-        channel_state.iter_mut().map(|cs| &mut cs.cache.glides),
+        lane_state.iter_mut().map(|cs| &mut cs.cache.glides),
     );
     state.mono_path = mono;
 }
@@ -173,14 +173,14 @@ pub fn on_patch_update(
 #[inline]
 pub fn run(
     response: Response,
-    channels: usize,
+    lanes: usize,
     input: &PolySignal,
     cutoff: &PolySignal,
     resonance: &Option<PolySignal>,
     default_resonance: f32,
     sample_rate: f32,
     state: &mut SvfFilterState,
-    channel_state: &mut [SvfChannel],
+    lane_state: &mut [SvfLane],
     out: &mut PolyOutput,
 ) {
     let mono = state.mono_path;
@@ -194,7 +194,7 @@ pub fn run(
             sample_rate,
         );
     } else {
-        for (i, cs) in channel_state.iter_mut().enumerate().take(channels) {
+        for (i, cs) in lane_state.iter_mut().enumerate().take(lanes) {
             cs.cache.refresh(
                 response,
                 cutoff,
@@ -206,7 +206,7 @@ pub fn run(
         }
     }
 
-    for (i, cs) in channel_state.iter_mut().enumerate().take(channels) {
+    for (i, cs) in lane_state.iter_mut().enumerate().take(lanes) {
         let c = if mono {
             state.mono.coeffs
         } else {

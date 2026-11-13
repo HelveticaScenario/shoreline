@@ -91,7 +91,7 @@ impl MetalFilters {
     }
 }
 
-/// One channel's oscillators and filters.
+/// One lane's oscillators and filters.
 #[derive(Clone, Copy, Default)]
 pub struct MetalBank<L: Simd = Mono> {
     phases: [L::S; 6],
@@ -114,7 +114,7 @@ fn high_time<S: Real<Elem = f32>>(x: S) -> S {
 impl MetalBank {
     /// Starts the oscillators at random phases, as the 808's run freely from
     /// power-on, unless they already are. The bank rides patch updates with
-    /// its channel, so a carried-over channel keeps its phases and a channel
+    /// its lane, so a carried-over lane keeps its phases and a lane
     /// added by an update gets its own.
     pub fn seed(&mut self, base: u64, stream: usize) {
         if self.seeded {

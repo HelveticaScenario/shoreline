@@ -15,7 +15,7 @@ import {
     type LiveSectionValues,
     type RawEqParams,
     decodeSection,
-    isPerChannel,
+    isPerLane,
     sectionIsModulated,
     sectionLists,
     withLive,
@@ -51,7 +51,7 @@ export interface LoggedChange {
 export interface PanelCallbacks {
     subscribeFrames: (cb: () => void) => () => void;
     onSelect: (index: number | null) => void;
-    onChannel: (list: number) => void;
+    onLane: (list: number) => void;
     onChange: (
         index: number,
         change: EqSectionChange,
@@ -60,8 +60,8 @@ export interface PanelCallbacks {
     ) => void;
     onAdd: (freqHz: number, gainDb: number) => void;
     onRemove: (index: number) => void;
-    onAddChannel: () => void;
-    onRemoveChannel: (list: number) => void;
+    onAddLane: () => void;
+    onRemoveLane: (list: number) => void;
     onRevert: (index: number, fields: (keyof EqSectionChange)[] | null) => void;
 }
 
@@ -72,14 +72,14 @@ export interface PanelRuntime {
     params: RawEqParams;
     /** Any section param is signal-driven (the panel then polls live values). */
     modulated: boolean;
-    /** The channel list being edited (always 0 in the shared form). */
-    channel: number;
+    /** The lane list being edited (always 0 in the shared form). */
+    lane: number;
     /** Keyed by `sectionKey(list, index)`. */
     ghosts: Map<string, CodeGhost>;
     selected: number | null;
     notice: string | null;
     spectrum: SpectrumAnalyzer;
-    /** Scope buffer key per channel list. */
+    /** Scope buffer key per lane list. */
     spectrumKeys: string[];
     /** The engine's running values per list and section, when polled. */
     live: LiveValues | null;
@@ -190,7 +190,7 @@ export function paramsAreModulated(params: RawEqParams): boolean {
 /** Section counts per list, comparable across runs. */
 export function shapeOf(params: RawEqParams): string {
     const lists = sectionLists(params).map((l) => l.length);
-    return `${isPerChannel(params) ? 'per' : 'shared'}:${lists.join(',')}`;
+    return `${isPerLane(params) ? 'per' : 'shared'}:${lists.join(',')}`;
 }
 
 /**

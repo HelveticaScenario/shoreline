@@ -6,7 +6,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct HoldParams {
@@ -31,7 +31,7 @@ struct HoldOutputs {
 }
 
 #[derive(Clone, Copy, Default)]
-struct HoldChannelState {
+struct HoldLaneState {
     schmitt: SchmittTrigger,
     elapsed: f32,
     active: bool,
@@ -67,19 +67,19 @@ const HOLD_DOCS: ModuleDocs = ModuleDocs {
 pub struct Hold {
     outputs: HoldOutputs,
     params: HoldParams,
-    channel_state: Box<[HoldChannelState]>,
+    lane_state: Box<[HoldLaneState]>,
 }
 
 impl Hold {
     fn update(&mut self, sample_rate: f32) {
         let sample_period = 1.0 / sample_rate;
         let retrigger_gap = min_gate_samples(sample_rate);
-        for ch in 0..self.channel_count() {
-            let state = &mut self.channel_state[ch];
-            let time = self.params.time.value_or(ch, 0.05).max(0.0);
+        for lane in 0..self.lane_count() {
+            let state = &mut self.lane_state[lane];
+            let time = self.params.time.value_or(lane, 0.05).max(0.0);
             let (_, edge) = state
                 .schmitt
-                .process_with_edge(self.params.input.get_value(ch));
+                .process_with_edge(self.params.input.get_value(lane));
             if edge.is_rising() {
                 if state.output_high {
                     state.gap_remaining = retrigger_gap;
@@ -98,7 +98,7 @@ impl Hold {
                 state.output_high = false;
             }
             self.outputs.sample.set(
-                ch,
+                lane,
                 if state.output_high {
                     GATE_HIGH_VOLTAGE
                 } else {
@@ -120,16 +120,16 @@ mod tests {
 
     fn make(input_volts: f32, time_secs: Option<f32>) -> Hold {
         let mut outputs = HoldOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         Hold {
             params: HoldParams {
                 input: PolySignal::mono(Signal::Volts(input_volts)),
                 time: time_secs.map(|t| PolySignal::mono(Signal::Volts(t))),
             },
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
-            channel_state: vec![HoldChannelState::default(); 1].into_boxed_slice(),
+            lane_state: vec![HoldLaneState::default(); 1].into_boxed_slice(),
         }
     }
 

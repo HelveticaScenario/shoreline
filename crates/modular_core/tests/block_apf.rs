@@ -16,8 +16,8 @@ fn apf_paths_agree() {
     check_paths_agree(
         "$apf",
         json!({
-            "input": poly_cable("src", CHANNELS),
-            "cutoff": poly_cable("lfo", CHANNELS),
+            "input": poly_cable("src", LANES),
+            "cutoff": poly_cable("lfo", LANES),
             "stages": [1.0, 1.25, 3.6, 50.0],
             "resonance": 3.0,
             "feedback": -4.0,
@@ -38,7 +38,7 @@ fn apf_paths_agree() {
     check_paths_agree(
         "$apf",
         json!({
-            "input": poly_cable("src", CHANNELS),
+            "input": poly_cable("src", LANES),
             "cutoff": 0.5,
             "stages": [cable("lfo", 1), 13.0, 3.25, 49.5],
             "resonance": 2.0,
@@ -62,21 +62,21 @@ fn apf_paths_agree() {
 fn allocation_free() {
     for params in [
         json!({
-            "input": poly_cable("src", CHANNELS),
+            "input": poly_cable("src", LANES),
             "cutoff": cable("lfo", 0),
             "stages": [cable("lfo", 1), 49.75, 1.5, 25.0],
             "resonance": cable("lfo", 2),
             "feedback": 2.0,
         }),
         json!({
-            "input": poly_cable("src", CHANNELS),
+            "input": poly_cable("src", LANES),
             "cutoff": cable("lfo", 0),
             "stages": cable("lfo", 1),
             "resonance": 4.0,
             "feedback": cable("lfo", 2),
         }),
         json!({
-            "input": poly_cable("src", CHANNELS),
+            "input": poly_cable("src", LANES),
             "cutoff": cable("lfo", 0),
             "stages": [cable("lfo", 1), 20.0, 2.75, 50.0],
             "fadeStep": 8,

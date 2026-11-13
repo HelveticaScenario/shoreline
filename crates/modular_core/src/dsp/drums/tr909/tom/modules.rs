@@ -41,7 +41,7 @@ struct TomState {
 }
 
 #[derive(Clone, Copy, Default)]
-struct Channel {
+struct Lane {
     voices: Voices<Tom>,
     noise: Noise,
     rate: Cached<f32, f32>,
@@ -75,43 +75,41 @@ struct TomInputs<I> {
     noise_rate: f32,
 }
 
-impl<I: Input> ChannelInputs<TomDrum> for TomInputs<I> {
-    type Channel = Channel;
+impl<I: Input> LaneInputs<TomDrum> for TomInputs<I> {
+    type Lane = Lane;
 
-    fn voices(channel: &mut Channel) -> &mut Voices<Tom> {
-        &mut channel.voices
+    fn voices(lane: &mut Lane) -> &mut Voices<Tom> {
+        &mut lane.voices
     }
 
     #[inline(always)]
-    fn inputs(&self, ch: usize, channel: &mut Channel) -> (f32, TomControls) {
+    fn inputs(&self, lane_index: usize, lane: &mut Lane) -> (f32, TomControls) {
         let controls = TomControls {
-            rate: channel
+            rate: lane
                 .rate
-                .get(self.freq.at(ch), |f| (f - self.stock).exp2()),
-            decay: 1.0 / (R111 + VR11 * knob(self.decay.at(ch))),
-            noise: channel.noise.next(self.noise_rate),
+                .get(self.freq.at(lane_index), |f| (f - self.stock).exp2()),
+            decay: 1.0 / (R111 + VR11 * knob(self.decay.at(lane_index))),
+            noise: lane.noise.next(self.noise_rate),
         };
-        (self.trigger.at(ch), controls)
+        (self.trigger.at(lane_index), controls)
     }
 }
 
 impl TomState {
-    /// Runs one sample of every channel on its `[trigger, accent, freq,
+    /// Runs one sample of every lane on its `[trigger, accent, freq,
     /// decay]`, with `stock` the tom's stock pitch, handing `out` each one's
     /// output.
     #[inline(always)]
     fn tick<I: Input>(
         &mut self,
-        channels: &mut [Channel],
+        lanes: &mut [Lane],
         restart: bool,
         hold: bool,
         stock: f32,
         [trigger, accent, freq, decay]: [I; 4],
         mut out: impl FnMut(usize, f32),
     ) {
-        let [freq, decay] = self
-            .hold
-            .apply(hold, channels.len(), [trigger], [freq, decay]);
+        let [freq, decay] = self.hold.apply(hold, lanes.len(), [trigger], [freq, decay]);
         let trigger = Held::Live(trigger);
         let run = Run {
             accent,
@@ -126,16 +124,16 @@ impl TomState {
             stock,
             noise_rate: self.shared.noise_rate,
         };
-        self.groups.run(&inputs, channels, &run, |ch, v| {
-            out(ch, rails(v * OUTPUT_GAIN))
+        self.groups.run(&inputs, lanes, &run, |lane, v| {
+            out(lane, rails(v * OUTPUT_GAIN))
         });
     }
 }
 
-/// Seeds each channel's noise from the module's [`seed_base`].
-fn seed(base: u64, channels: &mut [Channel]) {
-    for (ch, cs) in channels.iter_mut().enumerate() {
-        cs.noise.seed(base, ch);
+/// Seeds each lane's noise from the module's [`seed_base`].
+fn seed(base: u64, lanes: &mut [Lane]) {
+    for (lane, cs) in lanes.iter_mut().enumerate() {
+        cs.noise.seed(base, lane);
     }
 }
 
@@ -150,7 +148,7 @@ macro_rules! tom_module {
     ) => {
         paste::paste! {
             #[params]
-            #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+            #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Struct Params>] {
@@ -201,7 +199,7 @@ macro_rules! tom_module {
                 outputs: [<$Struct Outputs>],
                 params: [<$Struct Params>],
                 state: TomState,
-                channel_state: Box<[Channel]>,
+                lane_state: Box<[Lane]>,
             }
 
             impl $Struct {
@@ -210,7 +208,7 @@ macro_rules! tom_module {
                 }
 
                 fn update(&mut self, _sample_rate: f32) {
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     let p = &self.params;
                     let inputs = [
                         Live::new(&p.trigger),
@@ -221,12 +219,12 @@ macro_rules! tom_module {
                     let out = &mut self.outputs.sample;
                     self.state
                         .tick(
-                            &mut self.channel_state[..channels],
+                            &mut self.lane_state[..lanes],
                             p.restart,
                             p.hold,
                             [<$Struct Params>]::FREQ_DEFAULT,
                             inputs,
-                            |ch, v| out.set(ch, v),
+                            |lane, v| out.set(lane, v),
                         );
                 }
 
@@ -236,7 +234,7 @@ macro_rules! tom_module {
                     range: Range<usize>,
                     _sample_rate: f32,
                 ) -> Option<()> {
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     let p = &self.params;
                     let mut scratch = Default::default();
                     let [<$Struct ParamsBlockInputs>] {
@@ -244,8 +242,8 @@ macro_rules! tom_module {
                         accent,
                         freq,
                         decay,
-                    } = p.block_inputs(range.clone(), channels, &mut scratch)?;
-                    let channel_state = &mut self.channel_state[..channels];
+                    } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+                    let lane_state = &mut self.lane_state[..lanes];
                     each_slot(
                         &mut outputs.sample,
                         range,
@@ -253,12 +251,12 @@ macro_rules! tom_module {
                         |inputs, mut slot| {
                             self.state
                                 .tick(
-                                    channel_state,
+                                    lane_state,
                                     p.restart,
                                     p.hold,
                                     [<$Struct Params>]::FREQ_DEFAULT,
                                     inputs,
-                                    |ch, v| slot.set(ch, v),
+                                    |lane, v| slot.set(lane, v),
                                 )
                         },
                     );
@@ -269,11 +267,11 @@ macro_rules! tom_module {
             impl crate::types::PatchUpdateHandler for $Struct {
                 fn on_patch_update(&mut self) {
                     let base = seed_base(self);
-                    seed(base, &mut self.channel_state);
-                    let count = self.channel_count();
+                    seed(base, &mut self.lane_state);
+                    let count = self.lane_count();
                     self.state
                         .groups
-                        .layout::<TomInputs<&[f32]>>(&mut self.channel_state, count);
+                        .layout::<TomInputs<&[f32]>>(&mut self.lane_state, count);
                 }
             }
 

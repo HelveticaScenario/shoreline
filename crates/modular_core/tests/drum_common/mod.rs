@@ -31,7 +31,7 @@ pub fn make(module_type: &str, params: Value, sample_rate: f32) -> Box<dyn Sampl
         sample_rate,
         DeserializedParams {
             params: cached.params,
-            channel_count: cached.channel_count,
+            lane_count: cached.lane_count,
             f64_inputs: false,
         },
         1,
@@ -82,7 +82,7 @@ pub fn render_clocks(
     let mut modules = Vec::new();
     for (k, &(port, hz)) in clocks.iter().enumerate() {
         let id = format!("clock{k}");
-        params[port] = json!({ "type": "cable", "module": id, "port": "output", "channel": 0 });
+        params[port] = json!({ "type": "cable", "module": id, "port": "output", "lane": 0 });
         modules.push((id, "$pulse", json!({ "freq": voct(hz) })));
     }
     modules.push(("drum".to_string(), module_type, params));
@@ -98,7 +98,7 @@ pub fn render_clocks(
                     module_type.to_string(),
                     DeserializedParams {
                         params: cached.params,
-                        channel_count: cached.channel_count,
+                        lane_count: cached.lane_count,
                         f64_inputs: false,
                     },
                     ProcessingMode::Block,

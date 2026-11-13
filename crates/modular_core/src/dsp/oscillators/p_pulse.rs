@@ -9,7 +9,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
@@ -45,9 +45,9 @@ struct PPulseOscillatorOutputs {
     sample: PolyOutput,
 }
 
-/// Per-channel state for width glide and phase tracking
+/// Per-lane state for width glide and phase tracking
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     width: SwapGlide,
     pwm: SwapGlide,
     prev_phase: f32,
@@ -77,30 +77,30 @@ const P_PULSE_DOCS: ModuleDocs = ModuleDocs {
 #[module(name = "$pPulse", docs = P_PULSE_DOCS, args(phase))]
 pub struct PPulseOscillator {
     outputs: PPulseOscillatorOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: PPulseOscillatorParams,
 }
 
 impl PPulseOscillator {
     fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
 
             state.width.update(
-                self.params.width.value_or(ch, 2.5),
-                self.params.width.glide_mark(ch),
+                self.params.width.value_or(lane, 2.5),
+                self.params.width.glide_mark(lane),
                 sample_rate,
             );
             state.pwm.update(
-                self.params.pwm.value_or(ch, 0.0),
-                self.params.pwm.glide_mark(ch),
+                self.params.pwm.value_or(lane, 0.0),
+                self.params.pwm.glide_mark(lane),
                 sample_rate,
             );
             let width = (*state.width + *state.pwm).clamp(0.0, 5.0);
 
-            let phase = wrap(0.0..1.0, self.params.phase.get_value(ch));
+            let phase = wrap(0.0..1.0, self.params.phase.get_value(lane));
 
             // Derive phase increment from external phasor
             let mut phase_increment = phase - state.prev_phase;
@@ -132,7 +132,7 @@ impl PPulseOscillator {
                 phase_increment,
             );
 
-            self.outputs.sample.set(ch, pulse * 5.0);
+            self.outputs.sample.set(lane, pulse * 5.0);
         }
     }
 }

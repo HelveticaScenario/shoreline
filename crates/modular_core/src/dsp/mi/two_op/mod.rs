@@ -21,7 +21,7 @@ use crate::{
 const OUTPUT_GAIN: f32 = -0.6 * 5.0;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct TwoOpParams {
@@ -106,7 +106,7 @@ const TWO_OP_DOCS: ModuleDocs = ModuleDocs {
 pub struct TwoOp {
     outputs: TwoOpOutputs,
     state: TwoOpState,
-    channel_state: Box<[Voice]>,
+    lane_state: Box<[Voice]>,
     params: TwoOpParams,
 }
 
@@ -287,32 +287,32 @@ impl TwoOp {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
-        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, TwoOpParams::FM_DEFAULT),
+                p.freq.get_value(lane),
+                p.fm.value_or(lane, TwoOpParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
             let knobs = Knobs {
                 ratio: (
-                    p.ratio.value_or(ch, TwoOpParams::RATIO_DEFAULT),
-                    p.ratio.glide_mark(ch),
+                    p.ratio.value_or(lane, TwoOpParams::RATIO_DEFAULT),
+                    p.ratio.glide_mark(lane),
                 ),
                 index: (
-                    p.index.value_or(ch, TwoOpParams::INDEX_DEFAULT),
-                    p.index.glide_mark(ch),
+                    p.index.value_or(lane, TwoOpParams::INDEX_DEFAULT),
+                    p.index.glide_mark(lane),
                 ),
                 feedback: (
-                    p.feedback.value_or(ch, TwoOpParams::FEEDBACK_DEFAULT),
-                    p.feedback.glide_mark(ch),
+                    p.feedback.value_or(lane, TwoOpParams::FEEDBACK_DEFAULT),
+                    p.feedback.glide_mark(lane),
                 ),
             };
             let controls = voice.control(f0, knobs, &self.state);
             let (out, sub) = voice.step(controls, &self.state);
-            self.outputs.sample.set(ch, OUTPUT_GAIN * out);
-            self.outputs.sub_octave.set(ch, OUTPUT_GAIN * sub);
+            self.outputs.sample.set(lane, OUTPUT_GAIN * out);
+            self.outputs.sub_octave.set(lane, OUTPUT_GAIN * sub);
         }
     }
 }

@@ -8,7 +8,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Ma808Params {
@@ -64,7 +64,7 @@ pub struct Ma808 {
     outputs: Ma808Outputs,
     params: Ma808Params,
     state: MaState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
 }
 
 #[derive(Default)]
@@ -73,7 +73,7 @@ struct MaState {
 }
 
 #[derive(Clone, Copy, Default)]
-struct Channel {
+struct Lane {
     voices: Voices<Shake>,
     noise: WhiteNoise,
 }
@@ -104,7 +104,7 @@ impl Ma808 {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -113,10 +113,10 @@ impl Ma808 {
         let out = &mut self.outputs.sample;
         tick(
             &self.state,
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             inputs,
-            |ch, v| out.set(ch, v),
+            |lane, v| out.set(lane, v),
         );
     }
 
@@ -126,19 +126,19 @@ impl Ma808 {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Ma808ParamsBlockInputs { trigger, accent } =
-            p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+            p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot(
             &mut outputs.sample,
             range,
             [trigger, accent],
             |inputs, mut slot| {
-                tick(&self.state, channel_state, p.restart, inputs, |ch, v| {
-                    slot.set(ch, v)
+                tick(&self.state, lane_state, p.restart, inputs, |lane, v| {
+                    slot.set(lane, v)
                 })
             },
         );
@@ -146,37 +146,37 @@ impl Ma808 {
     }
 }
 
-/// Runs one sample of every channel on its `[trigger, accent]`, handing
+/// Runs one sample of every lane on its `[trigger, accent]`, handing
 /// `out` each one's output.
 #[inline(always)]
 fn tick<I: Input>(
     state: &MaState,
-    channels: &mut [Channel],
+    lanes: &mut [Lane],
     restart: bool,
     [trigger, accent]: [I; 2],
     mut out: impl FnMut(usize, f32),
 ) {
     let sh = &state.shared;
-    for (ch, cs) in channels.iter_mut().enumerate() {
+    for (lane, cs) in lanes.iter_mut().enumerate() {
         let white = cs.noise.next(sh.noise_scale);
         let v = cs.voices.process(
-            trigger.at(ch),
+            trigger.at(lane),
             accent,
-            ch,
+            lane,
             restart,
             sh.timing.fade_samples,
             sh,
             &white,
         );
-        out(ch, rails(v * OUTPUT_GAIN));
+        out(lane, rails(v * OUTPUT_GAIN));
     }
 }
 
 impl crate::types::PatchUpdateHandler for Ma808 {
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, cs) in self.channel_state.iter_mut().enumerate() {
-            cs.noise.seed(base, ch);
+        for (lane, cs) in self.lane_state.iter_mut().enumerate() {
+            cs.noise.seed(base, lane);
         }
     }
 }

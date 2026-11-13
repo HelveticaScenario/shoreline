@@ -4,7 +4,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use super::HatShared;
-use super::sides::{Channel, ClosedHat, ClosedSide, OpenHat, OpenSide};
+use super::sides::{ClosedHat, ClosedSide, Lane, OpenHat, OpenSide};
 use crate::dsp::drums::group::{Groups, Run};
 use crate::dsp::drums::input::{Held, Hold, Input, Live, each_slot_of};
 use crate::dsp::drums::tr808::metal::MetalFilters;
@@ -12,14 +12,14 @@ use crate::dsp::drums::voice::rails;
 use crate::dsp::utils::rng::seed_base;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal};
+use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal};
 
 /// Scale each hat's output so an unaccented hit peaks near 5 V.
 const CLOSED_GAIN: f32 = 2.996;
 const OPEN_GAIN: f32 = 2.101;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Hh808Params {
@@ -109,7 +109,7 @@ pub struct Hh808 {
     outputs: Hh808Outputs,
     params: Hh808Params,
     state: HhState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
 }
 
 #[derive(Default)]
@@ -130,7 +130,7 @@ impl Hh808 {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.closed),
@@ -141,14 +141,14 @@ impl Hh808 {
         ];
         let o = &mut self.outputs;
         self.state.tick(
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             p.hold,
             inputs,
-            |ch, closed, open| {
-                o.closed.set(ch, rails(closed));
-                o.open.set(ch, rails(open));
-                o.sample.set(ch, rails(closed + open));
+            |lane, closed, open| {
+                o.closed.set(lane, rails(closed));
+                o.open.set(lane, rails(open));
+                o.sample.set(lane, rails(closed + open));
             },
         );
     }
@@ -159,7 +159,7 @@ impl Hh808 {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Hh808ParamsBlockInputs {
@@ -168,18 +168,18 @@ impl Hh808 {
             accent,
             decay,
             cut,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot_of(
             [&mut outputs.sample, &mut outputs.closed, &mut outputs.open],
             range,
             [closed, open, accent, decay, cut],
             |inputs, [mut both, mut closed, mut open]| {
                 self.state
-                    .tick(channel_state, p.restart, p.hold, inputs, |ch, c, o| {
-                        closed.set(ch, rails(c));
-                        open.set(ch, rails(o));
-                        both.set(ch, rails(c + o));
+                    .tick(lane_state, p.restart, p.hold, inputs, |lane, c, o| {
+                        closed.set(lane, rails(c));
+                        open.set(lane, rails(o));
+                        both.set(lane, rails(c + o));
                     })
             },
         );
@@ -188,12 +188,12 @@ impl Hh808 {
 }
 
 impl HhState {
-    /// Runs one sample of every channel on its `[closed, open, accent,
+    /// Runs one sample of every lane on its `[closed, open, accent,
     /// decay, cut]`, handing `out` each one's closed and open hats.
     #[inline(always)]
     fn tick<I: Input>(
         &mut self,
-        channels: &mut [Channel],
+        lanes: &mut [Lane],
         restart: bool,
         hold: bool,
         [closed, open, accent, decay, cut]: [I; 5],
@@ -201,9 +201,9 @@ impl HhState {
     ) {
         let [decay, cut] = self
             .hold
-            .apply(hold, channels.len(), [closed, open], [decay, cut]);
+            .apply(hold, lanes.len(), [closed, open], [decay, cut]);
         let (closed, open) = (Held::Live(closed), Held::Live(open));
-        let mut closed_out = [0.0; PORT_MAX_CHANNELS];
+        let mut closed_out = [0.0; PORT_MAX_LANES];
         let side = ClosedSide {
             trigger: closed,
             cut,
@@ -215,8 +215,8 @@ impl HhState {
             fade_samples: self.shared.timing.fade_samples,
             shared: &self.shared,
         };
-        self.closed.run(&side, channels, &run, |ch, v| {
-            closed_out[ch] = v * CLOSED_GAIN
+        self.closed.run(&side, lanes, &run, |lane, v| {
+            closed_out[lane] = v * CLOSED_GAIN
         });
         let side = OpenSide {
             trigger: open,
@@ -228,8 +228,8 @@ impl HhState {
             fade_samples: self.shared.timing.fade_samples,
             shared: &self.shared,
         };
-        self.open.run(&side, channels, &run, |ch, v| {
-            out(ch, closed_out[ch], v * OPEN_GAIN)
+        self.open.run(&side, lanes, &run, |lane, v| {
+            out(lane, closed_out[lane], v * OPEN_GAIN)
         });
     }
 }
@@ -237,16 +237,16 @@ impl HhState {
 impl crate::types::PatchUpdateHandler for Hh808 {
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, cs) in self.channel_state.iter_mut().enumerate() {
-            cs.seed(base, ch);
+        for (lane, cs) in self.lane_state.iter_mut().enumerate() {
+            cs.seed(base, lane);
         }
-        let count = self.channel_count();
+        let count = self.lane_count();
         self.state
             .closed
-            .layout::<ClosedSide<&[f32]>>(&mut self.channel_state, count);
+            .layout::<ClosedSide<&[f32]>>(&mut self.lane_state, count);
         self.state
             .open
-            .layout::<OpenSide<&[f32]>>(&mut self.channel_state, count);
+            .layout::<OpenSide<&[f32]>>(&mut self.lane_state, count);
     }
 }
 

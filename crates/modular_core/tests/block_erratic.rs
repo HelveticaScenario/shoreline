@@ -16,7 +16,7 @@ static GLOBAL: CountingAllocator = CountingAllocator;
 fn zero_amount_passes_cable_input_through() {
     check_module(
         "_erratic",
-        json!({ "input": poly_cable("src", CHANNELS), "amount": 0.0, "speed": cable("lfo", 1) }),
+        json!({ "input": poly_cable("src", LANES), "amount": 0.0, "speed": cable("lfo", 1) }),
         |src, _| src.to_vec(),
     );
 }
@@ -26,10 +26,10 @@ fn clamps_to_cable_range() {
     check_module(
         "_erratic",
         json!({
-            "input": poly_cable("src", CHANNELS),
+            "input": poly_cable("src", LANES),
             "amount": 0.0,
-            "trigger": poly_cable("lfo", CHANNELS),
-            "min": poly_cable("lfo", CHANNELS),
+            "trigger": poly_cable("lfo", LANES),
+            "min": poly_cable("lfo", LANES),
             "max": [5.0, cable("lfo", 0), 5.0, 5.0],
             "mode": "clamp",
         }),
@@ -38,8 +38,8 @@ fn clamps_to_cable_range() {
                 .zip(lfo)
                 .enumerate()
                 .map(|(k, (&x, &lo))| {
-                    let hi = if k % CHANNELS == 1 {
-                        lfo[k / CHANNELS * CHANNELS]
+                    let hi = if k % LANES == 1 {
+                        lfo[k / LANES * LANES]
                     } else {
                         5.0
                     };
@@ -53,10 +53,10 @@ fn clamps_to_cable_range() {
 #[test]
 fn allocation_free() {
     for params in [
-        json!({ "input": poly_cable("src", CHANNELS), "amount": 2.0 }),
-        json!({ "input": poly_cable("src", CHANNELS), "amount": cable("lfo", 0), "speed": poly_cable("lfo", CHANNELS), "trigger": poly_cable("src", CHANNELS) }),
+        json!({ "input": poly_cable("src", LANES), "amount": 2.0 }),
+        json!({ "input": poly_cable("src", LANES), "amount": cable("lfo", 0), "speed": poly_cable("lfo", LANES), "trigger": poly_cable("src", LANES) }),
         json!({ "input": cable("src", 1), "amount": [1.0, 2.0, 3.0, 4.0], "bias": [cable("lfo", 2), 1.0], "min": -1.0, "max": 1.0, "mode": "clamp" }),
-        json!({ "input": poly_cable("src", CHANNELS), "amount": 5.0, "speed": 5.0, "trigger": poly_cable("src", CHANNELS), "mode": "blend", "sparse": true }),
+        json!({ "input": poly_cable("src", LANES), "amount": 5.0, "speed": 5.0, "trigger": poly_cable("src", LANES), "mode": "blend", "sparse": true }),
     ] {
         assert_eq!(allocations_while_rendering("_erratic", params), 0);
     }
@@ -64,7 +64,7 @@ fn allocation_free() {
 
 #[test]
 fn bounds_are_the_range_in_its_order_unless_shifting() {
-    let input = poly_cable("src", CHANNELS);
+    let input = poly_cable("src", LANES);
     for mode in ["blend", "clamp"] {
         let bounds = check_bounds_agree(
             "_erratic",
@@ -93,7 +93,7 @@ fn an_unset_mode_blends_within_a_ranged_input() {
     // The saw swings over ±5, so an unset mode blends within it.
     let bounds = check_bounds_agree(
         "_erratic",
-        json!({ "input": poly_cable("src", CHANNELS), "amount": 3.0 }),
+        json!({ "input": poly_cable("src", LANES), "amount": 3.0 }),
     );
     assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
     // A fixed voltage has no range, so an unset mode shifts.

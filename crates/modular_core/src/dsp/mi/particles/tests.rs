@@ -1,13 +1,13 @@
 use super::*;
 use crate::dsp::mi::core::fixture::{max_error, records};
 
-/// A channel at `sample_rate`, seeded as `particles.cc` seeds stmlib's
+/// A lane at `sample_rate`, seeded as `particles.cc` seeds stmlib's
 /// generator.
-fn channel(state: &ParticlesState) -> Channel {
-    Channel {
+fn new_lane(state: &ParticlesState) -> Lane {
+    Lane {
         random: Random::new(0x21),
         seeded: true,
-        ..Channel::new(state)
+        ..Lane::new(state)
     }
 }
 
@@ -21,10 +21,10 @@ fn matches_plaits() {
     let mut actual = Vec::new();
     let mut expected = Vec::new();
     for records in records("particles", 5 + 2).chunks(9600) {
-        let mut ch = channel(&state);
+        let mut lane = new_lane(&state);
         for record in records {
-            ch.control([record[1], record[2], record[3]], record[4] > 0.5, &state);
-            let (out, raw) = ch.step(record[0], &state);
+            lane.control([record[1], record[2], record[3]], record[4] > 0.5, &state);
+            let (out, raw) = lane.step(record[0], &state);
             actual.extend([out, raw]);
             expected.extend([record[5], record[6]]);
         }
@@ -42,12 +42,12 @@ fn rms(x: &[f32]) -> f32 {
 /// when several fire in one sample.
 fn render(sample_rate: f32, hz: f32, knobs: [f32; 3], seconds: f32) -> (Vec<f32>, f32) {
     let state = ParticlesState::new(sample_rate);
-    let mut ch = channel(&state);
+    let mut lane = new_lane(&state);
     let mut impulses = 0.0;
     let out = (0..(sample_rate * seconds) as usize)
         .map(|_| {
-            ch.control(knobs, false, &state);
-            let (out, raw) = ch.step(hz / sample_rate, &state);
+            lane.control(knobs, false, &state);
+            let (out, raw) = lane.step(hz / sample_rate, &state);
             impulses += raw;
             out
         })
@@ -89,11 +89,11 @@ fn sounds_the_same_at_any_rate() {
 fn sync_fires_every_particle_on_its_sample() {
     let state = ParticlesState::new(48000.0);
     for offset in [0, 5, 11] {
-        let mut ch = channel(&state);
+        let mut lane = new_lane(&state);
         for n in 0..(1000 + offset) {
             let sync = n == 1000 + offset - 1;
-            ch.control([0.0, 2.0, 2.5], sync, &state);
-            let (_, raw) = ch.step(0.005, &state);
+            lane.control([0.0, 2.0, 2.5], sync, &state);
+            let (_, raw) = lane.step(0.005, &state);
             if sync {
                 assert!(raw > 5.99, "offset {offset}: raw {raw}");
             }
@@ -105,8 +105,8 @@ fn sync_fires_every_particle_on_its_sample() {
 #[test]
 fn non_finite_knobs_hold() {
     let state = ParticlesState::new(48000.0);
-    let mut held = channel(&state);
-    let mut glitched = channel(&state);
+    let mut held = new_lane(&state);
+    let mut glitched = new_lane(&state);
     for n in 0..4000 {
         let v = match n {
             2000 => f32::NAN,
@@ -131,7 +131,7 @@ fn non_finite_knobs_hold() {
 fn stays_finite_and_bounded() {
     for sample_rate in [2000.0, 8000.0, 44100.0, 96000.0] {
         let state = ParticlesState::new(sample_rate);
-        let mut ch = channel(&state);
+        let mut lane = new_lane(&state);
         for n in 0..60000 {
             let f0 = match n % 500 {
                 100 => f32::NAN,
@@ -145,8 +145,8 @@ fn stays_finite_and_bounded() {
                 2.5 + 3.0 * (t * 1.3).sin(),
                 2.5 + 3.0 * (t * 0.7).sin(),
             ];
-            ch.control(knobs, n % 1777 == 0, &state);
-            let (out, raw) = ch.step(f0, &state);
+            lane.control(knobs, n % 1777 == 0, &state);
+            let (out, raw) = lane.step(f0, &state);
             assert!(
                 out.is_finite() && raw.is_finite(),
                 "{sample_rate} Hz, sample {n}: {out}, {raw}"

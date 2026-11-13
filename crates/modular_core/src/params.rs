@@ -65,8 +65,8 @@ impl Clone for Box<dyn CloneableParams> {
 pub struct DeserializedParams {
     /// Type-erased concrete params (e.g. `Box<SineOscillatorParams>`).
     pub params: Box<dyn CloneableParams>,
-    /// Derived output channel count for this module.
-    pub channel_count: usize,
+    /// Derived output lane count for this module.
+    pub lane_count: usize,
     /// Whether any of the module's cables comes from an f64 output, which
     /// makes its `precision = inherit` outputs f64. Set by the patch's
     /// precision analysis before construction.
@@ -83,8 +83,8 @@ pub struct DeserializedParams {
 pub struct CachedParams {
     /// Type-erased concrete params.
     pub params: Box<dyn CloneableParams>,
-    /// Derived output channel count.
-    pub channel_count: usize,
+    /// Derived output lane count.
+    pub lane_count: usize,
 }
 
 /// Function that deserializes a JSON value (with `__argument_spans` already

@@ -8,7 +8,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Cp909Params {
@@ -64,7 +64,7 @@ pub struct Cp909 {
     outputs: Cp909Outputs,
     params: Cp909Params,
     state: CpState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
 }
 
 #[derive(Default)]
@@ -74,7 +74,7 @@ struct CpState {
 }
 
 #[derive(Clone, Copy, Default)]
-struct Channel {
+struct Lane {
     voices: Voices<Clap>,
     noise: Noise,
 }
@@ -108,7 +108,7 @@ impl Cp909 {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -116,10 +116,10 @@ impl Cp909 {
         ];
         let out = &mut self.outputs.sample;
         self.state.tick(
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             inputs,
-            |ch, v| out.set(ch, v),
+            |lane, v| out.set(lane, v),
         );
     }
 
@@ -129,19 +129,19 @@ impl Cp909 {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Cp909ParamsBlockInputs { trigger, accent } =
-            p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+            p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot(
             &mut outputs.sample,
             range,
             [trigger, accent],
             |inputs, mut slot| {
                 self.state
-                    .tick(channel_state, p.restart, inputs, |ch, v| slot.set(ch, v))
+                    .tick(lane_state, p.restart, inputs, |lane, v| slot.set(lane, v))
             },
         );
         Some(())
@@ -149,12 +149,12 @@ impl Cp909 {
 }
 
 impl CpState {
-    /// Runs one sample of every channel on its `[trigger, accent]`, handing
+    /// Runs one sample of every lane on its `[trigger, accent]`, handing
     /// `out` each one's output.
     #[inline(always)]
     fn tick<I: Input>(
         &mut self,
-        channels: &mut [Channel],
+        lanes: &mut [Lane],
         restart: bool,
         [trigger, accent]: [I; 2],
         mut out: impl FnMut(usize, f32),
@@ -169,8 +169,8 @@ impl CpState {
             trigger,
             noise_rate: self.shared.noise_rate,
         };
-        self.groups.run(&inputs, channels, &run, |ch, v| {
-            out(ch, rails(v * OUTPUT_GAIN))
+        self.groups.run(&inputs, lanes, &run, |lane, v| {
+            out(lane, rails(v * OUTPUT_GAIN))
         });
     }
 }
@@ -178,33 +178,36 @@ impl CpState {
 impl crate::types::PatchUpdateHandler for Cp909 {
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, cs) in self.channel_state.iter_mut().enumerate() {
-            cs.noise.seed(base, ch);
+        for (lane, cs) in self.lane_state.iter_mut().enumerate() {
+            cs.noise.seed(base, lane);
         }
-        let count = self.channel_count();
+        let count = self.lane_count();
         self.state
             .groups
-            .layout::<CpInputs<&[f32]>>(&mut self.channel_state, count);
+            .layout::<CpInputs<&[f32]>>(&mut self.lane_state, count);
     }
 }
 
 message_handlers!(impl Cp909 {});
 
-/// The inputs every channel of the clap reads.
+/// The inputs every lane of the clap reads.
 struct CpInputs<I> {
     trigger: I,
     noise_rate: f32,
 }
 
-impl<I: Input> ChannelInputs<ClapDrum> for CpInputs<I> {
-    type Channel = Channel;
+impl<I: Input> LaneInputs<ClapDrum> for CpInputs<I> {
+    type Lane = Lane;
 
-    fn voices(channel: &mut Channel) -> &mut Voices<Clap> {
-        &mut channel.voices
+    fn voices(lane: &mut Lane) -> &mut Voices<Clap> {
+        &mut lane.voices
     }
 
     #[inline(always)]
-    fn inputs(&self, ch: usize, channel: &mut Channel) -> (f32, f32) {
-        (self.trigger.at(ch), channel.noise.next(self.noise_rate))
+    fn inputs(&self, lane_index: usize, lane: &mut Lane) -> (f32, f32) {
+        (
+            self.trigger.at(lane_index),
+            lane.noise.next(self.noise_rate),
+        )
     }
 }

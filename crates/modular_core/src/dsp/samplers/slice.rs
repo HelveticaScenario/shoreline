@@ -6,7 +6,7 @@ use deserr::{DeserializeError, ErrorKind, IntoValue, Sequence, ValueKind, ValueP
 use schemars::JsonSchema;
 
 use crate::{
-    poly::{LaneSum, PORT_MAX_CHANNELS, PolySignal},
+    poly::{LaneSum, PORT_MAX_LANES, PolySignal},
     types::Signal,
 };
 
@@ -103,9 +103,9 @@ impl<E: DeserializeError> deserr::Deserr<E> for SliceParam {
                             location.push_index(i + 1),
                         )?);
                     }
-                    if signals.len() > PORT_MAX_CHANNELS {
+                    if signals.len() > PORT_MAX_LANES {
                         return Err(unexpected(
-                            format!("PolySignal cannot exceed {PORT_MAX_CHANNELS} channels"),
+                            format!("PolySignal cannot exceed {PORT_MAX_LANES} lanes"),
                             location,
                         ));
                     }

@@ -19,7 +19,7 @@ use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
 use crate::{LaneSum, param_errors::ModuleParamErrors};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_groove_params -> ModuleParamErrors)]
 struct GrooveParams {
@@ -31,7 +31,7 @@ struct GrooveParams {
         range = (0.0, ..),
         control_range = (0.0, 1.0),
     )]
-    #[default_connection(module = RootClock, port = "playhead", channel = 0)]
+    #[default_connection(module = RootClock, port = "playhead", lane = 0)]
     #[deserr(default)]
     playhead: Option<LaneSum>,
 }

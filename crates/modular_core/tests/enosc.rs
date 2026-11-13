@@ -26,8 +26,8 @@ fn build_enosc(params: Value) -> Patch {
     )
 }
 
-/// One second of each of `ports` on `channel`, rendered together.
-fn render_ports<const N: usize>(patch: &Patch, ports: [&str; N], channel: usize) -> [Vec<f32>; N] {
+/// One second of each of `ports` on `lane`, rendered together.
+fn render_ports<const N: usize>(patch: &Patch, ports: [&str; N], lane: usize) -> [Vec<f32>; N] {
     let mut out = std::array::from_fn(|_| Vec::new());
     let blocks = SAMPLE_RATE as usize / BLOCK_SIZE;
     for _ in 0..blocks {
@@ -39,15 +39,15 @@ fn render_ports<const N: usize>(patch: &Patch, ports: [&str; N], channel: usize)
         }
         for index in 0..BLOCK_SIZE {
             for (samples, port) in out.iter_mut().zip(ports) {
-                samples.push(patch.sampleables["dut"].get_value_at(port, channel, index));
+                samples.push(patch.sampleables["dut"].get_value_at(port, lane, index));
             }
         }
     }
     out
 }
 
-fn render_port(patch: &Patch, port: &str, channel: usize) -> Vec<f32> {
-    let [samples] = render_ports(patch, [port], channel);
+fn render_port(patch: &Patch, port: &str, lane: usize) -> Vec<f32> {
+    let [samples] = render_ports(patch, [port], lane);
     samples
 }
 
@@ -168,12 +168,12 @@ fn split_outputs_sum_to_the_mix() {
 }
 
 #[test]
-fn widest_input_sets_the_channel_count() {
+fn widest_input_sets_the_lane_count() {
     let patch = build_enosc(json!({
         "pitch": [0.0, 1.0], "spread": [1.0, 2.0, 3.0],
     }));
     let module = &patch.sampleables["dut"];
-    assert_eq!(module.port_channels("all"), 3);
+    assert_eq!(module.port_lanes("all"), 3);
 }
 
 #[test]
@@ -187,7 +187,7 @@ fn outputs_stay_bounded_across_options() {
                     "second": { "type": "feedback", "amount": 2.0 } }),
         ] {
             let patch = build_enosc(json!({
-                "pitch": poly_cable("src", CHANNELS), "count": 16, "spread": 5.0,
+                "pitch": poly_cable("src", LANES), "count": 16, "spread": 5.0,
                 "detune": 5.0, "crossFm": 5.0, "crossFmMode": mode, "phase": phase,
                 "fold": 5.0, "cheby": 5.0, "segment": 5.0, "effectOrder": order,
                 "balance": -5.0,
@@ -216,7 +216,7 @@ fn allocation_free() {
     for params in [
         json!({ "pitch": 0.0 }),
         json!({
-            "pitch": poly_cable("src", CHANNELS),
+            "pitch": poly_cable("src", LANES),
             "scale": { "type": "custom", "notes": [0, 3, 6], "repeatsOctave": false },
             "spread": cable("lfo", 0), "detune": 3.0, "crossFm": cable("lfo", 1),
             "crossFmMode": "chain", "count": 16,

@@ -17,7 +17,7 @@ interface TestAPI {
     getEqPanels: () => {
         key: string;
         lists: import('./eq/eqPanelModel').EqSectionView[][];
-        perChannel: boolean;
+        perLane: boolean;
         visible: boolean;
     }[];
     getAudioHealth: () => Promise<any>;

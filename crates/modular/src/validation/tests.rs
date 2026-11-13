@@ -576,7 +576,7 @@ fn patch_with_buffer_ref(target_module: &str, port: &str) -> PatchGraph {
                         "type": "buffer_ref",
                         "module": target_module,
                         "port": port,
-                        "channels": 1
+                        "lanes": 1
                     },
                     "time": 0.1
                 }),

@@ -68,7 +68,7 @@ $eq(sig, { sections: [{ freq: 0 }] }).out()`;
         expect(textAt(source, panel.sourceLocation!)).toMatch(/^eq\(\{/);
     });
 
-    test('a shared list gets a headless full-rate scope on channel 0', () => {
+    test('a shared list gets a headless full-rate scope on lane 0', () => {
         const result = exec(
             `$eq($saw(['c2', 'c3']), { sections: [{ freq: 0 }], ui: true }).out()`,
         );
@@ -78,30 +78,28 @@ $eq(sig, { sections: [{ freq: 0 }] }).out()`;
         );
         expect(feeds).toHaveLength(1);
         expect(feeds[0]).toMatchObject({
-            channels: [
-                { channel: 0, moduleId: panel.moduleId, portName: 'output' },
-            ],
+            lanes: [{ lane: 0, moduleId: panel.moduleId, portName: 'output' }],
             msPerFrame: EQ_SPECTRUM_MS_PER_FRAME,
         });
         expect(panel.spectrum).toEqual({
-            channels: [0],
+            lanes: [0],
             moduleId: panel.moduleId,
             msPerFrame: EQ_SPECTRUM_MS_PER_FRAME,
             portName: 'output',
         });
     });
 
-    test('per-channel lists get one feed per list channel', () => {
+    test('per-lane lists get one feed per list lane', () => {
         const result = exec(`$eq($saw('c2'), {
             sections: [[{ freq: 0 }], [{ freq: 1 }]],
             ui: true,
         }).out()`);
         const [panel] = result.eqPanels;
-        expect(panel.spectrum.channels).toEqual([0, 1]);
+        expect(panel.spectrum.lanes).toEqual([0, 1]);
         const feeds = (result.patch.scopes as ScopeWithLocation[]).filter(
             (s) => s.headless,
         );
-        expect(feeds.map((f) => f.channels[0].channel)).toEqual([0, 1]);
+        expect(feeds.map((f) => f.lanes[0].lane)).toEqual([0, 1]);
     });
 
     test('eqs sharing a call site keep zone placement but are not editable', () => {

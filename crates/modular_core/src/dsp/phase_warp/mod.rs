@@ -2,7 +2,7 @@
 //!
 //! Each variant carries `PolySignal` fields for its dynamic parameters; the consuming
 //! module resolves them via `connect()`, then per sample on the audio thread reads them
-//! once per channel with [`PhaseWarp::resolve`] and warps each phase with
+//! once per lane with [`PhaseWarp::resolve`] and warps each phase with
 //! [`PhaseWarp::evaluate`]. The DSL builds these with the `$phase.*` helpers.
 
 pub mod shapes;
@@ -27,7 +27,7 @@ pub const MAX_SIGNAL_STAGES: usize = 8;
 
 /// Runtime state a [`PhaseWarp`] carries between samples: one lowpass per
 /// `feedback` stage, assigned in evaluation order. Every phase the warp shapes
-/// independently (a channel, an oscillator voice) needs its own copy.
+/// independently (a lane, an oscillator voice) needs its own copy.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct PhaseWarpState {
     feedback: [f32; MAX_FEEDBACK_STAGES],
@@ -70,14 +70,14 @@ impl StageKind {
 
 /// One [`SwapGlide`] per signal stage, assigned in evaluation order, so warp
 /// amounts glide across patch edits like any other param. One copy per
-/// channel: the values are per channel, not per voice.
+/// lane: the values are per lane, not per voice.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct PhaseWarpGlides {
     glides: [SwapGlide; MAX_SIGNAL_STAGES],
     kinds: [StageKind; MAX_SIGNAL_STAGES],
 }
 
-/// Every stage's shape parameter for one channel and sample, read, glided and
+/// Every stage's shape parameter for one lane and sample, read, glided and
 /// prepared by [`PhaseWarp::resolve`], in evaluation order.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ResolvedWarp {
@@ -150,35 +150,35 @@ impl PhaseWarp {
         }
     }
 
-    /// Read every stage's signal for `channel`, gliding values whose source
-    /// changed in the last patch swap. Call once per channel and sample, then
-    /// [`evaluate`](Self::evaluate) each phase the channel warps.
+    /// Read every stage's signal for `lane`, gliding values whose source
+    /// changed in the last patch swap. Call once per lane and sample, then
+    /// [`evaluate`](Self::evaluate) each phase the lane warps.
     ///
     /// Allocation-free — called per sample on the audio thread.
     #[inline]
     pub fn resolve(
         &self,
-        channel: usize,
+        lane: usize,
         sample_rate: f32,
         glides: &mut PhaseWarpGlides,
     ) -> ResolvedWarp {
         let mut resolved = ResolvedWarp::default();
         let mut slot = 0;
-        self.resolve_from(channel, sample_rate, glides, &mut resolved, &mut slot);
+        self.resolve_from(lane, sample_rate, glides, &mut resolved, &mut slot);
         resolved
     }
 
     fn resolve_from(
         &self,
-        channel: usize,
+        lane: usize,
         sample_rate: f32,
         glides: &mut PhaseWarpGlides,
         resolved: &mut ResolvedWarp,
         slot: &mut usize,
     ) {
         if let PhaseWarp::Pipe { first, second } = self {
-            first.resolve_from(channel, sample_rate, glides, resolved, slot);
-            second.resolve_from(channel, sample_rate, glides, resolved, slot);
+            first.resolve_from(lane, sample_rate, glides, resolved, slot);
+            second.resolve_from(lane, sample_rate, glides, resolved, slot);
             return;
         }
         let Some((kind, signal)) = self.stage() else {
@@ -191,15 +191,12 @@ impl PhaseWarp {
             glides.kinds[i] = kind;
             glides.glides[i] = SwapGlide::default();
         }
-        let value = glides.glides[i].follow(
-            signal.get_value(channel),
-            signal.glide_mark(channel),
-            sample_rate,
-        );
+        let value =
+            glides.glides[i].follow(signal.get_value(lane), signal.glide_mark(lane), sample_rate);
         resolved.values[i] = kind.prepare(value);
     }
 
-    /// Warp phase `x` with the stage values `resolved` for its channel.
+    /// Warp phase `x` with the stage values `resolved` for its lane.
     /// `freq_norm` is the oscillator frequency over the sample rate, used to
     /// antialias the pulsar and feedback stages; pass 0 when the pitch is
     /// unknown.
@@ -259,10 +256,10 @@ impl PhaseWarp {
         }
     }
 
-    pub fn channels(&self) -> usize {
+    pub fn lanes(&self) -> usize {
         match self {
-            PhaseWarp::Pipe { first, second } => first.channels().max(second.channels()),
-            _ => self.stage().map_or(0, |(_, signal)| signal.channels()),
+            PhaseWarp::Pipe { first, second } => first.lanes().max(second.lanes()),
+            _ => self.stage().map_or(0, |(_, signal)| signal.lanes()),
         }
     }
 

@@ -1,5 +1,5 @@
 //! `$curve` renders identically on the block and per-sample paths, with its
-//! `exp` read as a cable, a constant, or per-channel constants.
+//! `exp` read as a cable, a constant, or per-lane constants.
 
 mod block_common;
 
@@ -11,8 +11,8 @@ static GLOBAL: CountingAllocator = CountingAllocator;
 
 fn cases() -> [Value; 3] {
     [
-        json!({ "input": poly_cable("src", CHANNELS), "exp": cable("lfo", 1) }),
-        json!({ "input": poly_cable("src", CHANNELS), "exp": 1.5 }),
+        json!({ "input": poly_cable("src", LANES), "exp": cable("lfo", 1) }),
+        json!({ "input": poly_cable("src", LANES), "exp": 1.5 }),
         json!({ "input": cable("src", 2), "exp": [0.5, 1.0, 2.0, 3.0] }),
     ]
 }
@@ -35,11 +35,11 @@ fn allocation_free() {
 fn bounds_bend_with_the_signal() {
     let bounds = check_bounds_agree(
         "$curve",
-        json!({ "input": poly_cable("src", CHANNELS), "exp": 2.0 }),
+        json!({ "input": poly_cable("src", LANES), "exp": 2.0 }),
     );
     assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 5.0)));
     check_bounds_agree(
         "$curve",
-        json!({ "input": poly_cable("src", CHANNELS), "exp": poly_cable("lfo", CHANNELS) }),
+        json!({ "input": poly_cable("src", LANES), "exp": poly_cable("lfo", LANES) }),
     );
 }

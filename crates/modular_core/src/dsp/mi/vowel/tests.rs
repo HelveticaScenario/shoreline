@@ -22,8 +22,8 @@ fn knobs(vowel: f32, formant_shift: f32) -> Knobs {
 /// stmlib's generator.
 trait TestVoice: Voice {
     const NAME: &'static str;
-    fn channel(rates: &Rates) -> Channel<Self> {
-        Channel::new(rates)
+    fn lane(rates: &Rates) -> Lane<Self> {
+        Lane::new(rates)
     }
 }
 
@@ -37,11 +37,11 @@ impl TestVoice for SamSynth {
 
 impl TestVoice for LpcVowels {
     const NAME: &'static str = "LPC";
-    fn channel(rates: &Rates) -> Channel<Self> {
-        let mut channel = Channel::<Self>::new(rates);
-        channel.voice.random = Random::new(0x21);
-        channel.voice.seeded = true;
-        channel
+    fn lane(rates: &Rates) -> Lane<Self> {
+        let mut lane = Lane::<Self>::new(rates);
+        lane.voice.random = Random::new(0x21);
+        lane.voice.seeded = true;
+        lane
     }
 }
 
@@ -65,9 +65,9 @@ fn replay<V: TestVoice>(index: f32) {
         if records[0][0] != index {
             continue;
         }
-        let mut ch = V::channel(&rates);
+        let mut lane = V::lane(&rates);
         for record in records {
-            let (out, excitation) = ch.step(
+            let (out, excitation) = lane.step(
                 record[1],
                 knobs(record[2], record[3]),
                 Some(record[4]),
@@ -104,11 +104,11 @@ fn render<V: TestVoice>(
     triggers: &[usize],
 ) -> Vec<(f32, f32)> {
     let rates = Rates::new(sample_rate);
-    let mut ch = V::channel(&rates);
+    let mut lane = V::lane(&rates);
     (0..samples)
         .map(|n| {
             let trigger = if triggers.contains(&n) { 5.0 } else { 0.0 };
-            ch.step(
+            lane.step(
                 hz / sample_rate,
                 knobs(vowel, formant_shift),
                 Some(trigger),
@@ -169,9 +169,9 @@ fn consonants_last_the_same_at_any_rate() {
 /// A voice at `f0` cycles per 48 kHz sample, untriggered.
 fn render_at<V: TestVoice>(f0: f32) -> Vec<f32> {
     let rates = Rates::new(48000.0);
-    let mut ch = V::channel(&rates);
+    let mut lane = V::lane(&rates);
     (0..24000)
-        .map(|_| ch.step(f0, knobs(1.5, 2.0), None, &rates).0)
+        .map(|_| lane.step(f0, knobs(1.5, 2.0), None, &rates).0)
         .collect()
 }
 
@@ -216,8 +216,8 @@ fn runs_backward() {
 fn non_finite_knobs_hold() {
     fn check<V: TestVoice>() {
         let rates = Rates::new(48000.0);
-        let mut held = V::channel(&rates);
-        let mut glitched = V::channel(&rates);
+        let mut held = V::lane(&rates);
+        let mut glitched = V::lane(&rates);
         for n in 0..8000 {
             let v = match n % 2000 {
                 500 => f32::NAN,
@@ -244,7 +244,7 @@ fn stays_finite() {
     fn check<V: TestVoice>() {
         for sample_rate in [8000.0, 22050.0, 44100.0, 96000.0, 192000.0] {
             let rates = Rates::new(sample_rate);
-            let mut ch = V::channel(&rates);
+            let mut lane = V::lane(&rates);
             for n in 0..40000 {
                 let f0 = match n % 600 {
                     100 => f32::NAN,
@@ -262,7 +262,7 @@ fn stays_finite() {
                 let jump = if n % 977 < 100 { 5.0 } else { 0.0 };
                 let knobs = knobs(jump + 2.5 * (t * 1.7).sin(), 2.5 + 3.0 * (t * 0.7).sin());
                 let trigger = Some(if n % 701 == 0 { 5.0 } else { 0.0 });
-                let (out, excitation) = ch.step(f0, knobs, trigger, &rates);
+                let (out, excitation) = lane.step(f0, knobs, trigger, &rates);
                 assert!(
                     out.abs() < 1.5 && excitation.abs() < 3.0,
                     "{}, {sample_rate} Hz, sample {n}: {out}, {excitation}",
@@ -323,12 +323,12 @@ fn vowel_and_formant_shift_move_the_formants_as_described() {
 #[test]
 fn a_trigger_patched_again_rises() {
     let rates = Rates::new(48000.0);
-    let mut ch = SamSynth::channel(&rates);
+    let mut lane = SamSynth::lane(&rates);
     for _ in 0..100 {
-        ch.step(0.004, knobs(2.5, 2.5), Some(5.0), &rates);
+        lane.step(0.004, knobs(2.5, 2.5), Some(5.0), &rates);
     }
-    ch.step(0.004, knobs(2.5, 2.5), None, &rates);
-    assert!(ch.trigger.process(5.0));
+    lane.step(0.004, knobs(2.5, 2.5), None, &rates);
+    assert!(lane.trigger.process(5.0));
 }
 
 /// A trigger changes each voice's sound for the syllable's start: a pitch

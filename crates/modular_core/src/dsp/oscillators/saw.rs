@@ -10,12 +10,12 @@ use crate::{
         oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
         utils::{SchmittTrigger, sanitize, wrap_phase_f64},
     },
-    poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
+    poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
@@ -68,9 +68,9 @@ struct SawOscillatorOutputs {
     sample: PolyOutput,
 }
 
-/// Per-channel oscillator state
+/// Per-lane oscillator state
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     /// Phase accumulator in `[0, 1)`. Kept in f64 so the DPW differencing
     /// (which divides a difference of near-equal integral values by the phase
     /// increment) stays well-conditioned at low, LFO-rate frequencies.
@@ -123,11 +123,11 @@ const SAW_DOCS: ModuleDocs = ModuleDocs {
 #[module(name = "$saw", docs = SAW_DOCS, args(freq), block)]
 pub struct SawOscillator {
     outputs: SawOscillatorOutputs,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
     params: SawOscillatorParams,
 }
 
-impl ChannelState {
+impl LaneState {
     /// Advance the phase by `phase_increment` (cycles per sample) and return
     /// the next output sample. `shape` is this sample's glided shape and
     /// `sync` its sync input, if connected.
@@ -251,23 +251,23 @@ impl SawOscillator {
     /// Outside a glide, reads the shape raw, exactly as `process_block` does.
     fn update(&mut self, sample_rate: f32) {
         let p = &self.params;
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
             let shape = state.shape.follow(
                 p.shape
-                    .value_or(ch, SawOscillatorParams::SHAPE_DEFAULT)
+                    .value_or(lane, SawOscillatorParams::SHAPE_DEFAULT)
                     .clamp(0.0, 5.0),
-                p.shape.glide_mark(ch),
+                p.shape.glide_mark(lane),
                 sample_rate,
             );
-            let pitch = p.freq.get_value(ch);
-            let fm = p.fm.value_or(ch, 0.0);
+            let pitch = p.freq.get_value(lane);
+            let fm = p.fm.value_or(lane, 0.0);
             let increment = phase_increment(pitch, fm, p.fm_mode, sample_rate);
             let offset = p
                 .phase_offset
-                .value_or(ch, SawOscillatorParams::PHASE_OFFSET_DEFAULT);
-            let sync = p.sync.as_ref().map(|sync| sync.get_value(ch));
+                .value_or(lane, SawOscillatorParams::PHASE_OFFSET_DEFAULT);
+            let sync = p.sync.as_ref().map(|sync| sync.get_value(lane));
             let sample = state.step(increment, shape, offset, sync, p.wait_for_zero_cross);
-            self.outputs.sample.set(ch, sample);
+            self.outputs.sample.set(lane, sample);
         }
     }
 
@@ -277,12 +277,12 @@ impl SawOscillator {
         range: Range<usize>,
         sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
-        let gliding = self.channel_state[..channels]
+        let gliding = self.lane_state[..lanes]
             .iter()
             .enumerate()
-            .any(|(ch, state)| state.shape.will_glide(p.shape.glide_mark(ch)));
+            .any(|(lane, state)| state.shape.will_glide(p.shape.glide_mark(lane)));
         if gliding {
             return None;
         }
@@ -293,9 +293,9 @@ impl SawOscillator {
             fm,
             sync,
             phase_offset: offset,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         // A pitch held for the whole range needs its exponential only once.
-        let mut held_increments = [0.0f64; PORT_MAX_CHANNELS];
+        let mut held_increments = [0.0f64; PORT_MAX_LANES];
         let held = freq.is_constant() && fm.is_constant();
         if held {
             let (freq, fm) = (freq.row(range.start), fm.row(range.start));
@@ -311,27 +311,27 @@ impl SawOscillator {
                 .sample
                 .slot_mut(i)
                 .iter_mut()
-                .zip(self.channel_state.iter_mut());
-            for (ch, (out, state)) in slots.enumerate() {
+                .zip(self.lane_state.iter_mut());
+            for (lane, (out, state)) in slots.enumerate() {
                 let increment = if held {
-                    held_increments[ch]
+                    held_increments[lane]
                 } else {
-                    phase_increment(pitch[ch], fm[ch], p.fm_mode, sample_rate)
+                    phase_increment(pitch[lane], fm[lane], p.fm_mode, sample_rate)
                 };
                 *out = sanitize(state.step(
                     increment,
-                    shape[ch].clamp(0.0, 5.0),
-                    offset[ch],
-                    sync.map(|sync| sync[ch]),
+                    shape[lane].clamp(0.0, 5.0),
+                    offset[lane],
+                    sync.map(|sync| sync[lane]),
                     p.wait_for_zero_cross,
                 ));
             }
         }
         let shape_last = shape.row(last);
-        for (ch, state) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane, state) in self.lane_state[..lanes].iter_mut().enumerate() {
             state
                 .shape
-                .settle(shape_last[ch].clamp(0.0, 5.0), p.shape.glide_mark(ch));
+                .settle(shape_last[lane].clamp(0.0, 5.0), p.shape.glide_mark(lane));
         }
         Some(())
     }
@@ -383,19 +383,19 @@ mod tests {
             phase_offset: Some(PolySignal::mono(Signal::Volts(phase_offset))),
             wait_for_zero_cross,
         };
-        let channels = params.freq.channels().max(1);
+        let lanes = params.freq.lanes().max(1);
         let mut outputs = SawOscillatorOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         SawOscillator {
             params,
             outputs,
-            _channel_count: channels,
+            _lane_count: lanes,
             _block_index: Default::default(),
-            channel_state: vec![ChannelState::default(); channels].into_boxed_slice(),
+            lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
         }
     }
 
-    /// Collect `n` output samples from channel 0.
+    /// Collect `n` output samples from lane 0.
     fn run(osc: &mut SawOscillator, n: usize) -> Vec<f32> {
         (0..n)
             .map(|_| {

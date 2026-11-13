@@ -10,10 +10,10 @@ fn mono_volts(n: usize) -> Vec<PolySignal> {
         .collect()
 }
 
-fn poly_volts(n: usize, channels: usize) -> Vec<PolySignal> {
+fn poly_volts(n: usize, lanes: usize) -> Vec<PolySignal> {
     (0..n)
         .map(|i| {
-            let sigs: Vec<Signal> = (0..channels)
+            let sigs: Vec<Signal> = (0..lanes)
                 .map(|c| Signal::Volts((i as f32) * 0.1 + (c as f32) * 0.01))
                 .collect();
             PolySignal::poly(&sigs)

@@ -6,21 +6,21 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PolyOutput};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SpreadParams {
-    #[input("value of the first channel", type = control, control_range = (-5.0, 5.0))]
+    #[input("value of the first lane", type = control, control_range = (-5.0, 5.0))]
     min: LaneSum,
-    #[input("value of the last channel", type = control, control_range = (-5.0, 5.0))]
+    #[input("value of the last lane", type = control, control_range = (-5.0, 5.0))]
     max: LaneSum,
     #[input(
-        "number of output channels; with 1, a single value between min and max placed by bias",
+        "number of output lanes; with 1, a single value between min and max placed by bias",
         range = (1, 64),
     )]
     count: usize,
     #[input(
-        "bunches the channels toward max (positive) or min (negative); 0 spaces them evenly",
+        "bunches the lanes toward max (positive) or min (negative); 0 spaces them evenly",
         type = control,
         default = 0.0,
         control_range = (-5.0, 5.0),
@@ -32,13 +32,13 @@ struct SpreadParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SpreadOutputs {
-    #[output("output", "one value per channel, from min to max", type = cv, default)]
+    #[output("output", "one value per lane, from min to max", type = cv, default)]
     sample: PolyOutput,
 }
 
 const SPREAD_DOCS: ModuleDocs = ModuleDocs {
-    summary: "Evenly spaced channel values",
-    description: "Fills a set of channels with values spaced from `min` to `max`, for \
+    summary: "Evenly spaced lane values",
+    description: "Fills a set of lanes with values spaced from `min` to `max`, for \
                   fanning pitches, pans or detunes across a polyphonic patch.",
     categories: &[ModuleCategory::Math],
     sections: &[],
@@ -57,7 +57,7 @@ const SPREAD_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "$spread",
     docs = SPREAD_DOCS,
-    channels_param = "count",
+    lanes_param = "count",
     args(min, max, count)
 )]
 pub struct Spread {
@@ -67,7 +67,7 @@ pub struct Spread {
 
 impl Spread {
     fn update(&mut self, _sample_rate: f32) {
-        let count = self.channel_count().max(1);
+        let count = self.lane_count().max(1);
         let min_val = self.params.min.get_value();
         let max_val = self.params.max.get_value();
         let bias = self.params.bias.value_or(0.0);

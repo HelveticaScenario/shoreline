@@ -1,13 +1,13 @@
 /**
- * The panel's channel-list controls: switch the edited list, add a copy of
+ * The panel's lane-list controls: switch the edited list, add a copy of
  * it (the shared form splits into two), or remove one (a single remaining
  * list becomes the shared form). Like section adds and removes, they change
  * the engine only once the code holds the change.
  */
-import { computeEqChannelEdit, type EqChannelOp } from './eqChannelEdit';
+import { computeEqLaneEdit, type EqLaneOp } from './eqLaneEdit';
 import { applyEdit, flushCode, sendEngineNow } from './eqCodeWriter';
-import { MAX_EQ_CHANNEL_LISTS } from './eqMath';
-import { isPerChannel, sectionLists } from './eqPanelModel';
+import { MAX_EQ_LANE_LISTS } from './eqMath';
+import { isPerLane, sectionLists } from './eqPanelModel';
 import { editable, markStructure } from './eqPanelOps';
 import {
     type CodeGhost,
@@ -17,59 +17,59 @@ import {
     sectionKey,
 } from './eqPanelRuntime';
 
-export function selectChannel(
+export function selectLane(
     ctx: EqPanelContext,
     panel: PanelRuntime,
     list: number,
 ): void {
-    if (list === panel.channel || list >= sectionLists(panel.params).length) {
+    if (list === panel.lane || list >= sectionLists(panel.params).length) {
         return;
     }
     flushCode(ctx, panel, true);
-    panel.channel = list;
+    panel.lane = list;
     panel.selected = null;
     panel.spectrum.reset();
     ctx.render(panel);
 }
 
-function applyChannelOp(
+function applyLaneOp(
     ctx: EqPanelContext,
     panel: PanelRuntime,
     listCount: number,
-    op: EqChannelOp,
+    op: EqLaneOp,
 ): boolean {
     return applyEdit(ctx, panel, (source, anchor, layout) =>
-        computeEqChannelEdit(source, anchor, listCount, op, layout),
+        computeEqLaneEdit(source, anchor, listCount, op, layout),
     );
 }
 
 /**
- * Add a channel list copying the edited one; the shared form splits into
+ * Add a lane list copying the edited one; the shared form splits into
  * two copies. Code-only values travel with the copy, since the code copy
  * carries them.
  */
-export function addChannel(ctx: EqPanelContext, panel: PanelRuntime): void {
+export function addLane(ctx: EqPanelContext, panel: PanelRuntime): void {
     const lists = sectionLists(panel.params);
-    const perChannel = isPerChannel(panel.params);
-    if (lists.length >= MAX_EQ_CHANNEL_LISTS) {
+    const perLane = isPerLane(panel.params);
+    if (lists.length >= MAX_EQ_LANE_LISTS) {
         return;
     }
     flushCode(ctx, panel, false);
-    const from = perChannel ? panel.channel : 0;
+    const from = perLane ? panel.lane : 0;
     if (
         editable(ctx, panel) &&
-        !applyChannelOp(
+        !applyLaneOp(
             ctx,
             panel,
-            perChannel ? lists.length : 0,
-            perChannel ? { from, kind: 'addChannel' } : { kind: 'split' },
+            perLane ? lists.length : 0,
+            perLane ? { from, kind: 'addLane' } : { kind: 'split' },
         )
     ) {
         ctx.render(panel);
         return;
     }
     const copy = structuredClone(lists[from]);
-    panel.params.sections = perChannel ? [...lists, copy] : [lists[0], copy];
+    panel.params.sections = perLane ? [...lists, copy] : [lists[0], copy];
     const added = sectionLists(panel.params).length - 1;
     for (const [key, g] of [...panel.ghosts]) {
         const at = parseSectionKey(key);
@@ -79,27 +79,27 @@ export function addChannel(ctx: EqPanelContext, panel: PanelRuntime): void {
     }
     panel.live = null;
     markStructure(ctx, panel);
-    selectChannel(ctx, panel, added);
+    selectLane(ctx, panel, added);
     sendEngineNow(ctx, panel);
     ctx.render(panel);
 }
 
-/** Remove channel list `list`; a single remaining list becomes shared. */
-export function removeChannel(
+/** Remove lane list `list`; a single remaining list becomes shared. */
+export function removeLane(
     ctx: EqPanelContext,
     panel: PanelRuntime,
     list: number,
 ): void {
     const lists = sectionLists(panel.params);
-    if (!isPerChannel(panel.params) || list < 0 || list >= lists.length) {
+    if (!isPerLane(panel.params) || list < 0 || list >= lists.length) {
         return;
     }
     flushCode(ctx, panel, false);
     if (
         editable(ctx, panel) &&
-        !applyChannelOp(ctx, panel, lists.length, {
+        !applyLaneOp(ctx, panel, lists.length, {
             index: list,
-            kind: 'removeChannel',
+            kind: 'removeLane',
         })
     ) {
         ctx.render(panel);
@@ -119,8 +119,8 @@ export function removeChannel(
     }
     panel.ghosts = ghosts;
     panel.live = null;
-    panel.channel = Math.min(
-        panel.channel > list ? panel.channel - 1 : panel.channel,
+    panel.lane = Math.min(
+        panel.lane > list ? panel.lane - 1 : panel.lane,
         rest.length - 1,
     );
     panel.selected = null;

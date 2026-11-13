@@ -7,7 +7,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SampleAndHoldParams {
@@ -25,7 +25,7 @@ struct SampleAndHoldOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct SampleAndHoldChannelState {
+struct SampleAndHoldLaneState {
     trigger: SchmittTrigger,
     held_value: f32,
     /// The input's bounds when `held_value` was captured.
@@ -75,33 +75,33 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
 pub struct SampleAndHold {
     outputs: SampleAndHoldOutputs,
     params: SampleAndHoldParams,
-    channel_state: Box<[SampleAndHoldChannelState]>,
+    lane_state: Box<[SampleAndHoldLaneState]>,
 }
 
 impl SampleAndHold {
     pub fn update(&mut self, _sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
-            let input = self.params.input.get_value(ch);
-            let trigger = self.params.trigger.get_value(ch);
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
+            let input = self.params.input.get_value(lane);
+            let trigger = self.params.trigger.get_value(lane);
 
             let uninitialized = state.trigger.state == SchmittState::Uninitialized;
             if state.trigger.process(trigger) || uninitialized {
                 state.held_value = input;
-                state.held_bounds = self.params.input.get_bounds(ch);
+                state.held_bounds = self.params.input.get_bounds(lane);
             }
 
-            self.outputs.sample.set(ch, state.held_value);
+            self.outputs.sample.set(lane, state.held_value);
             // A hold taken before this output stored bounds has none; it
             // reads its input's until it next takes one.
             let bounds = if state.held_bounds.is_bounded() {
                 state.held_bounds
             } else {
-                self.params.input.get_bounds(ch)
+                self.params.input.get_bounds(lane)
             };
-            self.outputs.sample.set_bounds(ch, bounds);
+            self.outputs.sample.set_bounds(lane, bounds);
         }
     }
 }
@@ -109,7 +109,7 @@ impl SampleAndHold {
 message_handlers!(impl SampleAndHold {});
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct TrackAndHoldParams {
@@ -130,7 +130,7 @@ struct TrackAndHoldOutputs {
 }
 
 #[derive(Clone, Copy)]
-struct TrackAndHoldChannelState {
+struct TrackAndHoldLaneState {
     gate: SchmittTrigger,
     /// The output voltage, kept here rather than read back from the output port
     /// so it survives the patch update that reconstructs the module's outputs.
@@ -140,7 +140,7 @@ struct TrackAndHoldChannelState {
 }
 
 /// A gate high from the start holds 0 V until it first falls.
-impl Default for TrackAndHoldChannelState {
+impl Default for TrackAndHoldLaneState {
     fn default() -> Self {
         Self {
             gate: SchmittTrigger::default(),
@@ -171,33 +171,33 @@ const TAH_DOCS: ModuleDocs = ModuleDocs {
 pub struct TrackAndHold {
     outputs: TrackAndHoldOutputs,
     params: TrackAndHoldParams,
-    channel_state: Box<[TrackAndHoldChannelState]>,
+    lane_state: Box<[TrackAndHoldLaneState]>,
 }
 
 impl TrackAndHold {
     pub fn update(&mut self, _sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
-            let input = self.params.input.get_value(ch);
-            let gate = self.params.gate.get_value(ch);
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
+            let input = self.params.input.get_value(lane);
+            let gate = self.params.gate.get_value(lane);
 
             state.gate.process(gate);
             if state.gate.state() != SchmittState::High {
                 state.held_value = input;
-                state.held_bounds = self.params.input.get_bounds(ch);
+                state.held_bounds = self.params.input.get_bounds(lane);
             }
 
-            self.outputs.sample.set(ch, state.held_value);
+            self.outputs.sample.set(lane, state.held_value);
             // A hold taken before this output stored bounds has none; it
             // reads its input's until it next takes one.
             let bounds = if state.held_bounds.is_bounded() {
                 state.held_bounds
             } else {
-                self.params.input.get_bounds(ch)
+                self.params.input.get_bounds(lane)
             };
-            self.outputs.sample.set_bounds(ch, bounds);
+            self.outputs.sample.set_bounds(lane, bounds);
         }
     }
 }

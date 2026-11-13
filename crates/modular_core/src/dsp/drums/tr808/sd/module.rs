@@ -8,7 +8,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Sd808Params {
@@ -67,10 +67,10 @@ struct Sd808Outputs {
 }
 
 #[derive(Clone, Copy, Default)]
-struct Channel {
+struct Lane {
     voices: Voices<Snare>,
     noise: WhiteNoise,
-    /// The resonators tuned for the channel's `freq`.
+    /// The resonators tuned for the lane's `freq`.
     tuning: Cached<f32, Tuning>,
 }
 
@@ -101,10 +101,10 @@ pub struct Sd808 {
     outputs: Sd808Outputs,
     params: Sd808Params,
     state: SdState,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
 }
 
-/// The snare's per-sample-rate constants and its channel groups.
+/// The snare's per-sample-rate constants and its lane groups.
 #[derive(Default)]
 struct SdState {
     hold: Hold<1, 3>,
@@ -137,7 +137,7 @@ impl Sd808 {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -148,11 +148,11 @@ impl Sd808 {
         ];
         let out = &mut self.outputs.sample;
         self.state.tick(
-            &mut self.channel_state[..channels],
+            &mut self.lane_state[..lanes],
             p.restart,
             p.hold,
             inputs,
-            |ch, v| out.set(ch, v),
+            |lane, v| out.set(lane, v),
         );
     }
 
@@ -162,7 +162,7 @@ impl Sd808 {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let Sd808ParamsBlockInputs {
@@ -171,16 +171,16 @@ impl Sd808 {
             freq,
             tone,
             snappy,
-        } = p.block_inputs(range.clone(), channels, &mut scratch)?;
-        let channel_state = &mut self.channel_state[..channels];
+        } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let lane_state = &mut self.lane_state[..lanes];
         each_slot(
             &mut outputs.sample,
             range,
             [trigger, accent, freq, tone, snappy],
             |inputs, mut slot| {
                 self.state
-                    .tick(channel_state, p.restart, p.hold, inputs, |ch, v| {
-                        slot.set(ch, v)
+                    .tick(lane_state, p.restart, p.hold, inputs, |lane, v| {
+                        slot.set(lane, v)
                     })
             },
         );
@@ -189,12 +189,12 @@ impl Sd808 {
 }
 
 impl SdState {
-    /// Runs one sample of every channel on its `[trigger, accent, freq, tone,
+    /// Runs one sample of every lane on its `[trigger, accent, freq, tone,
     /// snappy]`, handing `out` each one's output.
     #[inline(always)]
     fn tick<I: Input>(
         &mut self,
-        channels: &mut [Channel],
+        lanes: &mut [Lane],
         restart: bool,
         hold: bool,
         [trigger, accent, freq, tone, snappy]: [I; 5],
@@ -202,7 +202,7 @@ impl SdState {
     ) {
         let [freq, tone, snappy] =
             self.hold
-                .apply(hold, channels.len(), [trigger], [freq, tone, snappy]);
+                .apply(hold, lanes.len(), [trigger], [freq, tone, snappy]);
         let trigger = Held::Live(trigger);
         let run = Run {
             accent,
@@ -217,13 +217,13 @@ impl SdState {
             tone,
             snappy,
         };
-        self.groups.run(&inputs, channels, &run, |ch, v| {
-            out(ch, rails(v * OUTPUT_GAIN))
+        self.groups.run(&inputs, lanes, &run, |lane, v| {
+            out(lane, rails(v * OUTPUT_GAIN))
         });
     }
 }
 
-/// The inputs every channel of the snare reads.
+/// The inputs every lane of the snare reads.
 struct SdInputs<'a, I> {
     sh: &'a SnareShared,
     trigger: I,
@@ -232,40 +232,40 @@ struct SdInputs<'a, I> {
     snappy: I,
 }
 
-impl<I: Input> ChannelInputs<SnareDrum> for SdInputs<'_, I> {
-    type Channel = Channel;
+impl<I: Input> LaneInputs<SnareDrum> for SdInputs<'_, I> {
+    type Lane = Lane;
 
-    fn voices(channel: &mut Channel) -> &mut Voices<Snare> {
-        &mut channel.voices
+    fn voices(lane: &mut Lane) -> &mut Voices<Snare> {
+        &mut lane.voices
     }
 
     #[inline(always)]
-    fn inputs(&self, ch: usize, cs: &mut Channel) -> (f32, SnareControls) {
+    fn inputs(&self, lane: usize, cs: &mut Lane) -> (f32, SnareControls) {
         let tuning = cs
             .tuning
-            .get(self.freq.at(ch), |freq| Tuning::new(self.sh, freq));
+            .get(self.freq.at(lane), |freq| Tuning::new(self.sh, freq));
         let controls = SnareControls {
             low: tuning.low,
             high: tuning.high,
-            tone: knob(self.tone.at(ch)),
-            snappy: knob(self.snappy.at(ch)),
+            tone: knob(self.tone.at(lane)),
+            snappy: knob(self.snappy.at(lane)),
             white: cs.noise.next(self.sh.noise_scale),
             level: tuning.level,
         };
-        (self.trigger.at(ch), controls)
+        (self.trigger.at(lane), controls)
     }
 }
 
 impl crate::types::PatchUpdateHandler for Sd808 {
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, cs) in self.channel_state.iter_mut().enumerate() {
-            cs.noise.seed(base, ch);
+        for (lane, cs) in self.lane_state.iter_mut().enumerate() {
+            cs.noise.seed(base, lane);
         }
-        let count = self.channel_count();
+        let count = self.lane_count();
         self.state
             .groups
-            .layout::<SdInputs<&[f32]>>(&mut self.channel_state, count);
+            .layout::<SdInputs<&[f32]>>(&mut self.lane_state, count);
     }
 }
 

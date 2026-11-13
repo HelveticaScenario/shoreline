@@ -29,7 +29,7 @@ fn default_true() -> bool {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PhaseDistortionParams {
@@ -111,7 +111,7 @@ const PHASE_DISTORTION_DOCS: ModuleDocs = ModuleDocs {
 pub struct PhaseDistortion {
     outputs: PhaseDistortionOutputs,
     state: PhaseDistortionState,
-    channel_state: Box<[Voice]>,
+    lane_state: Box<[Voice]>,
     params: PhaseDistortionParams,
 }
 
@@ -248,32 +248,33 @@ impl PhaseDistortion {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
-        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, PhaseDistortionParams::FM_DEFAULT),
+                p.freq.get_value(lane),
+                p.fm.value_or(lane, PhaseDistortionParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
             let knobs = Knobs {
                 ratio: (
-                    p.ratio.value_or(ch, PhaseDistortionParams::RATIO_DEFAULT),
-                    p.ratio.glide_mark(ch),
+                    p.ratio.value_or(lane, PhaseDistortionParams::RATIO_DEFAULT),
+                    p.ratio.glide_mark(lane),
                 ),
                 amount: (
-                    p.amount.value_or(ch, PhaseDistortionParams::AMOUNT_DEFAULT),
-                    p.amount.glide_mark(ch),
+                    p.amount
+                        .value_or(lane, PhaseDistortionParams::AMOUNT_DEFAULT),
+                    p.amount.glide_mark(lane),
                 ),
                 asymmetry: (
                     p.asymmetry
-                        .value_or(ch, PhaseDistortionParams::ASYMMETRY_DEFAULT),
-                    p.asymmetry.glide_mark(ch),
+                        .value_or(lane, PhaseDistortionParams::ASYMMETRY_DEFAULT),
+                    p.asymmetry.glide_mark(lane),
                 ),
             };
             let controls = voice.control(f0, knobs, &self.state);
             let out = voice.step(controls, p.sync, &self.state);
-            self.outputs.sample.set(ch, OUTPUT_GAIN * out);
+            self.outputs.sample.set(lane, OUTPUT_GAIN * out);
         }
     }
 }

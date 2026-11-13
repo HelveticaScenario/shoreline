@@ -8,7 +8,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct LagProcessorParams {
@@ -41,7 +41,7 @@ struct LagProcessorOutputs {
 }
 
 #[derive(Default, Clone, Copy)]
-struct SlewChannelState {
+struct SlewLaneState {
     current_value: f32,
     initialized: bool,
 }
@@ -84,21 +84,21 @@ const SLEW_DOCS: ModuleDocs = ModuleDocs {
 pub struct LagProcessor {
     outputs: LagProcessorOutputs,
     params: LagProcessorParams,
-    channel_state: Box<[SlewChannelState]>,
+    lane_state: Box<[SlewLaneState]>,
 }
 
 impl LagProcessor {
     pub fn update(&mut self, sample_rate: f32) {
-        let num_channels = self.channel_count();
+        let num_lanes = self.lane_count();
 
-        for ch in 0..num_channels {
-            let state = &mut self.channel_state[ch];
-            let input = self.params.input.get_value(ch);
+        for lane in 0..num_lanes {
+            let state = &mut self.lane_state[lane];
+            let input = self.params.input.get_value(lane);
             // A slewed signal never leaves the span its input swings over.
             if self.outputs.sample.stores_bounds() {
                 self.outputs
                     .sample
-                    .set_bounds(ch, self.params.input.get_bounds(ch));
+                    .set_bounds(lane, self.params.input.get_bounds(lane));
             }
             if !state.initialized {
                 state.current_value = sanitize(input);
@@ -109,12 +109,12 @@ impl LagProcessor {
             if input.to_bits() == state.current_value.to_bits()
                 && input.to_bits() != (-0.0f32).to_bits()
             {
-                self.outputs.sample.set(ch, state.current_value);
+                self.outputs.sample.set(lane, state.current_value);
                 continue;
             }
 
-            let fall_time = self.params.fall.value_or(ch, 0.01).max(0.001);
-            let rise_time = self.params.rise.value_or(ch, fall_time).max(0.001);
+            let fall_time = self.params.fall.value_or(lane, 0.01).max(0.001);
+            let rise_time = self.params.rise.value_or(lane, fall_time).max(0.001);
 
             // Calculate max change per sample
             // time is seconds for 1.0v change (full scale)
@@ -133,7 +133,7 @@ impl LagProcessor {
 
             state.current_value += change;
             state.current_value = sanitize(state.current_value);
-            self.outputs.sample.set(ch, state.current_value);
+            self.outputs.sample.set(lane, state.current_value);
         }
     }
 }
@@ -149,7 +149,7 @@ mod tests {
 
     fn make() -> LagProcessor {
         let mut outputs = LagProcessorOutputs::default();
-        outputs.set_all_channels(1);
+        outputs.set_all_lanes(1);
         LagProcessor {
             params: LagProcessorParams {
                 input: PolySignal::mono(Signal::Volts(0.0)),
@@ -157,9 +157,9 @@ mod tests {
                 fall: None,
             },
             outputs,
-            _channel_count: 1,
+            _lane_count: 1,
             _block_index: Default::default(),
-            channel_state: vec![SlewChannelState::default()].into_boxed_slice(),
+            lane_state: vec![SlewLaneState::default()].into_boxed_slice(),
         }
     }
 

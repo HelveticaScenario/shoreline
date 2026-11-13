@@ -1,5 +1,5 @@
 //! `$addHz` renders identically on the block and per-sample paths, with its
-//! `offset` read as a cable, a constant, or per-channel constants.
+//! `offset` read as a cable, a constant, or per-lane constants.
 
 mod block_common;
 
@@ -11,8 +11,8 @@ static GLOBAL: CountingAllocator = CountingAllocator;
 
 fn cases() -> [Value; 3] {
     [
-        json!({ "input": poly_cable("src", CHANNELS), "offset": cable("lfo", 1) }),
-        json!({ "input": poly_cable("src", CHANNELS), "offset": 1.5 }),
+        json!({ "input": poly_cable("src", LANES), "offset": cable("lfo", 1) }),
+        json!({ "input": poly_cable("src", LANES), "offset": 1.5 }),
         json!({ "input": cable("src", 2), "offset": [0.5, 1.0, 2.0, 3.0] }),
     ]
 }

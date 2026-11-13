@@ -28,7 +28,7 @@ export interface ApiParam {
 
 export type ApiSignature = readonly ApiParam[];
 
-const SIGNAL_ALIASES = new Set(['Signal', 'Poly', 'Mono']);
+const SIGNAL_ALIASES = new Set(['Signal', 'Poly', 'LaneSum']);
 const OUTPUT_TYPES = new Set(['Collection', 'CollectionWithRange']);
 const MAX_DEPTH = 16;
 const NUM = String.raw`[-−]?\d+(?:\.\d+)?`;

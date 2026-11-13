@@ -90,25 +90,25 @@ impl WellKnownModule {
         }
     }
 
-    /// Create a Cable signal pointing to this module's default port at the given channel
-    pub fn to_cable(&self, channel: usize, port: &str) -> Signal {
+    /// Create a Cable signal pointing to this module's default port at the given lane
+    pub fn to_cable(&self, lane: usize, port: &str) -> Signal {
         Signal::Cable {
             module: self.id().into(),
             resolved: None,
             port: port.into(),
-            channel,
+            lane,
             index_ptr: std::ptr::null(),
             view: None,
             bounds: crate::bounds::PortBounds::Unbounded,
         }
     }
 
-    /// Create a PolySignal with cables to this module's default port for the given channels
-    pub fn to_poly_signal(&self, channels: &[usize], port: &str) -> crate::poly::PolySignal {
+    /// Create a PolySignal with cables to this module's default port for the given lanes
+    pub fn to_poly_signal(&self, lanes: &[usize], port: &str) -> crate::poly::PolySignal {
         crate::poly::PolySignal::poly(
-            &channels
+            &lanes
                 .iter()
-                .map(|&ch| self.to_cable(ch, port))
+                .map(|&lane| self.to_cable(lane, port))
                 .collect::<Vec<_>>(),
         )
     }
@@ -234,13 +234,8 @@ pub trait Sampleable: MessageHandler + Send {
     /// `first_slot` on. Only `HiddenAudioIn` overrides this; everyone else is
     /// a no-op. The audio callback pulls one CPAL frame per slot just before
     /// rendering those slots, so the inner module can serve per-slot reads
-    /// via `get_value_at(_, ch, slot)`.
-    fn inject_audio_in(
-        &self,
-        _first_slot: usize,
-        _frames: &[[f32; crate::poly::PORT_MAX_CHANNELS]],
-    ) {
-    }
+    /// via `get_value_at(_, lane, slot)`.
+    fn inject_audio_in(&self, _first_slot: usize, _frames: &[[f32; crate::poly::PORT_MAX_LANES]]) {}
 
     /// Reset the per-block sample cursor to 0 at the start of an internal
     /// `block_size` block. Cache slots in `block_outputs` keep their
@@ -281,17 +276,17 @@ pub trait Sampleable: MessageHandler + Send {
     /// producer-before-consumer order, so disconnected modules still run.)
     fn ensure_processed(&self);
 
-    /// Read the value of port `port`, channel `ch`, at sample slot `index`
+    /// Read the value of port `port`, lane `lane`, at sample slot `index`
     /// within the current block. Block-mode wrappers compute on demand
     /// (full block in one go); sample-mode wrappers compute up through the
     /// requested index. Returns the slot one step behind the requested one
     /// (wrapping at the block boundary) when called re-entrantly during the
     /// wrapper's own update loop — preserving the 1-sample feedback delay.
-    fn get_value_at(&self, port: &str, ch: usize, index: usize) -> f32;
+    fn get_value_at(&self, port: &str, lane: usize, index: usize) -> f32;
     /// Like [`get_value_at`](Self::get_value_at), at full precision from an
     /// f64 port.
-    fn get_value_at_f64(&self, port: &str, ch: usize, index: usize) -> f64 {
-        self.get_value_at(port, ch, index) as f64
+    fn get_value_at_f64(&self, port: &str, lane: usize, index: usize) -> f64 {
+        self.get_value_at(port, lane, index) as f64
     }
     /// Direct read access to port `port`'s block buffer, for cables to keep
     /// as a [`CableView`]. `None` for an unknown port, a zero-width port, or a
@@ -301,7 +296,7 @@ pub trait Sampleable: MessageHandler + Send {
     fn port_view(&self, _port: &str) -> Option<PortView> {
         None
     }
-    /// The bounds of port `port`, channel `ch`, at slot `index`, read like
+    /// The bounds of port `port`, lane `lane`, at slot `index`, read like
     /// [`get_value_at`](Self::get_value_at) so they always belong to the
     /// value read there, the feedback delay included.
     fn get_bounds_at(&self, _port: &str, _ch: usize, _index: usize) -> crate::bounds::Bounds {
@@ -340,25 +335,25 @@ pub trait Sampleable: MessageHandler + Send {
     /// Give the outputs in `mask` their bounds storage. Main thread only:
     /// allocates, before the module is connected.
     fn make_bounded(&self, _mask: u64) {}
-    /// Read like [`get_value_at`](Self::get_value_at), but treat channels at or
+    /// Read like [`get_value_at`](Self::get_value_at), but treat lanes at or
     /// above the port's width as silence rather than cycling back over the
-    /// lower ones. For consumers whose channels are physical rather than
-    /// polyphonic — the audio device tap, where channel 2 of a stereo patch is
-    /// a speaker that must stay silent, not a wrap onto the left channel.
-    fn get_value_at_no_cycle(&self, port: &str, ch: usize, index: usize) -> f32 {
-        if ch >= self.port_channels(port) {
+    /// lower ones. For consumers whose lanes are physical rather than
+    /// polyphonic — the audio device tap, where lane 2 of a stereo patch is
+    /// a speaker that must stay silent, not a wrap onto the left lane.
+    fn get_value_at_no_cycle(&self, port: &str, lane: usize, index: usize) -> f32 {
+        if lane >= self.port_lanes(port) {
             return 0.0;
         }
-        self.get_value_at(port, ch, index)
+        self.get_value_at(port, lane, index)
     }
-    /// Number of channels port `port` actually carries; 0 for an unknown port.
-    /// The width [`get_value_at`](Self::get_value_at) cycles channel reads
+    /// Number of lanes port `port` actually carries; 0 for an unknown port.
+    /// The width [`get_value_at`](Self::get_value_at) cycles lane reads
     /// modulo, which is what gives cables their mono-broadcast/poly-wrap
-    /// semantics. The default reports `PORT_MAX_CHANNELS`, i.e. "reads never
+    /// semantics. The default reports `PORT_MAX_LANES`, i.e. "reads never
     /// cycle", which holds for implementors that zero-fill beyond their live
-    /// channels.
-    fn port_channels(&self, _port: &str) -> usize {
-        crate::PORT_MAX_CHANNELS
+    /// lanes.
+    fn port_lanes(&self, _port: &str) -> usize {
+        crate::PORT_MAX_LANES
     }
     /// Write the module's live editor state into `out` (its type-erased
     /// [`ModuleLiveState`](crate::module_state::ModuleLiveState); only modules
@@ -447,18 +442,18 @@ const SWAP_GLIDE_TAU_SECONDS: f32 = 0.002;
 const SWAP_GLIDE_EPSILON: f32 = 1e-6;
 
 /// Where a glided param stands relative to the patch swap that installed it:
-/// the swap's generation, and which of the param's channels read a different
-/// source than in the replaced module. Obtained per channel from the param
-/// signal; whether this channel changed is only worked out on a new
+/// the swap's generation, and which of the param's lanes read a different
+/// source than in the replaced module. Obtained per lane from the param
+/// signal; whether this lane changed is only worked out on a new
 /// generation, so the per-sample cost is one comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlideMark {
     pub(crate) generation: u64,
-    /// Bit `i` set when the param's channel `i` changed.
+    /// Bit `i` set when the param's lane `i` changed.
     pub(crate) changed: u64,
-    /// The channel read, before cycling over `channels`.
-    pub(crate) channel: usize,
-    pub(crate) channels: usize,
+    /// The lane read, before cycling over `lanes`.
+    pub(crate) lane: usize,
+    pub(crate) lanes: usize,
 }
 
 impl GlideMark {
@@ -469,13 +464,13 @@ impl GlideMark {
     pub const ABSENT: GlideMark = GlideMark {
         generation: u64::MAX,
         changed: u64::MAX,
-        channel: 0,
-        channels: 1,
+        lane: 0,
+        lanes: 1,
     };
 
     #[inline]
     pub(crate) fn changed(&self) -> bool {
-        self.changed & (1 << (self.channel % self.channels)) != 0
+        self.changed & (1 << (self.lane % self.lanes)) != 0
     }
 }
 
@@ -615,10 +610,10 @@ pub trait Connect {
     /// — same contract as `collect_cables`.
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>);
 
-    /// Stamp every signal with `generation` and record which of its channels
+    /// Stamp every signal with `generation` and record which of its lanes
     /// differ from the matching signal in `old`, the params of the module this
-    /// one replaces (`None` when nothing matches, so every channel counts as
-    /// changed). A [`SwapGlide`] glides only across a changed channel. Runs on
+    /// one replaces (`None` when nothing matches, so every lane counts as
+    /// changed). A [`SwapGlide`] glides only across a changed lane. Runs on
     /// the audio thread during the swap, so it must not allocate. Containers
     /// pair items by position; leaf types are no-op.
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds);
@@ -969,7 +964,7 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect, T5: Connect> Connect
 /// This is auto-derived by the Connect macro for params structs.
 /// For params structs that manually implement Connect, this trait should also be manually implemented.
 pub trait PolySignalFields {
-    /// Collect references to all top-level PolySignal fields for channel count calculation.
+    /// Collect references to all top-level PolySignal fields for lane count calculation.
     fn poly_signal_fields(&self) -> Vec<&crate::poly::PolySignal> {
         // Default implementation returns empty vec (for mono-only modules)
         vec![]
@@ -1097,14 +1092,14 @@ impl SampleBuffer {
     pub fn read(&self, channel: usize, frame: usize) -> f32 {
         self.samples
             .get(channel)
-            .and_then(|ch| ch.get(frame))
+            .and_then(|channel| channel.get(frame))
             .copied()
             .unwrap_or(0.0)
     }
 
     pub fn write(&mut self, channel: usize, frame: usize, value: f32) {
-        if let Some(ch) = self.samples.get_mut(channel)
-            && let Some(sample) = ch.get_mut(frame)
+        if let Some(channel) = self.samples.get_mut(channel)
+            && let Some(sample) = channel.get_mut(frame)
         {
             *sample = value;
         }
@@ -1500,7 +1495,7 @@ impl JsonSchema for Wav {
                 "channels": { "type": "integer", "minimum": 1 },
                 "mtime": { "type": "number" }
             },
-            "required": ["type", "path", "channels"]
+            "required": ["type", "path", "lanes"]
         }))
         .expect("Wav schema is valid JSON Schema")
     }
@@ -1532,9 +1527,9 @@ pub struct BufferData {
 // read/write ordering enforced by the demand-driven update system.
 
 impl BufferData {
-    pub fn new_zeroed(channels: usize, frame_count: usize) -> Self {
+    pub fn new_zeroed(lanes: usize, frame_count: usize) -> Self {
         Self {
-            inner: UnsafeCell::new(SampleBuffer::new_zeroed(channels, frame_count, 0.0)),
+            inner: UnsafeCell::new(SampleBuffer::new_zeroed(lanes, frame_count, 0.0)),
             write_index: UnsafeCell::new(0),
         }
     }
@@ -1558,7 +1553,7 @@ impl BufferData {
         unsafe { *self.write_index.get() = index }
     }
 
-    pub fn channel_count(&self) -> usize {
+    pub fn lane_count(&self) -> usize {
         self.with_buffer(|b| b.channel_count())
     }
 
@@ -1570,19 +1565,19 @@ impl BufferData {
         self.with_buffer_mut(|b| b.fill(value));
     }
 
-    pub fn read(&self, channel: usize, frame: usize) -> f32 {
-        self.with_buffer(|b| b.read(channel, frame))
+    pub fn read(&self, lane: usize, frame: usize) -> f32 {
+        self.with_buffer(|b| b.read(lane, frame))
     }
 
-    pub fn write(&self, channel: usize, frame: usize, value: f32) {
-        self.with_buffer_mut(|b| b.write(channel, frame, value));
+    pub fn write(&self, lane: usize, frame: usize, value: f32) {
+        self.with_buffer_mut(|b| b.write(lane, frame, value));
     }
 
     /// [`SampleBuffer::read_hermite_behind`] on the inner buffer.
     /// Audio-thread safe.
     #[inline]
-    pub fn read_hermite_behind(&self, channel: usize, newest: usize, back: f32) -> f32 {
-        self.with_buffer(|b| b.read_hermite_behind(channel, newest, back))
+    pub fn read_hermite_behind(&self, lane: usize, newest: usize, back: f32) -> f32 {
+        self.with_buffer(|b| b.read_hermite_behind(lane, newest, back))
     }
 
     /// Copy the most recent `min(old_size, new_size)` frames from `other` into `self`,
@@ -1591,15 +1586,15 @@ impl BufferData {
     /// working after a resize.
     ///
     /// Runs on the audio thread — no heap allocation. Uses at most 4 `copy_from_slice`
-    /// (memcpy) calls per channel (2 source segments × 2 possible destination wraps)
+    /// (memcpy) calls per lane (2 source segments × 2 possible destination wraps)
     /// by decomposing the circular regions into contiguous segments.
     pub fn copy_overlap_from(&self, other: &Self) {
         let write_idx = other.read_write_index();
 
         self.with_data_mut(|dst| {
             other.with_data(|src| {
-                let channel_count = dst.len().min(src.len());
-                if channel_count == 0 {
+                let lane_count = dst.len().min(src.len());
+                if lane_count == 0 {
                     return;
                 }
 
@@ -1638,9 +1633,9 @@ impl BufferData {
                         )
                     };
 
-                for channel_idx in 0..channel_count {
-                    let dst_ch = &mut dst[channel_idx];
-                    let src_ch = &src[channel_idx];
+                for lane_idx in 0..lane_count {
+                    let dst_ch = &mut dst[lane_idx];
+                    let src_ch = &src[lane_idx];
 
                     for &(src_start, len, age_of_first) in &segments[..seg_count] {
                         debug_assert!(len <= age_of_first + 1);
@@ -1706,7 +1701,7 @@ impl BufferData {
 struct BufferSerde {
     module: String,
     port: String,
-    channels: usize,
+    lanes: usize,
 }
 
 pub struct Buffer {
@@ -1718,8 +1713,8 @@ pub struct Buffer {
     cached_source_ptr: Option<SampleablePtr>,
     /// Cached raw pointer to the buffer data, populated during `connect()`.
     cached_buffer: Option<NonNull<BufferData>>,
-    /// Channel count (used for channel derivation at deserialization time)
-    channels: usize,
+    /// Lane count (used for lane derivation at deserialization time)
+    lanes: usize,
 }
 
 // SAFETY: `cached_source_ptr` is populated during `connect()` and later dereferenced only from
@@ -1735,20 +1730,20 @@ impl Clone for Buffer {
             // Runtime caches are patch-lifetime-specific and must be reconnected.
             cached_source_ptr: None,
             cached_buffer: None,
-            channels: self.channels,
+            lanes: self.lanes,
         }
     }
 }
 
 impl Buffer {
     /// Create a new buffer reference pointing to a module's buffer output.
-    pub fn new(source_module: String, source_port: String, channels: usize) -> Self {
+    pub fn new(source_module: String, source_port: String, lanes: usize) -> Self {
         Self {
             source_module,
             source_port,
             cached_source_ptr: None,
             cached_buffer: None,
-            channels,
+            lanes,
         }
     }
 
@@ -1760,8 +1755,8 @@ impl Buffer {
         &self.source_port
     }
 
-    pub fn channel_count(&self) -> usize {
-        self.channels
+    pub fn lane_count(&self) -> usize {
+        self.lanes
     }
 
     pub fn frame_count(&self) -> usize {
@@ -1817,15 +1812,15 @@ impl Buffer {
         self.fill(0.0);
     }
 
-    pub fn read(&self, channel: usize, frame: usize) -> f32 {
+    pub fn read(&self, lane: usize, frame: usize) -> f32 {
         self.buffer_ref()
-            .map(|buffer| buffer.read(channel, frame))
+            .map(|buffer| buffer.read(lane, frame))
             .unwrap_or(0.0)
     }
 
-    pub fn write(&self, channel: usize, frame: usize, value: f32) {
+    pub fn write(&self, lane: usize, frame: usize, value: f32) {
         if let Some(buffer) = self.buffer_ref() {
-            buffer.write(channel, frame, value);
+            buffer.write(lane, frame, value);
         }
     }
 
@@ -1837,9 +1832,9 @@ impl Buffer {
         self.buffer_ref().map(|buffer| buffer.with_data_mut(f))
     }
 
-    pub fn read_hermite_behind(&self, channel: usize, newest: usize, back: f32) -> f32 {
+    pub fn read_hermite_behind(&self, lane: usize, newest: usize, back: f32) -> f32 {
         self.buffer_ref()
-            .map(|buffer| buffer.read_hermite_behind(channel, newest, back))
+            .map(|buffer| buffer.read_hermite_behind(lane, newest, back))
             .unwrap_or(0.0)
     }
 }
@@ -1850,7 +1845,7 @@ impl<'de> Deserialize<'de> for Buffer {
         D: serde::Deserializer<'de>,
     {
         let data = BufferSerde::deserialize(deserializer)?;
-        Ok(Buffer::new(data.module, data.port, data.channels))
+        Ok(Buffer::new(data.module, data.port, data.lanes))
     }
 }
 
@@ -1862,7 +1857,7 @@ impl Serialize for Buffer {
         BufferSerde {
             module: self.source_module.clone(),
             port: self.source_port.clone(),
-            channels: self.channels,
+            lanes: self.lanes,
         }
         .serialize(serializer)
     }
@@ -1883,7 +1878,7 @@ impl<E: DeserializeError> deserr::Deserr<E> for Buffer {
                     deserr::Value::String(s) => Some(s),
                     _ => None,
                 });
-                let channels = map.remove("channels").and_then(|v| match v.into_value() {
+                let lanes = map.remove("lanes").and_then(|v| match v.into_value() {
                     deserr::Value::Integer(n) => Some(n as usize),
                     _ => None,
                 });
@@ -1902,14 +1897,14 @@ impl<E: DeserializeError> deserr::Deserr<E> for Buffer {
                         location,
                     ))
                 })?;
-                let channels = channels.ok_or_else(|| {
+                let lanes = lanes.ok_or_else(|| {
                     deserr::take_cf_content(E::error::<V>(
                         None,
-                        ErrorKind::MissingField { field: "channels" },
+                        ErrorKind::MissingField { field: "lanes" },
                         location,
                     ))
                 })?;
-                Ok(Buffer::new(module, port, channels))
+                Ok(Buffer::new(module, port, lanes))
             }
             _ => Err(deserr::take_cf_content(E::error::<V>(
                 None,
@@ -1941,13 +1936,13 @@ impl JsonSchema for Buffer {
                 "port": {
                     "type": "string"
                 },
-                "channels": {
+                "lanes": {
                     "type": "integer",
                     "format": "uint",
                     "minimum": 0
                 }
             },
-            "required": ["type", "module", "port", "channels"]
+            "required": ["type", "module", "port", "lanes"]
         }))
         .expect("Buffer schema is valid JSON Schema")
     }
@@ -1988,7 +1983,7 @@ impl std::fmt::Debug for Buffer {
         f.debug_struct("Buffer")
             .field("source_module", &self.source_module)
             .field("source_port", &self.source_port)
-            .field("channels", &self.channels)
+            .field("lanes", &self.lanes)
             .field("connected", &self.cached_buffer.is_some())
             .finish()
     }
@@ -1998,7 +1993,7 @@ impl PartialEq for Buffer {
     fn eq(&self, other: &Self) -> bool {
         self.source_module == other.source_module
             && self.source_port == other.source_port
-            && self.channels == other.channels
+            && self.lanes == other.lanes
             && match (self.cached_buffer, other.cached_buffer) {
                 (Some(left), Some(right)) => left == right,
                 (None, None) => true,
@@ -2015,21 +2010,21 @@ pub struct CableSource {
     pub port: String,
 }
 
-/// A single-channel signal value.
+/// A single-lane signal value.
 ///
 /// This represents either a constant voltage or a cable connection to a specific
-/// channel of another module's output.
+/// lane of another module's output.
 #[derive(Clone, Debug)]
 pub enum Signal {
     /// Static voltage value (mono)
     Volts(f32),
-    /// Cable connection to another module's output at a specific channel
+    /// Cable connection to another module's output at a specific lane
     Cable {
         module: String,
         resolved: Option<SampleablePtr>,
         port: String,
-        /// Which channel of the output to read (0-indexed)
-        channel: usize,
+        /// Which lane of the output to read (0-indexed)
+        lane: usize,
         /// Back-pointer to the consumer wrapper's per-block sample-index
         /// counter, populated during `connect()`. Read at sample-time to
         /// know which slot of the upstream's `BlockPort` to fetch.
@@ -2058,16 +2053,16 @@ pub enum Signal {
 pub struct PortView {
     /// Start of the port's `BlockPort` data.
     pub data: *const f32,
-    /// The port's channel width (`>= 1`).
-    pub channels: usize,
-    /// f32 values per channel: 2 for an f64 port (see
+    /// The port's lane width (`>= 1`).
+    pub lanes: usize,
+    /// f32 values per lane: 2 for an f64 port (see
     /// [`BlockPort`](crate::block_port::BlockPort)), otherwise 1.
     pub words: usize,
     /// The producing wrapper's per-block cursor: slots below it are computed.
     pub processed: *const std::cell::Cell<usize>,
 }
 
-/// A cable's resolved [`PortView`] with its channel offset precomputed.
+/// A cable's resolved [`PortView`] with its lane offset precomputed.
 ///
 /// Every pointer targets memory owned by the upstream wrapper, which outlives
 /// the cable until the next `connect()` re-resolves it. Block buffers never
@@ -2084,11 +2079,11 @@ pub struct CableView {
 }
 
 impl CableView {
-    fn new(port: PortView, channel: usize) -> Self {
+    fn new(port: PortView, lane: usize) -> Self {
         Self {
             data: port.data,
-            stride: port.channels * port.words,
-            offset: (channel % port.channels) * port.words,
+            stride: port.lanes * port.words,
+            offset: (lane % port.lanes) * port.words,
             f64: port.words == 2,
             processed: port.processed,
         }
@@ -2128,7 +2123,7 @@ impl CableView {
     }
 }
 
-/// A polyphonic input whose channel `i` is a cable to channel `first + i` of a
+/// A polyphonic input whose lane `i` is a cable to lane `first + i` of a
 /// single upstream port, resolved to that port's block buffer so a block
 /// module can read whole rows in place.
 ///
@@ -2147,7 +2142,7 @@ unsafe impl Send for PolyCableView {}
 
 impl PolyCableView {
     /// `None` unless every signal is a viewed cable onto the same f32 port,
-    /// signal `i` reading the port channel just after signal `i - 1`'s.
+    /// signal `i` reading the port lane just after signal `i - 1`'s.
     pub(crate) fn resolve(signals: &[Signal]) -> Option<Self> {
         let mut port: Option<(CableView, SampleablePtr)> = None;
         for (i, signal) in signals.iter().enumerate() {
@@ -2179,7 +2174,7 @@ impl PolyCableView {
     }
 
     /// Render the producer through slot `end` and return the first viewed
-    /// channel's data and the port's stride (channel width); slot `i` starts
+    /// lane's data and the port's stride (lane width); slot `i` starts
     /// at `data + i * stride`. `None` when the producer cannot reach `end`,
     /// e.g. a feedback cycle reading back into a module mid-computation.
     #[inline]
@@ -2204,12 +2199,12 @@ impl Signal {
     /// Build an unresolved `Signal::Cable`. The `resolved`/`view` and `index_ptr`
     /// fields are populated later by `Connect::connect` and
     /// `Connect::inject_index_ptr`.
-    pub fn cable(module: impl Into<String>, port: impl Into<String>, channel: usize) -> Self {
+    pub fn cable(module: impl Into<String>, port: impl Into<String>, lane: usize) -> Self {
         Signal::Cable {
             module: module.into(),
             resolved: None,
             port: port.into(),
-            channel,
+            lane,
             index_ptr: std::ptr::null(),
             view: None,
             bounds: crate::bounds::PortBounds::Unbounded,
@@ -2222,7 +2217,7 @@ impl Signal {
 // Examples accepted:
 // - 0.5                      -> Signal::Volts(0.5)
 // - "440hz"                  -> Signal::Volts(computed voltage)
-// - { type: 'cable', module, port, channel } -> Signal::Cable
+// - { type: 'cable', module, port, lane } -> Signal::Cable
 //
 // Note: Arrays are no longer accepted for Signal - use PolySignal for polyphonic inputs.
 impl<'de> Deserialize<'de> for Signal {
@@ -2249,7 +2244,7 @@ impl<'de> Deserialize<'de> for Signal {
                 module: String,
                 port: String,
                 #[serde(default)]
-                channel: usize,
+                lane: usize,
             },
         }
 
@@ -2259,15 +2254,11 @@ impl<'de> Deserialize<'de> for Signal {
                 .map(Signal::Volts)
                 .map_err(serde::de::Error::custom),
             SignalDe::Tagged(tagged) => Ok(match tagged {
-                SignalTagged::Cable {
-                    module,
-                    port,
-                    channel,
-                } => Signal::Cable {
+                SignalTagged::Cable { module, port, lane } => Signal::Cable {
                     module,
                     resolved: None,
                     port,
-                    channel,
+                    lane,
                     index_ptr: std::ptr::null(),
                     view: None,
                     bounds: crate::bounds::PortBounds::Unbounded,
@@ -2286,16 +2277,13 @@ impl serde::Serialize for Signal {
         match self {
             Signal::Volts(v) => serializer.serialize_f32(*v),
             Signal::Cable {
-                module,
-                port,
-                channel,
-                ..
+                module, port, lane, ..
             } => {
                 let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "cable")?;
                 map.serialize_entry("module", module)?;
                 map.serialize_entry("port", port)?;
-                map.serialize_entry("channel", channel)?;
+                map.serialize_entry("lane", lane)?;
                 map.end()
             }
         }
@@ -2307,7 +2295,7 @@ impl serde::Serialize for Signal {
 // Accepts:
 //   - number (integer or float) -> Signal::Volts
 //   - string (e.g. "440hz", "C4") -> Signal::Volts (parsed via parse_signal_string)
-//   - object { type: "cable", module, port, channel? } -> Signal::Cable
+//   - object { type: "cable", module, port, lane? } -> Signal::Cable
 impl<E: DeserializeError> deserr::Deserr<E> for Signal {
     fn deserialize_from_value<V: IntoValue>(
         value: deserr::Value<V>,
@@ -2340,8 +2328,8 @@ impl<E: DeserializeError> deserr::Deserr<E> for Signal {
                     _ => None,
                 });
 
-                let channel = map
-                    .remove("channel")
+                let lane = map
+                    .remove("lane")
                     .and_then(|v| match v.into_value() {
                         deserr::Value::Integer(n) => Some(n as usize),
                         _ => None,
@@ -2368,7 +2356,7 @@ impl<E: DeserializeError> deserr::Deserr<E> for Signal {
                             module,
                             resolved: None,
                             port,
-                            channel,
+                            lane,
                             index_ptr: std::ptr::null(),
                             view: None,
                             bounds: crate::bounds::PortBounds::Unbounded,
@@ -2420,7 +2408,7 @@ enum SignalTaggedSchema {
         module: String,
         port: String,
         #[serde(default)]
-        channel: usize,
+        lane: usize,
     },
 }
 
@@ -2437,7 +2425,7 @@ impl JsonSchema for Signal {
 impl Signal {
     /// Get the mono voltage value from this signal.
     /// For Volts, returns the stored value.
-    /// For Cable, fetches the specific channel from the connected module's
+    /// For Cable, fetches the specific lane from the connected module's
     /// output at the consumer's current per-block sample index.
     pub fn get_value(&self) -> f32 {
         match self {
@@ -2445,7 +2433,7 @@ impl Signal {
             Signal::Cable {
                 resolved,
                 port,
-                channel,
+                lane,
                 index_ptr,
                 view,
                 ..
@@ -2465,7 +2453,7 @@ impl Signal {
                     if let Some(value) = view.and_then(|v| v.read(index)) {
                         return value;
                     }
-                    unsafe { ptr.as_ref() }.get_value_at(port, *channel, index)
+                    unsafe { ptr.as_ref() }.get_value_at(port, *lane, index)
                 }
                 None => 0.0,
             },
@@ -2480,7 +2468,7 @@ impl Signal {
             Signal::Cable {
                 resolved,
                 port,
-                channel,
+                lane,
                 index_ptr,
                 view,
                 ..
@@ -2494,7 +2482,7 @@ impl Signal {
                     if let Some(value) = view.and_then(|v| v.read_f64(index)) {
                         return value;
                     }
-                    unsafe { ptr.as_ref() }.get_value_at_f64(port, *channel, index)
+                    unsafe { ptr.as_ref() }.get_value_at_f64(port, *lane, index)
                 }
                 None => 0.0,
             },
@@ -2512,7 +2500,7 @@ impl Signal {
             Signal::Cable {
                 resolved,
                 port,
-                channel,
+                lane,
                 index_ptr,
                 bounds,
                 ..
@@ -2532,9 +2520,9 @@ impl Signal {
                     // block_size` keeps the read inside the producer's buffer.
                     PortBounds::Stored { store, processed }
                         if index < unsafe { (*processed).get() } =>
-                    unsafe { (*store).at(index, *channel) },
+                    unsafe { (*store).at(index, *lane) },
                     PortBounds::Stored { .. } | PortBounds::Live { .. } => {
-                        unsafe { ptr.as_ref() }.get_bounds_at(port, *channel, index)
+                        unsafe { ptr.as_ref() }.get_bounds_at(port, *lane, index)
                     }
                 }
             }
@@ -2553,7 +2541,7 @@ impl Signal {
             Signal::Volts(v) => Some(Bounds::point(*v)),
             Signal::Cable {
                 resolved,
-                channel,
+                lane,
                 bounds,
                 ..
             } => {
@@ -2573,7 +2561,7 @@ impl Signal {
                         if (*processed).get() < range.end || range.is_empty() {
                             return None;
                         }
-                        (*store).uniform(range, *channel)
+                        (*store).uniform(range, *lane)
                     },
                 }
             }
@@ -2623,7 +2611,7 @@ impl Connect for Signal {
             module,
             resolved,
             port,
-            channel,
+            lane,
             view,
             bounds,
             ..
@@ -2633,7 +2621,7 @@ impl Connect for Signal {
             *resolved = upstream.map(|sampleable| NonNull::from(sampleable.as_ref()));
             *view = upstream
                 .and_then(|sampleable| sampleable.port_view(port))
-                .map(|port_view| CableView::new(port_view, *channel));
+                .map(|port_view| CableView::new(port_view, *lane));
             *bounds = upstream.map_or(crate::bounds::PortBounds::Unbounded, |sampleable| {
                 sampleable.port_bounds(port)
             });
@@ -2649,7 +2637,7 @@ impl Connect for Signal {
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         // Cable reads from upstream's BlockPort at sample index *ptr — store
-        // the back-pointer so `get_value(ch)` knows which slot to fetch.
+        // the back-pointer so `get_value(lane)` knows which slot to fetch.
         if let Signal::Cable { index_ptr, .. } = self {
             *index_ptr = ptr;
         }
@@ -2666,25 +2654,22 @@ impl PartialEq for Box<dyn Sampleable> {
 impl Signal {
     /// Whether this signal, in the incoming patch, reads the same source as
     /// `old` did in the outgoing one: the same constant, or a cable from the
-    /// same module (across renames), port and channel.
+    /// same module (across renames), port and lane.
     pub(crate) fn same_source(&self, old: &Signal, ids: &dyn PreviousIds) -> bool {
         match (self, old) {
             (Signal::Volts(a), Signal::Volts(b)) => a.to_bits() == b.to_bits(),
             (
                 Signal::Cable {
-                    module,
-                    port,
-                    channel,
-                    ..
+                    module, port, lane, ..
                 },
                 Signal::Cable {
                     module: old_module,
                     port: old_port,
-                    channel: old_channel,
+                    lane: old_lane,
                     ..
                 },
             ) => {
-                channel == old_channel
+                lane == old_lane
                     && port == old_port
                     && ids.previous(module) == Some(old_module.as_str())
             }
@@ -2701,16 +2686,16 @@ impl PartialEq for Signal {
                 Signal::Cable {
                     module: module_1,
                     port: port_1,
-                    channel: channel_1,
+                    lane: lane_1,
                     ..
                 },
                 Signal::Cable {
                     module: module_2,
                     port: port_2,
-                    channel: channel_2,
+                    lane: lane_2,
                     ..
                 },
-            ) => port_1 == port_2 && module_1 == module_2 && channel_1 == channel_2,
+            ) => port_1 == port_2 && module_1 == module_2 && lane_1 == lane_2,
             _ => false,
         }
     }
@@ -2867,10 +2852,10 @@ pub struct OutputSchema {
     /// The maximum value of the raw output range (before any remapping)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_value: Option<f64>,
-    /// Fixed channel count of a polyphonic output; `None` follows the
-    /// module's derived channel count.
+    /// Fixed lane count of a polyphonic output; `None` follows the
+    /// module's derived lane count.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub channels: Option<u32>,
+    pub lanes: Option<u32>,
     /// An `OutputPrecision` value.
     #[serde(default)]
     #[napi(ts_type = "string")]
@@ -2953,15 +2938,15 @@ pub trait BoundsInputs {
 }
 
 pub trait OutputStruct: Default + Send + 'static {
-    /// Set the channel count on all PolyOutput fields.
-    fn set_all_channels(&mut self, channels: usize);
+    /// Set the lane count on all PolyOutput fields.
+    fn set_all_lanes(&mut self, lanes: usize);
     /// Make the f64 outputs full precision: every `F64` output, and the
     /// `Inherit` ones when `inherit` is set. Allocates — main thread only,
-    /// after [`set_all_channels`](Self::set_all_channels).
+    /// after [`set_all_lanes`](Self::set_all_lanes).
     fn make_f64_outputs(&mut self, _inherit: bool) {}
     /// Give the bounded outputs in `mask` (bits by port index) their bounds.
     /// Allocates — main thread only, after
-    /// [`set_all_channels`](Self::set_all_channels).
+    /// [`set_all_lanes`](Self::set_all_lanes).
     fn make_bounded(&mut self, _mask: u64) {}
     fn schemas() -> Vec<OutputSchema>
     where
@@ -3053,15 +3038,15 @@ pub struct ModuleSchema {
     pub buffer_outputs: Vec<String>,
     pub signal_params: Vec<SignalParamSchema>,
     pub positional_args: Vec<PositionalArg>,
-    /// If set, this module always produces exactly this many channels (no inference needed)
+    /// If set, this module always produces exactly this many lanes (no inference needed)
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub channels: Option<u8>,
-    /// If set, the name of the parameter that controls channel count
+    pub lanes: Option<u8>,
+    /// If set, the name of the parameter that controls lane count
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub channels_param: Option<String>,
-    /// If set, the default value for the channels param when not explicitly set
+    pub lanes_param: Option<String>,
+    /// If set, the default value for the lanes param when not explicitly set
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub channels_param_default: Option<u8>,
+    pub lanes_param_default: Option<u8>,
     /// Set by `#[module(experimental)]`: the module's sound and params may
     /// still change between releases. Always serialized, like `buffer_outputs`.
     #[serde(default)]
@@ -3098,10 +3083,10 @@ pub struct ModuleSpec {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 #[napi(object)]
-pub struct ScopeChannel {
+pub struct ScopeLane {
     pub module_id: String,
     pub port_name: String,
-    pub channel: u32,
+    pub lane: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -3110,7 +3095,7 @@ pub struct ScopeChannel {
 pub struct ScopeBufferKey {
     pub module_id: String,
     pub port_name: String,
-    pub channel: u32,
+    pub lane: u32,
     pub ms_per_frame: u32,
     pub trigger_threshold: Option<(i32, ScopeMode)>,
 }
@@ -3142,9 +3127,9 @@ pub struct ScopeStats {
 #[napi(object)]
 pub struct VuMeterFrame {
     pub module_id: String,
-    /// Per-channel RMS in volts (0 dB reference = 5 V).
+    /// Per-lane RMS in volts (0 dB reference = 5 V).
     pub rms: Vec<f64>,
-    /// Per-channel max |sample| since the previous poll, in volts.
+    /// Per-lane max |sample| since the previous poll, in volts.
     pub peak: Vec<f64>,
     /// Live value of the signal-driven pan, when `pan_source` is set.
     pub pan: Option<f64>,
@@ -3155,17 +3140,17 @@ pub struct VuMeterFrame {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[napi(object)]
 pub struct Scope {
-    pub channels: Vec<ScopeChannel>,
+    pub lanes: Vec<ScopeLane>,
     pub ms_per_frame: u32,
     pub trigger_threshold: Option<(i32, ScopeMode)>,
     /// Voltage range for display (default [-5.0, 5.0]). The scope displays from range[0] to range[1].
     #[serde(default = "default_scope_range")]
     pub range: (f64, f64),
-    /// Draw each channel in its own scope instead of overlaying them.
+    /// Draw each lane in its own scope instead of overlaying them.
     pub split: Option<ScopeSplit>,
 }
 
-/// How a split scope arranges its per-channel views.
+/// How a split scope arranges its per-lane views.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[napi(string_enum = "lowercase")]
@@ -3198,10 +3183,10 @@ pub struct VuMeterSpec {
     pub mute_module_id: Option<String>,
     /// When the out's pan is signal-driven, the output to sample so the
     /// panel's locked knob can track it live.
-    pub pan_source: Option<ScopeChannel>,
+    pub pan_source: Option<ScopeLane>,
     /// When the out's gain is signal-driven, the output to sample (in DSL
     /// gain units, pre-curve) so the panel's locked fader can track it live.
-    pub gain_source: Option<ScopeChannel>,
+    pub gain_source: Option<ScopeLane>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -3563,17 +3548,17 @@ mod tests {
         let frames_written = frame_count.min(write_idx.saturating_add(1));
         for age in 0..frames_written {
             let pos = write_idx.wrapping_sub(age) % frame_count;
-            for ch in 0..buf.channel_count() {
-                buf.write(ch, pos, (age + 1) as f32 + ch as f32 * 1000.0);
+            for lane in 0..buf.lane_count() {
+                buf.write(lane, pos, (age + 1) as f32 + lane as f32 * 1000.0);
             }
         }
     }
 
     /// Verify that a delay read at `age` frames ago from `write_idx` returns the
     /// expected value. Mirrors how $delayRead computes positions.
-    fn read_at_age(buf: &BufferData, channel: usize, write_idx: usize, age: usize) -> f32 {
+    fn read_at_age(buf: &BufferData, lane: usize, write_idx: usize, age: usize) -> f32 {
         let pos = write_idx.wrapping_sub(age) % buf.frame_count();
-        buf.read(channel, pos)
+        buf.read(lane, pos)
     }
 
     #[test]
@@ -3674,7 +3659,7 @@ mod tests {
     }
 
     #[test]
-    fn test_copy_overlap_multi_channel() {
+    fn test_copy_overlap_multi_lane() {
         let old = BufferData::new_zeroed(3, 8);
         fill_buffer_sequential(&old, 42);
 
@@ -3682,14 +3667,14 @@ mod tests {
         new.copy_overlap_from(&old);
 
         assert_eq!(new.read_write_index(), 42);
-        for ch in 0..3 {
+        for lane in 0..3 {
             for age in 0..5 {
-                let val = read_at_age(&new, ch, 42, age);
-                let expected = (age + 1) as f32 + ch as f32 * 1000.0;
+                let val = read_at_age(&new, lane, 42, age);
+                let expected = (age + 1) as f32 + lane as f32 * 1000.0;
                 assert_eq!(
                     val, expected,
-                    "ch {} age {} should be {}",
-                    ch, age, expected
+                    "lane {} age {} should be {}",
+                    lane, age, expected
                 );
             }
         }
@@ -3733,14 +3718,14 @@ mod tests {
             assert_eq!(new.read_write_index(), write_idx, "offset={}", offset);
 
             // Every frame at every age should match the original
-            for ch in 0..2 {
+            for lane in 0..2 {
                 for age in 0..buf_size {
-                    let old_val = read_at_age(&old, ch, write_idx, age);
-                    let new_val = read_at_age(&new, ch, write_idx, age);
+                    let old_val = read_at_age(&old, lane, write_idx, age);
+                    let new_val = read_at_age(&new, lane, write_idx, age);
                     assert_eq!(
                         old_val, new_val,
-                        "Mismatch: ch={} age={} write_idx={} (offset={})",
-                        ch, age, write_idx, offset
+                        "Mismatch: lane={} age={} write_idx={} (offset={})",
+                        lane, age, write_idx, offset
                     );
                 }
             }
@@ -3930,16 +3915,16 @@ mod sample_buffer_tests {
     fn sample_buffer_read_out_of_bounds_returns_zero() {
         let buf = SampleBuffer::new_zeroed(1, 5, 48000.0);
         assert_eq!(buf.read(0, 10), 0.0); // frame out of range
-        assert_eq!(buf.read(5, 0), 0.0); // channel out of range
+        assert_eq!(buf.read(5, 0), 0.0); // lane out of range
     }
 
     #[test]
     fn sample_buffer_fill() {
         let mut buf = SampleBuffer::new_zeroed(2, 3, 48000.0);
         buf.fill(7.0);
-        for ch in 0..2 {
+        for lane in 0..2 {
             for frame in 0..3 {
-                assert_eq!(buf.read(ch, frame), 7.0);
+                assert_eq!(buf.read(lane, frame), 7.0);
             }
         }
     }
@@ -4098,8 +4083,8 @@ mod swap_glide_tests {
         GlideMark {
             generation,
             changed: if changed { u64::MAX } else { 0 },
-            channel: 0,
-            channels: 1,
+            lane: 0,
+            lanes: 1,
         }
     }
 

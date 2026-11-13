@@ -20,15 +20,15 @@ fn wavetable_paths_agree() {
         "$wavetable",
         json!({
             "wav": wav,
-            "pitch": poly_cable("lfo", CHANNELS),
-            "position": poly_cable("src", CHANNELS),
+            "pitch": poly_cable("lfo", LANES),
+            "position": poly_cable("src", LANES),
             "fm": cable("lfo", 2),
             "phaseOffset": 0.3,
         }),
     );
     check_paths_agree(
         "$wavetable",
-        json!({ "wav": wav, "pitch": 0.5, "sync": poly_cable("src", CHANNELS) }),
+        json!({ "wav": wav, "pitch": 0.5, "sync": poly_cable("src", LANES) }),
     );
     check_paths_agree(
         "$wavetable",
@@ -46,7 +46,7 @@ fn allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$wavetable",
-            json!({ "wav": { "type": "wav_ref", "path": "table", "channels": 1 }, "pitch": poly_cable("lfo", CHANNELS), "position": cable("src", 0), "sync": cable("src", 1) })
+            json!({ "wav": { "type": "wav_ref", "path": "table", "channels": 1 }, "pitch": poly_cable("lfo", LANES), "position": cable("src", 0), "sync": cable("src", 1) })
         ),
         0
     );

@@ -14,12 +14,12 @@ const AMOUNT_DEFAULT: f32 = 2.5;
 const DEPTH_DEFAULT: f32 = 2.5;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ChorusParams {
     #[input(
-        "signal to thicken; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        "signal to thicken; even lanes feed the left side, odd the right, and an odd last lane feeds both",
         type = audio,
     )]
     input: PolySignal,
@@ -44,7 +44,7 @@ struct ChorusParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ChorusOutputs {
-    #[output("output", "the chorused signal, as left and right channels", type = cv, default)]
+    #[output("output", "the chorused signal, as left and right lanes", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -77,7 +77,7 @@ const CHORUS_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "$mi.chorus",
     docs = CHORUS_DOCS,
-    channels = 2,
+    lanes = 2,
     has_init,
     args(input)
 )]
@@ -112,7 +112,7 @@ impl Chorus {
 
     fn update(&mut self, _sample_rate: f32) {
         let p = &self.params;
-        let (left, right) = fold_to_stereo(p.input.channels(), |ch| p.input.get_value(ch));
+        let (left, right) = fold_to_stereo(p.input.lanes(), |lane| p.input.get_value(lane));
         let sample_rate = self.state.sample_rate;
         let knobs = [
             self.state.amount.follow(
@@ -136,24 +136,24 @@ impl Chorus {
     }
 }
 
-/// `channels` of input folded to stereo, as `$dattorro` folds them: even
-/// channels left, odd right, an odd last channel to both. A non-finite sample
+/// `lanes` of input folded to stereo, as `$dattorro` folds them: even
+/// lanes left, odd right, an odd last lane to both. A non-finite sample
 /// reads 0, which would otherwise linger in the delay lines.
-fn fold_to_stereo(channels: usize, sample: impl Fn(usize) -> f32) -> (f32, f32) {
-    let finite = |ch| {
-        let s = sample(ch);
+fn fold_to_stereo(lanes: usize, sample: impl Fn(usize) -> f32) -> (f32, f32) {
+    let finite = |lane| {
+        let s = sample(lane);
         if s.is_finite() { s } else { 0.0 }
     };
     let (mut left, mut right) = (0.0, 0.0);
-    for ch in 0..channels {
-        if ch % 2 == 0 {
-            left += finite(ch);
+    for lane in 0..lanes {
+        if lane % 2 == 0 {
+            left += finite(lane);
         } else {
-            right += finite(ch);
+            right += finite(lane);
         }
     }
-    if channels % 2 == 1 {
-        right += finite(channels - 1);
+    if lanes % 2 == 1 {
+        right += finite(lanes - 1);
     }
     (left, right)
 }

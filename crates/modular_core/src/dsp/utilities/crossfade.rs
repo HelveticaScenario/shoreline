@@ -10,7 +10,7 @@ use crate::poly::{PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct CrossfadeParams {
@@ -36,7 +36,7 @@ struct CrossfadeOutputs {
 
 const CROSSFADE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Dry/wet crossfade",
-    description: "Fades linearly from one signal to another, channel by channel; \
+    description: "Fades linearly from one signal to another, lane by lane; \
                   the narrower of the two cycles across the wider. Backs the \
                   `.wet()` and `.pipeMix()` signal methods.",
     categories: &[ModuleCategory::Math],
@@ -51,7 +51,7 @@ const CROSSFADE_DOCS: ModuleDocs = ModuleDocs {
 pub struct Crossfade {
     outputs: CrossfadeOutputs,
     params: CrossfadeParams,
-    channel_state: Box<[SwapGlide]>,
+    lane_state: Box<[SwapGlide]>,
 }
 
 /// How far along the fade a `mix` sits: 0 all dry, 1 all wet; `mix` past
@@ -71,8 +71,8 @@ fn blend(dry: f32, wet: f32, position: f32) -> f32 {
 impl Crossfade {
     fn update(&mut self, sample_rate: f32) {
         let mix = &self.params.mix;
-        for i in 0..self.channel_count() {
-            let t = self.channel_state[i].follow(
+        for i in 0..self.lane_count() {
+            let t = self.lane_state[i].follow(
                 position(mix.get_value(i)),
                 mix.glide_mark(i),
                 sample_rate,
@@ -96,8 +96,8 @@ impl Crossfade {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
-        let glides = &mut self.channel_state[..channels];
+        let lanes = self.lane_count();
+        let glides = &mut self.lane_state[..lanes];
         let mix = &self.params.mix;
         if mix.glides_pending(glides) {
             return None;
@@ -107,19 +107,13 @@ impl Crossfade {
             InputScratch::new(),
             InputScratch::new(),
         );
-        let dry = self
-            .params
-            .dry
-            .block_input(range.clone(), channels, &mut s0)?;
-        let wet = self
-            .params
-            .wet
-            .block_input(range.clone(), channels, &mut s1)?;
-        let amount = mix.block_input(range.clone(), channels, &mut s2)?;
+        let dry = self.params.dry.block_input(range.clone(), lanes, &mut s0)?;
+        let wet = self.params.wet.block_input(range.clone(), lanes, &mut s1)?;
+        let amount = mix.block_input(range.clone(), lanes, &mut s2)?;
         let (dry_signal, wet_signal) = (&self.params.dry, &self.params.wet);
-        outputs.sample.fill_bounds_with(range.clone(), |ch| {
-            let dry = dry_signal.block_bounds(range.clone(), ch)?;
-            Some(dry.hull(wet_signal.block_bounds(range.clone(), ch)?))
+        outputs.sample.fill_bounds_with(range.clone(), |lane| {
+            let dry = dry_signal.block_bounds(range.clone(), lane)?;
+            Some(dry.hull(wet_signal.block_bounds(range.clone(), lane)?))
         })?;
         for (i, (glide, &last)) in glides.iter_mut().zip(amount.row(range.end - 1)).enumerate() {
             glide.settle(position(last), mix.glide_mark(i));

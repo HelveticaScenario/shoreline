@@ -19,7 +19,7 @@ import {
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
 import { PATTERN_METHODS } from '../miniNotation';
-import { OutLane } from '../outLane';
+import { TrackTap } from '../trackTap';
 import { processModuleSchema, qualifiesForChain } from '../paramsSchema';
 
 const EXECUTION_OPTIONS = {
@@ -194,7 +194,7 @@ describe('reserved names', () => {
             Collection,
             CollectionWithRange,
             DeferredCollection,
-            OutLane,
+            TrackTap,
         ]);
         // Fields are own properties of an instance, not of its prototype.
         const sig = builder.getFactory('$sine')(0) as Collection;

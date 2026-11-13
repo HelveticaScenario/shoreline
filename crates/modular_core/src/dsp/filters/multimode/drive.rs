@@ -75,7 +75,7 @@ fn wavefold(v: f64) -> f64 {
 /// midpoint, which equals the exact average within one linear segment.
 const ADAA_TOL: f64 = 1.0e-6;
 
-/// First-order ADAA memory for one curve, one element per channel. Bit `l` of
+/// First-order ADAA memory for one curve, one element per lane. Bit `l` of
 /// `stale` marks element `l`'s `ad_prev` as out of date after a skipped sample; it
 /// is rebuilt from `x_prev` on the next one.
 #[derive(Clone, Copy, Default)]
@@ -128,7 +128,7 @@ const PRE_EMPHASIS: f32 = 0.125;
 /// First-order ADAA averages adjacent samples, a `cos(ω/2)` roll-off that at
 /// the engine rate takes audible treble off everything through the drive
 /// stage. This symmetric three-tap FIR, `1 + 2k(1 − cos ω)`, restores it ahead
-/// of the curves at the cost of one sample of delay. One element per channel.
+/// of the curves at the cost of one sample of delay. One element per lane.
 #[derive(Clone, Copy, Default)]
 pub(super) struct PreEmphasis {
     x1: f32x4,
@@ -151,7 +151,7 @@ impl PreEmphasis {
     }
 }
 
-/// Drive-stage memory, one element per channel.
+/// Drive-stage memory, one element per lane.
 #[derive(Clone, Copy, Default)]
 pub(super) struct DriveState {
     clip: CurveAdaa,
@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn elements_match_a_single_channel() {
+    fn elements_match_a_single_lane() {
         prime();
         let input = |n: usize, element: usize| {
             (3.0 + element as f32) * (n as f32 * (0.03 + 0.02 * element as f32)).sin()

@@ -1,6 +1,6 @@
 //! Jot-style Feedback Delay Network reverb with a scattering feedback matrix.
 //!
-//! Two coupled sub-networks — one per stereo channel — each run their delay
+//! Two coupled sub-networks — one per stereo lane — each run their delay
 //! lines through a paraunitary scattering matrix, so the wet field tracks the
 //! input's stereo image while diffusing densely. Three refinements from the
 //! artificial-reverberation literature shape the tail: per-line first-order
@@ -23,15 +23,15 @@ use crate::types::SwapGlide;
 
 // ─── Topology ────────────────────────────────────────────────────────────────
 
-/// Total delay-line count across both channels.
+/// Total delay-line count across both lanes.
 const NUM_LINES: usize = 8;
 
-/// Delay lines per channel. The first `HALF_LINES` lines form the left
+/// Delay lines per lane. The first `HALF_LINES` lines form the left
 /// sub-network, the rest the right. Must stay a power of two — each block is
 /// mixed with a fast Walsh-Hadamard transform that assumes it.
 const HALF_LINES: usize = 4;
 
-/// Input-diffusion allpass count, per channel.
+/// Input-diffusion allpass count, per lane.
 const NUM_DIFFUSERS: usize = 4;
 
 /// Delay lengths are authored as sample counts at this reference rate and
@@ -40,7 +40,7 @@ const REF_SAMPLE_RATE: f32 = 48000.0;
 
 /// Main FDN delay lengths (samples at the reference rate). Pairwise-coprime
 /// primes; the first four (left block) and last four (right block) each span
-/// the full ~24–70 ms range, so the two channels share a matched character.
+/// the full ~24–70 ms range, so the two lanes share a matched character.
 const FDN_DELAYS: [f32; NUM_LINES] = [
     1153.0, 1567.0, 2129.0, 2887.0, // left block
     1327.0, 1823.0, 2477.0, 3361.0, // right block
@@ -94,7 +94,7 @@ const MIN_DECAY_RATIO: f32 = 0.1;
 /// `ln(1000)` — the −60 dB factor in the decay-gain formula.
 const LN_1000: f32 = 6.907_755;
 
-/// Cross-coupling rotation angle between the two channels' sub-networks at the
+/// Cross-coupling rotation angle between the two lanes' sub-networks at the
 /// widest (`+5`) and narrowest (`-5`) settings. A small angle keeps the halves
 /// separate so the wet field holds the input's pan; 45° maximally merges them,
 /// pulling a panned source toward the centre.
@@ -139,12 +139,12 @@ fn householder4(v: &mut [f32; HALF_LINES]) {
 // ─── Params ──────────────────────────────────────────────────────────────────
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct Reverb2Params {
     #[input(
-        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
         type = audio,
     )]
     input: PolySignal,
@@ -205,7 +205,7 @@ struct Reverb2Params {
 struct Reverb2Outputs {
     #[output(
         "output",
-        "stereo reverb, fully wet, as left and right channels",
+        "stereo reverb, fully wet, as left and right lanes",
         type = cv,
         default
     )]
@@ -219,7 +219,7 @@ struct Reverb2Outputs {
 /// updates so the tail never glitches on an edit.
 #[derive(Default)]
 struct Reverb2State {
-    // Per-channel input sections.
+    // Per-lane input sections.
     predelay_l: DelayLine,
     predelay_r: DelayLine,
     diffusers_l: [DelayLine; NUM_DIFFUSERS],
@@ -234,7 +234,7 @@ struct Reverb2State {
     /// Per-line modulation LFO phase, in turns `[0, 1)`.
     lfo_phase: [f32; NUM_LINES],
 
-    // Tonal-correction high-shelf memory (previous input) per output channel.
+    // Tonal-correction high-shelf memory (previous input) per output lane.
     tc_prev_l: f32,
     tc_prev_r: f32,
 
@@ -301,7 +301,7 @@ const REVERB2_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "$unstable.reverb2",
     docs = REVERB2_DOCS,
-    channels = 2,
+    lanes = 2,
     has_init,
     args(input)
 )]
@@ -321,12 +321,12 @@ impl Reverb2 {
         let max_mod_samples = MAX_MOD_EXCURSION * sr_scale;
         self.state.max_mod_excursion = max_mod_samples;
 
-        // Predelay: one per channel, sized to the maximum predelay time.
+        // Predelay: one per lane, sized to the maximum predelay time.
         let max_predelay = (MAX_PREDELAY_SECS * sample_rate).ceil() as usize + 4;
         self.state.predelay_l = DelayLine::new(max_predelay);
         self.state.predelay_r = DelayLine::new(max_predelay);
 
-        // Input diffusers: one chain per channel, sized for the largest room.
+        // Input diffusers: one chain per lane, sized for the largest room.
         for (i, &delay) in DIFFUSER_DELAYS.iter().enumerate() {
             let base = delay * sr_scale;
             self.state.diffuser_len[i] = base;
@@ -357,7 +357,7 @@ impl Reverb2 {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let num_input_channels = self.params.input.channels();
+        let num_input_lanes = self.params.input.lanes();
 
         // ── Read and glide parameters ────────────────────────────────────
 
@@ -458,25 +458,25 @@ impl Reverb2 {
             self.state.max_mod_excursion,
         );
 
-        // ── Sum input channels to stereo ─────────────────────────────────
+        // ── Sum input lanes to stereo ─────────────────────────────────
 
         let mut left_in = 0.0f32;
         let mut right_in = 0.0f32;
-        for ch in 0..num_input_channels {
-            let sample = self.params.input.get_value(ch);
-            if ch % 2 == 0 {
+        for lane in 0..num_input_lanes {
+            let sample = self.params.input.get_value(lane);
+            if lane % 2 == 0 {
                 left_in += sample;
             } else {
                 right_in += sample;
             }
         }
-        // With an odd channel count the final channel has no stereo partner,
+        // With an odd lane count the final lane has no stereo partner,
         // so feed it to both sides (a mono input drives left and right equally).
-        if num_input_channels % 2 == 1 {
-            right_in += self.params.input.get_value(num_input_channels - 1);
+        if num_input_lanes % 2 == 1 {
+            right_in += self.params.input.get_value(num_input_lanes - 1);
         }
 
-        // ── Per-channel predelay then input diffusion ────────────────────
+        // ── Per-lane predelay then input diffusion ────────────────────
 
         self.state.predelay_l.write(left_in);
         self.state.predelay_r.write(right_in);
@@ -615,7 +615,7 @@ mod tests {
         let cached = deserializer(params).unwrap();
         let deserialized = DeserializedParams {
             params: cached.params,
-            channel_count: cached.channel_count,
+            lane_count: cached.lane_count,
             f64_inputs: false,
         };
         constructors.get("$unstable.reverb2").unwrap()(
@@ -667,7 +667,7 @@ mod tests {
         use crate::types::{OutputStruct, Signal};
 
         let mut outputs = super::Reverb2Outputs::default();
-        outputs.set_all_channels(2);
+        outputs.set_all_lanes(2);
         let mut m = super::Reverb2 {
             outputs,
             state: Default::default(),
@@ -680,7 +680,7 @@ mod tests {
                 predelay: None,
                 modulation: None,
             },
-            _channel_count: 2,
+            _lane_count: 2,
             _block_index: Default::default(),
         };
         m.init(SAMPLE_RATE);
@@ -728,11 +728,11 @@ mod tests {
         let (left, right) = collect_stereo(reverb.as_ref(), 20000);
         assert!(
             energy(&left) > 0.0,
-            "left channel should have energy from impulse"
+            "left lane should have energy from impulse"
         );
         assert!(
             energy(&right) > 0.0,
-            "right channel should have energy from impulse"
+            "right lane should have energy from impulse"
         );
     }
 
@@ -744,7 +744,7 @@ mod tests {
             .iter()
             .zip(right.iter())
             .all(|(l, r)| (l - r).abs() < 1e-10);
-        assert!(!identical, "left and right channels should be decorrelated");
+        assert!(!identical, "left and right lanes should be decorrelated");
     }
 
     #[test]

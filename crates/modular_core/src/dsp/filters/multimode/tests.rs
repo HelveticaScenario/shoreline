@@ -22,33 +22,33 @@ fn make(high_res: bool, cutoff_hz: f32, resonance: f32, mode: f32) -> Multimode 
         high_res,
     };
     let mut outputs = MultimodeOutputs::default();
-    outputs.set_all_channels(1);
+    outputs.set_all_lanes(1);
     let mut m = Multimode {
         params,
         outputs,
-        _channel_count: 1,
+        _lane_count: 1,
         _block_index: Default::default(),
         state: MultimodeState::default(),
-        channel_state: vec![GroupState::default(); 1].into_boxed_slice(),
+        lane_state: vec![GroupState::default(); 1].into_boxed_slice(),
     };
     m.init(SR);
     m.on_patch_update();
     m
 }
 
-/// A module with one channel per `(cutoff_hz, resonance, mode)`.
-fn make_channels(high_res: bool, channels: &[(f32, f32, f32)]) -> Multimode {
+/// A module with one lane per `(cutoff_hz, resonance, mode)`.
+fn make_lanes(high_res: bool, lanes: &[(f32, f32, f32)]) -> Multimode {
     let poly = |f: fn(&(f32, f32, f32)) -> f32| {
         PolySignal::poly(
-            &channels
+            &lanes
                 .iter()
                 .map(|c| Signal::Volts(f(c)))
                 .collect::<Vec<_>>(),
         )
     };
-    let n = channels.len();
+    let n = lanes.len();
     let mut outputs = MultimodeOutputs::default();
-    outputs.set_all_channels(n);
+    outputs.set_all_lanes(n);
     let mut m = Multimode {
         params: MultimodeParams {
             input: volts(0.0),
@@ -60,10 +60,10 @@ fn make_channels(high_res: bool, channels: &[(f32, f32, f32)]) -> Multimode {
             high_res,
         },
         outputs,
-        _channel_count: n,
+        _lane_count: n,
         _block_index: Default::default(),
         state: MultimodeState::default(),
-        channel_state: vec![GroupState::default(); n].into_boxed_slice(),
+        lane_state: vec![GroupState::default(); n].into_boxed_slice(),
     };
     m.init(SR);
     m.on_patch_update();
@@ -71,11 +71,11 @@ fn make_channels(high_res: bool, channels: &[(f32, f32, f32)]) -> Multimode {
 }
 
 /// Moves `old`'s state into `new` as a patch update does: the whole `state`,
-/// and the overlapping `channel_state` entries.
+/// and the overlapping `lane_state` entries.
 fn transfer(new: &mut Multimode, old: &mut Multimode) {
     std::mem::swap(&mut new.state, &mut old.state);
-    let n = new.channel_state.len().min(old.channel_state.len());
-    new.channel_state[..n].swap_with_slice(&mut old.channel_state[..n]);
+    let n = new.lane_state.len().min(old.lane_state.len());
+    new.lane_state[..n].swap_with_slice(&mut old.lane_state[..n]);
     new.on_patch_update();
 }
 /// Steady-state peak gain for a sine of `amp` volts at `hz`.
@@ -334,7 +334,7 @@ both_resolutions! {
 
 both_resolutions! {
     fn block_path_matches_update(high_res: bool) {
-        // Five channels: a full group, then a group with one live channel.
+        // Five lanes: a full group, then a group with one live lane.
         let settings = [
             (220.0, 0.0, 0.0),
             (1_000.0, 3.0, 2.5),
@@ -342,10 +342,10 @@ both_resolutions! {
             (12_000.0, 4.5, 1.0),
             (440.0, 5.0, 4.0),
         ];
-        let channels = settings.len();
-        let mut per_sample = make_channels(high_res, &settings);
-        let mut block = make_channels(high_res, &settings);
-        let mut ports = MultimodeBlockOutputs::new(64, channels, false);
+        let lanes = settings.len();
+        let mut per_sample = make_lanes(high_res, &settings);
+        let mut block = make_lanes(high_res, &settings);
+        let mut ports = MultimodeBlockOutputs::new(64, lanes, false);
         for n in 0..40 {
             let t = n as f32 * 0.37;
             for m in [&mut per_sample, &mut block] {
@@ -360,23 +360,23 @@ both_resolutions! {
             for i in 0..64 {
                 per_sample.update(SR);
                 let o = &per_sample.outputs;
-                for ch in 0..channels {
+                for lane in 0..lanes {
                     let pairs = [
-                        (o.sample.get(ch), ports.sample.get(i, ch)),
-                        (o.lp.get(ch), ports.lp.get(i, ch)),
-                        (o.bp.get(ch), ports.bp.get(i, ch)),
-                        (o.hp.get(ch), ports.hp.get(i, ch)),
+                        (o.sample.get(lane), ports.sample.get(i, lane)),
+                        (o.lp.get(lane), ports.lp.get(i, lane)),
+                        (o.bp.get(lane), ports.bp.get(i, lane)),
+                        (o.hp.get(lane), ports.hp.get(i, lane)),
                     ];
                     for (a, b) in pairs {
-                        assert_eq!(a.to_bits(), b.to_bits(), "block {n} slot {i} channel {ch}: {a} vs {b}");
+                        assert_eq!(a.to_bits(), b.to_bits(), "block {n} slot {i} lane {lane}: {a} vs {b}");
                     }
                 }
             }
         }
     }
 
-    fn each_element_matches_a_single_channel(high_res: bool) {
-        // Five channels: a full group of four, then one beside three dead elements.
+    fn each_element_matches_a_single_lane(high_res: bool) {
+        // Five lanes: a full group of four, then one beside three dead elements.
         let settings = [
             (220.0, 0.0, 0.0),
             (1_000.0, 3.0, 2.5),
@@ -384,7 +384,7 @@ both_resolutions! {
             (12_000.0, 3.5, 1.0),
             (440.0, 1.0, 4.0),
         ];
-        let mut poly = make_channels(high_res, &settings);
+        let mut poly = make_lanes(high_res, &settings);
         let mut monos: Vec<_> = settings
             .iter()
             .map(|&(hz, res, mode)| make(high_res, hz, res, mode))
@@ -394,7 +394,7 @@ both_resolutions! {
             let x = 4.0 * (2.0 * PI * 110.0 * t).sin() + 2.0 * (2.0 * PI * 1730.0 * t).sin();
             poly.params.input = volts(x);
             poly.update(SR);
-            for (ch, mono) in monos.iter_mut().enumerate() {
+            for (lane, mono) in monos.iter_mut().enumerate() {
                 mono.params.input = volts(x);
                 mono.update(SR);
                 let pairs = [
@@ -404,45 +404,45 @@ both_resolutions! {
                     (&poly.outputs.hp, &mono.outputs.hp),
                 ];
                 for (a, b) in pairs {
-                    // The elements' noise generators are seeded per channel.
-                    let (a, b) = (a.get(ch), b.get(0));
-                    assert!((a - b).abs() < 1.0e-3, "sample {n} channel {ch}: {a} vs {b}");
+                    // The elements' noise generators are seeded per lane.
+                    let (a, b) = (a.get(lane), b.get(0));
+                    assert!((a - b).abs() < 1.0e-3, "sample {n} lane {lane}: {a} vs {b}");
                 }
             }
         }
     }
 
-    fn outputs_stay_continuous_into_and_out_of_a_lone_channel(high_res: bool) {
-        // Channels carried across a change that leaves a group with one live
-        // channel, or takes it out of one, continue exactly as channels that
+    fn outputs_stay_continuous_into_and_out_of_a_lone_lane(high_res: bool) {
+        // Lanes carried across a change that leaves a group with one live
+        // lane, or takes it out of one, continue exactly as lanes that
         // ran at the new count throughout.
         let input = |n: usize| volts(4.0 * (2.0 * PI * 110.0 * n as f32 / SR).sin());
         let setting = (2_000.0, 3.5, 2.5);
         for (before, after) in [(1, 2), (2, 1), (5, 6), (6, 5)] {
-            let mut switched = make_channels(high_res, &vec![setting; before]);
-            let mut reference = make_channels(high_res, &vec![setting; after]);
+            let mut switched = make_lanes(high_res, &vec![setting; before]);
+            let mut reference = make_lanes(high_res, &vec![setting; after]);
             for n in 0..2400 {
                 switched.params.input = input(n);
                 switched.update(SR);
                 reference.params.input = input(n);
                 reference.update(SR);
             }
-            let mut carried = make_channels(high_res, &vec![setting; after]);
+            let mut carried = make_lanes(high_res, &vec![setting; after]);
             transfer(&mut carried, &mut switched);
             for n in 2400..2600 {
                 carried.params.input = input(n);
                 carried.update(SR);
                 reference.params.input = input(n);
                 reference.update(SR);
-                for ch in 0..before.min(after) {
+                for lane in 0..before.min(after) {
                     let outputs = |m: &Multimode| {
                         let o = &m.outputs;
-                        [o.sample.get(ch), o.lp.get(ch), o.bp.get(ch), o.hp.get(ch)]
+                        [o.sample.get(lane), o.lp.get(lane), o.bp.get(lane), o.hp.get(lane)]
                     };
                     for (a, b) in outputs(&carried).into_iter().zip(outputs(&reference)) {
                         assert!(
                             (a - b).abs() < 1.0e-3,
-                            "{before}→{after} sample {n} channel {ch}: {a} vs {b}"
+                            "{before}→{after} sample {n} lane {lane}: {a} vs {b}"
                         );
                     }
                 }
@@ -450,36 +450,36 @@ both_resolutions! {
         }
     }
 
-    fn channels_added_by_a_patch_update_start_from_rest(high_res: bool) {
-        // Three self-oscillating channels leave the group's fourth element dead.
-        let mut old = make_channels(high_res, &[(440.0, 5.0, 0.0); 3]);
+    fn lanes_added_by_a_patch_update_start_from_rest(high_res: bool) {
+        // Three self-oscillating lanes leave the group's fourth element dead.
+        let mut old = make_lanes(high_res, &[(440.0, 5.0, 0.0); 3]);
         free_run(&mut old, 1.0);
-        let mut new = make_channels(high_res, &[(440.0, 5.0, 0.0); 4]);
+        let mut new = make_lanes(high_res, &[(440.0, 5.0, 0.0); 4]);
         transfer(&mut new, &mut old);
         let mut peaks = [0.0_f32; 4];
         for _ in 0..(SR * 0.005) as usize {
             new.update(SR);
-            for (ch, peak) in peaks.iter_mut().enumerate() {
-                *peak = peak.max(new.outputs.sample.get(ch).abs());
+            for (lane, peak) in peaks.iter_mut().enumerate() {
+                *peak = peak.max(new.outputs.sample.get(lane).abs());
             }
         }
-        // The carried channels keep ringing; the new one starts silent and
+        // The carried lanes keep ringing; the new one starts silent and
         // grows from the noise floor.
-        for (ch, &peak) in peaks[..3].iter().enumerate() {
-            assert!(peak > 5.0, "channel {ch} peak {peak}");
+        for (lane, &peak) in peaks[..3].iter().enumerate() {
+            assert!(peak > 5.0, "lane {lane} peak {peak}");
         }
-        assert!(peaks[3] < 0.1, "new channel peak {}", peaks[3]);
+        assert!(peaks[3] < 0.1, "new lane peak {}", peaks[3]);
     }
 
-    fn a_lone_channel_reviving_a_group_starts_from_rest(high_res: bool) {
-        // The second group runs dead at 4 channels, then comes back with one
-        // live channel, whose four outputs share one downsampler.
+    fn a_lone_lane_reviving_a_group_starts_from_rest(high_res: bool) {
+        // The second group runs dead at 4 lanes, then comes back with one
+        // live lane, whose four outputs share one downsampler.
         for first in [5, 8] {
-            let mut old = make_channels(high_res, &vec![(440.0, 5.0, 0.0); first]);
+            let mut old = make_lanes(high_res, &vec![(440.0, 5.0, 0.0); first]);
             free_run(&mut old, 1.0);
-            let mut dead = make_channels(high_res, &[(440.0, 5.0, 0.0); 4]);
+            let mut dead = make_lanes(high_res, &[(440.0, 5.0, 0.0); 4]);
             transfer(&mut dead, &mut old);
-            let mut new = make_channels(high_res, &[(440.0, 5.0, 0.0); 5]);
+            let mut new = make_lanes(high_res, &[(440.0, 5.0, 0.0); 5]);
             transfer(&mut new, &mut dead);
             let mut peak = 0.0_f32;
             for _ in 0..(SR * 0.005) as usize {
@@ -489,7 +489,7 @@ both_resolutions! {
                     peak = peak.max(v.abs());
                 }
             }
-            assert!(peak < 0.1, "{first}→4→5 new channel peak {peak}");
+            assert!(peak < 0.1, "{first}→4→5 new lane peak {peak}");
         }
     }
 }

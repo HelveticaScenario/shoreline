@@ -53,7 +53,7 @@ pub fn hash_bipolar(seed: u64, index: u64) -> f64 {
 
 /// Cheap, non-cryptographic linear-congruential generator for audio-thread
 /// randomness (noise, dither, grain jitter, phase spread). One instance per
-/// stream — per channel, or per voice.
+/// stream — per lane, or per voice.
 #[derive(Default, Clone, Copy)]
 pub struct LcgRng {
     state: u64,
@@ -62,7 +62,7 @@ pub struct LcgRng {
 impl LcgRng {
     /// Seed this stream from a [`seed_base`] and a stream index. Mixing the
     /// index with an odd golden-ratio constant decorrelates streams that share
-    /// a base (e.g. every channel of one module).
+    /// a base (e.g. every lane of one module).
     #[inline]
     pub fn seed(&mut self, base: u64, stream: usize) {
         self.state = base ^ (stream as u64).wrapping_mul(GOLDEN_RATIO_ODD);

@@ -8,7 +8,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PercussionEnvelopeParams {
@@ -26,9 +26,9 @@ struct PercussionEnvelopeOutputs {
     sample: PolyOutput,
 }
 
-/// Per-channel envelope state
+/// Per-lane envelope state
 #[derive(Default, Clone, Copy)]
-struct ChannelState {
+struct LaneState {
     current_level: f32,
     trigger_schmitt: SchmittTrigger,
     in_attack: bool,
@@ -68,10 +68,10 @@ const PERC_DOCS: ModuleDocs = ModuleDocs {
 pub struct PercussionEnvelope {
     outputs: PercussionEnvelopeOutputs,
     params: PercussionEnvelopeParams,
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
 }
 
-impl ChannelState {
+impl LaneState {
     /// Advance one sample and return the envelope output. `decay` is the decay
     /// time in seconds and `attack_step` the per-sample attack rise.
     #[inline(always)]
@@ -124,14 +124,14 @@ impl PercussionEnvelope {
     fn update(&mut self, sample_rate: f32) {
         let p = &self.params;
         let attack_step = attack_step(sample_rate);
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
-            let trigger = p.trigger.get_value(ch);
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
+            let trigger = p.trigger.get_value(lane);
             let decay = p
                 .decay
-                .value_or(ch, PercussionEnvelopeParams::DECAY_DEFAULT);
+                .value_or(lane, PercussionEnvelopeParams::DECAY_DEFAULT);
             self.outputs
                 .sample
-                .set(ch, state.step(trigger, decay, attack_step, sample_rate));
+                .set(lane, state.step(trigger, decay, attack_step, sample_rate));
         }
     }
 
@@ -141,11 +141,11 @@ impl PercussionEnvelope {
         range: Range<usize>,
         sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
         let PercussionEnvelopeParamsBlockInputs { trigger, decay } =
-            p.block_inputs(range.clone(), channels, &mut scratch)?;
+            p.block_inputs(range.clone(), lanes, &mut scratch)?;
         let attack_step = attack_step(sample_rate);
         for i in range {
             let (trigger, decay) = (trigger.row(i), decay.row(i));
@@ -153,9 +153,9 @@ impl PercussionEnvelope {
                 .sample
                 .slot_mut(i)
                 .iter_mut()
-                .zip(self.channel_state.iter_mut());
-            for (ch, (out, state)) in slots.enumerate() {
-                *out = sanitize(state.step(trigger[ch], decay[ch], attack_step, sample_rate));
+                .zip(self.lane_state.iter_mut());
+            for (lane, (out, state)) in slots.enumerate() {
+                *out = sanitize(state.step(trigger[lane], decay[lane], attack_step, sample_rate));
             }
         }
         Some(())

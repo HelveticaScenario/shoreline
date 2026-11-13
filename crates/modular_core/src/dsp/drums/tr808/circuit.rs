@@ -55,8 +55,8 @@ const NOISE_RMS: f32 = 0.13;
 
 impl WhiteNoise {
     /// Seeds the generator unless it already is. The generator rides patch
-    /// updates with its channel, so a carried-over channel keeps its
-    /// sequence and a channel added by an update gets its own.
+    /// updates with its lane, so a carried-over lane keeps its
+    /// sequence and a lane added by an update gets its own.
     pub fn seed(&mut self, base: u64, stream: usize) {
         if !self.seeded {
             self.rng.seed(base, stream);

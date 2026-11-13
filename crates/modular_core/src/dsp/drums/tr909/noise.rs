@@ -37,8 +37,8 @@ const NOISE_CLOCK_HZ: f32 = 1.0 / (2.2 * 33.0e3 * 100.0e-12);
 
 impl Noise {
     /// Seeds the register unless it already is. The register rides patch
-    /// updates with its channel, so a carried-over channel keeps its
-    /// sequence and a channel added by an update gets its own.
+    /// updates with its lane, so a carried-over lane keeps its
+    /// sequence and a lane added by an update gets its own.
     pub fn seed(&mut self, base: u64, stream: usize) {
         if self.seeded {
             return;

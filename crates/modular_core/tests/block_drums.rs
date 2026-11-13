@@ -28,9 +28,9 @@ fn allocation_free() {
             "trigger"
         };
         for mut params in [
-            json!({ "trigger": poly_cable("src", CHANNELS), "accent": cable("lfo", 1) }),
+            json!({ "trigger": poly_cable("src", LANES), "accent": cable("lfo", 1) }),
             json!({ "trigger": cable("src", 0), "accent": [cable("lfo", 0), 2.0, 3.0, 4.0] }),
-            json!({ "trigger": poly_cable("src", CHANNELS), "restart": true }),
+            json!({ "trigger": poly_cable("src", LANES), "restart": true }),
         ] {
             params[trigger] = params["trigger"].take();
             if trigger != "trigger" {

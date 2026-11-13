@@ -244,22 +244,22 @@ export interface CurrentAudioState {
 }
 
 /**
- * Derive the output channel count for a module from its params JSON.
+ * Derive the output lane count for a module from its params JSON.
  *
- * Returns a structured result with either the derived channel count or
+ * Returns a structured result with either the derived lane count or
  * error information when deserialization fails.
  * This uses the cache, so it also warms the cache for subsequent apply_patch calls.
  */
-export declare function deriveChannelCount(moduleType: string, params: any): DeriveChannelCountResult
+export declare function deriveLaneCount(moduleType: string, params: any): DeriveLaneCountResult
 
-export interface DeriveChannelCountError {
+export interface DeriveLaneCountError {
   message: string
   params: Array<string>
 }
 
-export interface DeriveChannelCountResult {
-  channelCount?: number
-  errors?: Array<DeriveChannelCountError>
+export interface DeriveLaneCountResult {
+  laneCount?: number
+  errors?: Array<DeriveLaneCountError>
 }
 
 /** N-API compatible structure for the full device cache */
@@ -523,7 +523,7 @@ export type ModuleCategory = /** Oscillators and other sound sources. */
 'drum'|
 /** Playback of recorded audio and media files. */
 'sampler'|
-/** Combining and panning channels. */
+/** Combining and panning lanes. */
 'mixer'|
 /** Arithmetic and range transforms on signals. */
 'math'|
@@ -563,12 +563,12 @@ export interface ModuleSchema {
   bufferOutputs: Array<string>
   signalParams: Array<SignalParamSchema>
   positionalArgs: Array<PositionalArg>
-  /** If set, this module always produces exactly this many channels (no inference needed) */
-  channels?: number
-  /** If set, the name of the parameter that controls channel count */
-  channelsParam?: string
-  /** If set, the default value for the channels param when not explicitly set */
-  channelsParamDefault?: number
+  /** If set, this module always produces exactly this many lanes (no inference needed) */
+  lanes?: number
+  /** If set, the name of the parameter that controls lane count */
+  lanesParam?: string
+  /** If set, the default value for the lanes param when not explicitly set */
+  lanesParamDefault?: number
   /**
    * Set by `#[module(experimental)]`: the module's sound and params may
    * still change between releases. Always serialized, like `buffer_outputs`.
@@ -628,10 +628,10 @@ export interface OutputSchema {
   /** The maximum value of the raw output range (before any remapping) */
   maxValue?: number
   /**
-   * Fixed channel count of a polyphonic output; `None` follows the
-   * module's derived channel count.
+   * Fixed lane count of a polyphonic output; `None` follows the
+   * module's derived lane count.
    */
-  channels?: number
+  lanes?: number
   /** An `OutputPrecision` value. */
   precision: string
   /** A `BoundsKind` value. */
@@ -666,33 +666,33 @@ export interface PositionalArg {
 }
 
 export interface Scope {
-  channels: Array<ScopeChannel>
+  lanes: Array<ScopeLane>
   msPerFrame: number
   triggerThreshold?: [number, ScopeMode]
   /** Voltage range for display (default [-5.0, 5.0]). The scope displays from range[0] to range[1]. */
   range: [number, number]
-  /** Draw each channel in its own scope instead of overlaying them. */
+  /** Draw each lane in its own scope instead of overlaying them. */
   split?: ScopeSplit
 }
 
 export interface ScopeBufferKey {
   moduleId: string
   portName: string
-  channel: number
+  lane: number
   msPerFrame: number
   triggerThreshold?: [number, ScopeMode]
 }
 
-export interface ScopeChannel {
+export interface ScopeLane {
   moduleId: string
   portName: string
-  channel: number
+  lane: number
 }
 
 export type ScopeMode =  'Wait'|
 'Roll';
 
-/** How a split scope arranges its per-channel views. */
+/** How a split scope arranges its per-lane views. */
 export type ScopeSplit = /** Stacked top to bottom at full width. */
 'vertical'|
 /** Side by side in equal shares of the width. */
@@ -749,9 +749,9 @@ export interface SignalParamSchema {
 /** One VU meter's loudness snapshot, joined to its `VuMeterSpec` by `module_id`. */
 export interface VuMeterFrame {
   moduleId: string
-  /** Per-channel RMS in volts (0 dB reference = 5 V). */
+  /** Per-lane RMS in volts (0 dB reference = 5 V). */
   rms: Array<number>
-  /** Per-channel max |sample| since the previous poll, in volts. */
+  /** Per-lane max |sample| since the previous poll, in volts. */
   peak: Array<number>
   /** Live value of the signal-driven pan, when `pan_source` is set. */
   pan?: number
@@ -780,10 +780,10 @@ export interface VuMeterSpec {
    * When the out's pan is signal-driven, the output to sample so the
    * panel's locked knob can track it live.
    */
-  panSource?: ScopeChannel
+  panSource?: ScopeLane
   /**
    * When the out's gain is signal-driven, the output to sample (in DSL
    * gain units, pre-curve) so the panel's locked fader can track it live.
    */
-  gainSource?: ScopeChannel
+  gainSource?: ScopeLane
 }

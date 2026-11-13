@@ -1,0 +1,17 @@
+kind: Breaking
+body: |-
+    The docs and messages call the elements of a polyphonic signal lanes, and the names follow. `$midiCV`'s `channels` is `lanes`, `$supersaw`'s `voices` is `unison`, `$outLane` is `$trackTap`, and `$track` is `$keyframes`.
+
+    ```js
+    // before
+    const midi = $midiCV({ channels: 4 })
+    $supersaw('c3', { voices: 7 }).out()
+    $signal($outLane('bass').level)
+    $track([[0, 0], [5, 1]])
+    // after
+    const midi = $midiCV({ lanes: 4 })
+    $supersaw('c3', { unison: 7 }).out()
+    $signal($trackTap('bass').level)
+    $keyframes([[0, 0], [5, 1]])
+    ```
+time: 2026-11-13T00:50:28.851038-05:00

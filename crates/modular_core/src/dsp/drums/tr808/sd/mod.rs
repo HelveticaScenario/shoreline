@@ -17,7 +17,7 @@ use super::circuit::{
 };
 use super::levels;
 use crate::dsp::drums::analog::{high_pass, low_pass, one_pole_coeff, rc_hz};
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, Run};
 use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;

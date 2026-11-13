@@ -5,12 +5,12 @@ use crate::types::{OutputStruct, PatchUpdateHandler, Signal};
 
 const SR: f32 = 48000.0;
 
-fn params(color: NoiseKind, channels: usize) -> NoiseParams {
+fn params(color: NoiseKind, lanes: usize) -> NoiseParams {
     NoiseParams {
         color,
         rate: None,
         interp: NoiseInterp::Step,
-        channels,
+        lanes,
     }
 }
 
@@ -23,8 +23,8 @@ fn with_rate(color: NoiseKind, hz: f32, interp: NoiseInterp) -> NoiseParams {
 }
 
 /// Build a Noise module with the given params, mirroring the production
-/// lifecycle: the macro allocates `channel_state` to the channel count, `init`
-/// caches the sample rate, then `on_patch_update` seeds each channel's RNG.
+/// lifecycle: the macro allocates `lane_state` to the lane count, `init`
+/// caches the sample rate, then `on_patch_update` seeds each lane's RNG.
 fn make_noise(params: NoiseParams) -> Noise {
     let mut n = build_noise(params);
     n.on_patch_update();
@@ -34,24 +34,24 @@ fn make_noise(params: NoiseParams) -> Noise {
 /// [`make_noise`], seeded from a fixed `base` in place of the module address.
 fn make_noise_seeded(params: NoiseParams, base: u64) -> Noise {
     let mut n = build_noise(params);
-    n.prepare_channels(base);
+    n.prepare_lanes(base);
     n
 }
 
-/// A constructed and initialized module whose channels are not seeded yet.
+/// A constructed and initialized module whose lanes are not seeded yet.
 fn build_noise(params: NoiseParams) -> Noise {
-    let channels = __noise_derive_channel_count(&params);
+    let lanes = __noise_derive_lane_count(&params);
     let mut outputs = NoiseOutputs::default();
-    outputs.set_all_channels(channels);
+    outputs.set_all_lanes(lanes);
     let mut n = Noise {
         params,
         outputs,
         state: NoiseState::default(),
-        channel_state: (0..channels)
-            .map(|_| NoiseChannelState::default())
+        lane_state: (0..lanes)
+            .map(|_| NoiseLaneState::default())
             .collect::<Vec<_>>()
             .into_boxed_slice(),
-        _channel_count: channels,
+        _lane_count: lanes,
         _block_index: Default::default(),
     };
     n.init(SR);
@@ -62,7 +62,7 @@ fn render(params: NoiseParams, samples: usize) -> Vec<f32> {
     render_from(make_noise(params), samples)
 }
 
-/// Render channel 0 from a fixed seed, for statistical checks whose bounds a
+/// Render lane 0 from a fixed seed, for statistical checks whose bounds a
 /// small fraction of seeds would miss.
 fn render_seeded(params: NoiseParams, samples: usize) -> Vec<f32> {
     render_from(make_noise_seeded(params, 0x5eed), samples)
@@ -109,39 +109,33 @@ const ALL_KINDS: [NoiseKind; 12] = [
 ];
 
 #[test]
-fn channels_param_sets_channel_count() {
+fn lanes_param_sets_lane_count() {
+    assert_eq!(__noise_derive_lane_count(&params(NoiseKind::White, 4)), 4);
+}
+
+#[test]
+fn lanes_clamped() {
+    assert_eq!(__noise_derive_lane_count(&params(NoiseKind::White, 0)), 1);
     assert_eq!(
-        __noise_derive_channel_count(&params(NoiseKind::White, 4)),
-        4
+        __noise_derive_lane_count(&params(NoiseKind::White, 1000)),
+        crate::poly::PORT_MAX_LANES
     );
 }
 
 #[test]
-fn channels_clamped() {
-    assert_eq!(
-        __noise_derive_channel_count(&params(NoiseKind::White, 0)),
-        1
-    );
-    assert_eq!(
-        __noise_derive_channel_count(&params(NoiseKind::White, 1000)),
-        crate::poly::PORT_MAX_CHANNELS
-    );
-}
-
-#[test]
-fn channels_produce_different_sequences() {
+fn lanes_produce_different_sequences() {
     for kind in ALL_KINDS {
         let mut n = make_noise(params(kind, 4));
         let mut series = [[0.0f32; 64]; 4];
         for i in 0..64 {
             n.update(SR);
-            for (ch, s) in series.iter_mut().enumerate() {
-                s[i] = n.outputs.sample.get(ch);
+            for (lane, s) in series.iter_mut().enumerate() {
+                s[i] = n.outputs.sample.get(lane);
             }
         }
         for a in 0..4 {
             for b in (a + 1)..4 {
-                assert_ne!(series[a], series[b], "{kind:?}: channels {a} and {b} match");
+                assert_ne!(series[a], series[b], "{kind:?}: lanes {a} and {b} match");
             }
         }
     }
@@ -328,16 +322,16 @@ fn slow_brown_wanders_without_jumps() {
 }
 
 #[test]
-fn polyphonic_rate_sets_channels_and_clocks_each() {
+fn polyphonic_rate_sets_lanes_and_clocks_each() {
     let hz = [480.0, 960.0, 1920.0];
     let p = NoiseParams {
         rate: Some(PolySignal::poly(&hz.map(|h| Signal::Volts(hz_to_voct(h))))),
         ..params(NoiseKind::White, 1)
     };
-    assert_eq!(__noise_derive_channel_count(&p), 3);
+    assert_eq!(__noise_derive_lane_count(&p), 3);
     assert_eq!(
-        __noise_derive_channel_count(&NoiseParams {
-            channels: 5,
+        __noise_derive_lane_count(&NoiseParams {
+            lanes: 5,
             ..p.clone()
         }),
         5
@@ -348,15 +342,15 @@ fn polyphonic_rate_sets_channels_and_clocks_each() {
     let mut prev = [0.0f32; 3];
     for _ in 0..4800 {
         n.update(SR);
-        for (ch, c) in changes.iter_mut().enumerate() {
-            let v = n.outputs.sample.get(ch);
-            *c += usize::from(v != prev[ch]);
-            prev[ch] = v;
+        for (lane, c) in changes.iter_mut().enumerate() {
+            let v = n.outputs.sample.get(lane);
+            *c += usize::from(v != prev[lane]);
+            prev[lane] = v;
         }
     }
     // 0.1 s at 480, 960 and 1920 ticks per second.
-    for (ch, (&c, expected)) in changes.iter().zip([48, 96, 192]).enumerate() {
-        assert!(c.abs_diff(expected) <= 1, "channel {ch}: {c} ticks");
+    for (lane, (&c, expected)) in changes.iter().zip([48, 96, 192]).enumerate() {
+        assert!(c.abs_diff(expected) <= 1, "lane {lane}: {c} ticks");
     }
 }
 
@@ -367,32 +361,32 @@ fn velvet_without_rate_fires_every_sample() {
 }
 
 /// Largest delay, in samples, at which [`assert_no_shifted_copies`] compares
-/// channels. One short-mode period, so it covers every rotation of a loop.
+/// lanes. One short-mode period, so it covers every rotation of a loop.
 const MAX_LAG: usize = 93;
 
-/// Assert that no LFSR channel is another channel delayed by up to
+/// Assert that no LFSR lane is another lane delayed by up to
 /// [`MAX_LAG`] samples. Any 15 consecutive output bits are the whole register,
-/// so two channels sharing one 64-sample window are shifted copies.
+/// so two lanes sharing one 64-sample window are shifted copies.
 fn assert_no_shifted_copies(n: &mut Noise) {
     const WINDOW: usize = 64;
-    let channels = n.channel_count();
-    let mut series = vec![Vec::new(); channels];
+    let lanes = n.lane_count();
+    let mut series = vec![Vec::new(); lanes];
     for _ in 0..WINDOW + 2 * MAX_LAG {
         n.update(SR);
-        for (ch, bits) in series.iter_mut().enumerate() {
-            bits.push(n.outputs.sample.get(ch) > 0.0);
+        for (lane, bits) in series.iter_mut().enumerate() {
+            bits.push(n.outputs.sample.get(lane) > 0.0);
         }
     }
     let mut owner = std::collections::HashMap::new();
-    for (ch, bits) in series.iter().enumerate() {
+    for (lane, bits) in series.iter().enumerate() {
         for lag in 0..=2 * MAX_LAG {
             let window = bits[lag..lag + WINDOW]
                 .iter()
                 .fold(0u64, |w, &bit| (w << 1) | u64::from(bit));
-            if let Some(other) = owner.insert(window, ch) {
+            if let Some(other) = owner.insert(window, lane) {
                 assert_eq!(
-                    other, ch,
-                    "{:?}: channels {other} and {ch} are shifted copies",
+                    other, lane,
+                    "{:?}: lanes {other} and {lane} are shifted copies",
                     n.params.color
                 );
             }
@@ -400,9 +394,9 @@ fn assert_no_shifted_copies(n: &mut Noise) {
     }
 }
 
-/// The smallest long-mode phase distance between any two channels.
+/// The smallest long-mode phase distance between any two lanes.
 fn min_phase_distance(n: &Noise) -> u32 {
-    let phases: Vec<u16> = n.channel_state.iter().map(|s| s.lfsr_phase()).collect();
+    let phases: Vec<u16> = n.lane_state.iter().map(|s| s.lfsr_phase()).collect();
     let mut min = u32::MAX;
     for (a, &pa) in phases.iter().enumerate() {
         for &pb in &phases[a + 1..] {
@@ -412,35 +406,35 @@ fn min_phase_distance(n: &Noise) -> u32 {
     min
 }
 
-/// Unseed channels `from..` so the next update adds them beside the rest.
-fn drop_channels_from(n: &mut Noise, from: usize) {
-    for state in n.channel_state[from..].iter_mut() {
-        *state = NoiseChannelState::default();
+/// Unseed lanes `from..` so the next update adds them beside the rest.
+fn drop_lanes_from(n: &mut Noise, from: usize) {
+    for state in n.lane_state[from..].iter_mut() {
+        *state = NoiseLaneState::default();
     }
 }
 
 #[test]
-fn channels_added_by_a_patch_update_get_their_own_sequence() {
+fn lanes_added_by_a_patch_update_get_their_own_sequence() {
     for kind in [NoiseKind::Lfsr, NoiseKind::LfsrShort] {
         let mut n = make_noise(params(kind, 4));
-        drop_channels_from(&mut n, 1);
+        drop_lanes_from(&mut n, 1);
         n.on_patch_update();
         assert_no_shifted_copies(&mut n);
     }
 }
 
-/// Channels added after the carried-over ones have run for a while start
-/// away from the current phases of the carried-over channels.
+/// Lanes added after the carried-over ones have run for a while start
+/// away from the current phases of the carried-over lanes.
 #[test]
-fn channels_added_after_running_stay_apart() {
+fn lanes_added_after_running_stay_apart() {
     for elapsed in [1, 511, 2047, 8191, 16383, 16384] {
         let mut n = make_noise(params(NoiseKind::Lfsr, 4));
-        drop_channels_from(&mut n, 1);
+        drop_lanes_from(&mut n, 1);
         for _ in 0..elapsed {
             n.update(SR);
         }
         n.on_patch_update();
-        // Claims beside one running channel split gaps of at least a half and
+        // Claims beside one running lane split gaps of at least a half and
         // then a quarter period; seeding draws a few ticks of history after.
         let min = min_phase_distance(&n);
         assert!(min >= LFSR_LONG_PERIOD / 4 - 8, "{elapsed}: {min} ticks");
@@ -449,19 +443,19 @@ fn channels_added_after_running_stay_apart() {
 }
 
 #[test]
-fn fresh_lfsr_channels_are_evenly_spaced() {
-    for channels in [2, 3, 4, 16, PORT_MAX_CHANNELS] {
-        let n = make_noise(params(NoiseKind::Lfsr, channels));
-        let spacing = LFSR_LONG_PERIOD / channels as u32;
-        assert!(min_phase_distance(&n) >= spacing, "{channels} channels");
+fn fresh_lfsr_lanes_are_evenly_spaced() {
+    for lanes in [2, 3, 4, 16, PORT_MAX_LANES] {
+        let n = make_noise(params(NoiseKind::Lfsr, lanes));
+        let spacing = LFSR_LONG_PERIOD / lanes as u32;
+        assert!(min_phase_distance(&n) >= spacing, "{lanes} lanes");
     }
 }
 
 #[test]
-fn lfsr_channels_are_never_shifted_copies() {
+fn lfsr_lanes_are_never_shifted_copies() {
     for kind in [NoiseKind::Lfsr, NoiseKind::LfsrShort] {
         for base in (0..LFSR_LONG_PERIOD).step_by(1021) {
-            let mut n = make_noise_seeded(params(kind, PORT_MAX_CHANNELS), u64::from(base));
+            let mut n = make_noise_seeded(params(kind, PORT_MAX_LANES), u64::from(base));
             assert_no_shifted_copies(&mut n);
         }
     }
@@ -479,7 +473,7 @@ fn slow_rates_start_as_noise() {
     let mut rms = 0.0;
     for seed_offset in 0..64 {
         let p = NoiseParams {
-            channels: 64,
+            lanes: 64,
             ..with_rate(NoiseKind::Pink, 0.2, NoiseInterp::Step)
         };
         let mut n = make_noise(p);

@@ -84,7 +84,7 @@ fn twist_rolloff(freq_norm: f32) -> f32 {
     base * base
 }
 
-// The twists take their knob prepared once per channel by the matching
+// The twists take their knob prepared once per lane by the matching
 // `*_amount` function, leaving only the per-oscillator antialiasing here.
 
 /// Pulsar speed-up for a 0–5 knob: `2^(6·k²)`, 1× to 64×.

@@ -15,7 +15,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-1",
                         "port": "output",
                         "type": "cable"
@@ -34,7 +34,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-1",
                         "port": "output",
                         "type": "cable"
@@ -58,7 +58,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-2",
                         "port": "output",
                         "type": "cable"
@@ -85,7 +85,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-3",
                         "port": "output",
                         "type": "cable"
@@ -102,7 +102,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-2",
                         "port": "output",
                         "type": "cable"
@@ -110,7 +110,7 @@
                 ],
                 "offset": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-3",
                         "port": "output",
                         "type": "cable"
@@ -133,7 +133,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-4",
                         "port": "output",
                         "type": "cable"
@@ -152,7 +152,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-4",
                         "port": "output",
                         "type": "cable"
@@ -176,7 +176,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-5",
                         "port": "output",
                         "type": "cable"
@@ -195,7 +195,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-5",
                         "port": "output",
                         "type": "cable"
@@ -218,7 +218,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-6",
                         "port": "output",
                         "type": "cable"
@@ -245,7 +245,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-7",
                         "port": "output",
                         "type": "cable"
@@ -264,7 +264,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-7",
                         "port": "output",
                         "type": "cable"
@@ -288,7 +288,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$signal-1",
                         "port": "output",
                         "type": "cable"
@@ -304,7 +304,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$lpf-1",
                         "port": "output",
                         "type": "cable"
@@ -329,7 +329,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-8",
                         "port": "output",
                         "type": "cable"
@@ -348,7 +348,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-8",
                         "port": "output",
                         "type": "cable"
@@ -382,7 +382,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$signal-3",
                         "port": "output",
                         "type": "cable"
@@ -398,7 +398,7 @@
             "params": {
                 "value": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$lpf-2",
                         "port": "output",
                         "type": "cable"
@@ -423,7 +423,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-9",
                         "port": "output",
                         "type": "cable"
@@ -442,7 +442,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-9",
                         "port": "output",
                         "type": "cable"
@@ -466,7 +466,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-10",
                         "port": "output",
                         "type": "cable"
@@ -485,7 +485,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-10",
                         "port": "output",
                         "type": "cable"
@@ -509,7 +509,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-11",
                         "port": "output",
                         "type": "cable"
@@ -526,7 +526,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-11",
                         "port": "output",
                         "type": "cable"
@@ -551,7 +551,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-12",
                         "port": "output",
                         "type": "cable"
@@ -570,7 +570,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-12",
                         "port": "output",
                         "type": "cable"
@@ -594,7 +594,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-13",
                         "port": "output",
                         "type": "cable"
@@ -619,7 +619,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-14",
                         "port": "output",
                         "type": "cable"
@@ -636,7 +636,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-14",
                         "port": "output",
                         "type": "cable"
@@ -659,7 +659,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-15",
                         "port": "output",
                         "type": "cable"
@@ -678,7 +678,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-15",
                         "port": "output",
                         "type": "cable"
@@ -702,7 +702,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-16",
                         "port": "output",
                         "type": "cable"
@@ -721,7 +721,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-16",
                         "port": "output",
                         "type": "cable"
@@ -745,7 +745,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-17",
                         "port": "output",
                         "type": "cable"
@@ -764,7 +764,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-17",
                         "port": "output",
                         "type": "cable"
@@ -780,7 +780,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$add-3",
                         "port": "output",
                         "type": "cable"
@@ -805,7 +805,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-18",
                         "port": "output",
                         "type": "cable"
@@ -832,7 +832,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-19",
                         "port": "output",
                         "type": "cable"
@@ -857,7 +857,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-20",
                         "port": "output",
                         "type": "cable"
@@ -876,7 +876,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-21",
                         "port": "output",
                         "type": "cable"
@@ -899,7 +899,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-21",
                         "port": "output",
                         "type": "cable"
@@ -918,7 +918,7 @@
             "params": {
                 "value": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-22",
                         "port": "output",
                         "type": "cable"
@@ -941,7 +941,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-22",
                         "port": "output",
                         "type": "cable"
@@ -960,7 +960,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-23",
                         "port": "output",
                         "type": "cable"
@@ -993,7 +993,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-23",
                         "port": "output",
                         "type": "cable"
@@ -1020,7 +1020,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-24",
                         "port": "output",
                         "type": "cable"
@@ -1039,7 +1039,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-24",
                         "port": "output",
                         "type": "cable"
@@ -1047,7 +1047,7 @@
                 ],
                 "offset": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-25",
                         "port": "output",
                         "type": "cable"
@@ -1070,7 +1070,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-25",
                         "port": "output",
                         "type": "cable"
@@ -1097,7 +1097,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$signal-6",
                         "port": "output",
                         "type": "cable"
@@ -1113,7 +1113,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-26",
                         "port": "output",
                         "type": "cable"
@@ -1121,7 +1121,7 @@
                 ],
                 "trigger": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$lpf-3",
                         "port": "output",
                         "type": "cable"
@@ -1144,7 +1144,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-26",
                         "port": "output",
                         "type": "cable"
@@ -1171,7 +1171,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$signal-7",
                         "port": "output",
                         "type": "cable"
@@ -1187,7 +1187,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-27",
                         "port": "output",
                         "type": "cable"
@@ -1195,7 +1195,7 @@
                 ],
                 "gate": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$lpf-4",
                         "port": "output",
                         "type": "cable"
@@ -1218,7 +1218,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$signal-8",
                         "port": "output",
                         "type": "cable"
@@ -1234,7 +1234,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$lpf-5",
                         "port": "output",
                         "type": "cable"
@@ -1259,7 +1259,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-27",
                         "port": "output",
                         "type": "cable"
@@ -1278,7 +1278,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-28",
                         "port": "output",
                         "type": "cable"
@@ -1293,7 +1293,7 @@
             "params": {
                 "dry": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-28",
                         "port": "output",
                         "type": "cable"
@@ -1301,7 +1301,7 @@
                 ],
                 "wet": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$slew-2",
                         "port": "output",
                         "type": "cable"
@@ -1325,7 +1325,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-28",
                         "port": "output",
                         "type": "cable"
@@ -1344,7 +1344,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-29",
                         "port": "output",
                         "type": "cable"
@@ -1359,7 +1359,7 @@
             "params": {
                 "dry": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-29",
                         "port": "output",
                         "type": "cable"
@@ -1367,7 +1367,7 @@
                 ],
                 "wet": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$slew-3",
                         "port": "output",
                         "type": "cable"
@@ -1407,7 +1407,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$signal-9",
                         "port": "output",
                         "type": "cable"
@@ -1431,7 +1431,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-29",
                         "port": "output",
                         "type": "cable"
@@ -1458,13 +1458,13 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-30",
                         "port": "output",
                         "type": "cable"
                     },
                     {
-                        "channel": 1,
+                        "lane": 1,
                         "module": "$sine-30",
                         "port": "output",
                         "type": "cable"
@@ -1487,7 +1487,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$sine-31",
                         "port": "output",
                         "type": "cable"
@@ -1506,7 +1506,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-31",
                         "port": "output",
                         "type": "cable"
@@ -1542,7 +1542,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$saw-1",
                         "port": "output",
                         "type": "cable"
@@ -1550,7 +1550,7 @@
                 ],
                 "pan": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "__vuPan_lifted",
                         "port": "output",
                         "type": "cable"
@@ -1566,13 +1566,13 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$stereoMix-1",
                         "port": "output",
                         "type": "cable"
                     },
                     {
-                        "channel": 1,
+                        "lane": 1,
                         "module": "$stereoMix-1",
                         "port": "output",
                         "type": "cable"
@@ -1580,7 +1580,7 @@
                 ],
                 "level": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "__vuGain_lifted",
                         "port": "output",
                         "type": "cable"
@@ -1605,7 +1605,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "__vuMute_lifted",
                         "port": "output",
                         "type": "cable"
@@ -1623,13 +1623,13 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "__vuTap_lifted",
                         "port": "output",
                         "type": "cable"
                     },
                     {
-                        "channel": 1,
+                        "lane": 1,
                         "module": "__vuTap_lifted",
                         "port": "output",
                         "type": "cable"
@@ -1637,7 +1637,7 @@
                 ],
                 "factor": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "__vuSlew_lifted",
                         "port": "output",
                         "type": "cable"
@@ -1652,7 +1652,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$saw-2",
                         "port": "output",
                         "type": "cable"
@@ -1660,7 +1660,7 @@
                 ],
                 "pan": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$remap-30",
                         "port": "output",
                         "type": "cable"
@@ -1676,13 +1676,13 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$stereoMix-2",
                         "port": "output",
                         "type": "cable"
                     },
                     {
-                        "channel": 1,
+                        "lane": 1,
                         "module": "$stereoMix-2",
                         "port": "output",
                         "type": "cable"
@@ -1690,7 +1690,7 @@
                 ],
                 "level": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$lpf-6",
                         "port": "output",
                         "type": "cable"
@@ -1715,7 +1715,7 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "__vuMute_wrapped",
                         "port": "output",
                         "type": "cable"
@@ -1733,13 +1733,13 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "__vuTap_wrapped",
                         "port": "output",
                         "type": "cable"
                     },
                     {
-                        "channel": 1,
+                        "lane": 1,
                         "module": "__vuTap_wrapped",
                         "port": "output",
                         "type": "cable"
@@ -1747,7 +1747,7 @@
                 ],
                 "factor": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "__vuSlew_wrapped",
                         "port": "output",
                         "type": "cable"
@@ -1763,13 +1763,13 @@
                 "inputs": [
                     [
                         {
-                            "channel": 0,
+                            "lane": 0,
                             "module": "$amp-2",
                             "port": "output",
                             "type": "cable"
                         },
                         {
-                            "channel": 1,
+                            "lane": 1,
                             "module": "$amp-2",
                             "port": "output",
                             "type": "cable"
@@ -1777,13 +1777,13 @@
                     ],
                     [
                         {
-                            "channel": 0,
+                            "lane": 0,
                             "module": "$amp-3",
                             "port": "output",
                             "type": "cable"
                         },
                         {
-                            "channel": 1,
+                            "lane": 1,
                             "module": "$amp-3",
                             "port": "output",
                             "type": "cable"
@@ -1809,13 +1809,13 @@
             "params": {
                 "input": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$mix-1",
                         "port": "output",
                         "type": "cable"
                     },
                     {
-                        "channel": 1,
+                        "lane": 1,
                         "module": "$mix-1",
                         "port": "output",
                         "type": "cable"
@@ -1823,7 +1823,7 @@
                 ],
                 "level": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "__vuGain_main",
                         "port": "output",
                         "type": "cable"
@@ -1838,13 +1838,13 @@
             "params": {
                 "value": [
                     {
-                        "channel": 0,
+                        "lane": 0,
                         "module": "$gain-2",
                         "port": "output",
                         "type": "cable"
                     },
                     {
-                        "channel": 1,
+                        "lane": 1,
                         "module": "$gain-2",
                         "port": "output",
                         "type": "cable"
@@ -1858,7 +1858,7 @@
             "moduleType": "$signal",
             "params": {
                 "value": {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$lpf-6",
                     "port": "output",
                     "type": "cable"
@@ -1873,7 +1873,7 @@
             "moduleType": "$signal",
             "params": {
                 "value": {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$remap-30",
                     "port": "output",
                     "type": "cable"
@@ -1888,7 +1888,7 @@
             "label": "add",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$add-1",
                     "port": "output"
                 }
@@ -1898,7 +1898,7 @@
             "label": "addRanged",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$add-2",
                     "port": "output"
                 }
@@ -1908,7 +1908,7 @@
             "label": "amp",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$amp-1",
                     "port": "output"
                 }
@@ -1918,17 +1918,17 @@
             "label": "ceil",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$ceil-1",
                     "port": "output"
                 }
             ]
         },
         {
-            "label": "channel",
+            "label": "lane",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$remap-6",
                     "port": "output"
                 }
@@ -1938,7 +1938,7 @@
             "label": "clamp",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$clamp-1",
                     "port": "output"
                 }
@@ -1948,7 +1948,7 @@
             "label": "clampLimits",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$clamp-2",
                     "port": "output"
                 }
@@ -1958,7 +1958,7 @@
             "label": "curve",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$curve-1",
                     "port": "output"
                 }
@@ -1968,7 +1968,7 @@
             "label": "declared",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$signal-2",
                     "port": "output"
                 }
@@ -1978,7 +1978,7 @@
             "label": "declaredOverUnranged",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$signal-4",
                     "port": "output"
                 }
@@ -1988,7 +1988,7 @@
             "label": "div",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$div-1",
                     "port": "output"
                 }
@@ -1998,7 +1998,7 @@
             "label": "erraticBlend",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "_erratic-1",
                     "port": "output"
                 }
@@ -2008,7 +2008,7 @@
             "label": "erraticClamp",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "_erratic-2",
                     "port": "output"
                 }
@@ -2018,7 +2018,7 @@
             "label": "exp",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$exp-1",
                     "port": "output"
                 }
@@ -2028,7 +2028,7 @@
             "label": "flipped",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$remap-13",
                     "port": "output"
                 }
@@ -2038,7 +2038,7 @@
             "label": "floor",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$floor-1",
                     "port": "output"
                 }
@@ -2048,7 +2048,7 @@
             "label": "gain",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$gain-1",
                     "port": "output"
                 }
@@ -2058,7 +2058,7 @@
             "label": "mul",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$mul-1",
                     "port": "output"
                 }
@@ -2068,7 +2068,7 @@
             "label": "rangeOfRanged",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$remap-18",
                     "port": "output"
                 }
@@ -2078,12 +2078,12 @@
             "label": "ranges",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$remap-19",
                     "port": "output"
                 },
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$remap-20",
                     "port": "output"
                 }
@@ -2093,7 +2093,7 @@
             "label": "round",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$round-1",
                     "port": "output"
                 }
@@ -2103,7 +2103,7 @@
             "label": "signal",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$signal-5",
                     "port": "output"
                 }
@@ -2113,7 +2113,7 @@
             "label": "slew",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$slew-1",
                     "port": "output"
                 }
@@ -2123,7 +2123,7 @@
             "label": "smoothControl",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "_smoothControl-1",
                     "port": "output"
                 }
@@ -2133,7 +2133,7 @@
             "label": "sub",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$sub-1",
                     "port": "output"
                 }
@@ -2143,7 +2143,7 @@
             "label": "sah",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$sah-1",
                     "port": "output"
                 }
@@ -2153,7 +2153,7 @@
             "label": "tah",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$tah-1",
                     "port": "output"
                 }
@@ -2163,7 +2163,7 @@
             "label": "wrap",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$wrap-1",
                     "port": "output"
                 }
@@ -2173,7 +2173,7 @@
             "label": "wet",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "_crossfade-1",
                     "port": "output"
                 }
@@ -2183,7 +2183,7 @@
             "label": "pipeMix",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "_crossfade-2",
                     "port": "output"
                 }
@@ -2193,7 +2193,7 @@
             "label": "lifted.active",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "__vuMute_lifted",
                     "port": "output"
                 }
@@ -2203,7 +2203,7 @@
             "label": "lifted.level",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "__vuGain_lifted",
                     "port": "output"
                 }
@@ -2213,7 +2213,7 @@
             "label": "lifted.pan",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "__vuPan_lifted",
                     "port": "output"
                 }
@@ -2223,7 +2223,7 @@
             "label": "wrapped.active",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "__vuMute_wrapped",
                     "port": "output"
                 }
@@ -2233,7 +2233,7 @@
             "label": "wrapped.level",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$signal-10",
                     "port": "output"
                 }
@@ -2243,7 +2243,7 @@
             "label": "wrapped.pan",
             "outputs": [
                 {
-                    "channel": 0,
+                    "lane": 0,
                     "module": "$signal-11",
                     "port": "output"
                 }

@@ -56,7 +56,7 @@ pub fn get_module_state_builders() -> HashMap<String, crate::module_state::Modul
 /// Returns a map of `module_type` -> params deserializer function.
 ///
 /// A params deserializer takes a JSON value (with `__argument_spans` already stripped)
-/// and returns a `CachedParams` containing the typed params and derived channel count.
+/// and returns a `CachedParams` containing the typed params and derived lane count.
 pub fn get_params_deserializers() -> HashMap<String, ParamsDeserializer> {
     let mut map = HashMap::new();
     chaos::install_params_deserializers(&mut map);

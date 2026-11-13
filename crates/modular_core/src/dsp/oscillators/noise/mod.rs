@@ -5,31 +5,28 @@ use crate::dsp::utils::rng::{hash_bipolar, seed_base};
 use crate::dsp::utils::voct_to_hz;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal};
+use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal};
 
-mod channel;
 mod generators;
+mod lane;
 #[cfg(test)]
 mod tests;
 
-use channel::NoiseChannelState;
 use generators::{LFSR_LONG_PERIOD, LFSR_SHORT_CYCLE, LfsrLoop, LfsrPhases, lfsr_even_phase};
+use lane::NoiseLaneState;
 
-fn default_channels() -> usize {
+fn default_lanes() -> usize {
     1
 }
 
-/// At least `channels`, widened to match a polyphonic `rate`.
-fn noise_derive_channel_count(params: &NoiseParams) -> usize {
-    let rate_channels = params.rate.as_ref().map_or(0, PolySignal::channels);
-    params
-        .channels
-        .max(rate_channels)
-        .clamp(1, PORT_MAX_CHANNELS)
+/// At least `lanes`, widened to match a polyphonic `rate`.
+fn noise_derive_lane_count(params: &NoiseParams) -> usize {
+    let rate_lanes = params.rate.as_ref().map_or(0, PolySignal::lanes);
+    params.lanes.max(rate_lanes).clamp(1, PORT_MAX_LANES)
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
@@ -52,12 +49,12 @@ struct NoiseParams {
     #[deserr(default)]
     interp: NoiseInterp,
     #[input(
-        "number of independent noise channels, each a different sequence; a polyphonic `rate` raises it to that many",
+        "number of independent noise lanes, each a different sequence; a polyphonic `rate` raises it to that many",
         range = (1, 64),
     )]
-    #[serde(default = "default_channels")]
-    #[deserr(default = default_channels())]
-    channels: usize,
+    #[serde(default = "default_lanes")]
+    #[deserr(default = default_lanes())]
+    lanes: usize,
 }
 
 #[derive(Clone, Copy, Deserr, JsonSchema, Debug, PartialEq, Eq, Connect)]
@@ -146,7 +143,7 @@ const NOISE_DOCS: ModuleDocs = ModuleDocs {
 
 #[module(
     name = "$noise", docs = NOISE_DOCS,
-    channels_derive = noise_derive_channel_count,
+    lanes_derive = noise_derive_lane_count,
     has_init,
     patch_update,
     args(color)
@@ -155,8 +152,8 @@ pub struct Noise {
     outputs: NoiseOutputs,
     params: NoiseParams,
     state: NoiseState,
-    /// Per-channel generator state, one element per polyphonic channel.
-    channel_state: Box<[NoiseChannelState]>,
+    /// Per-lane generator state, one element per polyphonic lane.
+    lane_state: Box<[NoiseLaneState]>,
 }
 
 /// Module-level state for the Noise module.
@@ -164,10 +161,10 @@ pub struct Noise {
 struct NoiseState {
     last_noise_type: NoiseKind,
     inv_sample_rate: f32,
-    /// Random per-module seed that places the LFSR channels, drawn when the
-    /// module's first channels are seeded. It transfers with the module, so
-    /// channels a patch update adds play short-mode cycles distinct from the
-    /// transferred channels'.
+    /// Random per-module seed that places the LFSR lanes, drawn when the
+    /// module's first lanes are seeded. It transfers with the module, so
+    /// lanes a patch update adds play short-mode cycles distinct from the
+    /// transferred lanes'.
     lfsr_seed: u32,
 }
 
@@ -184,7 +181,7 @@ impl Noise {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let color = self.params.color;
 
         // Unconnected, the clock ticks every sample with nothing to
@@ -202,67 +199,68 @@ impl Noise {
             1.0
         };
 
-        for ch in 0..channels {
+        for lane in 0..lanes {
             // Rate cycles per sample, capped at one.
-            let cycles = rate
-                .map(|rate| (voct_to_hz(rate.get_value(ch)) * self.state.inv_sample_rate).min(1.0));
-            let state = &mut self.channel_state[ch];
+            let cycles = rate.map(|rate| {
+                (voct_to_hz(rate.get_value(lane)) * self.state.inv_sample_rate).min(1.0)
+            });
+            let state = &mut self.lane_state[lane];
             let value = match color {
                 NoiseKind::Telegraph => state.telegraph(cycles.unwrap_or(0.5)),
                 NoiseKind::Dust => state.dust(cycles.unwrap_or(0.5), sample_rate),
                 NoiseKind::Velvet => state.velvet(cycles.unwrap_or(1.0), sample_rate),
                 _ => state.clocked(color, cycles.map_or(1.0, |c| c * ticks_per_cycle), interp),
             };
-            self.outputs.sample.set(ch, value * 5.0);
+            self.outputs.sample.set(lane, value * 5.0);
         }
     }
 }
 
 impl crate::types::PatchUpdateHandler for Noise {
-    /// Restarts every channel when the color changed, and seeds channels that
-    /// have not been seeded yet: every channel of a new module, or those a
+    /// Restarts every lane when the color changed, and seeds lanes that
+    /// have not been seeded yet: every lane of a new module, or those a
     /// patch update added beside transferred ones.
     ///
     /// Runs here, not in `init`, because `init` runs while the module still
     /// lives in a transient stack slot reused across constructions, so every
     /// instance would seed identically. By `on_patch_update` the module sits at
-    /// its stable per-instance heap address. Transferred channels keep their
+    /// its stable per-instance heap address. Transferred lanes keep their
     /// seeded RNG, so each stream stays continuous across patch updates.
     fn on_patch_update(&mut self) {
-        self.prepare_channels(seed_base(self));
+        self.prepare_lanes(seed_base(self));
     }
 }
 
 impl Noise {
-    /// The body of `on_patch_update`, seeding new channels from `base`.
-    fn prepare_channels(&mut self, base: u64) {
+    /// The body of `on_patch_update`, seeding new lanes from `base`.
+    fn prepare_lanes(&mut self, base: u64) {
         let color = self.params.color;
         let color_changed = self.state.last_noise_type != color;
         self.state.last_noise_type = color;
-        let fresh = !self.channel_state.iter().any(|state| state.seeded);
+        let fresh = !self.lane_state.iter().any(|state| state.seeded);
         if fresh {
             let unit = (hash_bipolar(base, 0) + 1.0) * 0.5;
             self.state.lfsr_seed = (unit * f64::from(u32::MAX)) as u32;
         }
         let lfsr_seed = self.state.lfsr_seed;
-        let channels = self.channel_state.len();
-        // Channels added beside running ones claim long-mode phases away from
-        // the current phases of the running channels.
+        let lanes = self.lane_state.len();
+        // Lanes added beside running ones claim long-mode phases away from
+        // the current phases of the running lanes.
         let mut phases = LfsrPhases::new(
-            self.channel_state
+            self.lane_state
                 .iter()
                 .filter(|state| state.seeded)
-                .map(NoiseChannelState::lfsr_phase),
+                .map(NoiseLaneState::lfsr_phase),
         );
-        for (ch, state) in self.channel_state.iter_mut().enumerate() {
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
             if !state.seeded {
                 let phase = if fresh {
-                    lfsr_even_phase(lfsr_seed % LFSR_LONG_PERIOD, ch, channels)
+                    lfsr_even_phase(lfsr_seed % LFSR_LONG_PERIOD, lane, lanes)
                 } else {
                     phases.claim()
                 };
-                let lfsr_loop = LfsrLoop::for_channel(lfsr_seed, ch);
-                state.seed(base, ch, phase, lfsr_loop, color);
+                let lfsr_loop = LfsrLoop::for_lane(lfsr_seed, lane);
+                state.seed(base, lane, phase, lfsr_loop, color);
             } else if color_changed {
                 state.reset(color);
             }

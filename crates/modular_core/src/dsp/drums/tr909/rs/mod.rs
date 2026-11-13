@@ -13,7 +13,7 @@ use schemars::JsonSchema;
 
 use super::circuit::{DIODE_DROP, Shaper, TRIG_SECS, TRIG_V, VCA, VSAT, accent_volts};
 use crate::dsp::drums::analog::Junction;
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, Run};
 use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState, STIFF};
 use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};

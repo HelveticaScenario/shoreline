@@ -26,7 +26,7 @@ use grainlet::{GrainletControls, GrainletPair};
 const OUTPUT_GAIN: f32 = -0.7 * 5.0;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FormantParams {
@@ -94,7 +94,7 @@ const FORMANT_DOCS: ModuleDocs = ModuleDocs {
 pub struct Formant {
     outputs: FormantOutputs,
     state: FormantState,
-    channel_state: Box<[Voice]>,
+    lane_state: Box<[Voice]>,
     params: FormantParams,
 }
 
@@ -246,30 +246,30 @@ impl Formant {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
-        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, FormantParams::FM_DEFAULT),
+                p.freq.get_value(lane),
+                p.fm.value_or(lane, FormantParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
             let knobs = Knobs {
                 formant: (
-                    p.formant.value_or(ch, FormantParams::FORMANT_DEFAULT),
-                    p.formant.glide_mark(ch),
+                    p.formant.value_or(lane, FormantParams::FORMANT_DEFAULT),
+                    p.formant.glide_mark(lane),
                 ),
                 ratio: (
-                    p.ratio.value_or(ch, FormantParams::RATIO_DEFAULT),
-                    p.ratio.glide_mark(ch),
+                    p.ratio.value_or(lane, FormantParams::RATIO_DEFAULT),
+                    p.ratio.glide_mark(lane),
                 ),
                 width: (
-                    p.width.value_or(ch, FormantParams::WIDTH_DEFAULT),
-                    p.width.glide_mark(ch),
+                    p.width.value_or(lane, FormantParams::WIDTH_DEFAULT),
+                    p.width.glide_mark(lane),
                 ),
             };
             voice.control(f0, knobs, 1.0, sample_rate, &self.state);
-            self.outputs.sample.set(ch, voice.step(f0, &self.state));
+            self.outputs.sample.set(lane, voice.step(f0, &self.state));
         }
     }
 
@@ -279,27 +279,27 @@ impl Formant {
         range: Range<usize>,
         sample_rate: f32,
     ) -> Option<()> {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
-        let inputs = p.block_inputs(range.clone(), channels, &mut scratch)?;
+        let inputs = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         let state = &self.state;
-        for (ch, voice) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
             let marks = (
-                p.formant.glide_mark(ch),
-                p.ratio.glide_mark(ch),
-                p.width.glide_mark(ch),
+                p.formant.glide_mark(lane),
+                p.ratio.glide_mark(lane),
+                p.width.glide_mark(lane),
             );
             for i in range.clone() {
-                let f0 = apply_fm(inputs.freq.row(i)[ch], inputs.fm.row(i)[ch], p.fm_mode)
+                let f0 = apply_fm(inputs.freq.row(i)[lane], inputs.fm.row(i)[lane], p.fm_mode)
                     * state.inv_sample_rate;
                 let knobs = Knobs {
-                    formant: (inputs.formant.row(i)[ch], marks.0),
-                    ratio: (inputs.ratio.row(i)[ch], marks.1),
-                    width: (inputs.width.row(i)[ch], marks.2),
+                    formant: (inputs.formant.row(i)[lane], marks.0),
+                    ratio: (inputs.ratio.row(i)[lane], marks.1),
+                    width: (inputs.width.row(i)[lane], marks.2),
                 };
                 voice.control(f0, knobs, 1.0, sample_rate, state);
-                outputs.sample.slot_mut(i)[ch] = voice.step(f0, state);
+                outputs.sample.slot_mut(i)[lane] = voice.step(f0, state);
             }
         }
         Some(())

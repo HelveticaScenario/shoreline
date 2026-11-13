@@ -5,12 +5,12 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{Buffer, PolySignal, poly::PolyOutput};
 
-fn delay_read_derive_channel_count(params: &DelayReadParams) -> usize {
-    params.buffer.channel_count().max(params.time.channels())
+fn delay_read_derive_lane_count(params: &DelayReadParams) -> usize {
+    params.buffer.lane_count().max(params.time.lanes())
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct DelayReadParams {
@@ -68,7 +68,7 @@ const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$delayRead", docs = DELAY_READ_DOCS, channels_derive = delay_read_derive_channel_count, args(buffer, time))]
+#[module(name = "$delayRead", docs = DELAY_READ_DOCS, lanes_derive = delay_read_derive_lane_count, args(buffer, time))]
 pub struct DelayRead {
     outputs: DelayReadOutputs,
     params: DelayReadParams,
@@ -86,7 +86,7 @@ impl DelayRead {
         self.params.buffer.ensure_source_updated_to(slot + 1);
 
         let frame_count = self.params.buffer.frame_count();
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         // This slot's write position is the base the source's `tick_buffers`
         // set at block start plus `slot`. Inside a feedback cycle the source
         // may still be computing this slot, so that frame holds data from a
@@ -96,8 +96,8 @@ impl DelayRead {
             .wrapping_sub(unwritten)
             % frame_count.max(1);
 
-        for channel in 0..channels {
-            let delay_time_secs = (self.params.time.get_value(channel) as f64).max(0.0);
+        for lane in 0..lanes {
+            let delay_time_secs = (self.params.time.get_value(lane) as f64).max(0.0);
             // The longest delay is `frame_count - 1` frames whichever cycle
             // member runs first; with `unwritten`, `back` counts from the
             // frame before the write position.
@@ -105,13 +105,13 @@ impl DelayRead {
                 (delay_time_secs * (sample_rate as f64)).min(frame_count.saturating_sub(1) as f64);
             let back = (delay_frames - unwritten as f64).max(0.0);
 
-            let buf_channels = self.params.buffer.channel_count().max(1);
-            let buf_channel = channel % buf_channels;
+            let buf_lanes = self.params.buffer.lane_count().max(1);
+            let buf_lane = lane % buf_lanes;
             let value = self
                 .params
                 .buffer
-                .read_hermite_behind(buf_channel, newest, back as f32);
-            self.outputs.sample.set(channel, value);
+                .read_hermite_behind(buf_lane, newest, back as f32);
+            self.outputs.sample.set(lane, value);
         }
     }
 }

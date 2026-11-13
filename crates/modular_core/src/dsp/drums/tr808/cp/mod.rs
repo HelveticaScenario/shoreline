@@ -13,7 +13,7 @@ use schemars::JsonSchema;
 use super::circuit::{PULSE_V, WhiteNoise, pulse_volts};
 use crate::dsp::drums::analog::VT;
 use crate::dsp::drums::clap::{Envelope, EnvelopeNetwork, ota_current};
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, Run};
 use crate::dsp::drums::mna::{DC_STEP, GROUND, Mna, MnaBuilder, MnaState, STIFF, Switch};
 use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Level, Pulse, Quiet, Timing, Voices};

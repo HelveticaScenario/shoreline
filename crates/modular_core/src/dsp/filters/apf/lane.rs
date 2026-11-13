@@ -8,7 +8,7 @@ use super::{
     stage::{Stage, StageCoeffs, damping, glide, prewarp},
 };
 
-/// One sample's controls for a channel.
+/// One sample's controls for a lane.
 #[derive(Clone, Copy)]
 pub(super) struct Controls {
     pub cutoff: f32,
@@ -24,8 +24,8 @@ pub(super) fn grid_points(stages: f32, step: usize) -> (usize, usize) {
     (lower, (lower + step).min(MAX_STAGES))
 }
 
-/// A channel's chain of stages and its feedback loop.
-pub(super) struct AllpassChannel {
+/// A lane's chain of stages and its feedback loop.
+pub(super) struct AllpassLane {
     stages: [Stage; MAX_STAGES],
     /// Coefficients of every whole stage, and of the stage gliding in.
     coeffs: StageCoeffs,
@@ -48,7 +48,7 @@ pub(super) struct AllpassChannel {
     running: bool,
 }
 
-impl Default for AllpassChannel {
+impl Default for AllpassLane {
     fn default() -> Self {
         Self {
             stages: [Stage::default(); MAX_STAGES],
@@ -66,11 +66,11 @@ impl Default for AllpassChannel {
     }
 }
 
-impl AllpassChannel {
-    /// Seed this channel's noise floor from the module's `base` and its
-    /// index `channel`, so modules and channels self-oscillate independently.
-    pub(super) fn seed_noise(&mut self, base: u64, channel: usize) {
-        self.feedback.seed_noise(base, channel);
+impl AllpassLane {
+    /// Seed this lane's noise floor from the module's `base` and its
+    /// index `lane`, so modules and lanes self-oscillate independently.
+    pub(super) fn seed_noise(&mut self, base: u64, lane: usize) {
+        self.feedback.seed_noise(base, lane);
     }
 
     /// Recompute whichever coefficients `octaves` (the cutoff relative to the

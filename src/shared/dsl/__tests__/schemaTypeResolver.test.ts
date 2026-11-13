@@ -5,42 +5,40 @@ describe('getEnumVariants', () => {
     test('extracts variants from oneOf with const + description (documented enum)', () => {
         const schema = {
             oneOf: [
-                { const: 'sum', description: 'Sum all inputs at each channel' },
+                { const: 'sum', description: 'Sum all inputs at each lane' },
                 {
                     const: 'average',
-                    description: 'Average all inputs at each channel',
+                    description: 'Average all inputs at each lane',
                 },
                 {
                     const: 'max',
-                    description:
-                        'Take the maximum absolute value at each channel',
+                    description: 'Take the maximum absolute value at each lane',
                 },
                 {
                     const: 'min',
-                    description:
-                        'Take the minimum absolute value at each channel',
+                    description: 'Take the minimum absolute value at each lane',
                 },
             ],
         };
         const result = getEnumVariants(schema, {});
         expect(result).toEqual([
             {
-                description: 'Sum all inputs at each channel',
+                description: 'Sum all inputs at each lane',
                 rawValue: 'sum',
                 value: '"sum"',
             },
             {
-                description: 'Average all inputs at each channel',
+                description: 'Average all inputs at each lane',
                 rawValue: 'average',
                 value: '"average"',
             },
             {
-                description: 'Take the maximum absolute value at each channel',
+                description: 'Take the maximum absolute value at each lane',
                 rawValue: 'max',
                 value: '"max"',
             },
             {
-                description: 'Take the minimum absolute value at each channel',
+                description: 'Take the minimum absolute value at each lane',
                 rawValue: 'min',
                 value: '"min"',
             },

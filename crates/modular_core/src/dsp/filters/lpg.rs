@@ -36,7 +36,7 @@ const SVF_Q: f32 = 0.4;
 const MAX_NORMALIZED_CUTOFF: f32 = 0.45;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct LpgParams {
@@ -79,8 +79,8 @@ struct LpgOutputs {
 }
 
 #[derive(Clone)]
-struct LpgChannel {
-    /// False until the channel has processed a sample.
+struct LpgLane {
+    /// False until the lane has processed a sample.
     running: bool,
     vactrol: f32,
     ramp_up: bool,
@@ -96,7 +96,7 @@ struct LpgChannel {
     decay_tail: f32,
 }
 
-impl Default for LpgChannel {
+impl Default for LpgLane {
     fn default() -> Self {
         Self {
             running: false,
@@ -116,7 +116,7 @@ impl Default for LpgChannel {
 
 #[derive(Default)]
 struct LpgState {
-    /// False until the module has processed a sample. Channels added to a
+    /// False until the module has processed a sample. Lanes added to a
     /// running module start from the current trigger level instead of
     /// treating a held-high trigger as a rising edge.
     running: bool,
@@ -162,7 +162,7 @@ const LPG_DOCS: ModuleDocs = ModuleDocs {
 pub struct Lpg {
     outputs: LpgOutputs,
     state: LpgState,
-    channel_state: Box<[LpgChannel]>,
+    lane_state: Box<[LpgLane]>,
     params: LpgParams,
 }
 
@@ -175,17 +175,17 @@ impl Lpg {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let bypassed = self.params.level.is_none() && self.params.trigger.is_none();
         let bypass_target = if bypassed { 1.0 } else { 0.0 };
         let inv_sr = 1.0 / sample_rate;
         let module_running = self.state.running;
 
-        for ch in 0..channels {
-            let cs = &mut self.channel_state[ch];
+        for lane in 0..lanes {
+            let cs = &mut self.lane_state[lane];
 
-            let color = self.params.color.value_or(ch, 2.5).clamp(0.0, 5.0) / 5.0;
-            let trigger = self.params.trigger.value_or(ch, 0.0);
+            let color = self.params.color.value_or(lane, 2.5).clamp(0.0, 5.0) / 5.0;
+            let trigger = self.params.trigger.value_or(lane, 0.0);
             let rising = cs.trigger.process(trigger);
             if cs.running {
                 cs.color += (color - cs.color) * self.state.color_smoothing;
@@ -201,7 +201,7 @@ impl Lpg {
             cs.running = true;
 
             let hf = cs.color;
-            let decay = self.params.decay.value_or(ch, 2.5).clamp(0.0, 5.0) / 5.0;
+            let decay = self.params.decay.value_or(lane, 2.5).clamp(0.0, 5.0) / 5.0;
             if changed(decay, cs.last_decay) || changed(hf, cs.last_color) {
                 cs.last_decay = decay;
                 cs.last_color = hf;
@@ -209,7 +209,7 @@ impl Lpg {
                 cs.decay_tail = 20.0 * inv_sr * (hf - 6.0 * decay).exp2() - cs.short_decay;
             }
 
-            let l = self.params.level.value_or(ch, 0.0) / 5.0;
+            let l = self.params.level.value_or(lane, 0.0) / 5.0;
             let floor = (1.3 * l / (0.3 + l.abs())).clamp(0.0, 1.0);
 
             if cs.ramp_up {
@@ -242,13 +242,13 @@ impl Lpg {
             let cutoff = (cutoff_hz * inv_sr).min(MAX_NORMALIZED_CUTOFF);
             cs.filter.set_g_q(tan_dirty(cutoff), SVF_Q);
 
-            let input = self.params.input.get_value(ch);
+            let input = self.params.input.get_value(lane);
             let s = input * cs.vactrol;
             let lp = cs.filter.low_pass(s);
             let gated = lp + (s - lp) * hf_bleed;
             self.outputs
                 .sample
-                .set(ch, gated + (input - gated) * cs.bypass_mix);
+                .set(lane, gated + (input - gated) * cs.bypass_mix);
         }
         self.state.running = true;
     }

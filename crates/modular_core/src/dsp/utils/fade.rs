@@ -9,7 +9,7 @@ pub const DEFAULT_FADE_IN_SECS: f32 = 0.005;
 /// from the signal stepping out of silence when the module is first added.
 ///
 /// The default state (`gain == 0.0`) is a freshly added module, so it fades in.
-/// A channel whose state is carried over by `transfer_state_from` on a patch
+/// A lane whose state is carried over by `transfer_state_from` on a patch
 /// edit arrives with `gain` already at 1.0 and keeps playing without re-fading.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FadeIn {

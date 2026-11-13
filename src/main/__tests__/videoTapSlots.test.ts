@@ -10,7 +10,7 @@ const patchOf = (...sources: string[]): PatchGraph =>
             id: `_videoTap-${slot}`,
             moduleType: '_videoTap',
             params: {
-                input: { channel: 0, module, port: 'output', type: 'cable' },
+                input: { lane: 0, module, port: 'output', type: 'cable' },
                 slot,
             },
         })),

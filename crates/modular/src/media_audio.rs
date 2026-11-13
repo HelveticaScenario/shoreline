@@ -5,7 +5,7 @@
 use std::fs::File;
 use std::path::Path;
 
-use modular_core::poly::PORT_MAX_CHANNELS;
+use modular_core::poly::PORT_MAX_LANES;
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::{CODEC_TYPE_NULL, CODEC_TYPE_OPUS, DecoderOptions};
 use symphonia::core::errors::Error as SymphoniaError;
@@ -28,7 +28,7 @@ pub struct DecodedAudio {
 /// Decodes the first audio track of `path`. `Ok(None)` means the file has no
 /// audio track. Encoder delay is trimmed when the container records it, so the
 /// first sample lines up with the first video frame. At most
-/// [`PORT_MAX_CHANNELS`] channels are kept. A track longer than
+/// [`PORT_MAX_LANES`] channels are kept. A track longer than
 /// `max_duration_seconds` is an error; `None` decodes any length.
 pub fn decode_audio(
     path: &Path,
@@ -135,7 +135,7 @@ pub fn decode_audio(
                 .min(max_frames)
                 .min(file_len.saturating_mul(8) / (coded_bits * stride as u64))
                 as usize;
-            channels = (0..stride.min(PORT_MAX_CHANNELS))
+            channels = (0..stride.min(PORT_MAX_LANES))
                 .map(|_| Vec::with_capacity(reserve))
                 .collect();
         }

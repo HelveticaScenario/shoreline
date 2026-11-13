@@ -17,7 +17,7 @@ const def: EqPanelDef = {
     key: 'eq:$eq-1',
     moduleId: '$eq-1',
     spectrum: {
-        channels: [0],
+        lanes: [0],
         moduleId: '$eq-1',
         msPerFrame: 10,
         portName: 'output',
@@ -28,7 +28,7 @@ function makePanel(params: RawEqParams): PanelRuntime {
     return {
         callbacks: {} as PanelRuntime['callbacks'],
         changeLog: new Map(),
-        channel: 0,
+        lane: 0,
         codeTimer: null,
         def,
         engineFrame: null,

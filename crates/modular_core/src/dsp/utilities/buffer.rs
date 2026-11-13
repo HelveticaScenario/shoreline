@@ -11,7 +11,7 @@ use crate::{
 // ─── $buffer (BufferWrite) ────────────────────────────────────────────────────
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BufferWriteParams {
@@ -57,8 +57,8 @@ impl Default for BufferWriteOutputs {
 }
 
 impl crate::types::OutputStruct for BufferWriteOutputs {
-    fn set_all_channels(&mut self, channels: usize) {
-        self.sample.set_channels(channels);
+    fn set_all_lanes(&mut self, lanes: usize) {
+        self.sample.set_lanes(lanes);
     }
 
     fn schemas() -> Vec<crate::types::OutputSchema> {
@@ -70,7 +70,7 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
             default: true,
             min_value: None,
             max_value: None,
-            channels: None,
+            lanes: None,
             precision: crate::types::OutputPrecision::F32,
             bounds: crate::types::BoundsKind::Unbounded,
         }]
@@ -121,9 +121,9 @@ impl BufferWriteBlockOutputs {
     /// Whether any port has `precision = inherit`.
     pub const INHERITS: bool = false;
 
-    pub fn new(block_size: usize, channel_count: usize, _inherit: bool) -> Self {
+    pub fn new(block_size: usize, lane_count: usize, _inherit: bool) -> Self {
         Self {
-            sample: crate::block_port::BlockPort::new(block_size, channel_count),
+            sample: crate::block_port::BlockPort::new(block_size, lane_count),
         }
     }
 
@@ -136,16 +136,16 @@ impl BufferWriteBlockOutputs {
     }
 
     #[inline]
-    pub fn get_at(&self, port_idx: usize, ch: usize, index: usize) -> f32 {
+    pub fn get_at(&self, port_idx: usize, lane: usize, index: usize) -> f32 {
         match port_idx {
-            0 => self.sample.get(index, ch),
+            0 => self.sample.get(index, lane),
             _ => 0.0,
         }
     }
 
     #[inline]
-    pub fn get_at_f64(&self, port_idx: usize, ch: usize, index: usize) -> f64 {
-        self.get_at(port_idx, ch, index) as f64
+    pub fn get_at_f64(&self, port_idx: usize, lane: usize, index: usize) -> f64 {
+        self.get_at(port_idx, lane, index) as f64
     }
 
     pub fn same_layout(&self, _other: &Self) -> bool {
@@ -153,9 +153,9 @@ impl BufferWriteBlockOutputs {
     }
 
     #[inline]
-    pub fn channels_at(&self, port_idx: usize) -> usize {
+    pub fn lanes_at(&self, port_idx: usize) -> usize {
         match port_idx {
-            0 => self.sample.channels(),
+            0 => self.sample.lanes(),
             _ => 0,
         }
     }
@@ -163,14 +163,14 @@ impl BufferWriteBlockOutputs {
     #[inline]
     pub fn data_at(&self, port_idx: usize) -> Option<(*const f32, usize, usize)> {
         match port_idx {
-            0 => Some((self.sample.as_ptr(), self.sample.channels(), 1)),
+            0 => Some((self.sample.as_ptr(), self.sample.lanes(), 1)),
             _ => None,
         }
     }
 
     pub fn copy_from_inner(&mut self, inner: &BufferWriteOutputs, slot: usize) {
-        for ch in 0..self.sample.channels() {
-            self.sample.set(slot, ch, inner.sample.get_cycling(ch));
+        for lane in 0..self.sample.lanes() {
+            self.sample.set(slot, lane, inner.sample.get_cycling(lane));
         }
     }
 
@@ -246,19 +246,19 @@ pub struct BufferWrite {
 impl BufferWrite {
     fn init(&mut self, sample_rate: f32) {
         let frame_count = (self.params.length * sample_rate as f64).ceil() as usize;
-        let channel_count = self._channel_count.max(1);
-        self.outputs.buffer = BufferData::new_zeroed(channel_count, frame_count);
+        let lane_count = self._lane_count.max(1);
+        self.outputs.buffer = BufferData::new_zeroed(lane_count, frame_count);
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let frame_count = self.outputs.buffer.frame_count();
 
         if frame_count == 0 {
-            for channel in 0..channels {
+            for lane in 0..lanes {
                 self.outputs
                     .sample
-                    .set(channel, self.params.input.get_value(channel));
+                    .set(lane, self.params.input.get_value(lane));
             }
             return;
         }
@@ -269,25 +269,25 @@ impl BufferWrite {
         let base = self.outputs.buffer.read_write_index();
         let offset = self.current_block_index();
         let frame = base.wrapping_add(offset) % frame_count;
-        let buffer_channels = self.outputs.buffer.channel_count();
+        let buffer_lanes = self.outputs.buffer.lane_count();
 
-        for channel in 0..channels {
-            let input_val = self.params.input.get_value(channel);
-            if channel < buffer_channels {
-                self.outputs.buffer.write(channel, frame, input_val);
+        for lane in 0..lanes {
+            let input_val = self.params.input.get_value(lane);
+            if lane < buffer_lanes {
+                self.outputs.buffer.write(lane, frame, input_val);
             }
-            self.outputs.sample.set(channel, input_val);
+            self.outputs.sample.set(lane, input_val);
         }
     }
 }
 
 message_handlers!(impl BufferWrite {});
 
-fn buf_read_derive_channel_count(params: &BufReadParams) -> usize {
-    params.buffer.channel_count()
+fn buf_read_derive_lane_count(params: &BufReadParams) -> usize {
+    params.buffer.lane_count()
 }
 
-fn read_interpolated(buffer: &Buffer, channel: usize, frame: f32) -> f32 {
+fn read_interpolated(buffer: &Buffer, lane: usize, frame: f32) -> f32 {
     if !frame.is_finite() {
         return 0.0;
     }
@@ -305,7 +305,7 @@ fn read_interpolated(buffer: &Buffer, channel: usize, frame: f32) -> f32 {
     let left = frame.floor() as usize;
     let frac = frame - left as f32;
     if frac <= f32::EPSILON {
-        return buffer.read(channel, left);
+        return buffer.read(lane, left);
     }
 
     let i0 = left.saturating_sub(1);
@@ -313,10 +313,10 @@ fn read_interpolated(buffer: &Buffer, channel: usize, frame: f32) -> f32 {
     let i2 = (left + 1).min(frame_count - 1);
     let i3 = (left + 2).min(frame_count - 1);
 
-    let y0 = buffer.read(channel, i0);
-    let y1 = buffer.read(channel, i1);
-    let y2 = buffer.read(channel, i2);
-    let y3 = buffer.read(channel, i3);
+    let y0 = buffer.read(lane, i0);
+    let y1 = buffer.read(lane, i1);
+    let y2 = buffer.read(lane, i2);
+    let y3 = buffer.read(lane, i3);
 
     let c0 = y1;
     let c1 = 0.5 * (y2 - y0);
@@ -327,7 +327,7 @@ fn read_interpolated(buffer: &Buffer, channel: usize, frame: f32) -> f32 {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BufReadParams {
@@ -347,7 +347,7 @@ struct BufReadParams {
 struct BufReadOutputs {
     #[output(
         "output",
-        "one channel per buffer channel, read at the position",
+        "one lane per buffer lane, read at the position",
         type = cv,
         default
     )]
@@ -370,7 +370,7 @@ const BUF_READ_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$bufRead", docs = BUF_READ_DOCS, channels_derive = buf_read_derive_channel_count, args(buffer, frame))]
+#[module(name = "$bufRead", docs = BUF_READ_DOCS, lanes_derive = buf_read_derive_lane_count, args(buffer, frame))]
 pub struct BufRead {
     outputs: BufReadOutputs,
     params: BufReadParams,
@@ -381,11 +381,11 @@ impl BufRead {
         let frame_volts = self.params.frame.get_value().rem_euclid(5.0);
         let frame_count = self.params.buffer.frame_count();
         let frame = (frame_volts / 5.0) * frame_count as f32;
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
 
-        for channel in 0..channels {
-            let value = read_interpolated(&self.params.buffer, channel, frame);
-            self.outputs.sample.set(channel, value);
+        for lane in 0..lanes {
+            let value = read_interpolated(&self.params.buffer, lane, frame);
+            self.outputs.sample.set(lane, value);
         }
     }
 }
@@ -441,7 +441,7 @@ mod tests {
     const MOCK_BUFFER_PORT: &str = "buffer";
 
     fn make_connected_buffer(samples: Vec<Vec<f32>>) -> (Patch, Buffer) {
-        let channels = samples.len();
+        let lanes = samples.len();
         let mut patch = Patch::new();
 
         let owner = MockBufferOwner {
@@ -455,39 +455,39 @@ mod tests {
         let mut buffer = Buffer::new(
             MOCK_BUFFER_MODULE_ID.to_string(),
             MOCK_BUFFER_PORT.to_string(),
-            channels,
+            lanes,
         );
         buffer.connect(&patch);
         (patch, buffer)
     }
 
     fn make_buf_read(params: BufReadParams) -> BufRead {
-        let channels = buf_read_derive_channel_count(&params);
+        let lanes = buf_read_derive_lane_count(&params);
         let mut outputs = BufReadOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         BufRead {
             params,
             outputs,
-            _channel_count: channels,
+            _lane_count: lanes,
             _block_index: Default::default(),
         }
     }
 
     #[test]
-    fn buf_read_channel_count_matches_buffer_channels() {
+    fn buf_read_lane_count_matches_buffer_lanes() {
         let params = BufReadParams {
             buffer: Buffer::new("some-module".to_string(), "buffer".to_string(), 2),
             frame: mono(0.0),
         };
 
-        assert_eq!(buf_read_derive_channel_count(&params), 2);
+        assert_eq!(buf_read_derive_lane_count(&params), 2);
     }
 
     #[test]
-    fn buf_read_outputs_all_buffer_channels() {
+    fn buf_read_outputs_all_buffer_lanes() {
         // 0-5V maps across the full buffer length. With 2 frames, 2.5V = frame 1.0.
-        // Channel 0: [1.0, 3.0], Channel 1: [2.0, 4.0]
-        // At frame 1.0: ch0=3.0, ch1=4.0
+        // Lane 0: [1.0, 3.0], Lane 1: [2.0, 4.0]
+        // At frame 1.0: lane0=3.0, lane1=4.0
         let (_patch, buffer) = make_connected_buffer(vec![vec![1.0, 3.0], vec![2.0, 4.0]]);
         let mut module = make_buf_read(BufReadParams {
             buffer,
@@ -496,7 +496,7 @@ mod tests {
 
         module.update(48_000.0);
 
-        assert_eq!(module.outputs.sample.channels(), 2);
+        assert_eq!(module.outputs.sample.lanes(), 2);
         assert!((module.outputs.sample.get(0) - 3.0).abs() < 1e-6);
         assert!((module.outputs.sample.get(1) - 4.0).abs() < 1e-6);
     }
@@ -533,7 +533,7 @@ mod tests {
             .unwrap_or_else(|e| panic!("params deserialization for '{module_type}' failed: {e}"));
         let deserialized = DeserializedParams {
             params: cached.params,
-            channel_count: cached.channel_count,
+            lane_count: cached.lane_count,
             f64_inputs: false,
         };
         constructors

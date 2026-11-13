@@ -25,7 +25,7 @@ pub mod interval_value;
 pub mod seq;
 pub mod seq_value;
 pub mod step;
-pub mod track;
+pub mod keyframes;
 
 pub use highlight::{SeqHighlightMeta, SeqHighlightState, seq_state_builder};
 pub use interval_value::IntervalValue;
@@ -38,7 +38,7 @@ pub(crate) const FRESH_WINDOW_SECS: f64 = 0.002;
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     seq::Seq::install_constructor(map);
-    track::Track::install_constructor(map);
+    keyframes::Keyframes::install_constructor(map);
     step::Step::install_constructor(map);
     drum_map::DrumMap::install_constructor(map);
     groove::Groove::install_constructor(map);
@@ -46,7 +46,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
 
 pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer>) {
     seq::Seq::install_params_deserializer(map);
-    track::Track::install_params_deserializer(map);
+    keyframes::Keyframes::install_params_deserializer(map);
     step::Step::install_params_deserializer(map);
     drum_map::DrumMap::install_params_deserializer(map);
     groove::Groove::install_params_deserializer(map);
@@ -63,7 +63,7 @@ pub fn install_module_state_builders(map: &mut HashMap<String, ModuleStateBuilde
 pub fn schemas() -> Vec<ModuleSchema> {
     vec![
         seq::Seq::get_schema(),
-        track::Track::get_schema(),
+        keyframes::Keyframes::get_schema(),
         step::Step::get_schema(),
         drum_map::DrumMap::get_schema(),
         groove::Groove::get_schema(),

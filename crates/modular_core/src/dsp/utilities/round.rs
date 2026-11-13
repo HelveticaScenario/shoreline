@@ -18,20 +18,20 @@ trait Rounding {
     fn apply<T: Sample>(x: T) -> T;
 }
 
-/// One sample of every channel, at full precision when `out` is f64.
+/// One sample of every lane, at full precision when `out` is f64.
 #[inline(always)]
-fn update<R: Rounding>(input: &PolySignal, out: &mut PolyOutput, channels: usize) {
+fn update<R: Rounding>(input: &PolySignal, out: &mut PolyOutput, lanes: usize) {
     if out.is_f64() {
-        for i in 0..channels {
+        for i in 0..lanes {
             out.set_f64(i, R::apply(input.get_value_f64(i)));
         }
     } else {
-        for i in 0..channels {
+        for i in 0..lanes {
             out.set(i, R::apply(input.get_value(i)));
         }
     }
     if out.stores_bounds() {
-        for i in 0..channels {
+        for i in 0..lanes {
             out.set_bounds(i, input.get_bounds(i).map(R::apply));
         }
     }
@@ -42,12 +42,12 @@ fn process_block<R: Rounding>(
     input: &PolySignal,
     out: &mut BlockPort,
     range: Range<usize>,
-    channels: usize,
+    lanes: usize,
 ) -> Option<()> {
     let mut scratch = InputScratch::new();
-    let samples = input.block_input(range.clone(), channels, &mut scratch)?;
-    out.fill_bounds_with(range.clone(), |ch| {
-        Some(input.block_bounds(range.clone(), ch)?.map(R::apply))
+    let samples = input.block_input(range.clone(), lanes, &mut scratch)?;
+    out.fill_bounds_with(range.clone(), |lane| {
+        Some(input.block_bounds(range.clone(), lane)?.map(R::apply))
     })?;
     block_input::map(out, range, [samples], |[x]| R::apply(x));
     Some(())
@@ -64,7 +64,7 @@ macro_rules! rounding_module {
     ) => {
         paste::paste! {
             #[params]
-            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, ChannelCount)]
+            #[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, LaneCount)]
             #[serde(rename_all = "camelCase")]
             #[deserr(rename_all = camelCase, deny_unknown_fields)]
             struct [<$Module Params>] {
@@ -96,11 +96,11 @@ macro_rules! rounding_module {
 
             impl $Module {
                 fn update(&mut self, _sample_rate: f32) {
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     update::<[<$Module Rounding>]>(
                         &self.params.input,
                         &mut self.outputs.sample,
-                        channels,
+                        lanes,
                     );
                 }
 
@@ -110,12 +110,12 @@ macro_rules! rounding_module {
                     range: Range<usize>,
                     _sample_rate: f32,
                 ) -> Option<()> {
-                    let channels = self.channel_count();
+                    let lanes = self.lane_count();
                     process_block::<[<$Module Rounding>]>(
                         &self.params.input,
                         &mut outputs.sample,
                         range,
-                        channels,
+                        lanes,
                     )
                 }
             }

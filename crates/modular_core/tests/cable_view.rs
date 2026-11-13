@@ -11,30 +11,32 @@ use serde_json::{Value, json};
 
 const SAMPLE_RATE: f32 = 48000.0;
 const BLOCK_SIZE: usize = 64;
-const CHANNELS: usize = 4;
+const LANES: usize = 4;
 
-fn poly_cable(module: &str, channels: usize) -> Value {
+fn poly_cable(module: &str, lanes: usize) -> Value {
     Value::Array(
-        (0..channels)
-            .map(|ch| json!({ "type": "cable", "module": module, "port": "output", "channel": ch }))
+        (0..lanes)
+            .map(
+                |lane| json!({ "type": "cable", "module": module, "port": "output", "lane": lane }),
+            )
             .collect(),
     )
 }
 
-/// `src` (poly saw) feeds `dst` (lowpass) over one cable per channel. `dst`
-/// also reads channel 1 of `src` as a mono cutoff, exercising the channel
+/// `src` (poly saw) feeds `dst` (lowpass) over one cable per lane. `dst`
+/// also reads lane 1 of `src` as a mono cutoff, exercising the lane
 /// offset on a narrower consumer.
 fn build(src_mode: ProcessingMode) -> Patch {
     let deserializers = get_params_deserializers();
-    let freqs: Vec<f32> = (0..CHANNELS).map(|ch| ch as f32 * 0.3).collect();
+    let freqs: Vec<f32> = (0..LANES).map(|lane| lane as f32 * 0.3).collect();
     let modules = [
         ("src", "$saw", json!({ "freq": freqs }), src_mode),
         (
             "dst",
             "$lpf",
             json!({
-                "input": poly_cable("src", CHANNELS),
-                "cutoff": { "type": "cable", "module": "src", "port": "output", "channel": 1 },
+                "input": poly_cable("src", LANES),
+                "cutoff": { "type": "cable", "module": "src", "port": "output", "lane": 1 },
                 "resonance": 1.0,
             }),
             ProcessingMode::Block,
@@ -50,7 +52,7 @@ fn build(src_mode: ProcessingMode) -> Patch {
                     module_type.to_string(),
                     DeserializedParams {
                         params: cached.params,
-                        channel_count: cached.channel_count,
+                        lane_count: cached.lane_count,
                         f64_inputs: false,
                     },
                     mode,
@@ -65,7 +67,7 @@ fn build(src_mode: ProcessingMode) -> Patch {
 }
 
 /// Render `blocks` blocks, processing modules in `order`, and collect every
-/// channel of `dst`'s output.
+/// lane of `dst`'s output.
 fn render(patch: &Patch, order: &[&str], blocks: usize) -> Vec<f32> {
     let dst = &patch.sampleables["dst"];
     let mut out = Vec::new();
@@ -77,8 +79,8 @@ fn render(patch: &Patch, order: &[&str], blocks: usize) -> Vec<f32> {
             patch.sampleables[*id].ensure_processed_to(BLOCK_SIZE);
         }
         for index in 0..BLOCK_SIZE {
-            for ch in 0..CHANNELS {
-                out.push(dst.get_value_at("output", ch, index));
+            for lane in 0..LANES {
+                out.push(dst.get_value_at("output", lane, index));
             }
         }
     }
@@ -91,7 +93,7 @@ fn port_view_only_for_block_mode() {
     let view = block.sampleables["src"]
         .port_view("output")
         .expect("Block-mode wrapper offers a view");
-    assert_eq!(view.channels, CHANNELS);
+    assert_eq!(view.lanes, LANES);
     assert!(block.sampleables["src"].port_view("nonexistent").is_none());
 
     let sample = build(ProcessingMode::Sample);

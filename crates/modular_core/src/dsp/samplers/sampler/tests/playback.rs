@@ -159,16 +159,16 @@ fn sampler_plays_stereo_wav() {
     let slot = s.tick(module.as_ref());
     let l = module.get_value_at("output", 0, slot);
     let r = module.get_value_at("output", 1, slot);
-    assert!((l - 1.0).abs() < 1e-6, "L ch should be 1.0, got {l}");
-    assert!((r - 4.0).abs() < 1e-6, "R ch should be 4.0, got {r}");
+    assert!((l - 1.0).abs() < 1e-6, "L lane should be 1.0, got {l}");
+    assert!((r - 4.0).abs() < 1e-6, "R lane should be 4.0, got {r}");
 
     // Second tick: frame 1
     // L: 0.4*5=2.0, R: 1.0*5=5.0
     let slot = s.tick(module.as_ref());
     let l = module.get_value_at("output", 0, slot);
     let r = module.get_value_at("output", 1, slot);
-    assert!((l - 2.0).abs() < 1e-6, "L ch should be 2.0, got {l}");
-    assert!((r - 5.0).abs() < 1e-6, "R ch should be 5.0, got {r}");
+    assert!((l - 2.0).abs() < 1e-6, "L lane should be 2.0, got {l}");
+    assert!((r - 5.0).abs() < 1e-6, "R lane should be 5.0, got {r}");
 }
 
 #[test]
@@ -295,21 +295,18 @@ fn zero_length_slice_is_silent_with_fade() {
 }
 
 #[test]
-fn channel_count_clamps_to_port_max() {
+fn lane_count_clamps_to_port_max() {
     let deserializers = get_params_deserializers();
     let de = deserializers
         .get("$sampler")
         .expect("no params deserializer for $sampler");
-    for (channels, want) in [(65535, PORT_MAX_CHANNELS), (0, 1)] {
+    for (lanes, want) in [(65535, PORT_MAX_LANES), (0, 1)] {
         let cached = de(json!({
-            "wav": { "type": "wav_ref", "path": "test", "channels": channels },
+            "wav": { "type": "wav_ref", "path": "test", "channels": lanes },
             "gate": 0.0,
         }))
         .expect("params should deserialize");
-        assert_eq!(
-            cached.channel_count, want,
-            "channel count for a {channels}-channel wav"
-        );
+        assert_eq!(cached.lane_count, want, "lane count for a {lanes}-lane wav");
     }
 }
 

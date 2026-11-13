@@ -18,7 +18,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 /// Surge XT's longer-ringing combs). Must be a power of two.
 const COMB_SIZE: usize = 4096;
 
-/// Per-channel delay line + write position. `Default` allocates (module
+/// Per-lane delay line + write position. `Default` allocates (module
 /// construction runs on the main thread) and primes the sinc table. The buffer
 /// carries [`FIRIPOL_N`] extra samples mirroring the start so the interpolator's
 /// 12-tap read never wraps mid-kernel.

@@ -17,7 +17,7 @@ use schemars::JsonSchema;
 use super::circuit::{DIODE_DROP, SILENCE, T60_TO_RATE, VSAT, decay_secs, pulse_volts, trapezoid};
 use super::levels;
 use crate::dsp::drums::analog::{high_pass, low_pass, one_pole_coeff};
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, Run};
 use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Timing, Voices, knob};
 use crate::dsp::utils::voct_to_hz;

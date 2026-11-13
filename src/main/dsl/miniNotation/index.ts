@@ -702,7 +702,7 @@ function isCollectionMember(name: string): boolean {
 
 /**
  * Whether `prop` reads through a pattern's `$cycle`: a collection member, its
- * channels (`items`), a channel index, a named output (`_gate`) or iteration.
+ * lanes (`items`), a lane index, a named output (`_gate`) or iteration.
  */
 function isCycleMember(prop: string | symbol): boolean {
     if (typeof prop === 'symbol') {

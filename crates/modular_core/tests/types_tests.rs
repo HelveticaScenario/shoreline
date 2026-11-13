@@ -128,12 +128,12 @@ fn signal_deserialize_tagged_variants_still_work() {
             module,
             port,
             resolved,
-            channel,
+            lane,
             ..
         } => {
             assert_eq!(module, "m1");
             assert_eq!(port, "out");
-            assert_eq!(channel, 0);
+            assert_eq!(lane, 0);
             assert!(resolved.is_none());
         }
         other => panic!("expected Signal::Cable, got {other:?}"),
@@ -443,9 +443,9 @@ fn inject_index_ptr_through_polysignal_reaches_inner_cables() {
     ]);
     poly.inject_index_ptr(ptr);
 
-    // Both cable channels should now point at our cell.
-    for ch in 0..poly.channels() {
-        if let Some(Signal::Cable { index_ptr, .. }) = poly.get(ch) {
+    // Both cable lanes should now point at our cell.
+    for lane in 0..poly.lanes() {
+        if let Some(Signal::Cable { index_ptr, .. }) = poly.get(lane) {
             assert!(!index_ptr.is_null());
             assert_eq!(unsafe { (*(*index_ptr)).get() }, 42);
         }

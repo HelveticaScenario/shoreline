@@ -1,7 +1,7 @@
 //! Vectors of elements: `wide`'s vectors, with constants broadcast in a
 //! register. `wide`'s own `splat` builds a repeat array, which LLVM can
 //! lower to a `memset_pattern16` call per use on Apple targets. A vector
-//! may hold more elements than its group has channels; the spare elements take
+//! may hold more elements than its group has lanes; the spare elements take
 //! no part in its masks.
 
 #[inline(always)]

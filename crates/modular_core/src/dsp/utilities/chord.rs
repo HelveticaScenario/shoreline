@@ -3,12 +3,12 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
-use crate::poly::{LaneSum, PORT_MAX_CHANNELS, PolyOutput};
+use crate::poly::{LaneSum, PORT_MAX_LANES, PolyOutput};
 
 use super::scale::ScaleSpec;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ChordParams {
@@ -24,14 +24,14 @@ struct ChordParams {
     inversion: Option<LaneSum>,
 }
 
-/// One channel per note of the spec, and one more when `inversion` is
+/// One lane per note of the spec, and one more when `inversion` is
 /// patched: the voice a note in motion fades in on. A spec that already fills
-/// every channel keeps its count and inverts without its top note.
+/// every lane keeps its count and inverts without its top note.
 #[allow(private_interfaces)]
-pub fn chord_derive_channel_count(params: &ChordParams) -> usize {
+pub fn chord_derive_lane_count(params: &ChordParams) -> usize {
     let notes = params.chord.voltages().len();
     if params.inversion.is_some() {
-        (notes + 1).min(PORT_MAX_CHANNELS)
+        (notes + 1).min(PORT_MAX_LANES)
     } else {
         notes
     }
@@ -82,14 +82,14 @@ fn invert(notes: &[f32], inversion: f32, pitches: &mut [f32], levels: &mut [f32]
 struct ChordOutputs {
     #[output(
         "pitch",
-        "one pitch per note, lowest first; with `inversion` patched, one more channel, the notes rotating across them",
+        "one pitch per note, lowest first; with `inversion` patched, one more lane, the notes rotating across them",
         type = cv,
         default
     )]
     output: PolyOutput,
     #[output(
         "level",
-        "each channel's level, full (5) unless `inversion` is fading a note between octaves",
+        "each lane's level, full (5) unless `inversion` is fading a note between octaves",
         type = cv,
         range = (0.0, 5.0),
     )]
@@ -98,11 +98,11 @@ struct ChordOutputs {
 
 const CHORD_DOCS: ModuleDocs = ModuleDocs {
     summary: "Notes of a chord or scale",
-    description: "Outputs every note of a chord or scale as pitch voltages, one channel per \
+    description: "Outputs every note of a chord or scale as pitch voltages, one lane per \
                   note, lowest first. Patch it into an oscillator to hear the whole chord, \
                   or into `$quantizer` to keep a melody inside it. Patching `inversion` adds \
-                  a channel, and the moving note crossfades between two of them: scale each \
-                  voice by `level`, or the extra channel sounds too.",
+                  a lane, and the moving note crossfades between two of them: scale each \
+                  voice by `level`, or the extra lane sounds too.",
     categories: &[ModuleCategory::Pitch],
     sections: &[
         DocSection {
@@ -198,7 +198,7 @@ const CHORD_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$chord", docs = CHORD_DOCS, channels_derive = chord_derive_channel_count, args(chord))]
+#[module(name = "$chord", docs = CHORD_DOCS, lanes_derive = chord_derive_lane_count, args(chord))]
 pub struct Chord {
     outputs: ChordOutputs,
     params: ChordParams,
@@ -217,19 +217,19 @@ impl Chord {
         let notes = self.params.chord.voltages();
         match &self.params.inversion {
             None => {
-                for (ch, &v) in notes.iter().enumerate() {
-                    self.outputs.output.set(ch, v);
-                    self.outputs.level.set(ch, 5.0);
+                for (lane, &v) in notes.iter().enumerate() {
+                    self.outputs.output.set(lane, v);
+                    self.outputs.level.set(lane, 5.0);
                 }
             }
             Some(inversion) => {
-                let voices = (notes.len() + 1).min(PORT_MAX_CHANNELS);
+                let voices = (notes.len() + 1).min(PORT_MAX_LANES);
                 let value = inversion.get_value();
                 if value.is_finite() {
                     self.state.inversion = Some(value);
                 }
-                let mut pitches = [0.0; PORT_MAX_CHANNELS];
-                let mut levels = [0.0; PORT_MAX_CHANNELS];
+                let mut pitches = [0.0; PORT_MAX_LANES];
+                let mut levels = [0.0; PORT_MAX_LANES];
                 if let Some(held) = self.state.inversion {
                     invert(
                         &notes[..voices - 1],
@@ -238,9 +238,9 @@ impl Chord {
                         &mut levels[..voices],
                     );
                 }
-                for ch in 0..voices {
-                    self.outputs.output.set(ch, pitches[ch]);
-                    self.outputs.level.set(ch, 5.0 * levels[ch]);
+                for lane in 0..voices {
+                    self.outputs.output.set(lane, pitches[lane]);
+                    self.outputs.level.set(lane, 5.0 * levels[lane]);
                 }
             }
         }
@@ -264,28 +264,28 @@ mod tests {
             chord: ScaleSpec::parse(spec).unwrap(),
             inversion: inversion.map(|v| LaneSum::from_poly(PolySignal::mono(Signal::Volts(v)))),
         };
-        let channels = chord_derive_channel_count(&params);
+        let lanes = chord_derive_lane_count(&params);
         let mut outputs = ChordOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         Chord {
             params,
             outputs,
             state: ChordState::default(),
-            _channel_count: channels,
+            _lane_count: lanes,
             _block_index: Default::default(),
         }
     }
 
-    /// The voices of `spec` at `inversion`: each channel's pitch and level
+    /// The voices of `spec` at `inversion`: each lane's pitch and level
     /// (0–1).
     fn voices(spec: &str, inversion: f32) -> Vec<(f32, f32)> {
         let mut chord = make_inverted(spec, Some(inversion));
         chord.update(48000.0);
-        (0..chord.channel_count())
-            .map(|ch| {
+        (0..chord.lane_count())
+            .map(|lane| {
                 (
-                    chord.outputs.output.get(ch),
-                    chord.outputs.level.get(ch) / 5.0,
+                    chord.outputs.output.get(lane),
+                    chord.outputs.level.get(lane) / 5.0,
                 )
             })
             .collect()
@@ -303,21 +303,21 @@ mod tests {
     }
 
     #[test]
-    fn outputs_one_channel_per_note() {
+    fn outputs_one_lane_per_note() {
         let mut chord = make_chord("C3[maj7]");
-        assert_eq!(chord.channel_count(), 4);
+        assert_eq!(chord.lane_count(), 4);
         chord.update(48000.0);
         let expected = [-12.0, -8.0, -5.0, -1.0];
-        for (ch, semis) in expected.iter().enumerate() {
-            let v = chord.outputs.output.get(ch);
-            assert!((v - semis / 12.0).abs() < 1e-6, "ch {ch}: {v}");
+        for (lane, semis) in expected.iter().enumerate() {
+            let v = chord.outputs.output.get(lane);
+            assert!((v - semis / 12.0).abs() < 1e-6, "lane {lane}: {v}");
         }
     }
 
     #[test]
     fn scales_output_every_degree() {
-        assert_eq!(make_chord("C(major)").channel_count(), 7);
-        assert_eq!(make_chord("chromatic").channel_count(), 12);
+        assert_eq!(make_chord("C(major)").lane_count(), 7);
+        assert_eq!(make_chord("chromatic").lane_count(), 12);
     }
 
     #[test]
@@ -331,13 +331,13 @@ mod tests {
     fn unpatched_inversion_leaves_the_chord_at_full_level() {
         let mut chord = make_chord("C3[maj7]");
         chord.update(48000.0);
-        for ch in 0..4 {
-            assert_eq!(chord.outputs.level.get(ch), 5.0, "ch {ch}");
+        for lane in 0..4 {
+            assert_eq!(chord.outputs.level.get(lane), 5.0, "lane {lane}");
         }
     }
 
     /// A whole inversion sounds the notes the spec's `invN` gives, on one
-    /// more channel than the chord has notes.
+    /// more lane than the chord has notes.
     #[test]
     fn whole_inversions_raise_the_lowest_notes() {
         for spec in ["C3[maj7]", "D3[m9]", "F[sus4]"] {
@@ -408,11 +408,11 @@ mod tests {
             while x < span {
                 x += step;
                 let current = voices(spec, x);
-                for (ch, ((p0, l0), (p1, l1))) in previous.iter().zip(&current).enumerate() {
+                for (lane, ((p0, l0), (p1, l1))) in previous.iter().zip(&current).enumerate() {
                     if p0 != p1 {
                         assert!(
                             *l0 <= 2.0 * step && *l1 <= 2.0 * step,
-                            "{spec} at {x}: channel {ch} moved {p0} → {p1} at levels {l0}, {l1}"
+                            "{spec} at {x}: lane {lane} moved {p0} → {p1} at levels {l0}, {l1}"
                         );
                     }
                 }
@@ -422,8 +422,13 @@ mod tests {
     }
 
     fn read(chord: &Chord) -> Vec<(f32, f32)> {
-        (0..chord.channel_count())
-            .map(|ch| (chord.outputs.output.get(ch), chord.outputs.level.get(ch)))
+        (0..chord.lane_count())
+            .map(|lane| {
+                (
+                    chord.outputs.output.get(lane),
+                    chord.outputs.level.get(lane),
+                )
+            })
             .collect()
     }
 
@@ -512,11 +517,11 @@ mod tests {
         );
     }
 
-    /// Patching `inversion` adds one channel, up to the port's limit.
+    /// Patching `inversion` adds one lane, up to the port's limit.
     #[test]
-    fn inversion_adds_a_channel() {
-        assert_eq!(make_inverted("C3[maj7]", None).channel_count(), 4);
-        assert_eq!(make_inverted("C3[maj7]", Some(0.0)).channel_count(), 5);
-        assert_eq!(make_inverted("chromatic", Some(0.0)).channel_count(), 13);
+    fn inversion_adds_a_lane() {
+        assert_eq!(make_inverted("C3[maj7]", None).lane_count(), 4);
+        assert_eq!(make_inverted("C3[maj7]", Some(0.0)).lane_count(), 5);
+        assert_eq!(make_inverted("chromatic", Some(0.0)).lane_count(), 13);
     }
 }

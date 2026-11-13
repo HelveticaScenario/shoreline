@@ -59,7 +59,7 @@ impl Rates {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SpeakParams {
@@ -187,8 +187,8 @@ fn select(volts: f32, count: usize) -> Option<usize> {
     (!volts.is_nan()).then(|| volts.round().clamp(0.0, (count - 1) as f32) as usize)
 }
 
-/// One channel: Plaits' word-bank speech, then its limiter.
-pub struct Channel {
+/// One lane: Plaits' word-bank speech, then its limiter.
+pub struct Lane {
     speaker: Speaker,
     limiter: Limiter,
     trigger: SchmittTrigger,
@@ -201,7 +201,7 @@ pub struct Channel {
     bank: usize,
 }
 
-impl Default for Channel {
+impl Default for Lane {
     fn default() -> Self {
         Self {
             speaker: Speaker::default(),
@@ -221,7 +221,7 @@ impl Default for Channel {
     }
 }
 
-impl Channel {
+impl Lane {
     /// One sample at `f0` cycles per sample: the limited voice and the
     /// excitation, before the output gains. A rising `trigger` says a word;
     /// `None` is an unpatched trigger.
@@ -289,7 +289,7 @@ impl Channel {
 pub struct Speak {
     outputs: SpeakOutputs,
     state: Rates,
-    channel_state: Box<[Channel]>,
+    lane_state: Box<[Lane]>,
     params: SpeakParams,
 }
 
@@ -299,26 +299,27 @@ impl Speak {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let rates = &self.state;
-        for (ch, channel) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane_index, lane) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = apply_fm(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, SpeakParams::FM_DEFAULT),
+                p.freq.get_value(lane_index),
+                p.fm.value_or(lane_index, SpeakParams::FM_DEFAULT),
                 p.fm_mode,
             ) * rates.inv_sample_rate;
-            let trigger = p.trigger.as_ref().map(|t| t.get_value(ch));
+            let trigger = p.trigger.as_ref().map(|t| t.get_value(lane_index));
             let knob = |signal: &Option<PolySignal>, default| {
-                (signal.value_or(ch, default), signal.glide_mark(ch))
+                (
+                    signal.value_or(lane_index, default),
+                    signal.glide_mark(lane_index),
+                )
             };
             let accent = knob(&p.accent, SpeakParams::ACCENT_DEFAULT);
             let mark = accent.1;
-            let accent = channel
-                .accent_state
-                .read(accent, trigger, rates.sample_rate);
+            let accent = lane.accent_state.read(accent, trigger, rates.sample_rate);
             let knobs = Knobs {
-                bank: p.bank.value_or(ch, SpeakParams::BANK_DEFAULT),
+                bank: p.bank.value_or(lane_index, SpeakParams::BANK_DEFAULT),
                 smooth: [
                     knob(&p.word, SpeakParams::WORD_DEFAULT),
                     knob(&p.formant_shift, SpeakParams::FORMANT_SHIFT_DEFAULT),
@@ -327,24 +328,22 @@ impl Speak {
                     (plaits_volts(accent), mark),
                 ],
             };
-            let (out, excitation) = channel.output(f0, knobs, trigger, rates);
-            let out = channel
-                .accent_state
-                .apply(out, ACCENT_TRIM, rates.sample_rate);
-            self.outputs.sample.set(ch, out);
-            self.outputs.excitation.set(ch, excitation);
+            let (out, excitation) = lane.output(f0, knobs, trigger, rates);
+            let out = lane.accent_state.apply(out, ACCENT_TRIM, rates.sample_rate);
+            self.outputs.sample.set(lane_index, out);
+            self.outputs.excitation.set(lane_index, excitation);
         }
     }
 }
 
 impl crate::types::PatchUpdateHandler for Speak {
-    /// Seeds the noise generators of channels that have none yet. Runs here,
+    /// Seeds the noise generators of lanes that have none yet. Runs here,
     /// not in `init`, because `init` runs in a stack slot that consecutive
     /// constructions share, so every instance would draw the same noise.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
-        for (ch, channel) in self.channel_state.iter_mut().enumerate() {
-            channel.speaker.seed(base, ch);
+        for (lane_index, lane) in self.lane_state.iter_mut().enumerate() {
+            lane.speaker.seed(base, lane_index);
         }
     }
 }

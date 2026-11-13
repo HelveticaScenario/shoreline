@@ -40,11 +40,11 @@ const DT_MAX: f32 = 0.01;
 const MAX_SUBSTEPS: u32 = 16;
 
 // Clamp threshold for the integrator state: values beyond this indicate
-// a diverging trajectory (e.g. extreme params). The channel is reseeded.
+// a diverging trajectory (e.g. extreme params). The lane is reseeded.
 const STATE_CLAMP: f32 = 500.0;
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
@@ -101,26 +101,26 @@ struct LorenzOutputs {
     z: PolyOutput,
 }
 
-/// Per-channel integrator state for the Lorenz attractor.
+/// Per-lane integrator state for the Lorenz attractor.
 ///
 /// x, y, z evolve continuously every sample regardless of param changes —
 /// changing a param warps the vector field and bends the live trajectory
 /// rather than restarting the simulation from scratch.
 #[derive(Clone, Copy, Default)]
-struct ChannelState {
+struct LaneState {
     x: f32,
     y: f32,
     z: f32,
 }
 
-impl ChannelState {
+impl LaneState {
     /// Initial condition near the classic attractor's basin, with a small
-    /// per-channel x perturbation so polyphonic channels diverge.
-    fn new_with_offset(ch: usize) -> Self {
-        // A tiny offset on x is amplified by the chaos; channels quickly
+    /// per-lane x perturbation so polyphonic lanes diverge.
+    fn new_with_offset(lane: usize) -> Self {
+        // A tiny offset on x is amplified by the chaos; lanes quickly
         // land on independent trajectories.
         Self {
-            x: 1.0 + ch as f32 * 0.01,
+            x: 1.0 + lane as f32 * 0.01,
             y: 1.0,
             z: 1.0,
         }
@@ -166,9 +166,9 @@ pub struct Lorenz {
     outputs: LorenzOutputs,
     params: LorenzParams,
     state: LorenzState,
-    /// Per-channel (x, y, z) integrator state. Preserved across patch updates
+    /// Per-lane (x, y, z) integrator state. Preserved across patch updates
     /// by `transfer_state_from` so the trajectory continues uninterrupted.
-    channel_state: Box<[ChannelState]>,
+    lane_state: Box<[LaneState]>,
 }
 
 impl Lorenz {
@@ -180,23 +180,23 @@ impl Lorenz {
         // Seed integrator state. On a patch update, transfer_state_from runs
         // after init and swaps in the prior running (x,y,z), so the trajectory
         // continues uninterrupted regardless of this initial seeding.
-        let channels = self.channel_count();
-        self.channel_state = (0..channels)
-            .map(ChannelState::new_with_offset)
+        let lanes = self.lane_count();
+        self.lane_state = (0..lanes)
+            .map(LaneState::new_with_offset)
             .collect::<Vec<_>>()
             .into_boxed_slice();
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let inv_sr = self.state.inv_sample_rate;
 
-        for ch in 0..channels {
+        for lane in 0..lanes {
             // Map 0–5 inputs to Lorenz coefficient spans.
-            let sigma = self.params.sigma.value_or(ch, DEFAULT_SIGMA) * SIGMA_SCALE;
-            let rho = self.params.rho.value_or(ch, DEFAULT_RHO) * RHO_SCALE;
-            let beta = self.params.beta.value_or(ch, DEFAULT_BETA) * BETA_SCALE;
-            let rate_cv = self.params.rate.value_or(ch, DEFAULT_RATE);
+            let sigma = self.params.sigma.value_or(lane, DEFAULT_SIGMA) * SIGMA_SCALE;
+            let rho = self.params.rho.value_or(lane, DEFAULT_RHO) * RHO_SCALE;
+            let beta = self.params.beta.value_or(lane, DEFAULT_BETA) * BETA_SCALE;
+            let rate_cv = self.params.rate.value_or(lane, DEFAULT_RATE);
             let rate = (rate_cv * RATE_SCALE).max(0.0);
 
             // Total Lorenz time-units this audio sample.
@@ -211,11 +211,11 @@ impl Lorenz {
             };
             let dt = dt_total / n_steps as f32;
 
-            let state = &mut self.channel_state[ch];
+            let state = &mut self.lane_state[lane];
 
             // Guard against non-finite state (e.g. from extreme params).
             if !state.x.is_finite() || !state.y.is_finite() || !state.z.is_finite() {
-                *state = ChannelState::new_with_offset(ch);
+                *state = LaneState::new_with_offset(lane);
             }
 
             for _ in 0..n_steps {
@@ -231,15 +231,21 @@ impl Lorenz {
                     || state.y.abs() > STATE_CLAMP
                     || state.z.abs() > STATE_CLAMP
                 {
-                    *state = ChannelState::new_with_offset(ch);
+                    *state = LaneState::new_with_offset(lane);
                     break;
                 }
             }
 
             // Normalize to ±5V (x/y) and 0–5V (z). `PolyOutput::set` sanitizes NaN/Inf.
-            self.outputs.x.set(ch, (state.x * X_SCALE).clamp(-5.0, 5.0));
-            self.outputs.y.set(ch, (state.y * Y_SCALE).clamp(-5.0, 5.0));
-            self.outputs.z.set(ch, (state.z * Z_SCALE).clamp(0.0, 5.0));
+            self.outputs
+                .x
+                .set(lane, (state.x * X_SCALE).clamp(-5.0, 5.0));
+            self.outputs
+                .y
+                .set(lane, (state.y * Y_SCALE).clamp(-5.0, 5.0));
+            self.outputs
+                .z
+                .set(lane, (state.z * Z_SCALE).clamp(0.0, 5.0));
         }
     }
 }
@@ -254,15 +260,15 @@ mod tests {
     /// Build a Lorenz module with the given params, mirroring the production
     /// lifecycle: `init` seeds the (x,y,z) state and captures the sample rate.
     fn make_lorenz(params: LorenzParams) -> Lorenz {
-        let channels = __lorenz_derive_channel_count(&params);
+        let lanes = __lorenz_derive_lane_count(&params);
         let mut outputs = LorenzOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         let mut l = Lorenz {
             params,
             outputs,
             state: LorenzState::default(),
-            channel_state: Box::default(),
-            _channel_count: channels,
+            lane_state: Box::default(),
+            _lane_count: lanes,
             _block_index: Default::default(),
         };
         l.init(48000.0);
@@ -312,8 +318,8 @@ mod tests {
     }
 
     #[test]
-    fn poly_channels_diverge() {
-        // Two channels start with a 0.01 x-offset; chaos amplifies it.
+    fn poly_lanes_diverge() {
+        // Two lanes start with a 0.01 x-offset; chaos amplifies it.
         // Use rate=2.0 (→ 80 t/s) so divergence happens quickly:
         // 10000 samples × 80 t/s / 48000 Hz ≈ 16.7 Lorenz time units,
         // which is many multiples of the Lyapunov time (~1.1 t).
@@ -327,20 +333,20 @@ mod tests {
                 Signal::Volts(rate_high),
             ])),
         };
-        let channels = 2;
+        let lanes = 2;
         let mut outputs = LorenzOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
         let mut l = Lorenz {
             params,
             outputs,
             state: LorenzState::default(),
-            channel_state: Box::default(),
-            _channel_count: channels,
+            lane_state: Box::default(),
+            _lane_count: lanes,
             _block_index: Default::default(),
         };
         l.init(48000.0);
 
-        // 16+ Lorenz time units — channels are fully decorrelated.
+        // 16+ Lorenz time units — lanes are fully decorrelated.
         for _ in 0..10000 {
             l.update(48000.0);
         }
@@ -348,7 +354,7 @@ mod tests {
         let x1 = l.outputs.x.get(1);
         assert!(
             (x0 - x1).abs() > 0.1,
-            "Poly channels should diverge after many Lyapunov times: ch0={x0} ch1={x1}"
+            "Poly lanes should diverge after many Lyapunov times: lane0={x0} lane1={x1}"
         );
     }
 

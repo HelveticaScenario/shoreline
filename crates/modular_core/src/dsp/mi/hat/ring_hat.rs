@@ -10,13 +10,13 @@ use crate::{
     poly::{PolyOutput, PolySignal, PolySignalExt},
 };
 
-use super::channel::{ACCENT_DEFAULT, ACCENT_TRIM, Channel, HatState, KNOB_DEFAULT, Knobs, seed};
 use super::hat_drum::RingHat;
+use super::lane::{ACCENT_DEFAULT, ACCENT_TRIM, HatState, KNOB_DEFAULT, Knobs, Lane, seed};
 use crate::dsp::mi::accent::plaits_volts;
 use crate::dsp::mi::drum::{OUTPUT_GAIN, pitch};
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MiRingHatParams {
@@ -127,7 +127,7 @@ const RING_HAT_DOCS: ModuleDocs = ModuleDocs {
 pub struct MiRingHat {
     outputs: MiRingHatOutputs,
     state: HatState,
-    channel_state: Box<[Channel<RingHat>]>,
+    lane_state: Box<[Lane<RingHat>]>,
     params: MiRingHatParams,
 }
 
@@ -137,45 +137,46 @@ impl MiRingHat {
     }
 
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
         let p = &self.params;
         let state = &self.state;
-        for (ch, channel) in self.channel_state[..channels].iter_mut().enumerate() {
+        for (lane_index, lane) in self.lane_state[..lanes].iter_mut().enumerate() {
             let f0 = pitch(
-                p.freq.get_value(ch),
-                p.fm.value_or(ch, MiRingHatParams::FM_DEFAULT),
+                p.freq.get_value(lane_index),
+                p.fm.value_or(lane_index, MiRingHatParams::FM_DEFAULT),
                 p.fm_mode,
                 state.inv_sample_rate,
             );
-            let trigger = p.trigger.as_ref().map(|t| t.get_value(ch));
+            let trigger = p.trigger.as_ref().map(|t| t.get_value(lane_index));
             let knob = |signal: &Option<PolySignal>, default| {
-                (signal.value_or(ch, default), signal.glide_mark(ch))
+                (
+                    signal.value_or(lane_index, default),
+                    signal.glide_mark(lane_index),
+                )
             };
             let accent = knob(&p.accent, MiRingHatParams::ACCENT_DEFAULT);
             let mark = accent.1;
-            let accent = channel
-                .accent_state
-                .read(accent, trigger, state.sample_rate);
+            let accent = lane.accent_state.read(accent, trigger, state.sample_rate);
             let knobs = Knobs {
                 tone: knob(&p.tone, MiRingHatParams::TONE_DEFAULT),
                 decay: knob(&p.decay, MiRingHatParams::DECAY_DEFAULT),
                 noisiness: knob(&p.noisiness, MiRingHatParams::NOISINESS_DEFAULT),
                 accent: (plaits_volts(accent), mark),
             };
-            let out = channel.step(f0, knobs, trigger, state);
-            let out = channel.accent_state.apply(
+            let out = lane.step(f0, knobs, trigger, state);
+            let out = lane.accent_state.apply(
                 (OUTPUT_GAIN * out).clamp(-5.0, 5.0),
                 ACCENT_TRIM,
                 state.sample_rate,
             );
-            self.outputs.sample.set(ch, out);
+            self.outputs.sample.set(lane_index, out);
         }
     }
 }
 
 impl crate::types::PatchUpdateHandler for MiRingHat {
     fn on_patch_update(&mut self) {
-        seed(seed_base(self), &mut self.channel_state);
+        seed(seed_base(self), &mut self.lane_state);
     }
 }
 

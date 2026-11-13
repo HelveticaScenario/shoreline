@@ -1,9 +1,9 @@
 //! One circuit, several widths. Each drum circuit is written once over
-//! [`Simd`] and runs as [`Mono`], one channel in `f32` and `f64`, or as
-//! [`X2`] or [`X4`], two or four channels at once in vectors. Every element of
+//! [`Simd`] and runs as [`Mono`], one lane in `f32` and `f64`, or as
+//! [`X2`] or [`X4`], two or four lanes at once in vectors. Every element of
 //! a vector circuit computes exactly what a `Mono` circuit computes for its
-//! channel: the same operations in the same order with the same rounding,
-//! so a channel sounds the same whichever width it runs at.
+//! lane: the same operations in the same order with the same rounding,
+//! so a lane sounds the same whichever width it runs at.
 //!
 //! Branches become masks: a vector circuit computes both sides where its
 //! elements disagree and selects per element, and runs a loop until every element is
@@ -209,7 +209,7 @@ pub trait Simd: Copy + Default + 'static {
     /// Per element, the index of the combination of switches closed in a
     /// network: bit `s` for switch `s`.
     type Closed: Copy;
-    /// Channels at once.
+    /// Lanes at once.
     const WIDTH: usize;
 
     fn wide(s: Self::S) -> Self::D;
@@ -230,7 +230,7 @@ pub trait Simd: Copy + Default + 'static {
     fn mask(bits: u32) -> Self::SM;
 }
 
-/// One channel.
+/// One lane.
 #[derive(Clone, Copy, Default)]
 pub struct Mono;
 
@@ -288,7 +288,7 @@ impl Simd for Mono {
 }
 
 /// A group's state seen one element at a time, as the [`Mono`] form of the
-/// same state. Hits start, and channels move between widths, a element at a
+/// same state. Hits start, and lanes move between widths, a element at a
 /// time.
 pub trait Elementwise {
     type Element;

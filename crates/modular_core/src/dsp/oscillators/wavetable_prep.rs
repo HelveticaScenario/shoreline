@@ -55,9 +55,9 @@ pub struct PreparedWavetable {
 impl PreparedWavetable {
     /// Prepare a wavetable from a loaded WAV.
     ///
-    /// Reads channel 0. The frame size is taken from `wav.detected_frame_size`,
+    /// Reads lane 0. The frame size is taken from `wav.detected_frame_size`,
     /// falling back to [`DEFAULT_FRAME_SIZE`] when the metadata is absent or
-    /// degenerate. Frames past the end of the channel (i.e. if the sample
+    /// degenerate. Frames past the end of the lane (i.e. if the sample
     /// count isn't a clean multiple of `frame_size`) are discarded.
     ///
     /// Main thread only — allocates and runs FFTs.
@@ -75,7 +75,7 @@ impl PreparedWavetable {
         // Integer log2(frame_size), at least 1 level.
         let mipmap_count = integer_log2(frame_size).max(1);
 
-        let channel = 0;
+        let lane = 0;
 
         // Pre-allocate one Vec<f32> per level, all zero-initialized.
         let level_len = frame_count * table_size;
@@ -106,10 +106,10 @@ impl PreparedWavetable {
         let inv_n = 1.0 / frame_size as f32;
 
         for frame_idx in 0..frame_count {
-            // Load channel 0 samples for this frame into the FFT input buffer.
+            // Load lane 0 samples for this frame into the FFT input buffer.
             let src_base = frame_idx * frame_size;
             for (i, bin) in spectrum.iter_mut().enumerate() {
-                *bin = Complex::new(wav.read(channel, src_base + i), 0.0);
+                *bin = Complex::new(wav.read(lane, src_base + i), 0.0);
             }
 
             fft_forward.process(&mut spectrum);
@@ -319,10 +319,10 @@ mod tests {
     #[test]
     fn multi_frame_crossfades_between_frames() {
         let size = 2048;
-        let mut ch: Vec<f32> = Vec::with_capacity(size * 2);
-        ch.extend(make_sine_frame(size, 0.0));
-        ch.extend(make_cosine_frame(size));
-        let wav = WavData::new(SampleBuffer::from_samples(vec![ch], 48000.0), Some(size));
+        let mut lane: Vec<f32> = Vec::with_capacity(size * 2);
+        lane.extend(make_sine_frame(size, 0.0));
+        lane.extend(make_cosine_frame(size));
+        let wav = WavData::new(SampleBuffer::from_samples(vec![lane], 48000.0), Some(size));
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
 
         assert_eq!(prep.frame_count, 2);
@@ -347,10 +347,10 @@ mod tests {
         // of size/4 = 512.
         let bin = size / 2 - 2;
         let freq_norm = bin as f32 / size as f32;
-        let ch: Vec<f32> = (0..size)
+        let lane: Vec<f32> = (0..size)
             .map(|i| (TAU * freq_norm * i as f32).cos())
             .collect();
-        let wav = WavData::new(SampleBuffer::from_samples(vec![ch], 48000.0), Some(size));
+        let wav = WavData::new(SampleBuffer::from_samples(vec![lane], 48000.0), Some(size));
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
 
         let rms = |level: usize| -> f32 {
@@ -371,8 +371,8 @@ mod tests {
     #[test]
     fn mipmap_level_for_freq_picks_correct_level() {
         let size = 2048;
-        let ch = make_sine_frame(size, 0.0);
-        let wav = WavData::new(SampleBuffer::from_samples(vec![ch], 48000.0), Some(size));
+        let lane = make_sine_frame(size, 0.0);
+        let wav = WavData::new(SampleBuffer::from_samples(vec![lane], 48000.0), Some(size));
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
 
         // base_frequency = 48000 / 2048 ≈ 23.4375 Hz.
@@ -396,8 +396,8 @@ mod tests {
     #[test]
     fn mipmap_level_uses_frequency_magnitude() {
         let size = 2048;
-        let ch = make_sine_frame(size, 0.0);
-        let wav = WavData::new(SampleBuffer::from_samples(vec![ch], 48000.0), Some(size));
+        let lane = make_sine_frame(size, 0.0);
+        let wav = WavData::new(SampleBuffer::from_samples(vec![lane], 48000.0), Some(size));
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
 
         // Backwards (negative-frequency) playback from through-zero FM has
@@ -427,8 +427,8 @@ mod tests {
     #[test]
     fn fallback_frame_size_when_metadata_missing() {
         let size = 2048;
-        let ch = make_sine_frame(size, 0.0);
-        let wav = WavData::new(SampleBuffer::from_samples(vec![ch], 48000.0), None);
+        let lane = make_sine_frame(size, 0.0);
+        let wav = WavData::new(SampleBuffer::from_samples(vec![lane], 48000.0), None);
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
         assert_eq!(prep.frame_size, DEFAULT_FRAME_SIZE);
     }
@@ -437,7 +437,7 @@ mod tests {
     fn sub_frame_size_wav_produces_silent_table() {
         // Wav with fewer samples than fallback frame_size — should not panic,
         // should be silent.
-        let samples = vec![vec![0.5f32; 100]]; // single channel, 100 samples, frame_size=2048 fallback
+        let samples = vec![vec![0.5f32; 100]]; // single lane, 100 samples, frame_size=2048 fallback
         let wav = WavData::new(SampleBuffer::from_samples(samples, 48000.0), None);
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
         assert_eq!(prep.frame_count, 0);

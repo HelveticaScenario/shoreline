@@ -16,7 +16,7 @@ use arrayvec::ArrayVec;
 use deserr::{DeserializeError, ErrorKind, IntoValue, ValuePointerRef};
 
 use crate::Patch;
-use crate::poly::PORT_MAX_CHANNELS;
+use crate::poly::PORT_MAX_LANES;
 use crate::types::Connect;
 
 use super::{chord_names, scale_names};
@@ -183,12 +183,12 @@ pub struct ScaleSpec {
     tuning: [f64; 12],
     /// Semitone offsets from the root, strictly ascending. Scales lie within
     /// `0..12`; chords may span several octaves or omit the root.
-    voicing: ArrayVec<i8, PORT_MAX_CHANNELS>,
+    voicing: ArrayVec<i8, PORT_MAX_LANES>,
     /// Semitones between repeats of the voicing when indexing degrees: the
     /// voicing's span rounded up to whole octaves.
     period_semitones: i32,
     /// V/Oct voltage of each voicing note, ascending.
-    voltages: ArrayVec<f32, PORT_MAX_CHANNELS>,
+    voltages: ArrayVec<f32, PORT_MAX_LANES>,
 }
 
 impl ScaleSpec {
@@ -274,11 +274,11 @@ impl ScaleSpec {
 
     /// `root[…]`: `[tuning] (chord-name | intervals…) [invN]`.
     fn parse_chord(root: &FixedRoot, body: &str) -> Result<Self, String> {
-        let mut tokens: ArrayVec<&str, { PORT_MAX_CHANNELS + 2 }> = ArrayVec::new();
+        let mut tokens: ArrayVec<&str, { PORT_MAX_LANES + 2 }> = ArrayVec::new();
         for token in body.split_whitespace() {
             tokens
                 .try_push(token)
-                .map_err(|_| format!("chord has more than {PORT_MAX_CHANNELS} notes"))?;
+                .map_err(|_| format!("chord has more than {PORT_MAX_LANES} notes"))?;
         }
 
         let mut tuning = et_tuning();
@@ -295,7 +295,7 @@ impl ScaleSpec {
             tokens.pop();
         }
 
-        let mut voicing = ArrayVec::<i8, PORT_MAX_CHANNELS>::new();
+        let mut voicing = ArrayVec::<i8, PORT_MAX_LANES>::new();
         match tokens.as_slice() {
             [] => return Err("chord is empty".to_string()),
             [name] if chord_names::lookup(name).is_some() => {
@@ -309,9 +309,9 @@ impl ScaleSpec {
                         )
                     })?;
                     if !voicing.contains(&interval) {
-                        voicing.try_push(interval).map_err(|_| {
-                            format!("chord has more than {PORT_MAX_CHANNELS} notes")
-                        })?;
+                        voicing
+                            .try_push(interval)
+                            .map_err(|_| format!("chord has more than {PORT_MAX_LANES} notes"))?;
                     }
                 }
                 voicing.sort_unstable();

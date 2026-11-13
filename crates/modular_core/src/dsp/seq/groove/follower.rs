@@ -98,7 +98,7 @@ impl GrooveFollower {
     }
 
     /// Advance to straight position `straight` (cycles), exactly as the
-    /// sequencers reading the offset see it: the playhead's channels summed
+    /// sequencers reading the offset see it: the playhead's lanes summed
     /// in f64.
     pub fn advance(
         &mut self,

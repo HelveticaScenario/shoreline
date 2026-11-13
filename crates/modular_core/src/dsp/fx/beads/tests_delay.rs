@@ -36,21 +36,21 @@ fn delay_params(quality: GranularQuality) -> ClockedDelayParams {
 
 /// A module up to the point where state transfer happens.
 fn construct(params: ClockedDelayParams) -> ClockedDelay {
-    let channels = params
+    let lanes = params
         .poly_signal_fields()
         .iter()
-        .map(|p| p.channels())
+        .map(|p| p.lanes())
         .max()
         .unwrap_or(1)
         .max(1);
     let mut outputs = ClockedDelayOutputs::default();
-    outputs.set_all_channels(channels);
+    outputs.set_all_lanes(lanes);
     let mut m = ClockedDelay {
         outputs,
         state: Default::default(),
         params,
-        channel_state: (0..channels).map(|_| Default::default()).collect(),
-        _channel_count: channels,
+        lane_state: (0..lanes).map(|_| Default::default()).collect(),
+        _lane_count: lanes,
         _block_index: Default::default(),
     };
     m.init(SR);
@@ -67,8 +67,8 @@ fn make(params: ClockedDelayParams) -> ClockedDelay {
 /// Carry `old`'s state into `new` as a patch update does.
 fn transfer(old: &mut ClockedDelay, new: &mut ClockedDelay) {
     std::mem::swap(&mut old.state, &mut new.state);
-    let n = old.channel_state.len().min(new.channel_state.len());
-    new.channel_state[..n].swap_with_slice(&mut old.channel_state[..n]);
+    let n = old.lane_state.len().min(new.lane_state.len());
+    new.lane_state[..n].swap_with_slice(&mut old.lane_state[..n]);
     new.on_patch_update();
 }
 
@@ -421,7 +421,7 @@ fn pitched_repeats_at_the_longest_delay_stay_in_the_buffer() {
 }
 
 #[test]
-fn a_channel_added_mid_block_delays_its_input() {
+fn a_lane_added_mid_block_delays_its_input() {
     for quality in ALL_QUALITIES {
         let p = delay_params(quality);
         let mut old = make(p.clone());

@@ -16,7 +16,7 @@ use schemars::JsonSchema;
 use super::circuit::pulse_volts;
 use super::metal::{MetalBank, MetalFilters, metal_pulse};
 use super::swing::{SwingState, vca};
-use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, QUAD, Run};
+use crate::dsp::drums::group::{Drum, Groups, LaneInputs, QUAD, Run};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState, STIFF, Switch};
 use crate::dsp::drums::simd::{Elementwise, Mono, Real, Simd, c, elementwise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing, Voices};

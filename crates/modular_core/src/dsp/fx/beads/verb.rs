@@ -96,12 +96,12 @@ impl OutputStage {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct BeadsReverbParams {
     #[input(
-        "signal to reverberate; even channels feed the left side, odd the right, and an odd last channel feeds both",
+        "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
         type = audio,
     )]
     input: PolySignal,
@@ -134,7 +134,7 @@ struct BeadsReverbParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BeadsReverbOutputs {
-    #[output("output", "the input plus reverb, as left and right channels", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the input plus reverb, as left and right lanes", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -187,7 +187,7 @@ const BEADS_REVERB_DOCS: ModuleDocs = ModuleDocs {
 #[module(
     name = "$reverb",
     docs = BEADS_REVERB_DOCS,
-    channels = 2,
+    lanes = 2,
     has_init,
     args(input, amount)
 )]
@@ -264,7 +264,7 @@ pub(super) mod tests {
 
     fn make_at((size, tone): (f32, f32), reverb: f32, sample_rate: f32) -> BeadsReverb {
         let mut outputs = BeadsReverbOutputs::default();
-        outputs.set_all_channels(2);
+        outputs.set_all_lanes(2);
         let mut m = BeadsReverb {
             outputs,
             state: BeadsReverbState::default(),
@@ -274,7 +274,7 @@ pub(super) mod tests {
                 size: volts(size),
                 tone: volts(tone),
             },
-            _channel_count: 2,
+            _lane_count: 2,
             _block_index: Default::default(),
         };
         m.init(sample_rate);

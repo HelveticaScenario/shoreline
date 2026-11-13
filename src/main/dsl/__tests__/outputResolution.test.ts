@@ -16,7 +16,7 @@ function run(source: string) {
     return executePatchScript(source, schemas, EXECUTION_OPTIONS);
 }
 
-type Cable = { module: string; port: string; channel?: number };
+type Cable = { module: string; port: string; lane?: number };
 
 /** The cables feeding `param` of the first module of `moduleType`. */
 function cables(source: string, moduleType: string, param: string): Cable[] {

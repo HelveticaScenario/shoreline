@@ -112,7 +112,7 @@ export class VideoGraphBuilder implements VideoCore {
     /**
      * Binds an audio signal to a uniform slot: a slider or button by its
      * backing module, anything else through an engine tap, which sums the
-     * channels of a signal that has several. Each source gets one slot however
+     * lanes of a signal that has several. Each source gets one slot however
      * often it is used.
      */
     private bindSignal(
@@ -155,13 +155,13 @@ export class VideoGraphBuilder implements VideoCore {
         return { kind: 'uniform', slot: uniform.slot };
     }
 
-    /** The engine tap carrying `signal`, summed to one channel, adding it on first use. */
+    /** The engine tap carrying `signal`, summed to one lane, adding it on first use. */
     private tapFor(fn: string, name: string, signal: AudioSignal): number {
         if (signal.length === 0) {
-            throw new Error(`${fn}: ${name} has no channels`);
+            throw new Error(`${fn}: ${name} has no lanes`);
         }
         const key = signal.items
-            .map((o) => `${o.moduleId}\0${o.portName}\0${o.channel}`)
+            .map((o) => `${o.moduleId}\0${o.portName}\0${o.lane}`)
             .join('\n');
         const known = this.tapIndexes.get(key);
         if (known !== undefined) return known;
@@ -263,8 +263,8 @@ export class VideoGraphBuilder implements VideoCore {
 
     /**
      * An XY scope of audio signals: `x` moves the beam across the frame and
-     * `y` up it. Each channel is its own signal, and the two are paired off
-     * channel by channel, the shorter cycling, one trace per pair. The beam
+     * `y` up it. Each lane is its own signal, and the two are paired off
+     * lane by lane, the shorter cycling, one trace per pair. The beam
      * is white on a transparent background, its opacity its brightness.
      */
     scopeXY = (
@@ -273,14 +273,14 @@ export class VideoGraphBuilder implements VideoCore {
         config?: VideoScopeConfig,
     ): VideoOutput => {
         const fn = '$v.scopeXY';
-        const xs = this.channelsOf(fn, 'x', x);
-        const ys = this.channelsOf(fn, 'y', y);
-        for (const [name, channels] of [
+        const xs = this.lanesOf(fn, 'x', x);
+        const ys = this.lanesOf(fn, 'y', y);
+        for (const [name, lanes] of [
             ['x', xs],
             ['y', ys],
         ] as const) {
-            if (channels.length === 0) {
-                throw new Error(`${fn}: ${name} has no channels`);
+            if (lanes.length === 0) {
+                throw new Error(`${fn}: ${name} has no lanes`);
             }
         }
         const traceCount = Math.max(xs.length, ys.length);
@@ -349,16 +349,12 @@ export class VideoGraphBuilder implements VideoCore {
     };
 
     /**
-     * Every channel of an audio signal or array of them, in order. A
+     * Every lane of an audio signal or array of them, in order. A
      * number or note string is a constant signal.
      */
-    private channelsOf(
-        fn: string,
-        name: string,
-        value: unknown,
-    ): ModuleOutput[] {
+    private lanesOf(fn: string, name: string, value: unknown): ModuleOutput[] {
         if (Array.isArray(value)) {
-            return value.flatMap((v: unknown) => this.channelsOf(fn, name, v));
+            return value.flatMap((v: unknown) => this.lanesOf(fn, name, v));
         }
         const signal =
             typeof value === 'number' || typeof value === 'string'
@@ -366,7 +362,7 @@ export class VideoGraphBuilder implements VideoCore {
                 : value;
         if (signal instanceof BaseCollection) {
             if (signal.length === 0) {
-                throw new Error(`${fn}: ${name} has no channels`);
+                throw new Error(`${fn}: ${name} has no lanes`);
             }
             return signal.items;
         }

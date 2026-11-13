@@ -1,4 +1,4 @@
-//! Four channels at once.
+//! Four lanes at once.
 
 use std::ops::{
     Add, AddAssign, BitAnd, BitOr, Div, DivAssign, Mul, MulAssign, Neg, Not, Sub, SubAssign,
@@ -9,7 +9,7 @@ use wide::{f32x4, f64x4};
 use super::vector::{broadcast_f32x4, broadcast_f64x4, switch_elements, vector};
 use super::{Elementwise, Mask, Real, Simd};
 
-/// Four channels.
+/// Four lanes.
 #[derive(Clone, Copy, Default)]
 pub struct X4;
 

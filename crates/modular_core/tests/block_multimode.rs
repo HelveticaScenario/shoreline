@@ -1,5 +1,5 @@
 //! `$multimode` renders identically on the block and per-sample paths: held
-//! and modulated controls, mono and poly inputs, a group with one live channel,
+//! and modulated controls, mono and poly inputs, a group with one live lane,
 //! self-oscillation, and both resolutions.
 
 mod block_common;
@@ -19,15 +19,15 @@ fn multimode_paths_agree() {
     check_paths_agree(
         "$multimode",
         json!({
-            "input": poly_cable("src", CHANNELS),
-            "cutoff": poly_cable("lfo", CHANNELS),
+            "input": poly_cable("src", LANES),
+            "cutoff": poly_cable("lfo", LANES),
             "resonance": 3.5,
             "mode": cable("lfo", 1),
             "drive": [0.0, 2.0, 4.0],
             "fold": cable("lfo", 2),
         }),
     );
-    // Five channels: a full group, then a group with one live channel.
+    // Five lanes: a full group, then a group with one live lane.
     check_paths_agree(
         "$multimode",
         json!({
@@ -60,7 +60,7 @@ fn allocation_free() {
         allocations_while_rendering(
             "$multimode",
             json!({
-                "input": poly_cable("src", CHANNELS),
+                "input": poly_cable("src", LANES),
                 "cutoff": cable("lfo", 0),
                 "resonance": cable("lfo", 1),
                 "mode": 2.0,

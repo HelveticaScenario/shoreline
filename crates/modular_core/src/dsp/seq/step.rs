@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = validate_step_params -> ModuleParamErrors)]
 struct StepParams {
@@ -46,8 +46,8 @@ fn validate_step_params(
     Ok(params)
 }
 
-fn step_derive_channel_count(params: &StepParams) -> usize {
-    params.steps.iter().map(|s| s.channels()).max().unwrap_or(0)
+fn step_derive_lane_count(params: &StepParams) -> usize {
+    params.steps.iter().map(|s| s.lanes()).max().unwrap_or(0)
 }
 
 const STEP_DOCS: ModuleDocs = ModuleDocs {
@@ -81,7 +81,7 @@ const STEP_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$step", docs = STEP_DOCS, channels_derive = step_derive_channel_count, args(steps, next))]
+#[module(name = "$step", docs = STEP_DOCS, lanes_derive = step_derive_lane_count, args(steps, next))]
 pub struct Step {
     outputs: StepOutputs,
     params: StepParams,
@@ -107,7 +107,7 @@ impl Default for StepState {
 }
 impl Step {
     fn update(&mut self, _sample_rate: f32) {
-        let channels = self.channel_count();
+        let lanes = self.lane_count();
 
         if self.state.first_update {
             // Prime the Schmitt triggers but don't act on any edges they report.
@@ -139,7 +139,7 @@ impl Step {
 
         let idx = self.state.current_step_idx.min(self.params.steps.len() - 1);
         let step = &self.params.steps[idx];
-        for i in 0..channels {
+        for i in 0..lanes {
             self.outputs.sample.set(i, step.get_value(i));
         }
     }

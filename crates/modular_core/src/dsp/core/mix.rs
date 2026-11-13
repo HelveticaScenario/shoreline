@@ -9,7 +9,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     block_input::{InputScratch, OptionBlockInput, SCRATCH_LEN},
     dsp::utils::{audio_taper, sanitize},
-    poly::{PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt},
+    poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 
@@ -30,11 +30,11 @@ pub enum MixMode {
 }
 
 #[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
+#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 pub struct MixParams {
-    #[input("the signals to mix; channel n of each input mixes into output channel n")]
+    #[input("the signals to mix; lane n of each input mixes into output lane n")]
     pub inputs: Vec<PolySignal>,
     #[input("how the inputs combine", default = "sum")]
     #[serde(default)]
@@ -55,44 +55,44 @@ pub struct MixParams {
 struct MixOutputs {
     #[output(
         "output",
-        "the mix, keeping each channel separate rather than folding to mono",
+        "the mix, keeping each lane separate rather than folding to mono",
         type = cv,
         default
     )]
     sample: PolyOutput,
 }
 
-/// Custom channel count derivation for Mix.
+/// Custom lane count derivation for Mix.
 ///
-/// Mix output channels = max(max_input_channels, gain_channels), at least 1.
+/// Mix output lanes = max(max_input_lanes, gain_lanes), at least 1.
 /// This matches the runtime behavior in update().
-pub fn mix_derive_channel_count(params: &MixParams) -> usize {
-    // Get max channel count from inputs
+pub fn mix_derive_lane_count(params: &MixParams) -> usize {
+    // Get max lane count from inputs
     let input_refs: Vec<&PolySignal> = params.inputs.iter().collect();
 
-    let max_input_channels = if params.inputs.is_empty() {
+    let max_input_lanes = if params.inputs.is_empty() {
         0usize
     } else {
-        PolySignal::max_channels(&input_refs)
+        PolySignal::max_lanes(&input_refs)
     };
 
-    // Get gain channel count
-    let gain_channels = params.gain.channel_count();
+    // Get gain lane count
+    let gain_lanes = params.gain.lane_count();
 
-    // Output channels = max(max_input_channels, gain_channels), at least 1 if inputs empty
+    // Output lanes = max(max_input_lanes, gain_lanes), at least 1 if inputs empty
     if params.inputs.is_empty() {
-        gain_channels.max(1)
+        gain_lanes.max(1)
     } else {
-        max_input_channels.max(gain_channels)
+        max_input_lanes.max(gain_lanes)
     }
-    .min(PORT_MAX_CHANNELS)
+    .min(PORT_MAX_LANES)
 }
 
 const MIX_DOCS: ModuleDocs = ModuleDocs {
-    summary: "Channel-by-channel mixer",
-    description: "Mixes several signals into one, keeping their channels apart: channel n of \
-                  every input lands on output channel n, so mixing two four-voice signals \
-                  still gives four voices. Use `$mixDown` to fold channels together instead.",
+    summary: "Lane-by-lane mixer",
+    description: "Mixes several signals into one, keeping their lanes apart: lane n of \
+                  every input lands on output lane n, so mixing two four-voice signals \
+                  still gives four voices. Use `$setLanes` to fold lanes together instead.",
     categories: &[ModuleCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
@@ -105,11 +105,11 @@ const MIX_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$mix", docs = MIX_DOCS, channels_derive = mix_derive_channel_count, args(inputs), block)]
+#[module(name = "$mix", docs = MIX_DOCS, lanes_derive = mix_derive_lane_count, args(inputs), block)]
 pub struct Mix {
     outputs: MixOutputs,
     params: MixParams,
-    channel_state: Box<[SwapGlide]>,
+    lane_state: Box<[SwapGlide]>,
 }
 
 message_handlers!(impl Mix {});
@@ -158,7 +158,7 @@ fn init_slice(buffer: &mut MaybeUninit<[f32; SCRATCH_LEN]>, len: usize, value: f
 }
 
 /// Call `f(n, row)` with each input's row for the `n`th slot of `range`, input
-/// by input. A row holds just that input's channels.
+/// by input. A row holds just that input's lanes.
 #[inline(always)]
 fn for_each_input_row(
     inputs: &[PolySignal],
@@ -167,7 +167,7 @@ fn for_each_input_row(
 ) -> Option<()> {
     for input in inputs {
         let mut scratch = InputScratch::new();
-        let rows = input.block_input(range.clone(), input.channels(), &mut scratch)?;
+        let rows = input.block_input(range.clone(), input.lanes(), &mut scratch)?;
         for (n, i) in range.clone().enumerate() {
             f(n, rows.row(i));
         }
@@ -178,15 +178,15 @@ fn for_each_input_row(
 #[doc(hidden)]
 pub fn __bench_make_mix(params: MixParams) -> Mix {
     use crate::types::OutputStruct;
-    let channels = mix_derive_channel_count(&params);
+    let lanes = mix_derive_lane_count(&params);
     let mut outputs = MixOutputs::default();
-    outputs.set_all_channels(channels);
+    outputs.set_all_lanes(lanes);
     Mix {
         params,
         outputs,
-        _channel_count: channels,
+        _lane_count: lanes,
         _block_index: Default::default(),
-        channel_state: vec![SwapGlide::default(); channels].into_boxed_slice(),
+        lane_state: vec![SwapGlide::default(); lanes].into_boxed_slice(),
     }
 }
 
@@ -200,84 +200,80 @@ impl Mix {
         let inputs = &self.params.inputs;
         let gain = &self.params.gain;
 
-        let output_channels = self.channel_count();
+        let output_lanes = self.lane_count();
 
         // Empty inputs case — output silence.
         if inputs.is_empty() {
-            for i in 0..output_channels {
+            for i in 0..output_lanes {
                 self.outputs.sample.set(i, 0.0);
             }
             return;
         }
 
-        // Max channel count over all inputs.
-        let mut max_input_channels: usize = 0;
+        // Max lane count over all inputs.
+        let mut max_input_lanes: usize = 0;
         for input in inputs.iter() {
-            let c = input.channels();
-            if c > max_input_channels {
-                max_input_channels = c;
+            let c = input.lanes();
+            if c > max_input_lanes {
+                max_input_lanes = c;
             }
         }
 
-        // Pre-compute mixed values per channel. The mode match is hoisted
-        // out of the per-channel loop so we don't compute sum + max-by-abs
+        // Pre-compute mixed values per lane. The mode match is hoisted
+        // out of the per-lane loop so we don't compute sum + max-by-abs
         // + min-by-abs accumulators on every iteration when only one is
         // selected. Each branch's inner loop carries only the state its
         // mode needs.
-        let mut pre_gain_values = [0.0f32; PORT_MAX_CHANNELS];
+        let mut pre_gain_values = [0.0f32; PORT_MAX_LANES];
         match self.params.mode {
             MixMode::Sum => {
-                for (channel, value) in pre_gain_values[..max_input_channels].iter_mut().enumerate()
-                {
+                for (lane, value) in pre_gain_values[..max_input_lanes].iter_mut().enumerate() {
                     let mut sum: f32 = 0.0;
                     for input in inputs.iter() {
-                        if channel >= input.channels() {
+                        if lane >= input.lanes() {
                             continue;
                         }
-                        sum += input.get_value(channel);
+                        sum += input.get_value(lane);
                     }
                     *value = sum;
                 }
             }
             MixMode::Average => {
-                for (channel, value) in pre_gain_values[..max_input_channels].iter_mut().enumerate()
-                {
+                for (lane, value) in pre_gain_values[..max_input_lanes].iter_mut().enumerate() {
                     let mut sum: f32 = 0.0;
                     let mut count: u32 = 0;
                     for input in inputs.iter() {
-                        if channel >= input.channels() {
+                        if lane >= input.lanes() {
                             continue;
                         }
-                        sum += input.get_value(channel);
+                        sum += input.get_value(lane);
                         count += 1;
                     }
                     *value = if count > 0 { sum / count as f32 } else { 0.0 };
                 }
             }
             MixMode::Max => {
-                for (channel, value) in pre_gain_values[..max_input_channels].iter_mut().enumerate()
-                {
+                for (lane, value) in pre_gain_values[..max_input_lanes].iter_mut().enumerate() {
                     let mut best_abs: f32 = -1.0;
                     let mut best_val: f32 = 0.0;
                     for input in inputs.iter() {
-                        if channel >= input.channels() {
+                        if lane >= input.lanes() {
                             continue;
                         }
-                        fold_max(&mut best_abs, &mut best_val, input.get_value(channel));
+                        fold_max(&mut best_abs, &mut best_val, input.get_value(lane));
                     }
                     *value = max_result(best_abs, best_val);
                 }
             }
             MixMode::Min => {
-                for (channel, value) in pre_gain_values[..max_input_channels].iter_mut().enumerate()
-                {
+                for (lane, value) in pre_gain_values[..max_input_lanes].iter_mut().enumerate() {
                     let mut best_abs: f32 = f32::INFINITY;
                     let mut best_val: f32 = 0.0;
                     for input in inputs.iter() {
-                        if channel >= input.channels() {
+                        if lane >= input.lanes() {
                             continue;
                         }
-                        fold_min(&mut best_abs, &mut best_val, input.get_value(channel));
+                        fold_min(&mut best_abs, &mut best_val, input.get_value(lane));
                     }
                     *value = min_result(best_abs, best_val);
                 }
@@ -286,10 +282,10 @@ impl Mix {
 
         // Apply gain with cycling on pre_gain_values. Outside a glide the gain
         // reads raw, exactly as `process_block` does.
-        for i in 0..output_channels {
-            let pre_gain_index = i % max_input_channels;
+        for i in 0..output_lanes {
+            let pre_gain_index = i % max_input_lanes;
             let pre_gain_value = pre_gain_values[pre_gain_index];
-            let gain_value = self.channel_state[i].follow(
+            let gain_value = self.lane_state[i].follow(
                 audio_taper(gain.value_or(i, 5.0)),
                 gain.glide_mark(i),
                 sample_rate,
@@ -304,10 +300,10 @@ impl Mix {
         range: Range<usize>,
         _sample_rate: f32,
     ) -> Option<()> {
-        let output_channels = self.channel_count();
+        let output_lanes = self.lane_count();
         let inputs = &self.params.inputs;
         let gain_param = &self.params.gain;
-        let glides = &mut self.channel_state[..output_channels];
+        let glides = &mut self.lane_state[..output_lanes];
         let out = &mut outputs.sample;
         if glides
             .iter()
@@ -322,18 +318,18 @@ impl Mix {
             }
             return Some(());
         }
-        // Inputs fold into per-slot values over the widest input's channels;
-        // a narrower input leaves its missing channels out.
-        let width = inputs.iter().map(PolySignal::channels).max().unwrap_or(1);
+        // Inputs fold into per-slot values over the widest input's lanes;
+        // a narrower input leaves its missing lanes out.
+        let width = inputs.iter().map(PolySignal::lanes).max().unwrap_or(1);
         let len = range.len() * width;
         if len > SCRATCH_LEN {
             return None;
         }
         let mut gain_scratch = InputScratch::new();
         let gain =
-            gain_param.block_input_or(range.clone(), output_channels, 5.0, &mut gain_scratch)?;
+            gain_param.block_input_or(range.clone(), output_lanes, 5.0, &mut gain_scratch)?;
 
-        // `pre` ends up holding each slot's pre-gain value per channel.
+        // `pre` ends up holding each slot's pre-gain value per lane.
         let (mut pre_buffer, mut best_buffer) = (MaybeUninit::uninit(), MaybeUninit::uninit());
         let pre = init_slice(&mut pre_buffer, len, 0.0);
         match self.params.mode {
@@ -345,9 +341,9 @@ impl Mix {
                 })?;
             }
             MixMode::Average => {
-                let mut counts = [0u32; PORT_MAX_CHANNELS];
+                let mut counts = [0u32; PORT_MAX_LANES];
                 for input in inputs.iter() {
-                    for count in &mut counts[..input.channels()] {
+                    for count in &mut counts[..input.lanes()] {
                         *count += 1;
                     }
                 }
@@ -395,8 +391,8 @@ impl Mix {
         for (n, i) in range.clone().enumerate() {
             let pre = &pre[n * width..(n + 1) * width];
             let gains = gain.row(i);
-            for (ch, value) in out.slot_mut(i).iter_mut().enumerate() {
-                *value = sanitize(pre[ch % width] * audio_taper(gains[ch]));
+            for (lane, value) in out.slot_mut(i).iter_mut().enumerate() {
+                *value = sanitize(pre[lane % width] * audio_taper(gains[lane]));
             }
         }
         let last = gain.row(range.end - 1);
@@ -413,18 +409,18 @@ mod tests {
     use crate::poly::PolySignal;
     use crate::types::{OutputStruct, Signal};
 
-    /// Create a Mix with params and properly initialize _channel_count and output channels.
+    /// Create a Mix with params and properly initialize _lane_count and output lanes.
     fn make_mix(params: MixParams) -> Mix {
-        let channels = mix_derive_channel_count(&params);
+        let lanes = mix_derive_lane_count(&params);
         let mut outputs = MixOutputs::default();
-        outputs.set_all_channels(channels);
+        outputs.set_all_lanes(lanes);
 
         Mix {
             params,
             outputs,
-            _channel_count: channels,
+            _lane_count: lanes,
             _block_index: Default::default(),
-            channel_state: vec![SwapGlide::default(); channels].into_boxed_slice(),
+            lane_state: vec![SwapGlide::default(); lanes].into_boxed_slice(),
         }
     }
 
@@ -440,7 +436,7 @@ mod tests {
             gain: None,
         });
         mixer.update(48000.0);
-        assert_eq!(mixer.outputs.sample.channels(), 3);
+        assert_eq!(mixer.outputs.sample.lanes(), 3);
         assert_eq!(mixer.outputs.sample.get(0), 1.0);
         assert_eq!(mixer.outputs.sample.get(1), 2.0);
         assert_eq!(mixer.outputs.sample.get(2), 3.0);
@@ -448,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_mix_two_poly_sum() {
-        // A: 2 channels [1, 2], B: 3 channels [10, 20, 30]
+        // A: 2 lanes [1, 2], B: 3 lanes [10, 20, 30]
         let mut mixer = make_mix(MixParams {
             inputs: vec![
                 PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(2.0)]),
@@ -462,19 +458,19 @@ mod tests {
             gain: None,
         });
         mixer.update(48000.0);
-        // Output should be 3 channels
-        assert_eq!(mixer.outputs.sample.channels(), 3);
-        // Channel 0: 1 + 10 = 11
+        // Output should be 3 lanes
+        assert_eq!(mixer.outputs.sample.lanes(), 3);
+        // Lane 0: 1 + 10 = 11
         assert_eq!(mixer.outputs.sample.get(0), 11.0);
-        // Channel 1: 2 + 20 = 22
+        // Lane 1: 2 + 20 = 22
         assert_eq!(mixer.outputs.sample.get(1), 22.0);
-        // Channel 2: 0 + 30 = 30 (A has no channel 2, contributes 0)
+        // Lane 2: 0 + 30 = 30 (A has no lane 2, contributes 0)
         assert_eq!(mixer.outputs.sample.get(2), 30.0);
     }
 
     #[test]
     fn test_mix_average_mode() {
-        // A: 2 channels [2, 4], B: 2 channels [6, 8]
+        // A: 2 lanes [2, 4], B: 2 lanes [6, 8]
         let mut mixer = make_mix(MixParams {
             inputs: vec![
                 PolySignal::poly(&[Signal::Volts(2.0), Signal::Volts(4.0)]),
@@ -484,16 +480,16 @@ mod tests {
             gain: None,
         });
         mixer.update(48000.0);
-        assert_eq!(mixer.outputs.sample.channels(), 2);
-        // Channel 0: (2 + 6) / 2 = 4
+        assert_eq!(mixer.outputs.sample.lanes(), 2);
+        // Lane 0: (2 + 6) / 2 = 4
         assert_eq!(mixer.outputs.sample.get(0), 4.0);
-        // Channel 1: (4 + 8) / 2 = 6
+        // Lane 1: (4 + 8) / 2 = 6
         assert_eq!(mixer.outputs.sample.get(1), 6.0);
     }
 
     #[test]
-    fn test_mix_gain_extends_channels() {
-        // A: 1 channel [5], B: 2 channels [10, 20], gain: 3 channels [1, 2, 0.5]
+    fn test_mix_gain_extends_lanes() {
+        // A: 1 lane [5], B: 2 lanes [10, 20], gain: 3 lanes [1, 2, 0.5]
         let mut mixer = make_mix(MixParams {
             inputs: vec![
                 PolySignal::mono(Signal::Volts(5.0)),
@@ -507,13 +503,13 @@ mod tests {
             ])),
         });
         mixer.update(48000.0);
-        // Output channels = max(2 input channels, 3 gain channels) = 3
-        assert_eq!(mixer.outputs.sample.channels(), 3);
-        // Channel 0: (5 + 10) * (5/5)^3 = 15 * 1.0 = 15
+        // Output lanes = max(2 input lanes, 3 gain lanes) = 3
+        assert_eq!(mixer.outputs.sample.lanes(), 3);
+        // Lane 0: (5 + 10) * (5/5)^3 = 15 * 1.0 = 15
         assert_eq!(mixer.outputs.sample.get(0), 15.0);
-        // Channel 1: (0 + 20) * (10/5)^3 = 20 * 8.0 = 160
+        // Lane 1: (0 + 20) * (10/5)^3 = 20 * 8.0 = 160
         assert_eq!(mixer.outputs.sample.get(1), 160.0);
-        // Channel 2: pre_gain cycles from channel 0 (15 pre-gain), gain[2] = (2.5/5)^3 = 0.125 -> 15 * 0.125 = 1.875
+        // Lane 2: pre_gain cycles from lane 0 (15 pre-gain), gain[2] = (2.5/5)^3 = 0.125 -> 15 * 0.125 = 1.875
         assert_eq!(mixer.outputs.sample.get(2), 1.875);
     }
 
@@ -529,8 +525,8 @@ mod tests {
             ])),
         });
         mixer.update(48000.0);
-        // Empty inputs with 3-channel gain -> 3 channels of silence
-        assert_eq!(mixer.outputs.sample.channels(), 3);
+        // Empty inputs with 3-lane gain -> 3 lanes of silence
+        assert_eq!(mixer.outputs.sample.lanes(), 3);
         assert_eq!(mixer.outputs.sample.get(0), 0.0);
         assert_eq!(mixer.outputs.sample.get(1), 0.0);
         assert_eq!(mixer.outputs.sample.get(2), 0.0);
@@ -545,8 +541,8 @@ mod tests {
             .unwrap();
         let mut mixer = make_mix(params);
         mixer.update(48000.0);
-        // Empty inputs with no gain -> 1 channel of silence
-        assert_eq!(mixer.outputs.sample.channels(), 1);
+        // Empty inputs with no gain -> 1 lane of silence
+        assert_eq!(mixer.outputs.sample.lanes(), 1);
         assert_eq!(mixer.outputs.sample.get(0), 0.0);
     }
 
@@ -561,10 +557,10 @@ mod tests {
             gain: None,
         });
         mixer.update(48000.0);
-        assert_eq!(mixer.outputs.sample.channels(), 2);
-        // Channel 0: max by abs(1, -3) = -3
+        assert_eq!(mixer.outputs.sample.lanes(), 2);
+        // Lane 0: max by abs(1, -3) = -3
         assert_eq!(mixer.outputs.sample.get(0), -3.0);
-        // Channel 1: max by abs(-5, 2) = -5
+        // Lane 1: max by abs(-5, 2) = -5
         assert_eq!(mixer.outputs.sample.get(1), -5.0);
     }
 

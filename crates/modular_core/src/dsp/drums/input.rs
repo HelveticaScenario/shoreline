@@ -7,11 +7,11 @@ use std::ops::Range;
 use crate::BlockPort;
 use crate::block_input::BlockInput;
 use crate::dsp::utils::{SchmittTrigger, sanitize};
-use crate::poly::{PORT_MAX_CHANNELS, PolySignal};
+use crate::poly::{PORT_MAX_LANES, PolySignal};
 
-/// One input's value on each channel for the sample being run.
+/// One input's value on each lane for the sample being run.
 pub trait Input: Copy {
-    fn at(self, ch: usize) -> f32;
+    fn at(self, lane: usize) -> f32;
 }
 
 /// An input read at the module's current slot; `default` while
@@ -40,9 +40,9 @@ impl<'a> Live<'a> {
 
 impl Input for Live<'_> {
     #[inline(always)]
-    fn at(self, ch: usize) -> f32 {
+    fn at(self, lane: usize) -> f32 {
         match self.signal {
-            Some(signal) => signal.get_value(ch),
+            Some(signal) => signal.get_value(lane),
             None => self.default,
         }
     }
@@ -51,12 +51,12 @@ impl Input for Live<'_> {
 /// One slot's row of a resolved block input.
 impl Input for &[f32] {
     #[inline(always)]
-    fn at(self, ch: usize) -> f32 {
-        self[ch]
+    fn at(self, lane: usize) -> f32 {
+        self[lane]
     }
 }
 
-/// A setting derived from a channel's inputs, recomputed only when they
+/// A setting derived from a lane's inputs, recomputed only when they
 /// change.
 #[derive(Clone, Copy, Default)]
 pub struct Cached<K, V> {
@@ -78,56 +78,56 @@ impl<K: Copy + PartialEq, V: Copy> Cached<K, V> {
 }
 
 /// `N` control inputs held from strike to strike: while holding, each
-/// channel reads the values they had on its last rising edge on any of `T`
+/// lane reads the values they had on its last rising edge on any of `T`
 /// trigger inputs, detected as its voice detects a strike.
 #[derive(Clone, Copy)]
 pub struct Hold<const T: usize, const N: usize> {
-    edges: [[SchmittTrigger; T]; PORT_MAX_CHANNELS],
-    values: [[f32; N]; PORT_MAX_CHANNELS],
-    /// Whether each channel's `values` have been taken since holding began.
-    taken: [bool; PORT_MAX_CHANNELS],
+    edges: [[SchmittTrigger; T]; PORT_MAX_LANES],
+    values: [[f32; N]; PORT_MAX_LANES],
+    /// Whether each lane's `values` have been taken since holding began.
+    taken: [bool; PORT_MAX_LANES],
     holding: bool,
 }
 
 impl<const T: usize, const N: usize> Default for Hold<T, N> {
     fn default() -> Self {
         Self {
-            edges: [[SchmittTrigger::default(); T]; PORT_MAX_CHANNELS],
-            values: [[0.0; N]; PORT_MAX_CHANNELS],
-            taken: [false; PORT_MAX_CHANNELS],
+            edges: [[SchmittTrigger::default(); T]; PORT_MAX_LANES],
+            values: [[0.0; N]; PORT_MAX_LANES],
+            taken: [false; PORT_MAX_LANES],
             holding: false,
         }
     }
 }
 
 impl<const T: usize, const N: usize> Hold<T, N> {
-    /// The `controls` the first `channels` channels read this sample, given
-    /// this sample's `triggers`: while `hold`, their values on each channel's
+    /// The `controls` the first `lanes` lanes read this sample, given
+    /// this sample's `triggers`: while `hold`, their values on each lane's
     /// last strike, or on the sample holding began; otherwise live.
     #[inline(always)]
     pub fn apply<I: Input>(
         &mut self,
         hold: bool,
-        channels: usize,
+        lanes: usize,
         triggers: [I; T],
         controls: [I; N],
     ) -> [Held<'_, I, N>; N] {
         if !hold {
             if self.holding {
                 self.holding = false;
-                self.taken = [false; PORT_MAX_CHANNELS];
+                self.taken = [false; PORT_MAX_LANES];
             }
             return controls.map(Held::Live);
         }
         self.holding = true;
-        for ch in 0..channels {
+        for lane in 0..lanes {
             let mut struck = false;
-            for (edge, trigger) in self.edges[ch].iter_mut().zip(triggers) {
-                struck |= edge.process(trigger.at(ch));
+            for (edge, trigger) in self.edges[lane].iter_mut().zip(triggers) {
+                struck |= edge.process(trigger.at(lane));
             }
-            if struck || !self.taken[ch] {
-                self.taken[ch] = true;
-                self.values[ch] = controls.map(|control| control.at(ch));
+            if struck || !self.taken[lane] {
+                self.taken[lane] = true;
+                self.values[lane] = controls.map(|control| control.at(lane));
             }
         }
         std::array::from_fn(|k| Held::Stored(&self.values, k))
@@ -138,21 +138,21 @@ impl<const T: usize, const N: usize> Hold<T, N> {
 #[derive(Clone, Copy)]
 pub enum Held<'a, I, const N: usize> {
     Live(I),
-    Stored(&'a [[f32; N]; PORT_MAX_CHANNELS], usize),
+    Stored(&'a [[f32; N]; PORT_MAX_LANES], usize),
 }
 
 impl<I: Input, const N: usize> Input for Held<'_, I, N> {
     #[inline(always)]
-    fn at(self, ch: usize) -> f32 {
+    fn at(self, lane: usize) -> f32 {
         match self {
-            Self::Live(input) => input.at(ch),
-            Self::Stored(values, k) => values[ch][k],
+            Self::Live(input) => input.at(lane),
+            Self::Stored(values, k) => values[lane][k],
         }
     }
 }
 
 /// Runs `tick` on each slot of `range`, with that slot's rows of `inputs`,
-/// to write the slot's channels of `out` through [`Slot::set`].
+/// to write the slot's lanes of `out` through [`Slot::set`].
 #[inline(always)]
 pub fn each_slot<const N: usize>(
     out: &mut BlockPort,
@@ -179,14 +179,14 @@ pub fn each_slot_of<const N: usize, const M: usize>(
     }
 }
 
-/// One slot's channels of a block output.
+/// One slot's lanes of a block output.
 pub struct Slot<'a>(&'a mut [f32]);
 
 impl Slot<'_> {
-    /// Sets channel `ch`, silencing a non-finite value as every output does.
+    /// Sets lane `lane`, silencing a non-finite value as every output does.
     #[inline(always)]
-    pub fn set(&mut self, ch: usize, value: f32) {
-        self.0[ch] = sanitize(value);
+    pub fn set(&mut self, lane: usize, value: f32) {
+        self.0[lane] = sanitize(value);
     }
 }
 
@@ -194,7 +194,7 @@ impl Slot<'_> {
 mod tests {
     use super::*;
 
-    /// One sample of `hold` over two channels, with each channel's two
+    /// One sample of `hold` over two lanes, with each lane's two
     /// triggers in `triggers` and its control in `control`.
     fn read(
         hold: &mut Hold<2, 1>,
@@ -215,10 +215,10 @@ mod tests {
         // Holding begins with the controls of that sample.
         assert_eq!(read(&mut hold, true, quiet, [1.0, 2.0]), [1.0, 2.0]);
         assert_eq!(read(&mut hold, true, quiet, [3.0, 4.0]), [1.0, 2.0]);
-        // A strike on channel 0's first trigger takes channel 0's control.
+        // A strike on lane 0's first trigger takes lane 0's control.
         let first = [[5.0, 0.0], [0.0, 0.0]];
         assert_eq!(read(&mut hold, true, first, [5.0, 6.0]), [5.0, 2.0]);
-        // One on channel 1's second trigger takes channel 1's.
+        // One on lane 1's second trigger takes lane 1's.
         let second = [[5.0, 0.0], [0.0, 5.0]];
         assert_eq!(read(&mut hold, true, second, [7.0, 8.0]), [5.0, 8.0]);
         // Released, the controls read live; holding again starts afresh.

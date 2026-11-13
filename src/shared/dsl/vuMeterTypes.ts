@@ -53,8 +53,8 @@ export interface VuMeterDef {
      * Live-display taps for locked controls (Rust samples them into the
      * meter frames). Absent when the control is editable or untappable.
      */
-    panSource?: { moduleId: string; portName: string; channel: number };
-    gainSource?: { moduleId: string; portName: string; channel: number };
+    panSource?: { moduleId: string; portName: string; lane: number };
+    gainSource?: { moduleId: string; portName: string; lane: number };
     /** True for the end-of-chain master meter pinned to the panel's right. */
     main?: boolean;
     /**

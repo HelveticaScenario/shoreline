@@ -110,7 +110,7 @@ fn warped_gains<L: Simd>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
 /// Trapezoidal integrator states for `b = −BP` and LP; BP and the first VCA's
 /// input current from the last sample, which set this sample's zener
 /// capacitance and VCA distortion; and the zener solve's seed. One element per
-/// channel.
+/// lane.
 #[derive(Clone, Copy)]
 pub(super) struct SvfCore {
     s1: f32x4,

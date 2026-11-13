@@ -1,7 +1,7 @@
 //! Block-sized port buffer.
 //!
-//! Layout: a flat `block_size * channels * words` slice; sample `index`, channel
-//! `ch` starts at `(index * channels + ch) * words`. All channel values at the
+//! Layout: a flat `block_size * lanes * words` slice; sample `index`, lane
+//! `lane` starts at `(index * lanes + lane) * words`. All lane values at the
 //! same sample index are contiguous in memory. Heap-allocated once at
 //! construction; never resized on the audio thread.
 
@@ -21,30 +21,30 @@ pub fn join_f64(hi: f32, lo: f32) -> f64 {
 }
 
 use crate::bounds::Bounds;
-use crate::poly::PORT_MAX_CHANNELS;
+use crate::poly::PORT_MAX_LANES;
 
-/// A pre-allocated buffer holding `block_size` samples, each with `channels`
-/// channels. The channel count is the producing port's width: 1 for a mono
-/// (f32) output, the module's channel count for a polyphonic output.
+/// A pre-allocated buffer holding `block_size` samples, each with `lanes`
+/// lanes. The lane count is the producing port's width: 1 for a mono
+/// (f32) output, the module's lane count for a polyphonic output.
 ///
-/// An f64 port stores each channel as a [`split_f64`] pair (two words), so
+/// An f64 port stores each lane as a [`split_f64`] pair (two words), so
 /// f32 readers load the first word and never convert, and f64 readers rejoin
 /// both.
 ///
-/// Reads cycle (`ch % channels`) so a consumer with more channels than the
+/// Reads cycle (`lane % lanes`) so a consumer with more lanes than the
 /// producer still sees the producer's value broadcast/wrapped across its
-/// channels — preserving the mono→poly broadcast semantics.
+/// lanes — preserving the mono→poly broadcast semantics.
 ///
-/// A bounded port also stores one [`Bounds`] per channel per slot, laid out
+/// A bounded port also stores one [`Bounds`] per lane per slot, laid out
 /// like f32 samples and written with them.
 pub struct BlockPort {
-    /// Flat `block_size * channels * words` values. Length never changes after
+    /// Flat `block_size * lanes * words` values. Length never changes after
     /// construction.
     data: Box<[f32]>,
-    /// Per-port channel width (`>= 1` for live ports, `0` only when the
-    /// module is zero-channel).
-    channels: usize,
-    /// f32 values per channel: 1, or 2 for an f64 port.
+    /// Per-port lane width (`>= 1` for live ports, `0` only when the
+    /// module is zero-lane).
+    lanes: usize,
+    /// f32 values per lane: 1, or 2 for an f64 port.
     words: usize,
     /// Number of sample slots (the internal block size).
     block_size: usize,
@@ -52,7 +52,7 @@ pub struct BlockPort {
     bounds: Option<Box<BoundsStore>>,
 }
 
-/// A bounded port's bounds: a row per slot, `channels` to a row. Bounds
+/// A bounded port's bounds: a row per slot, `lanes` to a row. Bounds
 /// rarely move within a block, so the slots from 0 while they hold one row
 /// are kept as that row and a count, and only written out once a different
 /// row arrives.
@@ -66,41 +66,41 @@ pub struct BoundsStore {
     written: usize,
 }
 
-/// `ch % channels`, skipping the division in the usual case of a channel the
+/// `lane % lanes`, skipping the division in the usual case of a lane the
 /// port has.
 #[inline(always)]
-fn cycle(ch: usize, channels: usize) -> usize {
-    if ch < channels { ch } else { ch % channels }
+fn cycle(lane: usize, lanes: usize) -> usize {
+    if lane < lanes { lane } else { lane % lanes }
 }
 
 impl BoundsStore {
     #[inline]
-    fn channels(&self) -> usize {
+    fn lanes(&self) -> usize {
         self.row.len()
     }
 
-    /// The bounds at slot `index`, channel `ch` (cycling).
+    /// The bounds at slot `index`, lane `lane` (cycling).
     #[inline]
-    pub fn at(&self, index: usize, ch: usize) -> Bounds {
-        let ch = cycle(ch, self.channels());
+    pub fn at(&self, index: usize, lane: usize) -> Bounds {
+        let lane = cycle(lane, self.lanes());
         if index < self.run {
-            self.row[ch]
+            self.row[lane]
         } else {
-            self.slots[index * self.channels() + ch]
+            self.slots[index * self.lanes() + lane]
         }
     }
 
-    /// Channel `ch`'s bounds when they hold one value over every slot of
+    /// Lane `lane`'s bounds when they hold one value over every slot of
     /// `range`.
     #[inline]
-    pub fn uniform(&self, range: std::ops::Range<usize>, ch: usize) -> Option<Bounds> {
+    pub fn uniform(&self, range: std::ops::Range<usize>, lane: usize) -> Option<Bounds> {
         if range.end <= self.run {
-            return Some(self.row[cycle(ch, self.channels())]);
+            return Some(self.row[cycle(lane, self.lanes())]);
         }
-        let first = self.at(range.start, ch);
+        let first = self.at(range.start, lane);
         range
             .skip(1)
-            .all(|slot| self.at(slot, ch) == first)
+            .all(|slot| self.at(slot, lane) == first)
             .then_some(first)
     }
 
@@ -120,10 +120,8 @@ impl BoundsStore {
             return;
         }
         self.settle();
-        let channels = self.channels();
-        for slot in
-            self.slots[range.start * channels..range.end * channels].chunks_exact_mut(channels)
-        {
+        let lanes = self.lanes();
+        for slot in self.slots[range.start * lanes..range.end * lanes].chunks_exact_mut(lanes) {
             slot.copy_from_slice(row);
         }
     }
@@ -131,8 +129,8 @@ impl BoundsStore {
     /// Write the run out to its slots.
     #[inline]
     fn settle(&mut self) {
-        let channels = self.channels();
-        for slot in self.slots[..self.run * channels].chunks_exact_mut(channels) {
+        let lanes = self.lanes();
+        for slot in self.slots[..self.run * lanes].chunks_exact_mut(lanes) {
             slot.copy_from_slice(&self.row);
         }
         self.run = 0;
@@ -140,11 +138,11 @@ impl BoundsStore {
 
     #[inline]
     fn start_block(&mut self) {
-        let channels = self.channels();
-        let block_size = self.slots.len() / channels;
+        let lanes = self.lanes();
+        let block_size = self.slots.len() / lanes;
         if self.run == block_size {
-            let last = (block_size - 1) * channels;
-            self.slots[last..last + channels].copy_from_slice(&self.row);
+            let last = (block_size - 1) * lanes;
+            self.slots[last..last + lanes].copy_from_slice(&self.row);
         }
         self.run = 0;
         #[cfg(debug_assertions)]
@@ -156,22 +154,22 @@ impl BoundsStore {
 
 impl BlockPort {
     /// Allocate a new zeroed f32 port buffer for the given block size and
-    /// channel width.
+    /// lane width.
     ///
     /// **Must not be called on the audio thread** (allocates heap memory).
-    pub fn new(block_size: usize, channels: usize) -> Self {
-        Self::with_words(block_size, channels, 1)
+    pub fn new(block_size: usize, lanes: usize) -> Self {
+        Self::with_words(block_size, lanes, 1)
     }
 
     /// Allocate a new zeroed f64 port buffer. Main thread only, like [`new`](Self::new).
-    pub fn new_f64(block_size: usize, channels: usize) -> Self {
-        Self::with_words(block_size, channels, 2)
+    pub fn new_f64(block_size: usize, lanes: usize) -> Self {
+        Self::with_words(block_size, lanes, 2)
     }
 
-    fn with_words(block_size: usize, channels: usize, words: usize) -> Self {
+    fn with_words(block_size: usize, lanes: usize, words: usize) -> Self {
         Self {
-            data: vec![0.0f32; block_size * channels * words].into_boxed_slice(),
-            channels,
+            data: vec![0.0f32; block_size * lanes * words].into_boxed_slice(),
+            lanes,
             words,
             block_size,
             bounds: None,
@@ -180,16 +178,16 @@ impl BlockPort {
 
     /// Give this port bounds storage, every slot holding 0 V's bounds until
     /// written, as the samples hold 0 V. Main thread only, like
-    /// [`new`](Self::new); a zero-channel port stores none.
+    /// [`new`](Self::new); a zero-lane port stores none.
     pub fn make_bounded(&mut self) {
-        if self.channels == 0 {
+        if self.lanes == 0 {
             return;
         }
         let zero = Bounds::point(0.0);
         self.bounds = Some(Box::new(BoundsStore {
-            slots: vec![zero; self.block_size * self.channels].into_boxed_slice(),
+            slots: vec![zero; self.block_size * self.lanes].into_boxed_slice(),
             run: 0,
-            row: vec![zero; self.channels].into_boxed_slice(),
+            row: vec![zero; self.lanes].into_boxed_slice(),
             #[cfg(debug_assertions)]
             written: 0,
         }));
@@ -224,44 +222,43 @@ impl BlockPort {
             .map(|store| store as *const BoundsStore)
     }
 
-    /// The bounds at `(index, ch)`, cycling channels like [`get`](Self::get);
+    /// The bounds at `(index, lane)`, cycling lanes like [`get`](Self::get);
     /// [`Bounds::UNBOUNDED`] on a port without bounds or out of range.
     #[inline]
-    pub fn bounds_at(&self, index: usize, ch: usize) -> Bounds {
+    pub fn bounds_at(&self, index: usize, lane: usize) -> Bounds {
         match &self.bounds {
-            Some(store) if index < self.block_size && self.channels > 0 => store.at(index, ch),
+            Some(store) if index < self.block_size && self.lanes > 0 => store.at(index, lane),
             _ => Bounds::UNBOUNDED,
         }
     }
 
     /// Write slot `index`'s bounds from `row`, cycled across this port's
-    /// channels; ignored on a port without bounds, out of range or for an
+    /// lanes; ignored on a port without bounds, out of range or for an
     /// empty row.
     #[inline]
     pub fn set_bounds_row(&mut self, index: usize, row: &[Bounds]) {
-        let channels = self.channels.min(PORT_MAX_CHANNELS);
+        let lanes = self.lanes.min(PORT_MAX_LANES);
         let Some(store) = &mut self.bounds else {
             return;
         };
         if index >= self.block_size || row.is_empty() {
             return;
         }
-        if row.len() == channels {
+        if row.len() == lanes {
             store.write(index..index + 1, row);
             return;
         }
-        let mut cycled = [const { std::mem::MaybeUninit::uninit() }; PORT_MAX_CHANNELS];
-        for (ch, bounds) in cycled[..channels].iter_mut().enumerate() {
-            bounds.write(row[ch % row.len()]);
+        let mut cycled = [const { std::mem::MaybeUninit::uninit() }; PORT_MAX_LANES];
+        for (lane, bounds) in cycled[..lanes].iter_mut().enumerate() {
+            bounds.write(row[lane % row.len()]);
         }
-        // SAFETY: the first `channels` entries were just written.
-        let cycled =
-            unsafe { std::slice::from_raw_parts(cycled.as_ptr() as *const Bounds, channels) };
+        // SAFETY: the first `lanes` entries were just written.
+        let cycled = unsafe { std::slice::from_raw_parts(cycled.as_ptr() as *const Bounds, lanes) };
         store.write(index..index + 1, cycled);
     }
 
-    /// Write one row to every slot of `range`: `rule(ch)` for each of this
-    /// port's channels. When any channel's rule gives `None`, writes nothing
+    /// Write one row to every slot of `range`: `rule(lane)` for each of this
+    /// port's lanes. When any lane's rule gives `None`, writes nothing
     /// and returns `None`, so a block path can decline. A port without bounds
     /// skips the rule.
     #[inline]
@@ -270,16 +267,16 @@ impl BlockPort {
         range: std::ops::Range<usize>,
         rule: impl Fn(usize) -> Option<Bounds>,
     ) -> Option<()> {
-        let channels = self.channels.min(PORT_MAX_CHANNELS);
+        let lanes = self.lanes.min(PORT_MAX_LANES);
         let Some(store) = &mut self.bounds else {
             return Some(());
         };
-        let mut row = [const { std::mem::MaybeUninit::uninit() }; PORT_MAX_CHANNELS];
-        for (ch, bounds) in row[..channels].iter_mut().enumerate() {
-            bounds.write(rule(ch)?);
+        let mut row = [const { std::mem::MaybeUninit::uninit() }; PORT_MAX_LANES];
+        for (lane, bounds) in row[..lanes].iter_mut().enumerate() {
+            bounds.write(rule(lane)?);
         }
-        // SAFETY: the first `channels` entries were just written.
-        let row = unsafe { std::slice::from_raw_parts(row.as_ptr() as *const Bounds, channels) };
+        // SAFETY: the first `lanes` entries were just written.
+        let row = unsafe { std::slice::from_raw_parts(row.as_ptr() as *const Bounds, lanes) };
         store.write(range, row);
         Some(())
     }
@@ -289,7 +286,7 @@ impl BlockPort {
     /// slot to slot; empty on a port without bounds.
     #[inline]
     pub fn bounds_slots_mut(&mut self, range: std::ops::Range<usize>) -> &mut [Bounds] {
-        let channels = self.channels;
+        let lanes = self.lanes;
         match &mut self.bounds {
             Some(store) => {
                 store.settle();
@@ -297,7 +294,7 @@ impl BlockPort {
                 {
                     store.written = store.written.max(range.end);
                 }
-                &mut store.slots[range.start * channels..range.end * channels]
+                &mut store.slots[range.start * lanes..range.end * lanes]
             }
             None => &mut [],
         }
@@ -318,58 +315,58 @@ impl BlockPort {
         self.data.as_ptr()
     }
 
-    /// This port's channel width.
+    /// This port's lane width.
     #[inline]
-    pub fn channels(&self) -> usize {
-        self.channels
+    pub fn lanes(&self) -> usize {
+        self.lanes
     }
 
-    /// f32 values per channel: 2 for an f64 port, otherwise 1.
+    /// f32 values per lane: 2 for an f64 port, otherwise 1.
     #[inline]
     pub fn words(&self) -> usize {
         self.words
     }
 
-    /// Slots `range` of an f32 port, flattened: slot `i`, channel `ch` is
-    /// element `(i - range.start) * channels + ch`. Panics if `range` is out
+    /// Slots `range` of an f32 port, flattened: slot `i`, lane `lane` is
+    /// element `(i - range.start) * lanes + lane`. Panics if `range` is out
     /// of range.
     #[inline]
     pub fn slots_mut(&mut self, range: std::ops::Range<usize>) -> &mut [f32] {
         debug_assert_eq!(self.words, 1, "f64 ports are written with set_f64");
-        &mut self.data[range.start * self.channels..range.end * self.channels]
+        &mut self.data[range.start * self.lanes..range.end * self.lanes]
     }
 
-    /// Read value at `(index, ch)`, returning `0.0` for out-of-range sample
-    /// indices or a zero-channel port. The channel index cycles modulo the
-    /// port width, so a consumer reading a higher channel than the producer
+    /// Read value at `(index, lane)`, returning `0.0` for out-of-range sample
+    /// indices or a zero-lane port. The lane index cycles modulo the
+    /// port width, so a consumer reading a higher lane than the producer
     /// has wraps around — preserving mono-broadcast / poly-cycling semantics.
     /// An f64 port reads as its nearest f32.
     #[inline]
-    pub fn get(&self, index: usize, ch: usize) -> f32 {
-        if self.channels == 0 || index >= self.block_size {
+    pub fn get(&self, index: usize, lane: usize) -> f32 {
+        if self.lanes == 0 || index >= self.block_size {
             return 0.0;
         }
-        self.data[(index * self.channels + ch % self.channels) * self.words]
+        self.data[(index * self.lanes + lane % self.lanes) * self.words]
     }
 
     /// [`get`](Self::get) on a port built with [`new`](Self::new), skipping
     /// the word stride. Output structs use it for ports declared f32.
     #[inline]
-    pub fn get_f32_port(&self, index: usize, ch: usize) -> f32 {
+    pub fn get_f32_port(&self, index: usize, lane: usize) -> f32 {
         debug_assert_eq!(self.words, 1, "f64 ports are read with get");
-        if self.channels == 0 || index >= self.block_size {
+        if self.lanes == 0 || index >= self.block_size {
             return 0.0;
         }
-        self.data[index * self.channels + ch % self.channels]
+        self.data[index * self.lanes + lane % self.lanes]
     }
 
     /// Like [`get`](Self::get), at full precision on an f64 port.
     #[inline]
-    pub fn get_f64(&self, index: usize, ch: usize) -> f64 {
-        if self.channels == 0 || index >= self.block_size {
+    pub fn get_f64(&self, index: usize, lane: usize) -> f64 {
+        if self.lanes == 0 || index >= self.block_size {
             return 0.0;
         }
-        let at = (index * self.channels + ch % self.channels) * self.words;
+        let at = (index * self.lanes + lane % self.lanes) * self.words;
         if self.words == 2 {
             join_f64(self.data[at], self.data[at + 1])
         } else {
@@ -377,21 +374,21 @@ impl BlockPort {
         }
     }
 
-    /// All channels of sample slot `index` of an f32 port. Panics if `index`
+    /// All lanes of sample slot `index` of an f32 port. Panics if `index`
     /// is out of range.
     #[inline]
     pub fn slot_mut(&mut self, index: usize) -> &mut [f32] {
         debug_assert_eq!(self.words, 1, "f64 ports are written with set_f64");
-        let start = index * self.channels;
-        &mut self.data[start..start + self.channels]
+        let start = index * self.lanes;
+        &mut self.data[start..start + self.lanes]
     }
 
-    /// Write value at `(index, ch)`. Silently ignored if out of range. The
-    /// channel index is raw (no cycling): callers write `0..channels`.
+    /// Write value at `(index, lane)`. Silently ignored if out of range. The
+    /// lane index is raw (no cycling): callers write `0..lanes`.
     #[inline]
-    pub fn set(&mut self, index: usize, ch: usize, value: f32) {
-        if index < self.block_size && ch < self.channels {
-            let at = (index * self.channels + ch) * self.words;
+    pub fn set(&mut self, index: usize, lane: usize, value: f32) {
+        if index < self.block_size && lane < self.lanes {
+            let at = (index * self.lanes + lane) * self.words;
             self.data[at] = value;
             if self.words == 2 {
                 self.data[at + 1] = 0.0;
@@ -402,20 +399,20 @@ impl BlockPort {
     /// [`set`](Self::set) on a port built with [`new`](Self::new), skipping
     /// the word stride. Output structs use it for ports declared f32.
     #[inline]
-    pub fn set_f32_port(&mut self, index: usize, ch: usize, value: f32) {
+    pub fn set_f32_port(&mut self, index: usize, lane: usize, value: f32) {
         debug_assert_eq!(self.words, 1, "f64 ports are written with set_f64");
-        if index < self.block_size && ch < self.channels {
-            self.data[index * self.channels + ch] = value;
+        if index < self.block_size && lane < self.lanes {
+            self.data[index * self.lanes + lane] = value;
         }
     }
 
-    /// Write value at `(index, ch)` at full precision on an f64 port; an f32
+    /// Write value at `(index, lane)` at full precision on an f64 port; an f32
     /// port stores its nearest f32. Out-of-range writes are ignored, as in
     /// [`set`](Self::set).
     #[inline]
-    pub fn set_f64(&mut self, index: usize, ch: usize, value: f64) {
-        if index < self.block_size && ch < self.channels {
-            let at = (index * self.channels + ch) * self.words;
+    pub fn set_f64(&mut self, index: usize, lane: usize, value: f64) {
+        if index < self.block_size && lane < self.lanes {
+            let at = (index * self.lanes + lane) * self.words;
             let (hi, lo) = split_f64(value);
             self.data[at] = hi;
             if self.words == 2 {
@@ -432,10 +429,10 @@ mod tests {
     #[test]
     fn block_port_new_zeroed() {
         let bp = BlockPort::new(4, 16);
-        assert_eq!(bp.channels(), 16);
+        assert_eq!(bp.lanes(), 16);
         for index in 0..4 {
-            for ch in 0..16 {
-                assert_eq!(bp.get(index, ch), 0.0);
+            for lane in 0..16 {
+                assert_eq!(bp.get(index, lane), 0.0);
             }
         }
     }
@@ -455,13 +452,13 @@ mod tests {
     }
 
     #[test]
-    fn block_port_channel_cycles() {
-        // A mono (width-1) port broadcasts to every consumer channel.
+    fn block_port_lane_cycles() {
+        // A mono (width-1) port broadcasts to every consumer lane.
         let mut bp = BlockPort::new(4, 1);
         bp.set(1, 0, 2.5);
         assert_eq!(bp.get(1, 0), 2.5);
         assert_eq!(bp.get(1, 5), 2.5); // 5 % 1 == 0
-        // A width-2 port wraps higher channels.
+        // A width-2 port wraps higher lanes.
         let mut poly = BlockPort::new(4, 2);
         poly.set(0, 0, 1.0);
         poly.set(0, 1, 2.0);

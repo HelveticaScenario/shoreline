@@ -14,11 +14,11 @@ const SAMPLE_RATE: f32 = 48_000.0;
 const TEMPO: f64 = 2_400_000.0;
 
 fn playhead() -> Value {
-    json!({ "type": "cable", "module": *ROOT_CLOCK_ID, "port": "playhead", "channel": 0 })
+    json!({ "type": "cable", "module": *ROOT_CLOCK_ID, "port": "playhead", "lane": 0 })
 }
 
 fn cable(module: &str) -> Value {
-    json!({ "type": "cable", "module": module, "port": "output", "channel": 0 })
+    json!({ "type": "cable", "module": module, "port": "output", "lane": 0 })
 }
 
 /// The clock plus `modules`; those named in `f64_inputs` read an f64 output,
@@ -50,7 +50,7 @@ fn build(
                 module_type.to_string(),
                 DeserializedParams {
                     params: cached.params,
-                    channel_count: cached.channel_count,
+                    lane_count: cached.lane_count,
                     f64_inputs: f64_inputs.contains(id),
                 },
                 mode,

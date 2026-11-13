@@ -49,7 +49,7 @@ test('chain modules and .wet type on outputs, collections and named outputs', ()
                 `$saw('c3').xover()._low.lpf('200hz').wet(2).out()`,
                 `$saw('c3').xover().wet(2).out()`,
                 `$saw('c3').delay(0.25, { feedback: 2 }).wet(2).out()`,
-                `$saw($spread(0, 5, 3)).mixDown(2, { mode: 'average' }).out()`,
+                `$saw($spread(0, 5, 3)).setLanes(2, { mode: 'average' }).out()`,
                 `$saw('c3').addHz(2).mulHz(1.5).out()`,
                 `$v.osc(8).hsv().kaleid(5).wet(0.5).out()`,
             ].join('\n'),
@@ -76,7 +76,7 @@ test('a pattern types as the module that plays it', () => {
             ].join('\n'),
         ),
     ).toEqual([]);
-    // A channel, a slice or the receiver `.out()` returns is the sequencer's
+    // A lane, a slice or the receiver `.out()` returns is the sequencer's
     // signal, which has no pattern methods.
     expect(errors(`$p('c3').scope().fast(2)`)).toHaveLength(1);
     expect(errors(`$p('c3')[0].glide(0.1)`)).toHaveLength(1);

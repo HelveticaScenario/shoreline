@@ -128,8 +128,8 @@ describe('expandSignalGroups', () => {
         );
         // W = [-,3,2,-]; stride g1=1, g2=3; total 6.
         expect(out.a).toEqual(['A0', 'A1', 'A2', 'A0', 'A1', 'A2']);
-        // The narrower member follows its group slot ((ch % 3) % 2),
-        // not plain channel cycling (ch % 2).
+        // The narrower member follows its group slot ((lane % 3) % 2),
+        // not plain lane cycling (lane % 2).
         expect(out.b).toEqual(['B0', 'B1', 'B0', 'B0', 'B1', 'B0']);
         expect(out.c).toEqual(['C0', 'C0', 'C0', 'C1', 'C1', 'C1']);
     });
@@ -223,7 +223,7 @@ describe('expandSignalGroups', () => {
         );
     });
 
-    test('rejects a product over 64 channels, naming the group widths', () => {
+    test('rejects a product over 64 lanes, naming the group widths', () => {
         const schema = polySchema(['a', 'b']);
         expect(() =>
             expandSignalGroups(
@@ -235,11 +235,11 @@ describe('expandSignalGroups', () => {
                 '$sine',
             ),
         ).toThrow(
-            'signal groups on $sine multiply to 128 channels (g1:16 x g2:8); the limit is 64',
+            'signal groups on $sine multiply to 128 lanes (g1:16 x g2:8); the limit is 64',
         );
     });
 
-    test('a full 64-channel product is allowed', () => {
+    test('a full 64-lane product is allowed', () => {
         const schema = polySchema(['a', 'b']);
         const out = expandSignalGroups(
             {
@@ -298,13 +298,13 @@ describe('signal groups through the executor pipeline', () => {
         const inputs = mix.params.inputs as Array<{
             type: string;
             module: string;
-            channel: number;
+            lane: number;
         }>;
         expect(inputs).toHaveLength(6);
         inputs.forEach((cable, i) => {
             expect(cable.type).toBe('cable');
             expect(cable.module).toBe(sineId);
-            expect(cable.channel).toBe(i);
+            expect(cable.lane).toBe(i);
         });
     });
 
@@ -363,7 +363,7 @@ describe('signal groups through the executor pipeline', () => {
         ).toThrow('is not a polyphonic signal input');
     });
 
-    test('a product over 64 channels throws with group widths', () => {
+    test('a product over 64 lanes throws with group widths', () => {
         expect(() =>
             execPatch(`
                 const wide = (n) => Array.from({ length: n }, (_, i) => i * 0.01);
@@ -371,6 +371,6 @@ describe('signal groups through the executor pipeline', () => {
                     phaseOffset: $g2(wide(8)),
                 }).out()
             `),
-        ).toThrow('multiply to 128 channels (g1:16 x g2:8); the limit is 64');
+        ).toThrow('multiply to 128 lanes (g1:16 x g2:8); the limit is 64');
     });
 });
