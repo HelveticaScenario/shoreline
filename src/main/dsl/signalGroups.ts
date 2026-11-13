@@ -114,7 +114,7 @@ export function expandSignalGroups(
         const wrapper = params[name] as SignalGroup;
         const desc = schema.paramsByName?.[name];
         if (!desc?.isPolySignalInput) {
-            const why = desc?.isMonoSignalInput
+            const why = desc?.isLaneSumInput
                 ? 'is a mono (summing) input'
                 : 'is not a polyphonic signal input';
             throw new Error(

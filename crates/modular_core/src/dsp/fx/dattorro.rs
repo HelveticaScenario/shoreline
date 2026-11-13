@@ -11,7 +11,7 @@ use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 // ─── Dattorro delay lengths (reference sample rate: 29761 Hz) ────────────────
@@ -93,7 +93,7 @@ struct DattorroParams {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    decay: Option<MonoSignal>,
+    decay: Option<LaneSum>,
     #[input(
         "how fast the tail darkens: -5 bright, +5 muffled",
         type = control,
@@ -101,7 +101,7 @@ struct DattorroParams {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    damping: Option<MonoSignal>,
+    damping: Option<LaneSum>,
     #[input(
         "room size, from 0.25× (-5) to 2× (+5) the plate's delay lengths",
         type = control,
@@ -109,7 +109,7 @@ struct DattorroParams {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    size: Option<MonoSignal>,
+    size: Option<LaneSum>,
     #[input(
         "gap before the reverb starts, in seconds",
         type = control,
@@ -117,7 +117,7 @@ struct DattorroParams {
         range = (0.0, 0.5),
     )]
     #[deserr(default)]
-    predelay: Option<MonoSignal>,
+    predelay: Option<LaneSum>,
     #[input(
         "how quickly the onset smears into a wash: 0 distinct echoes, 5 smoothest",
         type = control,
@@ -125,7 +125,7 @@ struct DattorroParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    diffusion: Option<MonoSignal>,
+    diffusion: Option<LaneSum>,
     #[input(
         "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.5 ms",
         type = control,
@@ -133,7 +133,7 @@ struct DattorroParams {
         control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    modulation: Option<MonoSignal>,
+    modulation: Option<LaneSum>,
 }
 
 // ─── Outputs ─────────────────────────────────────────────────────────────────

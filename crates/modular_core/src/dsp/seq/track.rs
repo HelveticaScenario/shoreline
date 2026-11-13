@@ -4,9 +4,9 @@ use simple_easing;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{MonoSignalExt, PolySignal};
+use crate::poly::{LaneSumExt, PolySignal};
 use crate::types::InterpolationType;
-use crate::{MonoSignal, PolyOutput};
+use crate::{LaneSum, PolyOutput};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
@@ -18,7 +18,7 @@ struct TrackParams {
     #[input("position along the keyframes", type = control, range = (0.0, 1.0))]
     #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(default)]
-    playhead: Option<MonoSignal>,
+    playhead: Option<LaneSum>,
     #[input("curve shape between neighbouring keyframes")]
     #[serde(default)]
     #[deserr(default)]

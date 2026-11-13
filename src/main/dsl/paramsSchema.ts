@@ -89,12 +89,12 @@ export interface ParamDescriptor {
      */
     isPolySignalInput?: boolean;
     /**
-     * Summing input (MonoSignal): accepts a polyphonic connection but
+     * Summing input (LaneSum): accepts a polyphonic connection but
      * collapses all channels into one value, so it never contributes to a
-     * module's channel count. MonoSignal reuses PolySignal's schema body —
+     * module's channel count. LaneSum reuses PolySignal's schema body —
      * only the $defs name tells them apart.
      */
-    isMonoSignalInput?: boolean;
+    isLaneSumInput?: boolean;
     /**
      * Scale input (ScaleSignal): a poly signal of note pitches, or a spec
      * string the factory rewrites into a `$chord` module. Its channels form one
@@ -538,11 +538,11 @@ export function processModuleSchema(
 
             const signalMeta = signalParamsByName.get(name);
 
-            const isMonoSignalInput = referencesDef(s, 'MonoSignal');
+            const isLaneSumInput = referencesDef(s, 'LaneSum');
             const isScaleSignalInput = referencesDef(s, 'ScaleSignal');
             const isWavInput = referencesDef(s, 'Wav');
             const isPolySignalInput =
-                !isMonoSignalInput &&
+                !isLaneSumInput &&
                 !isScaleSignalInput &&
                 (referencesDef(s, 'PolySignal') ||
                     inferredKind === 'polySignal');
@@ -554,7 +554,7 @@ export function processModuleSchema(
                 name,
                 optional: !required.has(name),
                 ...(isPolySignalInput && { isPolySignalInput }),
-                ...(isMonoSignalInput && { isMonoSignalInput }),
+                ...(isLaneSumInput && { isLaneSumInput }),
                 ...(isScaleSignalInput && { isScaleSignalInput }),
                 ...(isWavInput && { isWavInput }),
                 ...(signalMeta && {

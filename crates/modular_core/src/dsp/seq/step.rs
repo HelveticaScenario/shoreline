@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
-    MonoSignal,
+    LaneSum,
     dsp::utils::SchmittTrigger,
     param_errors::ModuleParamErrors,
     poly::{PolyOutput, PolySignal},
@@ -18,10 +18,10 @@ struct StepParams {
     #[input("the values to step through, in order")]
     steps: Vec<PolySignal>,
     #[input("advances to the next step, wrapping after the last", type = trig)]
-    next: MonoSignal,
+    next: LaneSum,
     #[input("jumps back to the first step", type = trig)]
     #[deserr(default)]
-    reset: Option<MonoSignal>,
+    reset: Option<LaneSum>,
 }
 
 #[derive(Outputs, JsonSchema)]

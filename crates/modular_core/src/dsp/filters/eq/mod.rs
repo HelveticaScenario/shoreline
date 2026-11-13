@@ -10,7 +10,7 @@ use crate::dsp::filters::svf_core;
 use crate::dsp::utils::sanitize;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, ModuleDocs};
-use crate::poly::{MonoSignal, PolyOutput};
+use crate::poly::{LaneSum, PolyOutput};
 
 mod live;
 mod params;
@@ -282,7 +282,7 @@ enum Target<'a> {
 
 impl<'a> Target<'a> {
     fn resolve(
-        signal: Option<&'a MonoSignal>,
+        signal: Option<&'a LaneSum>,
         default: f32,
         range: &Range<usize>,
         scratch: &'a mut InputScratch,
@@ -295,7 +295,7 @@ impl<'a> Target<'a> {
             .map(Target::Summed)
     }
 
-    /// Slot `i`'s value, summed as [`MonoSignal::get_value`] sums.
+    /// Slot `i`'s value, summed as [`LaneSum::get_value`] sums.
     #[inline(always)]
     fn at(&self, i: usize) -> f32 {
         match self {

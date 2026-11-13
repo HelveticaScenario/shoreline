@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 use ensemble::{Ensemble, EnsembleRates};
@@ -30,7 +30,7 @@ struct ChorusParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    amount: Option<MonoSignal>,
+    amount: Option<LaneSum>,
     #[input(
         "how far the slow and fast swirl sweeps, from a slight shimmer (0) to a deep, wobbling ensemble (5)",
         type = control,
@@ -38,7 +38,7 @@ struct ChorusParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    depth: Option<MonoSignal>,
+    depth: Option<LaneSum>,
 }
 
 #[derive(Outputs, JsonSchema)]

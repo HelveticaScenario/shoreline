@@ -3,7 +3,7 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
 
 use super::chain::{BlockClock, POT_LP};
 use super::primitives::{Frame, Limiter};
@@ -112,7 +112,7 @@ struct BeadsReverbParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    amount: Option<MonoSignal>,
+    amount: Option<LaneSum>,
     #[input(
         "room size; moving it while the tail rings bends its pitch",
         type = control,
@@ -120,7 +120,7 @@ struct BeadsReverbParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    size: Option<MonoSignal>,
+    size: Option<LaneSum>,
     #[input(
         "how fast the tail darkens: 0 bright, 5 muffled",
         type = control,
@@ -128,7 +128,7 @@ struct BeadsReverbParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    tone: Option<MonoSignal>,
+    tone: Option<LaneSum>,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -218,7 +218,7 @@ impl BeadsReverb {
             started,
         } = &mut self.state;
         if stage.tick_block() {
-            let control = |s: &Option<MonoSignal>, default| unit(sanitize(s.value_or(default)));
+            let control = |s: &Option<LaneSum>, default| unit(sanitize(s.value_or(default)));
             let (size_target, tone_target) =
                 (control(&params.size, 0.0), control(&params.tone, 1.0));
             if !*started {
@@ -254,8 +254,8 @@ pub(super) mod tests {
     const DIRTY_TAPE: (f32, f32) = (5.0, 2.0);
     const SETTINGS: [(f32, f32); 4] = [DIGITAL, CLEAN_TAPE, VINTAGE, DIRTY_TAPE];
 
-    fn volts(v: f32) -> Option<MonoSignal> {
-        Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v))))
+    fn volts(v: f32) -> Option<LaneSum> {
+        Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(v))))
     }
 
     pub fn make(setting: (f32, f32), reverb: f32) -> BeadsReverb {

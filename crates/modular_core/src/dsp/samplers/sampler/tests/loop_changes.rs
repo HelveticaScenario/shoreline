@@ -122,7 +122,7 @@ fn held_loop_never_stays_silent_under_live_changes() {
             .wrapping_add(1442695040888963407);
         (seed >> 11) as f64 / (1u64 << 53) as f64
     };
-    let mono = |v: f32| MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v)));
+    let mono = |v: f32| LaneSum::from_poly(PolySignal::mono(Signal::Volts(v)));
     for trial in 0..60 {
         let mut sampler = mid_slice_loop(wav.clone(), json!({ "fade": 5.0 }));
         let frame_count = 4800;
@@ -233,7 +233,7 @@ fn speed_reversing_mid_seam_never_doubles_the_output() {
     // The first seam's crossfade runs over samples 432..480.
     run(&mut sampler, 442);
     assert!(releasing(&sampler));
-    sampler.params.speed = Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(-1.0))));
+    sampler.params.speed = Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(-1.0))));
     let out = run(&mut sampler, 1000);
     for (i, &v) in out.iter().enumerate() {
         assert!(v <= 1.0 + 1e-3, "sample {i}: {v} exceeds unity");

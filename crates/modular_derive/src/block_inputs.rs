@@ -31,7 +31,7 @@ fn is_optional(field: &syn::Field) -> syn::Result<bool> {
     Ok(optional)
 }
 
-/// `Vec<PolySignal>` or `Vec<MonoSignal>`.
+/// `Vec<PolySignal>` or `Vec<LaneSum>`.
 fn is_signal_vec(ty: &syn::Type) -> bool {
     let syn::Type::Path(path) = ty else {
         return false;

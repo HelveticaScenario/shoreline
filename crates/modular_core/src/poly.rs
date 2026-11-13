@@ -485,8 +485,8 @@ impl PolySignal {
     }
 }
 
-impl From<MonoSignal> for PolySignal {
-    fn from(mono: MonoSignal) -> PolySignal {
+impl From<LaneSum> for PolySignal {
+    fn from(mono: LaneSum) -> PolySignal {
         mono.inner
     }
 }
@@ -600,7 +600,7 @@ impl JsonSchema for PolySignal {
 }
 
 // =============================================================================
-// MonoSignal - Polyphonic input that sums to mono output
+// LaneSum - Polyphonic input that sums to mono output
 // =============================================================================
 
 /// A polyphonic input that sums all channels to a single mono value.
@@ -611,16 +611,16 @@ impl JsonSchema for PolySignal {
 /// Use this for module inputs that accept polyphonic connections but produce
 /// a mono control signal (e.g., stereo width, etc.).
 ///
-/// Disconnected inputs are represented as `Option<MonoSignal>` at the param level.
+/// Disconnected inputs are represented as `Option<LaneSum>` at the param level.
 ///
-/// For polyphony propagation, MonoSignal is treated as a single channel.
+/// For polyphony propagation, LaneSum is treated as a single channel.
 #[derive(Clone, Debug, Connect)]
-pub struct MonoSignal {
+pub struct LaneSum {
     inner: PolySignal,
 }
 
-impl MonoSignal {
-    /// Create a MonoSignal from a PolySignal
+impl LaneSum {
+    /// Create a LaneSum from a PolySignal
     pub fn from_poly(poly: PolySignal) -> Self {
         Self { inner: poly }
     }
@@ -669,15 +669,15 @@ impl MonoSignal {
     }
 }
 
-impl From<PolySignal> for MonoSignal {
-    fn from(poly: PolySignal) -> MonoSignal {
-        MonoSignal { inner: poly }
+impl From<PolySignal> for LaneSum {
+    fn from(poly: PolySignal) -> LaneSum {
+        LaneSum { inner: poly }
     }
 }
 
-// === Serialization for MonoSignal (delegates to PolySignal) ===
+// === Serialization for LaneSum (delegates to PolySignal) ===
 
-impl Serialize for MonoSignal {
+impl Serialize for LaneSum {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -686,32 +686,32 @@ impl Serialize for MonoSignal {
     }
 }
 
-impl<'de> Deserialize<'de> for MonoSignal {
+impl<'de> Deserialize<'de> for LaneSum {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Ok(MonoSignal {
+        Ok(LaneSum {
             inner: PolySignal::deserialize(deserializer)?,
         })
     }
 }
 
-// deserr implementation for MonoSignal - delegates to PolySignal.
-impl<E: DeserializeError> deserr::Deserr<E> for MonoSignal {
+// deserr implementation for LaneSum - delegates to PolySignal.
+impl<E: DeserializeError> deserr::Deserr<E> for LaneSum {
     fn deserialize_from_value<V: IntoValue>(
         value: deserr::Value<V>,
         location: ValuePointerRef<'_>,
     ) -> Result<Self, E> {
-        Ok(MonoSignal {
+        Ok(LaneSum {
             inner: PolySignal::deserialize_from_value(value, location)?,
         })
     }
 }
 
-impl JsonSchema for MonoSignal {
+impl JsonSchema for LaneSum {
     fn schema_name() -> Cow<'static, str> {
-        Cow::Borrowed("MonoSignal")
+        Cow::Borrowed("LaneSum")
     }
 
     fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
@@ -721,13 +721,13 @@ impl JsonSchema for MonoSignal {
 }
 
 // =============================================================================
-// Extension traits for Option<PolySignal> and Option<MonoSignal>
+// Extension traits for Option<PolySignal> and Option<LaneSum>
 // =============================================================================
 
 /// Extension trait for `Option<PolySignal>` providing normalled/default value access.
 ///
 /// This replaces the old `is_disconnected()` and `get_value_or()` methods that were
-/// on `PolySignal` itself. Disconnection is now represented by `None` at the param level.
+/// on `PolySignal` itself. Disconnection is represented by `None` at the param level.
 pub trait PolySignalExt {
     /// Returns the signal's value at the given channel (cycling), or `default` if disconnected.
     fn value_or(&self, ch: usize, default: f32) -> f32;
@@ -777,11 +777,9 @@ impl PolySignalExt for Option<PolySignal> {
     }
 }
 
-/// Extension trait for `Option<MonoSignal>` providing normalled/default value access.
-///
-/// This replaces the old `is_disconnected()` and `get_value_or()` methods that were
-/// on `MonoSignal` itself. Disconnection is now represented by `None` at the param level.
-pub trait MonoSignalExt {
+/// Normalled/default value access for `Option<LaneSum>`; a disconnected input
+/// is `None` at the param level.
+pub trait LaneSumExt {
     /// Returns the summed signal value, or `default` if disconnected.
     fn value_or(&self, default: f32) -> f32;
 
@@ -795,7 +793,7 @@ pub trait MonoSignalExt {
     fn glide_mark(&self) -> GlideMark;
 }
 
-impl MonoSignalExt for Option<MonoSignal> {
+impl LaneSumExt for Option<LaneSum> {
     fn value_or(&self, default: f32) -> f32 {
         match self {
             Some(ms) => ms.get_value(),
@@ -970,15 +968,15 @@ mod tests {
     #[test]
     fn test_mono_signal_single_channel() {
         let json = "2.5";
-        let mono: MonoSignal = serde_json::from_str(json).expect("Failed to deserialize");
+        let mono: LaneSum = serde_json::from_str(json).expect("Failed to deserialize");
         assert_eq!(mono.get_value(), 2.5);
     }
 
     #[test]
     fn test_mono_signal_sums_channels() {
-        // MonoSignal should sum all channels
+        // LaneSum should sum all channels
         let json = "[1.0, 2.0, 3.0]";
-        let mono: MonoSignal = serde_json::from_str(json).expect("Failed to deserialize");
+        let mono: LaneSum = serde_json::from_str(json).expect("Failed to deserialize");
         assert_eq!(mono.get_value(), 6.0); // 1 + 2 + 3 = 6
     }
 
@@ -1004,7 +1002,7 @@ mod tests {
 
     #[test]
     fn test_mono_signal_ext_none() {
-        let opt: Option<MonoSignal> = None;
+        let opt: Option<LaneSum> = None;
         assert!(opt.is_disconnected());
         assert_eq!(opt.value_or(5.0), 5.0);
         assert_eq!(opt.value_or_zero(), 0.0);
@@ -1012,8 +1010,8 @@ mod tests {
 
     #[test]
     fn test_mono_signal_ext_some() {
-        let mono = MonoSignal::from_poly(PolySignal::mono(Signal::Volts(2.0)));
-        let opt: Option<MonoSignal> = Some(mono);
+        let mono = LaneSum::from_poly(PolySignal::mono(Signal::Volts(2.0)));
+        let opt: Option<LaneSum> = Some(mono);
         assert!(!opt.is_disconnected());
         assert_eq!(opt.value_or(5.0), 2.0);
         assert_eq!(opt.value_or_zero(), 2.0);

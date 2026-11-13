@@ -229,7 +229,7 @@ fn test_schema_refers_to_module_reference_descends_prefix_items() {
         "type": "array",
         "prefixItems": [
             { "type": "array", "items": { "type": "number" } },
-            { "$ref": "#/$defs/MonoSignal" }
+            { "$ref": "#/$defs/LaneSum" }
         ]
     })
     .try_into()

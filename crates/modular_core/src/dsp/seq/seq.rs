@@ -16,10 +16,10 @@ use schemars::JsonSchema;
 use arrayvec::ArrayVec;
 
 use crate::{
-    MonoSignal,
+    LaneSum,
     dsp::utils::{GATE_HIGH_VOLTAGE, TempGate, TempGateState, min_gate_samples},
     param_errors::ModuleParamErrors,
-    poly::{MonoSignalExt, PORT_MAX_CHANNELS, PolyOutput},
+    poly::{LaneSumExt, PORT_MAX_CHANNELS, PolyOutput},
 };
 
 use crate::module_category::ModuleCategory;
@@ -138,7 +138,7 @@ pub struct SeqParams {
     )]
     #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(default)]
-    playhead: Option<MonoSignal>,
+    playhead: Option<LaneSum>,
     #[input(
         "groove shift of note starts, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
         type = control,
@@ -146,7 +146,7 @@ pub struct SeqParams {
     )]
     #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
     #[deserr(default)]
-    groove: Option<MonoSignal>,
+    groove: Option<LaneSum>,
     #[input(
         "velocity held from each note start onto the `velocity` output. Follows the global groove, unless you set your own `playhead` or `groove`: then every note is full velocity until given a velocity too",
         type = control,
@@ -154,7 +154,7 @@ pub struct SeqParams {
     )]
     #[default_connection(module = RootClock, port = "grooveVelocity", channel = 0)]
     #[deserr(default)]
-    velocity: Option<MonoSignal>,
+    velocity: Option<LaneSum>,
     #[input("number of voices; worked out from the pattern when unset", range = (1, 64))]
     #[deserr(default)]
     pub channels: Option<usize>,
@@ -602,7 +602,7 @@ impl Seq {
             .params
             .playhead
             .as_ref()
-            .map_or(0.0, MonoSignal::get_value_f64);
+            .map_or(0.0, LaneSum::get_value_f64);
         let raw = self.state.groove_hold.apply(
             straight,
             straight + self.params.groove.value_or_zero() as f64,

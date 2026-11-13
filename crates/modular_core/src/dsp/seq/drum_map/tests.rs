@@ -51,7 +51,7 @@ fn make(params: DrumMapParams) -> DrumMap {
 /// completed bar count on channel 1.
 fn set_playhead(m: &mut DrumMap, p: f64) {
     let bars = p.floor();
-    m.params.playhead = Some(MonoSignal::from_poly(PolySignal::poly(&[
+    m.params.playhead = Some(LaneSum::from_poly(PolySignal::poly(&[
         Signal::Volts((p - bars) as f32),
         Signal::Volts(bars as f32),
     ])));
@@ -156,9 +156,7 @@ fn velocity_scales_accents_but_not_hits() {
     let mut accents_at_full = 0;
     for volts in [5.0, 3.0, 0.0] {
         let mut p = params(0.0, 0.0, 5.0, DrumMapResolution::ThirtySecond);
-        p.velocity = Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(
-            volts,
-        ))));
+        p.velocity = Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(volts))));
         let mut m = make(p);
         let hits = run_cycle(&mut m, 0);
         let (parts, accent_rows) = hits.split_at(NUM_PARTS);
@@ -301,9 +299,7 @@ fn phasor_playhead_wraps_into_a_new_cycle() {
     assert!(bd_fires_at(&mut m, 0.0));
     bd_fires_at(&mut m, at_step(31));
     // A 0–1 ramp wraps without the bar count advancing.
-    m.params.playhead = Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(
-        0.001,
-    ))));
+    m.params.playhead = Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(0.001))));
     m.update(SAMPLE_RATE);
     assert_eq!(m.outputs.bd.get(0), 5.0);
 }

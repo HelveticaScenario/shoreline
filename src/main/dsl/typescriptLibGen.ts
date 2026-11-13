@@ -315,7 +315,7 @@ interface SignalGroup {
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
  * @see {@link Signal} - for single-channel signals
  */
-type Mono<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange>;
+type LaneSum<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange>;
 
 /**
  * A phase warp produced by the \`$phase.*\` helpers.
@@ -1126,12 +1126,12 @@ function $setTempo(tempo: number): void;
 
 /**
  * Set the global output gain applied to the final mix.
- * @param gain Gain as a {@link Mono<Signal>} (2.5 is default, 5.0 is unity)
+ * @param gain Gain as a {@link LaneSum<Signal>} (2.5 is default, 5.0 is unity)
  * @example $setOutputGain(2.5) // 50% gain (default)
  * @example $setOutputGain(5.0) // unity
  * @example $setOutputGain($adsr($clock._beatTrigger, {})) // modulate gain from envelope
  */
-function $setOutputGain(gain: Mono<Signal>): void;
+function $setOutputGain(gain: LaneSum<Signal>): void;
 
 /**
  * An XY oscilloscope as the patch's picture: shorthand for
@@ -1518,7 +1518,7 @@ function $ott(input: Collection | CollectionWithRange, config?: {
  */
 function $cross(
     count: number,
-    playhead: Mono<Signal>,
+    playhead: LaneSum<Signal>,
     range?: [number, number],
     interpolationType?: Parameters<typeof $track>[1]['interpolationType'],
 ): Collection;

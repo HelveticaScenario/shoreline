@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
-use crate::poly::{MonoSignal, PORT_MAX_CHANNELS, PolyOutput};
+use crate::poly::{LaneSum, PORT_MAX_CHANNELS, PolyOutput};
 
 use super::scale::ScaleSpec;
 
@@ -21,7 +21,7 @@ struct ChordParams {
         control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    inversion: Option<MonoSignal>,
+    inversion: Option<LaneSum>,
 }
 
 /// One channel per note of the spec, and one more when `inversion` is
@@ -262,7 +262,7 @@ mod tests {
     fn make_inverted(spec: &str, inversion: Option<f32>) -> Chord {
         let params = ChordParams {
             chord: ScaleSpec::parse(spec).unwrap(),
-            inversion: inversion.map(|v| MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v)))),
+            inversion: inversion.map(|v| LaneSum::from_poly(PolySignal::mono(Signal::Volts(v)))),
         };
         let channels = chord_derive_channel_count(&params);
         let mut outputs = ChordOutputs::default();
@@ -435,8 +435,7 @@ mod tests {
         chord.update(48000.0);
         let before = read(&chord);
         for v in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-            chord.params.inversion =
-                Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v))));
+            chord.params.inversion = Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(v))));
             chord.update(48000.0);
             assert_eq!(read(&chord), before, "{v}");
         }

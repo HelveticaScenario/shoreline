@@ -4,7 +4,7 @@ use deserr::{DeserializeError, Deserr, ErrorKind, IntoValue, Sequence, ValuePoin
 use schemars::JsonSchema;
 
 use crate::param_errors::ModuleParamErrors;
-use crate::poly::{MonoSignal, PORT_MAX_CHANNELS, PolySignal};
+use crate::poly::{LaneSum, PORT_MAX_CHANNELS, PolySignal};
 
 pub const MAX_EQ_SECTIONS: usize = 8;
 pub const DEFAULT_Q: f32 = std::f32::consts::FRAC_1_SQRT_2;
@@ -46,7 +46,7 @@ pub struct EqSection {
         type = frequency,
         range = (-3.71, ..),
     )]
-    pub freq: MonoSignal,
+    pub freq: LaneSum,
     #[input(
         "boost or cut in dB; peaks and shelves only",
         type = control,
@@ -54,7 +54,7 @@ pub struct EqSection {
         range = (-24.0, 24.0),
     )]
     #[deserr(default)]
-    pub gain: Option<MonoSignal>,
+    pub gain: Option<LaneSum>,
     #[input(
         "how narrow the band is; on shelves, lower is a gentler slope; above 0.707 shelves, lowpass and highpass get a resonant bump",
         type = control,
@@ -62,7 +62,7 @@ pub struct EqSection {
         range = (0.1, 20.0),
     )]
     #[deserr(default)]
-    pub q: Option<MonoSignal>,
+    pub q: Option<LaneSum>,
 }
 
 /// The section chain: one list shared by every channel, or one list per

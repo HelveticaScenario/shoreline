@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use crate::block_input::InputScratch;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::{param_errors::ModuleParamErrors, poly::MonoSignal};
+use crate::{param_errors::ModuleParamErrors, poly::LaneSum};
 
 /// Number of tap slots the video renderer can read.
 pub const MAX_VIDEO_TAPS: usize = 64;
@@ -82,7 +82,7 @@ pub fn read_video_since(slot: usize, since: Option<u32>) -> Option<VideoTapChunk
 #[deserr(rename_all = camelCase, deny_unknown_fields, validate = video_tap_validate_params -> ModuleParamErrors)]
 struct VideoTapParams {
     #[input("signal published to the video renderer", type = audio)]
-    input: MonoSignal,
+    input: LaneSum,
     #[input("tap slot the renderer reads it from", range = (0, 63))]
     slot: usize,
 }
@@ -159,7 +159,7 @@ impl VideoTap {
             // so it sees every head published before the chunk.
             fence(Ordering::Release);
             for i in start..(start + PUBLISH_CHUNK).min(end) {
-                // Summed as `MonoSignal::get_value` sums.
+                // Summed as `LaneSum::get_value` sums.
                 let value = input.row(i).iter().sum();
                 outputs.sample.slot_mut(i)[0] = value;
                 ring[head as usize & (VIDEO_HISTORY_LEN - 1)]
@@ -187,7 +187,7 @@ mod tests {
         outputs.set_all_channels(1);
         VideoTap {
             params: VideoTapParams {
-                input: MonoSignal::from_poly(PolySignal::mono(Signal::Volts(volts))),
+                input: LaneSum::from_poly(PolySignal::mono(Signal::Volts(volts))),
                 slot,
             },
             outputs,
@@ -224,7 +224,7 @@ mod tests {
 
     fn drive(tap: &mut VideoTap, values: impl Iterator<Item = f32>) {
         for v in values {
-            tap.params.input = MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v)));
+            tap.params.input = LaneSum::from_poly(PolySignal::mono(Signal::Volts(v)));
             tap.update(SR);
         }
     }
@@ -300,7 +300,7 @@ mod tests {
     fn render_blocks(tap: &mut VideoTap, blocks: impl Iterator<Item = f32>) {
         let mut outputs = VideoTapBlockOutputs::new(256, 1, false);
         for v in blocks {
-            tap.params.input = MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v)));
+            tap.params.input = LaneSum::from_poly(PolySignal::mono(Signal::Volts(v)));
             tap.process_block(&mut outputs, 0..256, SR);
         }
     }

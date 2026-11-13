@@ -97,19 +97,19 @@ fn emit_field_named_struct(
             } else if is_option_mono {
                 default_stmts.extend(quote_spanned! {field.span()=>
                     if self.#field_ident.is_none() {
-                        self.#field_ident = Some(crate::poly::MonoSignal::from_poly(
+                        self.#field_ident = Some(crate::poly::LaneSum::from_poly(
                             crate::poly::PolySignal::poly(&[#cable]),
                         ));
                     }
                 });
             } else {
-                // Bare PolySignal/MonoSignal fields are required — they
+                // Bare PolySignal/LaneSum fields are required — they
                 // should not have #[default_connection] since the user
                 // must always provide them.
                 return Err(syn::Error::new(
                     field.span(),
                     "#[default_connection] is not supported on bare (required) signal fields. \
-                     Use Option<PolySignal> or Option<MonoSignal> instead.",
+                     Use Option<PolySignal> or Option<LaneSum> instead.",
                 ));
             }
         } else if is_option_signal {

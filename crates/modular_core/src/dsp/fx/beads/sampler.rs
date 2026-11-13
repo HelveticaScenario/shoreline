@@ -10,9 +10,7 @@ use schemars::JsonSchema;
 use crate::Wav;
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::patch::Patch;
-use crate::poly::{
-    MonoSignal, MonoSignalExt, PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt,
-};
+use crate::poly::{LaneSum, LaneSumExt, PORT_MAX_CHANNELS, PolyOutput, PolySignal, PolySignalExt};
 use crate::types::{PatchUpdateHandler, PolySignalFields, WavData};
 
 use super::buffer::GrainBuffer;
@@ -91,7 +89,7 @@ struct GranularSamplerParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    width: Option<MonoSignal>,
+    width: Option<LaneSum>,
     #[input("sound character: how clean it sounds", default = "digital")]
     #[serde(default)]
     #[deserr(default)]

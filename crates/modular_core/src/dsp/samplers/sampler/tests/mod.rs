@@ -140,7 +140,7 @@ fn make_direct(params_json: serde_json::Value, wav_data: Arc<WavData>) -> Sample
 }
 
 fn set_gate(sampler: &mut Sampler, volts: f32) {
-    sampler.params.gate = MonoSignal::from_poly(PolySignal::mono(Signal::Volts(volts)));
+    sampler.params.gate = LaneSum::from_poly(PolySignal::mono(Signal::Volts(volts)));
 }
 
 fn releasing(sampler: &Sampler) -> bool {
@@ -159,7 +159,7 @@ fn release_positions(sampler: &Sampler) -> Vec<f64> {
 
 fn set_slice_signal(sampler: &mut Sampler, volts: f32) {
     sampler.params.slice.as_mut().unwrap().signal =
-        MonoSignal::from_poly(PolySignal::mono(Signal::Volts(volts)));
+        LaneSum::from_poly(PolySignal::mono(Signal::Volts(volts)));
 }
 
 fn run(sampler: &mut Sampler, n: usize) -> Vec<f32> {
@@ -198,7 +198,7 @@ fn ramp_wav() -> Vec<f32> {
 fn set_slice(sampler: &mut Sampler, points: &[f64], volts: f32) {
     let slice = sampler.params.slice.as_mut().unwrap();
     slice.points = points.to_vec();
-    slice.signal = MonoSignal::from_poly(PolySignal::mono(Signal::Volts(volts)));
+    slice.signal = LaneSum::from_poly(PolySignal::mono(Signal::Volts(volts)));
 }
 
 /// Largest sample-to-sample step in `out`, starting from `prev`.

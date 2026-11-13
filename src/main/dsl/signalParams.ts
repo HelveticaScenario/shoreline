@@ -25,7 +25,7 @@ export function signalParamsOf(
                 p.kind === 'signal' ||
                 p.kind === 'polySignal' ||
                 p.isPolySignalInput ||
-                p.isMonoSignalInput ||
+                p.isLaneSumInput ||
                 p.isScaleSignalInput,
         )
         .map((p) => ({

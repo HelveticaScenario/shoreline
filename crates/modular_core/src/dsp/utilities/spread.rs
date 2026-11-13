@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput};
+use crate::poly::{LaneSum, LaneSumExt, PolyOutput};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
@@ -11,9 +11,9 @@ use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput};
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SpreadParams {
     #[input("value of the first channel", type = control, control_range = (-5.0, 5.0))]
-    min: MonoSignal,
+    min: LaneSum,
     #[input("value of the last channel", type = control, control_range = (-5.0, 5.0))]
-    max: MonoSignal,
+    max: LaneSum,
     #[input(
         "number of output channels; with 1, a single value between min and max placed by bias",
         range = (1, 64),
@@ -26,7 +26,7 @@ struct SpreadParams {
         control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    bias: Option<MonoSignal>,
+    bias: Option<LaneSum>,
 }
 
 #[derive(Outputs, JsonSchema)]

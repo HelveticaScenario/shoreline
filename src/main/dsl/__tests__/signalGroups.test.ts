@@ -199,7 +199,7 @@ describe('expandSignalGroups', () => {
                 {
                     name: 'width',
                     kind: 'polySignal',
-                    isMonoSignalInput: true,
+                    isLaneSumInput: true,
                 },
             ],
         );

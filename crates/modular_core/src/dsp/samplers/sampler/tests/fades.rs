@@ -229,7 +229,7 @@ fn gate_release_ends_within_the_fade_when_speed_reverses() {
     run(&mut sampler, 2000);
     set_gate(&mut sampler, 0.0);
     run(&mut sampler, 10);
-    sampler.params.speed = Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(-1.0))));
+    sampler.params.speed = Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(-1.0))));
     let out = run(&mut sampler, 60);
     assert!(
         out.iter().all(|&v| v <= 38.0 / 48.0 + 1e-3),
@@ -261,9 +261,7 @@ fn gate_release_ends_within_the_fade_when_speed_slows() {
     );
     run(&mut sampler, 200);
     set_gate(&mut sampler, 0.0);
-    sampler.params.speed = Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(
-        0.001,
-    ))));
+    sampler.params.speed = Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(0.001))));
     // 48 samples of fade at 1 ms, however little the voice moves.
     let out = run(&mut sampler, 50);
     assert_eq!(out[48], 0.0, "got {out:?}");

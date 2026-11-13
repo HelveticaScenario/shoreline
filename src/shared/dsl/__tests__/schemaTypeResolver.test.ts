@@ -123,7 +123,7 @@ describe('getEnumVariants', () => {
             getEnumVariants({ $ref: '#/$defs/PolySignal' }, rootSchema),
         ).toBeNull();
         expect(
-            getEnumVariants({ $ref: '#/$defs/MonoSignal' }, rootSchema),
+            getEnumVariants({ $ref: '#/$defs/LaneSum' }, rootSchema),
         ).toBeNull();
     });
 
@@ -190,20 +190,20 @@ describe('getEnumVariants', () => {
                 PhaseWarp: { title: 'PhaseWarp' },
             },
         };
-        expect(schemaToTypeExpr({ $ref: '#/$defs/PhaseWarp' }, rootSchema)).toBe(
-            'PhaseWarp',
-        );
+        expect(
+            schemaToTypeExpr({ $ref: '#/$defs/PhaseWarp' }, rootSchema),
+        ).toBe('PhaseWarp');
     });
 
     test('schemaToTypeExpr keeps a signal-or-tuple union (sampler slice shape)', () => {
         const rootSchema = {
             $defs: {
-                MonoSignal: { title: 'MonoSignal' },
+                LaneSum: { title: 'LaneSum' },
             },
         };
         const sliceSchema = {
             anyOf: [
-                { $ref: '#/$defs/MonoSignal' },
+                { $ref: '#/$defs/LaneSum' },
                 {
                     type: 'array',
                     prefixItems: [
@@ -212,7 +212,7 @@ describe('getEnumVariants', () => {
                             items: { type: 'number' },
                             minItems: 1,
                         },
-                        { $ref: '#/$defs/MonoSignal' },
+                        { $ref: '#/$defs/LaneSum' },
                     ],
                     minItems: 2,
                     maxItems: 2,
@@ -220,7 +220,7 @@ describe('getEnumVariants', () => {
             ],
         };
         expect(schemaToTypeExpr(sliceSchema, rootSchema)).toBe(
-            'Mono<Signal> | [number[], Mono<Signal>]',
+            'LaneSum<Signal> | [number[], LaneSum<Signal>]',
         );
         // Option<...> wraps the union in another anyOf with a null arm.
         expect(
@@ -228,6 +228,6 @@ describe('getEnumVariants', () => {
                 { anyOf: [sliceSchema, { type: 'null' }] },
                 rootSchema,
             ),
-        ).toBe('Mono<Signal> | [number[], Mono<Signal>]');
+        ).toBe('LaneSum<Signal> | [number[], LaneSum<Signal>]');
     });
 });

@@ -14,7 +14,7 @@ use crate::dsp::utils::one_pole::OnePole;
 use crate::dsp::utils::{map_range, sanitize};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 // ─── Reference sample rate ───────────────────────────────────────────────────
@@ -100,7 +100,7 @@ struct PlateParams {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    bandwidth: Option<MonoSignal>,
+    bandwidth: Option<LaneSum>,
     #[input(
         "how fast the tail darkens: -5 bright, +5 muffled",
         type = control,
@@ -108,7 +108,7 @@ struct PlateParams {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    damping: Option<MonoSignal>,
+    damping: Option<LaneSum>,
     #[input(
         "how long the tail rings: -5 shortest, +5 almost endless",
         type = control,
@@ -116,7 +116,7 @@ struct PlateParams {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    decay: Option<MonoSignal>,
+    decay: Option<LaneSum>,
     #[input(
         "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.1 ms",
         type = control,
@@ -124,7 +124,7 @@ struct PlateParams {
         control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    modulation: Option<MonoSignal>,
+    modulation: Option<LaneSum>,
 }
 
 // ─── Outputs ─────────────────────────────────────────────────────────────────

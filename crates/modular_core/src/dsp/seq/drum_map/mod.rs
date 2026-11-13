@@ -7,7 +7,7 @@ use deserr::{DeserializeError, Deserr, ErrorKind, IntoValue, ValuePointerRef};
 use napi::Result;
 use schemars::JsonSchema;
 
-use crate::MonoSignal;
+use crate::LaneSum;
 use crate::dsp::seq::FRESH_WINDOW_SECS;
 use crate::dsp::seq::groove::{GrooveHold, before_first_step, fill_groove_inputs};
 use crate::dsp::utils::rng::{LcgRng, seed_base};
@@ -15,7 +15,7 @@ use crate::dsp::utils::{GATE_HIGH_VOLTAGE, TempGate, TempGateState, min_gate_sam
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::param_errors::ModuleParamErrors;
-use crate::poly::{MonoSignalExt, PolyOutput, PolySignal, PolySignalExt};
+use crate::poly::{LaneSumExt, PolyOutput, PolySignal, PolySignalExt};
 use crate::types::ClockMessages;
 use crate::types::PatchUpdateHandler;
 
@@ -99,7 +99,7 @@ struct DrumMapParams {
     )]
     #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(default)]
-    playhead: Option<MonoSignal>,
+    playhead: Option<LaneSum>,
     #[input(
         "groove shift of each step, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
         type = control,
@@ -107,7 +107,7 @@ struct DrumMapParams {
     )]
     #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
     #[deserr(default)]
-    groove: Option<MonoSignal>,
+    groove: Option<LaneSum>,
     #[input(
         "how readily each step accents: lower accents less, 0 never. Follows the global groove, unless you set your own `playhead` or `groove`: then it is full until given a velocity too",
         type = control,
@@ -116,7 +116,7 @@ struct DrumMapParams {
     )]
     #[default_connection(module = RootClock, port = "grooveVelocity", channel = 0)]
     #[deserr(default)]
-    velocity: Option<MonoSignal>,
+    velocity: Option<LaneSum>,
     #[input(
         "horizontal position in the map of drum patterns",
         type = control,
@@ -300,7 +300,7 @@ impl DrumMap {
             .params
             .playhead
             .as_ref()
-            .map_or(0.0, MonoSignal::get_value_f64);
+            .map_or(0.0, LaneSum::get_value_f64);
         let playhead = self.state.groove_hold.apply(
             straight,
             straight + self.params.groove.value_or_zero() as f64,

@@ -5,7 +5,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     block_input::{InputScratch, OptionBlockInput},
     dsp::utils::sanitize,
-    poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal, PolySignalExt},
+    poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 use deserr::Deserr;
@@ -32,7 +32,7 @@ struct StereoMixerParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    width: Option<MonoSignal>,
+    width: Option<LaneSum>,
 }
 
 #[derive(Outputs, JsonSchema)]

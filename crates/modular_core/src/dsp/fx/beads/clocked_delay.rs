@@ -4,7 +4,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::{sanitize, semitones_to_ratio};
-use crate::poly::{MonoSignal, PolyOutput, PolySignal, PolySignalExt};
+use crate::poly::{LaneSum, PolyOutput, PolySignal, PolySignalExt};
 use crate::types::PatchUpdateHandler;
 
 use super::chain::Media;
@@ -38,24 +38,24 @@ struct ClockedDelayParams {
     #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(skip)]
     #[schemars(skip)]
-    playhead: Option<MonoSignal>,
+    playhead: Option<LaneSum>,
     /// Transport tempo in BPM, timing the delay until the playhead moves.
     #[default_connection(module = RootClock, port = "tempo", channel = 0)]
     #[deserr(skip)]
     #[schemars(skip)]
-    bpm: Option<MonoSignal>,
+    bpm: Option<LaneSum>,
     /// Transport bar length in quarter notes, with `bpm` timing the delay
     /// until the playhead moves.
     #[default_connection(module = RootClock, port = "barLength", channel = 0)]
     #[deserr(skip)]
     #[schemars(skip)]
-    bar_length: Option<MonoSignal>,
+    bar_length: Option<LaneSum>,
     /// Global groove position minus the playhead, in bars, which
     /// `grooveAmount` applies to the repeats' windows.
     #[default_connection(module = RootClock, port = "grooveOffset", channel = 0)]
     #[deserr(skip)]
     #[schemars(skip)]
-    groove: Option<MonoSignal>,
+    groove: Option<LaneSum>,
     #[input(
         "delay time in bars: `1 / 4` a quarter note in 4/4, `3 / 16` a dotted eighth; the longest time depends on the tempo and `quality`",
         type = control,
@@ -326,17 +326,11 @@ impl ClockedDelay {
         let state = &mut self.state;
         let voices = &mut self.channel_state;
 
-        let position = params
-            .playhead
-            .as_ref()
-            .map_or(0.0, MonoSignal::get_value_f64);
+        let position = params.playhead.as_ref().map_or(0.0, LaneSum::get_value_f64);
         state.tempo.update(position);
         let grid = Grid {
             position,
-            groove: params
-                .groove
-                .as_ref()
-                .map_or(0.0, MonoSignal::get_value_f64),
+            groove: params.groove.as_ref().map_or(0.0, LaneSum::get_value_f64),
             moving: state.tempo.moving,
         };
         let bpm = params

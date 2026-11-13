@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::sanitize;
-use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
 
 use super::wow_flutter::{WowModulation, write_read};
 use super::{FULL_SCALE_VOLTS, input_value};
@@ -38,7 +38,7 @@ struct WowFlutterParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    speed: Option<MonoSignal>,
+    speed: Option<LaneSum>,
     #[input(
         "how deep the wobble is: 0 none, 2.5 Beads' dirty tape, 5 twice as deep",
         type = control,
@@ -46,7 +46,7 @@ struct WowFlutterParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    intensity: Option<MonoSignal>,
+    intensity: Option<LaneSum>,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -133,7 +133,7 @@ impl WowFlutter {
         let state = &mut self.state;
         if state.block_pos == 0 {
             let p = &self.params;
-            let control = |s: &Option<MonoSignal>| sanitize(s.value_or(2.5)).clamp(0.0, 5.0);
+            let control = |s: &Option<LaneSum>| sanitize(s.value_or(2.5)).clamp(0.0, 5.0);
             let speed = (control(&p.speed) - 2.5).exp2();
             let depth = control(&p.intensity) / 5.0 * MAX_DEPTH;
             state
@@ -220,8 +220,8 @@ mod tests {
             .collect()
     }
 
-    fn volts(v: f32) -> Option<MonoSignal> {
-        Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v))))
+    fn volts(v: f32) -> Option<LaneSum> {
+        Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(v))))
     }
 
     /// Shortest and longest period of a 1 kHz tone through `m`, in samples.

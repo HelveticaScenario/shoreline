@@ -72,8 +72,8 @@ fn transfer(old: &mut ClockedDelay, new: &mut ClockedDelay) {
     new.on_patch_update();
 }
 
-fn playhead(bars: f64) -> Option<MonoSignal> {
-    Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(
+fn playhead(bars: f64) -> Option<LaneSum> {
+    Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(
         bars as f32,
     ))))
 }
@@ -234,7 +234,7 @@ fn groove_amount_moves_the_windows_by_its_share_of_the_groove() {
     p.shape = poly_volts(&[2.5]);
     // Half the groove, which runs a tenth of a bar ahead of the playhead.
     p.groove_amount = poly_volts(&[2.5]);
-    p.groove = Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(0.1))));
+    p.groove = Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(0.1))));
     let mut m = make(p);
     let y: Vec<f32> = (0..60_000)
         .map(|n| step(&mut m, sine(437.0, n, SR, 2.0), n as f64 / BAR))
@@ -483,7 +483,7 @@ fn tempo_is_measured_from_the_playhead_starting() {
 
 #[test]
 fn bpm_and_meter_time_the_delay_until_the_playhead_moves() {
-    let mono = |v: f32| Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v))));
+    let mono = |v: f32| Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(v))));
     let mut p = delay_params(GranularQuality::Digital);
     p.bars = poly_volts(&[0.25]);
     p.bpm = mono(90.0);

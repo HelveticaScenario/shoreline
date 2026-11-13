@@ -7,7 +7,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::{
-    MonoSignal,
+    LaneSum,
     dsp::utils::{GATE_HIGH_VOLTAGE, rng::hash_bipolar},
     poly::PolySignal,
     types::Signal,
@@ -200,11 +200,11 @@ impl GrooveTemplate {
 /// own playhead or groove plays straight and at full velocity unless given a
 /// match.
 pub fn fill_groove_inputs(
-    playhead: &Option<MonoSignal>,
-    groove: &mut Option<MonoSignal>,
-    velocity: &mut Option<MonoSignal>,
+    playhead: &Option<LaneSum>,
+    groove: &mut Option<LaneSum>,
+    velocity: &mut Option<LaneSum>,
 ) {
-    let constant = |v: f32| Some(MonoSignal::from_poly(PolySignal::mono(Signal::Volts(v))));
+    let constant = |v: f32| Some(LaneSum::from_poly(PolySignal::mono(Signal::Volts(v))));
     if playhead.is_some() && groove.is_none() {
         *groove = constant(0.0);
     }

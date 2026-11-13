@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
-    Buffer, BufferData, MonoSignal,
+    Buffer, BufferData, LaneSum,
     poly::{PolyOutput, PolySignal},
 };
 
@@ -339,7 +339,7 @@ struct BufReadParams {
         default = 0.0,
         range = (0.0, 5.0),
     )]
-    frame: MonoSignal,
+    frame: LaneSum,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -401,8 +401,8 @@ mod tests {
         types::{Connect, OutputStruct, Signal},
     };
 
-    fn mono(value: f32) -> MonoSignal {
-        MonoSignal::from_poly(PolySignal::mono(Signal::Volts(value)))
+    fn mono(value: f32) -> LaneSum {
+        LaneSum::from_poly(PolySignal::mono(Signal::Volts(value)))
     }
 
     struct MockBufferOwner {

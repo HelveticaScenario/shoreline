@@ -31,7 +31,7 @@ export interface TypeDocumentation {
 export const DSL_TYPE_NAMES = [
     'Signal',
     'Poly<Signal>',
-    'Mono<Signal>',
+    'LaneSum<Signal>',
     'Multi-output modules',
     'Pattern',
     'Collection',
@@ -256,7 +256,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         seeAlso: ['Multi-output modules', 'Collection'],
     },
 
-    'Mono<Signal>': {
+    'LaneSum<Signal>': {
         definition: 'Signal | Signal[]',
         description:
             'A signal input that accepts polyphonic connections but sums all channels down to a single mono value. ' +
@@ -267,7 +267,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             '$stereoMix(osc, { width: lfo })                  // Width control summed to mono',
             '$math("x + y", { x: osc1, y: osc2 })            // Variables summed to single values',
         ],
-        name: 'Mono<Signal>',
+        name: 'LaneSum<Signal>',
         seeAlso: ['Signal', 'Poly<Signal>', 'Collection'],
     },
 
@@ -299,7 +299,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             '$mix([osc1, osc2, osc3])                // Several signals',
         ],
         name: 'Poly<Signal>',
-        seeAlso: ['Signal', 'Mono<Signal>', 'Collection'],
+        seeAlso: ['Signal', 'LaneSum<Signal>', 'Collection'],
     },
 
     Signal: {
@@ -314,7 +314,13 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             '$sine(lfo)            // Collection from another module',
         ],
         name: 'Signal',
-        seeAlso: ['Poly<Signal>', 'Mono<Signal>', 'Collection', 'Note', 'HZ'],
+        seeAlso: [
+            'Poly<Signal>',
+            'LaneSum<Signal>',
+            'Collection',
+            'Note',
+            'HZ',
+        ],
     },
 
     StereoOutOptions: {
@@ -557,11 +563,11 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         params: [
             {
                 name: 'gain',
-                type: 'Mono<Signal>',
+                type: 'LaneSum<Signal>',
                 description: 'Gain level (2.5 default, 5.0 unity)',
             },
         ],
-        signature: '$setOutputGain(gain: Mono<Signal>): void',
+        signature: '$setOutputGain(gain: LaneSum<Signal>): void',
     },
     // ---- Controls -----
     {

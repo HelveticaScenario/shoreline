@@ -9,7 +9,7 @@ use crate::{
     Wav,
     dsp::utils::SchmittTrigger,
     param_errors::ModuleParamErrors,
-    poly::{MonoSignal, MonoSignalExt, PORT_MAX_CHANNELS, PolyOutput},
+    poly::{LaneSum, LaneSumExt, PORT_MAX_CHANNELS, PolyOutput},
 };
 
 mod looping;
@@ -39,7 +39,7 @@ struct SamplerParams {
         "starts the selected slice playing; `mode` sets what the gate does after that",
         type = gate,
     )]
-    gate: MonoSignal,
+    gate: LaneSum,
     #[input(
         "playback speed: 1 normal, 2 double (an octave up), negative plays in reverse",
         type = control,
@@ -47,7 +47,7 @@ struct SamplerParams {
         control_range = (-4.0, 4.0),
     )]
     #[deserr(default)]
-    speed: Option<MonoSignal>,
+    speed: Option<LaneSum>,
     #[input(
         "which slice plays, read at each gate and each loop repeat: a signal, or `[points, signal]` to cut the file into slices (see Slicing)"
     )]

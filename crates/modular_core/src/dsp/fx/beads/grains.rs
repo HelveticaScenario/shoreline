@@ -5,7 +5,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
-use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal, PolySignalExt};
+use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal, PolySignalExt};
 use crate::types::PatchUpdateHandler;
 
 use super::chain::Media;
@@ -87,7 +87,7 @@ struct GranularParams {
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
-    width: Option<MonoSignal>,
+    width: Option<LaneSum>,
     #[input(
         "feeds the grains back into the recording, building dense washes",
         type = control,

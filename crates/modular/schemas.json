@@ -951,7 +951,7 @@
           "description": "how far the channels fan out around their pan positions: 0 none, 5 widest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -1020,7 +1020,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -6455,7 +6455,7 @@
           "description": "how long the tail rings: -5 shortest, +5 almost endless",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6466,7 +6466,7 @@
           "description": "how fast the tail darkens: -5 bright, +5 muffled",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6477,7 +6477,7 @@
           "description": "room size, from 0.25× (-5) to 2× (+5) the plate's delay lengths",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6488,7 +6488,7 @@
           "description": "gap before the reverb starts, in seconds",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6499,7 +6499,7 @@
           "description": "how quickly the onset smears into a wash: 0 distinct echoes, 5 smoothest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6510,7 +6510,7 @@
           "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.5 ms",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -6579,7 +6579,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -7038,7 +7038,7 @@
           "description": "how much treble enters the reverb: -5 dull, +5 full bandwidth",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7049,7 +7049,7 @@
           "description": "how fast the tail darkens: -5 bright, +5 muffled",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7060,7 +7060,7 @@
           "description": "how long the tail rings: -5 shortest, +5 almost endless",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7071,7 +7071,7 @@
           "description": "wobbles the tank's delay times to soften metallic ringing; patch an LFO here, where ±5 V sways them about ±0.1 ms",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7140,7 +7140,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -7442,7 +7442,7 @@
           "description": "how long the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7453,7 +7453,7 @@
           "description": "how fast the tail darkens: -5 bright, +5 muffled",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7464,7 +7464,7 @@
           "description": "room size, from 0.5× (-5) to 2× (+5); bigger rooms space the echoes further apart",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7475,7 +7475,7 @@
           "description": "stereo width: -5 narrow, pulling panned sources toward the centre; +5 widest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7486,7 +7486,7 @@
           "description": "gap before the reverb starts, in seconds",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7497,7 +7497,7 @@
           "description": "gentle chorusing inside the tail that softens metallic ringing: -5 off, +5 deepest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7566,7 +7566,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -7712,7 +7712,7 @@
           "description": "how long the low end of the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7723,7 +7723,7 @@
           "description": "how much faster the treble dies than the bass: -5 equally fast, +5 ten times faster",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7734,7 +7734,7 @@
           "description": "room size, from 0.5× (-5) to 2× (+5); bigger rooms space the echoes further apart",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7745,7 +7745,7 @@
           "description": "stereo width: -5 narrow, pulling panned sources toward the centre; +5 widest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7756,7 +7756,7 @@
           "description": "gap before the reverb starts, in seconds",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7767,7 +7767,7 @@
           "description": "gentle chorusing inside the tail that softens metallic ringing: -5 off, +5 deepest",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -7836,7 +7836,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -8176,7 +8176,7 @@
           "description": "how much reverb you hear and how long it rings: 0 dry, 5 most",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -8187,7 +8187,7 @@
           "description": "room size; moving it while the tail rings bends its pitch",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -8198,7 +8198,7 @@
           "description": "how fast the tail darkens: 0 bright, 5 muffled",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -8267,7 +8267,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -8470,7 +8470,7 @@
           "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -8566,7 +8566,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -8870,7 +8870,7 @@
           "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -8968,7 +8968,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -9161,7 +9161,7 @@
           "description": "how fast the tape wobbles; each volt doubles it, and 2.5 is Beads' dirty tape",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -9172,7 +9172,7 @@
           "description": "how deep the wobble is: 0 none, 2.5 Beads' dirty tape, 5 twice as deep",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -9241,7 +9241,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -14838,13 +14838,13 @@
             },
             "freq": {
               "description": "where the band sits, like '1000hz' or 'c4'; tops out just under half the sample rate",
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             "gain": {
               "description": "boost or cut in dB; peaks and shelves only",
               "anyOf": [
                 {
-                  "$ref": "#/$defs/MonoSignal"
+                  "$ref": "#/$defs/LaneSum"
                 },
                 {
                   "type": "null"
@@ -14855,7 +14855,7 @@
               "description": "how narrow the band is; on shelves, lower is a gentler slope; above 0.707 shelves, lowpass and highpass get a resonant bump",
               "anyOf": [
                 {
-                  "$ref": "#/$defs/MonoSignal"
+                  "$ref": "#/$defs/LaneSum"
                 },
                 {
                   "type": "null"
@@ -14902,7 +14902,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -22700,7 +22700,7 @@
         },
         "frame": {
           "description": "read position: 0 the start of the buffer, 5 the end; wraps past either end",
-          "$ref": "#/$defs/MonoSignal"
+          "$ref": "#/$defs/LaneSum"
         }
       },
       "required": [
@@ -22734,7 +22734,7 @@
             "channels"
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -23067,7 +23067,7 @@
           "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -23082,7 +23082,7 @@
         "ScaleSpec": {
           "type": "string"
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -27005,11 +27005,11 @@
       "properties": {
         "min": {
           "description": "value of the first channel",
-          "$ref": "#/$defs/MonoSignal"
+          "$ref": "#/$defs/LaneSum"
         },
         "max": {
           "description": "value of the last channel",
-          "$ref": "#/$defs/MonoSignal"
+          "$ref": "#/$defs/LaneSum"
         },
         "count": {
           "description": "number of output channels; with 1, a single value between min and max placed by bias",
@@ -27022,7 +27022,7 @@
           "description": "bunches the channels toward max (positive) or min (negative); 0 spaces them evenly",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -27036,7 +27036,7 @@
         "count"
       ],
       "$defs": {
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -27333,7 +27333,7 @@
       "properties": {
         "input": {
           "description": "signal published to the video renderer",
-          "$ref": "#/$defs/MonoSignal"
+          "$ref": "#/$defs/LaneSum"
         },
         "slot": {
           "description": "tap slot the renderer reads it from",
@@ -27348,7 +27348,7 @@
         "slot"
       ],
       "$defs": {
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -27775,7 +27775,7 @@
           "description": "playhead position in cycles; follows the global clock by default",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -27786,7 +27786,7 @@
           "description": "groove shift of note starts, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -27797,7 +27797,7 @@
           "description": "velocity held from each note start onto the `velocity` output. Follows the global groove, unless you set your own `playhead` or `groove`: then every note is full velocity until given a velocity too",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -29900,7 +29900,7 @@
             "end"
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -30086,7 +30086,7 @@
           "description": "position along the keyframes",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30160,7 +30160,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -30273,13 +30273,13 @@
         },
         "next": {
           "description": "advances to the next step, wrapping after the last",
-          "$ref": "#/$defs/MonoSignal"
+          "$ref": "#/$defs/LaneSum"
         },
         "reset": {
           "description": "jumps back to the first step",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30349,7 +30349,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -30429,7 +30429,7 @@
           "description": "playhead position in cycles; one cycle plays the 32-step pattern once; follows the global clock by default",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30440,7 +30440,7 @@
           "description": "groove shift of each step, in cycles, e.g. from `$groove`; 0 plays straight. Follows the global groove, unless you set your own `playhead`: then it plays straight until given a groove too",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30451,7 +30451,7 @@
           "description": "how readily each step accents: lower accents less, 0 never. Follows the global groove, unless you set your own `playhead` or `groove`: then it is full until given a velocity too",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30531,7 +30531,7 @@
         }
       },
       "$defs": {
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -30862,7 +30862,7 @@
           "description": "straight playhead to groove, in cycles; follows the global clock (without its groove) by default",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -30931,7 +30931,7 @@
             "timing"
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -31620,7 +31620,7 @@
           "description": "how much chorus joins the dry signal, from none (0) to an even blend (5)",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -31631,7 +31631,7 @@
           "description": "how far the slow and fast swirl sweeps, from a slight shimmer (0) to a deep, wobbling ensemble (5)",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -31700,7 +31700,7 @@
             }
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"
@@ -38094,13 +38094,13 @@
         },
         "gate": {
           "description": "starts the selected slice playing; `mode` sets what the gate does after that",
-          "$ref": "#/$defs/MonoSignal"
+          "$ref": "#/$defs/LaneSum"
         },
         "speed": {
           "description": "playback speed: 1 normal, 2 double (an octave up), negative plays in reverse",
           "anyOf": [
             {
-              "$ref": "#/$defs/MonoSignal"
+              "$ref": "#/$defs/LaneSum"
             },
             {
               "type": "null"
@@ -38113,7 +38113,7 @@
             {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/MonoSignal"
+                  "$ref": "#/$defs/LaneSum"
                 },
                 {
                   "type": "array",
@@ -38126,7 +38126,7 @@
                       "minItems": 1
                     },
                     {
-                      "$ref": "#/$defs/MonoSignal"
+                      "$ref": "#/$defs/LaneSum"
                     }
                   ],
                   "minItems": 2,
@@ -38182,7 +38182,7 @@
             "channels"
           ]
         },
-        "MonoSignal": {
+        "LaneSum": {
           "anyOf": [
             {
               "$ref": "#/$defs/Signal"

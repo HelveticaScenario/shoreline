@@ -18,7 +18,7 @@ use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{MonoSignal, MonoSignalExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
 use crate::types::SwapGlide;
 
 // ─── Topology ────────────────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ struct Reverb2Params {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    decay: Option<MonoSignal>,
+    decay: Option<LaneSum>,
     #[input(
         "how much faster the treble dies than the bass: -5 equally fast, +5 ten times faster",
         type = control,
@@ -163,7 +163,7 @@ struct Reverb2Params {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    damping: Option<MonoSignal>,
+    damping: Option<LaneSum>,
     #[input(
         "room size, from 0.5× (-5) to 2× (+5); bigger rooms space the echoes further apart",
         type = control,
@@ -171,7 +171,7 @@ struct Reverb2Params {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    size: Option<MonoSignal>,
+    size: Option<LaneSum>,
     #[input(
         "stereo width: -5 narrow, pulling panned sources toward the centre; +5 widest",
         type = control,
@@ -179,7 +179,7 @@ struct Reverb2Params {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    width: Option<MonoSignal>,
+    width: Option<LaneSum>,
     #[input(
         "gap before the reverb starts, in seconds",
         type = control,
@@ -187,7 +187,7 @@ struct Reverb2Params {
         range = (0.0, 0.5),
     )]
     #[deserr(default)]
-    predelay: Option<MonoSignal>,
+    predelay: Option<LaneSum>,
     #[input(
         "gentle chorusing inside the tail that softens metallic ringing: -5 off, +5 deepest",
         type = control,
@@ -195,7 +195,7 @@ struct Reverb2Params {
         range = (-5.0, 5.0),
     )]
     #[deserr(default)]
-    modulation: Option<MonoSignal>,
+    modulation: Option<LaneSum>,
 }
 
 // ─── Outputs ─────────────────────────────────────────────────────────────────

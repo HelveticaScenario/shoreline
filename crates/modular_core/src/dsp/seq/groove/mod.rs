@@ -16,7 +16,7 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
-use crate::{MonoSignal, param_errors::ModuleParamErrors};
+use crate::{LaneSum, param_errors::ModuleParamErrors};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount)]
@@ -33,7 +33,7 @@ struct GrooveParams {
     )]
     #[default_connection(module = RootClock, port = "playhead", channel = 0)]
     #[deserr(default)]
-    playhead: Option<MonoSignal>,
+    playhead: Option<LaneSum>,
 }
 
 fn validate_groove_params(
@@ -139,7 +139,7 @@ impl Groove {
             .params
             .playhead
             .as_ref()
-            .map_or(0.0, MonoSignal::get_value_f64);
+            .map_or(0.0, LaneSum::get_value_f64);
         let frame = self
             .state
             .advance(&self.params.template, straight, sample_rate);

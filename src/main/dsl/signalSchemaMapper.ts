@@ -7,7 +7,7 @@ export type SignalMapper = (
     map: (value: unknown, path: string) => unknown,
 ) => unknown;
 
-const SIGNAL_DEFS = new Set(['PolySignal', 'MonoSignal', 'Signal']);
+const SIGNAL_DEFS = new Set(['PolySignal', 'LaneSum', 'Signal']);
 
 /** Deeper than any param schema nests signals; also stops recursive defs. */
 const MAX_DEPTH = 6;
